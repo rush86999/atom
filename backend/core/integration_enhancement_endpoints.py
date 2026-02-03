@@ -399,8 +399,8 @@ async def get_integration_analytics(
             try:
                 exported = data_mapper.export_mapping(mapping_id)
                 mapping_complexity.append(len(exported["field_mappings"]))
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to export mapping {mapping_id}: {e}")
 
         # Bulk operations analytics
         bulk_stats = bulk_processor.get_performance_stats()

@@ -184,16 +184,16 @@ async def get_tasks(platform: str = Query("all")):
                     if asana_task.get("due_on"):
                         try:
                             due_date = datetime.fromisoformat(asana_task["due_on"] + "T00:00:00")
-                        except:
-                            pass
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"Failed to parse due_date: {e}")
                     
                     created_at = datetime.now()
                     if asana_task.get("created_at"):
                         try:
                             created_str = asana_task["created_at"].replace("Z", "+00:00")
                             created_at = datetime.fromisoformat(created_str)
-                        except:
-                            pass
+                        except (ValueError, TypeError) as e:
+                            logger.debug(f"Failed to parse created_at: {e}")
                     
                     asana_tasks.append(Task(
                         id=asana_task.get("gid"),
@@ -267,8 +267,8 @@ async def create_task(task_data: CreateTaskRequest, current_user: Any = Depends(
                         # Remove milliseconds and Z for parsing
                         created_str = asana_task["created_at"].replace("Z", "+00:00")
                         created_at = datetime.fromisoformat(created_str)
-                    except:
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Failed to parse created_at: {e}")
 
                 created_task = Task(
                     id=asana_task.get("gid"),

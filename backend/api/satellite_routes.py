@@ -1,4 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
+from sqlalchemy.orm import Session
 from core.satellite_service import satellite_service
 from core.security import verify_api_key_ws
 from core.database import get_db, SessionLocal
@@ -23,8 +24,8 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
             await websocket.close(code=1008, reason="Missing API Key")
             return
 
-        db = SessionLocal()
-        try:
+        # Use context manager for WebSocket endpoints (can't use Depends)
+        with SessionLocal() as db:
             workspace = db.query(Workspace).filter(Workspace.satellite_api_key == api_key).first()
             if not workspace:
                 # Fallback for sk- prefix if no keys generated yet (migration path)
@@ -35,8 +36,6 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
                     return
             else:
                 tenant_id = workspace.id
-        finally:
-            db.close()
 
         # 2. Accept & Register
         await satellite_service.connect(websocket, tenant_id)
@@ -60,7 +59,7 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
 @router.get("/api/satellite/key")
 async def get_satellite_key(
     current_user = Depends(get_current_user),
-    db: SessionLocal = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """Retrieve the current Satellite API key for the workspace."""
     # Single-tenant: just get the first workspace
@@ -80,7 +79,7 @@ async def get_satellite_key(
 @router.post("/api/satellite/rotate")
 async def rotate_satellite_key(
     current_user = Depends(get_current_user),
-    db: SessionLocal = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """Regenerate the Satellite API key."""
     workspace = db.query(Workspace).first()

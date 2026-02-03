@@ -4,6 +4,7 @@ Memory Routes - API endpoints for memory storage and retrieval
 import logging
 from typing import Any, Dict, Optional, List
 from datetime import datetime
+import os
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -11,6 +12,10 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Governance feature flags
+MEMORY_GOVERNANCE_ENABLED = os.getenv("MEMORY_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # Pydantic Models
 class MemoryStoreRequest(BaseModel):
@@ -57,18 +62,75 @@ async def get_context(session_id: str):
     )
 
 @router.post("/context/{session_id}")
-async def update_context(session_id: str, context: Dict[str, Any]):
-    """Update context for a session"""
+async def update_context(session_id: str, context: Dict[str, Any], agent_id: Optional[str] = None):
+    """
+    Update context for a session.
+
+    **Governance**: Requires INTERN+ maturity for context modification.
+    """
+    # Governance check for context modification
+    if MEMORY_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="update_context",
+                resource_type="memory_context",
+                complexity=2  # MODERATE - context modification
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for update_context by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     _context_store[session_id] = {
         **_context_store.get(session_id, {}),
         **context,
         "_updated_at": datetime.now().isoformat()
     }
+    logger.info(f"Context updated for session {session_id} by agent {agent_id or 'system'}")
     return {"message": "Context updated", "session_id": session_id}
 
 @router.post("", response_model=MemoryResponse)
-async def store_memory(request: MemoryStoreRequest):
-    """Store a memory entry"""
+async def store_memory(request: MemoryStoreRequest, agent_id: Optional[str] = None):
+    """
+    Store a memory entry.
+
+    **Governance**: Requires INTERN+ maturity for memory storage.
+    """
+    # Governance check for memory storage
+    if MEMORY_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="store_memory",
+                resource_type="memory",
+                complexity=2  # MODERATE - data storage
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for store_memory by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     try:
         entry = {
             "key": request.key,
@@ -77,7 +139,10 @@ async def store_memory(request: MemoryStoreRequest):
             "timestamp": datetime.now().isoformat()
         }
         _memory_store[request.key] = entry
+        logger.info(f"Memory stored: {request.key} by agent {agent_id or 'system'}")
         return MemoryResponse(**entry)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to store memory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -91,9 +156,39 @@ async def retrieve_memory(key: str):
     return MemoryResponse(**_memory_store[key])
 
 @router.delete("/{key}")
-async def delete_memory(key: str):
-    """Delete a memory entry"""
+async def delete_memory(key: str, agent_id: Optional[str] = None):
+    """
+    Delete a memory entry.
+
+    **Governance**: Requires SUPERVISED+ maturity for memory deletion.
+    """
+    # Governance check for memory deletion
+    if MEMORY_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="delete_memory",
+                resource_type="memory",
+                complexity=3  # HIGH - data deletion
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for delete_memory by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     if key not in _memory_store:
         raise HTTPException(status_code=404, detail=f"Memory key '{key}' not found")
+
     del _memory_store[key]
+    logger.info(f"Memory deleted: {key} by agent {agent_id or 'system'}")
     return {"message": f"Memory key '{key}' deleted"}

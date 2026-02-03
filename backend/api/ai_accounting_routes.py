@@ -2,11 +2,14 @@
 AI Accounting API Routes - Phase 39
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from datetime import datetime
+from sqlalchemy.orm import Session
 import logging
+
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -176,33 +179,30 @@ async def get_audit_log(transaction_id: Optional[str] = None):
 # ==================== DASHBOARD SYNC ====================
 
 @router.get("/dashboard/summary")
-async def get_accounting_dashboard_summary():
+async def get_accounting_dashboard_summary(
+    db: Session = Depends(get_db)
+):
     """
     Fetch aggregated finance stats from Postgres Cache (Sync Strategy).
     Aggregates data from Stripe, Xero, etc.
     """
     try:
-        from core.database import SessionLocal
         from saas.models import IntegrationMetric
-        
-        db = SessionLocal()
-        
+
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(
             IntegrationMetric.workspace_id == "default",
             IntegrationMetric.metric_key.in_(["total_revenue", "pending_revenue", "gross_profit"])
         ).all()
-        
+
         total_revenue = 0.0
         pending_revenue = 0.0
-        
+
         for m in metrics:
             if m.metric_key == "total_revenue":
                 total_revenue += float(m.value) if m.value else 0.0
             elif m.metric_key == "pending_revenue":
                 pending_revenue += float(m.value) if m.value else 0.0
-                
-        db.close()
         
         return {
             "total_revenue": total_revenue,

@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, Optional, List
 from datetime import datetime
 import uuid
+import os
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
@@ -12,6 +13,10 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Governance feature flags
+DOCUMENT_GOVERNANCE_ENABLED = os.getenv("DOCUMENT_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # In-memory document store (would use LanceDB/vector store in production)
 _document_store: Dict[str, Dict[str, Any]] = {}
@@ -45,20 +50,48 @@ class SearchResponse(BaseModel):
     timestamp: str
 
 @router.post("/ingest", response_model=DocumentResponse)
-async def ingest_document(request: DocumentIngestRequest):
-    """Ingest a document for RAG/search"""
+async def ingest_document(request: DocumentIngestRequest, agent_id: Optional[str] = None):
+    """
+    Ingest a document for RAG/search.
+
+    **Governance**: Requires INTERN+ maturity for document ingestion.
+    """
+    # Governance check for document ingestion
+    if DOCUMENT_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="ingest_document",
+                resource_type="document",
+                complexity=2  # MODERATE - data ingestion
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for ingest_document by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     try:
         doc_id = str(uuid.uuid4())
-        
+
         # Get content from request
         content = request.content or ""
         doc_type = request.type
         title = request.title or f"Document {doc_id[:8]}"
-        
+
         if not content:
             # Return a helpful message if no content
             content = "(Empty document)"
-        
+
         # Store document
         doc = {
             "id": doc_id,
@@ -70,7 +103,8 @@ async def ingest_document(request: DocumentIngestRequest):
             "chunk_count": max(1, len(content) // 500)  # Simple chunking estimate
         }
         _document_store[doc_id] = doc
-        
+
+        logger.info(f"Document ingested: {doc_id} by agent {agent_id or 'system'}")
         return DocumentResponse(
             id=doc_id,
             title=title,
@@ -79,6 +113,8 @@ async def ingest_document(request: DocumentIngestRequest):
             ingested_at=doc["ingested_at"],
             chunk_count=doc["chunk_count"]
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -128,11 +164,41 @@ async def get_document(doc_id: str):
     }
 
 @router.delete("/{doc_id}")
-async def delete_document(doc_id: str):
-    """Delete a document"""
+async def delete_document(doc_id: str, agent_id: Optional[str] = None):
+    """
+    Delete a document.
+
+    **Governance**: Requires SUPERVISED+ maturity for document deletion.
+    """
+    # Governance check for document deletion
+    if DOCUMENT_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db
+
+        db = next(get_db())
+        try:
+            governance = AgentGovernanceService(db)
+            check = governance.can_perform_action(
+                agent_id=agent_id,
+                action="delete_document",
+                resource_type="document",
+                complexity=3  # HIGH - data deletion
+            )
+
+            if not check["allowed"]:
+                logger.warning(f"Governance check failed for delete_document by agent {agent_id}: {check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Governance check failed: {check['reason']}"
+                )
+        finally:
+            db.close()
+
     if doc_id not in _document_store:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
     del _document_store[doc_id]
+    logger.info(f"Document deleted: {doc_id} by agent {agent_id or 'system'}")
     return {"message": f"Document '{doc_id}' deleted"}
 
 @router.get("")

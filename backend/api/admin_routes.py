@@ -7,12 +7,19 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict
 from datetime import datetime
+import os
+import logging
 
 from core.database import get_db
 from core.models import User, AdminUser, AdminRole
 from core.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
+logger = logging.getLogger(__name__)
+
+# Governance feature flags
+ADMIN_GOVERNANCE_ENABLED = os.getenv("ADMIN_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 async def require_super_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -178,14 +185,36 @@ async def get_admin_user(
 async def create_admin_user(
     request: CreateAdminUserRequest,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Create a new admin user
 
     Creates a new admin user with the specified role.
     Requires super_admin role.
+
+    **Governance**: Agent-based creation requires AUTONOMOUS maturity.
     """
+    # Governance check for agent-based admin user creation
+    if ADMIN_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+
+        governance = AgentGovernanceService(db)
+        check = governance.can_perform_action(
+            agent_id=agent_id,
+            action="create_admin_user",
+            resource_type="admin_user",
+            complexity=4  # CRITICAL - admin user creation
+        )
+
+        if not check["allowed"]:
+            logger.warning(f"Governance check failed for create_admin_user by agent {agent_id}: {check['reason']}")
+            raise HTTPException(
+                status_code=403,
+                detail=f"Governance check failed: {check['reason']}"
+            )
+
     # Check if role exists
     role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
     if not role:
@@ -218,6 +247,7 @@ async def create_admin_user(
     db.commit()
     db.refresh(admin)
 
+    logger.info(f"Admin user created: {admin.id} by {current_admin.id} (agent: {agent_id or 'N/A'})")
     return AdminUserResponse(
         id=admin.id,
         email=admin.email,
@@ -283,14 +313,36 @@ async def update_admin_user(
 async def delete_admin_user(
     admin_id: str,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Delete admin user
 
     Permanently deletes an admin user.
     Requires super_admin role.
+
+    **Governance**: Agent-based deletion requires AUTONOMOUS maturity.
     """
+    # Governance check for agent-based admin user deletion
+    if ADMIN_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        from core.agent_governance_service import AgentGovernanceService
+
+        governance = AgentGovernanceService(db)
+        check = governance.can_perform_action(
+            agent_id=agent_id,
+            action="delete_admin_user",
+            resource_type="admin_user",
+            complexity=4  # CRITICAL - admin user deletion
+        )
+
+        if not check["allowed"]:
+            logger.warning(f"Governance check failed for delete_admin_user by agent {agent_id}: {check['reason']}")
+            raise HTTPException(
+                status_code=403,
+                detail=f"Governance check failed: {check['reason']}"
+            )
+
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
@@ -299,9 +351,11 @@ async def delete_admin_user(
             detail="Admin user not found"
         )
 
+    deleted_email = admin.email
     db.delete(admin)
     db.commit()
 
+    logger.info(f"Admin user deleted: {admin_id} ({deleted_email}) by {current_admin.id} (agent: {agent_id or 'N/A'})")
     return DeleteAdminUserResponse(message="Admin user deleted successfully")
 
 

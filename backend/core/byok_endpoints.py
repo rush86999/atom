@@ -881,8 +881,8 @@ async def optimize_pdf_processing(
                     "estimated_cost": estimated_tokens * hq_provider.cost_per_token,
                     "recommended_for": "Complex PDFs with images and diagrams",
                 }
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to get high quality provider: {e}", exc_info=True)
 
         # Cost-effective scenario
         try:
@@ -897,8 +897,8 @@ async def optimize_pdf_processing(
                     "estimated_cost": estimated_tokens * ce_provider.cost_per_token,
                     "recommended_for": "Simple OCR tasks on scanned documents",
                 }
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to get cost-effective provider: {e}", exc_info=True)
 
         return {
             "success": True,
