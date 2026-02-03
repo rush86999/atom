@@ -86,15 +86,21 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     if env_token:
         return env_token
 
-    # Return a placeholder that would be replaced by real token
-    # This allows the validator to pass without full auth setup
-    # In production, this should raise NotImplementedError
-    if os.getenv("ENVIRONMENT") == "production":
-        raise NotImplementedError(
-            "Asana access token not found. Please provide ASANA_ACCESS_TOKEN environment variable "
-            "or implement proper OAuth token storage."
+    # 3. No token found - raise proper error
+    environment = os.getenv("ENVIRONMENT", "development")
+    if environment == "production":
+        raise HTTPException(
+            status_code=401,
+            detail="Asana access token not found. Please provide ASANA_ACCESS_TOKEN environment variable "
+            "or complete OAuth authentication to connect your Asana account."
         )
-    return "mock_access_token_placeholder"
+    else:
+        # In development, provide a more helpful error message
+        raise HTTPException(
+            status_code=401,
+            detail="Asana access token not found. Please set ASANA_ACCESS_TOKEN environment variable, "
+            "or complete OAuth flow at POST /api/asana/auth/token to connect your Asana account."
+        )
 
 @router.post("/auth/token")
 async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(None, embed=True)):
@@ -106,20 +112,26 @@ async def set_access_token(token: str = Body(..., embed=True), user_id: str = Bo
 @router.get("/health")
 async def asana_health(access_token: str = Depends(get_access_token)):
     """Check Asana API connectivity"""
-    # Allow health check to pass with placeholder token (for validator)
-    if access_token == "mock_access_token_placeholder":
+    try:
+        result = await asana_service.health_check(access_token)
+        if not result["ok"]:
+            raise HTTPException(status_code=503, detail=result["error"])
         return {
+            "success": True,
             "ok": True,
             "service": "asana",
             "status": "connected",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "note": "Health check passed (unauthenticated)"
+            **result
         }
-        
-    result = await asana_service.health_check(access_token)
-    if not result["ok"]:
-        raise HTTPException(status_code=503, detail=result["error"])
-    return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Asana health check failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Asana health check failed: {str(e)}"
+        )
 
 
 @router.get("/user/profile")

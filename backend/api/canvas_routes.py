@@ -190,7 +190,7 @@ async def submit_form(
                 logger.error(f"Failed to mark submission execution as completed: {completion_error}")
 
         return {
-            "status": "success",
+            "success": True,
             "submission_id": audit.id,
             "message": "Form submitted successfully",
             "agent_execution_id": submission_execution.id if submission_execution else None,

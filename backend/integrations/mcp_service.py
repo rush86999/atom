@@ -806,44 +806,17 @@ class MCPService:
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool by name, dynamically resolving the server_id."""
+        # 1. Check hardcoded internal servers
         for server_id in ["google-search", "local-tools"]:
             tools = await self.get_server_tools(server_id)
             if any(t["name"] == tool_name for t in tools):
-                if server_id == "google-search":
-                    # ... (existing google logic) ...
-                    # Re-implementing simplified logic just for the patch context if needed, 
-                    # but since we are inside call_tool, we just need to add the elif block for local-tools
-                    pass 
-
-                if tool_name == "run_local_terminal":
-                    from core.satellite_service import SatelliteNotConnectedError, SatelliteService
-
-                    # Get tenant_id from context/auth (Assuming single tenant for now or passed in context)
-                    # For now, broadcast or pick first active?
-                    # The service handles specific tenant routing if we pass it.
-                    # We need the user's tenant_id which might be in context.
-                    # If context is missing, we might fail.
-                    # Simplification: The SatelliteService needs a tenant_id to route to.
-                    # We'll assume the context has 'user' or 'tenant_id'.
-                    tenant_id = context.get('tenant_id') if context else 'default'
-                    
-                    logger.info(f"Executing local terminal command for tenant {tenant_id}: {arguments.get('command')}")
-                    service = SatelliteService()
-                    return await service.execute_command(
-                        tenant_id=tenant_id,
-                        command=arguments.get('command'),
-                        cwd=arguments.get('cwd'),
-                        wait_for_output=arguments.get('wait_for_output', True)
-                    )
-            tools = await self.get_server_tools(server_id)
-            if any(t["name"] == tool_name for t in tools):
                 return await self.execute_tool(server_id, tool_name, arguments, context)
-        
+
         # 2. Look in dynamic MCP servers
         for server_id, server_info in self.active_servers.items():
             if any(t["name"] == tool_name for t in server_info.get("tools", [])):
                 return await self.execute_tool(server_id, tool_name, arguments, context)
-        
+
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
     async def _check_hitl_policy(self, tool_name: str, arguments: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
