@@ -7,7 +7,7 @@ import hashlib
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import UserConnection
 from cryptography.fernet import Fernet
 from core.config import get_config
@@ -49,8 +49,8 @@ class ConnectionService:
         if isinstance(encrypted_data, str) and encrypted_data.startswith('{'):
             try:
                 return json.loads(encrypted_data)
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to parse plain-text credentials: {e}")
         
         try:
             f = self._get_fernet()
@@ -64,7 +64,7 @@ class ConnectionService:
         """
         List connections for a user, optionally filtered by integration.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             query = db.query(UserConnection).filter(UserConnection.user_id == user_id)
             if integration_id:
@@ -90,7 +90,7 @@ class ConnectionService:
         Saves or updates a user connection.
         Calculates expires_at if possible and encrypts credentials.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             # Check for existing connection for this user and integration
             conn = db.query(UserConnection).filter(
@@ -104,8 +104,8 @@ class ConnectionService:
             if expires_in:
                 try:
                     expires_at = datetime.now() + timedelta(seconds=int(expires_in))
-                except:
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Failed to parse expires_in: {e}")
 
             encrypted_creds = self._encrypt(credentials)
 
@@ -141,7 +141,7 @@ class ConnectionService:
         Retrieves the credentials for a connection.
         Ensures user owns the connection and refreshes token if needed.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             conn = db.query(UserConnection).filter(
                 UserConnection.id == connection_id,
@@ -224,7 +224,7 @@ class ConnectionService:
                 else:
                     logger.error(f"Refresh failed for {conn.integration_id}: {resp.text}")
                     # Update status to error/expired
-                    db = SessionLocal()
+                    with get_db_session() as db:
                     conn_to_update = db.query(UserConnection).get(conn.id)
                     if conn_to_update:
                         conn_to_update.status = "error"
@@ -236,7 +236,7 @@ class ConnectionService:
         return None
 
     def update_connection_name(self, connection_id: str, user_id: str, new_name: str) -> bool:
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             conn = db.query(UserConnection).filter(
                 UserConnection.id == connection_id,
@@ -252,7 +252,7 @@ class ConnectionService:
             db.close()
 
     def delete_connection(self, connection_id: str, user_id: str) -> bool:
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             conn = db.query(UserConnection).filter(
                 UserConnection.id == connection_id,

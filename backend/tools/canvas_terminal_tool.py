@@ -16,12 +16,12 @@ async def present_terminal_canvas(
 
     Creates a terminal interface for command execution.
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.canvas_terminal_service import TerminalCanvasService
     from tools.canvas_tool import present_specialized_canvas
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = TerminalCanvasService(db)
 
             result = service.create_terminal_canvas(

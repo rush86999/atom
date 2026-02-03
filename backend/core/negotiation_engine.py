@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 from sales.models import Deal, NegotiationState
-from core.database import SessionLocal
+from core.database import get_db_session
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class NegotiationStateMachine:
         Calculates and updates the next state for a deal based on AI signals.
         Signals: list of intents (e.g., ['upsell_inquiry', 'meeting_request'])
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             deal = db.query(Deal).filter(Deal.id == deal_id).first()
             if not deal:
@@ -74,7 +74,7 @@ class NegotiationStateMachine:
         """
         Returns a customized system prompt for the AI based on the current negotiation state.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             deal = db.query(Deal).filter(Deal.id == deal_id).first()
             state = deal.negotiation_state if deal else NegotiationState.INITIAL

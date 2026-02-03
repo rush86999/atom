@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from service_delivery.models import Appointment, AppointmentStatus, ProjectTask
 from accounting.models import Invoice, InvoiceStatus, Entity
 from ecommerce.models import EcommerceOrder
@@ -21,7 +21,7 @@ class AutoInvoicer:
         """
         Creates an invoice for a completed appointment.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
             if not appt:
@@ -72,7 +72,7 @@ class AutoInvoicer:
         """
         Creates an invoice for a pending ecommerce order.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             order = db.query(EcommerceOrder).filter(EcommerceOrder.id == order_id).first()
             if not order:
@@ -135,7 +135,7 @@ class AutoInvoicer:
         """
         from service_delivery.models import Project, Milestone
 
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Get task with relationships
             task = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()

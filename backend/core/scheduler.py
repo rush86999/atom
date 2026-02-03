@@ -7,7 +7,7 @@ import uuid
 import datetime
 import json
 
-from core.database import SessionLocal, engine
+from core.database import get_db_session, engine
 from core.models import AgentJob, AgentJobStatus, AgentRegistry
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class AgentScheduler:
         """
         Execution wrapper that creates AgentJob record.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         job_record = AgentJob(
             id=str(uuid.uuid4()),
             agent_id=agent_id,
@@ -130,11 +130,11 @@ class AgentScheduler:
         """
         # 1. Define the execution wrapper
         async def run_agent_wrapper():
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import AgentRegistry
             from core.generic_agent import GenericAgent
             
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                 if agent_model:
@@ -158,7 +158,7 @@ class AgentScheduler:
         """
         Load all agents with active schedules from DB.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             agents = db.query(AgentRegistry).all() # In prod, filter by active schedule
             count = 0

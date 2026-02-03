@@ -168,8 +168,8 @@ class LocalOCRService:
                 # Clean up temp image
                 try:
                     os.unlink(img_path)
-                except:
-                    pass
+                except OSError as e:
+                    logger.debug(f"Failed to delete temp image {img_path}: {e}")
             
             return {
                 "success": True,

@@ -1,7 +1,7 @@
 import logging
 import asyncio
 from typing import List
-from core.database import SessionLocal
+from core.database import get_db_session
 from sales.models import Deal, DealStage
 from core.pm_orchestrator import pm_orchestrator
 
@@ -23,7 +23,7 @@ class CRMEventBridge:
         logger.info("Scanning for newly CLOSED_WON deals...")
         
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # Find deals that are CLOSED_WON
                 new_deals = db.query(Deal).filter(
                     Deal.stage == DealStage.CLOSED_WON

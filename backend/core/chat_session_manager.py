@@ -16,7 +16,7 @@ from sqlalchemy import desc
 
 # Conditional Import to avoid circular dependencies if simple script
 try:
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.models import ChatSession, ChatMessage
     DB_AVAILABLE = True
 except ImportError:
@@ -49,7 +49,7 @@ class ChatSessionManager:
             
             # Verify connection
             try:
-                db = SessionLocal()
+                with get_db_session() as db:
                 db.execute("SELECT 1")
                 db.close()
                 self.use_db = True
@@ -93,7 +93,7 @@ class ChatSessionManager:
         """Load sessions from DB if available, else file"""
         if self.use_db:
              # Warning: This loads ALL sessions. Use carefully.
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 sessions = db.query(ChatSession).all()
                 return [{
@@ -139,7 +139,7 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 new_session = ChatSession(
                     id=session_id,
@@ -187,7 +187,7 @@ class ChatSessionManager:
         """Get session by ID"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                 if session:
@@ -235,7 +235,7 @@ class ChatSessionManager:
         """Update session's last_active timestamp and history"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                 if session:
@@ -294,7 +294,7 @@ class ChatSessionManager:
         """List all sessions for a user (most recent first)"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 # Query DB
                 sessions = db.query(ChatSession)\
@@ -365,7 +365,7 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                 if session:
@@ -393,7 +393,7 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
                 if session:

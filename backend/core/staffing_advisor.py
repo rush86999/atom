@@ -1,7 +1,7 @@
 import logging
 import json
 from typing import Dict, Any, List, Optional
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User
 from core.resource_manager import resource_monitor
 from core.ai_service import get_ai_service
@@ -27,7 +27,7 @@ class StaffingAdvisor:
 
         # 2. Match Users
         recommendations = []
-        with SessionLocal() as db:
+        with get_db_session() as db:
             # Fetch all active users in workspace with skills
             users = db.query(User).filter(
                 User.workspace_id == workspace_id,
@@ -40,7 +40,8 @@ class StaffingAdvisor:
                 try:
                     user_skills = json.loads(user.skills) if user.skills.startswith('[') else user.skills.split(',')
                     user_skills = [s.strip().lower() for s in user_skills]
-                except:
+                except Exception as e:
+                    logger.warning(f"Failed to parse user skills for {user.id}: {e}")
                     user_skills = [user.skills.lower()]
 
                 # Calculate match score

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 
-from core.database import SessionLocal
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ class UptimeTracker:
         """
         close_db = False
         if db is None:
-            db = SessionLocal()
+            with get_db_session() as db:
             close_db = True
 
         try:

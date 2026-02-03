@@ -94,9 +94,9 @@ class AITriggerCoordinator:
         
         try:
             from core.user_preference_service import UserPreferenceService
-            from core.database import SessionLocal
+            from core.database import get_db_session
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 service = UserPreferenceService(db)
                 pref = service.get_preference(
                     user_id=self.user_id or "system",

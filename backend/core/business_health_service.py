@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from core.database import SessionLocal
+from core.database import get_db_session
 from sales.models import Lead, Deal
 from ecommerce.models import EcommerceOrder
 from marketing.models import AdSpendEntry
@@ -25,7 +25,7 @@ class BusinessHealthService:
 
     @property
     def db(self):
-        return self._db or SessionLocal()
+        return self._db or get_db_session()
 
     async def get_daily_priorities(self, workspace_id: str) -> Dict[str, Any]:
         """

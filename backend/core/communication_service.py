@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import BackgroundTasks
 
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import User, AgentExecution, UserIdentity
 from core.agent_world_model import WorldModelService
 from core.notification_manager import notification_manager
@@ -97,7 +97,7 @@ class CommunicationService:
             return {"status": "ignored", "reason": "empty_content"}
 
         # 1. Resolve User and Workspace
-        db = SessionLocal()
+        with get_db_session() as db:
         user = None
         workspace_id = "default"
         

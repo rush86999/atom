@@ -212,7 +212,8 @@ class BYOKCostOptimizer:
                 task_type,
                 budget_constraint=user_pattern.monthly_budget / 30 if user_pattern.monthly_budget else None
             )
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get optimal provider: {e}", exc_info=True)
             current_provider = "openai"  # Fallback
 
         # Analyze all providers for this task

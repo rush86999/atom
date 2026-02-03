@@ -343,5 +343,6 @@ def is_ollama_available() -> bool:
         client = ollama.Client()
         models = client.list()
         return len(models.get('models', [])) > 0
-    except:
+    except Exception as e:
+        logger.debug(f"Ollama not available: {e}")
         return False

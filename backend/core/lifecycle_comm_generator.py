@@ -2,7 +2,7 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from core.byok_endpoints import get_byok_manager
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import BusinessRule
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class LifecycleCommGenerator:
         # Fetch relevant business rules if workspace_id is provided
         rules_context = ""
         if workspace_id:
-            db = SessionLocal()
+            with get_db_session() as db:
             try:
                 rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
                 if rules:

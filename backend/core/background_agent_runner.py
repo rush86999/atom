@@ -145,13 +145,13 @@ class BackgroundAgentRunner:
                 # Phase 35: Inject Context particularly user_id if we can determine it
                 # For background runners, they usually run as 'system' or 'owner'
                 # We can check if agent has an owner in DB
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.models import AgentRegistry
                 
                 context = {"agent_id": agent_id}
                 
                 try:
-                    db = SessionLocal()
+                    with get_db_session() as db:
                     agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                     if agent_record and agent_record.user_id:
                         context["user_id"] = agent_record.user_id

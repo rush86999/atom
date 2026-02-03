@@ -17,12 +17,12 @@ async def present_orchestration_canvas(
 
     Creates a multi-app workflow orchestration deck.
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     from core.canvas_orchestration_service import OrchestrationCanvasService
     from tools.canvas_tool import present_specialized_canvas
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             service = OrchestrationCanvasService(db)
 
             result = service.create_orchestration_canvas(

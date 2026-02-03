@@ -33,10 +33,10 @@ class UniversalWebhookBridge:
         """Look up agent ID by name (Registry or Template)"""
         try:
             from core.models import AgentRegistry
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.atom_meta_agent import SpecialtyAgentTemplate
             
-            db = SessionLocal()
+            with get_db_session() as db:
             # Try exact match first
             agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(name)).first()
             if agent:
@@ -445,10 +445,10 @@ class UniversalWebhookBridge:
         elif command == "agents":
             try:
                 from core.models import AgentRegistry
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.atom_meta_agent import SpecialtyAgentTemplate
                 
-                db = SessionLocal()
+                with get_db_session() as db:
                 db_agents = db.query(AgentRegistry).all()
                 db.close()
                 

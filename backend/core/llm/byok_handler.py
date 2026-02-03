@@ -486,11 +486,11 @@ class BYOKHandler:
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
             
-            db = SessionLocal()
+            with get_db_session() as db:
             tenant_plan = "free"
             is_managed = True
             
@@ -733,11 +733,11 @@ class BYOKHandler:
                 return None
             
             # Get tenant plan and determine BYOK vs managed
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
             
-            db = SessionLocal()
+            with get_db_session() as db:
             tenant_plan = "free"
             is_managed = True
             

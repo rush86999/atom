@@ -5,7 +5,7 @@ import httpx
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from fastapi import HTTPException
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.connection_service import connection_service
 from core.models import IngestedDocument, IntegrationMetric
 
@@ -149,7 +149,7 @@ class ZohoWorkDriveService:
             if not files:
                 return {"success": True, "files_synced": 0}
             
-            db = SessionLocal()
+            with get_db_session() as db:
             synced_count = 0
             try:
                 for f in files:
@@ -214,7 +214,7 @@ class ZohoWorkDriveService:
             # Count by type
             docs_count = sum(1 for f in files if f.get("type") == "files")
             
-            db = SessionLocal()
+            with get_db_session() as db:
             metrics_synced = 0
             try:
                 metrics_to_save = [

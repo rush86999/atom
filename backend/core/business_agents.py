@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import Workspace, AgentJob, AgentJobStatus
 from integrations.ai_enhanced_service import ai_enhanced_service, AITaskType
 from integrations.mcp_service import mcp_service
@@ -46,7 +46,7 @@ class AccountingAgent(BusinessAgent):
 
     async def run(self, workspace_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         logger.info(f"Running Accounting Agent for workspace {workspace_id}")
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             # 1. Fetch unapproved transactions (Mocking interaction with APService/Ledger)
             # In a real scenario, we'd query the ledger for pending entries.
