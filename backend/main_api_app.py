@@ -455,6 +455,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load Sales routes: {e}")
 
+    # Episodic Memory & Graduation Routes (NEW)
+    try:
+        from api.episode_routes import router as episode_router
+        app.include_router(episode_router)  # Prefix defined in router (/api/episodes)
+        logger.info("✓ Episodic Memory & Graduation Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Episodic Memory routes: {e}")
+
     try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])

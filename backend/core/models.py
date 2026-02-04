@@ -3146,3 +3146,157 @@ class RevokedToken(Base):
         Index('ix_revoked_tokens_expires', 'expires_at'),
         Index('ix_revoked_tokens_user', 'user_id', 'revoked_at'),
     )
+
+# ============================================================================
+# EPISODIC MEMORY MODELS
+# ============================================================================
+
+class Episode(Base):
+    """
+    Episodic memory container for agent interactions.
+
+    Stores coherent segments of agent activity (episodes) with metadata
+    for retrieval, governance, and graduation validation.
+    """
+    __tablename__ = "episodes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Core identity
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+
+    # Attribution
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+
+    # Relationships
+    session_id = Column(String, nullable=True, index=True)  # Links to ChatSession
+    execution_ids = Column(JSON, default=list)  # List of AgentExecution IDs
+
+    # Boundaries
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+
+    # State
+    status = Column(String, default="active", nullable=False, index=True)  # active, completed, archived, consolidated
+
+    # Content
+    topics = Column(JSON, default=list)  # Extracted topics
+    entities = Column(JSON, default=list)  # Named entities
+    importance_score = Column(Float, default=0.5, index=True)  # 0.0 to 1.0
+
+    # Graduation tracking fields
+    maturity_at_time = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    human_intervention_count = Column(Integer, default=0, nullable=False)
+    human_edits = Column(JSON, default=list)  # List of corrections made
+    constitutional_score = Column(Float, nullable=True)  # 0.0 to 1.0
+    world_model_state = Column(String, nullable=True)  # Version identifier
+
+    # Lifecycle
+    decay_score = Column(Float, default=1.0)  # 0.0 to 1.0, decays over time
+    access_count = Column(Integer, default=0, nullable=False)
+    consolidated_into = Column(String, ForeignKey("episodes.id"), nullable=True)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="episodes")
+    segments = relationship("EpisodeSegment", backref="episode", cascade="all, delete-orphan")
+    access_logs = relationship("EpisodeAccessLog", backref="episode", cascade="all, delete-orphan")
+    consolidated_episodes = relationship("Episode", remote_side=[id], backref="consolidated_children")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_episodes_agent', 'agent_id'),
+        Index('ix_episodes_user', 'user_id'),
+        Index('ix_episodes_workspace', 'workspace_id'),
+        Index('ix_episodes_session', 'session_id'),
+        Index('ix_episodes_status', 'status'),
+        Index('ix_episodes_started_at', 'started_at'),
+        Index('ix_episodes_maturity', 'maturity_at_time'),
+        Index('ix_episodes_importance', 'importance_score'),
+    )
+
+
+class EpisodeSegment(Base):
+    """
+    Individual segments within an episode.
+
+    Episodes are composed of multiple segments (conversations, executions, reflections)
+    that are ordered sequentially to reconstruct the full episode context.
+    """
+    __tablename__ = "episode_segments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Segment details
+    segment_type = Column(String, nullable=False, index=True)  # conversation, execution, reflection
+    sequence_order = Column(Integer, nullable=False)  # For ordering within episode
+
+    # Content
+    content = Column(Text, nullable=False)
+    content_summary = Column(Text, nullable=True)  # Shortened version for display
+
+    # Source tracking
+    source_type = Column(String, nullable=False)  # chat_message, agent_execution, manual
+    source_id = Column(String, nullable=True, index=True)  # ID of source object
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_episode_segments_episode', 'episode_id'),
+        Index('ix_episode_segments_sequence', 'sequence_order'),
+    )
+
+
+class EpisodeAccessLog(Base):
+    """
+    Audit trail for episode access.
+
+    Records all episode access operations for governance compliance
+    and audit trail requirements.
+    """
+    __tablename__ = "episode_access_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Access details
+    accessed_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    accessed_by_agent = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+
+    access_type = Column(String, nullable=False, index=True)  # temporal, semantic, sequential, contextual
+    retrieval_query = Column(Text, nullable=True)
+    retrieval_mode = Column(String, nullable=True)  # Specific mode used
+
+    # Governance
+    governance_check_passed = Column(Boolean, default=True, nullable=False)
+    agent_maturity_at_access = Column(String, nullable=True)
+
+    # Results
+    results_count = Column(Integer, default=0, nullable=False)
+    access_duration_ms = Column(Integer, nullable=True)
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[accessed_by])
+    agent = relationship("AgentRegistry", foreign_keys=[accessed_by_agent])
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_episode_access_logs_episode', 'episode_id'),
+        Index('ix_episode_access_logs_created_at', 'created_at'),
+        Index('ix_episode_access_logs_access_type', 'access_type'),
+    )
