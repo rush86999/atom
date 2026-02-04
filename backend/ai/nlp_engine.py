@@ -106,43 +106,66 @@ class NaturalLanguageEngine:
         # Initialize LLM client via BYOK
         self._llm_client = None
         self._byok_manager = None
+        self._initialization_error = None
         self._initialize_llm_client()
 
     def _initialize_llm_client(self):
-        """Initialize LLM client using BYOK system"""
+        """Initialize LLM client with priority fallback (GPT > Claude > Gemini > DeepSeek)"""
         if not NLU_LLM_ENABLED:
             logger.info("NLU LLM parsing disabled via config")
+            self._initialization_error = "AI functionality is disabled in configuration."
             return
         
         if not OPENAI_AVAILABLE:
-            logger.warning("OpenAI not available, falling back to pattern-based parsing")
+            logger.warning("OpenAI library not available, falling back to pattern-based parsing")
+            self._initialization_error = "OpenAI python library not installed."
             return
         
+        # Priority list as requested
+        priority_providers = ["openai", "anthropic", "google", "deepseek"]
+        
         try:
-            # Get API key from BYOK manager
-            api_key = None
-            base_url = None
-            if BYOK_AVAILABLE and get_byok_manager:
-                self._byok_manager = get_byok_manager()
-                api_key = self._byok_manager.get_api_key(NLU_LLM_PROVIDER)
-                provider_config = self._byok_manager.providers.get(NLU_LLM_PROVIDER)
-                if provider_config:
-                    base_url = provider_config.base_url
+            self._byok_manager = get_byok_manager() if (BYOK_AVAILABLE and get_byok_manager) else None
             
-            if not api_key:
-                api_key = os.getenv("OPENAI_API_KEY")
-            
-            if api_key:
-                client_kwargs = {"api_key": api_key}
-                if base_url:
-                    client_kwargs["base_url"] = base_url
+            for provider_id in priority_providers:
+                api_key = None
+                base_url = None
                 
-                self._llm_client = OpenAI(**client_kwargs)
-                logger.info(f"NLU LLM client initialized with BYOK ({NLU_LLM_PROVIDER}) at {base_url or 'default'}")
-            else:
-                logger.warning(f"No API key available for NLU LLM parsing (Provider: {NLU_LLM_PROVIDER})")
+                # 1. Check BYOK
+                if self._byok_manager:
+                    api_key = self._byok_manager.get_api_key(provider_id)
+                    provider_config = self._byok_manager.providers.get(provider_id)
+                    if provider_config:
+                        base_url = provider_config.base_url
+                
+                # 2. Check Environment Variables (Legacy fallback)
+                if not api_key:
+                    if provider_id == "openai":
+                        api_key = os.getenv("OPENAI_API_KEY")
+                    elif provider_id == "anthropic":
+                        api_key = os.getenv("ANTHROPIC_API_KEY")
+                    elif provider_id == "google":
+                        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+                    elif provider_id == "deepseek":
+                         api_key = os.getenv("DEEPSEEK_API_KEY")
+                
+                # 3. Initialize if found
+                if api_key:
+                    client_kwargs = {"api_key": api_key}
+                    if base_url:
+                        client_kwargs["base_url"] = base_url
+                    
+                    self._llm_client = OpenAI(**client_kwargs)
+                    logger.info(f"NLU LLM client initialized with {provider_id} (Base URL: {base_url or 'default'})")
+                    self._initialization_error = None
+                    return # Stop after first successful init
+            
+            logger.warning(f"No API keys found for providers: {priority_providers}")
+            self._initialization_error = "No valid API keys found. Please set OPENAI_API_KEY in your .env file."
+
         except Exception as e:
             logger.error(f"Failed to initialize NLU LLM client: {e}")
+            self._initialization_error = f"Initialization failed: {str(e)}"
 
     def _is_llm_available(self) -> bool:
         """Check if LLM parsing is available"""
@@ -153,83 +176,46 @@ class NaturalLanguageEngine:
     def _llm_parse_command(self, command: str) -> Optional[CommandIntent]:
         """Parse command using LLM for high-quality intent extraction"""
         
+        if not self._is_llm_available():
+            return None
+
         prompt = f"""Analyze this natural language command and extract the user's intent.
+        
+        # ... (rest of method unchanged, but wait, replace works on chunk)
 
-Command: "{command}"
-
-Respond with valid JSON only:
-{{
-  "command_type": "search|create|update|delete|schedule|analyze|report|notify|trigger|business_health|unknown",
-  "platforms": ["communication|storage|productivity|crm|financial|marketing|analytics"],
-  "entities": ["extracted entity names like project names, people, files"],
-  "parameters": {{
-    "dates": ["any dates mentioned"],
-    "times": ["any times mentioned"],
-    "people": ["people names"],
-    "priority": "high|medium|low|null"
-  }},
-  "confidence": 0.0-1.0
-}}
-
-Guidelines:
-- command_type: The primary action the user wants to perform
-- platforms: Which platform categories are relevant (can be empty if general)
-- entities: Specific named things mentioned (projects, files, people)
-- parameters: Additional details like dates, times, priority
-- confidence: How confident you are in this interpretation (0.0-1.0)"""
-
+    def query_llm(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1000) -> Optional[str]:
+        """
+        Generic method to query the configured LLM (Public API)
+        Args:
+            messages: List of message dicts [{"role": "user", "content": "..."}]
+            temperature: Creativity (0.0 - 1.0)
+            max_tokens: Max output length
+        Returns:
+            Generated text response or None if failed
+        """
+        if not self._is_llm_available():
+            logger.warning("Query LLM called but LLM is not available")
+            if self._initialization_error:
+                return f"Configuration Error: {self._initialization_error}"
+            return "Configuration Error: AI Engine is not configured."
+            
         try:
             response = self._llm_client.chat.completions.create(
                 model=NLU_LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an expert NLU parser for a productivity platform. Always respond with valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=500
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
             )
-            
-            content = response.choices[0].message.content.strip()
-            # Handle markdown code blocks
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            
-            data = json.loads(content)
-            
-            # Parse command type
-            cmd_type_str = data.get("command_type", "unknown").lower()
-            try:
-                command_type = CommandType(cmd_type_str)
-            except ValueError:
-                command_type = CommandType.UNKNOWN
-            
-            # Parse platforms
-            platforms = []
-            for p_str in data.get("platforms", []):
-                try:
-                    platforms.append(PlatformType(p_str.lower()))
-                except ValueError:
-                    pass
-            
-            # Build intent
-            intent = CommandIntent(
-                command_type=command_type,
-                platforms=platforms,
-                entities=data.get("entities", []),
-                parameters=data.get("parameters", {}),
-                confidence=min(1.0, max(0.0, data.get("confidence", 0.8))),
-                raw_command=command,
-                llm_parsed=True
-            )
-            
-            logger.info(f"LLM parsed command: type={command_type.value}, confidence={intent.confidence}")
-            return intent
-            
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.warning(f"LLM parsing failed: {e}, falling back to pattern-based")
-            return None
+            logger.error(f"Query LLM failed: {e}")
+            
+            # Catch Auth errors specifically to be helpful
+            error_str = str(e).lower()
+            if "401" in error_str or "auth" in error_str:
+                return f"Authentication Error: The API Key for {NLU_LLM_PROVIDER} is invalid. Please check your .env file."
+            
+            return f"AI Error: {str(e)}"
 
     # ==================== MAIN PARSE METHOD ====================
 

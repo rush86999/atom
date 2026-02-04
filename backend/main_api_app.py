@@ -149,17 +149,23 @@ async def lifespan(app: FastAPI):
 
     # 5. Start Redis Event Bridge (Real-Time Updates)
     # Backported from SaaS for Atom-OpenClaw Bridge
-    try:
-        from redis_listener import RedisListener
-        redis_listener = RedisListener()
-        # Start in background task to not block startup
-        import asyncio
-        asyncio.create_task(redis_listener.start())
-        logger.info("✓ Redis Event Bridge running")
-    except ImportError:
-        logger.warning("Redis Listener module not found.")
-    except Exception as e:
-        logger.error(f"Failed to start Redis Bridge: {e}")
+    redis_listener = None
+    enable_redis = os.getenv("ENABLE_REDIS", "false").lower() == "true"
+    
+    if enable_redis:
+        try:
+            from redis_listener import RedisListener
+            redis_listener = RedisListener()
+            # Start in background task to not block startup
+            import asyncio
+            asyncio.create_task(redis_listener.start())
+            logger.info("✓ Redis Event Bridge running")
+        except ImportError:
+            logger.warning("Redis Listener module not found.")
+        except Exception as e:
+            logger.error(f"Failed to start Redis Bridge: {e}")
+    else:
+        logger.info("Skipping Redis Bridge (ENABLE_REDIS=false)")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
