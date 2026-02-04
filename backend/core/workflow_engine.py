@@ -1563,6 +1563,7 @@ Use the available tools as needed to complete the action. Return your response i
 
             input_data = params.get("input_data", {})
             max_depth = params.get("max_depth", 10)  # Prevent infinite recursion
+            timeout = params.get("timeout", 300)  # Default 5 minute timeout
 
             # Check recursion depth (track via context or simple counter)
             # For now, implement simple depth check
@@ -1574,24 +1575,90 @@ Use the available tools as needed to complete the action. Return your response i
                 raise ValueError(f"Workflow {workflow_id} not found")
 
             # Execute sub-workflow using the same engine
-            # Note: This creates a new execution ID and runs asynchronously
-            # We'll wait for completion and return the result
+            # This creates a new execution ID and runs asynchronously
             execution_id = await self.start_workflow(workflow, input_data)
 
-            # For simplicity, we'll simulate waiting for completion
-            # In a real implementation, we would monitor the execution status
-            await asyncio.sleep(0.5)  # Simulate sub-workflow execution time
+            # Monitor the execution status with timeout
+            start_time = datetime.now()
+            poll_interval = 0.5  # Poll every 500ms
 
-            # Return placeholder result
-            return {
-                "action": action,
-                "workflow_id": workflow_id,
-                "execution_id": execution_id,
-                "result": f"Sub-workflow {workflow_id} executed",
-                "status": "success"
-            }
+            while True:
+                # Check timeout
+                elapsed = (datetime.now() - start_time).total_seconds()
+                if elapsed > timeout:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} timed out after {timeout}s")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "timeout",
+                        "error": f"Sub-workflow execution timed out after {timeout} seconds"
+                    }
+
+                # Get current execution state
+                state = await self.state_manager.get_execution_state(execution_id)
+
+                if not state:
+                    logger.error(f"Sub-workflow execution {execution_id} not found in state manager")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "error",
+                        "error": "Execution state not found"
+                    }
+
+                status = state.get("status")
+
+                # Check if execution is complete
+                if status in ["COMPLETED", "SUCCESS"]:
+                    logger.info(f"Sub-workflow {workflow_id} execution {execution_id} completed successfully")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "result": state.get("outputs", {}),
+                        "status": "success"
+                    }
+                elif status in ["FAILED", "ERROR"]:
+                    error_msg = state.get("error", "Unknown error")
+                    logger.error(f"Sub-workflow {workflow_id} execution {execution_id} failed: {error_msg}")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "error",
+                        "error": error_msg
+                    }
+                elif status in ["CANCELLED"]:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} was cancelled")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "cancelled",
+                        "error": "Sub-workflow was cancelled"
+                    }
+                elif status in ["PAUSED"]:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} is paused, waiting for input")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "paused",
+                        "error": "Sub-workflow is paused waiting for input"
+                    }
+                elif status in ["RUNNING", "PENDING"]:
+                    # Still running, wait and poll again
+                    await asyncio.sleep(poll_interval)
+                    continue
+                else:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} has unknown status: {status}")
+                    await asyncio.sleep(poll_interval)
+                    continue
 
         except Exception as e:
+            logger.error(f"Error executing sub-workflow: {e}")
             return {
                 "action": action,
                 "error": str(e),

@@ -5,6 +5,7 @@ Provides status monitoring for AI agents and task execution
 
 import asyncio
 import json
+import logging
 import os
 import uuid
 from datetime import datetime
@@ -14,6 +15,8 @@ from fastapi import BackgroundTasks
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
+
+logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/agent-status", tags=["Agent Status"])
 
@@ -58,7 +61,7 @@ def save_agent_status(data: Dict[str, Any]):
         with open(AGENT_STATUS_FILE, 'w') as f:
             json.dump(data, f, indent=2, default=str)
     except Exception as e:
-        print(f"Error saving agent status: {e}")
+        logger.error(f"Error saving agent status: {e}")
 
 @router.get("/agent/status/{task_id}", response_model=AgentTask)
 async def get_agent_status(task_id: str):

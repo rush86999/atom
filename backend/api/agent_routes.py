@@ -395,7 +395,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             import sys
             import traceback
             error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
-            print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
+            logger.critical(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}")
             logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
 
             # Urgent Notification (Phase 34 requirement)

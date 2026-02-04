@@ -1,12 +1,16 @@
 
+import logging
 import os
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.risk_prevention import get_risk_services
+
+logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter()
 
@@ -102,7 +106,7 @@ async def perform_security_scan(request: ScanRequest):
                 llm_analyzer = LLMAnalyzer(mode=mode)
                 llm_findings = await llm_analyzer.analyze(request.skill_name, combined_content)
             except Exception as llm_error:
-                print(f"Semantic analysis failed: {llm_error}")
+                logger.error(f"Semantic analysis failed: {llm_error}")
 
         # Merge all findings
         all_findings = []
@@ -132,7 +136,7 @@ async def perform_security_scan(request: ScanRequest):
             message="Security scan completed successfully"
         )
     except Exception as e:
-        print(f"Scan endpoint error: {e}")
+        logger.error(f"Scan endpoint error: {e}")
         raise router.internal_error(
             message="Security scan failed",
             details={"error": str(e)}
