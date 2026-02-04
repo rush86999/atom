@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List
 from atom_security.analyzers.static import StaticAnalyzer
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -6,6 +7,8 @@ from pydantic import BaseModel
 from core.admin_endpoints import get_super_admin
 from core.models import User
 from core.skill_builder_service import SkillMetadata, skill_builder_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Admin Skills"])
 
@@ -47,7 +50,7 @@ async def create_new_skill(
                     llm_analyzer = LLMAnalyzer(mode=os.getenv("ATOM_SECURITY_LLM_MODE", "local"))
                     llm_findings = await llm_analyzer.analyze(request.name, combined_content)
                 except Exception as e:
-                    print(f"LLM Scan failed: {e}")
+                    logger.error(f"LLM Scan failed: {e}")
 
             all_findings = static_findings + llm_findings
             critical_findings = [f.dict() for f in all_findings if f.severity.value in ["HIGH", "CRITICAL"]]
@@ -64,7 +67,7 @@ async def create_new_skill(
             raise
         except Exception as scan_error:
             # Log but don't block if security module fails
-            print(f"Security scan error: {scan_error}")
+            logger.warning(f"Security scan error: {scan_error}")
 
         metadata = SkillMetadata(
             name=request.name,

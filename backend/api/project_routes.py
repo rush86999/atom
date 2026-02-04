@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity

@@ -14,7 +14,7 @@ import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -67,37 +67,97 @@ class ScreenshotRequest(BaseModel):
     session_id: str
     full_page: bool = False
     path: Optional[str] = None
+    agent_id: Optional[str] = None
 
 
 class FillFormRequest(BaseModel):
     session_id: str
     selectors: Dict[str, str]
     submit: bool = False
+    agent_id: Optional[str] = None
 
 
 class ClickRequest(BaseModel):
     session_id: str
     selector: str
     wait_for: Optional[str] = None
+    agent_id: Optional[str] = None
 
 
 class ExtractTextRequest(BaseModel):
     session_id: str
     selector: Optional[str] = None
+    agent_id: Optional[str] = None
 
 
 class ExecuteScriptRequest(BaseModel):
     session_id: str
     script: str
+    agent_id: Optional[str] = None
 
 
 class CloseSessionRequest(BaseModel):
     session_id: str
+    agent_id: Optional[str] = None
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+async def _check_browser_governance(
+    db: Session,
+    agent_id: str,
+    user_id: str,
+    action_type: str
+) -> tuple:
+    """
+    Perform governance check for browser actions.
+
+    Returns:
+        Tuple of (agent, governance_check_result)
+        agent can be None if no agent_id or agent not found
+        governance_check_result can be None if check skipped
+    """
+    agent = None
+    governance_check = None
+
+    if agent_id and BROWSER_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        try:
+            resolver = AgentContextResolver(db)
+            governance = AgentGovernanceService(db)
+
+            agent, _ = await resolver.resolve_agent_for_request(
+                user_id=user_id,
+                requested_agent_id=agent_id,
+                action_type=action_type
+            )
+
+            if agent:
+                governance_check = governance.can_perform_action(
+                    agent_id=agent.id,
+                    action_type=action_type
+                )
+
+                if not governance_check["allowed"]:
+                    logger.warning(
+                        f"Governance blocked: agent={agent.id}, action={action_type}, "
+                        f"reason={governance_check['reason']}"
+                    )
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action=action_type,
+                        maturity_level=agent.maturity_level if hasattr(agent, 'maturity_level') else agent.status,
+                        required_level="INTERN",
+                        reason=governance_check['reason']
+                    )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Governance check failed: {e}")
+
+    return agent, governance_check
 
 def _create_browser_audit(
     db: Session,
@@ -312,8 +372,20 @@ async def screenshot(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Take a screenshot of the current page."""
+    """Take a screenshot of the current page. Requires INTERN+ maturity for agent-initiated actions."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        agent, governance_check = await _check_browser_governance(
+            db=db,
+            agent_id=request.agent_id,
+            user_id=current_user.id,
+            action_type="browser_screenshot"
+        )
 
     result = await browser_screenshot(
         session_id=request.session_id,
@@ -336,7 +408,9 @@ async def screenshot(
         result_summary=f"Screenshot ({result.get('size_bytes')} bytes)",
         error_message=result.get("error"),
         result_data=result if result.get("success") else None,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     return result
@@ -348,8 +422,29 @@ async def fill_form(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Fill form fields using CSS selectors."""
+    """Fill form fields using CSS selectors. Requires SUPERVISED+ maturity for agent-initiated form submissions."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        # Form submission requires SUPERVISED+ maturity
+        if request.submit:
+            agent, governance_check = await _check_browser_governance(
+                db=db,
+                agent_id=request.agent_id,
+                user_id=current_user.id,
+                action_type="browser_form_submit"
+            )
+        else:
+            agent, governance_check = await _check_browser_governance(
+                db=db,
+                agent_id=request.agent_id,
+                user_id=current_user.id,
+                action_type="browser_fill_form"
+            )
 
     result = await browser_fill_form(
         session_id=request.session_id,
@@ -372,7 +467,9 @@ async def fill_form(
         result_summary=f"Filled {result.get('fields_filled', 0)} fields",
         error_message=result.get("error"),
         result_data=result if result.get("success") else None,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     return result
@@ -384,8 +481,20 @@ async def click(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Click an element using CSS selector."""
+    """Click an element using CSS selector. Requires INTERN+ maturity for agent-initiated actions."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        agent, governance_check = await _check_browser_governance(
+            db=db,
+            agent_id=request.agent_id,
+            user_id=current_user.id,
+            action_type="browser_click"
+        )
 
     result = await browser_click(
         session_id=request.session_id,
@@ -407,7 +516,9 @@ async def click(
         success=result.get("success", False),
         error_message=result.get("error"),
         result_data=result if result.get("success") else None,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     return result
@@ -419,8 +530,20 @@ async def extract_text(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Extract text content from the page or specific elements."""
+    """Extract text content from the page or specific elements. Requires INTERN+ maturity for agent-initiated actions."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        agent, governance_check = await _check_browser_governance(
+            db=db,
+            agent_id=request.agent_id,
+            user_id=current_user.id,
+            action_type="browser_extract_text"
+        )
 
     result = await browser_extract_text(
         session_id=request.session_id,
@@ -442,7 +565,9 @@ async def extract_text(
         result_summary=f"Extracted {result.get('length', 0)} chars",
         error_message=result.get("error"),
         result_data={"length": result.get("length")} if result.get("success") else None,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     return result
@@ -454,8 +579,20 @@ async def execute_script(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Execute JavaScript in the browser context."""
+    """Execute JavaScript in the browser context. Requires SUPERVISED+ maturity for agent-initiated script execution."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        agent, governance_check = await _check_browser_governance(
+            db=db,
+            agent_id=request.agent_id,
+            user_id=current_user.id,
+            action_type="browser_execute_script"
+        )
 
     result = await browser_execute_script(
         session_id=request.session_id,
@@ -476,7 +613,9 @@ async def execute_script(
         success=result.get("success", False),
         result_summary="Script executed",
         error_message=result.get("error"),
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     return result
@@ -488,8 +627,20 @@ async def close_session(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Close a browser session."""
+    """Close a browser session. Requires INTERN+ maturity for agent-initiated session closure."""
     start_time = datetime.now()
+
+    # Governance check if agent_id provided
+    agent = None
+    governance_check = None
+
+    if request.agent_id:
+        agent, governance_check = await _check_browser_governance(
+            db=db,
+            agent_id=request.agent_id,
+            user_id=current_user.id,
+            action_type="browser_close_session"
+        )
 
     result = await browser_close_session(
         session_id=request.session_id,
@@ -509,7 +660,9 @@ async def close_session(
         success=result.get("success", False),
         result_summary="Session closed",
         error_message=result.get("error"),
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        agent_id=agent.id if agent else None,
+        governance_check_passed=governance_check["allowed"] if governance_check else None
     )
 
     # Update database session record
