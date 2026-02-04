@@ -390,7 +390,7 @@ except ImportError as e:
     AsyncSessionLocal = None
 
 
-def get_async_db():
+async def get_async_db():
     """
     Async dependency injection pattern for API routes.
 
