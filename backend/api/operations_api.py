@@ -1,15 +1,16 @@
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
+from core.base_routes import BaseAPIRouter
 from core.business_health_service import business_health_service
 from core.database import get_db
 
-router = APIRouter()
+router = BaseAPIRouter()
 logger = logging.getLogger(__name__)
 
 class SimulationRequest(BaseModel):
@@ -30,13 +31,18 @@ async def get_dashboard_data(
         priorities = await business_health_service.get_daily_priorities("default")
         metrics = business_health_service.get_health_metrics("default")
 
-        return {
-            "success": True,
-            "briefing": priorities,
-            "metrics": metrics
-        }
+        return router.success_response(
+            data={
+                "briefing": priorities,
+                "metrics": metrics
+            },
+            message="Dashboard data retrieved successfully"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting dashboard data: {e}")
+        raise router.internal_error(
+            message=f"Failed to get dashboard data: {str(e)}"
+        )
 
 @router.post("/simulate")
 @require_governance(
@@ -64,9 +70,12 @@ async def run_simulation(
             request.parameters
         )
         logger.info(f"Business simulation run: {request.decision_type}")
-        return {"success": True, "result": result}
-    except HTTPException:
-        raise
+        return router.success_response(
+            data=result,
+            message="Simulation completed successfully"
+        )
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message=f"Failed to run simulation: {str(e)}"
+        )

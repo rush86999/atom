@@ -174,8 +174,8 @@ class JWTVerifier:
 
         token = credentials.credentials
 
-        # DEBUG mode with IP whitelist check
-        if self.debug_mode:
+        # DEBUG mode with IP whitelist check - NEVER allowed in production
+        if self.debug_mode and os.getenv("ENVIRONMENT") != "production":
             if client_ip and self._is_ip_whitelisted(client_ip):
                 logger.info(f"JWT_VERIFICATION: DEBUG mode - allowing whitelisted IP: {client_ip}")
                 # Still decode to catch malformed tokens, but skip validation
@@ -197,6 +197,9 @@ class JWTVerifier:
                     f"JWT_VERIFICATION: DEBUG mode - IP {client_ip} not in whitelist"
                 )
                 # Fall through to normal verification
+        elif self.debug_mode and os.getenv("ENVIRONMENT") == "production":
+            logger.error("JWT_VERIFICATION: DEBUG mode bypass attempted in production - blocked")
+            # Force normal verification in production regardless of debug_mode setting
 
         # Normal JWT verification
         try:

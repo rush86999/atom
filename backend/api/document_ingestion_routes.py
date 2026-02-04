@@ -6,15 +6,16 @@ Manage per-integration document ingestion settings and memory removal.
 import io
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import Depends, File, Query, UploadFile
 from pydantic import BaseModel
 
+from core.base_routes import BaseAPIRouter
 from core.security_dependencies import get_current_user
 from core.models import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/document-ingestion", tags=["Document Ingestion"])
+router = BaseAPIRouter(prefix="/api/document-ingestion", tags=["Document Ingestion"])
 
 
 # ==================== Request/Response Models ====================
@@ -94,7 +95,7 @@ async def get_all_ingestion_settings(
         return [IngestionSettingsResponse(**s) for s in settings_list]
     except Exception as e:
         logger.error(f"Failed to get ingestion settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.get("/settings/{integration_id}", response_model=IngestionSettingsResponse)
@@ -122,7 +123,7 @@ async def get_integration_settings(
         )
     except Exception as e:
         logger.error(f"Failed to get settings for {integration_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.put("/settings")
@@ -149,15 +150,17 @@ async def update_ingestion_settings(
             sync_frequency_minutes=request.sync_frequency_minutes
         )
         
-        return {
-            "success": True,
-            "message": f"Settings updated for {request.integration_id}",
-            "enabled": settings.enabled,
-            "file_types": settings.file_types
-        }
+        return router.success_response(
+            data={
+                "integration_id": request.integration_id,
+                "enabled": settings.enabled,
+                "file_types": settings.file_types
+            },
+            message=f"Settings updated for {request.integration_id}"
+        )
     except Exception as e:
         logger.error(f"Failed to update settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResultResponse)
@@ -186,7 +189,7 @@ async def trigger_document_sync(
         )
     except Exception as e:
         logger.error(f"Document sync failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.delete("/memory/{integration_id}", response_model=RemoveMemoryResponse)
@@ -212,7 +215,7 @@ async def remove_integration_memory(
         )
     except Exception as e:
         logger.error(f"Memory removal failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.get("/documents")
@@ -229,8 +232,8 @@ async def list_ingested_documents(
         service = get_document_ingestion_service("default")
         docs = service.get_ingested_documents(integration_id, file_type)
         
-        return {
-            "documents": [
+        return router.success_response(
+            data=[
                 {
                     "id": d.id,
                     "file_name": d.file_name,
@@ -243,11 +246,11 @@ async def list_ingested_documents(
                 }
                 for d in docs
             ],
-            "count": len(docs)
-        }
+            metadata={"count": len(docs)}
+        )
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.get("/supported-integrations")
@@ -255,8 +258,8 @@ async def list_supported_integrations():
     """
     List all integrations that support document ingestion.
     """
-    return {
-        "integrations": [
+    return router.success_response(
+        data=[
             {
                 "id": "google_drive",
                 "name": "Google Drive",
@@ -288,7 +291,7 @@ async def list_supported_integrations():
                 "supported_types": ["md", "txt"]
             }
         ]
-    }
+    )
 
 
 @router.get("/supported-file-types")
@@ -311,9 +314,9 @@ async def list_supported_file_types():
         docling_formats = []
     
     base_parser = "docling (OCR)" if docling_available else "PyPDF2"
-    
-    return {
-        "file_types": [
+
+    return router.success_response(
+        data=[
             {"ext": "pdf", "name": "PDF Documents", "parser": base_parser, "ocr_available": docling_available},
             {"ext": "docx", "name": "Word Documents", "parser": "docling" if docling_available else "python-docx"},
             {"ext": "doc", "name": "Legacy Word Documents", "parser": "python-docx"},
@@ -328,9 +331,11 @@ async def list_supported_file_types():
             {"ext": "png", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
             {"ext": "jpg", "name": "Images (OCR)", "parser": "docling" if docling_available else "not supported", "requires_docling": True},
         ],
-        "docling_available": docling_available,
-        "docling_formats": docling_formats
-    }
+        metadata={
+            "docling_available": docling_available,
+            "docling_formats": docling_formats
+        }
+    )
 
 
 @router.get("/ocr-status")
@@ -376,8 +381,8 @@ async def get_ocr_status():
             status["recommended_engine"] = status["ocr_engines"][0]
     except ImportError:
         pass
-    
-    return status
+
+    return router.success_response(data=status)
 
 
 @router.post("/parse", response_model=ParseResultResponse)

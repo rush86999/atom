@@ -5,12 +5,13 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from core.base_routes import BaseAPIRouter
+from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 # In-memory formula store
 _formula_store: Dict[str, Dict[str, Any]] = {}

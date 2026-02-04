@@ -4,16 +4,17 @@ Memory Routes - API endpoints for memory storage and retrieval
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 # Pydantic Models
 class MemoryStoreRequest(BaseModel):
@@ -47,7 +48,10 @@ async def search_memory(q: str, limit: int = 10):
             results.append(entry)
         if len(results) >= limit:
             break
-    return {"query": q, "results": results, "count": len(results)}
+    return router.success_response(
+        data=results,
+        metadata={"query": q, "count": len(results)}
+    )
 
 @router.get("/context/{session_id}", response_model=ContextResponse)
 async def get_context(session_id: str):
@@ -85,7 +89,10 @@ async def update_context(
         "_updated_at": datetime.now().isoformat()
     }
     logger.info(f"Context updated for session {session_id}")
-    return {"message": "Context updated", "session_id": session_id}
+    return router.success_response(
+        data={"session_id": session_id},
+        message="Context updated"
+    )
 
 @router.post("", response_model=MemoryResponse)
 @require_governance(
@@ -116,18 +123,16 @@ async def store_memory(
         _memory_store[request.key] = entry
         logger.info(f"Memory stored: {request.key}")
         return MemoryResponse(**entry)
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to store memory: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 # Parameterized routes MUST come after static routes
 @router.get("/{key}", response_model=MemoryResponse)
 async def retrieve_memory(key: str):
     """Retrieve a memory entry by key"""
     if key not in _memory_store:
-        raise HTTPException(status_code=404, detail=f"Memory key '{key}' not found")
+        raise router.not_found_error("Memory key", key)
     return MemoryResponse(**_memory_store[key])
 
 @router.delete("/{key}")
@@ -150,8 +155,8 @@ async def delete_memory(
     - Requires SUPERVISED maturity or higher
     """
     if key not in _memory_store:
-        raise HTTPException(status_code=404, detail=f"Memory key '{key}' not found")
+        raise router.not_found_error("Memory key", key)
 
     del _memory_store[key]
     logger.info(f"Memory deleted: {key}")
-    return {"message": f"Memory key '{key}' deleted"}
+    return router.success_response(message=f"Memory key '{key}' deleted")

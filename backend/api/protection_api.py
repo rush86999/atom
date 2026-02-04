@@ -1,14 +1,14 @@
 
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.risk_prevention import get_risk_services
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 class ScanRequest(BaseModel):
     skill_name: str
@@ -23,9 +23,15 @@ async def get_churn_risk(
     try:
         services = get_risk_services(db)
         data = await services["churn"].predict_churn_risk("default")
-        return {"success": True, "data": data}
+        return router.success_response(
+            data=data,
+            message="Churn risk data retrieved successfully"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to predict churn risk",
+            details={"error": str(e)}
+        )
 
 @router.get("/financial")
 async def get_financial_risk(
@@ -37,17 +43,20 @@ async def get_financial_risk(
         ar_risks = await services["warning"].detect_ar_delays("default")
         booking_drops = await services["warning"].monitor_booking_drops("default")
         fraud_alerts = await services["fraud"].detect_anomalies("default")
-        
-        return {
-            "success": True,
-            "data": {
+
+        return router.success_response(
+            data={
                 "ar_delays": ar_risks,
                 "booking_anomaly": booking_drops,
                 "fraud_alerts": fraud_alerts
-            }
-        }
+            },
+            message="Financial risk data retrieved successfully"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to get financial risk data",
+            details={"error": str(e)}
+        )
 
 @router.get("/growth")
 async def get_growth_readiness(
@@ -57,9 +66,15 @@ async def get_growth_readiness(
     try:
         services = get_risk_services(db)
         readiness = await services["growth"].check_scaling_readiness("default")
-        return {"success": True, "data": readiness}
+        return router.success_response(
+            data=readiness,
+            message="Growth readiness data retrieved successfully"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to check growth readiness",
+            details={"error": str(e)}
+        )
 
 @router.post("/scan")
 async def perform_security_scan(request: ScanRequest):
@@ -76,7 +91,7 @@ async def perform_security_scan(request: ScanRequest):
         # Combine instructions and files for comprehensive static scanning
         combined_content = f"{request.instruction_body}\n" + "\n".join((request.file_contents or {}).values())
         static_findings = static_analyzer.scan_content(combined_content)
-        
+
         # 2. Semantic LLM Scan
         llm_findings = []
         # Check if enabled via env var to prevent unexpected costs or latency
@@ -88,7 +103,7 @@ async def perform_security_scan(request: ScanRequest):
                 llm_findings = await llm_analyzer.analyze(request.skill_name, combined_content)
             except Exception as llm_error:
                 print(f"Semantic analysis failed: {llm_error}")
-        
+
         # Merge all findings
         all_findings = []
         for f in static_findings:
@@ -98,7 +113,7 @@ async def perform_security_scan(request: ScanRequest):
                 "description": f.description,
                 "analyzer": "static"
             })
-            
+
         for f in llm_findings:
             all_findings.append({
                 "category": f.rule_id,
@@ -106,14 +121,19 @@ async def perform_security_scan(request: ScanRequest):
                 "description": f.description,
                 "analyzer": "llm"
             })
-            
+
         is_safe = not any(f["severity"] in ["HIGH", "CRITICAL"] for f in all_findings)
-        
-        return {
-            "success": True,
-            "findings": all_findings,
-            "is_safe": is_safe
-        }
+
+        return router.success_response(
+            data={
+                "findings": all_findings,
+                "is_safe": is_safe
+            },
+            message="Security scan completed successfully"
+        )
     except Exception as e:
         print(f"Scan endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Security scan failed",
+            details={"error": str(e)}
+        )

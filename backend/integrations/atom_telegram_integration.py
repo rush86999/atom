@@ -16,8 +16,15 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
 import httpx
-import numpy as np
-import pandas as pd
+
+# Handle numpy/pandas being disabled
+try:
+    import numpy as np
+    import pandas as pd
+except ImportError:
+    np = None
+    pd = None
+    logging.warning("NumPy/Pandas not available, some analytics features disabled")
 
 # Import existing ATOM services
 atom_enterprise_security_service = None
@@ -782,6 +789,632 @@ class AtomTelegramIntegration:
             
         except Exception as e:
             logger.error(f"Error closing Telegram integration: {e}")
+
+    # ========================================================================
+    # Interactive Keyboard Methods
+    # ========================================================================
+
+    async def send_message_with_keyboard(
+        self,
+        chat_id: int,
+        text: str,
+        keyboard: List[List[Dict[str, Any]]],
+        parse_mode: Optional[str] = None,
+        disable_web_page_preview: Optional[bool] = None,
+        disable_notification: Optional[bool] = None,
+        reply_to_message_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a message with interactive inline keyboard.
+
+        Args:
+            chat_id: Telegram chat ID
+            text: Message text
+            keyboard: List of rows of buttons
+            parse_mode: "Markdown" or "HTML"
+            disable_web_page_preview: Disable link previews
+            disable_notification: Send silently
+            reply_to_message_id: Reply to specific message
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            # Build API URL
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+            # Build keyboard (inline keyboard)
+            reply_markup = {
+                "inline_keyboard": keyboard
+            }
+
+            # Build request payload
+            payload = {
+                "chat_id": chat_id,
+                "text": text,
+                "reply_markup": reply_markup,
+            }
+
+            # Optional parameters
+            if parse_mode:
+                payload["parse_mode"] = parse_mode
+            if disable_web_page_preview is not None:
+                payload["disable_web_page_preview"] = disable_web_page_preview
+            if disable_notification is not None:
+                payload["disable_notification"] = disable_notification
+            if reply_to_message_id:
+                payload["reply_to_message_id"] = reply_to_message_id
+
+            # Send request
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Sent keyboard message to chat {chat_id}")
+                return {
+                    "success": True,
+                    "message_id": data.get("result", {}).get("message_id"),
+                    "chat_id": chat_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to send keyboard message: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error sending keyboard message: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def edit_message_keyboard(
+        self,
+        chat_id: int,
+        message_id: int,
+        keyboard: List[List[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        """
+        Edit keyboard of an existing message.
+
+        Args:
+            chat_id: Telegram chat ID
+            message_id: Message to edit
+            keyboard: New keyboard layout
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/editMessageReplyMarkup"
+
+            reply_markup = {
+                "inline_keyboard": keyboard
+            }
+
+            payload = {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "reply_markup": reply_markup,
+            }
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Edited keyboard for message {message_id} in chat {chat_id}")
+                return {
+                    "success": True,
+                    "message_id": message_id,
+                    "chat_id": chat_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error editing message keyboard: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def answer_callback_query(
+        self,
+        callback_query_id: str,
+        text: Optional[str] = None,
+        show_alert: Optional[bool] = False,
+        url: Optional[str] = None,
+        cache_time: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Answer a callback query from an inline keyboard button.
+
+        Args:
+            callback_query_id: Callback query ID from update
+            text: Notification text (max 200 chars)
+            show_alert: Show as alert instead of notification
+            url: URL to open
+            cache_time: Cache button response (seconds)
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+
+            payload = {
+                "callback_query_id": callback_query_id,
+            }
+
+            if text:
+                payload["text"] = text
+            if show_alert:
+                payload["show_alert"] = show_alert
+            if url:
+                payload["url"] = url
+            if cache_time is not None:
+                payload["cache_time"] = cache_time
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Answered callback query {callback_query_id}")
+                return {
+                    "success": True,
+                    "callback_query_id": callback_query_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to answer callback query: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error answering callback query: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def handle_callback_query(self, callback_query: Dict[str, Any]) -> None:
+        """
+        Handle a callback query from button press.
+
+        Routes callback to appropriate handler based on callback_data.
+        """
+        try:
+            callback_id = callback_query.get("id")
+            data = callback_query.get("data", "")
+            message = callback_query.get("message", {})
+            from_user = callback_query.get("from", {})
+
+            logger.info(f"Received callback query {callback_id} with data: {data}")
+
+            # Process callback data
+            # This is where you'd route to specific handlers
+            # For now, just acknowledge receipt
+
+            # Send immediate answer to show processing
+            await self.answer_callback_query(
+                callback_query_id=callback_id,
+                text="Processing...",
+                cache_time=0,  # Don't cache while processing
+            )
+
+            # TODO: Route to appropriate handler based on data
+            # Example: if data.startswith("action_"): handle_action(data)
+
+        except Exception as e:
+            logger.error(f"Error handling callback query: {e}")
+
+    # ========================================================================
+    # Inline Mode Methods
+    # ========================================================================
+
+    async def answer_inline_query(
+        self,
+        inline_query_id: str,
+        results: List[Dict[str, Any]],
+        cache_time: Optional[int] = 300,
+        personal: Optional[bool] = None,
+        next_offset: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Answer an inline query.
+
+        Args:
+            inline_query_id: Inline query ID
+            results: List of result objects
+            cache_time: Cache duration in seconds
+            personal: Cache only for user
+            next_offset: Offset for pagination
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/answerInlineQuery"
+
+            # Build inline query results
+            inline_results = []
+            for result in results[:50]:  # Limit to 50 results
+                inline_results.append({
+                    "type": "article",
+                    "id": result.get("id", str(result.get("result_id"))),
+                    "title": result.get("title", ""),
+                    "description": result.get("description", ""),
+                    "input_message_content": {
+                        "message_text": result.get("message", "")
+                    },
+                })
+
+            payload = {
+                "inline_query_id": inline_query_id,
+                "results": inline_results,
+                "cache_time": cache_time,
+                "is_personal": personal or False,
+            }
+
+            if next_offset:
+                payload["next_offset"] = next_offset
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Answered inline query {inline_query_id}")
+                return {
+                    "success": True,
+                    "inline_query_id": inline_query_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to answer inline query: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error answering inline query: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def handle_inline_query(self, inline_query: Dict[str, Any]) -> None:
+        """
+        Handle an inline query.
+
+        Searches for results and responds to the inline query.
+        """
+        try:
+            query_id = inline_query.get("id")
+            query = inline_query.get("query", "")
+            from_user = inline_query.get("from", {})
+
+            logger.info(f"Received inline query {query_id}: {query}")
+
+            # Perform search (TODO: implement actual search)
+            results = []
+
+            # Answer with results
+            await self.answer_inline_query(
+                inline_query_id=query_id,
+                results=results,
+                cache_time=300,
+            )
+
+        except Exception as e:
+            logger.error(f"Error handling inline query: {e}")
+
+    # ========================================================================
+    # Chat Action Methods
+    # ========================================================================
+
+    async def send_chat_action(
+        self,
+        chat_id: int,
+        action: str,
+        progress: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a chat action indicator.
+
+        Args:
+            chat_id: Telegram chat ID
+            action: Action type (typing, upload_photo, etc.)
+            progress: Progress percentage (0-100)
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendChatAction"
+
+            payload = {
+                "chat_id": chat_id,
+                "action": action,
+            }
+
+            if progress is not None:
+                payload["progress"] = progress
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Sent chat action '{action}' to chat {chat_id}")
+                return {
+                    "success": True,
+                    "chat_id": chat_id,
+                    "action": action,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to send chat action: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error sending chat action: {e}")
+            return {"success": False, "error": str(e)}
+
+    # ========================================================================
+    # Enhanced Message Methods
+    # ========================================================================
+
+    async def send_intelligent_message(
+        self,
+        channel_id: int,
+        message: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        parse_mode: Optional[str] = None,
+        disable_web_page_preview: Optional[bool] = None,
+        disable_notification: Optional[bool] = None,
+        reply_to_message_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Enhanced send message with support for parse mode and reply.
+
+        Args:
+            channel_id: Telegram chat ID
+            message: Message text
+            metadata: Optional metadata
+            parse_mode: Markdown or HTML
+            disable_web_page_preview: Disable link previews
+            disable_notification: Send silently
+            reply_to_message_id: Reply to specific message
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+            payload = {
+                "chat_id": channel_id,
+                "text": message,
+            }
+
+            # Optional parameters
+            if parse_mode:
+                payload["parse_mode"] = parse_mode
+            if disable_web_page_preview is not None:
+                payload["disable_web_page_preview"] = disable_web_page_preview
+            if disable_notification is not None:
+                payload["disable_notification"] = disable_notification
+            if reply_to_message_id:
+                payload["reply_to_message_id"] = reply_to_message_id
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Sent intelligent message to channel {channel_id}")
+                return {
+                    "success": True,
+                    "message_id": data.get("result", {}).get("message_id"),
+                    "channel_id": channel_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to send message: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error sending intelligent message: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def send_photo(
+        self,
+        chat_id: int,
+        photo: str,
+        caption: Optional[str] = None,
+        parse_mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a photo to Telegram chat.
+
+        Args:
+            chat_id: Telegram chat ID
+            photo: Photo URL or file_id
+            caption: Photo caption
+            parse_mode: Markdown or HTML
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
+
+            payload = {
+                "chat_id": chat_id,
+                "photo": photo,
+            }
+
+            if caption:
+                payload["caption"] = caption
+            if parse_mode:
+                payload["parse_mode"] = parse_mode
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Sent photo to chat {chat_id}")
+                return {
+                    "success": True,
+                    "message_id": data.get("result", {}).get("message_id"),
+                    "chat_id": chat_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to send photo: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error sending photo: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def send_poll(
+        self,
+        chat_id: int,
+        question: str,
+        options: List[str],
+        is_anonymous: bool = False,
+        allows_multiple_answers: bool = False,
+        explanation: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a poll to Telegram chat.
+
+        Args:
+            chat_id: Telegram chat ID
+            question: Poll question
+            options: List of answer options
+            is_anonymous: Anonymous poll
+            allows_multiple_answers: Allow multiple selections
+            explanation: Additional explanation
+
+        Returns:
+            Result dict with success status
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendPoll"
+
+            # Build poll options
+            poll_options = []
+            for option in options:
+                poll_options.append({"text": option})
+
+            payload = {
+                "chat_id": chat_id,
+                "question": question,
+                "options": poll_options,
+                "is_anonymous": is_anonymous,
+                "allows_multiple_answers": allows_multiple_answers,
+            }
+
+            if explanation:
+                payload["explanation"] = explanation
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                logger.info(f"Sent poll to chat {chat_id}")
+                return {
+                    "success": True,
+                    "message_id": data.get("result", {}).get("message_id"),
+                    "poll_id": data.get("result", {}).get("poll_id"),
+                    "chat_id": chat_id,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to send poll: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error sending poll: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_chat_info(
+        self,
+        chat_id: int,
+    ) -> Dict[str, Any]:
+        """
+        Get information about a Telegram chat.
+
+        Args:
+            chat_id: Telegram chat ID
+
+        Returns:
+            Chat information dict
+        """
+        try:
+            bot_token = self.config.get('bot_token')
+            if not bot_token:
+                return {"success": False, "error": "Bot token not configured"}
+
+            url = f"https://api.telegram.org/bot{bot_token}/getChat"
+
+            payload = {"chat_id": chat_id}
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload)
+                data = response.json()
+
+            if data.get("ok"):
+                result = data.get("result", {})
+                logger.info(f"Retrieved chat info for {chat_id}")
+                return {
+                    "success": True,
+                    "chat_id": chat_id,
+                    "chat_info": result,
+                }
+            else:
+                error_msg = data.get("description", "Unknown error")
+                logger.error(f"Failed to get chat info: {error_msg}")
+                return {"success": False, "error": error_msg}
+
+        except Exception as e:
+            logger.error(f"Error getting chat info: {e}")
+            return {"success": False, "error": str(e)}
 
 # Global Telegram integration instance
 atom_telegram_integration = AtomTelegramIntegration({

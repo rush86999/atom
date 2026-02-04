@@ -4,7 +4,8 @@ Handles meeting attendance tracking and status
 """
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from core.base_routes import BaseAPIRouter
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,7 @@ from core.auth import get_current_user
 from core.database import get_db
 from core.models import MeetingAttendanceStatus, User
 
-router = APIRouter(prefix="/api/meetings", tags=["Meetings"])
+router = BaseAPIRouter(prefix="/api/meetings", tags=["Meetings"])
 
 
 # Request/Response Models

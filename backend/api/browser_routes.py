@@ -14,11 +14,12 @@ import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
+from core.base_routes import BaseAPIRouter
 from core.agent_governance_service import AgentGovernanceService
 from core.database import get_db
 from core.models import AgentExecution, AgentRegistry, BrowserAudit, BrowserSession, User
@@ -38,7 +39,7 @@ from tools.browser_tool import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/browser", tags=["browser"])
+router = BaseAPIRouter(prefix="/api/browser", tags=["browser"])
 
 # Feature flags
 BROWSER_GOVERNANCE_ENABLED = os.getenv("BROWSER_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -166,7 +167,10 @@ async def create_browser_session(
     )
 
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        error_msg = result.get("error", "Failed to create browser session")
+        if "governance" in error_msg.lower() or "permission" in error_msg.lower():
+            raise router.permission_denied_error("create_browser_session", "BrowserSession", details={"error": error_msg})
+        raise router.error_response("SESSION_CREATE_FAILED", error_msg, status_code=400)
 
     # Create database session record
     try:
@@ -234,9 +238,12 @@ async def navigate(
                         governance_check_passed=False
                     )
 
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Agent not permitted: {governance_check['reason']}"
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action="browser_navigate",
+                        maturity_level=agent.maturity_level if hasattr(agent, 'maturity_level') else agent.status,
+                        required_level="INTERN",
+                        reason=governance_check['reason']
                     )
 
                 # Create execution record
@@ -561,9 +568,8 @@ async def list_sessions(
             BrowserSession.user_id == current_user.id
         ).order_by(BrowserSession.created_at.desc()).limit(50).all()
 
-        return {
-            "success": True,
-            "sessions": [
+        return router.success_response(
+            data=[
                 {
                     "session_id": s.session_id,
                     "id": s.id,
@@ -576,14 +582,12 @@ async def list_sessions(
                     "closed_at": s.closed_at.isoformat() if s.closed_at else None
                 }
                 for s in sessions
-            ]
-        }
+            ],
+            message=f"Retrieved {len(sessions)} sessions"
+        )
     except Exception as e:
         logger.error(f"Failed to list sessions: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise router.internal_error(f"Failed to list sessions: {str(e)}")
 
 
 @router.get("/audit")
@@ -604,9 +608,8 @@ async def get_browser_audit(
 
         audits = query.order_by(BrowserAudit.created_at.desc()).limit(limit).all()
 
-        return {
-            "success": True,
-            "audits": [
+        return router.success_response(
+            data=[
                 {
                     "id": a.id,
                     "session_id": a.session_id,
@@ -619,11 +622,9 @@ async def get_browser_audit(
                     "created_at": a.created_at.isoformat()
                 }
                 for a in audits
-            ]
-        }
+            ],
+            message=f"Retrieved {len(audits)} audit entries"
+        )
     except Exception as e:
         logger.error(f"Failed to fetch audit log: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise router.internal_error(f"Failed to fetch audit log: {str(e)}")

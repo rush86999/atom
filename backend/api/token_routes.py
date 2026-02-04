@@ -7,20 +7,21 @@ Provides endpoints for JWT token revocation and management.
 import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Depends, Request
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.auth_helpers import revoke_token, cleanup_expired_revoked_tokens
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.jwt_verifier import verify_token_string
 from core.models import User, UserRole
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth/tokens", tags=["token-management"])
+router = BaseAPIRouter(prefix="/api/auth/tokens", tags=["token-management"])
 security = HTTPBearer()
 
 
@@ -73,16 +74,17 @@ async def revoke_token_endpoint(
             logger.warning(
                 f"User {current_user.id} attempted to revoke token for user {payload.get('sub')}"
             )
-            raise HTTPException(
-                status_code=403,
-                detail="You can only revoke your own tokens"
+            raise router.permission_denied_error(
+                action="revoke_token",
+                resource="Token",
+                details={"reason": "You can only revoke your own tokens"}
             )
 
         # Check if JTI exists
         if 'jti' not in payload:
-            raise HTTPException(
-                status_code=400,
-                detail="Token does not have a JTI claim and cannot be revoked"
+            raise router.validation_error(
+                field="jti",
+                message="Token does not have a JTI claim and cannot be revoked"
             )
 
         # Revoke the token
@@ -106,14 +108,9 @@ async def revoke_token_endpoint(
                 message="Token was already revoked"
             )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error revoking token: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to revoke token"
-        )
+        raise router.internal_error(message="Failed to revoke token")
 
 
 @router.post("/cleanup")
@@ -145,11 +142,11 @@ async def cleanup_expired_tokens(
             f"Non-admin user {current_user.id} (role: {current_user.role}) "
             f"attempted to cleanup expired tokens"
         )
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "admin_access_required",
-                "message": "Token cleanup requires super-admin privileges",
+        raise router.permission_denied_error(
+            action="cleanup_expired_tokens",
+            resource="Token",
+            details={
+                "reason": "Token cleanup requires super-admin privileges",
                 "user_role": current_user.role,
                 "required_role": UserRole.SUPER_ADMIN
             }
@@ -162,18 +159,14 @@ async def cleanup_expired_tokens(
         )
         deleted_count = cleanup_expired_revoked_tokens(db, older_than_hours)
 
-        return {
-            "success": True,
-            "deleted_count": deleted_count,
-            "message": f"Cleaned up {deleted_count} expired revoked tokens"
-        }
+        return router.success_response(
+            data={"deleted_count": deleted_count},
+            message=f"Cleaned up {deleted_count} expired revoked tokens"
+        )
 
     except Exception as e:
         logger.error(f"Error cleaning up expired tokens: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to cleanup expired tokens"
-        )
+        raise router.internal_error(message="Failed to cleanup expired tokens")
 
 
 @router.get("/verify")
@@ -202,9 +195,10 @@ async def verify_token_endpoint(
 
         # Check if token belongs to current user
         if payload.get('sub') != current_user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only verify your own tokens"
+            raise router.permission_denied_error(
+                action="verify_token",
+                resource="Token",
+                details={"reason": "You can only verify your own tokens"}
             )
 
         # Check if token is revoked (requires db session)
@@ -213,19 +207,23 @@ async def verify_token_endpoint(
         verifier = get_jwt_verifier()
         is_revoked = verifier._is_token_revoked(payload, db)
 
-        return {
-            "valid": not is_revoked,
-            "revoked": is_revoked,
-            "expires_at": datetime.fromtimestamp(payload['exp']),
-            "user_id": payload.get('sub'),
-            "jti": payload.get('jti')
-        }
+        return router.success_response(
+            data={
+                "valid": not is_revoked,
+                "revoked": is_revoked,
+                "expires_at": datetime.fromtimestamp(payload['exp']),
+                "user_id": payload.get('sub'),
+                "jti": payload.get('jti')
+            },
+            message="Token verification complete"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error verifying token: {e}")
-        return {
-            "valid": False,
-            "error": str(e)
-        }
+        return router.success_response(
+            data={
+                "valid": False,
+                "error": str(e)
+            },
+            message="Token verification failed"
+        )

@@ -14,17 +14,18 @@ Endpoints:
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentExecution, AgentFeedback, AgentRegistry
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/feedback", tags=["feedback"])
 
 
 # ============================================================================
@@ -128,14 +129,11 @@ async def submit_enhanced_feedback(
 
     Returns:
         FeedbackSubmitResponse with feedback ID and type
-
-    Raises:
-        HTTPException: If agent not found or validation fails
     """
     # Validate agent exists
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == request.agent_id).first()
     if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{request.agent_id}' not found")
+        raise router.not_found_error("Agent", request.agent_id)
 
     # Validate at least one feedback type provided
     has_feedback = any([
@@ -145,9 +143,17 @@ async def submit_enhanced_feedback(
     ])
 
     if not has_feedback:
-        raise HTTPException(
-            status_code=400,
-            detail="At least one feedback type must be provided (thumbs_up_down, rating, or user_correction)"
+        raise router.validation_error(
+            field="feedback",
+            message="At least one feedback type must be provided",
+            details={
+                "required_fields": ["thumbs_up_down", "rating", "user_correction"],
+                "provided": {
+                    "thumbs_up_down": request.thumbs_up_down,
+                    "rating": request.rating,
+                    "user_correction": request.user_correction is not None
+                }
+            }
         )
 
     # Auto-detect feedback type if not provided
@@ -164,7 +170,11 @@ async def submit_enhanced_feedback(
 
     # Validate rating if provided
     if request.rating is not None and not (1 <= request.rating <= 5):
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+        raise router.validation_error(
+            field="rating",
+            message="Rating must be between 1 and 5",
+            details={"provided": request.rating}
+        )
 
     # Create feedback record
     feedback = AgentFeedback(
@@ -190,11 +200,12 @@ async def submit_enhanced_feedback(
         f"rating={request.rating}, user={request.user_id}"
     )
 
-    return FeedbackSubmitResponse(
-        success=True,
-        feedback_id=feedback.id,
-        agent_id=request.agent_id,
-        feedback_type=feedback_type,
+    return router.success_response(
+        data={
+            "feedback_id": feedback.id,
+            "agent_id": request.agent_id,
+            "feedback_type": feedback_type
+        },
         message="Feedback submitted successfully"
     )
 
@@ -223,14 +234,11 @@ async def get_agent_feedback(
 
     Returns:
         FeedbackSummary with aggregated statistics
-
-    Raises:
-        HTTPException: If agent not found
     """
     # Validate agent exists
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+        raise router.not_found_error("Agent", agent_id)
 
     # Calculate date cutoff
     cutoff_date = datetime.now() - timedelta(days=days)
@@ -275,17 +283,20 @@ async def get_agent_feedback(
         if f.feedback_type:
             feedback_types[f.feedback_type] = feedback_types.get(f.feedback_type, 0) + 1
 
-    return FeedbackSummary(
-        agent_id=agent_id,
-        agent_name=agent.name,
-        total_feedback=total,
-        positive_count=positive,
-        negative_count=negative,
-        thumbs_up_count=thumbs_up,
-        thumbs_down_count=thumbs_down,
-        average_rating=avg_rating,
-        rating_distribution=rating_dist,
-        feedback_types=feedback_types
+    return router.success_response(
+        data={
+            "agent_id": agent_id,
+            "agent_name": agent.name,
+            "total_feedback": total,
+            "positive_count": positive,
+            "negative_count": negative,
+            "thumbs_up_count": thumbs_up,
+            "thumbs_down_count": thumbs_down,
+            "average_rating": avg_rating,
+            "rating_distribution": rating_dist,
+            "feedback_types": feedback_types
+        },
+        message=f"Retrieved feedback summary for agent {agent_id}"
     )
 
 
@@ -410,16 +421,19 @@ async def get_feedback_analytics(
         AgentFeedback.created_at >= datetime.now() - timedelta(days=30)
     ).count()
 
-    return FeedbackAnalytics(
-        total_feedback=total_feedback,
-        total_agents_with_feedback=agents_with_feedback,
-        overall_positive_ratio=positive_ratio,
-        overall_average_rating=avg_rating,
-        top_performing_agents=top_agents,
-        most_corrected_agents=most_corrected,
-        feedback_by_type=feedback_by_type,
-        feedback_trends_7d={"total": trend_7d},
-        feedback_trends_30d={"total": trend_30d}
+    return router.success_response(
+        data={
+            "total_feedback": total_feedback,
+            "total_agents_with_feedback": agents_with_feedback,
+            "overall_positive_ratio": positive_ratio,
+            "overall_average_rating": avg_rating,
+            "top_performing_agents": top_agents,
+            "most_corrected_agents": most_corrected,
+            "feedback_by_type": feedback_by_type,
+            "feedback_trends_7d": {"total": trend_7d},
+            "feedback_trends_30d": {"total": trend_30d}
+        },
+        message=f"Retrieved analytics for {days} days"
     )
 
 
@@ -486,4 +500,7 @@ async def get_feedback_trends(
             average_rating=avg_rating
         ))
 
-    return trends
+    return router.success_list_response(
+        items=trends,
+        message=f"Retrieved feedback trends for {days} days"
+    )

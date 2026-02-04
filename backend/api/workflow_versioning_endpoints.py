@@ -15,10 +15,11 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import Depends, Path, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from core.base_routes import BaseAPIRouter
 from backend.core.workflow_versioning_system import (
     Branch,
     ChangeType,
@@ -34,7 +35,7 @@ from core.models import User
 logger = logging.getLogger(__name__)
 
 # Initialize router
-router = APIRouter(prefix="/api/v1/workflows", tags=["workflow-versioning"])
+router = BaseAPIRouter(prefix="/api/v1/workflows", tags=["workflow-versioning"])
 
 # Initialize versioning systems
 versioning_system = WorkflowVersioningSystem()
@@ -218,7 +219,7 @@ async def create_workflow_version(
         # Get full version details
         version = await versioning_system.get_version(workflow_id, version_result['version'])
         if not version:
-            raise HTTPException(status_code=500, detail="Failed to retrieve created version")
+            raise router.internal_error("Failed to retrieve created version", details={"workflow_id": workflow_id})
 
         return VersionResponse(
             workflow_id=version.workflow_id,
@@ -237,7 +238,7 @@ async def create_workflow_version(
 
     except Exception as e:
         logger.error(f"Error creating version for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/versions", response_model=List[VersionResponse])
 async def get_workflow_versions(
@@ -279,7 +280,7 @@ async def get_workflow_versions(
 
     except Exception as e:
         logger.error(f"Error getting versions for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/versions/{version}", response_model=VersionResponse)
 async def get_workflow_version(
@@ -291,7 +292,7 @@ async def get_workflow_version(
     try:
         version_obj = await versioning_system.get_version(workflow_id, version)
         if not version_obj:
-            raise HTTPException(status_code=404, detail="Version not found")
+            raise router.not_found_error("Version", version)
 
         return VersionResponse(
             workflow_id=version_obj.workflow_id,
@@ -308,11 +309,11 @@ async def get_workflow_version(
             is_active=version_obj.is_active
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting version {version} for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise router.not_found_error("Version", version)
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/versions/{version}/data")
 async def get_workflow_version_data(
@@ -324,21 +325,23 @@ async def get_workflow_version_data(
     try:
         version_obj = await versioning_system.get_version(workflow_id, version)
         if not version_obj:
-            raise HTTPException(status_code=404, detail="Version not found")
+            raise router.not_found_error("Version", version)
 
-        return {
-            "workflow_id": version_obj.workflow_id,
-            "version": version_obj.version,
-            "workflow_data": version_obj.workflow_data,
-            "metadata": version_obj.metadata,
-            "checksum": version_obj.checksum
-        }
+        return router.success_response(
+            data={
+                "workflow_id": version_obj.workflow_id,
+                "version": version_obj.version,
+                "workflow_data": version_obj.workflow_data,
+                "metadata": version_obj.metadata,
+                "checksum": version_obj.checksum
+            }
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting version data {version} for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error(str(e))
 
 @router.post("/{workflow_id}/rollback")
 async def rollback_workflow(
@@ -356,7 +359,7 @@ async def rollback_workflow(
         # Verify target version exists
         target_version = await versioning_system.get_version(workflow_id, request.target_version)
         if not target_version:
-            raise HTTPException(status_code=404, detail="Target version not found")
+            raise router.not_found_error("Target version", request.target_version)
 
         # Perform rollback
         rollback_result = await version_manager.rollback_workflow(
@@ -366,19 +369,20 @@ async def rollback_workflow(
             reason=request.rollback_reason
         )
 
-        return {
-            "success": True,
-            "message": f"Successfully rolled back to version {request.target_version}",
-            "rollback_version": rollback_result['rollback_version'],
-            "target_version": rollback_result['target_version'],
-            "created_at": rollback_result['created_at']
-        }
+        return router.success_response(
+            data={
+                "rollback_version": rollback_result['rollback_version'],
+                "target_version": rollback_result['target_version'],
+                "created_at": rollback_result['created_at']
+            },
+            message=f"Successfully rolled back to version {request.target_version}"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error rolling back workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/versions/compare", response_model=VersionDiffResponse)
 async def compare_workflow_versions(
@@ -399,9 +403,9 @@ async def compare_workflow_versions(
         to_version_obj = await versioning_system.get_version(workflow_id, to_version)
 
         if not from_version_obj:
-            raise HTTPException(status_code=404, detail=f"Source version {from_version} not found")
+            raise router.not_found_error("Source version", from_version)
         if not to_version_obj:
-            raise HTTPException(status_code=404, detail=f"Target version {to_version} not found")
+            raise router.not_found_error("Target version", to_version)
 
         # Compare versions
         changes = await version_manager.get_workflow_changes(
@@ -424,11 +428,11 @@ async def compare_workflow_versions(
             metadata_changes=changes['metadata_changes']
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error comparing versions for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error(str(e))
 
 @router.delete("/{workflow_id}/versions/{version}")
 async def delete_workflow_version(
@@ -452,19 +456,18 @@ async def delete_workflow_version(
         )
 
         if not success:
-            raise HTTPException(status_code=400, detail="Failed to delete version")
+            raise router.validation_error("version", "Failed to delete version")
 
-        return {
-            "success": True,
-            "message": f"Version {version} marked as deleted",
-            "deleted_at": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data={"deleted_at": datetime.now().isoformat()},
+            message=f"Version {version} marked as deleted"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error deleting version {version} for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "validation" in str(e).lower():
+            raise
+        raise router.internal_error(str(e))
 
 # Branch Management Endpoints
 
@@ -497,7 +500,7 @@ async def create_workflow_branch(
 
     except Exception as e:
         logger.error(f"Error creating branch for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/branches", response_model=List[BranchResponse])
 async def get_workflow_branches(
@@ -524,7 +527,7 @@ async def get_workflow_branches(
 
     except Exception as e:
         logger.error(f"Error getting branches for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.post("/{workflow_id}/branches/merge")
 async def merge_workflow_branch(
@@ -547,16 +550,17 @@ async def merge_workflow_branch(
             merge_message=request.merge_message
         )
 
-        return {
-            "success": True,
-            "message": f"Successfully merged {request.source_branch} into {request.target_branch}",
-            "merged_version": merged_version.version,
-            "merge_timestamp": merged_version.created_at.isoformat()
-        }
+        return router.success_response(
+            data={
+                "merged_version": merged_version.version,
+                "merge_timestamp": merged_version.created_at.isoformat()
+            },
+            message=f"Successfully merged {request.source_branch} into {request.target_branch}"
+        )
 
     except Exception as e:
         logger.error(f"Error merging branches for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 # Version Metrics and Analytics Endpoints
 
@@ -570,22 +574,26 @@ async def get_version_metrics(
     try:
         metrics = await versioning_system.get_version_metrics(workflow_id, version)
         if not metrics:
-            return {
+            return router.success_response(
+                data={
+                    "workflow_id": workflow_id,
+                    "version": version,
+                    "metrics": {}
+                },
+                message="No metrics available for this version"
+            )
+
+        return router.success_response(
+            data={
                 "workflow_id": workflow_id,
                 "version": version,
-                "metrics": {},
-                "message": "No metrics available for this version"
+                "metrics": metrics
             }
-
-        return {
-            "workflow_id": workflow_id,
-            "version": version,
-            "metrics": metrics
-        }
+        )
 
     except Exception as e:
         logger.error(f"Error getting metrics for version {version}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.post("/{workflow_id}/versions/{version}/metrics")
 async def update_version_metrics(
@@ -607,14 +615,14 @@ async def update_version_metrics(
             execution_result=execution_result
         )
 
-        return {
-            "success": success,
-            "message": "Metrics updated successfully" if success else "Failed to update metrics"
-        }
+        if success:
+            return router.success_response(message="Metrics updated successfully")
+        else:
+            return router.success_response(message="Failed to update metrics")
 
     except Exception as e:
         logger.error(f"Error updating metrics for version {version}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 # Utility Endpoints
 
@@ -633,7 +641,7 @@ async def get_latest_version(
         )
 
         if not versions:
-            raise HTTPException(status_code=404, detail="No versions found")
+            raise router.not_found_error("Version", "latest")
 
         latest_version = versions[0]
 
@@ -652,11 +660,11 @@ async def get_latest_version(
             is_active=latest_version.is_active
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting latest version for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error(str(e))
 
 @router.get("/{workflow_id}/versions/summary")
 async def get_version_summary(
@@ -690,24 +698,26 @@ async def get_version_summary(
             # Track unique creators
             creators.add(version.created_by)
 
-        return {
-            "workflow_id": workflow_id,
-            "branch_name": branch_name,
-            "total_versions": total_versions,
-            "version_types": version_types,
-            "change_types": change_types,
-            "unique_contributors": len(creators),
-            "latest_version": versions[0].version if versions else None,
-            "oldest_version": versions[-1].version if versions else None,
-            "date_range": {
-                "first_created": versions[-1].created_at.isoformat() if versions else None,
-                "last_created": versions[0].created_at.isoformat() if versions else None
+        return router.success_response(
+            data={
+                "workflow_id": workflow_id,
+                "branch_name": branch_name,
+                "total_versions": total_versions,
+                "version_types": version_types,
+                "change_types": change_types,
+                "unique_contributors": len(creators),
+                "latest_version": versions[0].version if versions else None,
+                "oldest_version": versions[-1].version if versions else None,
+                "date_range": {
+                    "first_created": versions[-1].created_at.isoformat() if versions else None,
+                    "last_created": versions[0].created_at.isoformat() if versions else None
+                }
             }
-        }
+        )
 
     except Exception as e:
         logger.error(f"Error getting version summary for workflow {workflow_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 # Health check endpoint
 @router.get("/versioning/health")
@@ -716,14 +726,15 @@ async def health_check():
     try:
         # Test database connection
         # This is a simple health check - in production, you might want more comprehensive checks
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "versioning_system": "operational"
-        }
+        return router.success_response(
+            data={
+                "versioning_system": "operational"
+            },
+            message="Versioning system is healthy"
+        )
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=503, detail="Versioning system unavailable")
+        raise router.internal_error("Versioning system unavailable", status_code=503)
 
 # Export router for inclusion in main app
 __all__ = ["router"]

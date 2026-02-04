@@ -10,10 +10,12 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import BackgroundTasks
 from pydantic import BaseModel
 
-router = APIRouter()
+from core.base_routes import BaseAPIRouter
+
+router = BaseAPIRouter(prefix="/api/agent-status", tags=["Agent Status"])
 
 # In-memory storage for agent status (for MVP)
 AGENT_STATUS_FILE = Path(__file__).parent.parent / "agent_status.json"
@@ -142,7 +144,10 @@ async def agent_heartbeat(agent_id: str, status: Dict[str, Any]):
     data.setdefault("agents", {})[agent_id] = agent_info
     save_agent_status(data)
 
-    return {"status": "success", "timestamp": datetime.now()}
+    return router.success_response(
+        data={"timestamp": datetime.now()},
+        message="Agent heartbeat updated successfully"
+    )
 
 @router.post("/agent/task/{task_id}/update")
 async def update_task_status(task_id: str, update: Dict[str, Any]):
@@ -150,7 +155,7 @@ async def update_task_status(task_id: str, update: Dict[str, Any]):
     data = load_agent_status()
 
     if task_id not in data.get("tasks", {}):
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise router.not_found_error("Task", task_id)
 
     # Update task fields
     task_data = data["tasks"][task_id]
@@ -174,7 +179,7 @@ async def update_task_status(task_id: str, update: Dict[str, Any]):
     data["tasks"][task_id] = task_data
     save_agent_status(data)
 
-    return {"status": "success"}
+    return router.success_response(message="Task status updated successfully")
 
 @router.post("/agent/task")
 async def create_task(task: AgentTask):
@@ -193,7 +198,10 @@ async def create_task(task: AgentTask):
     data.setdefault("tasks", {})[task.task_id] = task_dict
     save_agent_status(data)
 
-    return {"status": "success", "task_id": task.task_id}
+    return router.success_response(
+        data={"task_id": task.task_id},
+        message="Task created successfully"
+    )
 
 @router.delete("/agent/task/{task_id}")
 async def delete_task(task_id: str):
@@ -203,9 +211,9 @@ async def delete_task(task_id: str):
     if task_id in data.get("tasks", {}):
         del data["tasks"][task_id]
         save_agent_status(data)
-        return {"status": "success"}
+        return router.success_response(message="Task deleted successfully")
     else:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise router.not_found_error("Task", task_id)
 
 @router.get("/agent/metrics")
 async def get_agent_metrics():
@@ -228,18 +236,19 @@ async def get_agent_metrics():
         if t.get("status") == "failed"
     ])
 
-    return {
-        "agents": {
-            "total": total_agents,
-            "active": active_agents,
-            "idle": total_agents - active_agents
-        },
-        "tasks": {
-            "total": total_tasks,
-            "completed": completed_tasks,
-            "failed": failed_tasks,
-            "pending": total_tasks - completed_tasks - failed_tasks
-        },
-        "success_rate": completed_tasks / max(total_tasks, 1),
-        "timestamp": datetime.now()
-    }
+    return router.success_response(
+        data={
+            "agents": {
+                "total": total_agents,
+                "active": active_agents,
+                "idle": total_agents - active_agents
+            },
+            "tasks": {
+                "total": total_tasks,
+                "completed": completed_tasks,
+                "failed": failed_tasks,
+                "pending": total_tasks - completed_tasks - failed_tasks
+            },
+            "success_rate": completed_tasks / max(total_tasks, 1)
+        }
+    )

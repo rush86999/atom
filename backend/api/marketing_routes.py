@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from core.base_routes import BaseAPIRouter
+from fastapi import Depends, HTTPException, Query, status
 from sales.models import Lead
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,7 @@ from core.models import User
 from core.reputation_service import ReputationManager
 from integrations.ai_enhanced_service import ai_enhanced_service
 
-router = APIRouter(prefix="/api/marketing", tags=["Marketing"])
+router = BaseAPIRouter(prefix="/api/marketing", tags=["Marketing"])
 logger = logging.getLogger(__name__)
 
 # Initialize managers (ideally these would be injected or handled via a startup event)

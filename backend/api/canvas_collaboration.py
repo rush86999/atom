@@ -20,16 +20,17 @@ Endpoints:
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_collaboration_service import CanvasCollaborationService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 
 # ============================================================================
@@ -126,9 +127,16 @@ async def create_collaboration_session(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="SESSION_CREATE_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Collaboration session created successfully"
+    )
 
 
 @router.post("/session/{session_id}/add-agent")
@@ -159,9 +167,16 @@ async def add_agent_to_session(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="ADD_AGENT_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message=f"Agent {request.agent_id} added to session successfully"
+    )
 
 
 @router.delete("/session/{session_id}/remove-agent")
@@ -186,9 +201,16 @@ async def remove_agent_from_session(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="REMOVE_AGENT_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message=f"Agent {request.agent_id} removed from session successfully"
+    )
 
 
 @router.get("/session/{session_id}/status")
@@ -212,9 +234,16 @@ async def get_session_status(
     result = service.get_session_status(session_id)
 
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
+        raise router.not_found_error(
+            resource="CollaborationSession",
+            resource_id=session_id,
+            details={"error": result["error"]}
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Session status retrieved successfully"
+    )
 
 
 @router.post("/session/{session_id}/complete")
@@ -238,9 +267,16 @@ async def complete_session(
     result = service.complete_session(session_id)
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="SESSION_COMPLETE_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Collaboration session completed successfully"
+    )
 
 
 # ============================================================================
@@ -275,7 +311,10 @@ async def check_agent_permission(
         component_id=component_id
     )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Permission check completed"
+    )
 
 
 @router.post("/session/{session_id}/check-conflict")
@@ -308,7 +347,10 @@ async def check_for_conflicts(
         action=request.action
     )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Conflict check completed"
+    )
 
 
 @router.post("/session/{session_id}/resolve-conflict")
@@ -346,9 +388,16 @@ async def resolve_conflict(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="CONFLICT_RESOLVE_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Conflict resolved successfully"
+    )
 
 
 # ============================================================================
@@ -383,9 +432,16 @@ async def record_agent_action(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="RECORD_ACTION_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Agent action recorded successfully"
+    )
 
 
 @router.post("/session/{session_id}/release-lock")
@@ -415,9 +471,16 @@ async def release_agent_lock(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="RELEASE_LOCK_FAILED",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Agent lock released successfully"
+    )
 
 
 # ============================================================================
@@ -454,17 +517,20 @@ async def list_collaboration_sessions(
 
     sessions = query.order_by(CanvasCollaborationSession.created_at.desc()).limit(limit).all()
 
-    return {
-        "total": len(sessions),
-        "sessions": [
-            {
-                "session_id": s.id,
-                "canvas_id": s.canvas_id,
-                "status": s.status,
-                "collaboration_mode": s.collaboration_mode,
-                "max_agents": s.max_agents,
-                "created_at": s.created_at.isoformat()
-            }
-            for s in sessions
-        ]
-    }
+    session_list = [
+        {
+            "session_id": s.id,
+            "canvas_id": s.canvas_id,
+            "status": s.status,
+            "collaboration_mode": s.collaboration_mode,
+            "max_agents": s.max_agents,
+            "created_at": s.created_at.isoformat()
+        }
+        for s in sessions
+    ]
+
+    return router.success_list_response(
+        items=session_list,
+        total=len(session_list),
+        message=f"Retrieved {len(session_list)} collaboration sessions"
+    )

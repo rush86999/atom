@@ -6,9 +6,9 @@ Provides aggregated metrics and KPIs for the analytics dashboard
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal
 from core.workflow_analytics_engine import (
     AlertSeverity,
@@ -19,7 +19,7 @@ from core.workflow_analytics_engine import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["analytics-dashboard"])
+router = BaseAPIRouter(tags=["analytics-dashboard"])
 
 # Global analytics engine instance
 _analytics_engine: Optional[WorkflowAnalyticsEngine] = None
@@ -158,7 +158,7 @@ async def get_dashboard_kpis(
 
     except Exception as e:
         logger.error(f"Error getting dashboard KPIs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/workflows/top-performing", response_model=List[WorkflowPerformanceRanking])
@@ -225,7 +225,7 @@ async def get_top_workflows(
 
     except Exception as e:
         logger.error(f"Error getting top workflows: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/timeline", response_model=List[ExecutionTimelineData])
@@ -274,7 +274,7 @@ async def get_execution_timeline(
 
     except Exception as e:
         logger.error(f"Error getting execution timeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/errors/breakdown")
@@ -302,7 +302,7 @@ async def get_error_breakdown(
 
     except Exception as e:
         logger.error(f"Error getting error breakdown: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/alerts", response_model=List[AlertConfiguration])
@@ -344,7 +344,7 @@ async def get_alerts(
 
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.post("/api/analytics/alerts")
@@ -376,11 +376,14 @@ async def create_alert(alert: AlertConfiguration):
 
         analytics.create_alert(new_alert)
 
-        return {"message": "Alert created successfully", "alert_id": alert.alert_id}
+        return router.success_response(
+            data={"alert_id": alert.alert_id},
+            message="Alert created successfully"
+        )
 
     except Exception as e:
         logger.error(f"Error creating alert: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.put("/api/analytics/alerts/{alert_id}")
@@ -405,11 +408,11 @@ async def update_alert(
             threshold_value=threshold_value
         )
 
-        return {"message": "Alert updated successfully"}
+        return router.success_response(message="Alert updated successfully")
 
     except Exception as e:
         logger.error(f"Error updating alert: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.delete("/api/analytics/alerts/{alert_id}")
@@ -418,11 +421,11 @@ async def delete_alert(alert_id: str):
     try:
         analytics = get_analytics_engine()
         analytics.delete_alert(alert_id)
-        return {"message": "Alert deleted successfully"}
+        return router.success_response(message="Alert deleted successfully")
 
     except Exception as e:
         logger.error(f"Error deleting alert: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/realtime-feed", response_model=List[RealtimeExecutionEvent])
@@ -463,7 +466,7 @@ async def get_realtime_execution_feed(
 
     except Exception as e:
         logger.error(f"Error getting real-time feed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/metrics/summary")
@@ -494,16 +497,19 @@ async def get_metrics_summary(
         # Get timeline data
         timeline = await get_execution_timeline(time_window=time_window)
 
-        return {
-            "kpis": kpis.dict(),
-            "top_workflows": [w.dict() for w in top_workflows],
-            "error_breakdown": error_breakdown,
-            "timeline": [t.dict() for t in timeline]
-        }
+        return router.success_response(
+            data={
+                "kpis": kpis.dict(),
+                "top_workflows": [w.dict() for w in top_workflows],
+                "error_breakdown": error_breakdown,
+                "timeline": [t.dict() for t in timeline]
+            },
+            message="Metrics summary retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Error getting metrics summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/api/analytics/dashboard/workflow/{workflow_id}/performance")
@@ -529,32 +535,33 @@ async def get_workflow_performance_detail(
         )
 
         if not metrics:
-            raise HTTPException(status_code=404, detail="Workflow not found")
+            raise router.not_found_error("Workflow", workflow_id)
 
-        return {
-            "workflow_id": workflow_id,
-            "workflow_name": analytics.get_workflow_name(workflow_id),
-            "metrics": {
-                "total_executions": metrics.total_executions,
-                "successful_executions": metrics.successful_executions,
-                "failed_executions": metrics.failed_executions,
-                "success_rate": round(metrics.success_rate, 2),
-                "average_duration_ms": round(metrics.average_duration_ms, 2),
-                "median_duration_ms": round(metrics.median_duration_ms, 2),
-                "p95_duration_ms": round(metrics.p95_duration_ms, 2),
-                "p99_duration_ms": round(metrics.p99_duration_ms, 2),
-                "error_rate": round(metrics.error_rate, 2)
+        return router.success_response(
+            data={
+                "workflow_id": workflow_id,
+                "workflow_name": analytics.get_workflow_name(workflow_id),
+                "metrics": {
+                    "total_executions": metrics.total_executions,
+                    "successful_executions": metrics.successful_executions,
+                    "failed_executions": metrics.failed_executions,
+                    "success_rate": round(metrics.success_rate, 2),
+                    "average_duration_ms": round(metrics.average_duration_ms, 2),
+                    "median_duration_ms": round(metrics.median_duration_ms, 2),
+                    "p95_duration_ms": round(metrics.p95_duration_ms, 2),
+                    "p99_duration_ms": round(metrics.p99_duration_ms, 2),
+                    "error_rate": round(metrics.error_rate, 2)
+                },
+                "step_performance": metrics.average_step_duration,
+                "common_errors": metrics.most_common_errors,
+                "user_metrics": {
+                    "unique_users": metrics.unique_users,
+                    "executions_by_user": metrics.executions_by_user
+                }
             },
-            "step_performance": metrics.average_step_duration,
-            "common_errors": metrics.most_common_errors,
-            "user_metrics": {
-                "unique_users": metrics.unique_users,
-                "executions_by_user": metrics.executions_by_user
-            }
-        }
+            message="Workflow performance retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting workflow performance detail: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))

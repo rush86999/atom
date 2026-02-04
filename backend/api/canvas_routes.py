@@ -7,6 +7,8 @@ Now includes governance integration with:
 - Agent permission validation for form submissions
 - Linking submissions to originating agent executions
 - Complete audit trail for state-changing operations
+
+Migrated to BaseAPIRouter for standardized responses and error handling.
 """
 
 import logging
@@ -14,20 +16,22 @@ import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.governance_config import check_governance
 from core.models import AgentExecution, CanvasAudit, User
 from core.security_dependencies import get_current_user
 from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/canvas", tags=["canvas"])
+router = BaseAPIRouter(prefix="/api/canvas", tags=["canvas"])
 
 # Feature flags
 FORM_GOVERNANCE_ENABLED = os.getenv("FORM_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -105,11 +109,13 @@ async def submit_form(
                     logger.warning(
                         f"Governance blocked form submission: {governance_check['reason']}"
                     )
-                    return {
-                        "success": False,
-                        "error": f"Agent not permitted to submit form: {governance_check['reason']}",
-                        "governance_check": governance_check
-                    }
+                    raise router.governance_denied_error(
+                        agent_id=agent.id if hasattr(agent, 'id') else agent_id,
+                        action="submit_form",
+                        maturity_level=agent.maturity_level if hasattr(agent, 'maturity_level') else "UNKNOWN",
+                        required_level="SUPERVISED",
+                        reason=governance_check['reason']
+                    )
 
                 submission_execution = AgentExecution(
                     agent_id=agent.id if hasattr(agent, 'id') else agent_id,
@@ -189,14 +195,15 @@ async def submit_form(
             except Exception as completion_error:
                 logger.error(f"Failed to mark submission execution as completed: {completion_error}")
 
-        return {
-            "success": True,
-            "submission_id": audit.id,
-            "message": "Form submitted successfully",
-            "agent_execution_id": submission_execution.id if submission_execution else None,
-            "agent_id": agent.id if agent and hasattr(agent, 'id') else None,
-            "governance_check": governance_check
-        }
+        return router.success_response(
+            data={
+                "submission_id": audit.id,
+                "agent_execution_id": submission_execution.id if submission_execution else None,
+                "agent_id": agent.id if agent and hasattr(agent, 'id') else None,
+                "governance_check": governance_check
+            },
+            message="Form submitted successfully"
+        )
 
     except Exception as e:
         logger.error(f"Form submission failed: {e}")
@@ -218,7 +225,10 @@ async def submit_form(
             except Exception as inner_e:
                 logger.error(f"Failed to record submission failure: {inner_e}")
 
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Form submission failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/status")
@@ -228,8 +238,10 @@ async def get_canvas_status(
     """
     Get canvas status for the current user.
     """
-    return {
-        "status": "active",
-        "user_id": current_user.id,
-        "features": ["markdown", "status_panel", "form", "line_chart", "bar_chart", "pie_chart"]
-    }
+    return router.success_response(
+        data={
+            "status": "active",
+            "user_id": current_user.id,
+            "features": ["markdown", "status_panel", "form", "line_chart", "bar_chart", "pie_chart"]
+        }
+    )

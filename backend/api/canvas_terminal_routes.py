@@ -1,15 +1,16 @@
 """Terminal Canvas API Routes"""
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_terminal_service import TerminalCanvasService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/canvas/terminal", tags=["canvas_terminal"])
+router = BaseAPIRouter(prefix="/api/canvas/terminal", tags=["canvas_terminal"])
 
 
 class CreateTerminalRequest(BaseModel):
@@ -39,8 +40,16 @@ async def create_terminal_canvas(request: CreateTerminalRequest, db: Session = D
         working_dir=request.working_dir
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="TERMINAL_CANVAS_CREATE_FAILED",
+            message=result.get("error", "Failed to create terminal canvas"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message="Terminal canvas created successfully"
+    )
 
 
 @router.post("/{canvas_id}/output")
@@ -55,8 +64,16 @@ async def add_output(canvas_id: str, request: AddOutputRequest, db: Session = De
         exit_code=request.exit_code
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ADD_OUTPUT_FAILED",
+            message=result.get("error", "Failed to add output"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message="Command output added successfully"
+    )
 
 
 @router.get("/{canvas_id}")
@@ -72,6 +89,12 @@ async def get_terminal_canvas(canvas_id: str, db: Session = Depends(get_db)):
     ).order_by(desc(CanvasAudit.created_at)).first()
 
     if not audit:
-        raise HTTPException(status_code=404, detail="Terminal canvas not found")
+        raise router.not_found_error(
+            resource="TerminalCanvas",
+            resource_id=canvas_id
+        )
 
-    return audit.audit_metadata
+    return router.success_response(
+        data=audit.audit_metadata,
+        message="Terminal canvas retrieved successfully"
+    )

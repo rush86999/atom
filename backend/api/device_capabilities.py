@@ -15,12 +15,13 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
 from core.security_dependencies import get_current_user
@@ -37,7 +38,7 @@ from tools.device_tool import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/devices", tags=["devices"])
+router = BaseAPIRouter(prefix="/api/devices", tags=["devices"])
 
 # Feature flags
 DEVICE_GOVERNANCE_ENABLED = os.getenv("DEVICE_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -182,16 +183,16 @@ async def camera_snap(
 
         if not result.get("success"):
             if result.get("governance_blocked"):
-                raise HTTPException(status_code=403, detail=result.get("error"))
-            raise HTTPException(status_code=400, detail=result.get("error"))
+                raise router.permission_denied_error("camera_snap", "Device", details={"error": result.get("error")})
+            raise router.error_response("CAMERA_SNAP_FAILED", result.get("error", "Camera snap failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Camera snapshot captured successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Camera snap error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "permission" in str(e).lower() or "governance" in str(e).lower():
+            raise router.permission_denied_error("camera_snap", "Device", details={"error": str(e)})
+        raise router.internal_error(f"Camera snap error: {str(e)}")
 
 
 @router.post("/screen/record/start", response_model=Dict[str, Any])
@@ -233,16 +234,16 @@ async def screen_record_start(
 
         if not result.get("success"):
             if result.get("governance_blocked"):
-                raise HTTPException(status_code=403, detail=result.get("error"))
-            raise HTTPException(status_code=400, detail=result.get("error"))
+                raise router.permission_denied_error("screen_record_start", "Device", details={"error": result.get("error")})
+            raise router.error_response("SCREEN_RECORD_START_FAILED", result.get("error", "Screen record start failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Screen recording started successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Screen record start error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "permission" in str(e).lower() or "governance" in str(e).lower():
+            raise router.permission_denied_error("screen_record_start", "Device", details={"error": str(e)})
+        raise router.internal_error(f"Screen record start error: {str(e)}")
 
 
 @router.post("/screen/record/stop", response_model=Dict[str, Any])
@@ -273,15 +274,13 @@ async def screen_record_stop(
         )
 
         if not result.get("success"):
-            raise HTTPException(status_code=400, detail=result.get("error"))
+            raise router.error_response("SCREEN_RECORD_STOP_FAILED", result.get("error", "Screen record stop failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Screen recording stopped successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Screen record stop error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(f"Screen record stop error: {str(e)}")
 
 
 @router.post("/location", response_model=Dict[str, Any])
@@ -320,16 +319,16 @@ async def get_location(
 
         if not result.get("success"):
             if result.get("governance_blocked"):
-                raise HTTPException(status_code=403, detail=result.get("error"))
-            raise HTTPException(status_code=400, detail=result.get("error"))
+                raise router.permission_denied_error("get_location", "Device", details={"error": result.get("error")})
+            raise router.error_response("GET_LOCATION_FAILED", result.get("error", "Get location failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Location retrieved successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Get location error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "permission" in str(e).lower() or "governance" in str(e).lower():
+            raise router.permission_denied_error("get_location", "Device", details={"error": str(e)})
+        raise router.internal_error(f"Get location error: {str(e)}")
 
 
 @router.post("/notification", response_model=Dict[str, Any])
@@ -371,16 +370,16 @@ async def send_notification(
 
         if not result.get("success"):
             if result.get("governance_blocked"):
-                raise HTTPException(status_code=403, detail=result.get("error"))
-            raise HTTPException(status_code=400, detail=result.get("error"))
+                raise router.permission_denied_error("send_notification", "Device", details={"error": result.get("error")})
+            raise router.error_response("SEND_NOTIFICATION_FAILED", result.get("error", "Send notification failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Notification sent successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Send notification error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "permission" in str(e).lower() or "governance" in str(e).lower():
+            raise router.permission_denied_error("send_notification", "Device", details={"error": str(e)})
+        raise router.internal_error(f"Send notification error: {str(e)}")
 
 
 @router.post("/execute", response_model=Dict[str, Any])
@@ -416,9 +415,10 @@ async def execute_command(
         )
 
         if not agent_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Command execution requires an AUTONOMOUS agent"
+            raise router.permission_denied_error(
+                action="execute_command",
+                resource="Device",
+                details={"reason": "Command execution requires an AUTONOMOUS agent"}
             )
 
         # Verify agent is AUTONOMOUS
@@ -427,9 +427,13 @@ async def execute_command(
         ).first()
 
         if not agent or agent.status != "autonomous":
-            raise HTTPException(
-                status_code=403,
-                detail=f"Command execution requires AUTONOMOUS agent. Current: {agent.status if agent else 'None'}"
+            current_status = agent.status if agent else 'None'
+            raise router.governance_denied_error(
+                agent_id=agent_id if agent else "unknown",
+                action="execute_command",
+                maturity_level=current_status,
+                required_level="AUTONOMOUS",
+                reason=f"Command execution requires AUTONOMOUS agent. Current: {current_status}"
             )
 
         # Execute device action
@@ -446,16 +450,16 @@ async def execute_command(
 
         if not result.get("success"):
             if result.get("governance_blocked"):
-                raise HTTPException(status_code=403, detail=result.get("error"))
-            raise HTTPException(status_code=400, detail=result.get("error"))
+                raise router.permission_denied_error("execute_command", "Device", details={"error": result.get("error")})
+            raise router.error_response("EXECUTE_COMMAND_FAILED", result.get("error", "Command execution failed"), status_code=400)
 
-        return result
+        return router.success_response(data=result, message="Command executed successfully")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Execute command error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "permission" in str(e).lower() or "governance" in str(e).lower():
+            raise router.permission_denied_error("execute_command", "Device", details={"error": str(e)})
+        raise router.internal_error(f"Execute command error: {str(e)}")
 
 
 @router.get("/{device_node_id}", response_model=DeviceInfoResponse)
@@ -479,7 +483,7 @@ async def get_device_info_endpoint(
         result = await get_device_info(db, device_node_id)
 
         if not result:
-            raise HTTPException(status_code=404, detail="Device not found")
+            raise router.not_found_error("Device", device_node_id)
 
         # Verify user owns the device
         device = db.query(DeviceNode).filter(
@@ -487,15 +491,19 @@ async def get_device_info_endpoint(
         ).first()
 
         if device.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise router.permission_denied_error(
+                action="get_device_info",
+                resource="Device",
+                details={"device_id": device_node_id, "reason": "User does not own this device"}
+            )
 
-        return result
+        return router.success_response(data=result, message="Device information retrieved")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Get device info error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise router.not_found_error("Device", device_node_id)
+        raise router.internal_error(f"Get device info error: {str(e)}")
 
 
 @router.get("", response_model=List[DeviceInfoResponse])
@@ -521,7 +529,7 @@ async def list_devices_endpoint(
 
     except Exception as e:
         logger.error(f"List devices error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(f"List devices error: {str(e)}")
 
 
 @router.get("/{device_node_id}/audit", response_model=List[Dict[str, Any]])
@@ -550,10 +558,14 @@ async def get_device_audit(
         ).first()
 
         if not device:
-            raise HTTPException(status_code=404, detail="Device not found")
+            raise router.not_found_error("Device", device_node_id)
 
         if device.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise router.permission_denied_error(
+                action="get_device_audit",
+                resource="Device",
+                details={"device_id": device_node_id, "reason": "User does not own this device"}
+            )
 
         # Get audit entries
         audits = db.query(DeviceAudit).filter(
@@ -578,11 +590,11 @@ async def get_device_audit(
             for audit in audits
         ]
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Get device audit error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if "not found" in str(e).lower():
+            raise router.not_found_error("Device", device_node_id)
+        raise router.internal_error(f"Get device audit error: {str(e)}")
 
 
 @router.get("/sessions/active", response_model=List[Dict[str, Any]])
@@ -621,4 +633,4 @@ async def get_active_sessions(
 
     except Exception as e:
         logger.error(f"Get active sessions error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(f"Get active sessions error: {str(e)}")

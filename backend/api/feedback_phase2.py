@@ -17,19 +17,20 @@ Endpoints:
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_promotion_service import AgentPromotionService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.feedback_advanced_analytics import AdvancedFeedbackAnalytics
 from core.feedback_export_service import FeedbackExportService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 
 # ============================================================================
@@ -57,10 +58,13 @@ async def get_promotion_suggestions(
     service = AgentPromotionService(db)
     suggestions = service.get_promotion_suggestions(limit=limit)
 
-    return {
-        "total_suggestions": len(suggestions),
-        "suggestions": suggestions
-    }
+    return router.success_response(
+        data={
+            "total_suggestions": len(suggestions),
+            "suggestions": suggestions
+        },
+        message=f"Retrieved {len(suggestions)} promotion suggestions"
+    )
 
 
 @router.get("/promotion-path/{agent_id}")
@@ -86,9 +90,16 @@ async def get_promotion_path(
     path = service.get_promotion_path(agent_id)
 
     if "error" in path:
-        raise HTTPException(status_code=404, detail=path["error"])
+        raise router.not_found_error(
+            resource="Agent",
+            resource_id=agent_id,
+            details={"error": path["error"]}
+        )
 
-    return path
+    return router.success_response(
+        data=path,
+        message="Promotion path retrieved successfully"
+    )
 
 
 @router.get("/promotion-check/{agent_id}")
@@ -118,9 +129,16 @@ async def check_agent_promotion_readiness(
     )
 
     if "error" in evaluation:
-        raise HTTPException(status_code=404, detail=evaluation["error"])
+        raise router.not_found_error(
+            resource="Agent",
+            resource_id=agent_id,
+            details={"error": evaluation["error"]}
+        )
 
-    return evaluation
+    return router.success_response(
+        data=evaluation,
+        message="Agent promotion readiness checked"
+    )
 
 
 # ============================================================================
@@ -178,9 +196,10 @@ async def export_feedback(
         filename = f"feedback_export_{datetime.now().strftime('%Y%m%d')}.csv"
 
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid format. Must be 'json' or 'csv'"
+        raise router.validation_error(
+            field="format",
+            message="Invalid format. Must be 'json' or 'csv'",
+            details={"provided": format, "valid_options": ["json", "csv"]}
         )
 
     return Response(
@@ -237,7 +256,10 @@ async def get_export_filters(
     service = FeedbackExportService(db)
     filters = service.get_export_filters(db)
 
-    return filters
+    return router.success_response(
+        data=filters,
+        message="Export filters retrieved"
+    )
 
 
 # ============================================================================
@@ -268,7 +290,10 @@ async def analyze_feedback_performance_correlation(
         days=days
     )
 
-    return correlation
+    return router.success_response(
+        data=correlation,
+        message="Feedback-performance correlation analyzed"
+    )
 
 
 @router.get("/analytics/advanced/cohorts")
@@ -292,7 +317,10 @@ async def analyze_feedback_by_cohorts(
     service = AdvancedFeedbackAnalytics(db)
     cohorts = service.analyze_feedback_by_agent_cohort(days=days)
 
-    return cohorts
+    return router.success_response(
+        data=cohorts,
+        message="Feedback cohort analysis completed"
+    )
 
 
 @router.get("/analytics/advanced/prediction/{agent_id}")
@@ -319,7 +347,10 @@ async def predict_agent_performance(
         days=days
     )
 
-    return prediction
+    return router.success_response(
+        data=prediction,
+        message="Agent performance prediction completed"
+    )
 
 
 @router.get("/analytics/advanced/velocity/{agent_id}")
@@ -346,4 +377,7 @@ async def analyze_feedback_velocity(
         days=days
     )
 
-    return velocity
+    return router.success_response(
+        data=velocity,
+        message="Feedback velocity analysis completed"
+    )

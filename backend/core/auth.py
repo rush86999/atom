@@ -18,14 +18,14 @@ from core.models import User
 # Configuration
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
 if not SECRET_KEY:
     if os.getenv("ENVIRONMENT") == "production" or os.getenv("NODE_ENV") == "production":
         raise ValueError("SECRET_KEY environment variable is required in production")
     else:
-        # Match NextAuth default secret for development
-        SECRET_KEY = "atom_secure_secret_2025_fixed_key"
-        logger.warning("⚠️ Using hardcoded secret key (matching NextAuth) for development.")
+        # Generate a secure random key for development
+        SECRET_KEY = secrets.token_urlsafe(32)
+        logger.warning("⚠️ Using auto-generated secret key for development. Set SECRET_KEY env var for persistence.")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours

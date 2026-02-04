@@ -12,12 +12,14 @@ Endpoints:
 """
 
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.deeplinks import (
     DeepLinkParseException,
@@ -30,12 +32,9 @@ from core.models import AgentRegistry, DeepLinkAudit
 
 logger = logging.getLogger(__name__)
 
-# Feature flags
-import os
-
 DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 
 # Request/Response Models
@@ -126,7 +125,11 @@ async def execute_deeplink_endpoint(
         HTTPException: If deep link is invalid or execution fails
     """
     if not DEEPLINK_ENABLED:
-        raise HTTPException(status_code=503, detail="Deep linking is disabled")
+        raise router.error_response(
+            error_code="SERVICE_UNAVAILABLE",
+            message="Deep linking is disabled",
+            status_code=503
+        )
 
     try:
         # Execute deep link
@@ -138,7 +141,7 @@ async def execute_deeplink_endpoint(
         )
 
         if not result.get("success"):
-            raise HTTPException(status_code=400, detail=result.get("error"))
+            raise router.validation_error("deeplink_url", result.get("error", "Deep link execution failed"))
 
         # Build response
         response = DeepLinkExecuteResponse(
@@ -161,10 +164,10 @@ async def execute_deeplink_endpoint(
 
     except (DeepLinkParseException, DeepLinkSecurityException) as e:
         logger.error(f"Deep link execution failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise router.validation_error("deeplink_url", str(e))
     except Exception as e:
         logger.error(f"Unexpected error executing deep link: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise router.internal_error(f"Internal server error: {str(e)}")
 
 
 @router.get("/audit", response_model=List[DeepLinkAuditResponse])
@@ -253,16 +256,21 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest):
         HTTPException: If resource type is invalid
     """
     if not DEEPLINK_ENABLED:
-        raise HTTPException(status_code=503, detail="Deep linking is disabled")
+        raise router.error_response(
+            error_code="SERVICE_UNAVAILABLE",
+            message="Deep linking is disabled",
+            status_code=503
+        )
 
     try:
         # Validate resource type
         valid_resource_types = ['agent', 'workflow', 'canvas', 'tool']
         if request.resource_type not in valid_resource_types:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid resource_type: '{request.resource_type}'. "
-                       f"Must be one of {valid_resource_types}"
+            raise router.validation_error(
+                "resource_type",
+                f"Invalid resource_type: '{request.resource_type}'. "
+                f"Must be one of {valid_resource_types}",
+                details={"provided": request.resource_type, "valid_types": valid_resource_types}
             )
 
         # Generate deep link
@@ -285,10 +293,10 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest):
 
     except ValueError as e:
         logger.error(f"Failed to generate deep link: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise router.validation_error("request", str(e))
     except Exception as e:
         logger.error(f"Unexpected error generating deep link: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise router.internal_error(f"Internal server error: {str(e)}")
 
 
 @router.get("/stats", response_model=DeepLinkStatsResponse)

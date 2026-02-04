@@ -4,11 +4,12 @@ These stubs redirect or provide basic health info when full integration isn't lo
 """
 import logging
 from datetime import datetime
-from fastapi import APIRouter
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Integration Health"])
+router = BaseAPIRouter(tags=["Integration Health"])
 
 # List of integrations that need health stubs
 INTEGRATIONS = [

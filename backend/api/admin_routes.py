@@ -5,12 +5,13 @@ Handles administrative users and role-based access control
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Depends, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.exceptions import (
     UserAlreadyExistsError,
@@ -21,7 +22,7 @@ from core.exceptions import (
 )
 from core.models import AdminRole, AdminUser, User
 
-router = APIRouter(prefix="/api/admin", tags=["Admin"])
+router = BaseAPIRouter(prefix="/api/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
 
 
@@ -32,9 +33,10 @@ async def require_super_admin(current_user: User = Depends(get_current_user)) ->
     Raises 403 if current user is not a super_admin
     """
     if current_user.role != "super_admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Super admin access required"
+        raise router.permission_denied_error(
+            action="access_admin_endpoints",
+            resource="Admin",
+            details={"required_role": "super_admin", "actual_role": current_user.role}
         )
     return current_user
 
@@ -168,7 +170,7 @@ async def get_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise UserNotFoundError(user_id=admin_id)
+        raise router.not_found_error("AdminUser", admin_id)
 
     return AdminUserResponse(
         id=admin.id,
@@ -207,16 +209,20 @@ async def create_admin_user(
     # Check if role exists
     role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
     if not role:
-        raise ValidationError(
-            message="Specified role does not exist",
-            field="role_id",
-            details={"role_id": request.role_id}
+        raise router.not_found_error(
+            "AdminRole",
+            request.role_id,
+            details={"field": "role_id"}
         )
 
     # Check if email already exists
     existing = db.query(AdminUser).filter(AdminUser.email == request.email).first()
     if existing:
-        raise UserAlreadyExistsError(email=request.email)
+        raise router.conflict_error(
+            message="Admin user with this email already exists",
+            conflicting_resource=request.email,
+            details={"field": "email", "email": request.email}
+        )
 
     # Hash password (import from auth)
     from core.auth import get_password_hash
@@ -262,7 +268,7 @@ async def update_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise UserNotFoundError(user_id=admin_id)
+        raise router.not_found_error("AdminUser", admin_id)
 
     # Update only provided fields
     if request.name is not None:
@@ -271,10 +277,10 @@ async def update_admin_user(
         # Verify role exists
         role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
         if not role:
-            raise ValidationError(
-                message="Specified role does not exist",
-                field="role_id",
-                details={"role_id": request.role_id}
+            raise router.not_found_error(
+                "AdminRole",
+                request.role_id,
+                details={"field": "role_id"}
             )
         admin.role_id = request.role_id
     if request.status is not None:
@@ -320,7 +326,7 @@ async def delete_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise UserNotFoundError(user_id=admin_id)
+        raise router.not_found_error("AdminUser", admin_id)
 
     deleted_email = admin.email
     db.delete(admin)
@@ -344,10 +350,7 @@ async def update_admin_last_login(
     # Find admin user
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
     if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin user not found"
-        )
+        raise router.not_found_error("AdminUser", admin_id)
 
     # Update last login
     admin.last_login = datetime.utcnow()
@@ -394,11 +397,7 @@ async def get_admin_role(
     role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
 
     if not role:
-        raise ValidationError(
-            message="Admin role not found",
-            field="role_id",
-            details={"role_id": role_id}
-        )
+        raise router.not_found_error("AdminRole", role_id)
 
     return AdminRoleResponse(
         id=role.id,
@@ -434,9 +433,10 @@ async def create_admin_role(
     # Check if role name already exists
     existing = db.query(AdminRole).filter(AdminRole.name == request.name).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Role with this name already exists"
+        raise router.conflict_error(
+            message="Role with this name already exists",
+            conflicting_resource=request.name,
+            details={"field": "name", "name": request.name}
         )
 
     role = AdminRole(
@@ -472,10 +472,7 @@ async def update_admin_role(
     role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
 
     if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin role not found"
-        )
+        raise router.not_found_error("AdminRole", role_id)
 
     # Check if new name conflicts with existing role
     if request.name is not None and request.name != role.name:
@@ -484,9 +481,10 @@ async def update_admin_role(
             AdminRole.id != role_id
         ).first()
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role with this name already exists"
+            raise router.conflict_error(
+                message="Role with this name already exists",
+                conflicting_resource=request.name,
+                details={"field": "name", "name": request.name}
             )
         role.name = request.name
 
@@ -533,17 +531,14 @@ async def delete_admin_role(
     role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
 
     if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin role not found"
-        )
+        raise router.not_found_error("AdminRole", role_id)
 
     # Check if role is in use
     users_with_role = db.query(AdminUser).filter(AdminUser.role_id == role_id).count()
     if users_with_role > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot delete role: {users_with_role} admin user(s) still assigned to this role"
+        raise router.conflict_error(
+            message=f"Cannot delete role: {users_with_role} admin user(s) still assigned to this role",
+            details={"users_count": users_with_role, "role_id": role_id}
         )
 
     db.delete(role)

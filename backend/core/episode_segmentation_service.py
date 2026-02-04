@@ -87,8 +87,9 @@ class EpisodeBoundaryDetector:
             v1 = np.array(vec1) if not isinstance(vec1, np.ndarray) else vec1
             v2 = np.array(vec2) if not isinstance(vec2, np.ndarray) else vec2
             return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
-        except:
+        except (ImportError, ValueError, TypeError) as e:
             # Fallback to pure Python implementation
+            logger.debug(f"Numpy calculation failed, using pure Python: {e}")
             import math
             try:
                 # Calculate dot product
@@ -103,7 +104,8 @@ class EpisodeBoundaryDetector:
                     return 0.0
 
                 return dot_product / (magnitude1 * magnitude2)
-            except:
+            except (ValueError, TypeError, ZeroDivisionError) as e:
+                logger.warning(f"Cosine similarity calculation failed: {e}")
                 return 0.0
 
 
