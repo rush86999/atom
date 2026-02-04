@@ -237,11 +237,18 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 # Standardized error handling for all uncaught exceptions
 # ============================================================================
 try:
-    from core.error_handlers import global_exception_handler
+    from core.error_handlers import global_exception_handler, atom_exception_handler
+    from core.exceptions import AtomException
+
+    # Register general exception handler (catches all)
     app.add_exception_handler(Exception, global_exception_handler)
     logger.info("✓ Global Exception Handler Registered")
-except ImportError:
-    logger.warning("Global exception handler not found, skipping...")
+
+    # Register AtomException handler (more specific, takes precedence)
+    app.add_exception_handler(AtomException, atom_exception_handler)
+    logger.info("✓ AtomException Handler Registered")
+except ImportError as e:
+    logger.warning(f"Exception handler not found, skipping... {e}")
 
 # ============================================================================
 # AUTO-LOADING MIDDLEWARE (True Lazy Loading)

@@ -57,7 +57,10 @@ class TestEpisodeRetrievalPerformance:
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.limit = Mock(return_value=mock_episodes[:50])
+        # limit() should return an object with all() method
+        mock_result_set = Mock()
+        mock_result_set.all = Mock(return_value=mock_episodes[:50])
+        mock_query.limit = Mock(return_value=mock_result_set)
         db_session.query = Mock(return_value=mock_query)
 
         service = EpisodeRetrievalService(db_session)
@@ -122,7 +125,11 @@ class TestEpisodeRetrievalPerformance:
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.limit = Mock(return_value=mock_episodes[:50])
+        # limit() should return an object with all() method
+        mock_result_set = Mock()
+        mock_result_set.all = Mock(return_value=mock_episodes[:50])
+        mock_query.limit = Mock(return_value=mock_result_set)
+        # For semantic query
         mock_query.all = Mock(return_value=[])
         mock_query.first = Mock(return_value=None)
         db_session.query = Mock(return_value=mock_query)
@@ -215,7 +222,10 @@ class TestEpisodeScalability:
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.limit = Mock(return_value=large_episode_list[:50])
+        # limit() should return an object with all() method
+        mock_result_set = Mock()
+        mock_result_set.all = Mock(return_value=large_episode_list[:50])
+        mock_query.limit = Mock(return_value=mock_result_set)
         db_session.query.return_value = mock_query
 
         service = EpisodeRetrievalService(db_session)
