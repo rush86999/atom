@@ -26,6 +26,24 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ---
 
+## Atom vs OpenClaw: Quick Comparison
+
+| Aspect | Atom | OpenClaw |
+|--------|------|----------|
+| **Best For** | Business automation, multi-agent workflows, enterprise governance | Personal productivity, messaging-based workflows |
+| **Agent Model** | Multi-agent system with specialty agents | Single-agent runtime |
+| **Governance** | ✅ 4-tier maturity (Student → Autonomous) with audit trails | ❌ No maturity levels |
+| **Memory** | ✅ Episodic memory with graduation validation | ✅ Persistent Markdown files |
+| **Integrations** | 46+ business (CRM, support, dev tools) | 50+ personal (smart home, media, messaging) |
+| **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
+| **Real-Time Visibility** | ✅ Canvas, operation tracking, error resolution | ❌ No operation visibility |
+| **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
+| **Primary Focus** | Business process automation with safety guardrails | Personal assistant with rapid experimentation |
+
+[Full Comparison →](docs/ATOM_VS_OPENCLAW.md)
+
+---
+
 ## Key Features
 
 ### 🎙️ Voice Interface
