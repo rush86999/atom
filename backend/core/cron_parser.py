@@ -57,10 +57,6 @@ class CronParser:
         "sunday": "0",
     }
 
-    def __init__(self):
-        """Initialize the cron parser."""
-        pass
-
     def get_next_run(
         self,
         cron_expression: str,

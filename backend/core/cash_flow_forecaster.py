@@ -38,13 +38,16 @@ class CashFlowForecastingService:
                 .all()
             )
             
-            # Simple heuristic: sum of all asset accounts for now
-            # In a real system, we'd check balances via JournalEntries
+            # Calculate current cash balance from asset accounts
             total_cash = 0.0
             for acc in cash_accounts:
-                # Mock balance sum for demonstration
-                # In production, we'd query: select sum(amount) from journal_entries where account_id = acc.id
-                pass
+                # Sum all journal entries for this account to get balance
+                # Debits increase asset accounts, credits decrease them
+                from accounting.models import JournalEntry
+                balance = db.query(func.sum(JournalEntry.amount)).filter(
+                    JournalEntry.account_id == acc.id
+                ).scalar() or 0.0
+                total_cash += balance
             
             # For the prototype, we search transactions in the last 30 days
             last_30_days = datetime.utcnow() - timedelta(days=30)

@@ -23,11 +23,6 @@ class ReActStep(BaseModel):
     action: Optional[ToolCall] = Field(None, description="A tool to execute, if the agent decides to act")
     final_answer: Optional[str] = Field(None, description="The final response to the user, if the agent is done")
     confidence: float = Field(default=0.9, description="Confidence level in this thought/action (0.0 to 1.0)", ge=0.0, le=1.0)
-    
-    class Config:
-        # Ensure at least one of action or final_answer is provided
-        # This is validated in the agent loop itself for flexibility
-        pass
 
 class ReActObservation(BaseModel):
     """Structured observation from a tool execution."""

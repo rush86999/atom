@@ -1,7 +1,10 @@
+import logging
 import os
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Make psutil optional for system monitoring
 try:
@@ -248,7 +251,7 @@ async def get_connected_services(current_user: User = Depends(get_current_user))
                     "message": "Service integrations unavailable"
                 }
     except Exception as e:
-        pass
+        logger.warning(f"Failed to fetch service integrations from microservice: {e}")
 
     # Fallback to basic service list
     services = ["github", "google", "slack", "outlook", "teams"]
