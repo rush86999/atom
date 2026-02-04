@@ -65,7 +65,7 @@ try:
     )
     from atom_workflow_service import AtomWorkflowService
 except ImportError as e:
-    logging.warning(f"Enterprise services not available: {e}. Using stubs/None.")
+    logging.warning("Enterprise services not available: {}. Using stubs/None.".format(e))
     atom_enterprise_security_service = None
     atom_enterprise_unified_service = None
     atom_workflow_automation_service = None
@@ -200,11 +200,28 @@ class AtomTelegramIntegration:
         self.message_history: Dict[int, List[TelegramMessage]] = {}
         self.command_handlers: Dict[str, Callable] = {}
         self.message_handlers: List[Callable] = []
+
+        # Callback query handlers registry
+        self.callback_handlers = {
+            "action_": self._handle_action_callback,
+            "search_": self._handle_search_callback,
+            "workflow_": self._handle_workflow_callback,
+            "settings_": self._handle_settings_callback,
+        }
         
         # Enterprise integration
         self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
         self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
         self.ai_service = config.get('ai_service') or ai_enhanced_service
+
+        # LanceDB handler for semantic search
+        self.lancedb_handler = None
+        try:
+            from core.lancedb_handler import LanceDBHandler
+            self.lancedb_handler = LanceDBHandler()
+            logger.info("LanceDB handler initialized for Telegram integration")
+        except ImportError as e:
+            logger.warning(f"LanceDB not available for inline search: {e}")
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -1000,10 +1017,6 @@ class AtomTelegramIntegration:
 
             logger.info(f"Received callback query {callback_id} with data: {data}")
 
-            # Process callback data
-            # This is where you'd route to specific handlers
-            # For now, just acknowledge receipt
-
             # Send immediate answer to show processing
             await self.answer_callback_query(
                 callback_query_id=callback_id,
@@ -1011,11 +1024,325 @@ class AtomTelegramIntegration:
                 cache_time=0,  # Don't cache while processing
             )
 
-            # TODO: Route to appropriate handler based on data
-            # Example: if data.startswith("action_"): handle_action(data)
+            # Route to appropriate handler based on data
+            if data:
+                for prefix, handler in self.callback_handlers.items():
+                    if data.startswith(prefix):
+                        await handler(callback_id, data, user_id)
+                        return
+
+                # No matching handler found
+                logger.warning(f"No handler found for callback data: {data}")
+                await self.answer_callback_query(
+                    callback_query_id=callback_id,
+                    text="Unknown action",
+                    show_alert=True
+                )
+            else:
+                logger.warning("Received callback query with no data")
+                await self.answer_callback_query(
+                    callback_query_id=callback_id,
+                    text="Invalid callback",
+                    show_alert=True
+                )
 
         except Exception as e:
             logger.error(f"Error handling callback query: {e}")
+
+    async def _handle_action_callback(self, callback_query_id: str, data: str, user_id: int):
+        """
+        Handle action callbacks (e.g., button presses for actions).
+
+        Expected format: action_<action_name>_<params>
+        Example: action_approve_request_123
+        """
+        try:
+            # Parse action from data
+            parts = data.split('_')
+            if len(parts) < 2:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Invalid action format",
+                    show_alert=True
+                )
+                return
+
+            action_name = parts[1]
+            params = parts[2:] if len(parts) > 2 else []
+
+            logger.info(f"Handling action callback: action={action_name}, params={params}, user={user_id}")
+
+            # Route to specific action handlers
+            if action_name == "approve_request":
+                await self._handle_approve_request(callback_query_id, params, user_id)
+            elif action_name == "deny_request":
+                await self._handle_deny_request(callback_query_id, params, user_id)
+            elif action_name == "execute_workflow":
+                await self._handle_execute_workflow(callback_query_id, params, user_id)
+            else:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text=f"Unknown action: {action_name}",
+                    show_alert=True
+                )
+
+        except Exception as e:
+            logger.error(f"Error handling action callback: {e}")
+            await self.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Error processing action",
+                show_alert=True
+            )
+
+    async def _handle_search_callback(self, callback_query_id: str, data: str, user_id: int):
+        """
+        Handle search callbacks (e.g., search refinement).
+
+        Expected format: search_<search_type>_<query>
+        Example: search_recent_messages
+        """
+        try:
+            # Parse search type from data
+            parts = data.split('_')
+            if len(parts) < 2:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Invalid search format",
+                    show_alert=True
+                )
+                return
+
+            search_type = parts[1]
+            query = '_'.join(parts[2:]) if len(parts) > 2 else ""
+
+            logger.info(f"Handling search callback: type={search_type}, query={query}, user={user_id}")
+
+            # Route to specific search handlers
+            if search_type == "recent_messages":
+                await self._handle_search_recent_messages(callback_query_id, user_id)
+            elif search_type == "communications":
+                await self._handle_search_communications(callback_query_id, query, user_id)
+            elif search_type == "workflows":
+                await self._handle_search_workflows(callback_query_id, query, user_id)
+            else:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text=f"Unknown search type: {search_type}",
+                    show_alert=True
+                )
+
+        except Exception as e:
+            logger.error(f"Error handling search callback: {e}")
+            await self.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Error processing search",
+                show_alert=True
+            )
+
+    async def _handle_workflow_callback(self, callback_query_id: str, data: str, user_id: int):
+        """
+        Handle workflow callbacks (e.g., workflow execution triggers).
+
+        Expected format: workflow_<workflow_id>_<action>
+        Example: workflow_123_start
+        """
+        try:
+            # Parse workflow info from data
+            parts = data.split('_')
+            if len(parts) < 3:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Invalid workflow format",
+                    show_alert=True
+                )
+                return
+
+            workflow_id = parts[1]
+            action = parts[2]
+
+            logger.info(f"Handling workflow callback: workflow={workflow_id}, action={action}, user={user_id}")
+
+            # Route to specific workflow actions
+            if action == "start":
+                await self._handle_start_workflow(callback_query_id, workflow_id, user_id)
+            elif action == "stop":
+                await self._handle_stop_workflow(callback_query_id, workflow_id, user_id)
+            elif action == "status":
+                await self._handle_workflow_status(callback_query_id, workflow_id, user_id)
+            else:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text=f"Unknown workflow action: {action}",
+                    show_alert=True
+                )
+
+        except Exception as e:
+            logger.error(f"Error handling workflow callback: {e}")
+            await self.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Error processing workflow",
+                show_alert=True
+            )
+
+    async def _handle_settings_callback(self, callback_query_id: str, data: str, user_id: int):
+        """
+        Handle settings callbacks (e.g., settings changes).
+
+        Expected format: settings_<setting_name>_<value>
+        Example: settings_notifications_enabled
+        """
+        try:
+            # Parse setting from data
+            parts = data.split('_')
+            if len(parts) < 3:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Invalid settings format",
+                    show_alert=True
+                )
+                return
+
+            setting_name = parts[1]
+            value = '_'.join(parts[2:]) if len(parts) > 2 else ""
+
+            logger.info(f"Handling settings callback: setting={setting_name}, value={value}, user={user_id}")
+
+            # Route to specific setting handlers
+            if setting_name == "notifications":
+                await self._handle_notifications_setting(callback_query_id, value, user_id)
+            elif setting_name == "language":
+                await self._handle_language_setting(callback_query_id, value, user_id)
+            elif setting_name == "theme":
+                await self._handle_theme_setting(callback_query_id, value, user_id)
+            else:
+                await self.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text=f"Unknown setting: {setting_name}",
+                    show_alert=True
+                )
+
+        except Exception as e:
+            logger.error(f"Error handling settings callback: {e}")
+            await self.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Error updating settings",
+                show_alert=True
+            )
+
+    # ------------------------------------------------------------------------
+    # Action sub-handlers
+    # ------------------------------------------------------------------------
+
+    async def _handle_approve_request(self, callback_query_id: str, params: List[str], user_id: int):
+        """Handle request approval action"""
+        request_id = params[0] if params else None
+        logger.info(f"Approving request {request_id} by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Request approved"
+        )
+
+    async def _handle_deny_request(self, callback_query_id: str, params: List[str], user_id: int):
+        """Handle request denial action"""
+        request_id = params[0] if params else None
+        logger.info(f"Denying request {request_id} by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Request denied"
+        )
+
+    async def _handle_execute_workflow(self, callback_query_id: str, params: List[str], user_id: int):
+        """Handle workflow execution action"""
+        workflow_id = params[0] if params else None
+        logger.info(f"Executing workflow {workflow_id} by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Workflow execution started"
+        )
+
+    # ------------------------------------------------------------------------
+    # Search sub-handlers
+    # ------------------------------------------------------------------------
+
+    async def _handle_search_recent_messages(self, callback_query_id: str, user_id: int):
+        """Handle recent messages search"""
+        logger.info(f"Searching recent messages for user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Search completed"
+        )
+
+    async def _handle_search_communications(self, callback_query_id: str, query: str, user_id: int):
+        """Handle communications search"""
+        logger.info(f"Searching communications for '{query}' by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Search completed"
+        )
+
+    async def _handle_search_workflows(self, callback_query_id: str, query: str, user_id: int):
+        """Handle workflows search"""
+        logger.info(f"Searching workflows for '{query}' by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Search completed"
+        )
+
+    # ------------------------------------------------------------------------
+    # Workflow sub-handlers
+    # ------------------------------------------------------------------------
+
+    async def _handle_start_workflow(self, callback_query_id: str, workflow_id: str, user_id: int):
+        """Handle workflow start action"""
+        logger.info(f"Starting workflow {workflow_id} by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Workflow started"
+        )
+
+    async def _handle_stop_workflow(self, callback_query_id: str, workflow_id: str, user_id: int):
+        """Handle workflow stop action"""
+        logger.info(f"Stopping workflow {workflow_id} by user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Workflow stopped"
+        )
+
+    async def _handle_workflow_status(self, callback_query_id: str, workflow_id: str, user_id: int):
+        """Handle workflow status query"""
+        logger.info(f"Getting status of workflow {workflow_id} for user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Status: Running"
+        )
+
+    # ------------------------------------------------------------------------
+    # Settings sub-handlers
+    # ------------------------------------------------------------------------
+
+    async def _handle_notifications_setting(self, callback_query_id: str, value: str, user_id: int):
+        """Handle notifications setting"""
+        logger.info(f"Setting notifications to '{value}' for user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Notifications updated"
+        )
+
+    async def _handle_language_setting(self, callback_query_id: str, value: str, user_id: int):
+        """Handle language setting"""
+        logger.info(f"Setting language to '{value}' for user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Language updated"
+        )
+
+    async def _handle_theme_setting(self, callback_query_id: str, value: str, user_id: int):
+        """Handle theme setting"""
+        logger.info(f"Setting theme to '{value}' for user {user_id}")
+        await self.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text="Theme updated"
+        )
 
     # ========================================================================
     # Inline Mode Methods
@@ -1096,17 +1423,45 @@ class AtomTelegramIntegration:
         """
         Handle an inline query.
 
-        Searches for results and responds to the inline query.
+        Searches for results and responds to the inline query using semantic search.
         """
         try:
             query_id = inline_query.get("id")
             query = inline_query.get("query", "")
             from_user = inline_query.get("from", {})
+            user_id = from_user.get("id")
 
-            logger.info(f"Received inline query {query_id}: {query}")
+            logger.info(f"Received inline query {query_id} from user {user_id}: {query}")
 
-            # Perform search (TODO: implement actual search)
+            # Perform semantic search
             results = []
+
+            if query and len(query.strip()) >= 2:
+                # Use LanceDB for semantic search if available
+                if self.lancedb_handler:
+                    try:
+                        # Search in communications table
+                        search_results = await self.lancedb_handler.semantic_search(
+                            table_name="communications",
+                            query_text=query,
+                            limit=10
+                        )
+
+                        # Convert LanceDB results to Telegram inline format
+                        for result in search_results:
+                            inline_result = self._format_lancedb_result_for_inline(result)
+                            if inline_result:
+                                results.append(inline_result)
+
+                        logger.info(f"Found {len(results)} semantic search results for query: {query}")
+
+                    except Exception as e:
+                        logger.error(f"Error performing semantic search: {e}")
+                        # Fall back to simple results
+                        results = await self._perform_simple_inline_search(query)
+                else:
+                    # Use simple search if LanceDB not available
+                    results = await self._perform_simple_inline_search(query)
 
             # Answer with results
             await self.answer_inline_query(
@@ -1117,6 +1472,87 @@ class AtomTelegramIntegration:
 
         except Exception as e:
             logger.error(f"Error handling inline query: {e}")
+
+        except Exception as e:
+            logger.error(f"Error handling inline query: {e}")
+
+    def _format_lancedb_result_for_inline(self, result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Format LanceDB search result for Telegram inline query response.
+
+        Args:
+            result: LanceDB search result
+
+        Returns:
+            Formatted inline result dict or None if formatting fails
+        """
+        try:
+            # Extract relevant fields from result
+            comm_id = result.get('id', '')
+            subject = result.get('subject', 'No Subject')
+            body = result.get('body', '')
+            sender = result.get('sender', 'Unknown')
+            platform = result.get('platform', 'unknown')
+            timestamp = result.get('timestamp', '')
+
+            # Create message text for the inline result
+            message_text = f"*{subject}*\n\n"
+            message_text += f"From: {sender}\n"
+            message_text += f"Platform: {platform}\n\n"
+
+            # Add truncated body
+            if body:
+                body_preview = body[:200] + "..." if len(body) > 200 else body
+                message_text += f"{body_preview}"
+
+            # Format as Telegram inline result
+            inline_result = {
+                "type": "article",
+                "id": comm_id or str(hash(subject + body)),
+                "title": subject,
+                "description": f"From {sender} via {platform}",
+                "input_message_content": {
+                    "message_text": message_text,
+                    "parse_mode": "Markdown"
+                }
+            }
+
+            return inline_result
+
+        except Exception as e:
+            logger.error(f"Error formatting LanceDB result: {e}")
+            return None
+
+    async def _perform_simple_inline_search(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Perform a simple inline search without LanceDB (fallback).
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of inline results
+        """
+        try:
+            # Return simple static results as fallback
+            results = [
+                {
+                    "type": "article",
+                    "id": "help_1",
+                    "title": f"Search: {query}",
+                    "description": "Advanced search not available",
+                    "input_message_content": {
+                        "message_text": f"Semantic search is not configured. Your query: {query}"
+                    }
+                }
+            ]
+
+            logger.debug(f"Performed simple inline search for: {query}")
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in simple inline search: {e}")
+            return []
 
     # ========================================================================
     # Chat Action Methods

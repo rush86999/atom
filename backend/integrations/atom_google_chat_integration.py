@@ -20,6 +20,7 @@ try:
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
+    from core.models import UnifiedWorkspace
     from google_chat_analytics_engine import google_chat_analytics_engine
     from google_chat_enhanced_service import (
         GoogleChatFile,
@@ -31,6 +32,7 @@ except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
     google_chat_enhanced_service = None
     google_chat_analytics_engine = None
+    UnifiedWorkspace = None
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +45,22 @@ class AtomGoogleChatIntegration:
         self.atom_search = config.get('atom_search_service')
         self.atom_workflow = config.get('atom_workflow_service')
         self.atom_ingestion = config.get('atom_ingestion_pipeline')
-        
+        self.db = config.get('database')
+
         # Google Chat services
         self.google_chat_service = google_chat_enhanced_service
         self.google_chat_analytics = google_chat_analytics_engine
-        
+
+        # Workspace synchronization service
+        self.workspace_sync = None
+        if self.db:
+            try:
+                from integrations.workspace_sync_service import WorkspaceSyncService
+                self.workspace_sync = WorkspaceSyncService(self.db)
+                logger.info("Workspace sync service initialized for Google Chat integration")
+            except ImportError as e:
+                logger.warning(f"Workspace sync service not available: {e}")
+
         # Integration state
         self.is_initialized = False
         self.active_spaces: List[GoogleChatSpace] = []
@@ -734,17 +747,113 @@ class AtomGoogleChatIntegration:
     async def _update_workspace_cross_platform(self, event_data: Dict[str, Any], platform: str):
         """Update workspace information across platforms"""
         try:
-            # Cross-platform workspace updates would go here
-            # For now, log the event for tracking purposes
-            logger.debug(
-                f"Cross-platform workspace update requested: platform={platform}, "
-                f"event_type={event_data.get('type')}, "
-                f"space_id={event_data.get('space', {}).get('name')}"
+            if not self.workspace_sync:
+                logger.debug("Workspace sync service not available, skipping cross-platform update")
+                return
+
+            # Extract workspace information from event
+            space_info = event_data.get('space', {})
+            space_name = space_info.get('name', 'Unknown Space')
+            space_id = space_info.get('name', '')  # Google Chat uses name as ID
+            event_type = event_data.get('type', '')
+
+            logger.info(
+                f"Processing cross-platform workspace update: "
+                f"platform={platform}, event_type={event_type}, space={space_name}"
             )
-            # TODO: Implement cross-platform workspace synchronization
-            # This would update unified workspace information across all platforms
+
+            # Determine change type based on event
+            if event_type in ['SPACE_UPDATED', 'RENAME_SPACE']:
+                change_type = 'name_change'
+            elif event_type == 'MEMBER_ADDED':
+                change_type = 'member_add'
+            elif event_type == 'MEMBER_REMOVED':
+                change_type = 'member_remove'
+            elif event_type == 'SETTINGS_UPDATED':
+                change_type = 'settings_change'
+            else:
+                change_type = 'settings_change'  # Default
+
+            # Get or create unified workspace
+            unified_workspace = await self._get_or_create_unified_workspace(
+                space_id=space_id,
+                space_name=space_name
+            )
+
+            if not unified_workspace:
+                logger.warning(f"Could not get or create unified workspace for space {space_id}")
+                return
+
+            # Propagate changes to other platforms
+            await self.workspace_sync.propagate_change(
+                workspace_id=unified_workspace.id,
+                source_platform='google_chat',
+                change_type=change_type,
+                change_data={
+                    'space_name': space_name,
+                    'space_id': space_id,
+                    'event_type': event_type,
+                    'event_data': event_data
+                }
+            )
+
+            logger.info(
+                f"Successfully propagated workspace change for {space_name} "
+                f"(unified workspace ID: {unified_workspace.id})"
+            )
+
         except Exception as e:
             logger.error(f"Error updating workspace cross-platform: {e}")
+
+    async def _get_or_create_unified_workspace(
+        self,
+        space_id: str,
+        space_name: str
+    ):
+        """
+        Get or create a unified workspace for a Google Chat space.
+
+        Args:
+            space_id: Google Chat space ID
+            space_name: Google Chat space name
+
+        Returns:
+            UnifiedWorkspace object or None
+        """
+        try:
+            from sqlalchemy import or_
+
+            # Search for existing unified workspace with this Google Chat space
+            existing = self.db.query(UnifiedWorkspace).filter(
+                UnifiedWorkspace.google_chat_space_id == space_id
+            ).first()
+
+            if existing:
+                logger.debug(f"Found existing unified workspace {existing.id} for space {space_id}")
+                return existing
+
+            # Create new unified workspace
+            # Use a default user_id - in production this would come from authentication
+            user_id = "system"
+
+            unified_workspace = self.workspace_sync.create_unified_workspace(
+                user_id=user_id,
+                name=space_name,
+                description=f"Unified workspace for Google Chat space: {space_name}",
+                google_chat_space_id=space_id,
+                sync_config={
+                    'auto_sync': True,
+                    'sync_members': True,
+                    'sync_settings': True
+                }
+            )
+
+            logger.info(f"Created unified workspace {unified_workspace.id} for Google Chat space {space_id}")
+            return unified_workspace
+
+        except Exception as e:
+            logger.error(f"Error getting or creating unified workspace: {e}")
+            return None
     
     # Background workers
     async def _google_chat_message_ingestion_worker(self):
