@@ -431,10 +431,14 @@ IMPORTANT:
                          # Fallback for some apps or if full path needed
                          subprocess.run(['open', app_name], check=False)
                 elif platform.system() == "Windows":
-                    subprocess.run(['start', app_name], shell=True)
+                    os.startfile("calc")
                 else:
-                    subprocess.run([app_name])
-                return True
+                    try:
+                        os.startfile(app_name)
+                        return True
+                    except Exception as e:
+                        logger.error(f"Failed to open app {app_name}: {e}")
+                        return False
 
             elif action.action_type == ComputerActionType.WAIT:
                 duration = action.parameters.get('duration', 1.0)
