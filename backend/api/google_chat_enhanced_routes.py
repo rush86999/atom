@@ -48,14 +48,19 @@ async def get_oauth_url(request: OAuthURLRequest):
             login_hint=request.login_hint,
         )
 
-        return {
-            "success": True,
-            "oauth_url": oauth_url,
-            "state": request.state,
-        }
+        return router.success_response(
+            data={
+                "oauth_url": oauth_url,
+                "state": request.state,
+            },
+            message="OAuth URL generated successfully"
+        )
     except Exception as e:
         logger.error(f"Error generating OAuth URL: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to generate OAuth URL",
+            details={"error": str(e)}
+        )
 
 class OAuthCallbackRequest(BaseModel):
     """Request to handle OAuth callback"""
@@ -101,7 +106,10 @@ async def refresh_access_token(request: RefreshTokenRequest):
         return result
     except Exception as e:
         logger.error(f"Error refreshing token: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to refresh access token",
+            details={"error": str(e)}
+        )
 
 # ============================================================================
 # Interactive Card Endpoints
@@ -172,7 +180,10 @@ async def update_interactive_card(request: UpdateCardRequest):
 
     except Exception as e:
         logger.error(f"Error updating card: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to update card",
+            details={"error": str(e)}
+        )
 
 # ============================================================================
 # Dialog Endpoints
@@ -246,7 +257,10 @@ async def list_spaces():
         return result
     except Exception as e:
         logger.error(f"Error listing spaces: {e}")
-        return {"success": False, "error": str(e), "spaces": []}
+        raise router.internal_error(
+            message="Failed to list spaces",
+            details={"error": str(e)}
+        )
 
 @router.get("/spaces/{space_name}/info")
 async def get_space_info(space_name: str):
@@ -256,7 +270,10 @@ async def get_space_info(space_name: str):
         return result
     except Exception as e:
         logger.error(f"Error getting space info: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to get space info",
+            details={"error": str(e)}
+        )
 
 @router.post("/spaces/{space_name}/members/add")
 async def add_space_members(
@@ -273,7 +290,10 @@ async def add_space_members(
         return result
     except Exception as e:
         logger.error(f"Error adding members: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to add members",
+            details={"error": str(e)}
+        )
 
 @router.post("/spaces/{space_name}/members/remove")
 async def remove_space_members(
@@ -290,7 +310,10 @@ async def remove_space_members(
         return result
     except Exception as e:
         logger.error(f"Error removing members: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to remove members",
+            details={"error": str(e)}
+        )
 
 @router.post("/spaces/{space_name}/webhook")
 async def set_space_webhook(
@@ -309,7 +332,10 @@ async def set_space_webhook(
         return result
     except Exception as e:
         logger.error(f"Error setting webhook: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to set webhook",
+            details={"error": str(e)}
+        )
 
 # ============================================================================
 # Message Endpoints
@@ -364,7 +390,10 @@ async def upload_file(request: UploadFileRequest):
         return result
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
-        return {"success": False, "error": str(e)}
+        raise router.internal_error(
+            message="Failed to upload file",
+            details={"error": str(e)}
+        )
 
 # ============================================================================
 # Health & Status Endpoints

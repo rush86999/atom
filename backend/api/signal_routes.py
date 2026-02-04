@@ -104,7 +104,10 @@ async def send_signal_receipt(
 
     except Exception as e:
         logger.error(f"Error sending Signal receipt: {e}")
-        return {'ok': False, 'error': str(e)}
+        raise router.internal_error(
+            message="Failed to send receipt",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/account/info")
@@ -117,7 +120,10 @@ async def get_signal_account_info(
         return result
     except Exception as e:
         logger.error(f"Error getting Signal account info: {e}")
-        return {'ok': False, 'error': str(e)}
+        raise router.internal_error(
+            message="Failed to get account info",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/webhook/verify")
@@ -156,7 +162,10 @@ async def handle_signal_webhook_event(
         return result
     except Exception as e:
         logger.error(f"Error handling Signal webhook: {e}")
-        return {'ok': False, 'error': str(e)}
+        raise router.internal_error(
+            message="Failed to handle webhook event",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/health")
@@ -169,7 +178,10 @@ async def signal_health():
         return {"status": "inactive", "service": "Signal"}
     except Exception as e:
         logger.error(f"Signal health check failed: {e}")
-        return {"status": "unhealthy", "error": str(e)}
+        raise router.internal_error(
+            message="Health check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/status")
@@ -179,7 +191,10 @@ async def signal_status():
         return await signal_adapter.get_service_status()
     except Exception as e:
         logger.error(f"Signal status check failed: {e}")
-        return {"status": "error", "error": str(e)}
+        raise router.internal_error(
+            message="Status check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/capabilities")
