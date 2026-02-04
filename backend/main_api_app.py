@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
     config = get_config()
 
     logger.info("=" * 60)
-    logger.info("ATOM Platform Starting (Hybrid Mode) - FINAL FIX v3")
+    logger.info("ATOM Platform Starting (Hybrid Mode)")
     logger.info("=" * 60)
     logger.info(f"Server will start on {config.server.host}:{config.server.port}")
     logger.info(f"Environment: {ENVIRONMENT}")
@@ -96,7 +96,6 @@ async def lifespan(app: FastAPI):
     try:
         from analytics.models import WorkflowExecutionLog  # Force registration
         from sqlalchemy import inspect
-
         from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
@@ -117,7 +116,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"CRITICAL: Database initialization failed: {e}")
 
     # 1. Load Essential Integrations (defined in registry)
-    # This bridges the gap - specific plugins you ALWAYS want can be defined there
     if ESSENTIAL_INTEGRATIONS:
         logger.info(f"Loading {len(ESSENTIAL_INTEGRATIONS)} essential plugins...")
         for name in ESSENTIAL_INTEGRATIONS:
@@ -169,17 +167,23 @@ async def lifespan(app: FastAPI):
 
     # 5. Start Redis Event Bridge (Real-Time Updates)
     # Backported from SaaS for Atom-OpenClaw Bridge
-    try:
-        from redis_listener import RedisListener
-        redis_listener = RedisListener()
-        # Start in background task to not block startup
-        import asyncio
-        asyncio.create_task(redis_listener.start())
-        logger.info("✓ Redis Event Bridge running")
-    except ImportError:
-        logger.warning("Redis Listener module not found.")
-    except Exception as e:
-        logger.error(f"Failed to start Redis Bridge: {e}")
+    redis_listener = None
+    enable_redis = os.getenv("ENABLE_REDIS", "false").lower() == "true"
+    
+    if enable_redis:
+        try:
+            from redis_listener import RedisListener
+            redis_listener = RedisListener()
+            # Start in background task to not block startup
+            import asyncio
+            asyncio.create_task(redis_listener.start())
+            logger.info("✓ Redis Event Bridge running")
+        except ImportError:
+            logger.warning("Redis Listener module not found.")
+        except Exception as e:
+            logger.error(f"Failed to start Redis Bridge: {e}")
+    else:
+        logger.info("Skipping Redis Bridge (ENABLE_REDIS=false)")
     
     logger.info("=" * 60)
     logger.info("✓ Server Ready")

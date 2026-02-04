@@ -1360,6 +1360,14 @@ class ArtifactVersion(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Traceability
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry")
+    execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
 
 class DeviceNode(Base):
     """
