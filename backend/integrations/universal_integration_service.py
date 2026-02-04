@@ -138,14 +138,28 @@ class UniversalIntegrationService:
         # Try to get client via service
         # If get_client is broken (missing db_oauth_salesforce), we catch it or use a fallback
         try:
-             client = await sf_service.get_client(user_id, None) # We'll see if it works with None or fails
-        except ImportError:
-             logger.warning("Salesforce Service is missing db_oauth_salesforce. Falling back to Mock/Manual token if available.")
-             # For now, let's just raise a clear error if we can't get it
-             raise ValueError("Salesforce integration is currently incomplete (missing dependency: db_oauth_salesforce)")
+            client = await sf_service.get_client(user_id, None)
+        except (ImportError, AttributeError) as e:
+            logger.warning(f"Salesforce Service is missing db_oauth_salesforce dependency: {e}")
+            return {
+                "status": "error",
+                "message": "Salesforce integration is not fully configured. Please complete OAuth setup.",
+                "error_code": "SALESFORCE_OAUTH_MISSING"
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error getting Salesforce client: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to authenticate with Salesforce: {str(e)}",
+                "error_code": "SALESFORCE_AUTH_FAILED"
+            }
 
         if not client:
-             return {"status": "error", "message": "Could not authenticate with Salesforce"}
+            return {
+                "status": "error",
+                "message": "Could not authenticate with Salesforce. Please check your OAuth credentials.",
+                "error_code": "SALESFORCE_NO_CLIENT"
+            }
 
         entity = params.get("entity") # contact, account, opportunity
         
@@ -208,9 +222,11 @@ class UniversalIntegrationService:
     # --- HubSpot Implementation ---
     async def _execute_hubspot(self, action: str, params: Dict[str, Any]) -> Any:
         hs_service = get_hubspot_service()
-        
+
         entity = params.get("entity")
-        
+        entity_id = params.get("id")
+        data = params.get("data", {})
+
         if action == "list":
             if entity == "contact":
                 return await hs_service.get_contacts()
@@ -218,16 +234,35 @@ class UniversalIntegrationService:
                 return await hs_service.get_deals()
             elif entity == "company":
                 return await hs_service.get_companies()
-                
+
         elif action == "create":
-            data = params.get("data", {})
             if entity == "contact":
                 return await hs_service.create_contact(**data)
             elif entity == "deal":
                 return await hs_service.create_deal(**data)
             elif entity == "company":
                 return await hs_service.create_company(**data)
-        
+
+        elif action == "update":
+            if not entity_id:
+                return {"status": "error", "message": "Entity ID is required for update operations"}
+            if entity == "contact":
+                return await hs_service.update_contact(entity_id, **data)
+            elif entity == "deal":
+                return await hs_service.update_deal(entity_id, **data)
+            elif entity == "company":
+                return await hs_service.update_company(entity_id, **data)
+
+        elif action == "delete":
+            if not entity_id:
+                return {"status": "error", "message": "Entity ID is required for delete operations"}
+            if entity == "contact":
+                return await hs_service.delete_contact(entity_id)
+            elif entity == "deal":
+                return await hs_service.delete_deal(entity_id)
+            elif entity == "company":
+                return await hs_service.delete_company(entity_id)
+
         return {"status": "error", "message": f"Action {action} not implemented for HubSpot {entity}"}
 
     async def _search_hubspot(self, query: str, entity_type: str) -> List[Dict]:

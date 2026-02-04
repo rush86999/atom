@@ -9,13 +9,16 @@ router = APIRouter(prefix="/api/sendgrid", tags=["sendgrid"])
 
 logger = logging.getLogger(__name__)
 
+# SendGrid feature flag
+SENDGRID_ENABLED = os.getenv("SENDGRID_ENABLED", "true").lower() == "true"
+
 class SendGridService:
     def __init__(self):
         self.api_key = os.getenv("SENDGRID_API_KEY")
-        if not self.api_key or self.api_key == "mock_api_key":
-            raise NotImplementedError(
-                "SENDGRID_API_KEY must be configured in environment variables"
-            )
+        if not SENDGRID_ENABLED:
+            logger.warning("SendGrid integration is disabled via SENDGRID_ENABLED flag")
+        elif not self.api_key or self.api_key == "mock_api_key":
+            logger.warning("SENDGRID_API_KEY not configured - SendGrid features will be limited")
 
     async def send_email(self, to, subject, content):
         """
@@ -33,8 +36,19 @@ class SendGridService:
             ValueError: If API key is not configured
             HTTPException: If SendGrid API call fails
         """
+        if not SENDGRID_ENABLED:
+            return {
+                "success": False,
+                "status": "disabled",
+                "error": "SendGrid integration is disabled"
+            }
+
         if not self.api_key or self.api_key == "mock_api_key":
-            raise ValueError("SENDGRID_API_KEY not configured")
+            return {
+                "success": False,
+                "status": "unconfigured",
+                "error": "SENDGRID_API_KEY not configured"
+            }
 
         async with httpx.AsyncClient() as client:
             response = await client.post(

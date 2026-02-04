@@ -306,9 +306,9 @@ class RealAIWorkflowService:
 
         provider_config = self._byok.providers.get(provider_id)
         base_url = provider_config.base_url
-        
+
         client = None
-        
+
         # FORCE RELOAD from os.environ if BYOK fails
         self.glm_api_key = self._byok.get_api_key("glm") or os.getenv("GLM_API_KEY")
         self.anthropic_api_key = self._byok.get_api_key("anthropic") or os.getenv("ANTHROPIC_API_KEY")
@@ -316,7 +316,7 @@ class RealAIWorkflowService:
         self.openai_api_key = self._byok.get_api_key("openai") or os.getenv("OPENAI_API_KEY")
         self.google_api_key = self._byok.get_api_key("google") or os.getenv("GOOGLE_API_KEY")
 
-        print(f"DEBUG: RealAIWorkflowService client requested for {provider_id}")
+        logger.debug(f"RealAIWorkflowService client requested for {provider_id}")
 
     async def initialize_sessions(self):
         """Initialize HTTP sessions for AI providers"""

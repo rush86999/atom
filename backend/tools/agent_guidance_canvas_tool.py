@@ -98,8 +98,12 @@ class AgentGuidanceSystem:
                             f"Agent {agent_id} not allowed to start operation: "
                             f"{governance_check.get('reason')}"
                         )
-                        # Create tracker but don't broadcast
-                        pass
+                        # Create tracker but don't broadcast - operation will be blocked
+                        return {
+                            "success": False,
+                            "error": f"Operation not allowed: {governance_check.get('reason')}",
+                            "governance_check": governance_check
+                        }
 
             # Get workspace_id
             workspace_id = "default"

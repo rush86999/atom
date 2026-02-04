@@ -22,7 +22,7 @@ import pandas as pd
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Import existing ATOM services
+# Import existing ATOM services (all optional)
 try:
     from ai_enhanced_service import (
         AIModelType,
@@ -32,8 +32,28 @@ try:
         AITaskType,
         ai_enhanced_service,
     )
+except ImportError:
+    logger.debug("ai_enhanced_service not available")
+    ai_enhanced_service = None
+    AIModelType = None
+    AIRequest = None
+    AIResponse = None
+    AIServiceType = None
+    AITaskType = None
+
+try:
     from atom_ai_integration import atom_ai_integration
+except ImportError:
+    logger.debug("atom_ai_integration not available")
+    atom_ai_integration = None
+
+try:
     from atom_discord_integration import atom_discord_integration
+except ImportError:
+    logger.debug("atom_discord_integration not available")
+    atom_discord_integration = None
+
+try:
     from atom_enterprise_security_service import (
         AuditEventType,
         ComplianceReport,
@@ -45,6 +65,19 @@ try:
         ThreatType,
         atom_enterprise_security_service,
     )
+except ImportError:
+    logger.debug("atom_enterprise_security_service not available")
+    atom_enterprise_security_service = None
+    AuditEventType = None
+    ComplianceReport = None
+    ComplianceStandard = None
+    SecurityAudit = None
+    SecurityLevel = None
+    SecurityPolicy = None
+    ThreatDetection = None
+    ThreatType = None
+
+try:
     from atom_enterprise_unified_service import (
         AutomationTriggerType,
         ComplianceAutomation,
@@ -55,12 +88,54 @@ try:
         WorkflowSecurityLevel,
         atom_enterprise_unified_service,
     )
+except ImportError:
+    logger.debug("atom_enterprise_unified_service not available")
+    atom_enterprise_unified_service = None
+    AutomationTriggerType = None
+    ComplianceAutomation = None
+    ComplianceWorkflowType = None
+    EnterpriseServiceType = None
+    EnterpriseWorkflow = None
+    SecurityWorkflowAction = None
+    WorkflowSecurityLevel = None
+
+try:
     from atom_google_chat_integration import atom_google_chat_integration
+except ImportError:
+    logger.debug("atom_google_chat_integration not available")
+    atom_google_chat_integration = None
+
+try:
     from atom_ingestion_pipeline import AtomIngestionPipeline
+except ImportError:
+    logger.debug("AtomIngestionPipeline not available")
+    AtomIngestionPipeline = None
+
+try:
     from atom_memory_service import AtomMemoryService
+except ImportError:
+    logger.debug("AtomMemoryService not available")
+    AtomMemoryService = None
+
+try:
     from atom_search_service import AtomSearchService
+except ImportError:
+    logger.debug("AtomSearchService not available")
+    AtomSearchService = None
+
+try:
     from atom_slack_integration import atom_slack_integration
+except ImportError:
+    logger.debug("atom_slack_integration not available")
+    atom_slack_integration = None
+
+try:
     from atom_teams_integration import atom_teams_integration
+except ImportError:
+    logger.debug("atom_teams_integration not available")
+    atom_teams_integration = None
+
+try:
     from atom_workflow_service import (
         AtomWorkflowService,
         Workflow,
@@ -69,8 +144,14 @@ try:
         WorkflowStep,
         WorkflowTrigger,
     )
-except ImportError as e:
-    logger.warning(f"Enterprise workflow automation services not available: {e}")
+except ImportError:
+    logger.debug("atom_workflow_service not available")
+    AtomWorkflowService = None
+    Workflow = None
+    WorkflowAction = None
+    WorkflowStatus = None
+    WorkflowStep = None
+    WorkflowTrigger = None
 
 class WorkflowAutomationType(Enum):
     """Workflow automation types"""

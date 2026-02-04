@@ -39,14 +39,17 @@ except ImportError as e:
 # Create AI API blueprint
 ai_bp = Blueprint('ai_api', __name__, url_prefix='/api/integrations/ai')
 
+# AI Enhanced feature flag
+AI_ENHANCED_ENABLED = os.getenv("AI_ENHANCED_ENABLED", "true").lower() == "true"
+
 # Mock service for health check detection
 class AIEnhancedServiceMock:
     def __init__(self):
         self.api_key = os.getenv("AI_ENHANCED_API_KEY")
-        if not self.api_key or self.api_key == "mock_api_key":
-            raise NotImplementedError(
-                "AI_ENHANCED_API_KEY must be configured in environment variables"
-            )
+        if not AI_ENHANCED_ENABLED:
+            logger.warning("AI Enhanced features are disabled via AI_ENHANCED_ENABLED flag")
+        elif not self.api_key or self.api_key == "mock_api_key":
+            logger.warning("AI_ENHANCED_API_KEY not configured - AI enhanced features will be limited")
 
 
 # Configuration validation
@@ -290,7 +293,7 @@ async def analyze_message_ai():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/summarize_messages', methods=['POST'])
-def summarize_messages_ai():
+async def summarize_messages_ai():
     """Summarize messages with AI"""
     try:
         data = get_ai_request_data()
@@ -375,7 +378,7 @@ def summarize_messages_ai():
 
 # AI-Powered Search
 @ai_bp.route('/intelligent_search', methods=['POST'])
-def intelligent_search_ai():
+async def intelligent_search_ai():
     """Perform AI-powered intelligent search"""
     try:
         data = get_ai_request_data()
@@ -481,7 +484,7 @@ def intelligent_search_ai():
 
 # AI Conversation Management
 @ai_bp.route('/conversation/start', methods=['POST'])
-def start_ai_conversation():
+async def start_ai_conversation():
     """Start AI-powered conversation"""
     try:
         data = get_ai_request_data()
@@ -528,7 +531,7 @@ def start_ai_conversation():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/conversation/continue', methods=['POST'])
-def continue_ai_conversation():
+async def continue_ai_conversation():
     """Continue AI-powered conversation"""
     try:
         data = get_ai_request_data()
@@ -585,7 +588,7 @@ def continue_ai_conversation():
 
 # Natural Language Commands
 @ai_bp.route('/commands/process', methods=['POST'])
-def process_natural_command():
+async def process_natural_command():
     """Process natural language command with AI"""
     try:
         data = get_ai_request_data()
@@ -655,7 +658,7 @@ def process_natural_command():
 
 # AI-Enhanced Content
 @ai_bp.route('/content/generate', methods=['POST'])
-def generate_ai_content():
+async def generate_ai_content():
     """Generate content with AI"""
     try:
         data = get_ai_request_data()
@@ -749,7 +752,7 @@ def generate_ai_content():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/content/enhance', methods=['POST'])
-def enhance_content_ai():
+async def enhance_content_ai():
     """Enhance existing content with AI"""
     try:
         data = get_ai_request_data()
@@ -830,7 +833,7 @@ def enhance_content_ai():
 
 # AI-Enhanced Workspaces and Channels
 @ai_bp.route('/workspaces/intelligent', methods=['POST'])
-def get_intelligent_workspaces():
+async def get_intelligent_workspaces():
     """Get AI-enhanced workspaces"""
     try:
         data = get_ai_request_data()
@@ -871,7 +874,7 @@ def get_intelligent_workspaces():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/channels/intelligent', methods=['POST'])
-def get_intelligent_channels():
+async def get_intelligent_channels():
     """Get AI-enhanced channels"""
     try:
         data = get_ai_request_data()
@@ -928,7 +931,7 @@ def get_intelligent_channels():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/messages/intelligent', methods=['POST'])
-def get_intelligent_messages():
+async def get_intelligent_messages():
     """Get AI-enhanced messages"""
     try:
         data = get_ai_request_data()
@@ -980,7 +983,7 @@ def get_intelligent_messages():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/messages/intelligent_send', methods=['POST'])
-def send_intelligent_message():
+async def send_intelligent_message():
     """Send AI-enhanced message"""
     try:
         data = get_ai_request_data()
@@ -1025,7 +1028,7 @@ def send_intelligent_message():
 
 # AI Analytics
 @ai_bp.route('/analytics/intelligent', methods=['POST'])
-def get_intelligent_analytics():
+async def get_intelligent_analytics():
     """Get AI-enhanced analytics"""
     try:
         data = get_ai_request_data()
@@ -1066,7 +1069,7 @@ def get_intelligent_analytics():
         return create_ai_response(False, error=str(e)), 500
 
 @ai_bp.route('/analytics/performance', methods=['POST'])
-def get_ai_performance_metrics():
+async def get_ai_performance_metrics():
     """Get AI service performance metrics"""
     try:
         data = get_ai_request_data()

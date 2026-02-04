@@ -196,14 +196,14 @@ async def lifespan(app: FastAPI):
         from ai.workflow_scheduler import workflow_scheduler
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Workflow scheduler shutdown error: {e}")
 
     try:
         redis_listener.stop()
         logger.info("✓ Redis Event Bridge stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Redis listener shutdown error: {e}")
 
 
 # --- APP INITIALIZATION ---
