@@ -251,6 +251,7 @@ class TestAgentGraduation:
     def test_promote_agent(self, mock_lancedb, db_session, mock_agent):
         """Test agent promotion"""
         mock_query = Mock()
+        mock_query.filter = Mock(return_value=mock_query)
         mock_query.first = Mock(return_value=mock_agent)
         db_session.query.return_value = mock_query
 

@@ -151,22 +151,72 @@ Response: {"ok": true, "results": [...]}
 ```json
 {
   "ok": false,
-  "error": "error_code",
-  "message": "Human-readable error message",
+  "error_code": "USER_1101",
+  "message": "User not found (ID: abc123)",
+  "severity": "medium",
   "details": {
-    "field": "additional_context"
-  }
+    "user_id": "abc123"
+  },
+  "timestamp": "2026-02-03T12:34:56.789Z",
+  "request_id": "req_xyz"
 }
 ```
 
+### Using AtomException Hierarchy (Recommended)
+
+**Import exceptions:**
+```python
+from core.exceptions import (
+    ValidationError,
+    UserNotFoundError,
+    AgentNotFoundError,
+    DatabaseError,
+    AuthenticationError,
+    ForbiddenError
+)
+```
+
+**Common exception patterns:**
+
+| Exception | Use Case | HTTP Status |
+|-----------|----------|-------------|
+| `UserNotFoundError(user_id="abc")` | User/admin not found | 404 |
+| `AgentNotFoundError(agent_id="xyz")` | Agent not found | 404 |
+| `ValidationError(message="...", field="name")` | Invalid input data | 400 |
+| `AuthenticationError(message="...")` | Auth failed | 401 |
+| `ForbiddenError(message="...")` | Insufficient permissions | 403 |
+| `DatabaseError(message="...", cause=e)` | Database operation failed | 500 |
+
+**Example usage:**
+```python
+@router.get("/users/{user_id}")
+async def get_user(user_id: str):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise UserNotFoundError(user_id=user_id)
+    return {"ok": True, "data": user}
+```
+
 ### Common Error Codes
-- `validation_error` - Invalid input data
-- `not_found` - Resource not found
-- `unauthorized` - Authentication required
-- `forbidden` - Insufficient permissions
-- `conflict` - Resource state conflict
-- `rate_limit_exceeded` - Too many requests
-- `internal_error` - Server error
+- `USER_1101` - User not found
+- `USER_1102` - User already exists
+- `AGENT_2001` - Agent not found
+- `AGENT_2002` - Agent execution failed
+- `AGENT_2004` - Agent governance failed
+- `VAL_7001` - Validation error
+- `VAL_7002` - Missing required field
+- `AUTH_1001` - Invalid credentials
+- `AUTH_1005` - Access forbidden
+- `DB_6001` - Database error
+
+**Legacy format (still supported but not recommended):**
+```json
+{
+  "ok": false,
+  "error": "error_code",
+  "message": "Human-readable error message"
+}
+```
 
 ---
 
@@ -200,6 +250,52 @@ async def api_key_endpoint(api_key: str = Header(..., alias="X-API-Key")):
 ```
 
 ### Governance Checks (Atom-Specific)
+
+**Using @require_governance Decorator (Recommended):**
+
+```python
+from core.api_governance import require_governance, ActionComplexity
+
+@router.post("/agent-action")
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="agent_action",
+    feature="agent"
+)
+async def agent_action(
+    request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    # Agent governance automatically enforced
+    # Only executes if agent has sufficient maturity
+    # No inline governance code needed
+    return {"ok": True, "data": result}
+```
+
+**Action Complexity Levels:**
+
+| Level | Value | Required Maturity | Examples |
+|-------|-------|-------------------|----------|
+| `LOW` | 1 | STUDENT+ | Presentations, read-only |
+| `MODERATE` | 2 | INTERN+ | Streaming, form submissions |
+| `HIGH` | 3 | SUPERVISED+ | State changes, deletions |
+| `CRITICAL` | 4 | AUTONOMOUS only | Payments, critical operations |
+
+**Feature flags:**
+```python
+from core.feature_flags import FeatureFlags
+
+# Check if governance is enabled for a feature
+if FeatureFlags.should_enforce_governance("browser"):
+    # Governance enforcement active
+
+# Check emergency bypass
+if FeatureFlags.is_emergency_bypass_active():
+    # All governance checks disabled
+```
+
+**Legacy inline checks (not recommended):**
 ```python
 from core.governance_helper import check_agent_permissions
 
@@ -219,15 +315,102 @@ async def agent_action(
     # Execute action
 ```
 
+**Important:**
+- Governance applies to POST/PUT/PATCH/DELETE only (not GET)
+- GET routes skip governance for performance
+- Decorator automatically handles emergency bypass
+- Decorator provides consistent audit logging
+
 ---
 
 ## Error Handling
 
-### HTTP Exceptions (FastAPI)
+### AtomException Hierarchy (Recommended)
+
+The Atom platform provides a comprehensive exception hierarchy in `core/exceptions.py`:
+
+**Base Exception:**
+```python
+from core.exceptions import AtomException, ErrorCode, ErrorSeverity
+
+# Custom exception
+raise AtomException(
+    message="Something went wrong",
+    error_code=ErrorCode.INTERNAL_SERVER_ERROR,
+    severity=ErrorSeverity.MEDIUM,
+    details={"context": "value"}
+)
+```
+
+**Common Domain Exceptions:**
+```python
+from core.exceptions import (
+    # Authentication
+    AuthenticationError,
+    TokenExpiredError,
+    UnauthorizedError,
+    ForbiddenError,
+
+    # Users
+    UserNotFoundError,
+    UserAlreadyExistsError,
+
+    # Agents
+    AgentNotFoundError,
+    AgentExecutionError,
+    AgentGovernanceError,
+
+    # Validation
+    ValidationError,
+    MissingFieldError,
+    InvalidTypeError,
+
+    # Database
+    DatabaseError,
+    DatabaseConnectionError,
+    DatabaseConstraintViolationError,
+
+    # Canvas
+    CanvasNotFoundError,
+    CanvasValidationError,
+
+    # Browser
+    BrowserSessionError,
+    BrowserNavigationError,
+
+    # External Services
+    ExternalServiceError,
+    ExternalServiceUnavailableError
+)
+
+# Usage examples
+if not user:
+    raise UserNotFoundError(user_id=user_id)
+
+if not agent:
+    raise AgentNotFoundError(agent_id=agent_id)
+
+if invalid_input:
+    raise ValidationError(
+        message="Invalid value provided",
+        field="field_name",
+        details={"expected": "string", "got": type(value).__name__}
+    )
+
+if database_fails:
+    raise DatabaseError(
+        message="Failed to execute query",
+        details={"query": str(query)},
+        cause=original_exception
+    )
+```
+
+### HTTP Exceptions (FastAPI - Legacy)
+
 ```python
 from fastapi import HTTPException
 
-# Standard errors
+# Standard errors (still works but not recommended)
 raise HTTPException(status_code=404, detail="Resource not found")
 raise HTTPException(status_code=403, detail="Insufficient permissions")
 raise HTTPException(status_code=500, detail="Internal server error")
@@ -284,16 +467,101 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
 ## Database Operations
 
 ### Session Management
+
+**For API Routes (Use FastAPI Dependency):**
 ```python
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+from core.database import get_db
 
-def get_db():
+@router.get("/resource/{resource_id}")
+async def get_resource(resource_id: str, db: Session = Depends(get_db)):
+    # Session automatically managed by FastAPI
+    resource = db.query(Resource).filter(Resource.id == resource_id).first()
+    return {"ok": True, "data": resource}
+```
+
+**For Service Layer (Use Context Manager):**
+```python
+from core.database import get_db_session
+
+class YourService:
+    def your_method(self, data):
+        # Use context manager for automatic cleanup
+        with get_db_session() as db:
+            result = db.query(YourModel).filter_by(field=data).all()
+            return result
+
+    # Alternative: Accept db as parameter for flexibility
+    def your_method_flexible(self, data, db: Session = None):
+        if db is None:
+            with get_db_session() as db:
+                return self._your_method_impl(data, db)
+        return self._your_method_impl(data, db)
+
+    def _your_method_impl(self, data, db: Session):
+        # Actual implementation using provided db
+        return db.query(YourModel).filter_by(field=data).all()
+```
+
+**What NOT to do:**
+```python
+# ❌ DON'T: Manual session management (prone to leaks)
+def bad_method():
     db = SessionLocal()
     try:
-        yield db
+        result = db.query(Model).all()
+        return result
     finally:
-        db.close()
+        db.close()  # Easy to forget or mishandle
+
+# ❌ DON'T: Create session without cleanup
+def worse_method():
+    db = SessionLocal()
+    return db.query(Model).all()  # Connection leak!
+```
+
+### Query Patterns
+```python
+# Single record
+agent = db.query(Agent).filter(Agent.id == agent_id).first()
+
+# List with pagination
+agents = db.query(Agent)\
+    .order_by(Agent.created_at.desc())\
+    .limit(limit)\
+    .offset(offset)\
+    .all()
+
+# Count
+total = db.query(Agent).filter(Agent.status == "active").count()
+
+# Join with filtering
+results = db.query(Agent, Workspace)\
+    .join(Workspace, Agent.workspace_id == Workspace.id)\
+    .filter(Workspace.is_active == True)\
+    .all()
+```
+
+### Transaction Management
+```python
+@router.post("/complex-operation")
+async def complex_operation(data: ComplexRequest, db: Session = Depends(get_db)):
+    try:
+        # Multiple operations in transaction
+        agent = Agent(**data.agent_data)
+        db.add(agent)
+
+        execution = AgentExecution(**data.execution_data)
+        db.add(execution)
+
+        db.commit()
+        db.refresh(agent)
+
+        return {"ok": True, "data": agent}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Transaction failed: {e}")
+        raise  # Exception handler will convert to proper error response
 ```
 
 ### Query Patterns
