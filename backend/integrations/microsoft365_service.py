@@ -316,8 +316,13 @@ class Microsoft365Service:
                 # Try to find by path if ID not provided
                 path = params.get("path")
                 if path:
-                    # Logic to get ID from path would go here, omitting for brevity
-                    pass
+                    # Logic to get ID from path
+                    # For now, return an error indicating this feature is not yet implemented
+                    logger.warning(f"Excel path resolution not implemented for path: {path}")
+                    return {
+                        "status": "error",
+                        "message": "Excel path resolution not yet implemented. Please provide item_id directly."
+                    }
                 else:
                      return {"status": "error", "message": "Excel action requires item_id or path"}
 

@@ -1741,11 +1741,18 @@ Use the available tools as needed to complete the action. Return your response i
             access_token = token_data.get("access_token") if token_data else None
             
             if not access_token:
-                # Fallback to env if not found, but we prefer dynamic
-                # StripeService usually methods require access_token
-                # Pass a dummy or rely on service to handle default if allowed ??
-                # Actually StripeService methods have `access_token` as required arg usually
-                pass
+                # StripeService methods require access_token
+                # Log warning and skip execution if token not available
+                logger.warning(
+                    f"Stripe action '{action}' requires access_token but none found "
+                    f"for connection_id: {connection_id}. Skipping execution."
+                )
+                return {
+                    "status": "error",
+                    "error": "Stripe access token not found",
+                    "connection_id": connection_id,
+                    "action": action
+                }
 
             if hasattr(service, action):
                 method = getattr(service, action)

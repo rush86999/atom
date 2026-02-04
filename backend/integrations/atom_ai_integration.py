@@ -1225,7 +1225,16 @@ class CrossPlatformAIManager:
         try:
             # Generate embedding and add to search index
             # Implementation depends on search service
-            pass
+            # For now, log the indexing request
+            logger.debug(
+                f"Communication indexing requested: comm_id={comm.get('id')}, "
+                f"subject={comm.get('subject')}, sender={comm.get('sender')}"
+            )
+            # TODO: Implement actual embedding generation and search indexing
+            # This would:
+            # 1. Generate text embedding from communication content
+            # 2. Store embedding in vector database
+            # 3. Update search index for semantic retrieval
         except Exception as e:
             logger.error(f"Error indexing communication: {e}")
 
