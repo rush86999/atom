@@ -22,6 +22,8 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 **Key Difference**: Unlike SaaS alternatives, Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
+> **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison with other open-source AI automation platforms.
+
 ---
 
 ## Key Features
@@ -172,6 +174,7 @@ Access at: **http://localhost:3000**
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
 - [Recording System](docs/CANVAS_RECORDING_IMPLEMENTATION.md) - Recording and playback
 - [Review Integration](docs/RECORDING_REVIEW_INTEGRATION.md) - Governance & learning
+- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
 
 ---
 
