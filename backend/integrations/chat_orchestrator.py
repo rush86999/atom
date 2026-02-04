@@ -151,6 +151,7 @@ class ChatIntent(Enum):
     BUSINESS_HEALTH = "business_health"
     CRM = "crm"
     AGENT_REQUEST = "agent_request"  # Phase 30: Request that needs Atom Meta-Agent
+    AI_ANALYTICS = "ai_analytics"
 
 
 class ChatOrchestrator:
@@ -252,24 +253,29 @@ class ChatOrchestrator:
         """Initialize AI engines for NLP, data intelligence, and automation"""
         self.ai_engines = {}
         
-        # Import AI engines
+        # 1. NLP Engine
+        try:
+            from ai.nlp_engine import NaturalLanguageEngine
+            self.ai_engines["nlp"] = NaturalLanguageEngine()
+            logger.info("NLP Engine initialized successfully")
+        except Exception as e:
+            logger.error(f"NLP Engine failed to initialize: {e}")
+
+        # 2. Data Intelligence
+        try:
+            from ai.data_intelligence import DataIntelligenceEngine
+            self.ai_engines["data_intelligence"] = DataIntelligenceEngine()
+            logger.info("Data Intelligence Engine initialized successfully")
+        except Exception as e:
+            logger.error(f"Data Intelligence Engine failed to initialize: {e}")
+
+        # 3. Automation Engine
         try:
             from ai.automation_engine import AutomationEngine
-            from ai.data_intelligence import DataIntelligenceEngine
-            from ai.nlp_engine import NaturalLanguageEngine
-
-            self.ai_engines = {
-                "nlp": NaturalLanguageEngine(),
-                "data_intelligence": DataIntelligenceEngine(),
-                "automation": AutomationEngine(),
-            }
-            logger.info("AI Engines initialized successfully")
-        except ImportError as e:
-            logger.warning(f"AI engines not available (ImportError): {e}")
-            self.ai_engines = {}
+            self.ai_engines["automation"] = AutomationEngine()
+            logger.info("Automation Engine initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing AI engines: {e}")
-            self.ai_engines = {}
+            logger.error(f"Automation Engine failed to initialize: {e}")
 
     def _create_platform_connector(self, platform: PlatformType):
         """Create a mock platform connector (would connect to real APIs in production)"""
@@ -323,6 +329,28 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             session = self._get_or_create_session(user_id, session_id)
 
+            # Handle attachments in context
+            if context and context.get("attachments"):
+                from api.document_routes import _document_store 
+                
+                attachment_text = "\n\n[USER ATTACHED FILES:]\n"
+                has_ctx = False
+                
+                for att in context["attachments"]:
+                    doc_id = att.get("id")
+                    if doc_id and doc_id in _document_store:
+                        doc = _document_store[doc_id]
+                        # Truncate if too long (simple heuristic)
+                        content = doc.get('content', '')
+                        if len(content) > 10000:
+                            content = content[:10000] + "...(truncated)"
+                        attachment_text += f"Filename: {doc.get('title')}\nContent:\n{content}\n---\n"
+                        has_ctx = True
+                
+                if has_ctx:
+                    logger.info(f"Injecting attachment context for {len(context['attachments'])} files")
+                    message = f"{message}\n{attachment_text}"
+
             # Analyze intent using AI NLP
             intent_analysis = await self._analyze_intent(message, session)
 
@@ -348,6 +376,18 @@ class ChatOrchestrator:
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""
+        
+        # Force AI Analytics intent if attachments are present
+        if "[USER ATTACHED FILES:]" in message:
+             logger.info("Attachment detected, forcing intent to AI_ANALYTICS")
+             return {
+                "primary_intent": ChatIntent.AI_ANALYTICS,
+                "confidence": 1.0,
+                "entities": [],
+                "platforms": [],
+                "command_type": "analyze"
+            }
+
         try:
             if "nlp" in self.ai_engines:
                 nlp_result = self.ai_engines["nlp"].parse_command(message)
@@ -463,6 +503,7 @@ class ChatOrchestrator:
             ChatIntent.CRM: [FeatureType.CRM], # Added CRM intent mapping
             ChatIntent.AGENT_REQUEST: [FeatureType.AGENT],  # Phase 30: Route to Atom
             ChatIntent.MULTI_STEP_PROCESS: list(FeatureType),  # All features for complex requests
+            ChatIntent.AI_ANALYTICS: [FeatureType.AI_ANALYTICS],
         }
 
         target_features = intent_to_features.get(primary_intent, [FeatureType.SEARCH])
@@ -592,6 +633,12 @@ class ChatOrchestrator:
             if health_data.get("success"):
                 return health_data.get("message", "I've analyzed your business health.")
             return "I'll help you with your business health query."
+
+        elif intent == ChatIntent.AI_ANALYTICS:
+             analytics_data = feature_responses.get(FeatureType.AI_ANALYTICS, {})
+             if analytics_data.get("data") and analytics_data["data"].get("message"):
+                 return analytics_data["data"]["message"]
+             return "I've analyzed the data."
 
         return "I've processed your request across all connected platforms."
 
@@ -949,7 +996,40 @@ class ChatOrchestrator:
     async def _handle_ai_analytics_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "AI Analytics logic here"}}
+        """Handle AI analysis and Q&A requests"""
+        try:
+            logger.info("Handling AI analytics request with LLM")
+            
+            if "nlp" not in self.ai_engines:
+                 return {"success": False, "data": {"message": "AI Engine not available."}}
+            
+            nlp_engine = self.ai_engines["nlp"]
+            
+            # Prepare prompt
+            # We assume message already contains the injected [USER ATTACHED FILES] content
+            messages = [
+                {"role": "system", "content": "You are ATOM, an advanced AI assistant. Analyze the user's request and the provided context (including any attached files). Provide a helpful, concise, and accurate response."},
+                {"role": "user", "content": message}
+            ]
+            
+            await self._emit_agent_step(1, "Analyzing content with LLM", "llm_inference", "Generating response...")
+            
+            response_text = nlp_engine.query_llm(messages)
+            
+            if not response_text:
+                response_text = "I'm sorry, I was unable to generate a response at this time."
+                
+            await self._emit_agent_step(2, "Response generated", "complete", "Sending response to user")
+            
+            return {
+                "success": True, 
+                "data": {
+                    "message": response_text
+                }
+            }
+        except Exception as e:
+            logger.error(f"AI Analytics handler failed: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _handle_automation_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]

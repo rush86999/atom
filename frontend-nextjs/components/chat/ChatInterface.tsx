@@ -35,6 +35,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
     const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
     const { uploadFile, isUploading } = useFileUpload();
+    const [activeAttachments, setActiveAttachments] = useState<any[]>([]); // Store uploaded docs
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,11 +58,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 setSessionTitle(tempTitle);
                 toast({ title: "Renamed", description: "Session renamed successfully." });
             } else {
-                toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+                toast({ variant: "error", title: "Error", description: "Failed to rename session." });
             }
         } catch (error) {
             console.error("Rename failed", error);
-            toast({ variant: "destructive", title: "Error", description: "Failed to rename session." });
+            toast({ variant: "error", title: "Error", description: "Failed to rename session." });
         } finally {
             setIsEditingTitle(false);
         }
@@ -253,9 +254,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                     conversation_history: messages.slice(-5).map(m => ({
                         role: m.type === "user" ? "user" : "assistant",
                         content: m.content
-                    }))
+                    })),
+                    attachments: activeAttachments // Pass uploaded files to backend
                 }
             }) as any;
+
+            // Clear attachments after sending
+            setActiveAttachments([]);
             const data = response.data;
 
             // Response format: { success, message, session_id, intent, metadata, ... }
@@ -491,6 +496,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                         </div>
                     )}
 
+                    {/* Attachment Chips */}
+                    {activeAttachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2 animate-in fade-in slide-in-from-bottom-2">
+                            {activeAttachments.map((doc, idx) => (
+                                <div key={doc.id || idx} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-xs border border-border">
+                                    <Paperclip className="h-3 w-3" />
+                                    <span className="max-w-[150px] truncate">{doc.title || "File"}</span>
+                                    <button
+                                        onClick={() => setActiveAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                        className="ml-1 hover:text-destructive"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex gap-2">
                         <input
                             type="file"
@@ -498,7 +521,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                             className="hidden"
                             onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) uploadFile(file);
+                                if (file) {
+                                    uploadFile(file).then((doc) => {
+                                        if (doc) {
+                                            setActiveAttachments(prev => [...prev, doc]);
+                                            toast({ title: "File Uploaded", description: file.name, variant: "default" });
+                                        }
+                                    });
+                                }
                             }}
                         />
                         <Button
