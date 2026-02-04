@@ -23,7 +23,7 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from core.feedback_analytics import FeedbackAnalytics
-from core.models import AgentExecution, AgentFeedback, AgentRegistry
+from core.models import AgentExecution, AgentFeedback, AgentRegistry, AgentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +145,9 @@ class AgentPromotionService:
 
         # Auto-detect target status if not provided
         if not target_status:
-            if agent.status == "INTERN":
+            if agent.status == AgentStatus.INTERN.value:
                 target_status = "SUPERVISED"
-            elif agent.status == "SUPERVISED":
+            elif agent.status == AgentStatus.SUPERVISED.value:
                 target_status = "AUTONOMOUS"
             else:
                 return {
@@ -176,9 +176,9 @@ class AgentPromotionService:
         """
         # Auto-detect target status
         if not target_status:
-            if agent.status == "INTERN":
+            if agent.status == AgentStatus.INTERN.value:
                 target_status = "SUPERVISED"
-            elif agent.status == "SUPERVISED":
+            elif agent.status == AgentStatus.SUPERVISED.value:
                 target_status = "AUTONOMOUS"
             else:
                 return {
