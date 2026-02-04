@@ -279,7 +279,10 @@ async def line_health():
         return {"status": "inactive", "service": "LINE"}
     except Exception as e:
         logger.error(f"LINE health check failed: {e}")
-        return {"status": "unhealthy", "error": str(e)}
+        raise router.internal_error(
+            message="Health check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/status")
@@ -289,7 +292,10 @@ async def line_status():
         return await line_adapter.get_service_status()
     except Exception as e:
         logger.error(f"LINE status check failed: {e}")
-        return {"status": "error", "error": str(e)}
+        raise router.internal_error(
+            message="Status check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/capabilities")

@@ -231,7 +231,10 @@ async def messenger_health():
         return {"status": "inactive", "service": "Facebook Messenger"}
     except Exception as e:
         logger.error(f"Messenger health check failed: {e}")
-        return {"status": "unhealthy", "error": str(e)}
+        raise router.internal_error(
+            message="Health check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/status")
@@ -241,7 +244,10 @@ async def messenger_status():
         return await messenger_adapter.get_service_status()
     except Exception as e:
         logger.error(f"Messenger status check failed: {e}")
-        return {"status": "error", "error": str(e)}
+        raise router.internal_error(
+            message="Status check failed",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/capabilities")
