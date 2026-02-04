@@ -207,8 +207,8 @@ def extract_agent_id(request: Request) -> Optional[str]:
             body = request._json
             if isinstance(body, dict) and 'agent_id' in body:
                 return body['agent_id']
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to extract agent_id from request body: {e}")
 
     return None
 
