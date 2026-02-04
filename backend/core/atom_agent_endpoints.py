@@ -37,6 +37,9 @@ from integrations.gmail_service import GmailService
 from integrations.google_calendar_service import GoogleCalendarService
 from integrations.quickbooks_routes import list_quickbooks_items
 
+# Import Episode integration for auto-creation
+from core.episode_integration import trigger_episode_creation
+
 # Initialize AI service
 ai_service = RealAIWorkflowService()
 
@@ -420,7 +423,18 @@ async def chat_with_agent(request: ChatRequest):
                 chat_history_mgr=chat_history,
                 session_mgr=session_manager
             )
-        
+
+            # Trigger episode creation in background (if agent_id specified)
+            if request.agent_id:
+                try:
+                    trigger_episode_creation(
+                        session_id=session_id,
+                        agent_id=request.agent_id,
+                        title=request.message[:50]  # Use first message as title
+                    )
+                except Exception as episode_error:
+                    logger.warning(f"Failed to trigger episode creation: {episode_error}")
+
         # Add proactive suggestions to the response
         try:
             from core.behavior_analyzer import get_behavior_analyzer

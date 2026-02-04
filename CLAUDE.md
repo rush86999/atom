@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: February 2, 2026
+**Last Updated**: February 3, 2026
 
 ---
 
@@ -15,6 +15,7 @@
 - Browser automation (CDP) and device capabilities
 - Enhanced feedback system with A/B testing
 - Mobile support architecture (React Native)
+- **✨ Episodic Memory & Graduation Framework** - Agent learning from past experiences with constitutional compliance validation
 
 **Tech Stack**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite/PostgreSQL, Multi-provider LLM, Playwright, Redis (WebSocket), Alembic
 
@@ -129,10 +130,42 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Key models: AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, BrowserSession, DeviceSession, DeepLinkAudit, ChatSession
 - **NEW**: AgentOperationTracker, AgentRequestLog, ViewOrchestrationState, OperationErrorResolution
 - **NEW**: BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession
+- **✨ NEW**: Episode, EpisodeSegment, EpisodeAccessLog (Episodic Memory with graduation tracking)
+
+### 10. Episodic Memory & Graduation Framework ✨ NEW
+- **Files**: `episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`
+- **Purpose**: Agent learning from past experiences with constitutional compliance validation
+- **Features**:
+  - Automatic episode segmentation (time gaps, topic changes, task completion)
+  - Four retrieval modes: Temporal, Semantic, Sequential, Contextual
+  - Hybrid PostgreSQL (hot) + LanceDB (cold) storage architecture
+  - Episode lifecycle: decay, consolidation, archival
+  - **🎓 Graduation framework**: Validate agent promotion readiness using episodic memory
+  - **Constitutional compliance**: Track interventions and validate against Knowledge Graph rules
+  - **Audit trail**: EpisodeAccessLog for all memory operations
+- **Graduation Criteria**:
+  - STUDENT → INTERN: 10 episodes, 50% intervention rate, 0.70 constitutional score
+  - INTERN → SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
+  - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
+- **Performance**: Episode creation <5s, Temporal retrieval ~10ms, Semantic retrieval ~50-100ms
+- **API**: 20+ REST endpoints for episodes and graduation
+- **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`
+- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`
 
 ---
 
 ## Recent Major Changes
+
+### Episodic Memory & Graduation Framework (Feb 3, 2026) ✨ NEW
+- Comprehensive episodic memory system with hybrid PostgreSQL + LanceDB storage
+- Automatic episode segmentation using time gaps, topic changes, and task completion detection
+- Four retrieval modes: Temporal (time-based), Semantic (vector search), Sequential (full episode), Contextual (hybrid)
+- Episode lifecycle management: decay, consolidation, and archival to cold storage
+- **🎓 Graduation Exam Framework**: Validate agent promotion readiness with 100% Constitutional Compliance
+- Readiness Score calculation: 40% episode count, 30% intervention rate, 30% constitutional compliance
+- Use cases: MedScribe (100 clinical episodes, zero errors for hospital board), Brennan.ca (Woodstock pricing validation)
+- 4 core services, 3 database models, 20+ API endpoints, 4 test files, comprehensive documentation
+- **See**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/AGENT_GRADUATION_GUIDE.md`
 
 ### Student Agent Training System (Feb 2, 2026) ✨ NEW
 - Four-tier maturity-based routing prevents STUDENT agents from automated triggers

@@ -652,11 +652,29 @@ class WorldModelService:
         # 5. Search Business Facts (Trusted Memory)
         business_facts = await self.get_relevant_business_facts(current_task_description, limit=limit)
 
+        # 6. Search Episodes (NEW)
+        episodes_result = []
+        try:
+            from core.episode_retrieval_service import EpisodeRetrievalService
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                episode_service = EpisodeRetrievalService(db)
+                episodes_response = await episode_service.retrieve_contextual(
+                    agent_id=agent.id,
+                    current_task=current_task_description,
+                    limit=limit
+                )
+                episodes_result = episodes_response.get("episodes", [])
+        except Exception as ee:
+            logger.warning(f"Episode recall failed: {ee}")
+
         return {
             "experiences": valid_experiences,
             "knowledge": knowledge_results,
-            "knowledge_graph": graph_context, 
+            "knowledge_graph": graph_context,
             "formulas": formula_results,
             "conversations": conversation_results,
-            "business_facts": business_facts
+            "business_facts": business_facts,
+            "episodes": episodes_result  # NEW
         }
