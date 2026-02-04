@@ -332,3 +332,284 @@ class AsyncGovernanceCache:
 def get_async_governance_cache() -> AsyncGovernanceCache:
     """Get async governance cache wrapper."""
     return AsyncGovernanceCache(get_governance_cache())
+
+
+# ============================================================================
+# Messaging-Specific Cache Extensions
+# ============================================================================
+
+class MessagingCache:
+    """
+    Specialized cache for messaging platform data.
+
+    Caches:
+    - Platform send capabilities
+    - Monitor definitions
+    - Template renders
+    - Platform features
+
+    Target: <1ms lookup for cached items
+    """
+
+    def __init__(self, max_size: int = 500, ttl_seconds: int = 300):
+        """
+        Initialize messaging cache.
+
+        Args:
+            max_size: Maximum number of cached entries (default 500)
+            ttl_seconds: Time-to-live for cache entries (default 5 minutes)
+        """
+        self.max_size = max_size
+        self.ttl_seconds = ttl_seconds
+
+        # Separate OrderedDict for different cache types
+        self._capabilities: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._monitors: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._templates: OrderedDict[str, str] = OrderedDict()
+        self._features: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+
+        self._lock = threading.Lock()
+
+        # Statistics
+        self._stats = {
+            "capabilities_hits": 0,
+            "capabilities_misses": 0,
+            "monitors_hits": 0,
+            "monitors_misses": 0,
+            "templates_hits": 0,
+            "templates_misses": 0,
+            "features_hits": 0,
+            "features_misses": 0,
+        }
+
+    def get_platform_capabilities(
+        self,
+        platform: str,
+        agent_maturity: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached platform capabilities for a maturity level.
+
+        Args:
+            platform: Platform name (slack, discord, etc.)
+            agent_maturity: Agent maturity level
+
+        Returns:
+            Cached capabilities or None
+        """
+        key = f"{platform}:{agent_maturity}"
+
+        with self._lock:
+            if key not in self._capabilities:
+                self._stats["capabilities_misses"] += 1
+                return None
+
+            entry = self._capabilities[key]
+            if self._is_expired(entry):
+                del self._capabilities[key]
+                self._stats["capabilities_misses"] += 1
+                return None
+
+            self._stats["capabilities_hits"] += 1
+            self._capabilities.move_to_end(key)
+            return entry["data"]
+
+    def set_platform_capabilities(
+        self,
+        platform: str,
+        agent_maturity: str,
+        capabilities: Dict[str, Any]
+    ):
+        """Cache platform capabilities."""
+        key = f"{platform}:{agent_maturity}"
+
+        with self._lock:
+            self._ensure_capacity(self._capabilities)
+            self._capabilities[key] = {
+                "data": capabilities,
+                "cached_at": time.time()
+            }
+
+    def get_monitor_definition(
+        self,
+        monitor_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached monitor definition.
+
+        Args:
+            monitor_id: Monitor ID
+
+        Returns:
+            Cached monitor or None
+        """
+        with self._lock:
+            if monitor_id not in self._monitors:
+                self._stats["monitors_misses"] += 1
+                return None
+
+            entry = self._monitors[monitor_id]
+            if self._is_expired(entry):
+                del self._monitors[monitor_id]
+                self._stats["monitors_misses"] += 1
+                return None
+
+            self._stats["monitors_hits"] += 1
+            self._monitors.move_to_end(monitor_id)
+            return entry["data"]
+
+    def set_monitor_definition(
+        self,
+        monitor_id: str,
+        monitor_data: Dict[str, Any]
+    ):
+        """Cache monitor definition."""
+        with self._lock:
+            self._ensure_capacity(self._monitors)
+            self._monitors[monitor_id] = {
+                "data": monitor_data,
+                "cached_at": time.time()
+            }
+
+    def invalidate_monitor(self, monitor_id: str):
+        """Invalidate cached monitor."""
+        with self._lock:
+            if monitor_id in self._monitors:
+                del self._monitors[monitor_id]
+
+    def get_template_render(
+        self,
+        template_key: str
+    ) -> Optional[str]:
+        """
+        Get cached template render.
+
+        Args:
+            template_key: Unique key for template (hash of template + variables)
+
+        Returns:
+            Cached rendered string or None
+        """
+        with self._lock:
+            if template_key not in self._templates:
+                self._stats["templates_misses"] += 1
+                return None
+
+            entry = self._templates[template_key]
+            # Templates have longer TTL (10 minutes)
+            if time.time() - entry.get("cached_at", 0) > 600:
+                del self._templates[template_key]
+                self._stats["templates_misses"] += 1
+                return None
+
+            self._stats["templates_hits"] += 1
+            self._templates.move_to_end(template_key)
+            return entry["data"]
+
+    def set_template_render(
+        self,
+        template_key: str,
+        rendered: str
+    ):
+        """Cache template render."""
+        with self._lock:
+            self._ensure_capacity(self._templates)
+            self._templates[template_key] = {
+                "data": rendered,
+                "cached_at": time.time()
+            }
+
+    def get_platform_features(
+        self,
+        platform: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached platform features.
+
+        Args:
+            platform: Platform name
+
+        Returns:
+            Cached features or None
+        """
+        with self._lock:
+            if platform not in self._features:
+                self._stats["features_misses"] += 1
+                return None
+
+            entry = self._features[platform]
+            # Features have longer TTL (10 minutes)
+            if time.time() - entry.get("cached_at", 0) > 600:
+                del self._features[platform]
+                self._stats["features_misses"] += 1
+                return None
+
+            self._stats["features_hits"] += 1
+            self._features.move_to_end(platform)
+            return entry["data"]
+
+    def set_platform_features(
+        self,
+        platform: str,
+        features: Dict[str, Any]
+    ):
+        """Cache platform features."""
+        with self._lock:
+            self._ensure_capacity(self._features)
+            self._features[platform] = {
+                "data": features,
+                "cached_at": time.time()
+            }
+
+    def _is_expired(self, entry: Dict[str, Any]) -> bool:
+        """Check if cache entry is expired."""
+        age = time.time() - entry.get("cached_at", 0)
+        return age > self.ttl_seconds
+
+    def _ensure_capacity(self, cache: OrderedDict):
+        """Ensure cache doesn't exceed max size (LRU eviction)."""
+        while len(cache) >= self.max_size:
+            cache.popitem(last=False)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        with self._lock:
+            total_hits = sum(v for k, v in self._stats.items() if "hits" in k)
+            total_misses = sum(v for k, v in self._stats.items() if "misses" in k)
+            total_requests = total_hits + total_misses
+            hit_rate = (total_hits / total_requests * 100) if total_requests > 0 else 0
+
+            return {
+                "capabilities_cache_size": len(self._capabilities),
+                "monitors_cache_size": len(self._monitors),
+                "templates_cache_size": len(self._templates),
+                "features_cache_size": len(self._features),
+                "total_hit_rate": round(hit_rate, 2),
+                "stats": self._stats.copy(),
+                "ttl_seconds": self.ttl_seconds,
+                "max_size": self.max_size
+            }
+
+    def clear(self):
+        """Clear all messaging caches."""
+        with self._lock:
+            total = len(self._capabilities) + len(self._monitors) + len(self._templates) + len(self._features)
+            self._capabilities.clear()
+            self._monitors.clear()
+            self._templates.clear()
+            self._features.clear()
+            logger.info(f"Cleared {total} messaging cache entries")
+
+
+# Global messaging cache instance
+_messaging_cache: Optional[MessagingCache] = None
+
+
+def get_messaging_cache() -> MessagingCache:
+    """Get global messaging cache instance."""
+    global _messaging_cache
+    if _messaging_cache is None:
+        _messaging_cache = MessagingCache()
+        logger.info("Initialized global messaging cache")
+    return _messaging_cache
+

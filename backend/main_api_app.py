@@ -779,6 +779,30 @@ try:
     except ImportError as e:
         logger.warning(f"Google Chat enhanced routes not found: {e}")
 
+    # 16.4. Signal Routes (Secure Messaging Platform)
+    try:
+        from api.signal_routes import router as signal_router
+        app.include_router(signal_router, tags=["Signal"])
+        logger.info("✓ Signal Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Signal routes not found: {e}")
+
+    # 16.5. Facebook Messenger Routes (1B+ Users)
+    try:
+        from api.messenger_routes import router as messenger_router
+        app.include_router(messenger_router, tags=["Facebook Messenger"])
+        logger.info("✓ Facebook Messenger Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Facebook Messenger routes not found: {e}")
+
+    # 16.6. LINE Routes (Asian Market)
+    try:
+        from api.line_routes import router as line_router
+        app.include_router(line_router, tags=["LINE"])
+        logger.info("✓ LINE Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"LINE routes not found: {e}")
+
     # 15.1 Canvas Routes (Canvas system for charts and forms)
     try:
         from api.canvas_routes import router as canvas_router
