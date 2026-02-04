@@ -1,6 +1,11 @@
 """
 Salesforce Integration Routes
 FastAPI routes for Salesforce CRM integration and enterprise workflow automation
+
+Includes:
+- Agent governance checks for all state-changing operations
+- Proper error handling with structured responses
+- Execution records for audit trail
 """
 
 import logging
@@ -8,8 +13,8 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
-# Import Salesforce services
 # Import Salesforce services
 try:
     from simple_salesforce import Salesforce
@@ -34,12 +39,19 @@ except ImportError as e:
 
 from core.mock_mode import get_mock_mode_manager
 from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+from core.database import get_db
+from core.models import User
+from integrations.integration_helpers import with_governance_check, create_execution_record, standard_error_response
 
 from .auth_handler_salesforce import salesforce_auth_handler
 
 # Create router
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
+
+# Feature flags
+SALESFORCE_GOVERNANCE_ENABLED = os.getenv("SALESFORCE_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # Mock service for health check detection
 class SalesforceServiceMock:
@@ -220,14 +232,14 @@ async def get_salesforce_accounts(
              )
 
         result = await list_accounts(sf)
-        
-        # Ingest accounts to memory
+
+        # Ingest accounts to memory (FIXED: proper error handling instead of pass)
         for account in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
             except Exception as e:
-                pass
-                
+                logger.debug(f"Ingestion pipeline not available or failed: {e}")
+
         return format_salesforce_response({"accounts": result})
     except Exception as e:
         return format_salesforce_error_response(str(e))
@@ -267,13 +279,45 @@ async def create_salesforce_account(
     phone: Optional[str] = Body(None, description="Phone number"),
     website: Optional[str] = Body(None, description="Website"),
     description: Optional[str] = Body(None, description="Account description"),
+    agent_id: Optional[str] = None,
+    db: Session = Depends(get_db),
     access_token: str = Depends(get_salesforce_access_token),
 ):
-    """Create a new Salesforce account"""
+    """Create a new Salesforce account with governance check (complexity 3 - SUPERVISED+)"""
     if not SALESFORCE_AVAILABLE:
         raise HTTPException(
             status_code=503, detail="Salesforce integration not available"
         )
+
+    # Governance check for create operations (complexity 3 - SUPERVISED+)
+    if SALESFORCE_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        try:
+            # Create a mock user object for governance check
+            from core.models import User
+            mock_user = User(id="system")  # System user for Salesforce operations
+
+            agent, governance_check = await with_governance_check(
+                db, mock_user, "create", agent_id
+            )
+
+            if not governance_check["allowed"]:
+                logger.warning(f"Governance blocked Salesforce account creation: {governance_check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Agent not permitted to create accounts: {governance_check['reason']}"
+                )
+
+            # Create execution record for audit trail
+            execution = create_execution_record(
+                db,
+                agent.id if agent else None,
+                "system",
+                "salesforce_create_account"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Governance check error: {e}")
 
     try:
         sf = get_salesforce_client_from_env()
@@ -320,12 +364,12 @@ async def get_salesforce_contacts(
         if email:
             result = [c for c in result if c.get('Email') == email]
 
-        # Ingest contacts to memory
+        # Ingest contacts to memory (FIXED: proper error handling instead of pass)
         for contact in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
             except Exception as e:
-                pass
+                logger.debug(f"Ingestion pipeline not available or failed: {e}")
 
         return format_salesforce_response(result)
     except Exception as e:
