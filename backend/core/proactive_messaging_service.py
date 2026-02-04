@@ -379,11 +379,24 @@ class ProactiveMessagingService:
             return {"status": "error", "message": "Message not approved"}
 
         try:
+            # Get workspace_id from agent context
+            workspace_id = "default"  # Default fallback
+            try:
+                from core.models import AgentRegistry
+                agent = self.db.query(AgentRegistry).filter(
+                    AgentRegistry.id == message.agent_id
+                ).first()
+                if agent and agent.context:
+                    workspace_id = agent.context.get("workspace_id", "default")
+                    logger.debug(f"Retrieved workspace_id '{workspace_id}' from agent {message.agent_id} context")
+            except Exception as e:
+                logger.warning(f"Could not retrieve workspace_id from agent context: {e}, using default")
+
             # Send via AgentIntegrationGateway
             params = {
                 "recipient_id": message.recipient_id,
                 "content": message.content,
-                "workspace_id": "default",  # TODO: Get from agent
+                "workspace_id": workspace_id,
             }
 
             result = await agent_integration_gateway.execute_action(
