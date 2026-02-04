@@ -96,11 +96,6 @@ async def handle_oauth_callback(
             detail=f"OAuth authentication failed: {str(e)}"
         )
 
-class GoogleCalendarService:
-    """Service for Google Calendar integration"""
-    def __init__(self):
-        pass
-
 @router.get("/status")
 async def google_calendar_status():
     """Status check for Google Calendar integration"""
