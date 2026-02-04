@@ -89,8 +89,11 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ### 🔌 Deep Integrations
 - **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
-- **Multi-platform bridge**: 12+ platforms (Slack, WhatsApp, Discord, Teams, etc.)
+- **9 fully implemented messaging platforms**: Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Facebook Messenger, LINE
+- Proactive messaging, scheduled messages, and condition monitoring
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
+
+[Platform Guide →](docs/MESSAGING_PLATFORMS.md) | [Messaging Features →](docs/MESSAGING_GUIDE.md)
 
 ### 🛠️ Dynamic Skills
 - Agents build new tools on-the-fly
