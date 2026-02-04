@@ -6,15 +6,86 @@ to replace default_user placeholder authentication throughout the codebase.
 """
 
 import logging
+import os
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Dict, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError, ExpiredSignatureError
 
 from core.models import ActiveToken, User, RevokedToken
 
 logger = logging.getLogger(__name__)
+
+
+def verify_jwt_token(token: str) -> Dict[str, Any]:
+    """
+    Verify JWT token with proper validation.
+
+    Args:
+        token: JWT token string to verify
+
+    Returns:
+        Decoded JWT payload as dictionary
+
+    Raises:
+        HTTPException: If token is invalid, expired, or malformed
+    """
+    secret_key = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY"))
+    emergency_bypass = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+
+    if not secret_key and not emergency_bypass:
+        logger.error("JWT verification failed: No secret key configured")
+        raise HTTPException(
+            status_code=500,
+            detail="JWT secret not configured"
+        )
+
+    try:
+        # Verify JWT signature and expiration
+        payload = jwt.decode(
+            token,
+            secret_key,
+            algorithms=["HS256"],
+            options={"verify_exp": True}
+        )
+
+        # Verify required claims
+        if not payload.get("sub"):
+            logger.error("JWT verification failed: Token missing 'sub' claim")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: missing subject"
+            )
+
+        logger.info(f"JWT verified successfully for sub={payload.get('sub')}")
+        return payload
+
+    except ExpiredSignatureError:
+        logger.warning("JWT verification failed: Token expired")
+        raise HTTPException(
+            status_code=401,
+            detail="Token expired"
+        )
+    except JWTError as e:
+        logger.warning(f"JWT verification failed: {e}")
+        if emergency_bypass:
+            logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+            return {"user_id": "emergency_user", "bypass": True}
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+    except Exception as e:
+        logger.error(f"JWT verification error: {e}")
+        if emergency_bypass:
+            logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+            return {"user_id": "emergency_user", "bypass": True}
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication failed"
+        )
 
 
 async def require_authenticated_user(

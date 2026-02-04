@@ -236,7 +236,9 @@ from datetime import datetime, timedelta
 import json
 import logging
 import asyncio
+import os
 from dataclasses import asdict
+from jose import jwt, JWTError, ExpiredSignatureError
 
 from integrations.atom_communication_ingestion_pipeline import (
     memory_manager, 
@@ -268,9 +270,50 @@ class AtomCommunicationMemoryProductionAPI:
         pass
     
     def verify_token(self, credentials: HTTPAuthorizationCredentials = Depends(security)):
-        """Verify JWT token"""
-        # TODO: Implement proper JWT verification
-        return credentials.credentials
+        """Verify JWT token with proper validation"""
+        if not credentials or not credentials.credentials:
+            raise HTTPException(status_code=401, detail="No credentials provided")
+
+        token = credentials.credentials
+        secret_key = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY"))
+
+        # Emergency bypass for governance failures
+        emergency_bypass = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+
+        if not secret_key and not emergency_bypass:
+            raise HTTPException(status_code=500, detail="JWT secret not configured")
+
+        try:
+            # Verify JWT signature and expiration
+            payload = jwt.decode(
+                token,
+                secret_key,
+                algorithms=["HS256"],
+                options={"verify_exp": True}
+            )
+
+            # Verify required claims
+            if not payload.get("sub"):
+                raise HTTPException(status_code=401, detail="Invalid token: missing subject")
+
+            logger.info(f"JWT verified successfully for sub={payload.get('sub')}")
+            return payload
+
+        except ExpiredSignatureError:
+            logger.warning("JWT verification failed: Token expired")
+            raise HTTPException(status_code=401, detail="Token expired")
+        except JWTError as e:
+            logger.warning(f"JWT verification failed: {e}")
+            if emergency_bypass:
+                logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+                return {"user_id": "emergency_user", "bypass": True}
+            raise HTTPException(status_code=401, detail="Invalid token")
+        except Exception as e:
+            logger.error(f"JWT verification error: {e}")
+            if emergency_bypass:
+                logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+                return {"user_id": "emergency_user", "bypass": True}
+            raise HTTPException(status_code=401, detail="Authentication failed")
     
     def setup_routes(self):
         """Setup production API routes"""
