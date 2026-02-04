@@ -3,23 +3,19 @@ Admin User Management API Routes
 Handles administrative users and role-based access control
 """
 import logging
-import os
 from datetime import datetime
 from typing import Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
+from core.api_governance import require_governance, ActionComplexity
 from core.auth import get_current_user
 from core.database import get_db
 from core.models import AdminRole, AdminUser, User
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
-
-# Governance feature flags
-ADMIN_GOVERNANCE_ENABLED = os.getenv("ADMIN_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 async def require_super_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -182,8 +178,14 @@ async def get_admin_user(
 
 
 @router.post("/users", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="create_admin_user",
+    feature="admin"
+)
 async def create_admin_user(
     request: CreateAdminUserRequest,
+    http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
@@ -194,27 +196,10 @@ async def create_admin_user(
     Creates a new admin user with the specified role.
     Requires super_admin role.
 
-    **Governance**: Agent-based creation requires AUTONOMOUS maturity.
+    **Governance**: Agent-based creation requires AUTONOMOUS maturity (CRITICAL).
+    - Admin user creation is a critical action
+    - Requires AUTONOMOUS maturity for agents
     """
-    # Governance check for agent-based admin user creation
-    if ADMIN_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-
-        governance = AgentGovernanceService(db)
-        check = governance.can_perform_action(
-            agent_id=agent_id,
-            action="create_admin_user",
-            resource_type="admin_user",
-            complexity=4  # CRITICAL - admin user creation
-        )
-
-        if not check["allowed"]:
-            logger.warning(f"Governance check failed for create_admin_user by agent {agent_id}: {check['reason']}")
-            raise HTTPException(
-                status_code=403,
-                detail=f"Governance check failed: {check['reason']}"
-            )
-
     # Check if role exists
     role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
     if not role:
@@ -247,7 +232,7 @@ async def create_admin_user(
     db.commit()
     db.refresh(admin)
 
-    logger.info(f"Admin user created: {admin.id} by {current_admin.id} (agent: {agent_id or 'N/A'})")
+    logger.info(f"Admin user created: {admin.id} by {current_admin.id}")
     return AdminUserResponse(
         id=admin.id,
         email=admin.email,
@@ -310,8 +295,14 @@ async def update_admin_user(
 
 
 @router.delete("/users/{admin_id}", response_model=DeleteAdminUserResponse)
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="delete_admin_user",
+    feature="admin"
+)
 async def delete_admin_user(
     admin_id: str,
+    http_request: Request,
     current_admin: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
@@ -322,27 +313,10 @@ async def delete_admin_user(
     Permanently deletes an admin user.
     Requires super_admin role.
 
-    **Governance**: Agent-based deletion requires AUTONOMOUS maturity.
+    **Governance**: Agent-based deletion requires AUTONOMOUS maturity (CRITICAL).
+    - Admin user deletion is a critical action
+    - Requires AUTONOMOUS maturity for agents
     """
-    # Governance check for agent-based admin user deletion
-    if ADMIN_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-
-        governance = AgentGovernanceService(db)
-        check = governance.can_perform_action(
-            agent_id=agent_id,
-            action="delete_admin_user",
-            resource_type="admin_user",
-            complexity=4  # CRITICAL - admin user deletion
-        )
-
-        if not check["allowed"]:
-            logger.warning(f"Governance check failed for delete_admin_user by agent {agent_id}: {check['reason']}")
-            raise HTTPException(
-                status_code=403,
-                detail=f"Governance check failed: {check['reason']}"
-            )
-
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
@@ -355,7 +329,7 @@ async def delete_admin_user(
     db.delete(admin)
     db.commit()
 
-    logger.info(f"Admin user deleted: {admin_id} ({deleted_email}) by {current_admin.id} (agent: {agent_id or 'N/A'})")
+    logger.info(f"Admin user deleted: {admin_id} ({deleted_email}) by {current_admin.id}")
     return DeleteAdminUserResponse(message="Admin user deleted successfully")
 
 

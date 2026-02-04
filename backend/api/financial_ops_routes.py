@@ -3,19 +3,18 @@ Financial & Ops API Routes - Phase 37
 """
 
 import logging
-import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Governance feature flags
-FINANCIAL_GOVERNANCE_ENABLED = os.getenv("FINANCIAL_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 # ==================== COST LEAK DETECTION ====================
 
