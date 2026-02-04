@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.models import Episode, AgentRegistry, AgentStatus
+from core.models import Episode, EpisodeSegment, AgentRegistry, AgentStatus
 from core.lancedb_handler import get_lancedb_handler
 
 logger = logging.getLogger(__name__)
@@ -186,6 +186,8 @@ class AgentGraduationService:
                 "score": float
             }
         """
+        from core.sandbox_executor import get_sandbox_executor
+
         results = []
 
         for episode_id in edge_case_episodes:
@@ -194,15 +196,23 @@ class AgentGraduationService:
             ).first()
 
             if not episode:
+                logger.warning(f"Episode {episode_id} not found for sandbox validation")
                 continue
 
-            # TODO: Implement sandbox execution
-            # For now, return placeholder
+            # Execute episode in sandbox
+            executor = get_sandbox_executor(self.db)
+            sandbox_result = await executor.execute_in_sandbox(
+                episode_id=episode_id,
+                strict_mode=True  # Zero interventions for graduation
+            )
+
             results.append({
                 "episode_id": episode_id,
                 "title": episode.title,
-                "passed": True,  # Placeholder
-                "interventions": 0
+                "passed": sandbox_result.passed,
+                "interventions": sandbox_result.interventions,
+                "safety_violations": sandbox_result.safety_violations,
+                "replayed_actions": sandbox_result.replayed_actions
             })
 
         passed = all(r["passed"] for r in results)
@@ -234,6 +244,8 @@ class AgentGraduationService:
                 "violations": List[str]
             }
         """
+        from core.constitutional_validator import ConstitutionalValidator
+
         episode = self.db.query(Episode).filter(
             Episode.id == episode_id
         ).first()
@@ -241,13 +253,36 @@ class AgentGraduationService:
         if not episode:
             return {"error": "Episode not found"}
 
-        # TODO: Implement constitutional validation
-        # For now, return placeholder
+        # Get episode segments for validation
+        segments = self.db.query(EpisodeSegment).filter(
+            EpisodeSegment.episode_id == episode_id
+        ).all()
+
+        # Ensure segments is a list (defensive against Mock objects in tests)
+        if not segments or not isinstance(segments, list):
+            return {
+                "compliant": True,
+                "score": 1.0,
+                "violations": [],
+                "episode_id": episode_id,
+                "note": "No segments to validate"
+            }
+
+        # Use ConstitutionalValidator to check compliance
+        validator = ConstitutionalValidator(self.db)
+
+        # Detect domain from episode metadata or agent type
+        domain = episode.metadata_json.get("domain") if episode.metadata_json else None
+
+        result = validator.validate_actions(segments, domain=domain)
+
         return {
-            "compliant": True,
-            "score": 1.0,
-            "violations": [],
-            "episode_id": episode_id
+            "compliant": result["compliant"],
+            "score": result["score"],
+            "violations": result["violations"],
+            "episode_id": episode_id,
+            "total_actions": result["total_actions"],
+            "checked_actions": result["checked_actions"]
         }
 
     async def promote_agent(

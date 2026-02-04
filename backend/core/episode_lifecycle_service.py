@@ -74,28 +74,91 @@ class EpisodeLifecycleService:
         similarity_threshold: float = 0.85
     ) -> Dict[str, int]:
         """
-        Merge related episodes into parent episode.
+        Merge related episodes into parent episode using semantic clustering.
+
+        Uses LanceDB vector search to find semantically similar episodes
+        and consolidate them under a single parent episode.
 
         Args:
             agent_id: Agent ID
-            similarity_threshold: Semantic similarity threshold
+            similarity_threshold: Semantic similarity threshold (0.0-1.0)
 
         Returns:
             {"consolidated": int, "parent_episodes": int}
         """
-        # Get recent completed episodes
+        # Get recent completed episodes that haven't been consolidated
         episodes = self.db.query(Episode).filter(
             Episode.agent_id == agent_id,
-            Episode.status == "completed"
+            Episode.status == "completed",
+            Episode.consolidated_into.is_(None)  # Not already consolidated
         ).order_by(Episode.started_at.desc()).limit(100).all()
 
-        # Group by semantic similarity
+        if not episodes:
+            return {"consolidated": 0, "parent_episodes": 0}
+
         consolidated = 0
         parent_count = 0
+        processed_ids = set()
 
-        # TODO: Implement semantic clustering
-        # For now, return placeholder
-        logger.info(f"Consolidated {consolidated} episodes into {parent_count} parents")
+        try:
+            # Process each episode as a potential parent
+            for potential_parent in episodes:
+                if potential_parent.id in processed_ids:
+                    continue
+
+                # Use episode title/description as search query
+                search_query = f"{potential_parent.title} {potential_parent.description or ''}"
+
+                # Search for semantically similar episodes in LanceDB
+                search_results = self.lancedb.search(
+                    table_name="episodes",
+                    query=search_query,
+                    filter_str=f"agent_id == '{agent_id}'",
+                    limit=20
+                )
+
+                # Extract episode IDs from results
+                similar_episode_ids = []
+                for result in search_results:
+                    metadata = result.get("metadata", {})
+                    if isinstance(metadata, str):
+                        import json
+                        metadata = json.loads(metadata)
+                    episode_id = metadata.get("episode_id")
+                    if episode_id and episode_id != potential_parent.id:
+                        # Calculate similarity score from LanceDB distance
+                        # LanceDB returns distance, we need similarity = 1 - distance
+                        distance = result.get("_distance", 1.0)
+                        similarity = 1.0 - distance
+
+                        if similarity >= similarity_threshold:
+                            similar_episode_ids.append((episode_id, similarity))
+
+                if similar_episode_ids:
+                    # Mark similar episodes as consolidated
+                    for child_id, similarity in similar_episode_ids:
+                        child_episode = self.db.query(Episode).filter(
+                            Episode.id == child_id,
+                            Episode.consolidated_into.is_(None)  # Not already consolidated
+                        ).first()
+
+                        if child_episode:
+                            child_episode.consolidated_into = potential_parent.id
+                            processed_ids.add(child_id)
+                            consolidated += 1
+
+                    parent_count += 1
+                    processed_ids.add(potential_parent.id)
+
+            self.db.commit()
+            logger.info(
+                f"Consolidated {consolidated} episodes into {parent_count} parent episodes "
+                f"for agent {agent_id} (threshold: {similarity_threshold})"
+            )
+
+        except Exception as e:
+            logger.error(f"Semantic consolidation failed for agent {agent_id}: {e}")
+            self.db.rollback()
 
         return {"consolidated": consolidated, "parent_episodes": parent_count}
 
