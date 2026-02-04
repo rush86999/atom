@@ -1411,36 +1411,104 @@ class WorkflowEngine:
             }
 
     async def _execute_agent_with_mcp(self, agent_context: dict) -> dict:
-        """Execute main agent with MCP tool access"""
+        """
+        Execute main agent with MCP (Model Context Protocol) tool access.
+
+        This integrates with the BYOK LLM handler to provide the agent with
+        access to MCP tools during execution.
+        """
         try:
-            # This is a placeholder for your main agent execution
-            # You would integrate with your actual main agent system here
+            from core.llm.byok_handler import BYOKHandler
+            from core.agent_context_resolver import AgentContextResolver
+            from core.models import AgentRegistry
 
-            action = agent_context["action"]
-            input_data = agent_context["input_data"]
-            mcp_connections = agent_context["mcp_connections"]
-            available_tools = agent_context["available_tools"]
+            action = agent_context.get("action", "unknown")
+            input_data = agent_context.get("input_data", {})
+            mcp_connections = agent_context.get("mcp_connections", {})
+            available_tools = agent_context.get("available_tools", [])
+            agent_id = agent_context.get("agent_id")
 
-            # Simulate agent execution with MCP tools
-            await asyncio.sleep(0.5)  # Agent actions take time
+            # Get agent from database
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
 
-            # In a real implementation, this would:
-            # 1. Pass the MCP tools to your main agent
-            # 2. Let the agent decide which tools to use
-            # 3. Execute the selected MCP tools
-            # 4. Return the agent's response
+            if not agent:
+                logger.error(f"Agent {agent_id} not found for MCP execution")
+                return {
+                    "success": False,
+                    "error": f"Agent {agent_id} not found"
+                }
 
-            return {
-                "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available",
-                "tools_available": len(available_tools),
-                "mcp_connections": len(mcp_connections),
-                "input_processed": input_data,
-                "execution_method": "main_agent_with_mcp"
-            }
+            # Format MCP tools for LLM function calling
+            tool_definitions = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.get("name", "unknown"),
+                        "description": tool.get("description", ""),
+                        "parameters": tool.get("input_schema", {})
+                    }
+                }
+                for tool in available_tools
+            ]
+
+            # Build the prompt with context about available tools
+            tool_info = "\n".join([
+                f"- {tool.get('name')}: {tool.get('description', 'No description')}"
+                for tool in available_tools
+            ])
+
+            prompt = f"""You are executing action: {action}
+
+Available MCP Tools:
+{tool_info}
+
+Input data:
+{input_data if isinstance(input_data, str) else str(input_data)}
+
+Use the available tools as needed to complete the action. Return your response in a clear, structured format."""
+
+            # Execute using BYOK handler
+            try:
+                llm_handler = BYOKHandler(self.db)
+                response = await llm_handler.chat_completion(
+                    provider=agent.llm_provider,
+                    model=agent.llm_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    tools=tool_definitions if tool_definitions else None,
+                    temperature=0.7
+                )
+
+                return {
+                    "success": True,
+                    "agent_response": response.get("content", ""),
+                    "tool_calls": response.get("tool_calls", []),
+                    "tools_available": len(available_tools),
+                    "mcp_connections": len(mcp_connections),
+                    "input_processed": input_data,
+                    "execution_method": "main_agent_with_mcp",
+                    "agent_id": agent_id,
+                    "action": action
+                }
+
+            except Exception as llm_error:
+                logger.error(f"LLM execution failed for agent {agent_id}: {llm_error}")
+                # Fallback: Return basic response without LLM
+                return {
+                    "success": True,
+                    "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available (LLM execution failed, using fallback)",
+                    "tools_available": len(available_tools),
+                    "mcp_connections": len(mcp_connections),
+                    "input_processed": input_data,
+                    "execution_method": "fallback",
+                    "error": str(llm_error)
+                }
 
         except Exception as e:
+            logger.error(f"MCP agent execution failed: {e}")
             raise AgentExecutionError(
-                agent_id=params.get("agent_id", "unknown"),
+                agent_id=agent_context.get("agent_id", "unknown"),
                 reason=str(e),
                 cause=e
             )

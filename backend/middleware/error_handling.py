@@ -214,8 +214,8 @@ class ValidationErrorMiddleware(BaseHTTPMiddleware):
             # Add more validation error parsing as needed
             # This is a simplified version for the MVP
 
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to parse validation error detail: {e}")
 
         error_response = {
             "error": {
