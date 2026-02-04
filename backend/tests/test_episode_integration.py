@@ -33,6 +33,7 @@ def mock_agent(db_session):
         category="Finance",
         status=AgentStatus.STUDENT
     )
+    agent.metadata_json = {}  # Initialize as empty dict
     return agent
 
 
@@ -136,11 +137,13 @@ class TestEpisodeRetrievalIntegration:
             if query_count[0] == 1:
                 # First query: Episode
                 mock_episode_query = Mock()
+                mock_episode_query.filter = Mock(return_value=mock_episode_query)
                 mock_episode_query.first = Mock(return_value=mock_episode)
                 return mock_episode_query
             else:
                 # Second query: EpisodeSegment
                 mock_segment_query = Mock()
+                mock_segment_query.filter = Mock(return_value=mock_segment_query)
                 mock_segment_query.order_by = Mock(return_value=mock_segment_query)
                 mock_segment_query.all = Mock(return_value=[mock_segment])
                 return mock_segment_query
@@ -167,25 +170,13 @@ class TestEpisodeLifecycle:
     def test_update_importance_scores(self, mock_lancedb, db_session):
         """Test importance score update"""
         # Create a mock episode that we can modify
-        mock_episode = Episode(
-            id="episode_123",
-            title="Test Episode",
-            agent_id="agent_123",
-            user_id="user_123",
-            workspace_id="default",
-            status="completed",
-            maturity_at_time="STUDENT",
-            human_intervention_count=0,
-            constitutional_score=0.85,
-            importance_score=0.5,  # Start at 0.5
-            started_at=datetime.now(),
-            topics=[],
-            entities=[],
-            execution_ids=[]
-        )
+        mock_episode = Mock()
+        mock_episode.id = "episode_123"
+        mock_episode.importance_score = 0.5  # Start at 0.5
 
         # Mock episode query to return our mock episode
         mock_query = Mock()
+        mock_query.filter = Mock(return_value=mock_query)
         mock_query.first = Mock(return_value=mock_episode)
         db_session.query.return_value = mock_query
 
@@ -198,6 +189,8 @@ class TestEpisodeLifecycle:
         ))
 
         assert result is True
+        # The importance score should be updated (0.5 * 0.8 + 0.9 * 0.2 = 0.58)
+        assert mock_episode.importance_score > 0.5
         # The importance score should be updated (0.5 * 0.8 + 0.8/2 * 0.2 = 0.56)
         assert mock_episode.importance_score > 0.5
 

@@ -201,7 +201,7 @@ class TestGraduationReadiness:
 
         # At the threshold (50%), should pass for INTERN
         # 8/15 = 0.533, which is approximately 50%
-        assert abs(result["intervention_rate"] - 0.5) < 0.01
+        assert abs(result["intervention_rate"] - 0.533) < 0.01
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_unknown_maturity_level(self, mock_lancedb, db_session):
@@ -228,6 +228,7 @@ class TestAgentPromotion:
         def query_return_value(model):
             if model == AgentRegistry:
                 agent_query = Mock()
+                agent_query.filter = Mock(return_value=agent_query)
                 agent_query.first = Mock(return_value=mock_student_agent)
                 return agent_query
             return Mock()
@@ -253,6 +254,7 @@ class TestAgentPromotion:
     def test_promote_agent_not_found(self, mock_lancedb, db_session):
         """Test promotion of non-existent agent"""
         agent_query = Mock()
+        agent_query.filter = Mock(return_value=agent_query)
         agent_query.first = Mock(return_value=None)
         db_session.query = Mock(return_value=agent_query)
 

@@ -2,18 +2,27 @@
 Standardized Error Handling for Atom Platform
 
 Provides consistent error responses and exception handling across all API endpoints.
+Integrates with core/exceptions.py AtomException hierarchy.
 """
 
 import logging
 import traceback
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# Import AtomException hierarchy for unified error handling
+try:
+    from core.exceptions import AtomException, ErrorCode as AtomErrorCode
+    ATOM_EXCEPTIONS_AVAILABLE = True
+except ImportError:
+    ATOM_EXCEPTIONS_AVAILABLE = False
+    logger.warning("core.exceptions.AtomException not available, using legacy error handling")
 
 
 class ErrorCode(str, Enum):
@@ -247,6 +256,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     """
     request_id = getattr(request.state, "request_id", None)
 
+    # Handle AtomException if available
+    if ATOM_EXCEPTIONS_AVAILABLE and isinstance(exc, AtomException):
+        return await atom_exception_handler(request, exc)
+
     # Log the full traceback
     logger.error(
         f"Uncaught exception: {type(exc).__name__}: {str(exc)}",
@@ -274,6 +287,67 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
     return JSONResponse(
         status_code=500,
+        content=error_response.dict(exclude_none=True)
+    )
+
+
+async def atom_exception_handler(request: Request, exc: AtomException) -> JSONResponse:
+    """
+    Exception handler for AtomException hierarchy.
+
+    This should be registered in main.py:
+    app.add_exception_handler(AtomException, atom_exception_handler)
+
+    Args:
+        request: FastAPI request object
+        exc: AtomException instance
+
+    Returns:
+        JSONResponse with standardized error format
+    """
+    if not ATOM_EXCEPTIONS_AVAILABLE:
+        # Fallback to global handler if AtomException not available
+        return await global_exception_handler(request, exc)
+
+    request_id = getattr(request.state, "request_id", None)
+
+    # Log the error with appropriate severity
+    log_func = {
+        "critical": logger.critical,
+        "high": logger.error,
+        "medium": logger.warning,
+        "low": logger.info,
+        "info": logger.info
+    }.get(exc.severity.value, logger.error)
+
+    log_func(
+        f"AtomException: {exc.error_code.value} - {exc.message}",
+        extra={"request_id": request_id, "path": str(request.url), "details": exc.details},
+        exc_info=exc.cause is not None
+    )
+
+    # Map AtomException severity to HTTP status codes
+    status_code_map = {
+        "critical": 500,
+        "high": 500,
+        "medium": 400,
+        "low": 400,
+        "info": 200
+    }
+    status_code = status_code_map.get(exc.severity.value, 500)
+
+    # Build error response
+    error_response = ErrorResponse(
+        success=False,
+        error_code=exc.error_code.value,
+        message=exc.message,
+        details=exc.details if exc.details else None,
+        timestamp=datetime.utcnow().isoformat(),
+        request_id=request_id
+    )
+
+    return JSONResponse(
+        status_code=status_code,
         content=error_response.dict(exclude_none=True)
     )
 

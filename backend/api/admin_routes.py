@@ -12,6 +12,13 @@ from sqlalchemy.orm import Session
 from core.api_governance import require_governance, ActionComplexity
 from core.auth import get_current_user
 from core.database import get_db
+from core.exceptions import (
+    UserAlreadyExistsError,
+    UserNotFoundError,
+    ValidationError,
+    MissingFieldError,
+    WorkspaceNotFoundError
+)
 from core.models import AdminRole, AdminUser, User
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -161,10 +168,7 @@ async def get_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin user not found"
-        )
+        raise UserNotFoundError(user_id=admin_id)
 
     return AdminUserResponse(
         id=admin.id,
@@ -203,18 +207,16 @@ async def create_admin_user(
     # Check if role exists
     role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
     if not role:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Specified role does not exist"
+        raise ValidationError(
+            message="Specified role does not exist",
+            field="role_id",
+            details={"role_id": request.role_id}
         )
 
     # Check if email already exists
     existing = db.query(AdminUser).filter(AdminUser.email == request.email).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Admin user with this email already exists"
-        )
+        raise UserAlreadyExistsError(email=request.email)
 
     # Hash password (import from auth)
     from core.auth import get_password_hash
@@ -260,10 +262,7 @@ async def update_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin user not found"
-        )
+        raise UserNotFoundError(user_id=admin_id)
 
     # Update only provided fields
     if request.name is not None:
@@ -272,9 +271,10 @@ async def update_admin_user(
         # Verify role exists
         role = db.query(AdminRole).filter(AdminRole.id == request.role_id).first()
         if not role:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Specified role does not exist"
+            raise ValidationError(
+                message="Specified role does not exist",
+                field="role_id",
+                details={"role_id": request.role_id}
             )
         admin.role_id = request.role_id
     if request.status is not None:
@@ -320,10 +320,7 @@ async def delete_admin_user(
     admin = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
 
     if not admin:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin user not found"
-        )
+        raise UserNotFoundError(user_id=admin_id)
 
     deleted_email = admin.email
     db.delete(admin)
@@ -397,9 +394,10 @@ async def get_admin_role(
     role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
 
     if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin role not found"
+        raise ValidationError(
+            message="Admin role not found",
+            field="role_id",
+            details={"role_id": role_id}
         )
 
     return AdminRoleResponse(
