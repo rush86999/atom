@@ -12,6 +12,7 @@ import { logger } from "@lib/logger";
 import { Credentials as OAuth2Token } from "google-auth-library"; // Re-using this type for structure, though not strictly Google
 import { postgraphileGraphUrl, postgraphileAdminSecret } from "@lib/constants";
 import { executeGraphQLMutation } from "@lib/graphqlClient";
+import { encryptToken, getEncryptionService } from "@lib/tokenEncryption";
 
 // TODO: Move these to a central constants file and manage via environment variables
 const MSTEAMS_CLIENT_ID =
@@ -93,19 +94,29 @@ async function saveMSTeamsUserTokens(
 
   // MSAL's AuthenticationResult has account.idTokenClaims.exp (seconds since epoch) for id_token expiry
   // tokens.expiresOn is a Date object for access_token expiry
+
+  // Encrypt sensitive tokens before storage
+  const encryption = getEncryptionService();
+  const encryptedAccessToken = encryptToken(tokens.accessToken);
+  const encryptedRefreshToken = (tokens as any).refreshToken
+    ? encryptToken((tokens as any).refreshToken)
+    : null;
+  const encryptedIdToken = tokens.idToken ? encryptToken(tokens.idToken) : null;
+
   const tokenDataForDb = {
     user_id: userId,
     service_name: MSTEAMS_TOKEN_SERVICE_NAME,
-    access_token: tokens.accessToken,
-    refresh_token: (tokens as any).refreshToken || null, // This should be present if offline_access scope was granted
+    access_token: encryptedAccessToken,
+    refresh_token: encryptedRefreshToken, // This should be present if offline_access scope was granted
     expiry_date: tokens.expiresOn ? tokens.expiresOn.toISOString() : null,
     scope: tokens.scopes.join(" "),
     token_type: "Bearer", // Typically Bearer for MS Graph
-    id_token: tokens.idToken, // Store ID token if needed
+    id_token: encryptedIdToken, // Store ID token if needed
     other_data: {
       accountHomeAccountId: tokens.account.homeAccountId, // Useful for MSAL cache lookups later if needed
       accountEnvironment: tokens.account.environment,
       accountTenantId: tokens.account.tenantId,
+      is_encrypted: true, // Flag to indicate tokens are encrypted
     },
     updated_at: new Date().toISOString(),
   };

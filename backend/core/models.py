@@ -5,6 +5,7 @@ import enum
 import hashlib
 import json
 import uuid
+from typing import Optional
 from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Float, ForeignKey, Index, Integer, String, Table, Text
@@ -3685,4 +3686,181 @@ class ConditionAlert(Base):
         Index('ix_condition_alerts_monitor', 'monitor_id', 'triggered_at'),
         Index('ix_condition_alerts_status', 'status'),
         Index('ix_condition_alerts_triggered', 'triggered_at'),
+    )
+
+
+class UnifiedWorkspace(Base):
+    """
+    Unified workspace model for cross-platform synchronization.
+
+    Supports synchronization across multiple communication platforms:
+    - Slack
+    - Discord
+    - Google Chat
+    - Microsoft Teams
+
+    Features:
+    - Platform-specific workspace IDs mapping
+    - Change detection and propagation
+    - Conflict resolution
+    - Member synchronization
+    """
+    __tablename__ = "unified_workspaces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Workspace identification
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Platform-specific IDs (nullable for partial sync)
+    slack_workspace_id = Column(String, nullable=True, index=True)
+    discord_guild_id = Column(String, nullable=True, index=True)
+    google_chat_space_id = Column(String, nullable=True, index=True)
+    teams_team_id = Column(String, nullable=True, index=True)
+
+    # Synchronization status
+    sync_status = Column(String, default="active", index=True)  # active, paused, error
+    last_sync_at = Column(DateTime(timezone=True), default=func.now())
+    last_sync_error = Column(Text, nullable=True)
+
+    # Statistics
+    platform_count = Column(Integer, default=0)  # Number of connected platforms
+    member_count = Column(Integer, default=0)  # Total members across all platforms
+
+    # Sync configuration
+    sync_config = Column(JSON, nullable=True)  # {"auto_sync": true, "conflict_resolution": "latest"}
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="unified_workspaces")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_unified_workspaces_user", "user_id"),
+        Index("ix_unified_workspaces_slack", "slack_workspace_id"),
+        Index("ix_unified_workspaces_discord", "discord_guild_id"),
+        Index("ix_unified_workspaces_google_chat", "google_chat_space_id"),
+        Index("ix_unified_workspaces_teams", "teams_team_id"),
+        Index("ix_unified_workspaces_sync_status", "sync_status"),
+    )
+
+    def add_platform(self, platform: str, platform_id: str):
+        """Add or update a platform mapping"""
+        if platform == "slack":
+            self.slack_workspace_id = platform_id
+        elif platform == "discord":
+            self.discord_guild_id = platform_id
+        elif platform == "google_chat":
+            self.google_chat_space_id = platform_id
+        elif platform == "teams":
+            self.teams_team_id = platform_id
+        else:
+            raise ValueError(f"Unknown platform: {platform}")
+
+        # Update platform count
+        self.platform_count = sum([
+            bool(self.slack_workspace_id),
+            bool(self.discord_guild_id),
+            bool(self.google_chat_space_id),
+            bool(self.teams_team_id)
+        ])
+
+    def get_platform_id(self, platform: str) -> Optional[str]:
+        """Get platform-specific ID"""
+        platform_map = {
+            "slack": self.slack_workspace_id,
+            "discord": self.discord_guild_id,
+            "google_chat": self.google_chat_space_id,
+            "teams": self.teams_team_id
+        }
+        return platform_map.get(platform)
+
+
+class WorkspaceSyncLog(Base):
+    """
+    Audit log for workspace synchronization events.
+
+    Tracks all sync operations across platforms for debugging and auditing.
+    """
+    __tablename__ = "workspace_sync_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Workspace reference
+    unified_workspace_id = Column(String, ForeignKey("unified_workspaces.id"), nullable=False, index=True)
+
+    # Sync operation details
+    operation = Column(String, nullable=False)  # create, update, delete, propagate
+    source_platform = Column(String, nullable=False)  # slack, discord, google_chat, teams
+    target_platforms = Column(JSON, nullable=False)  # ["discord", "teams"]
+
+    # Change details
+    change_type = Column(String, nullable=False)  # name_change, member_add, member_remove, etc.
+    change_data = Column(JSON, nullable=True)  # {"old_name": "...", "new_name": "..."}
+
+    # Status
+    status = Column(String, nullable=False)  # success, partial_failure, failure
+    error_message = Column(Text, nullable=True)
+
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+
+    # Relationships
+    unified_workspace = relationship("UnifiedWorkspace", backref="sync_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_workspace_sync_logs_workspace", "unified_workspace_id", "started_at"),
+        Index("ix_workspace_sync_logs_status", "status"),
+        Index("ix_workspace_sync_logs_operation", "operation"),
+    )
+
+
+
+class GovernanceAuditLog(Base):
+    """
+    Audit log for governance checks.
+
+    Tracks all governance decisions for compliance, debugging, and analytics.
+    """
+    __tablename__ = "governance_audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False, index=True)  # accounting_transaction_create, etc.
+    resource_type = Column(String, nullable=True)  # transaction, message, canvas, etc.
+
+    # Governance decision
+    allowed = Column(Boolean, nullable=False, index=True)
+    agent_maturity = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    required_maturity = Column(String, nullable=False)  # Required maturity for this action
+    reason = Column(Text, nullable=True)  # Reason for denial (if not allowed)
+
+    # Context
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    request_id = Column(String, nullable=True, index=True)  # For tracing
+
+    # Timestamps
+    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="governance_audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_governance_audit_logs_agent", "agent_id", "checked_at"),
+        Index("ix_governance_audit_logs_action", "action_type", "checked_at"),
+        Index("ix_governance_audit_logs_allowed", "allowed", "checked_at"),
+        Index("ix_governance_audit_logs_maturity", "agent_maturity", "allowed"),
     )
