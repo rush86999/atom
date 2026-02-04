@@ -3,14 +3,19 @@ Embedding Generation Service
 
 Provides AI embedding generation for semantic search and vector storage.
 Supports multiple embedding providers:
-- OpenAI (text-embedding-3-small, text-embedding-3-large)
-- Cohere (embed-english-v3.0, embed-multilingual-v3.0)
-- Custom/sentence-transformers models
+- FastEmbed (default, local, fast) - BAAI/bge-small-en-v1.5, BAAI/bge-base-en-v1.5
+- OpenAI (cloud, high quality) - text-embedding-3-small, text-embedding-3-large
+- Cohere (cloud, multilingual) - embed-english-v3.0, embed-multilingual-v3.0
 
 Usage:
     service = EmbeddingService()
     embedding = await service.generate_embedding("Hello world")
     # Returns: [0.123, -0.456, ...] (vector of floats)
+
+Performance:
+    FastEmbed: ~10-20ms per document (local)
+    OpenAI: ~100-300ms per document (cloud)
+    Cohere: ~150-400ms per document (cloud)
 """
 
 import logging
@@ -23,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingProvider:
     """Supported embedding providers"""
-    OPENAI = "openai"
-    COHERE = "cohere"
-    SENTENCE_TRANSFORMERS = "sentence_transformers"
+    FASTEMBED = "fastembed"  # Default: Fast, local, ONNX-based
+    OPENAI = "openai"        # Cloud: High quality
+    COHERE = "cohere"        # Cloud: Multilingual support
 
 
 class EmbeddingService:
@@ -33,11 +38,12 @@ class EmbeddingService:
     Service for generating AI embeddings.
 
     Features:
-    - Multiple provider support (OpenAI, Cohere, sentence-transformers)
+    - FastEmbed as default (10-20ms per doc, local, lightweight)
+    - OpenAI/Cohere cloud options for higher quality
     - Batch embedding generation
     - Text preprocessing
     - Error handling and retries
-    - Performance monitoring
+    - Automatic model caching (FastEmbed)
     """
 
     def __init__(
@@ -50,13 +56,16 @@ class EmbeddingService:
         Initialize embedding service.
 
         Args:
-            provider: Embedding provider (default: from env or "openai")
-            model: Model name (default: provider default)
+            provider: Embedding provider (default: "fastembed")
+                - "fastembed" - Fast, local ONNX-based embeddings (recommended)
+                - "openai" - Cloud-based OpenAI embeddings
+                - "cohere" - Cloud-based Cohere embeddings
+            model: Model name (default: provider's recommended model)
             config: Additional configuration (API keys, etc.)
         """
         self.provider = provider or os.getenv(
             "EMBEDDING_PROVIDER",
-            EmbeddingProvider.OPENAI
+            EmbeddingProvider.FASTEMBED  # Changed default to FastEmbed
         )
         self.config = config or {}
         self._client = None
@@ -66,9 +75,9 @@ class EmbeddingService:
 
         # Validate provider
         if self.provider not in [
+            EmbeddingProvider.FASTEMBED,
             EmbeddingProvider.OPENAI,
-            EmbeddingProvider.COHERE,
-            EmbeddingProvider.SENTENCE_TRANSFORMERS
+            EmbeddingProvider.COHERE
         ]:
             raise ValueError(f"Unknown embedding provider: {self.provider}")
 
@@ -79,11 +88,17 @@ class EmbeddingService:
     def _get_default_model(self) -> str:
         """Get default model for provider"""
         defaults = {
-            EmbeddingProvider.OPENAI: os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-            EmbeddingProvider.COHERE: "embed-english-v3.0",
-            EmbeddingProvider.SENTENCE_TRANSFORMERS: "all-MiniLM-L6-v2"
+            EmbeddingProvider.FASTEMBED: os.getenv(
+                "FASTEMBED_MODEL",
+                "BAAI/bge-small-en-v1.5"  # Fast, good quality, 384 dimensions
+            ),
+            EmbeddingProvider.OPENAI: os.getenv(
+                "OPENAI_EMBEDDING_MODEL",
+                "text-embedding-3-small"  # 1536 dimensions
+            ),
+            EmbeddingProvider.COHERE: "embed-english-v3.0"  # 1024 dimensions
         }
-        return defaults.get(self.provider, "text-embedding-3-small")
+        return defaults.get(self.provider, "BAAI/bge-small-en-v1.5")
 
     async def generate_embedding(self, text: str) -> List[float]:
         """
@@ -103,12 +118,12 @@ class EmbeddingService:
             processed_text = self._preprocess_text(text)
 
             # Generate embedding based on provider
-            if self.provider == EmbeddingProvider.OPENAI:
+            if self.provider == EmbeddingProvider.FASTEMBED:
+                embedding = await self._generate_fastembed_embedding(processed_text)
+            elif self.provider == EmbeddingProvider.OPENAI:
                 embedding = await self._generate_openai_embedding(processed_text)
             elif self.provider == EmbeddingProvider.COHERE:
                 embedding = await self._generate_cohere_embedding(processed_text)
-            elif self.provider == EmbeddingProvider.SENTENCE_TRANSFORMERS:
-                embedding = await self._generate_sentence_transformer_embedding(processed_text)
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
 
@@ -124,6 +139,7 @@ class EmbeddingService:
         Generate embeddings for multiple texts in batch.
 
         More efficient than calling generate_embedding multiple times.
+        FastEmbed handles batching automatically with excellent performance.
 
         Args:
             texts: List of texts to embed
@@ -136,12 +152,12 @@ class EmbeddingService:
             processed_texts = [self._preprocess_text(t) for t in texts]
 
             # Generate embeddings based on provider
-            if self.provider == EmbeddingProvider.OPENAI:
+            if self.provider == EmbeddingProvider.FASTEMBED:
+                embeddings = await self._generate_fastembed_embeddings_batch(processed_texts)
+            elif self.provider == EmbeddingProvider.OPENAI:
                 embeddings = await self._generate_openai_embeddings_batch(processed_texts)
             elif self.provider == EmbeddingProvider.COHERE:
                 embeddings = await self._generate_cohere_embeddings_batch(processed_texts)
-            elif self.provider == EmbeddingProvider.SENTENCE_TRANSFORMERS:
-                embeddings = await self._generate_sentence_transformer_embeddings_batch(processed_texts)
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
 
@@ -179,20 +195,88 @@ class EmbeddingService:
         text = re.sub(r"\s+", " ", text).strip()
 
         # Truncate to max length (depends on model)
-        # OpenAI: max 8191 tokens for text-embedding-3
+        # FastEmbed models typically handle up to 512 tokens
         # Rough estimate: 1 token ~ 4 characters
         max_chars = {
-            EmbeddingProvider.OPENAI: 32000,  # ~8k tokens
-            EmbeddingProvider.COHERE: 20000,
-            EmbeddingProvider.SENTENCE_TRANSFORMERS: 10000
+            EmbeddingProvider.FASTEMBED: 8192,   # ~2048 tokens (safe margin)
+            EmbeddingProvider.OPENAI: 32000,    # ~8k tokens
+            EmbeddingProvider.COHERE: 20000
         }
 
-        limit = max_chars.get(self.provider, 20000)
+        limit = max_chars.get(self.provider, 8192)
         if len(text) > limit:
             text = text[:limit]
             logger.debug(f"Truncated text to {limit} characters")
 
         return text
+
+    # ========================================================================
+    # FastEmbed Implementation (Default, Recommended)
+    # ========================================================================
+
+    async def _generate_fastembed_embedding(self, text: str) -> List[float]:
+        """
+        Generate embedding using FastEmbed (ONNX-based, local).
+
+        FastEmbed advantages:
+        - Written in Rust for performance
+        - Uses ONNX Runtime (no PyTorch/TensorFlow needed)
+        - ~10-20ms per embedding
+        - ~100MB memory (vs 500MB+ for sentence-transformers)
+        - Auto-caches models after first download
+        """
+        try:
+            from fastembed import TextEmbedding
+
+            # Initialize model (cached after first use)
+            if self._client is None:
+                logger.info(f"Loading FastEmbed model: {self.model}")
+                self._client = TextEmbedding(model_name=self.model)
+
+            # Generate embedding
+            embeddings = list(self._client.embed([text]))
+
+            if not embeddings or len(embeddings) == 0:
+                raise Exception("FastEmbed returned empty result")
+
+            return embeddings[0].tolist()
+
+        except ImportError:
+            raise Exception(
+                "FastEmbed package not installed. "
+                "Run: pip install 'fastembed>=0.2.0'"
+            )
+        except Exception as e:
+            logger.error(f"FastEmbed embedding generation failed: {e}")
+            raise
+
+    async def _generate_fastembed_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings using FastEmbed (batch).
+
+        FastEmbed handles batching very efficiently with parallel processing.
+        """
+        try:
+            from fastembed import TextEmbedding
+
+            # Initialize model (cached after first use)
+            if self._client is None:
+                logger.info(f"Loading FastEmbed model: {self.model}")
+                self._client = TextEmbedding(model_name=self.model)
+
+            # Generate embeddings (FastEmbed handles batching)
+            embeddings = list(self._client.embed(texts))
+
+            # Convert to list of lists
+            return [emb.tolist() for emb in embeddings]
+
+        except Exception as e:
+            logger.error(f"FastEmbed batch embedding generation failed: {e}")
+            raise
+
+    # ========================================================================
+    # OpenAI Implementation (Cloud, High Quality)
+    # ========================================================================
 
     async def _generate_openai_embedding(self, text: str) -> List[float]:
         """Generate embedding using OpenAI API"""
@@ -243,6 +327,10 @@ class EmbeddingService:
             logger.error(f"OpenAI batch embedding generation failed: {e}")
             raise
 
+    # ========================================================================
+    # Cohere Implementation (Cloud, Multilingual)
+    # ========================================================================
+
     async def _generate_cohere_embedding(self, text: str) -> List[float]:
         """Generate embedding using Cohere API"""
         try:
@@ -290,43 +378,6 @@ class EmbeddingService:
 
         except Exception as e:
             logger.error(f"Cohere batch embedding generation failed: {e}")
-            raise
-
-    async def _generate_sentence_transformer_embedding(self, text: str) -> List[float]:
-        """Generate embedding using sentence-transformers (local)"""
-        try:
-            from sentence_transformers import SentenceTransformer
-
-            # Load model (cached after first load)
-            if self._client is None:
-                self._client = SentenceTransformer(self.model)
-
-            embedding = self._client.encode(text, convert_to_numpy=True)
-            return embedding.tolist()
-
-        except ImportError:
-            raise Exception(
-                "sentence-transformers package not installed. "
-                "Run: pip install sentence-transformers"
-            )
-        except Exception as e:
-            logger.error(f"sentence-transformers embedding generation failed: {e}")
-            raise
-
-    async def _generate_sentence_transformer_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using sentence-transformers (batch)"""
-        try:
-            from sentence_transformers import SentenceTransformer
-
-            # Load model (cached after first load)
-            if self._client is None:
-                self._client = SentenceTransformer(self.model)
-
-            embeddings = self._client.encode(texts, convert_to_numpy=True)
-            return embeddings.tolist()
-
-        except Exception as e:
-            logger.error(f"sentence-transformers batch embedding generation failed: {e}")
             raise
 
 
@@ -451,7 +502,7 @@ async def generate_embedding(text: str, provider: Optional[str] = None) -> List[
 
     Args:
         text: Text to embed
-        provider: Optional provider override
+        provider: Optional provider override (default: fastembed)
 
     Returns:
         Embedding vector
@@ -466,7 +517,7 @@ async def generate_embeddings_batch(texts: List[str], provider: Optional[str] = 
 
     Args:
         texts: List of texts to embed
-        provider: Optional provider override
+        provider: Optional provider override (default: fastembed)
 
     Returns:
         List of embedding vectors
