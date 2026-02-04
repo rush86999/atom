@@ -3,15 +3,15 @@ Slack Event Handler - Real-time Event Processing
 Handles Slack webhooks and real-time events
 """
 
-import os
-import logging
-import json
 import asyncio
-from datetime import datetime
-from typing import Dict, Any, Callable, Optional
-from flask import Request, Response
-import hmac
 import hashlib
+import hmac
+import json
+import logging
+import os
+from datetime import datetime
+from typing import Any, Callable, Dict, Optional
+from flask import Request, Response
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -193,6 +193,7 @@ class SlackEventHandler:
         # Phase 2: Route to Universal Webhook Bridge
         try:
             from integrations.universal_webhook_bridge import universal_webhook_bridge
+
             # Handle in background or wait? Usually webhooks should respond fast, 
             # but ChatOrchestrator can be slow. Slack requires response < 3s.
             # However, for MVP let's await and see. Slack might retry if we are slow.

@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 
 from core.byok_endpoints import get_byok_manager
 
+
 def refresh_keys():
     load_dotenv()
     manager = get_byok_manager()

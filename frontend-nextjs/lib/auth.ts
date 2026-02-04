@@ -1,6 +1,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { query } from './db';
+import { USE_BACKEND_API, adminAPI, tenantAPI } from './api';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -42,6 +43,34 @@ export const authOptions: NextAuthOptions = {
             // Get rich user info from DB to populate session (keep existing rich session data)
             // Check admin_users first
             if (credentials.email.endsWith('@atom-saas.com') || credentials.email === 'admin@example.com') {
+              if (USE_BACKEND_API) {
+                // Use backend API
+                try {
+                  const adminUsers = await adminAPI.getAdminUsers();
+                  const admin = adminUsers.data.find((u: any) => u.email === credentials.email);
+
+                  if (admin && admin.status === 'active') {
+                    // Update last login via API
+                    await adminAPI.updateAdminLastLogin(admin.id);
+
+                    return {
+                      id: admin.id,
+                      email: admin.email,
+                      name: admin.name,
+                      role: 'super_admin',
+                      admin_role: admin.role_name,
+                      permissions: admin.permissions,
+                      tenant_id: null,
+                      access_token: loginData.access_token
+                    };
+                  }
+                } catch (error) {
+                  console.error('Failed to fetch admin users from API:', error);
+                  // Fall back to direct DB query
+                }
+              }
+
+              // Fallback to direct DB query
               const adminResult = await query(`
                 SELECT au.*, ar.name as role_name, ar.permissions
                 FROM admin_users au
@@ -62,7 +91,7 @@ export const authOptions: NextAuthOptions = {
                   admin_role: admin.role_name,
                   permissions: admin.permissions,
                   tenant_id: null,
-                  access_token: loginData.access_token // Use the backend token!
+                  access_token: loginData.access_token
                 };
               }
             }
@@ -82,6 +111,17 @@ export const authOptions: NextAuthOptions = {
               let planType = null;
 
               if (user.tenant_id) {
+                if (USE_BACKEND_API) {
+                  try {
+                    const tenantData = await tenantAPI.getTenantBySubdomain(''); // Get by ID instead
+                    // Note: We need to add getTenantById to the API
+                    // For now, fall back to DB query
+                  } catch (error) {
+                    console.error('Failed to fetch tenant from API:', error);
+                  }
+                }
+
+                // Fallback to direct DB query
                 const tenantResult = await query('SELECT * FROM tenants WHERE id = $1', [user.tenant_id]);
                 if (tenantResult.rows.length > 0) {
                   tenantSubdomain = tenantResult.rows[0].subdomain;
@@ -115,16 +155,31 @@ export const authOptions: NextAuthOptions = {
 
           if (tenantSubdomain) {
             // Get tenant by subdomain
-            const tenantResult = await query(
-              "SELECT * FROM tenants WHERE subdomain = $1 AND status = 'active'",
-              [tenantSubdomain]
-            );
+            let tenant;
 
-            if (tenantResult.rows.length === 0) {
-              return null;
+            if (USE_BACKEND_API) {
+              try {
+                const tenantData = await tenantAPI.getTenantBySubdomain(tenantSubdomain);
+                tenant = tenantData.data;
+              } catch (error) {
+                console.error('Failed to fetch tenant from API:', error);
+                // Fall back to DB query
+              }
             }
 
-            const tenant = tenantResult.rows[0];
+            if (!tenant) {
+              // Fallback to direct DB query
+              const tenantResult = await query(
+                "SELECT * FROM tenants WHERE subdomain = $1 AND status = 'active'",
+                [tenantSubdomain]
+              );
+
+              if (tenantResult.rows.length === 0) {
+                return null;
+              }
+
+              tenant = tenantResult.rows[0];
+            }
 
             // Set tenant context for database queries
             await query('SELECT set_tenant_context($1)', [tenant.id]);

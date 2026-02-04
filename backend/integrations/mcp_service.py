@@ -1,10 +1,11 @@
-import logging
-import json
 import asyncio
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+import json
+import logging
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 import httpx
+
 from .mcp_converter import MCPToolConverter
 
 logger = logging.getLogger(__name__)
@@ -805,45 +806,17 @@ class MCPService:
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool by name, dynamically resolving the server_id."""
+        # 1. Check hardcoded internal servers
         for server_id in ["google-search", "local-tools"]:
             tools = await self.get_server_tools(server_id)
             if any(t["name"] == tool_name for t in tools):
-                if server_id == "google-search":
-                    # ... (existing google logic) ...
-                    # Re-implementing simplified logic just for the patch context if needed, 
-                    # but since we are inside call_tool, we just need to add the elif block for local-tools
-                    pass 
-
-                if tool_name == "run_local_terminal":
-                    from core.satellite_service import SatelliteService, SatelliteNotConnectedError
-                    
-                    # Get tenant_id from context/auth (Assuming single tenant for now or passed in context)
-                    # For now, broadcast or pick first active?
-                    # The service handles specific tenant routing if we pass it.
-                    # We need the user's tenant_id which might be in context.
-                    # If context is missing, we might fail.
-                    
-                    # Simplification: The SatelliteService needs a tenant_id to route to.
-                    # We'll assume the context has 'user' or 'tenant_id'.
-                    tenant_id = context.get('tenant_id') if context else 'default'
-                    
-                    logger.info(f"Executing local terminal command for tenant {tenant_id}: {arguments.get('command')}")
-                    service = SatelliteService()
-                    return await service.execute_command(
-                        tenant_id=tenant_id,
-                        command=arguments.get('command'),
-                        cwd=arguments.get('cwd'),
-                        wait_for_output=arguments.get('wait_for_output', True)
-                    )
-            tools = await self.get_server_tools(server_id)
-            if any(t["name"] == tool_name for t in tools):
                 return await self.execute_tool(server_id, tool_name, arguments, context)
-        
+
         # 2. Look in dynamic MCP servers
         for server_id, server_info in self.active_servers.items():
             if any(t["name"] == tool_name for t in server_info.get("tools", [])):
                 return await self.execute_tool(server_id, tool_name, arguments, context)
-        
+
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
     async def _check_hitl_policy(self, tool_name: str, arguments: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -864,10 +837,10 @@ class MCPService:
         should_intercept = True
         
         try:
-            from core.database import SessionLocal
+            from core.database import get_db_session
             from core.models import AgentRegistry, User, Workspace
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # 2. Check Agent Maturity & Overrides
                 if agent_id:
                     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
@@ -918,9 +891,9 @@ class MCPService:
         async def _check_cloud_access() -> bool:
             workspace_id = "default"
             try:
-                from core.database import SessionLocal
+                from core.database import get_db_session
                 from core.models import Workspace
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
                     if not workspace: return False
                     # Use Workspace Plan Tier directly (assuming Tenant model is deprecated/missing in upstream)
@@ -949,9 +922,10 @@ class MCPService:
             
             if tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-                from core.database import SessionLocal
+
+                from core.database import get_db_session
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     agent = CloseChecklistAgent(db)
                     # Use a default workspace or passed one
                     workspace_id = "default"
@@ -960,15 +934,17 @@ class MCPService:
 
             elif tool_name == "b2b_extract_po":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BProcurementService(db)
                     return await service.extract_po_from_text(arguments.get("text", ""))
 
             elif tool_name == "b2b_create_draft_order":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BProcurementService(db)
                     return await service.create_draft_order_from_po(
                         workspace_id="default",
@@ -978,8 +954,9 @@ class MCPService:
 
             elif tool_name == "b2b_push_to_integrations":
                 from ecommerce.b2b_data_push_service import B2BDataPushService
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = B2BDataPushService(db)
                     return await service.push_draft_order(arguments.get("order_id"))
                     
@@ -1024,10 +1001,10 @@ class MCPService:
                 }
 
             elif tool_name == "marketing_review_request":
+                from core.database import get_db_session
                 from core.marketing_agent import MarketingAgent
-                from core.database import SessionLocal
                 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                      agent = MarketingAgent(db_session=db)
                      # Assuming customer_id is passed
                      return await agent.trigger_review_request(
@@ -1063,7 +1040,9 @@ class MCPService:
                 await manager.broadcast_event(channel, "canvas:update", event_payload)
                 return "Canvas update event sent to user dashboard."
             elif tool_name == "reconcile_inventory":
-                from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
+                from operations.automations.inventory_reconcile import (
+                    InventoryReconciliationWorkflow,
+                )
                 agent = InventoryReconciliationWorkflow()
                 return await agent.reconcile_inventory(
                     "default"
@@ -1072,8 +1051,8 @@ class MCPService:
             # --- Communication Hub Tools ---
             elif tool_name == "analyze_message":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     # For now we just return a success message as the agent's "Thought" process 
                     # usually does the actual analysis. But we can store it.
@@ -1087,8 +1066,8 @@ class MCPService:
 
             elif tool_name == "draft_response":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     return service.save_draft_response(
                         arguments.get("message_id"),
@@ -1098,8 +1077,8 @@ class MCPService:
 
             elif tool_name == "approve_draft":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+                from core.database import get_db_session
+                with get_db_session() as db:
                     service = get_collaboration_hub_service(db)
                     return await service.approve_draft(
                         arguments.get("message_id"),
@@ -1111,13 +1090,14 @@ class MCPService:
                 return f"Successfully ingested attachment '{file_name}'. Extracted {edges} knowledge edges. GraphRAG: {graphrag.get('entities', 0)} entities, {graphrag.get('relationships', 0)} relationships."
 
             elif tool_name.startswith("shopify_"):
-                from integrations.shopify_service import ShopifyService
-                from core.database import SessionLocal
                 from ecommerce.models import EcommerceStore
-                
+
+                from core.database import get_db_session
+                from integrations.shopify_service import ShopifyService
+
                 # Helper to get shop credentials
                 def get_shop_creds(ctx_workspace_id):
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                         store = db.query(EcommerceStore).filter(
                             EcommerceStore.workspace_id == ctx_workspace_id
                         ).first()
@@ -1178,12 +1158,12 @@ class MCPService:
             # --- Specialty Agent & Workflow Tools ---
             elif tool_name == "list_agents":
                 from core.atom_meta_agent import SpecialtyAgentTemplate
+                from core.database import get_db_session
                 from core.models import AgentRegistry
-                from core.database import SessionLocal
                 
                 results = {"templates": SpecialtyAgentTemplate.TEMPLATES, "registered": []}
                 try:
-                    with SessionLocal() as db:
+                    with get_db_session() as db:
                         agents = db.query(AgentRegistry).all()
                         results["registered"] = [
                             {"id": a.id, "name": a.name, "description": a.description, "category": a.category} 
@@ -1239,9 +1219,10 @@ class MCPService:
                                         "description": data.get("description"),
                                         "trigger": data.get("trigger")
                                     })
-                            except: pass
+                            except Exception as e:
+                                logger.warning(f"Failed to load workflow from {filename}: {e}")
                     return workflows
-                except:
+                except Exception as e:
                     return []
                     
             # --- Computer Use Execution (Dual Mode: Desktop Bridge vs Cloud Headless) ---
@@ -1258,6 +1239,7 @@ class MCPService:
                 
                 if mode == "cloud":
                     from core.cloud_browser_service import cloud_browser
+
                     # Use session_id from context or agent_id
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.navigate(session_id, url, context)
@@ -1533,8 +1515,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["salesforce", "hubspot", "zoho_crm", "intercom"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"CRM search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_crm_lead":
@@ -1558,7 +1543,8 @@ class MCPService:
                         if res.get("status") == "success":
                             for op in res.get("data", []):
                                 pipeline.append({"deal": op.get("Name"), "value": op.get("Amount", 0), "status": op.get("StageName"), "platform": "salesforce"})
-                    except: pass
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch Salesforce pipeline: {e}")
                 # HubSpot
                 if not platform or platform == "hubspot":
                     try:
@@ -1567,7 +1553,8 @@ class MCPService:
                             for deal in res.get("data", []):
                                 props = deal.get("properties", {})
                                 pipeline.append({"deal": props.get("dealname"), "value": float(props.get("amount") or 0), "status": props.get("dealstage"), "platform": "hubspot"})
-                    except: pass
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch HubSpot pipeline: {e}")
                 return pipeline
 
             # --- Project Management ---
@@ -1579,8 +1566,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try: results[p] = await service.execute(p, "list", {}, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.execute(p, "list", {}, context=context)
+                        except Exception as e:
+                            logger.debug(f"Failed to list tasks from {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "search_tasks":
@@ -1592,8 +1582,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Failed to search tasks in {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_task":
@@ -1662,8 +1655,11 @@ class MCPService:
                 platforms = arguments.get("platforms") or ["slack", "google_chat", "telegram", "whatsapp", "gmail"]
                 results = {}
                 for p in platforms:
-                    try: results[p] = await service.search(p, query, context=context)
-                    except: continue
+                    try:
+                        results[p] = await service.search(p, query, context=context)
+                    except Exception as e:
+                        logger.debug(f"Unified communication search failed for {p}: {e}")
+                        continue
                 return results
 
             elif tool_name == "list_calendar_events":
@@ -1688,8 +1684,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["google_drive", "dropbox", "notion"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"File search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "list_files":
@@ -1720,8 +1719,9 @@ class MCPService:
                 return results
 
             elif tool_name == "save_business_fact":
-                from core.agent_world_model import WorldModelService, BusinessFact
                 import uuid
+
+                from core.agent_world_model import BusinessFact, WorldModelService
                 
                 wm = WorldModelService(context.get("workspace_id", "default"))
                 fact_obj = BusinessFact(
@@ -1770,8 +1770,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["zendesk", "freshdesk", "intercom"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Support ticket search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_ticket":
@@ -1791,8 +1794,11 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["github", "gitlab"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Repository search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "search_designs":
@@ -1814,14 +1820,18 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["stripe", "quickbooks", "xero", "zoho_books"]:
-                        try: results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
+                        except Exception as e:
+                            logger.debug(f"Finance invoice listing failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-                from core.database import SessionLocal
-                with SessionLocal() as db:
+
+                from core.database import get_db_session
+                with get_db_session() as db:
                     agent = CloseChecklistAgent(db)
                     return await agent.run_close_check(context.get("workspace_id", "default"), arguments.get("period", datetime.now().strftime("%Y-%m")))
 
@@ -1854,13 +1864,16 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["tableau", "google_analytics"]:
-                        try: results[p] = await service.search(p, query, context=context)
-                        except: continue
+                        try:
+                            results[p] = await service.search(p, query, context=context)
+                        except Exception as e:
+                            logger.debug(f"Dashboard search failed for {p}: {e}")
+                            continue
                     return results
 
             elif tool_name == "create_zoom_meeting":
-                from integrations.zoom_service import zoom_service
                 from core.connection_service import ConnectionService
+                from integrations.zoom_service import zoom_service
                 conn_service = ConnectionService()
                 connections = await conn_service.list_connections(user_id=context.get("user_id", "default_user"))
                 conn = next((c for c in connections if c.piece_name == "zoom"), None)
@@ -1869,8 +1882,8 @@ class MCPService:
 
             # --- System & Health ---
             elif tool_name == "get_system_health":
-                from core.circuit_breaker import circuit_breaker
                 from core.analytics_engine import analyzer
+                from core.circuit_breaker import circuit_breaker
                 service = arguments.get("service")
                 if service:
                     stats = circuit_breaker.get_stats(service)

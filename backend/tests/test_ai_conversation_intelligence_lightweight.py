@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Basic test cases for ai_conversation_intelligence_lightweight module"""
 
-import pytest
-import sys
 import os
+import sys
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import ai_conversation_intelligence_lightweight
+
 
 class TestBasic:
     """Basic test cases for module import and structure"""

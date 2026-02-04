@@ -1,40 +1,44 @@
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import uuid
-from datetime import datetime, timedelta
-import logging
 import json
-
-# Import workflow management components
-from core.workflow_endpoints import load_workflows, save_workflows
+import logging
+import uuid
+from dataclasses import asdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from advanced_workflow_orchestrator import get_orchestrator
 from ai.automation_engine import AutomationEngine
 from ai.workflow_scheduler import workflow_scheduler
 
-# Import Calendar and Email services
-from integrations.google_calendar_service import GoogleCalendarService
-from integrations.gmail_service import GmailService
-
-# Import Task and Finance services
-from core.unified_task_endpoints import get_tasks, create_task, CreateTaskRequest
-from integrations.quickbooks_routes import list_quickbooks_items
-
-# Import System and Search services
-from core.system_status import SystemStatus
-from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
-from core.unified_search_endpoints import SearchRequest
-
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-from advanced_workflow_orchestrator import get_orchestrator
-from dataclasses import asdict
+from fastapi import APIRouter, Body, HTTPException
+from operations.system_intelligence_service import SystemIntelligenceService
+from pydantic import BaseModel
+
+from core.chat_context_manager import get_chat_context_manager
+from core.chat_session_manager import get_chat_session_manager
+from core.knowledge_query_endpoints import get_knowledge_query_manager
 
 # Import chat history management
 from core.lancedb_handler import get_chat_history_manager
-from core.chat_session_manager import get_chat_session_manager
-from core.chat_context_manager import get_chat_context_manager
-from core.knowledge_query_endpoints import get_knowledge_query_manager
-from operations.system_intelligence_service import SystemIntelligenceService
+
+# Import System and Search services
+from core.system_status import SystemStatus
+from core.unified_search_endpoints import SearchRequest
+from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+
+# Import Task and Finance services
+from core.unified_task_endpoints import CreateTaskRequest, create_task, get_tasks
+
+# Import workflow management components
+from core.workflow_endpoints import load_workflows, save_workflows
+from integrations.gmail_service import GmailService
+
+# Import Calendar and Email services
+from integrations.google_calendar_service import GoogleCalendarService
+from integrations.quickbooks_routes import list_quickbooks_items
+
+# Import Episode integration for auto-creation
+from core.episode_integration import trigger_episode_creation
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()
@@ -195,8 +199,12 @@ async def get_session_history(session_id: str):
                         formatted_msg["metadata"] = json.loads(msg["metadata"])
                     else:
                         formatted_msg["metadata"] = msg["metadata"]
-                except:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse metadata as JSON: {e}")
+                    formatted_msg["metadata"] = msg["metadata"]
+                except Exception as e:
+                    logger.warning(f"Unexpected error parsing metadata: {e}")
+                    formatted_msg["metadata"] = {}
             
             formatted_messages.append(formatted_msg)
         
@@ -255,8 +263,8 @@ async def chat_with_agent(request: ChatRequest):
              # Ideally get_db dependency should be used, but here we can try to reuse existing patterns.
              # Since we are in an endpoint, we might not have direct DB session unless dependency injected.
              # We will use the `get_db` generator manually or a dedicated session for this service.
-             from core.database import SessionLocal
-             with SessionLocal() as db_session:
+             from core.database import get_db_session
+             with get_db_session() as db_session:
                  intel_service = SystemIntelligenceService(db_session)
                  system_context_str = intel_service.get_aggregated_context("default")
         except Exception as ctx_error:
@@ -415,7 +423,18 @@ async def chat_with_agent(request: ChatRequest):
                 chat_history_mgr=chat_history,
                 session_mgr=session_manager
             )
-        
+
+            # Trigger episode creation in background (if agent_id specified)
+            if request.agent_id:
+                try:
+                    trigger_episode_creation(
+                        session_id=session_id,
+                        agent_id=request.agent_id,
+                        title=request.message[:50]  # Use first message as title
+                    )
+                except Exception as episode_error:
+                    logger.warning(f"Failed to trigger episode creation: {episode_error}")
+
         # Add proactive suggestions to the response
         try:
             from core.behavior_analyzer import get_behavior_analyzer
@@ -890,16 +909,16 @@ async def handle_get_status(request: ChatRequest, entities: Dict[str, Any]) -> D
 async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> Dict[str, Any]:
     """Handle sales and CRM queries via SalesAssistant"""
     try:
-        from core.database import SessionLocal
         from sales.assistant import SalesAssistant
-        
-        db = SessionLocal()
-        try:
+
+        from core.database import get_db_session
+
+        with get_db_session() as db:
             # Get workspace_id from entities or default to temp_ws for now
             workspace_id = entities.get("workspace_id") or "temp_ws"
             assistant = SalesAssistant(db)
             answer = await assistant.answer_sales_query(workspace_id, request.message)
-            
+
             return {
                 "success": True,
                 "response": {
@@ -910,8 +929,6 @@ async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> D
                     ]
                 }
             }
-        finally:
-            db.close()
     except Exception as e:
         logger.error(f"CRM handler failed: {e}")
         return {
@@ -1144,7 +1161,7 @@ async def handle_follow_up_emails(request: ChatRequest, entities: Dict[str, Any]
     """Handle request to follow up on emails by triggering the workflow template"""
     try:
         from core.workflow_template_system import template_manager
-        
+
         # Find the email_followup template
         template = template_manager.get_template("email_followup")
         if not template:
@@ -1267,6 +1284,7 @@ async def handle_set_goal(request: ChatRequest, entities: Dict[str, Any]) -> Dic
     """Handle request to set a new high-level goal"""
     try:
         from core.workflow_template_system import template_manager
+
         # Extract goal and date if possible, otherwise use defaults/mock
         goal_text = entities.get("goal_text", request.message)
         # Default to end of month if no date specified
@@ -1344,6 +1362,7 @@ async def handle_goal_status(request: ChatRequest, entities: Dict[str, Any]) -> 
     """Handle request to check status of active goals"""
     try:
         from core.goal_engine import goal_engine
+
         # Mock status for now
         return {
             "success": True,
@@ -1484,12 +1503,12 @@ async def chat_stream_agent(request: ChatRequest):
 
     try:
         # Import streaming support
-        from core.llm.byok_handler import BYOKHandler
-        from core.websockets import manager as ws_manager
-        from core.database import SessionLocal
         from core.agent_context_resolver import AgentContextResolver
         from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db_session
+        from core.llm.byok_handler import BYOKHandler
         from core.models import AgentExecution
+        from core.websockets import manager as ws_manager
 
         # Determine workspace
         ws_id = request.workspace_id or "default"
@@ -1498,7 +1517,7 @@ async def chat_stream_agent(request: ChatRequest):
         # GOVERNANCE: Agent Resolution & Validation
         # ============================================
         if governance_enabled and not emergency_bypass:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -1553,7 +1572,7 @@ async def chat_stream_agent(request: ChatRequest):
         try:
             from operations.system_intelligence_service import SystemIntelligenceService
 
-            with SessionLocal() as db_session:
+            with get_db_session() as db_session:
                 intel_service = SystemIntelligenceService(db_session)
                 system_context_str = intel_service.get_aggregated_context(ws_id)
                 if system_context_str:
@@ -1682,7 +1701,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
                 end_time = datetime.now()
                 duration_seconds = (end_time - start_time).total_seconds()
 
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()
@@ -1714,7 +1733,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
 
             # Mark execution as failed
             if agent_execution and governance_enabled:
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()

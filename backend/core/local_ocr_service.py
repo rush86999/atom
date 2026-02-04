@@ -31,6 +31,7 @@ PIL_AVAILABLE = False
 # Check Tesseract
 try:
     import pytesseract
+
     # Verify tesseract binary is accessible
     pytesseract.get_tesseract_version()
     TESSERACT_AVAILABLE = True
@@ -39,9 +40,9 @@ except Exception:
 
 # Check Surya
 try:
-    from surya.ocr import run_ocr
     from surya.model.detection.model import load_model as load_det_model
     from surya.model.recognition.model import load_model as load_rec_model
+    from surya.ocr import run_ocr
     SURYA_AVAILABLE = True
 except ImportError:
     pass
@@ -168,8 +169,8 @@ class LocalOCRService:
                 # Clean up temp image
                 try:
                     os.unlink(img_path)
-                except:
-                    pass
+                except OSError as e:
+                    logger.debug(f"Failed to delete temp image {img_path}: {e}")
             
             return {
                 "success": True,

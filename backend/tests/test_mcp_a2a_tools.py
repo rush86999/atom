@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
+
 from integrations.mcp_service import MCPService
+
 
 @pytest.mark.asyncio
 async def test_list_agents_tool():
@@ -59,11 +61,12 @@ async def test_a2a_feedback_loop():
     """Test the complete A2A feedback loop: gateway -> bridge"""
     import sys
     from unittest.mock import MagicMock
+
     # Mock 'instructor' which is missing in this env but used deep in imports
     sys.modules['instructor'] = MagicMock()
     
-    from core.agent_integration_gateway import agent_integration_gateway, ActionType
-    
+    from core.agent_integration_gateway import ActionType, agent_integration_gateway
+
     # Mock the bridge and governance to avoid DB calls
     mock_bridge = AsyncMock()
     mock_bridge.process_incoming_message.return_value = {"status": "success"}

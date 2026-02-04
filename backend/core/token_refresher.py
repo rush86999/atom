@@ -3,9 +3,9 @@ OAuth Token Refresh Service
 Automatically refreshes OAuth tokens before they expire
 """
 
-import os
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from dotenv import load_dotenv
@@ -102,32 +102,84 @@ class TokenRefresher:
         return status
 
 
-# Example refresh handlers for OAuth services
+# OAuth token refresh handlers for major integrations
 async def refresh_google_token(metadata: Dict) -> Optional[Dict]:
-    """Refresh Google OAuth token"""
-    # This is a placeholder - real implementation would call Google's token endpoint
-    logger.info("Refreshing Google OAuth token...")
-    # Would use metadata['refresh_token'] to get new access token
-    return {
-        "expires_at": datetime.now() + timedelta(hours=1),
-        "refresh_token": metadata.get("refresh_token")
-    }
+    """Refresh Google OAuth token using OAuthHandler"""
+    from core.oauth_handler import GOOGLE_OAUTH_CONFIG, OAuthHandler
+
+    refresh_token = metadata.get("refresh_token")
+    if not refresh_token:
+        logger.error("No refresh_token available for Google")
+        return None
+
+    try:
+        handler = OAuthHandler(GOOGLE_OAUTH_CONFIG)
+        logger.info("Refreshing Google OAuth token...")
+
+        token_response = await handler.refresh_access_token(refresh_token)
+
+        # Calculate expires_at from expires_in
+        expires_in = token_response.get("expires_in", 3600)  # Default 1 hour
+        return {
+            "expires_at": datetime.now() + timedelta(seconds=expires_in),
+            "refresh_token": token_response.get("refresh_token", refresh_token),
+            "access_token": token_response.get("access_token")
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh Google token: {e}")
+        return None
 
 async def refresh_microsoft_token(metadata: Dict) -> Optional[Dict]:
-    """Refresh Microsoft OAuth token"""
-    logger.info("Refreshing Microsoft OAuth token...")
-    return {
-        "expires_at": datetime.now() + timedelta(hours=1),
-        "refresh_token": metadata.get("refresh_token")
-    }
+    """Refresh Microsoft OAuth token using OAuthHandler"""
+    from core.oauth_handler import MICROSOFT_OAUTH_CONFIG, OAuthHandler
+
+    refresh_token = metadata.get("refresh_token")
+    if not refresh_token:
+        logger.error("No refresh_token available for Microsoft")
+        return None
+
+    try:
+        handler = OAuthHandler(MICROSOFT_OAUTH_CONFIG)
+        logger.info("Refreshing Microsoft OAuth token...")
+
+        token_response = await handler.refresh_access_token(refresh_token)
+
+        # Calculate expires_at from expires_in
+        expires_in = token_response.get("expires_in", 3600)  # Default 1 hour
+        return {
+            "expires_at": datetime.now() + timedelta(seconds=expires_in),
+            "refresh_token": token_response.get("refresh_token", refresh_token),
+            "access_token": token_response.get("access_token")
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh Microsoft token: {e}")
+        return None
 
 async def refresh_salesforce_token(metadata: Dict) -> Optional[Dict]:
-    """Refresh Salesforce OAuth token"""
-    logger.info("Refreshing Salesforce OAuth token...")
-    return {
-        "expires_at": datetime.now() + timedelta(hours=2),
-        "refresh_token": metadata.get("refresh_token")
-    }
+    """Refresh Salesforce OAuth token using OAuthHandler"""
+    from core.oauth_handler import SALESFORCE_OAUTH_CONFIG, OAuthHandler
+
+    refresh_token = metadata.get("refresh_token")
+    if not refresh_token:
+        logger.error("No refresh_token available for Salesforce")
+        return None
+
+    try:
+        handler = OAuthHandler(SALESFORCE_OAUTH_CONFIG)
+        logger.info("Refreshing Salesforce OAuth token...")
+
+        token_response = await handler.refresh_access_token(refresh_token)
+
+        # Salesforce tokens typically last longer
+        expires_in = token_response.get("expires_in", 7200)  # Default 2 hours
+        return {
+            "expires_at": datetime.now() + timedelta(seconds=expires_in),
+            "refresh_token": token_response.get("refresh_token", refresh_token),
+            "access_token": token_response.get("access_token")
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh Salesforce token: {e}")
+        return None
 
 
 # Global token refresher instance

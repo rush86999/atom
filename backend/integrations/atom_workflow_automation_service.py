@@ -3,36 +3,69 @@ ATOM Enterprise Workflow Automation Service
 Comprehensive workflow automation integrating all enterprise services with intelligent automation
 """
 
-import os
+import asyncio
+import hashlib
 import json
 import logging
-import asyncio
+import os
 import time
-import hashlib
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
+import httpx
 import numpy as np
+import pandas as pd
 
 # Import existing ATOM services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityPolicy, ThreatDetection, ComplianceReport, SecurityAudit, SecurityLevel, ComplianceStandard, ThreatType, AuditEventType
-    from atom_enterprise_unified_service import atom_enterprise_unified_service, EnterpriseWorkflow, SecurityWorkflowAction, ComplianceAutomation, EnterpriseServiceType, WorkflowSecurityLevel, ComplianceWorkflowType, AutomationTriggerType
-    from atom_workflow_service import AtomWorkflowService, Workflow, WorkflowStep, WorkflowTrigger, WorkflowAction, WorkflowStatus
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_ai_integration import atom_ai_integration
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        AuditEventType,
+        ComplianceReport,
+        ComplianceStandard,
+        SecurityAudit,
+        SecurityLevel,
+        SecurityPolicy,
+        ThreatDetection,
+        ThreatType,
+        atom_enterprise_security_service,
+    )
+    from atom_enterprise_unified_service import (
+        AutomationTriggerType,
+        ComplianceAutomation,
+        ComplianceWorkflowType,
+        EnterpriseServiceType,
+        EnterpriseWorkflow,
+        SecurityWorkflowAction,
+        WorkflowSecurityLevel,
+        atom_enterprise_unified_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
-    from atom_ai_integration import atom_ai_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
+    from atom_workflow_service import (
+        AtomWorkflowService,
+        Workflow,
+        WorkflowAction,
+        WorkflowStatus,
+        WorkflowStep,
+        WorkflowTrigger,
+    )
 except ImportError as e:
     logging.warning(f"Enterprise workflow automation services not available: {e}")
 
@@ -383,7 +416,73 @@ class AtomWorkflowAutomationService:
                     'error': execution.error,
                     'compliance_violation': compliance_check
                 }
-            
+
+            # ========================================================================
+            # NEW: Maturity-Based Trigger Interception for Agent Actions
+            # ========================================================================
+            # Pre-check all actions for agent triggers that require maturity checks
+            for action in automation.actions:
+                if action.get('type') == 'workflow_execution' or action.get('type') == 'agent_trigger':
+                    agent_id = action.get('config', {}).get('agent_id')
+
+                    if agent_id:
+                        from core.trigger_interceptor import TriggerInterceptor, TriggerSource
+
+                        interceptor = TriggerInterceptor(self.db, self.workspace_id)
+
+                        trigger_context = {
+                            "action_type": action.get('type'),
+                            "action_config": action.get('config'),
+                            "automation_id": automation_id,
+                            "trigger_context": trigger_context
+                        }
+
+                        try:
+                            decision = await interceptor.intercept_trigger(
+                                agent_id=agent_id,
+                                trigger_source=TriggerSource.WORKFLOW_ENGINE,
+                                trigger_context=trigger_context
+                            )
+
+                            # Log routing decision
+                            logger.info(
+                                f"Workflow automation routing decision for agent {agent_id}: "
+                                f"{decision.routing_decision.value} (maturity: {decision.agent_maturity}, "
+                                f"confidence: {decision.confidence_score:.2f})"
+                            )
+
+                            # Handle blocked triggers
+                            if not decision.execute:
+                                execution.status = AutomationStatus.FAILED
+                                execution.error = (
+                                    f"Agent action blocked by maturity guard: {decision.reason}"
+                                )
+                                execution.metadata['maturity_check'] = {
+                                    'agent_id': agent_id,
+                                    'blocked': True,
+                                    'reason': decision.reason,
+                                    'routing_decision': decision.routing_decision.value
+                                }
+
+                                self.db.commit()
+
+                                logger.warning(
+                                    f"Workflow automation {automation_id} action blocked: {decision.reason}"
+                                )
+                                return {
+                                    'ok': False,
+                                    'error': execution.error,
+                                    'maturity_check': execution.metadata['maturity_check']
+                                }
+
+                        except ValueError as e:
+                            # Agent not found or other error
+                            logger.warning(
+                                f"Could not check maturity for agent {agent_id} in automation: {e}"
+                            )
+                            # Continue with execution for backward compatibility
+            # ========================================================================
+
             # Execute automation actions
             execution_results = []
             for action in automation.actions:

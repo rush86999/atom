@@ -1,9 +1,9 @@
+import json
 import os
 import sys
-import requests
 import time
-import json
 from pathlib import Path
+import requests
 
 
 class ApplicationTester:

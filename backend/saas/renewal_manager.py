@@ -1,9 +1,10 @@
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
 from ecommerce.models import Subscription
 from sales.models import Deal, DealStage
+from sqlalchemy.orm import Session
+
 from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)

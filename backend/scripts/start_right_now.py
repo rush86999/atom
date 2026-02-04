@@ -5,10 +5,11 @@ Begin actual working application launch
 """
 
 import os
+import signal
 import subprocess
 import sys
 import time
-import signal
+
 
 def start_right_now():
     """Start application right now"""

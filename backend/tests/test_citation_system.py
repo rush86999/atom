@@ -2,8 +2,10 @@
 import asyncio
 import os
 import shutil
-from core.agent_world_model import WorldModelService, BusinessFact
+
+from core.agent_world_model import BusinessFact, WorldModelService
 from integrations.mcp_service import mcp_service
+
 
 async def test_citation_system():
     print("Starting Citation System Test...")

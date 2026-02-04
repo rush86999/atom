@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .competitive_advantage_dashboard import (
-    get_competitive_advantage_engine,
+    AdvantageCategory,
     CompetitiveAdvantageEngine,
-    AdvantageCategory
+    get_competitive_advantage_engine,
 )
 
 router = APIRouter()

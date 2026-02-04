@@ -1,10 +1,11 @@
-import sys
 import os
+import sys
 import unittest
 
 sys.path.append(os.getcwd())
 
 from core.condition_evaluator import ConditionEvaluator, Operator
+
 
 class TestPhase36ConditionalLogic(unittest.TestCase):
 

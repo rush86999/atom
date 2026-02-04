@@ -4,8 +4,8 @@ Populate LanceDB WITHOUT pandas dependency
 Uses only pyarrow and lancedb
 """
 
-import sys
 import os
+import sys
 
 # Test pyarrow first
 try:

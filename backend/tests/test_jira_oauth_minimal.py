@@ -4,12 +4,12 @@ Minimal Jira OAuth Test Script
 Tests Jira OAuth configuration and connectivity without requiring backend
 """
 
+import asyncio
+import json
 import os
 import sys
-import asyncio
-import httpx
-import json
 from urllib.parse import urlencode
+import httpx
 from dotenv import load_dotenv
 
 # Load environment variables

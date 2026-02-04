@@ -4,11 +4,11 @@ Comprehensive OAuth Endpoint Test Script for ATOM Platform
 Tests all OAuth authorization endpoints and provides detailed status report
 """
 
-import requests
 import json
 import sys
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+import requests
 
 
 class OAuthEndpointTester:

@@ -3,16 +3,17 @@ ATOM Communication Apps - LanceDB Ingestion Integration
 Add LanceDB memory ingestion option to all communication apps
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
     IngestionConfig,
+    ingestion_pipeline,
     memory_manager,
-    ingestion_pipeline
 )
 
 logger = logging.getLogger(__name__)

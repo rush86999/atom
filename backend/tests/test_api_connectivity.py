@@ -3,10 +3,11 @@
 Test Actual API Connectivity for Available Services
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime
+
 
 def test_trello_api():
     """Test Trello API with actual credentials"""
@@ -51,7 +52,7 @@ def test_github_api():
     """Test GitHub API (requires token)"""
     try:
         from github import Github
-        
+
         # Note: This requires GITHUB_TOKEN environment variable
         token = os.getenv('GITHUB_TOKEN')
         if not token:
@@ -74,7 +75,7 @@ def test_dropbox_api():
     """Test Dropbox API (requires OAuth)"""
     try:
         import dropbox
-        
+
         # Note: This requires OAuth access token
         access_token = os.getenv('DROPBOX_ACCESS_TOKEN')
         if not access_token:
@@ -98,7 +99,7 @@ def test_asana_api():
     try:
         from asana.api_client import ApiClient
         from asana.configuration import Configuration
-        
+
         # Note: This requires OAuth access token
         access_token = os.getenv('ASANA_ACCESS_TOKEN')
         if not access_token:

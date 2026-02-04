@@ -1,13 +1,12 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import Optional, Dict
-
-from intelligence.models import ClientHealthScore
+import logging
+from typing import Dict, Optional
 from accounting.models import Entity, Invoice, InvoiceStatus
 from ecommerce.models import EcommerceCustomer, Subscription
+from intelligence.models import ClientHealthScore
 from saas.models import UsageEvent
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,12 @@
-import logging
 import json
+import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from core.database import SessionLocal
+from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceCustomer, EcommerceOrder
 from service_delivery.models import Appointment, AppointmentStatus
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class MarketingAgent:
         """
         Sends a review request if the customer sentiment is positive.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             customer = db.query(EcommerceCustomer).filter(EcommerceCustomer.id == customer_id).first()
             if not customer:
@@ -58,7 +59,7 @@ class RetentionEngine:
         """
         Identify customers who are due for a recurring service.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         opportunities = []
         try:
             # Prototype logic: If a customer had a 'COMPLETED' appointment/order > 6 months ago 

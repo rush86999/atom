@@ -5,6 +5,7 @@ Quick OAuth Server Test
 
 import requests
 
+
 def quick_oauth_server_test():
     """Quick test if OAuth server is accessible"""
     

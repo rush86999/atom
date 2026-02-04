@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Milestone, Project, ProjectTask
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from service_delivery.models import Project, Milestone, ProjectTask
+
+from core.database import get_db_session
 from integrations.asana_real_service import asana_real_service
 from integrations.linear_service import linear_service
 
@@ -19,7 +20,7 @@ class ExternalPMSyncService:
         """
         logger.info(f"Syncing project {project_id} to {platform}")
         
-        with SessionLocal() as db:
+        with get_db_session() as db:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
                 return {"status": "error", "message": "Project not found"}

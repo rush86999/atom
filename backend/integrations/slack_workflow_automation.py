@@ -3,14 +3,14 @@ ATOM Workflow Automation - Slack Integration
 Complete Slack integration with workflow automation capabilities
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 import httpx
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -19,8 +19,8 @@ from slack_sdk.errors import SlackApiError
 try:
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from workflow_engine import WorkflowEngine
     from communication_service import CommunicationService
+    from workflow_engine import WorkflowEngine
 except ImportError:
     # Mock components for development
     AtomMemoryService = None

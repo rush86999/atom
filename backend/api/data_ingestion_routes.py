@@ -3,10 +3,14 @@ Hybrid Data Ingestion API Routes
 Exposes endpoints for managing automatic data sync from integrations.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
 import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -62,21 +66,29 @@ async def get_integration_usage():
 
 
 @router.post("/enable-sync")
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="enable_auto_sync",
+    feature="data_ingestion"
+)
 async def enable_auto_sync(
-    request: EnableSyncRequest
+    request: EnableSyncRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Enable automatic data sync for an integration.
-    Data will be synced into Atom Memory for agent queries.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Data sync configuration is a moderate action
+    - Requires INTERN maturity or higher
     """
     try:
-        from core.hybrid_data_ingestion import (
-            get_hybrid_ingestion_service, 
-            SyncConfiguration
-        )
-        
+        from core.hybrid_data_ingestion import SyncConfiguration, get_hybrid_ingestion_service
+
         service = get_hybrid_ingestion_service("default")
-        
+
         config = None
         if request.entity_types:
             config = SyncConfiguration(
@@ -84,60 +96,89 @@ async def enable_auto_sync(
                 entity_types=request.entity_types,
                 sync_last_n_days=request.sync_last_n_days or 30,
             )
-        
+
         service.enable_auto_sync(request.integration_id, config)
-        
+
         # Update sync frequency if provided
         if request.sync_frequency_minutes:
             stats = service.usage_stats.get(request.integration_id)
             if stats:
                 stats.sync_frequency_minutes = request.sync_frequency_minutes
-        
+
+        logger.info(f"Auto-sync enabled for {request.integration_id}")
         return {
             "success": True,
             "message": f"Auto-sync enabled for {request.integration_id}",
             "integration_id": request.integration_id
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to enable auto-sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/disable-sync/{integration_id}")
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="disable_auto_sync",
+    feature="data_ingestion"
+)
 async def disable_auto_sync(
-    integration_id: str
+    integration_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Disable automatic data sync for an integration.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Data sync configuration is a moderate action
+    - Requires INTERN maturity or higher
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
         service = get_hybrid_ingestion_service("default")
         service.disable_auto_sync(integration_id)
-        
+
+        logger.info(f"Auto-sync disabled for {integration_id}")
         return {
             "success": True,
             "message": f"Auto-sync disabled for {integration_id}",
             "integration_id": integration_id
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to disable auto-sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResponse)
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="trigger_sync",
+    feature="data_ingestion"
+)
 async def trigger_sync(
     integration_id: str,
-    force: bool = Query(False, description="Force sync even if recently synced")
+    force: bool = Query(False, description="Force sync even if recently synced"),
+    request: Request = None,
+    db: Session = Depends(get_db)
 ):
     """
     Manually trigger a data sync for an integration.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Manual sync triggering is a moderate action
+    - Requires INTERN maturity or higher
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
         service = get_hybrid_ingestion_service("default")
         result = await service.sync_integration_data(integration_id, force=force)
-        
+
         return SyncResponse(
             success=result.get("success", False),
             integration_id=integration_id,

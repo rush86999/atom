@@ -5,9 +5,9 @@ Tests WebSocket connection, subscription, and broadcasting
 """
 
 import asyncio
-import websockets
 import json
 from datetime import datetime
+import websockets
 
 print("="*70)
 print("WEBSOCKET REAL-TIME UPDATES VERIFICATION")

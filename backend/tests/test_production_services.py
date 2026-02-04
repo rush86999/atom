@@ -6,10 +6,10 @@ with real API calls and service integrations.
 """
 
 import json
-import requests
-import time
-from typing import Dict, List, Any, Optional
 import logging
+import time
+from typing import Any, Dict, List, Optional
+import requests
 
 # Configure logging
 logging.basicConfig(

@@ -1,6 +1,7 @@
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
 import httpx
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,8 @@ class FacebookAdapter(PlatformAdapter):
                 "sender_id": sender_id,
                 "content": text
             }
-        except:
+        except Exception as e:
+            logger.error(f"Failed to normalize Facebook payload: {e}", exc_info=True)
             return None
 
     async def send_message(self, target_id: str, message: str) -> bool:

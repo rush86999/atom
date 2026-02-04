@@ -1,8 +1,8 @@
 import logging
-from sqlalchemy.orm import Session
-from ecommerce.models import Subscription
-from ecommerce.models import EcommerceCustomer
+from ecommerce.models import EcommerceCustomer, Subscription
 from saas.churn_detector import ChurnRiskDetector
+from sqlalchemy.orm import Session
+
 from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class RetentionService:
         # Triggering via orchestrator (Conceptual integration)
         # In a real environment, we'd enqueue a background task
         # For MVP, we use the message system directly to notify CSM/Owner
-        from core.models import TeamMessage, Team
+        from core.models import Team, TeamMessage
         team = self.db.query(Team).filter(Team.workspace_id == sub.workspace_id).first()
         if team:
             msg = TeamMessage(

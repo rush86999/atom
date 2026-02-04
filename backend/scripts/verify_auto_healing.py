@@ -4,17 +4,17 @@ Auto-Healing System Verification Script
 Tests retry logic, circuit breakers, token refresh, and health monitoring
 """
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import time
 
 # Add backend directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from core.auto_healing import retry_with_backoff, CircuitBreaker, auto_healing_engine
-from core.token_refresher import token_refresher
+from core.auto_healing import CircuitBreaker, auto_healing_engine, retry_with_backoff
 from core.health_monitor import health_monitor
+from core.token_refresher import token_refresher
 
 print("="*70)
 print("AUTO-HEALING SYSTEM VERIFICATION")

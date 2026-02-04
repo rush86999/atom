@@ -3,25 +3,25 @@ ATOM Microsoft Teams Enhanced Service
 Complete Teams integration with advanced features and unified architecture
 """
 
-import os
-import json
-import logging
 import asyncio
+import base64
 import hashlib
 import hmac
-import base64
+import json
+import logging
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import httpx
-import msal
 import jwt
-from cryptography.fernet import Fernet
+import msal
+from azure.graph import GraphServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.teams import TeamsClient
-from azure.graph import GraphServiceClient
+from cryptography.fernet import Fernet
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -774,9 +774,9 @@ class TeamsEnhancedService:
                     message_id=msg_data.id,
                     text=msg_data.body.content if msg_data.body else '',
                     html=msg_data.body.content if msg_data.body else '',
-                    user_id=msg_data.from.additional_data.get('user', {}).get('id'),
-                    user_name=msg_data.from.additional_data.get('user', {}).get('displayName'),
-                    user_email=msg_data.from.additional_data.get('user', {}).get('emailAddress'),
+                    user_id=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('id'),
+                    user_name=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('displayName'),
+                    user_email=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('emailAddress'),
                     channel_id=channel_id,
                     workspace_id=workspace_id,
                     tenant_id=msg_data.additional_data.get('tenantId'),

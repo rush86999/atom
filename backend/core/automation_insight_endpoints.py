@@ -1,9 +1,10 @@
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, List, Any, Optional
+
+from core.auth import get_current_user
 from core.automation_insight_manager import get_insight_manager
 from core.behavior_analyzer import get_behavior_analyzer
-from core.auth import get_current_user
-from datetime import datetime
 
 router = APIRouter(prefix="/api/v1/automation", tags=["automation_insights"])
 

@@ -1,11 +1,9 @@
-import os
-import sys
-import webbrowser
 import http.server
+import os
 import socketserver
+import sys
 import urllib.parse
-from dotenv import load_dotenv
-
+import webbrowser
 from dotenv import load_dotenv
 
 # Load environment variables first
@@ -14,7 +12,7 @@ load_dotenv()
 # Add backend to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.oauth_handler import OAuthHandler, NOTION_OAUTH_CONFIG
+from core.oauth_handler import NOTION_OAUTH_CONFIG, OAuthHandler
 
 PORT = 8080
 CODE = None

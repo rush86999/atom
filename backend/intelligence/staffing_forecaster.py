@@ -1,10 +1,9 @@
 import logging
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import Dict, List, Any
-
+from typing import Any, Dict, List
+from intelligence.models import CapacityPlan, ResourceRole
 from sales.models import Deal, DealStage
-from intelligence.models import ResourceRole, CapacityPlan
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

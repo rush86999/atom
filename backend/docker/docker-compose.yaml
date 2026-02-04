@@ -162,7 +162,8 @@ services:
       GOOGLE_CLIENT_SECRET_WEB: ${GOOGLE_CLIENT_SECRET_WEB:-default_web_secret}
       EMAIL: ${EMAIL:-admin@example.com}
       # Base URL for the Python API service (running in python-agent)
-      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      # NOTE: python-agent service removed - duplicate functionality exists in backend/integrations/
+      # PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
       DOMAIN: ${DOMAIN:-localhost}
       S3_ENDPOINT: http://minio:8484
       S3_BUCKET: nhost
@@ -435,39 +436,41 @@ services:
       # Example of how it might be structured if environment is already used:
       # EXISTING_ENV_VAR: ${EXISTING_ENV_VAR}
       NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
-      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000} # Added for Next.js API routes
+      # PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000} # Removed: python-agent service deprecated
       # The existing 'app' service definition is complex with many build args.
       # Need to be careful to merge this correctly.
       # Based on the structure, build args are used. So I will add it there.
 
-  python-agent:
-    build:
-      context: ../python_agent_build_docker # Context is the directory containing the Dockerfile
-      dockerfile: Dockerfile # Explicitly name Dockerfile
-    container_name: python-agent
-    depends_on: # Optional, depending on actual interactions. None needed for just running scripts.
-      - postgres # Example, if agent needed DB access directly (not typical for this setup)
-    environment:
-      # These will be picked up from the .env file at the root of the docker-compose project
-      - NOTION_API_TOKEN=${NOTION_API_TOKEN:-default_notion_token}
-      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID:-default_notes_db_id}
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-default_deepgram_key}
-      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID:-default_research_projects_db_id}
-      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID:-default_research_tasks_db_id}
-      # PYTHONPATH is set in the Dockerfile, but can be reiterated or overridden here if needed
-      # - PYTHONPATH=/app
-      # Added for semantic search
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-default-openai-key}
-      - LANCEDB_URI=/lancedb_data/atom_core_db # Internal path to the DB on the shared volume
-      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings} # Align with ingestion
-      - PYTHONUNBUFFERED=1 # Good for seeing logs immediately
-    volumes:
-      # Mount the local project directory into the container for development
-      - .:/app/project
-      # Mount shared LanceDB data volume
-      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data # Mount to /lancedb_data
-    tty: true
-    stdin_open: true
+  # python-agent:
+  # NOTE: Service removed - python_agent_build_docker directory deleted (2025-02-03)
+  # Reason: Duplicate functionality exists in backend/integrations/
+  #   - Notion integration: backend/integrations/notion_service.py
+  #   - Deepgram integration: backend/integrations/deepgram_service.py
+  #   - All other services have real implementations
+  # This service contained placeholder Celery tasks that returned "method": "placeholder"
+  # To restore this service, uncomment the following and restore python_agent_build_docker directory
+  #   python-agent:
+  #     build:
+  #       context: ../python_agent_build_docker
+  #       dockerfile: Dockerfile
+  #     container_name: python-agent
+  #     depends_on:
+  #       - postgres
+  #     environment:
+  #       - NOTION_API_TOKEN=${NOTION_API_TOKEN:-default_notion_token}
+  #       - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID:-default_notes_db_id}
+  #       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-default_deepgram_key}
+  #       - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID:-default_research_projects_db_id}
+  #       - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID:-default_research_tasks_db_id}
+  #       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-default-openai-key}
+  #       - LANCEDB_URI=/lancedb_data/atom_core_db
+  #       - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+  #       - PYTHONUNBUFFERED=1
+  #     volumes:
+  #       - .:/app/project
+  #       - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+  #     tty: true
+  #     stdin_open: true
 
   ingestion-pipeline-service:
     build:
@@ -539,21 +542,56 @@ services:
       - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
       - PYTHONUNBUFFERED=1
 
-  celery-beat:
-    build:
-      context: ../python_agent_build_docker
-      dockerfile: Dockerfile
-    container_name: celery-beat
-    command: celery -A project.celery_app beat --loglevel=info
-    volumes:
-      - .:/app/project
-    depends_on:
-      - redis
-      - postgres
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+  # celery-worker:
+  # NOTE: Service removed - python_agent_build_docker directory deleted (2025-02-03)
+  # Celery background tasks with placeholder implementations (Slack, Email, Asana all returned "method": "placeholder")
+  # Real implementations exist in backend/integrations/
+  # To restore, uncomment and restore python_agent_build_docker directory
+  #   celery-worker:
+  #     build:
+  #       context: ../python_agent_build_docker
+  #       dockerfile: Dockerfile
+  #     container_name: celery-worker
+  #     command: celery -A project.celery_app worker --loglevel=info
+  #     volumes:
+  #       - .:/app/project
+  #       - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+  #     depends_on:
+  #       - redis
+  #       - postgres
+  #     environment:
+  #       - CELERY_BROKER_URL=redis://redis:6379/0
+  #       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
+  #       - NOTION_API_TOKEN=${NOTION_API_TOKEN:-default_notion_token}
+  #       - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID:-default_notes_db_id}
+  #       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-default_deepgram_key}
+  #       - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID:-default_research_projects_db_id}
+  #       - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID:-default_research_tasks_db_id}
+  #       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-default-openai-key}
+  #       - LANCEDB_URI=/lancedb_data/atom_core_db
+  #       - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+  #       - PYTHONUNBUFFERED=1
+
+  # celery-beat:
+  # NOTE: Service removed - python_agent_build_docker directory deleted (2025-02-03)
+  # Celery beat scheduler for placeholder background tasks
+  # To restore, uncomment and restore python_agent_build_docker directory
+  #   celery-beat:
+  #     build:
+  #       context: ../python_agent_build_docker
+  #       dockerfile: Dockerfile
+  #     container_name: celery-beat
+  #     command: celery -A project.celery_app beat --loglevel=info
+  #     volumes:
+  #       - .:/app/project
+  #     depends_on:
+  #       - redis
+  #       - postgres
+  #     environment:
+  #       - CELERY_BROKER_URL=redis://redis:6379/0
+  #       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
 
   workflows-api:
     build:

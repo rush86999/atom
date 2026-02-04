@@ -3,25 +3,25 @@ ATOM Google Chat Enhanced Service
 Complete Google Chat integration within unified ATOM communication ecosystem
 """
 
-import os
-import json
-import logging
 import asyncio
 import base64
+import io
+import json
+import logging
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import google.auth
+import httpx
+from cryptography.fernet import Fernet
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
-import io
-from cryptography.fernet import Fernet
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -1,16 +1,16 @@
 import logging
 import uuid
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
-
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
+
+from core.business_health_service import business_health_service
+from core.database import get_db_session
+from core.financial_forensics import get_forensics_services
 
 # Import domain services
 from core.risk_prevention import customer_protection, early_warning
-from core.financial_forensics import get_forensics_services
-from core.business_health_service import business_health_service
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class CrossSystemReasoningEngine:
 
     @property
     def db(self):
-        return self._db or SessionLocal()
+        return self._db or get_db_session()
 
     async def generate_interventions(self, workspace_id: str) -> List[Intervention]:
         """

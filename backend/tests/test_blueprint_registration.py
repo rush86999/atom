@@ -4,9 +4,9 @@ Manual Blueprint Registration Test
 Tests blueprint registration for Asana, Trello, and Notion auth handlers
 """
 
+import logging
 import os
 import sys
-import logging
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -71,8 +71,8 @@ def test_blueprint_registration():
 
         # Import blueprints
         from auth_handler_asana import auth_asana_bp
-        from auth_handler_trello import auth_trello_bp
         from auth_handler_notion import auth_notion_bp
+        from auth_handler_trello import auth_trello_bp
 
         # Register blueprints
         app.register_blueprint(auth_asana_bp)

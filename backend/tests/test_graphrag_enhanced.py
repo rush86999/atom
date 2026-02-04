@@ -3,14 +3,17 @@ Tests for Enhanced GraphRAG Engine
 Tests LLM-powered extraction, Leiden communities, and map-reduce search.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 # Import the module under test
 from core.graphrag_engine import (
-    GraphRAGEngine, Entity, Relationship,
-    graphrag_engine, get_graphrag_context
+    Entity,
+    GraphRAGEngine,
+    Relationship,
+    get_graphrag_context,
+    graphrag_engine,
 )
 
 

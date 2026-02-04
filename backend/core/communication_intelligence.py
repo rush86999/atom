@@ -1,17 +1,17 @@
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional
-from core.knowledge_extractor import KnowledgeExtractor
-from core.automation_settings import get_automation_settings
-from core.database import SessionLocal
-from core.models import User
+import json
+import logging
+from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceCustomer
 from sales.models import Deal, Lead
-from core.negotiation_engine import NegotiationStateMachine
+
+from core.automation_settings import get_automation_settings
 from core.business_intelligence import BusinessEventIntelligence
-from core.business_intelligence import BusinessEventIntelligence
+from core.database import get_db_session
+from core.knowledge_extractor import KnowledgeExtractor
 from core.lifecycle_comm_generator import LifecycleCommGenerator
-import json
+from core.models import User
+from core.negotiation_engine import NegotiationStateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class CommunicationIntelligenceService:
         """
         Pulls data from other systems (CRM, eCommerce) based on extracted entities.
         """
-        db = self.db_session or SessionLocal()
+        db = self.db_session or get_db_session()
         context = {}
         try:
             for entity in knowledge.get("entities", []):
@@ -142,15 +142,85 @@ class CommunicationIntelligenceService:
         """
         Handles the actual suggest/draft/send execution logic.
         """
+        app_type = comm_data.get("app_type", "slack").lower()
+
         if mode == "suggest":
             logger.info(f"Response Suggestion for User {user_id}: {suggestion}")
-            # In a real app, this would send a Slack/Team notification
-            pass
+            # Send notification via integration
+            try:
+                if app_type == "slack":
+                    from integrations.slack_routes import send_slack_notification
+                    await send_slack_notification(
+                        user_id=user_id,
+                        message=f"Suggested response: {suggestion}",
+                        channel=comm_data.get("channel_id")
+                    )
+                elif app_type == "teams":
+                    from integrations.teams_routes import send_teams_notification
+                    await send_teams_notification(
+                        user_id=user_id,
+                        message=f"Suggested response: {suggestion}",
+                        chat_id=comm_data.get("chat_id")
+                    )
+                else:
+                    logger.warning(f"Notification not implemented for app type: {app_type}")
+            except Exception as e:
+                logger.error(f"Failed to send suggestion notification: {e}")
+
         elif mode == "draft":
-            logger.info(f"Creating Draft for User {user_id} in {comm_data.get('app_type')}")
-            # Logic to create draft via integration API
-            pass
+            logger.info(f"Creating Draft for User {user_id} in {app_type}")
+            # Create draft via integration API
+            try:
+                if app_type == "gmail":
+                    from integrations.gmail_routes import create_gmail_draft
+                    draft_id = await create_gmail_draft(
+                        user_id=user_id,
+                        thread_id=comm_data.get("thread_id"),
+                        body=suggestion
+                    )
+                    logger.info(f"Created Gmail draft {draft_id} for user {user_id}")
+                elif app_type == "outlook":
+                    from integrations.outlook_routes import create_outlook_draft
+                    draft_id = await create_outlook_draft(
+                        user_id=user_id,
+                        thread_id=comm_data.get("thread_id"),
+                        body=suggestion
+                    )
+                    logger.info(f"Created Outlook draft {draft_id} for user {user_id}")
+                else:
+                    logger.warning(f"Draft creation not implemented for app type: {app_type}")
+            except Exception as e:
+                logger.error(f"Failed to create draft: {e}")
+
         elif mode == "auto_send":
             logger.warning(f"AUTO-SENDING response for User {user_id}: {suggestion}")
-            # Logic to send via integration API
-            pass
+            # Send via integration API
+            try:
+                if app_type == "gmail":
+                    from integrations.gmail_routes import send_gmail_message
+                    await send_gmail_message(
+                        user_id=user_id,
+                        thread_id=comm_data.get("thread_id"),
+                        body=suggestion
+                    )
+                    logger.info(f"Sent Gmail message for user {user_id}")
+                elif app_type == "outlook":
+                    from integrations.outlook_routes import send_outlook_message
+                    await send_outlook_message(
+                        user_id=user_id,
+                        thread_id=comm_data.get("thread_id"),
+                        body=suggestion
+                    )
+                    logger.info(f"Sent Outlook message for user {user_id}")
+                elif app_type == "slack":
+                    from integrations.slack_routes import send_slack_message
+                    await send_slack_message(
+                        user_id=user_id,
+                        channel=comm_data.get("channel_id"),
+                        text=suggestion
+                    )
+                    logger.info(f"Sent Slack message for user {user_id}")
+                else:
+                    logger.warning(f"Auto-send not implemented for app type: {app_type}")
+            except Exception as e:
+                logger.error(f"Failed to auto-send message: {e}")

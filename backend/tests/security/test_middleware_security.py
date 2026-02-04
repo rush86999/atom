@@ -1,6 +1,6 @@
+import os
 import sys
 import unittest
-import os
 
 # Add the project root and backend directory to path
 current_file_path = os.path.abspath(__file__)
@@ -16,7 +16,7 @@ class TestMiddlewareSecurity(unittest.TestCase):
     def test_secure_hash_delegation(self):
         """Ensure middleware.security.hash_password now uses the secure core.auth implementation"""
         from middleware.security import hash_password
-        
+
         # This will now use bcrypt if BCRYPT_AVAILABLE is True in core.auth
         # Which we enforced in the previous steps.
         password = "test_password"

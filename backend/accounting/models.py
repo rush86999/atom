@@ -1,9 +1,13 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Enum as SQLEnum, JSON, UniqueConstraint
+import enum
+import uuid
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
-import enum
+
 from core.database import Base
+
 
 class AccountType(str, enum.Enum):
     ASSET = "asset"
@@ -186,6 +190,7 @@ class Invoice(Base):
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
     description = Column(Text, nullable=True)
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True) # Linked ledger tx
+    metadata_json = Column(JSON, nullable=True) # Additional invoice metadata (line items, billing details, etc.)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

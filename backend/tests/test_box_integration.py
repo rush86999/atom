@@ -1,7 +1,7 @@
+import json
 import os
 import sys
 import requests
-import json
 from dotenv import load_dotenv
 
 

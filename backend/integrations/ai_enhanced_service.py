@@ -3,20 +3,21 @@ ATOM AI Enhanced Service
 Advanced AI integration for unified communication ecosystem with cross-platform intelligence
 """
 
-import os
+import asyncio
+import hashlib
 import json
 import logging
-import asyncio
-import time
-import hashlib
+import os
 import re
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+import time
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
+import httpx
+
 # import pandas as pd
 # import numpy as np
 
@@ -280,7 +281,7 @@ class AIEnhancedService:
         # BYOK Manager
         try:
             self.byok_manager = get_byok_manager()
-        except:
+        except Exception as e:
             self.byok_manager = None
             logger.warning("BYOK Manager not initialized in AIEnhancedService")
         

@@ -4,9 +4,9 @@ ONE-TIME BACKEND TEST
 Quick test to verify backend is working
 """
 
-import requests
-import time
 import sys
+import time
+import requests
 
 
 def test_backend():

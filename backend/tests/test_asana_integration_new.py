@@ -4,13 +4,13 @@ Modern Asana Integration Test Script
 Updated testing for Asana integration with current patterns
 """
 
+import asyncio
+import json
 import os
 import sys
-import json
-import asyncio
-import requests
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+import requests
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

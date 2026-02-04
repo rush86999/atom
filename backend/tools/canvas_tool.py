@@ -13,20 +13,22 @@ Now includes governance integration with:
 
 import logging
 import uuid
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.websockets import manager as ws_manager
-from core.models import AgentExecution, CanvasAudit
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.canvas_type_registry import CanvasType, canvas_type_registry
+from core.models import AgentExecution, CanvasAudit
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 CANVAS_GOVERNANCE_ENABLED = os.getenv("CANVAS_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
@@ -37,17 +39,35 @@ async def _create_canvas_audit(
     agent_execution_id: Optional[str],
     user_id: str,
     canvas_id: Optional[str],
-    session_id: Optional[str],  # NEW: Session isolation
-    component_type: str,
-    component_name: Optional[str],
-    action: str,
-    governance_check_passed: Optional[bool],
+    session_id: Optional[str],  # Session isolation
+    canvas_type: str = "generic",  # NEW: Canvas type (generic, docs, email, sheets, orchestration, terminal, coding)
+    component_type: str = "component",  # NEW: Default component type
+    component_name: Optional[str] = None,
+    action: str = "present",
+    governance_check_passed: Optional[bool] = None,
     metadata: Dict[str, Any] = None
 ) -> Optional[CanvasAudit]:
     """
     Create a canvas audit entry for tracking.
 
     Helper function to log all canvas actions for governance and audit trail.
+
+    Args:
+        db: Database session
+        agent_id: Optional agent ID
+        agent_execution_id: Optional agent execution ID
+        user_id: User ID
+        canvas_id: Canvas ID
+        session_id: Optional session ID for isolation
+        canvas_type: Canvas type (generic, docs, email, sheets, orchestration, terminal, coding)
+        component_type: Component type (chart, markdown, form, rich_editor, thread_view, etc.)
+        component_name: Optional component name
+        action: Action (present, close, submit, update)
+        governance_check_passed: Whether governance check passed
+        metadata: Optional metadata dictionary
+
+    Returns:
+        CanvasAudit object or None on failure
     """
     try:
         audit = CanvasAudit(
@@ -57,7 +77,8 @@ async def _create_canvas_audit(
             agent_execution_id=agent_execution_id,
             user_id=user_id,
             canvas_id=canvas_id,
-            session_id=session_id,  # NEW: Session isolation
+            session_id=session_id,
+            canvas_type=canvas_type,  # NEW: Canvas type
             component_type=component_type,
             component_name=component_name,
             action=action,
@@ -94,7 +115,7 @@ async def present_chart(
         session_id: Optional session ID for session isolation
         **kwargs: Additional chart options (color, etc.)
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     agent_execution = None
@@ -103,7 +124,7 @@ async def present_chart(
     try:
         # Governance: Resolve agent and check permissions
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -164,14 +185,15 @@ async def present_chart(
 
         # Create audit entry
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
                     agent_execution_id=agent_execution.id if agent_execution else None,
                     user_id=user_id,
                     canvas_id=canvas_id,
-                    session_id=session_id,  # NEW: Session isolation
+                    session_id=session_id,
+                    canvas_type="generic",  # Generic canvas for charts
                     component_type="chart",
                     component_name=chart_type,
                     action="present",
@@ -213,7 +235,7 @@ async def present_chart(
         # Mark execution as failed
         if agent_execution and CANVAS_GOVERNANCE_ENABLED:
             try:
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()
@@ -249,7 +271,7 @@ async def present_status_panel(
         agent_id: Agent ID presenting the panel (for governance)
         session_id: Optional session ID for session isolation
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     governance_check = None
@@ -257,7 +279,7 @@ async def present_status_panel(
     try:
         # Governance: Check agent permissions
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -323,7 +345,7 @@ async def present_markdown(
         agent_id: Agent ID presenting the content (for governance)
         session_id: Optional session ID for session isolation
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     agent_execution = None
@@ -332,7 +354,7 @@ async def present_markdown(
     try:
         # Governance: Resolve agent and check permissions
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -389,7 +411,7 @@ async def present_markdown(
 
         # Create audit entry
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
@@ -449,7 +471,7 @@ async def present_form(
     Returns:
         Dict with success status and canvas_id for tracking submissions
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     agent_execution = None
@@ -458,7 +480,7 @@ async def present_form(
     try:
         # Governance: Resolve agent and check permissions (INTERN+ required)
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -515,7 +537,7 @@ async def present_form(
 
         # Create audit entry
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
@@ -595,7 +617,7 @@ async def update_canvas(
             updates={"title": "Updated Sales Data"}
         )
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     agent_execution = None
@@ -604,7 +626,7 @@ async def update_canvas(
     try:
         # Governance: Resolve agent and check permissions
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -662,7 +684,7 @@ async def update_canvas(
 
         # Create audit entry
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
@@ -710,7 +732,7 @@ async def update_canvas(
         # Mark execution as failed
         if agent_execution and CANVAS_GOVERNANCE_ENABLED:
             try:
-                with SessionLocal() as db:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()
@@ -803,7 +825,7 @@ async def canvas_execute_javascript(
             agent_id="agent-autonomous-1"
         )
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
 
     agent = None
     agent_execution = None
@@ -820,7 +842,7 @@ async def canvas_execute_javascript(
 
         # Governance: Resolve agent and check permissions
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 resolver = AgentContextResolver(db)
                 governance = AgentGovernanceService(db)
 
@@ -910,7 +932,7 @@ async def canvas_execute_javascript(
 
         # Create audit entry with JavaScript content
         if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
                     agent_id=agent.id if agent else None,
@@ -963,7 +985,244 @@ async def canvas_execute_javascript(
         # Mark execution as failed
         if agent_execution and CANVAS_GOVERNANCE_ENABLED:
             try:
-                with SessionLocal() as db:
+                with get_db_session() as db:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+                    if execution:
+                        execution.status = "failed"
+                        execution.error_message = str(e)
+                        execution.completed_at = datetime.now()
+                        db.commit()
+
+                        if agent:
+                            governance_service = AgentGovernanceService(db)
+                            await governance_service.record_outcome(agent.id, success=False)
+            except Exception as inner_e:
+                logger.error(f"Failed to record execution failure: {inner_e}")
+
+        return {"success": False, "error": str(e)}
+
+
+async def present_specialized_canvas(
+    user_id: str,
+    canvas_type: str,
+    component_type: str,
+    data: Dict[str, Any],
+    title: str = None,
+    agent_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    layout: str = None
+):
+    """
+    Present a specialized canvas with type-specific components.
+
+    Generic function for presenting specialized canvas types:
+    - docs: Documentation with rich editor, version history, comments
+    - email: Email with threads, compose, attachments
+    - sheets: Spreadsheet with grid, formulas, charts
+    - orchestration: Multi-app workflows with kanban, gantt, diagrams
+    - terminal: Command output, file trees, process monitoring
+    - coding: Code editor, diff views, PR reviews
+
+    Args:
+        user_id: User ID to present canvas to
+        canvas_type: Type of canvas (docs, email, sheets, orchestration, terminal, coding)
+        component_type: Component type (rich_editor, thread_view, data_grid, etc.)
+        data: Component-specific data
+        title: Canvas title
+        agent_id: Optional agent ID for governance
+        session_id: Optional session ID for isolation
+        layout: Optional layout (document, inbox, sheet, board, etc.)
+
+    Returns:
+        Dict with success status, canvas_id, and details
+
+    Example:
+        # Present documentation canvas
+        await present_specialized_canvas(
+            user_id="user-1",
+            canvas_type="docs",
+            component_type="rich_editor",
+            data={"content": "# API Reference\\n\\nEndpoints..."},
+            title="API Documentation",
+            agent_id="agent-1"
+        )
+
+        # Present spreadsheet canvas
+        await present_specialized_canvas(
+            user_id="user-1",
+            canvas_type="sheets",
+            component_type="data_grid",
+            data={"cells": {"A1": "Revenue", "B1": 100000}},
+            title="Financial Model",
+            layout="sheet"
+        )
+    """
+    from core.database import get_db_session
+
+    agent = None
+    agent_execution = None
+    governance_check = None
+
+    try:
+        # Validate canvas type
+        if not canvas_type_registry.validate_canvas_type(canvas_type):
+            logger.warning(f"Invalid canvas type: {canvas_type}")
+            return {
+                "success": False,
+                "error": f"Invalid canvas type: {canvas_type}. Must be one of: {list(canvas_type_registry.get_all_types().keys())}"
+            }
+
+        # Validate component for canvas type
+        if not canvas_type_registry.validate_component(canvas_type, component_type):
+            logger.warning(f"Component {component_type} not supported for canvas type {canvas_type}")
+            return {
+                "success": False,
+                "error": f"Component {component_type} not supported for {canvas_type} canvas"
+            }
+
+        # Validate layout if provided
+        if layout and not canvas_type_registry.validate_layout(canvas_type, layout):
+            logger.warning(f"Layout {layout} not supported for canvas type {canvas_type}")
+            return {
+                "success": False,
+                "error": f"Layout {layout} not supported for {canvas_type} canvas"
+            }
+
+        # Governance: Resolve agent and check permissions
+        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+            with get_db_session() as db:
+                resolver = AgentContextResolver(db)
+                governance = AgentGovernanceService(db)
+
+                # Resolve agent
+                agent, resolution_context = await resolver.resolve_agent_for_request(
+                    user_id=user_id,
+                    requested_agent_id=agent_id,
+                    action_type=f"present_{canvas_type}"
+                )
+
+                # Check governance for this canvas type
+                if agent:
+                    governance_check = governance.can_perform_action(
+                        agent_id=agent.id,
+                        action_type=f"present_{canvas_type}"
+                    )
+
+                    if not governance_check["allowed"]:
+                        logger.warning(f"Governance blocked {canvas_type} canvas: {governance_check['reason']}")
+                        return {
+                            "success": False,
+                            "error": f"Agent not permitted to present {canvas_type} canvas: {governance_check['reason']}"
+                        }
+
+                    # Check maturity requirements
+                    min_maturity = canvas_type_registry.get_min_maturity(canvas_type)
+                    if agent.maturity_level < min_maturity.value:
+                        logger.warning(
+                            f"Agent maturity {agent.maturity_level} below required {min_maturity.value} for {canvas_type}"
+                        )
+                        return {
+                            "success": False,
+                            "error": f"Agent maturity {agent.maturity_level} insufficient for {canvas_type} canvas (requires {min_maturity.value})"
+                        }
+
+                    # Create agent execution record
+                    agent_execution = AgentExecution(
+                        agent_id=agent.id,
+                        workspace_id="default",
+                        status="running",
+                        input_summary=f"Present {canvas_type} canvas: {title or component_type}",
+                        triggered_by="canvas"
+                    )
+                    db.add(agent_execution)
+                    db.commit()
+                    db.refresh(agent_execution)
+
+                    logger.info(f"Agent execution {agent_execution.id} for {canvas_type} canvas")
+
+        # Present the specialized canvas via WebSocket
+        user_channel = f"user:{user_id}"
+        if session_id:
+            user_channel = f"user:{user_id}:session:{session_id}"
+
+        canvas_id = str(uuid.uuid4())
+        await ws_manager.broadcast(
+            user_channel,
+            {
+                "type": "canvas:update",
+                "data": {
+                    "action": "present",
+                    "canvas_type": canvas_type,
+                    "component": component_type,
+                    "canvas_id": canvas_id,
+                    "session_id": session_id,
+                    "title": title,
+                    "layout": layout,
+                    "data": data
+                }
+            }
+        )
+
+        # Create audit entry
+        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+            with get_db_session() as db:
+                await _create_canvas_audit(
+                    db=db,
+                    agent_id=agent.id if agent else None,
+                    agent_execution_id=agent_execution.id if agent_execution else None,
+                    user_id=user_id,
+                    canvas_id=canvas_id,
+                    session_id=session_id,
+                    canvas_type=canvas_type,
+                    component_type=component_type,
+                    component_name=None,
+                    action="present",
+                    governance_check_passed=governance_check["allowed"] if governance_check else None,
+                    metadata={
+                        "title": title,
+                        "layout": layout,
+                        **data
+                    }
+                )
+
+                # Mark execution as completed
+                if agent_execution:
+                    execution = db.query(AgentExecution).filter(
+                        AgentExecution.id == agent_execution.id
+                    ).first()
+                    if execution:
+                        execution.status = "completed"
+                        execution.output_summary = f"Presented {canvas_type} canvas: {title or component_type}"
+                        execution.completed_at = datetime.now()
+                        db.commit()
+
+                        # Record outcome for confidence
+                        governance_service = AgentGovernanceService(db)
+                        await governance_service.record_outcome(agent.id, success=True)
+
+        logger.info(
+            f"Presented {canvas_type} canvas ({component_type}) to user {user_id}"
+            + (f" (agent: {agent.name})" if agent else "")
+        )
+        return {
+            "success": True,
+            "canvas_type": canvas_type,
+            "component_type": component_type,
+            "canvas_id": canvas_id,
+            "agent_id": agent.id if agent else None,
+            "title": title,
+            "layout": layout
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to present specialized canvas: {e}")
+
+        # Mark execution as failed
+        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+            try:
+                with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
                         AgentExecution.id == agent_execution.id
                     ).first()

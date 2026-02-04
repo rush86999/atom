@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime, timedelta
-import logging
 import asyncio
+import logging
 import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
+from integrations.microsoft365_service import microsoft365_service
 from integrations.stripe_service import stripe_service
 from integrations.xero_service import XeroService
 from integrations.zoho_books_service import ZohoBooksService
-from integrations.microsoft365_service import microsoft365_service
 
 router = APIRouter(prefix="/api/atom/finance/live", tags=["finance-live"])
 logger = logging.getLogger(__name__)
@@ -118,11 +118,17 @@ async def get_live_financial_overview(
         logger.warning(f"Failed to fetch live Stripe data: {e}")
 
     # 2. Fetch Xero Data
-    # Fetching Xero requires a valid access_token, which typically comes from DB.
-    # We will skip for this iteration unless mock/env token is present
+    # Fetching Xero requires a valid access_token from environment or user context
     try:
-         # Placeholder: Xero logic would go here obtaining token for user
-         pass
+         xero_token = os.getenv("XERO_ACCESS_TOKEN")
+         if not xero_token:
+             logger.warning("XERO_ACCESS_TOKEN not configured, skipping Xero fetch")
+         else:
+             # Use xero_service to fetch invoices/transactions
+             from integrations.xero_service import xero_service
+             xero_invoices = xero_service.get_invoices(access_token=xero_token, limit=limit)
+             transactions.extend([map_xero_invoice(i) for i in xero_invoices])
+             providers_status["xero"] = True
     except Exception as e:
         logger.warning(f"Failed to fetch live Xero data: {e}")
 
@@ -160,7 +166,8 @@ async def get_live_financial_overview(
     # Calculate Stats
     total_rev = sum(t.amount for t in transactions if t.status in ['succeeded', 'paid', 'paid'])
     pending_rev = sum(t.amount for t in transactions if t.status in ['pending', 'open'])
-    
+
+    breakdown = {
         "stripe": sum(t.amount for t in transactions if t.platform == 'stripe'),
         "xero": sum(t.amount for t in transactions if t.platform == 'xero'),
         "zoho": sum(t.amount for t in transactions if t.platform == 'zoho'),

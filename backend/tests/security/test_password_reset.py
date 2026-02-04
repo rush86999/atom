@@ -1,8 +1,8 @@
-import sys
-import os
-from datetime import datetime, timedelta
-import secrets
 import hashlib
+import os
+import secrets
+import sys
+from datetime import datetime, timedelta
 
 # Add backend to sys.path
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -13,9 +13,10 @@ if backend_path not in sys.path:
 os.environ.setdefault("SECRET_KEY", "test_secret_key")
 os.environ.setdefault("DATABASE_URL", "sqlite:///./data/atom.test.db")
 
-from core.database import SessionLocal, Base, engine
-from core.models import User, PasswordResetToken, UserStatus
 from core.auth import get_password_hash, verify_password
+from core.database import Base, SessionLocal, engine
+from core.models import PasswordResetToken, User, UserStatus
+
 
 def setup_test_db():
     # Make sure data dir exists

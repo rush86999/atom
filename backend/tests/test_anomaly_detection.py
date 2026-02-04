@@ -1,6 +1,7 @@
 # import pytest
 from datetime import datetime
-from ai.data_intelligence import DataIntelligenceEngine, PlatformType, EntityType, UnifiedEntity
+from ai.data_intelligence import DataIntelligenceEngine, EntityType, PlatformType, UnifiedEntity
+
 
 def test_deal_risk_detection():
     engine = DataIntelligenceEngine()

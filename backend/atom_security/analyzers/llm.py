@@ -1,8 +1,9 @@
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from typing import List, Dict, Any, Optional
+import os
+from typing import Any, Dict, List, Optional
+
 from ..core.models import Finding, Severity
 
 logger = logging.getLogger(__name__)
@@ -46,8 +47,8 @@ class LLMAnalyzer:
     def _init_local(self):
         """Initialize local transformers pipeline."""
         try:
-            from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
             import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
             
             logger.info(f"Loading local model: {self.model}...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model, trust_remote_code=True)

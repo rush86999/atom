@@ -129,7 +129,7 @@ services:
       GOOGLE_CLIENT_SECRET_ATOMIC_WEB: ${GOOGLE_CLIENT_SECRET_ATOMIC_WEB}
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
       POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
-      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      # PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000} # Removed: python-agent service deprecated
       LLAMA_CPP_URL: http://llama-cpp:8080
       DOMAIN: ${DOMAIN}
       S3_ENDPOINT: http://minio:8484
@@ -276,29 +276,33 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
-      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      # PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000} # Removed: python-agent service deprecated
       LLAMA_CPP_URL: http://llama-cpp:8080
-  python-agent:
-    build:
-      context: ../python_agent_build_docker
-      dockerfile: Dockerfile
-    container_name: python-agent
-    environment:
-      - NOTION_API_TOKEN=${NOTION_API_TOKEN}
-      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
-      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
-      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LANCEDB_URI=/lancedb_data/atom_core_db
-      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
-      - PYTHONUNBUFFERED=1
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-    volumes:
-      - .:/app/project
-      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
-    tty: true
-    stdin_open: true
+  # python-agent:
+  # NOTE: Service removed - python_agent_build_docker directory deleted (2025-02-03)
+  # Reason: Duplicate functionality exists in backend/integrations/
+  # To restore, uncomment and restore python_agent_build_docker directory
+  #   python-agent:
+  #     build:
+  #       context: ../python_agent_build_docker
+  #       dockerfile: Dockerfile
+  #     container_name: python-agent
+  #     environment:
+  #       - NOTION_API_TOKEN=${NOTION_API_TOKEN}
+  #       - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
+  #       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+  #       - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
+  #       - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
+  #       - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #       - LANCEDB_URI=/lancedb_data/atom_core_db
+  #       - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+  #       - PYTHONUNBUFFERED=1
+  #       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+  #     volumes:
+  #       - .:/app/project
+  #       - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+  #     tty: true
+  #     stdin_open: true
   ingestion-pipeline-service:
     build:
       context: ../python-api/ingestion_pipeline

@@ -1,23 +1,26 @@
-import unittest
 import os
 import sys
+import unittest
 from datetime import datetime, timedelta, timezone
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import marketing.models
-import sales.models
-import ecommerce.models
 import accounting.models
+import ecommerce.models
+import marketing.models
 import saas.models
+import sales.models
 import service_delivery.models
-from core.models import Workspace
-from sales.models import Lead
-from marketing.models import MarketingChannel, AdSpendEntry, AttributionEvent
 from marketing.intelligence_service import MarketingIntelligenceService
+from marketing.models import AdSpendEntry, AttributionEvent, MarketingChannel
+from sales.models import Lead
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.models import Workspace
+
 
 class TestMarketingIntelligence(unittest.TestCase):
     def setUp(self):

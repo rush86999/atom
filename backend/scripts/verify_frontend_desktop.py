@@ -6,13 +6,13 @@ This script verifies that both the web frontend and desktop application
 are properly configured and meet the README objectives before deployment.
 """
 
-import os
-import sys
-import subprocess
-import requests
 import json
+import os
+import subprocess
+import sys
 import time
 from pathlib import Path
+import requests
 
 
 class FrontendDesktopVerifier:

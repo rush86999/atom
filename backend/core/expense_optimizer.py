@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from accounting.models import Account, AccountType, Entity, Transaction
 from sqlalchemy import func
-from core.database import SessionLocal
-from accounting.models import Transaction, Account, Entity, AccountType
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class ExpenseOptimizer:
         """
         Identifies recurring subscriptions and potential cost-saving opportunities.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Group transactions by description/merchant pattern
             # In a real system, we'd use 'merchant_name' from enriched transaction data
@@ -63,7 +64,7 @@ class ExpenseOptimizer:
         """
         Flags transactions that are likely business deductions but unmapped.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Find transactions that are not yet categorized to an expense account
             # (Simplification: look for transactions with generic or missing account mapping)

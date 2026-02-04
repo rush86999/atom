@@ -3,18 +3,24 @@ Advanced Workflow API Endpoints
 Multi-input, multi-step, multi-output workflow support with state management
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
-from datetime import datetime
 import asyncio
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from .advanced_workflow_system import (
-    AdvancedWorkflowDefinition, WorkflowState, WorkflowStep,
-    ParameterType, InputParameter, StateManager,
-    ParameterValidator, ExecutionEngine
+    AdvancedWorkflowDefinition,
+    ExecutionEngine,
+    InputParameter,
+    ParameterType,
+    ParameterValidator,
+    StateManager,
+    WorkflowState,
+    WorkflowStep,
 )
+from .workflow_template_manager import WorkflowTemplateManager, get_workflow_template_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -22,6 +28,7 @@ router = APIRouter()
 # Initialize global instances
 state_manager = StateManager()
 execution_engine = ExecutionEngine(state_manager)
+template_manager = get_workflow_template_manager()
 
 # Request/Response Models
 class CreateWorkflowRequest(BaseModel):
@@ -103,23 +110,69 @@ async def create_workflow(request: CreateWorkflowRequest):
         logger.error(f"Failed to create workflow: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/workflows", response_model=List[Dict[str, Any]])
+@router.get("/workflows")
 async def list_workflows(
     state: Optional[WorkflowState] = None,
     category: Optional[str] = None,
-    limit: int = 50,
+    tags: Optional[str] = None,  # Comma-separated tags
+    sort_by: str = "updated_at",
+    sort_order: str = "desc",
+    limit: Optional[int] = None,
     offset: int = 0
 ):
-    """List workflows with optional filtering"""
+    """
+    List workflows with comprehensive filtering and sorting.
+
+    Query Parameters:
+    - state: Filter by workflow state (draft, running, completed, etc.)
+    - category: Filter by category
+    - tags: Comma-separated list of tags (workflows must have ALL specified tags)
+    - sort_by: Field to sort by (updated_at, created_at, name)
+    - sort_order: Sort order (asc or desc)
+    - limit: Maximum number of workflows to return
+    - offset: Number of workflows to skip
+    """
     try:
-        # For MVP, load from memory (in production, use database)
-        # This is a simplified implementation
-        workflows = []
+        # Convert state enum to status string if provided
+        status_filter = None
+        if state is not None:
+            status_filter = state.value if isinstance(state, WorkflowState) else state
 
-        # TODO: Implement proper workflow listing from state manager
-        # For now, return empty list with proper structure
+        # Parse tags from comma-separated string
+        tags_list = None
+        if tags:
+            tags_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-        return workflows
+        # Get workflows from state manager with all filters
+        workflows = state_manager.list_workflows(
+            status=status_filter,
+            category=category,
+            tags=tags_list,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            limit=limit,
+            offset=offset
+        )
+
+        # Get total count (without pagination for accurate total)
+        total_workflows = len(state_manager.list_workflows(
+            status=status_filter,
+            category=category,
+            tags=tags_list
+        ))
+
+        # Return workflows with pagination metadata
+        return {
+            "workflows": workflows,
+            "total": total_workflows,
+            "offset": offset,
+            "limit": limit if limit is not None else len(workflows),
+            "filters": {
+                "state": status_filter,
+                "category": category,
+                "tags": tags_list
+            }
+        }
 
     except Exception as e:
         logger.error(f"Failed to list workflows: {e}")
@@ -372,29 +425,39 @@ async def get_required_inputs(workflow_id: str):
 
 # Template Management
 @router.get("/workflows/templates", response_model=List[Dict[str, Any]])
-async def list_workflow_templates(category: Optional[str] = None):
+async def list_workflow_templates(
+    category: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    active_only: bool = True
+):
     """List available workflow templates"""
     try:
-        # TODO: Implement template listing from file storage
-        templates = []
+        templates = template_manager.list_templates(
+            category=category,
+            tags=tags,
+            active_only=active_only
+        )
 
-        return templates
+        return [template.dict() for template in templates]
 
     except Exception as e:
         logger.error(f"Failed to list workflow templates: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workflows/templates", response_model=Dict[str, Any])
-async def create_workflow_template(template: WorkflowTemplate):
+async def create_workflow_template(template: Dict[str, Any]):
     """Create a workflow template"""
     try:
-        # TODO: Implement template creation and storage
+        created_template = template_manager.create_template(template)
+
         return {
             "status": "success",
-            "template_id": template.template_id,
-            "message": "Template created"
+            "template_id": created_template.template_id,
+            "template": created_template.dict()
         }
 
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create workflow template: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -406,12 +469,24 @@ async def create_workflow_from_template(
 ):
     """Create a new workflow from a template"""
     try:
-        # TODO: Implement template-based workflow creation
+        # Get workflow definition from template
+        workflow_definition = template_manager.create_workflow_from_template(
+            template_id=template_id,
+            workflow_data=workflow_data
+        )
+
+        # Create the workflow
+        workflow = await execution_engine.create_workflow(workflow_definition)
+
         return {
             "status": "success",
-            "message": f"Workflow created from template {template_id}"
+            "workflow_id": workflow.workflow_id,
+            "template_id": template_id,
+            "workflow": serialize_workflow(workflow)
         }
 
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create workflow from template {template_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

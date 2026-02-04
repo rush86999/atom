@@ -1,18 +1,20 @@
+import asyncio
+import json
 import os
 import sys
-import json
-import asyncio
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 # Add the backend directory to sys.path
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.append(backend_dir)
 
+from dotenv import load_dotenv
+
 # Now import relative to backend root
 from core.token_storage import token_storage
-from dotenv import load_dotenv
+
 load_dotenv()
 
 # Scopes required for the Gmail integration
@@ -25,9 +27,10 @@ SCOPES = [
 
 import http.server
 import socketserver
-import webbrowser
 import urllib.parse
+import webbrowser
 from google_auth_oauthlib.flow import Flow
+
 
 async def reauth_gmail():
     print("--- Gmail Re-authentication ---")

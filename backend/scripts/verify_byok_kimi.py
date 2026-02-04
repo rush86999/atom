@@ -1,8 +1,10 @@
-import sys
 import os
+import sys
+
 sys.path.append(os.getcwd())
 
 from backend.core.byok_endpoints import BYOKManager
+
 
 def test_byok_initialization():
     print("Initializing BYOKManager...")

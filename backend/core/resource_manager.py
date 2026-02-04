@@ -1,9 +1,10 @@
 import logging
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from core.models import User, Team
+from typing import Any, Dict, List, Optional
 from service_delivery.models import ProjectTask
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
+from core.models import Team, User
 
 logger = logging.getLogger(__name__)
 
@@ -19,50 +20,49 @@ class ResourceMonitor:
         """
         should_close = False
         if db is None:
-            db = SessionLocal()
-            should_close = True
+            with get_db_session() as db:
+                should_close = True
 
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                return {"status": "error", "message": "User not found"}
+                try:
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if not user:
+                        return {"status": "error", "message": "User not found"}
 
-            # Fetch active tasks (pending or in_progress)
-            active_tasks = db.query(ProjectTask).filter(
-                ProjectTask.assigned_to == user_id,
-                ProjectTask.status.in_(["pending", "in_progress"])
-            ).all()
+                    # Fetch active tasks (pending or in_progress)
+                    active_tasks = db.query(ProjectTask).filter(
+                        ProjectTask.assigned_to == user_id,
+                        ProjectTask.status.in_(["pending", "in_progress"])
+                    ).all()
 
-            # Sum up estimated hours. 
-            # We assume metadata_json might contain 'estimated_hours'. Fallback to a default.
-            total_estimated_hours = 0.0
-            for task in active_tasks:
-                est = 5.0 # Default if not specified
-                if task.metadata_json and isinstance(task.metadata_json, dict):
-                    est = task.metadata_json.get("estimated_hours", 5.0)
-                total_estimated_hours += float(est)
+                    # Sum up estimated hours.
+                    # We assume metadata_json might contain 'estimated_hours'. Fallback to a default.
+                    total_estimated_hours = 0.0
+                    for task in active_tasks:
+                        est = 5.0 # Default if not specified
+                        if task.metadata_json and isinstance(task.metadata_json, dict):
+                            est = task.metadata_json.get("estimated_hours", 5.0)
+                        total_estimated_hours += float(est)
 
-            capacity = user.capacity_hours or 40.0
-            utilization_pct = (total_estimated_hours / capacity) * 100
+                    capacity = user.capacity_hours or 40.0
+                    utilization_pct = (total_estimated_hours / capacity) * 100
 
-            return {
-                "user_id": user_id,
-                "user_name": f"{user.first_name} {user.last_name}",
-                "total_estimated_hours": total_estimated_hours,
-                "weekly_capacity": capacity,
-                "utilization_percentage": round(utilization_pct, 2),
-                "active_task_count": len(active_tasks),
-                "risk_level": "high" if utilization_pct > 100 else "medium" if utilization_pct > 80 else "low"
-            }
-        finally:
-            if should_close:
-                db.close()
+                    return {
+                        "user_id": user_id,
+                        "user_name": f"{user.first_name} {user.last_name}",
+                        "total_estimated_hours": total_estimated_hours,
+                        "weekly_capacity": capacity,
+                        "utilization_percentage": round(utilization_pct, 2),
+                        "active_task_count": len(active_tasks),
+                        "risk_level": "high" if utilization_pct > 100 else "medium" if utilization_pct > 80 else "low"
+                    }
+                except Exception as e:
+                    return {"status": "error", "message": f"Failed to calculate utilization: {e}"}
 
     def get_team_utilization(self, team_id: str) -> Dict[str, Any]:
         """
         Aggregates utilization for an entire team.
         """
-        with SessionLocal() as db:
+        with get_db_session() as db:
             team = db.query(Team).filter(Team.id == team_id).first()
             if not team:
                 return {"status": "error", "message": "Team not found"}

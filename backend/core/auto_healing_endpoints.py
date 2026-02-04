@@ -3,12 +3,13 @@ Auto-Healing API Endpoints
 Expose health monitoring and auto-healing status via REST API
 """
 
+from typing import Dict, List
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Dict, List
+
 from core.auto_healing import auto_healing_engine
-from core.token_refresher import token_refresher
 from core.health_monitor import health_monitor
+from core.token_refresher import token_refresher
 
 router = APIRouter(prefix="/api/auto-healing", tags=["auto-healing"])
 

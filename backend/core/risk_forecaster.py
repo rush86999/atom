@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
-from core.database import SessionLocal
+from typing import Any, Dict, List
 from service_delivery.models import Project, ProjectTask
+
+from core.database import get_db_session
 from core.resource_reasoning import ResourceReasoningEngine
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class ProjectRiskForecaster:
         """
         Calculates risk score and rationale for a project.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:

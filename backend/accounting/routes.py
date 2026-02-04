@@ -1,21 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
-from core.database import get_db
-from accounting.models import Account, Transaction, CategorizationProposal, Budget
-from accounting.fpa_service import FPAService
-from accounting.export_service import AccountExporter
-from accounting.categorizer import AICategorizer
-from accounting.sync_manager import AccountingSyncManager
-from accounting.ap_service import APService
-from accounting.dashboard_service import AccountingDashboardService
-from accounting.models import Document as FinancialDocument
-from core.auth_endpoints import get_current_user
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, File, UploadFile, Form
-import shutil
 import os
+import shutil
 import uuid
+from typing import Any, Dict, List, Optional
+from accounting.ap_service import APService
+from accounting.categorizer import AICategorizer
+from accounting.dashboard_service import AccountingDashboardService
+from accounting.export_service import AccountExporter
+from accounting.fpa_service import FPAService
+from accounting.models import Account, Budget, CategorizationProposal
+from accounting.models import Document as FinancialDocument
+from accounting.models import Transaction
+from accounting.sync_manager import AccountingSyncManager
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
+from sqlalchemy.orm import Session
+
+from core.auth_endpoints import get_current_user
 from core.automation_settings import get_automation_settings
+from core.database import get_db
 
 router = APIRouter(prefix="/api/v1/accounting", tags=["Accounting"])
 

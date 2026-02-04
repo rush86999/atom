@@ -1,8 +1,8 @@
-import requests
 import json
-import time
-import sys
 import os
+import sys
+import time
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables

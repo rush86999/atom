@@ -1,6 +1,7 @@
 
+from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict, Any
+
 from core.auth import get_current_user
 from core.models import User
 from core.stakeholder_engine import get_stakeholder_engine

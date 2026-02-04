@@ -38,6 +38,7 @@ bcrypt>=4.0.0
 python-multipart>=0.0.6,<1.0.0
 cryptography>=41.0.0,<43.0.0
 pyotp>=2.6.0,<3.0.0
+python3-saml>=1.14.0  # SAML 2.0 SSO support
 
 # Data Processing & Utilities
 pandas>=1.5.0,<3.0.0
@@ -57,6 +58,9 @@ lxml>=4.9.0,<6.0.0
 pillow>=10.0.0,<11.0.0
 
 # Service Integrations
+# Email Services
+mailgun  # Mailgun email service integration
+
 # Communication
 slack-sdk>=3.21.0,<4.0.0
 

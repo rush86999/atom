@@ -1,6 +1,6 @@
 
-import sys
 import os
+import sys
 
 # Setup path to root
 sys.path.append(os.path.dirname(os.getcwd()))

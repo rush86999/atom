@@ -1,16 +1,17 @@
 
-import unittest
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock, patch, AsyncMock
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from finance.automations.payroll_guardian import PayrollReconciliationWorkflow
 from operations.automations.competitive_intel import CompetitiveIntelWorkflow
 from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
-from finance.automations.payroll_guardian import PayrollReconciliationWorkflow
+
 
 class TestPhase24SpecializedAgents(unittest.TestCase):
     

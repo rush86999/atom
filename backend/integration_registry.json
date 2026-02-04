@@ -1676,8 +1676,10 @@
       "auth_type": "oauth",
       "has_connect": false,
       "has_health_check": false,
-      "status": "discovered",
-      "category": "communication"
+      "status": "deprecated",
+      "category": "communication",
+      "deprecation_notice": "Use discord_routes.py (FastAPI) instead. This Flask version will be removed in v2.0.",
+      "replacement": "backend/integrations/discord_routes.py"
     },
     "freshdesk_service": {
       "name": "freshdesk_service",

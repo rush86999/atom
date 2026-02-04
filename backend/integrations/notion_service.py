@@ -6,10 +6,10 @@ Provides comprehensive Notion integration functionality
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
-import requests
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
+import requests
 
 logger = logging.getLogger(__name__)
 

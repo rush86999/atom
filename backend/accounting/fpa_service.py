@@ -1,10 +1,20 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
+from accounting.models import (
+    Account,
+    AccountType,
+    Bill,
+    BillStatus,
+    EntryType,
+    Invoice,
+    InvoiceStatus,
+    JournalEntry,
+    Transaction,
+)
+from service_delivery.models import Contract, Milestone, MilestoneStatus, Project
 from sqlalchemy import func, or_
-from accounting.models import Account, AccountType, Transaction, JournalEntry, EntryType, Bill, BillStatus, Invoice, InvoiceStatus
-from service_delivery.models import Milestone, MilestoneStatus, Contract, Project
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

@@ -6,10 +6,10 @@ Provides comprehensive Trello integration functionality
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlencode, urljoin
 import requests
-from urllib.parse import urljoin, urlencode
 
 logger = logging.getLogger(__name__)
 

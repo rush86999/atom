@@ -3,9 +3,10 @@
 Test GitHub OAuth Only
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
+
 
 def test_github_oauth_only():
     """Test GitHub OAuth specifically"""

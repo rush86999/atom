@@ -1,17 +1,18 @@
-import logging
-import uuid
-import json
 import asyncio
+import json
+import logging
 import os
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
 from core.agent_governance_service import AgentGovernanceService
-from core.agent_world_model import WorldModelService, AgentExperience
-from core.react_models import ReActStep, ToolCall, ReActObservation
-from core.models import AgentRegistry, AgentStatus, HITLActionStatus
-from core.database import SessionLocal
-from integrations.mcp_service import mcp_service
+from core.agent_world_model import AgentExperience, WorldModelService
+from core.database import get_db_session
 from core.llm.byok_handler import BYOKHandler
+from core.models import AgentRegistry, AgentStatus, HITLActionStatus
+from core.react_models import ReActObservation, ReActStep, ToolCall
+from integrations.mcp_service import mcp_service
 
 # Try to import instructor for structured parsing
 try:
@@ -150,6 +151,7 @@ class GenericAgent:
                             if tool_name == "browser_screenshot" and "saved to" in str(observation):
                                 try:
                                     import base64
+
                                     # Extract path from observation: "Screenshot saved to /tmp/screenshot_xyz.png"
                                     path = observation.split("saved to ")[-1].strip()
                                     if os.path.exists(path):
@@ -411,11 +413,10 @@ What is your next step?"""
         """Execute a tool via MCP with Governance Check"""
         try:
             # 1. Governance Maturity Check
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
                 gov = AgentGovernanceService(db)
                 auth_check = gov.can_perform_action(self.id, tool_name)
-                
+
                 if auth_check.get("requires_human_approval"):
                     # Create HITL Action
                     action_id = gov.request_approval(
@@ -425,9 +426,9 @@ What is your next step?"""
                         reason=auth_check["reason"],
                         workspace_id=self.workspace_id
                     )
-                    
+
                     logger.info(f"Action {tool_name} requires approval. Pausing agent...")
-                    
+
                     if step_callback:
                         await step_callback({
                             "type": "hitl_paused",
@@ -435,18 +436,16 @@ What is your next step?"""
                             "tool": tool_name,
                             "reason": auth_check["reason"]
                         })
-                    
+
                     # Wait for approval
                     approved = await self._wait_for_approval(action_id)
                     if not approved:
                         return f"Governance Error: Action {tool_name} was REJECTED by user or timed out."
-                    
+
                     logger.info(f"Action {tool_name} APPROVED. Proceeding...")
-                    
+
                 elif not auth_check["allowed"]:
                     return f"Governance Error: {auth_check['reason']}"
-            finally:
-                db.close()
 
             # 2. Execute via MCP Service (Dynamic Resolution)
             return await self.mcp.call_tool(tool_name, args, context=context)
@@ -499,37 +498,32 @@ What is your next step?"""
 
         # 2. Update Governance Maturity
         success = result["status"] == "success"
-        db = SessionLocal()
-        try:
-            gov = AgentGovernanceService(db)
-            await gov.record_outcome(self.id, success=success)
-        except Exception as e:
-            logger.error(f"Failed to record governance outcome: {e}")
-        finally:
-            db.close()
+        with get_db_session() as db:
+            try:
+                gov = AgentGovernanceService(db)
+                await gov.record_outcome(self.id, success=success)
+            except Exception as e:
+                logger.error(f"Failed to record governance outcome: {e}", exc_info=True)
 
     async def _wait_for_approval(self, action_id: str) -> bool:
         """Poll for HITL decision"""
         max_wait = self.config.get("hitl_timeout", 600) # Default 10 mins
         interval = 5
         elapsed = 0
-        
+
         while elapsed < max_wait:
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
                 gov = AgentGovernanceService(db)
                 status_info = gov.get_approval_status(action_id)
-                
+
                 if status_info["status"] == HITLActionStatus.APPROVED.value:
                     return True
                 if status_info["status"] == HITLActionStatus.REJECTED.value:
                     return False
-            finally:
-                db.close()
-                
+
             await asyncio.sleep(interval)
             elapsed += interval
-            
+
         return False # Timeout
 
     def _get_registry_model(self) -> AgentRegistry:

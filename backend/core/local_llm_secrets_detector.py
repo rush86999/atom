@@ -7,13 +7,13 @@ This module enhances the pattern-based SecretsRedactor with AI-powered
 semantic detection that can catch secrets patterns might miss.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+import json
+import logging
+import re
 from dataclasses import dataclass, field
 from enum import Enum
-import re
-import json
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -343,5 +343,6 @@ def is_ollama_available() -> bool:
         client = ollama.Client()
         models = client.list()
         return len(models.get('models', [])) > 0
-    except:
+    except Exception as e:
+        logger.debug(f"Ollama not available: {e}")
         return False

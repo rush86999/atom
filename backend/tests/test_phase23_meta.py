@@ -1,15 +1,23 @@
 
-import unittest
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock, patch, AsyncMock
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator, WorkflowStep, WorkflowStepType, WorkflowContext, WorkflowDefinition
+from advanced_workflow_orchestrator import (
+    AdvancedWorkflowOrchestrator,
+    WorkflowContext,
+    WorkflowDefinition,
+    WorkflowStep,
+    WorkflowStepType,
+)
+
 from core.meta_automation import MetaAutomationEngine
+
 
 class TestPhase23MetaAutomation(unittest.TestCase):
     

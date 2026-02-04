@@ -3,32 +3,67 @@ ATOM Enterprise API Routes
 Advanced enterprise-grade API endpoints with comprehensive automation integration
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, get_jwt
-from loguru import logger
+import os
+from datetime import datetime, timedelta, timezone
 from functools import wraps
+from typing import Any, Dict, List, Optional, Union
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
+from loguru import logger
 
 # Import enterprise services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityPolicy, ThreatDetection, ComplianceReport, SecurityAudit, SecurityLevel, ComplianceStandard, ThreatType, AuditEventType
-    from atom_enterprise_unified_service import atom_enterprise_unified_service, EnterpriseWorkflow, SecurityWorkflowAction, ComplianceAutomation, EnterpriseServiceType, WorkflowSecurityLevel, ComplianceWorkflowType, AutomationTriggerType
-    from atom_workflow_automation_service import atom_workflow_automation_service, WorkflowAutomation, AutomationExecution, WorkflowAutomationType, AutomationActionType, AutomationConditionType, AutomationPriority, AutomationStatus
-    from atom_workflow_service import AtomWorkflowService
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+    from atom_ai_integration import atom_ai_integration
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        AuditEventType,
+        ComplianceReport,
+        ComplianceStandard,
+        SecurityAudit,
+        SecurityLevel,
+        SecurityPolicy,
+        ThreatDetection,
+        ThreatType,
+        atom_enterprise_security_service,
+    )
+    from atom_enterprise_unified_service import (
+        AutomationTriggerType,
+        ComplianceAutomation,
+        ComplianceWorkflowType,
+        EnterpriseServiceType,
+        EnterpriseWorkflow,
+        SecurityWorkflowAction,
+        WorkflowSecurityLevel,
+        atom_enterprise_unified_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
-    from atom_ai_integration import atom_ai_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
+    from atom_workflow_automation_service import (
+        AutomationActionType,
+        AutomationConditionType,
+        AutomationExecution,
+        AutomationPriority,
+        AutomationStatus,
+        WorkflowAutomation,
+        WorkflowAutomationType,
+        atom_workflow_automation_service,
+    )
+    from atom_workflow_service import AtomWorkflowService
 except ImportError as e:
     logger.warning(f"Enterprise services not available: {e}")
     atom_enterprise_security_service = None
@@ -47,7 +82,11 @@ enterprise_bp = Blueprint('enterprise_api', __name__, url_prefix='/api/enterpris
 # Mock service for health check detection
 class AtomEnterpriseServiceMock:
     def __init__(self):
-        self.enterprise_key = "mock_enterprise_key"
+        self.enterprise_key = os.getenv("ENTERPRISE_KEY")
+        if not self.enterprise_key or self.enterprise_key == "mock_enterprise_key":
+            raise NotImplementedError(
+                "ENTERPRISE_KEY must be configured in environment variables"
+            )
 
 
 # Enterprise configuration validation
@@ -161,7 +200,7 @@ def get_enterprise_request_data() -> Dict[str, Any]:
 
 # Enterprise Authentication
 @enterprise_bp.route('/auth/login', methods=['POST'])
-def enterprise_login():
+async def enterprise_login():
     """Enterprise authentication with security checks"""
     try:
         data = get_enterprise_request_data()
@@ -328,7 +367,7 @@ def create_workflow_automation():
 @enterprise_bp.route('/automation/execute', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def execute_workflow_automation():
+async def execute_workflow_automation():
     """Execute workflow automation"""
     try:
         data = get_enterprise_request_data()
@@ -367,7 +406,7 @@ def execute_workflow_automation():
 @jwt_required()
 @require_enterprise_role('security_admin')
 @require_security_level(SecurityLevel.ENTERPRISE)
-def create_security_automation():
+async def create_security_automation():
     """Create security automation"""
     try:
         data = get_enterprise_request_data()
@@ -401,7 +440,7 @@ def create_security_automation():
 @jwt_required()
 @require_enterprise_role('compliance_admin')
 @require_security_level(SecurityLevel.ENTERPRISE)
-def create_compliance_automation():
+async def create_compliance_automation():
     """Create compliance automation"""
     try:
         data = get_enterprise_request_data()
@@ -435,7 +474,7 @@ def create_compliance_automation():
 @jwt_required()
 @require_enterprise_role('integration_admin')
 @require_security_level(SecurityLevel.ADVANCED)
-def create_integration_automation():
+async def create_integration_automation():
     """Create integration automation"""
     try:
         data = get_enterprise_request_data()
@@ -468,7 +507,7 @@ def create_integration_automation():
 @enterprise_bp.route('/automation/list', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_automations():
+async def get_automations():
     """Get workflow automations"""
     try:
         data = get_enterprise_request_data()
@@ -508,7 +547,7 @@ def get_automations():
 @enterprise_bp.route('/automation/executions', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_automation_executions():
+async def get_automation_executions():
     """Get automation executions"""
     try:
         data = get_enterprise_request_data()
@@ -549,7 +588,7 @@ def get_automation_executions():
 @enterprise_bp.route('/automation/metrics', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.ADVANCED)
-def get_automation_metrics():
+async def get_automation_metrics():
     """Get automation metrics"""
     try:
         data = get_enterprise_request_data()
@@ -591,7 +630,7 @@ def get_automation_metrics():
 @enterprise_bp.route('/integration/platforms/status', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.STANDARD)
-def get_platform_integration_status():
+async def get_platform_integration_status():
     """Get platform integration status"""
     try:
         data = get_enterprise_request_data()
@@ -639,7 +678,7 @@ def get_platform_integration_status():
 @jwt_required()
 @require_enterprise_role('integration_admin')
 @require_security_level(SecurityLevel.ADVANCED)
-def sync_integration_workflows():
+async def sync_integration_workflows():
     """Sync integration workflows"""
     try:
         data = get_enterprise_request_data()
@@ -705,7 +744,7 @@ def sync_integration_workflows():
 @enterprise_bp.route('/analytics/comprehensive', methods=['POST'])
 @jwt_required()
 @require_security_level(SecurityLevel.ADVANCED)
-def get_comprehensive_analytics():
+async def get_comprehensive_analytics():
     """Get comprehensive enterprise analytics"""
     try:
         data = get_enterprise_request_data()
@@ -779,7 +818,7 @@ def get_comprehensive_analytics():
         return create_enterprise_response(False, error=str(e)), 500
 
 @enterprise_bp.route('/monitoring/health', methods=['POST'])
-def enterprise_health_monitoring():
+async def enterprise_health_monitoring():
     """Enterprise health monitoring with automation integration"""
     try:
         if not validate_enterprise_config():
@@ -878,17 +917,48 @@ def enterprise_internal_error(error):
 
 # Helper functions
 async def _verify_enterprise_credentials(username: str, password: str) -> Dict[str, Any]:
-    """Verify enterprise credentials"""
-    # Mock implementation - would use actual user database
-    if username == 'admin' and password == 'EnterpriseAdmin123!':
-        return {
-            'user_id': 'enterprise_admin_001',
-            'username': 'admin',
-            'roles': ['admin', 'security_admin', 'workflow_admin', 'compliance_admin', 'automation_admin', 'integration_admin'],
-            'security_level': 'enterprise',
-            'permissions': ['all']
-        }
-    return None
+    """
+    Verify enterprise credentials using the enterprise auth service.
+
+    Args:
+        username: Username or email
+        password: Plain text password
+
+    Returns:
+        User credentials dict if valid, None if invalid
+    """
+    try:
+        from core.database import get_db
+        from core.enterprise_auth_service import EnterpriseAuthService
+
+        auth_service = EnterpriseAuthService()
+
+        # Get database session
+        db = next(get_db())
+
+        try:
+            # Verify credentials
+            user_creds = auth_service.verify_credentials(db, username, password)
+
+            if not user_creds:
+                return None
+
+            # Convert to expected format
+            return {
+                'user_id': user_creds.user_id,
+                'username': user_creds.username,
+                'email': user_creds.email,
+                'roles': user_creds.roles,
+                'security_level': user_creds.security_level,
+                'permissions': user_creds.permissions
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Enterprise credential verification error: {e}")
+        return None
 
 # Register blueprint
 def register_enterprise_api(app):

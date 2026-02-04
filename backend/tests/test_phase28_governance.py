@@ -1,15 +1,16 @@
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
-import sys
-import os
 
 # Add backend directory to path so we can import from core
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.models import User, UserRole, AgentRegistry, AgentStatus, AgentFeedback, FeedbackStatus
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentFeedback, AgentRegistry, AgentStatus, FeedbackStatus, User, UserRole
 from core.rbac_service import Permission
+
 
 class TestAgentGovernance(unittest.TestCase):
     def setUp(self):

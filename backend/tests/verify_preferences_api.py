@@ -1,7 +1,7 @@
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -12,8 +12,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.database import Base, get_db
 from core.user_preference_routes import router as pref_router
+
 # Import model to register with Base
-from core.user_preference_service import UserPreference 
+from core.user_preference_service import UserPreference
 
 # Setup test app
 app = FastAPI()

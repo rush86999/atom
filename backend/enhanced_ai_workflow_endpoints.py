@@ -5,25 +5,33 @@ Optimized for 2025 Architecture: DeepSeek V3, Structured Outputs, and Robustness
 Implements ReAct Loop (Reason + Act) for Agentic Behavior.
 """
 
-import os
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
 import time
-import datetime
-from typing import Dict, Any, List, Optional, Union, Literal
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Literal, Optional, Union
+import anthropic
+import openai
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-import openai
-import anthropic
-import instructor
+
+try:
+    import instructor
+except ImportError:
+    instructor = None
+    logger = logging.getLogger(__name__)
+    logger.warning("instructor package not available, some features may be limited")
+
 from dotenv import load_dotenv
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 import base64
+
 from core.voice_service import get_voice_service
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])
@@ -389,15 +397,10 @@ class RealAIWorkflowService:
         result = await self.process_with_nlu(prompt, provider="glm", system_prompt=system_prompt)
         return result
 
-    async def call_openai_api(self, prompt: str, system_prompt: str = "") -> Dict[str, Any]:
-        """Manual OpenAI Call"""
-        # ... (Simplified implementation reusing get_session logic would be better, but keeping simple for now)
-        pass 
-
     # Re-implementing specific calls briefly or deferring to process_with_nlu which handles them in loop
     # actually process_with_nlu in my HEAD version calls specific methods: call_openai_api, etc.
     # I need to keep those implementations!
-    
+
     async def call_openai_api(self, prompt: str, system_prompt: str) -> Dict[str, Any]:
         if not self.openai_api_key: raise Exception("OpenAI API key missing")
         session = self.get_session('openai')

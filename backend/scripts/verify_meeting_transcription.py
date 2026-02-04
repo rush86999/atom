@@ -7,12 +7,12 @@ including transcription service, meeting prep, and memory integration.
 """
 
 import asyncio
-import aiohttp
 import json
 import logging
 import sys
-from typing import Dict, Any, List
 from dataclasses import dataclass
+from typing import Any, Dict, List
+import aiohttp
 
 # Configure logging
 logging.basicConfig(

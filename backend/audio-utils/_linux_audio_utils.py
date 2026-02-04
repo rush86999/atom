@@ -1,7 +1,8 @@
-import subprocess
-import re
 import logging
-from typing import List, Optional, Dict, Any
+import re
+import subprocess
+from typing import Any, Dict, List, Optional
+
 
 def _parse_pactl_output(output: str) -> List[Dict[str, Any]]:
     """

@@ -3,11 +3,11 @@ WhatsApp Business Configuration Setup
 Automated configuration setup for WhatsApp Business integration
 """
 
-import os
 import json
 import logging
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
 from enum import Enum
-from typing import List, Dict, Set
+from typing import Dict, List, Set
+
 from core.models import User, UserRole
+
 
 class Permission(str, Enum):
     # Agent Permissions

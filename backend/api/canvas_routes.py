@@ -10,20 +10,20 @@ Now includes governance integration with:
 """
 
 import logging
-import uuid
 import os
+import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.database import get_db
-from core.models import User, AgentExecution, CanvasAudit
-from core.websockets import manager as ws_manager
-from core.security_dependencies import get_current_user
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.database import get_db
+from core.models import AgentExecution, CanvasAudit, User
+from core.security_dependencies import get_current_user
+from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -88,16 +88,11 @@ async def submit_form(
                 agent_id = originating_execution.agent_id
 
             if agent_id:
-                agent = db.query(AgentExecution).filter(
-                    AgentExecution.id == agent_id
+                # Query AgentRegistry (not AgentExecution) for agent details
+                from core.models import AgentRegistry
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id
                 ).first()
-
-                if not agent:
-                    # Try to get agent from registry
-                    from core.models import AgentRegistry
-                    agent = db.query(AgentRegistry).filter(
-                        AgentRegistry.id == agent_id
-                    ).first()
 
             # Perform governance check (submit_form = complexity 3, SUPERVISED+)
             if agent:
@@ -195,7 +190,7 @@ async def submit_form(
                 logger.error(f"Failed to mark submission execution as completed: {completion_error}")
 
         return {
-            "status": "success",
+            "success": True,
             "submission_id": audit.id,
             "message": "Form submitted successfully",
             "agent_execution_id": submission_execution.id if submission_execution else None,

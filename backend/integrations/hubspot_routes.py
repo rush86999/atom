@@ -2,7 +2,6 @@ import json
 import logging
 from datetime import datetime
 from typing import List, Optional
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -1071,7 +1070,7 @@ async def get_ai_predictions():
 async def analyze_lead(request: AIAnalyzeLeadRequest):
     """Analyze a lead using AI and return predictions"""
     import random
-    
+
     # Generate realistic AI analysis
     lead_score = random.randint(60, 95)
     

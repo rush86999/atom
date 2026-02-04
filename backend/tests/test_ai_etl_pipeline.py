@@ -1,21 +1,24 @@
-import unittest
 import os
 import sys
+import unittest
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
+import accounting.models
 import ecommerce.models
+import marketing.models
 import saas.models
 import sales.models
-import accounting.models
 import service_delivery.models
-import marketing.models
-from core.models import Workspace, BusinessProductService
 from ecommerce.models import EcommerceOrder
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 from core.data_ingestion_service import DataIngestionService
+from core.database import Base
+from core.models import BusinessProductService, Workspace
+
 
 class TestAIETLPipeline(unittest.TestCase):
     def setUp(self):

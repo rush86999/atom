@@ -3,23 +3,30 @@ ATOM AI Enhanced API Routes
 Advanced AI-powered endpoints for unified communication ecosystem
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from flask import Blueprint, request, jsonify, current_app
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Union
+from flask import Blueprint, current_app, jsonify, request
 from loguru import logger
 
 # Import AI enhanced services
 try:
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
     from atom_ai_integration import atom_ai_integration
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
 except ImportError as e:
     logger.warning(f"AI integration services not available: {e}")
     ai_enhanced_service = None
@@ -35,7 +42,11 @@ ai_bp = Blueprint('ai_api', __name__, url_prefix='/api/integrations/ai')
 # Mock service for health check detection
 class AIEnhancedServiceMock:
     def __init__(self):
-        self.api_key = "mock_api_key"
+        self.api_key = os.getenv("AI_ENHANCED_API_KEY")
+        if not self.api_key or self.api_key == "mock_api_key":
+            raise NotImplementedError(
+                "AI_ENHANCED_API_KEY must be configured in environment variables"
+            )
 
 
 # Configuration validation
@@ -115,7 +126,7 @@ def validate_ai_service_type(service_type: str) -> AIServiceType:
 
 # AI Service Health Check
 @ai_bp.route('/enhanced_health', methods=['POST'])
-def ai_enhanced_health_check():
+async def ai_enhanced_health_check():
     """Enhanced health check for all AI services"""
     try:
         if not validate_ai_config():
@@ -159,7 +170,7 @@ def ai_enhanced_health_check():
 
 # AI Message Analysis
 @ai_bp.route('/analyze_message', methods=['POST'])
-def analyze_message_ai():
+async def analyze_message_ai():
     """Analyze message with AI"""
     try:
         data = get_ai_request_data()

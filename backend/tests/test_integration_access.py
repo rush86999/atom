@@ -1,9 +1,11 @@
 
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
 from core.generic_agent import GenericAgent
 from core.models import AgentRegistry
 from integrations.mcp_service import MCPService
+
 
 @pytest.fixture
 def mock_agent_registry():

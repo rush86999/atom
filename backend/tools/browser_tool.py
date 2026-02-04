@@ -16,23 +16,24 @@ Governance Integration:
 - Agent execution tracking for all browser sessions
 """
 
-import logging
-import uuid
 import asyncio
 import base64
-from typing import Optional, Dict, Any, List
+import logging
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 from sqlalchemy.orm import Session
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
 
-from core.models import AgentExecution, User
-from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, User
 
 logger = logging.getLogger(__name__)
 
 # Feature flags
 import os
+
 BROWSER_GOVERNANCE_ENABLED = os.getenv("BROWSER_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "true").lower() == "true"
@@ -585,7 +586,7 @@ async def browser_click(
         if wait_for:
             try:
                 await session.page.wait_for_selector(wait_for, timeout=5000)
-            except:
+            except Exception as e:
                 pass  # Don't fail if wait_for selector not found
 
         logger.info(f"Clicked {selector} in session {session_id}")

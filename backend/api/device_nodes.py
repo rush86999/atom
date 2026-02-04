@@ -1,14 +1,15 @@
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, List, Optional
+from ai.device_node_service import device_node_service
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.models import DeviceNode, User
 from core.security import get_current_user
-from core.models import User, DeviceNode
-from ai.device_node_service import device_node_service
+
 
 # Configure Pydantic models
 class DeviceNodeRegister(BaseModel):

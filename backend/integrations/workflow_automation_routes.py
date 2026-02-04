@@ -9,7 +9,6 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -235,7 +234,7 @@ async def test_workflow_step(request: TestStepRequest):
         if request.workflow_id and request.step_id:
             try:
                 from analytics.collector import AsyncAnalyticsCollector
-                
+
                 # Synthesize start/end times from duration
                 end_ts = start_time + (duration_ms / 1000)
                 dt_start = datetime.fromtimestamp(start_time)

@@ -1,10 +1,11 @@
-from sqlalchemy.orm import Session
-from fastapi import APIRouter, HTTPException, Query, Depends
+from ecommerce.models import EcommerceStore
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.database import get_db
 
 from .shopify_service import ShopifyService
-from ecommerce.models import EcommerceStore
-from core.database import get_db
 
 logger = logging.getLogger(__name__)
 

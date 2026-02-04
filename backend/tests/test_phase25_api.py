@@ -1,13 +1,15 @@
 
-import unittest
 import asyncio
 import os
 import sys
+import unittest
 from fastapi.testclient import TestClient
+
 try:
-    from unittest.mock import MagicMock, patch, AsyncMock
+    from unittest.mock import AsyncMock, MagicMock, patch
 except ImportError:
     from unittest.mock import MagicMock, patch
+
     # Fallback for older python, though env claims it has it
     AsyncMock = MagicMock 
 
@@ -15,7 +17,9 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main_api_app import app
-from api.agent_routes import AGENTS, AGENT_STATE
+
+from api.agent_routes import AGENT_STATE, AGENTS
+
 
 class TestPhase25AgentAPI(unittest.TestCase):
     

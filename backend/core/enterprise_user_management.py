@@ -7,8 +7,8 @@ Migrated from in-memory to SQLAlchemy persistence
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 # Make EmailStr optional to avoid email-validator dependency
 try:
@@ -20,9 +20,9 @@ except ImportError:
 
 import logging
 
-from core.database import get_db
-from core.models import User, Team, Workspace, UserRole, UserStatus, WorkspaceStatus
 from core.auth import get_password_hash
+from core.database import get_db
+from core.models import Team, User, UserRole, UserStatus, Workspace, WorkspaceStatus
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

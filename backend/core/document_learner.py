@@ -1,15 +1,17 @@
-import logging
 import json
+import logging
 import os
+from typing import Any, Dict, List
 import pandas as pd
 from docx import Document
-from typing import Dict, Any, List
-from core.knowledge_extractor import KnowledgeExtractor
+
 from core.business_intelligence import BusinessEventIntelligence
+from core.knowledge_extractor import KnowledgeExtractor
 
 logger = logging.getLogger(__name__)
 
 import PyPDF2
+
 
 class DocumentLifecycleLearner:
     """

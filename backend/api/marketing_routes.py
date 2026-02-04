@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from core.database import get_db
-from integrations.ai_enhanced_service import ai_enhanced_service
-from core.marketing_manager import AIMarketingManager
-from core.reputation_service import ReputationManager
-from core.marketing_analytics import PlainEnglishReporter
-from sales.models import Lead
-from typing import List, Dict, Any
 import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sales.models import Lead
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from core.auth import get_current_user
+from core.database import get_db
+from core.marketing_analytics import PlainEnglishReporter
+from core.marketing_manager import AIMarketingManager
+from core.models import User
+from core.reputation_service import ReputationManager
+from integrations.ai_enhanced_service import ai_enhanced_service
+
+router = APIRouter(prefix="/api/marketing", tags=["Marketing"])
 logger = logging.getLogger(__name__)
 
 # Initialize managers (ideally these would be injected or handled via a startup event)
@@ -18,7 +21,10 @@ reputation_manager = ReputationManager(ai_service=ai_enhanced_service)
 reporter = PlainEnglishReporter(ai_service=ai_enhanced_service)
 
 @router.get("/dashboard/summary")
-async def get_marketing_summary(db: Session = Depends(get_db)):
+async def get_marketing_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     """
     Returns a unified marketing intelligence summary for the business owner.
     """
@@ -85,16 +91,27 @@ async def get_marketing_summary(db: Session = Depends(get_db)):
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching marketing summary: {str(e)}"
+        )
+
 
 @router.post("/leads/{lead_id}/score")
-async def score_lead(lead_id: str, db: Session = Depends(get_db)):
+async def score_lead(
+    lead_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     """
     Triggers AI scoring for a specific lead.
     """
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
     if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found"
+        )
         
     # Get interaction history (Simplified)
     history = [f"Lead source: {lead.source}"]

@@ -1,11 +1,10 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from typing import Optional, List
+import logging
 from datetime import timezone
-
+from typing import List, Optional
+from accounting.models import Account, AccountType, Entity, EntityType, EntryType, Invoice, InvoiceStatus, JournalEntry, Transaction
 from service_delivery.models import Milestone, MilestoneStatus
-from accounting.models import Invoice, InvoiceStatus, Entity, EntityType
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +71,98 @@ class BillingService:
         logger.info(f"Generated Invoice {invoice.invoice_number} for Milestone {milestone.name}")
         return invoice
 
-    def recognize_revenue(self, invoice_id: str):
+    def recognize_revenue(self, invoice_id: str) -> Optional[Invoice]:
         """
         Move from Deferred Revenue to Revenue upon delivery/acceptance.
-        (Skipping full ledger logic for this specific step to keep scope focused on Service Delivery flow)
+
+        Creates accounting journal entries:
+        - Credit Deferred Revenue (liability decreases)
+        - Debit Revenue (revenue recognized)
+
+        Updates invoice status to OPEN (ready for payment).
         """
-        pass
+        # Get the invoice
+        invoice = self.db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        if not invoice:
+            logger.warning(f"Invoice {invoice_id} not found")
+            return None
+
+        if invoice.status != InvoiceStatus.DRAFT:
+            logger.warning(f"Invoice {invoice_id} is not in DRAFT status (current: {invoice.status})")
+            return invoice
+
+        # Find or create default accounts
+        deferred_revenue_account = self.db.query(Account).filter(
+            Account.workspace_id == invoice.workspace_id,
+            Account.code == "2200",  # Standard deferred revenue code
+        ).first()
+
+        revenue_account = self.db.query(Account).filter(
+            Account.workspace_id == invoice.workspace_id,
+            Account.code == "4000",  # Standard revenue code
+        ).first()
+
+        # Create default accounts if they don't exist
+        if not deferred_revenue_account:
+            deferred_revenue_account = Account(
+                workspace_id=invoice.workspace_id,
+                name="Deferred Revenue",
+                code="2200",
+                type=AccountType.LIABILITY,
+                description="Liability for services not yet delivered"
+            )
+            self.db.add(deferred_revenue_account)
+            self.db.flush()
+
+        if not revenue_account:
+            revenue_account = Account(
+                workspace_id=invoice.workspace_id,
+                name="Service Revenue",
+                code="4000",
+                type=AccountType.REVENUE,
+                description="Revenue from service delivery"
+            )
+            self.db.add(revenue_account)
+            self.db.flush()
+
+        # Create transaction header
+        transaction = Transaction(
+            workspace_id=invoice.workspace_id,
+            external_id=invoice.invoice_number,
+            source="billing_service",
+            transaction_date=datetime.datetime.now(timezone.utc),
+            description=f"Revenue recognition for invoice {invoice.invoice_number}",
+            amount=invoice.amount,
+            metadata_json={"invoice_id": invoice_id, "milestone_id": str(invoice.metadata_json.get("milestone_id"))} if invoice.metadata_json else {"invoice_id": invoice_id}
+        )
+        self.db.add(transaction)
+        self.db.flush()
+
+        # Create journal entries (double-entry)
+        # DEBIT Revenue (increases revenue, which is a credit balance account, so we credit it)
+        revenue_entry = JournalEntry(
+            transaction_id=transaction.id,
+            account_id=revenue_account.id,
+            type=EntryType.CREDIT,
+            amount=invoice.amount,
+            description=f"Revenue recognized for invoice {invoice.invoice_number}"
+        )
+        self.db.add(revenue_entry)
+
+        # CREDIT Deferred Revenue (decreases liability, which is a credit balance account, so we debit it)
+        deferred_entry = JournalEntry(
+            transaction_id=transaction.id,
+            account_id=deferred_revenue_account.id,
+            type=EntryType.DEBIT,
+            amount=invoice.amount,
+            description=f"Deferred revenue recognized for invoice {invoice.invoice_number}"
+        )
+        self.db.add(deferred_entry)
+
+        # Update invoice status
+        invoice.status = InvoiceStatus.OPEN
+        invoice.transaction_id = transaction.id
+
+        self.db.commit()
+        logger.info(f"Recognized revenue for invoice {invoice.invoice_number}: {invoice.amount}")
+        return invoice

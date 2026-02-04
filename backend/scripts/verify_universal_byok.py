@@ -1,7 +1,7 @@
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
 
 # Set up path and logging
 sys.path.append(os.getcwd())

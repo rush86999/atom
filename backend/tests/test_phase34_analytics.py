@@ -1,11 +1,12 @@
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 
 sys.path.append(os.getcwd())
 
-from core.workflow_metrics import WorkflowMetrics, ExecutionRecord
+from core.workflow_metrics import ExecutionRecord, WorkflowMetrics
+
 
 class TestPhase34Analytics(unittest.TestCase):
 

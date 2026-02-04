@@ -1,6 +1,7 @@
-import requests
 import json
 import time
+import requests
+
 
 def verify_burnout_features():
     base_url = "http://localhost:8000/api/v1/analytics"

@@ -6,15 +6,14 @@ Production-ready FastAPI routes for WhatsApp Business integration
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 # Try to import WhatsApp components
 try:
+    from integrations.universal_webhook_bridge import universal_webhook_bridge
     from integrations.whatsapp_business_integration import whatsapp_integration
     from integrations.whatsapp_service_manager import whatsapp_service_manager
-    from integrations.universal_webhook_bridge import universal_webhook_bridge
 
     WHATSAPP_AVAILABLE = True
 except ImportError as e:
@@ -551,8 +550,9 @@ async def webhook_handler(webhook_data: Dict[str, Any]):
         logger.info(f"WhatsApp webhook received: {str(webhook_data)[:200]}...")
 
         # Process incoming messages and events
-        from integrations.universal_webhook_bridge import universal_webhook_bridge
         import asyncio
+
+        from integrations.universal_webhook_bridge import universal_webhook_bridge
         asyncio.create_task(universal_webhook_bridge.process_incoming_message("whatsapp", webhook_data))
 
         return {"status": "received"}

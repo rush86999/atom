@@ -3,13 +3,13 @@ BYOK Cost Optimization & Analytics Module
 Enhanced cost tracking, optimization, and competitive analytics for ATOM's BYOK system
 """
 
+import asyncio
 import json
 import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict
-import asyncio
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,8 @@ class BYOKCostOptimizer:
                 task_type,
                 budget_constraint=user_pattern.monthly_budget / 30 if user_pattern.monthly_budget else None
             )
-        except:
+        except Exception as e:
+            logger.error(f"Failed to get optimal provider: {e}", exc_info=True)
             current_provider = "openai"  # Fallback
 
         # Analyze all providers for this task

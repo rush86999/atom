@@ -1,7 +1,7 @@
 import asyncio
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -10,11 +10,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 # MOCK BEFORE IMPORTS
 import sentence_transformers
+
 sentence_transformers.SentenceTransformer = MagicMock()
 
 print("🔍 Importing pipeline components...")
-from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 from integrations.atom_communication_ingestion_pipeline import memory_manager
+from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 
 # Force mock on the instance as well
 memory_manager.model = MagicMock()

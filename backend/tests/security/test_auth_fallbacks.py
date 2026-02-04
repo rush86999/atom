@@ -1,6 +1,6 @@
+import os
 import sys
 import unittest
-import os
 
 # Add the project root and backend directory to path
 current_file_path = os.path.abspath(__file__)
@@ -30,6 +30,7 @@ class TestSecurityFixes(unittest.TestCase):
     def test_verify_password_failure_on_plain_text(self):
         """Ensure plain-text passwords no longer verify against themselves"""
         from core.auth import verify_password
+
         # In the old code, 'password' == 'password' would return True if bcrypt was missing
         # Now it should always fail unless it's a valid bcrypt hash
         self.assertFalse(verify_password("password", "password"))

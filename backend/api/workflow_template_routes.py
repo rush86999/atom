@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +37,27 @@ class UpdateTemplateRequest(BaseModel):
     tags: Optional[List[str]] = None
 
 @router.post("/")
-async def create_template(request: CreateTemplateRequest):
-    """Create a new workflow template from the visual builder"""
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="create_template",
+    feature="workflow"
+)
+async def create_template(
+    request: CreateTemplateRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Create a new workflow template from the visual builder.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Workflow template creation is a moderate action
+    - Requires INTERN maturity or higher
+    """
     try:
         manager = get_template_manager()
-        
+
         template_data = {
             "name": request.name,
             "description": request.description,
@@ -56,15 +76,18 @@ async def create_template(request: CreateTemplateRequest):
                 for i, step in enumerate(request.steps)
             ]
         }
-        
+
         template = manager.create_template(template_data)
-        
+
+        logger.info(f"Template created: {template.template_id}")
         return {
             "status": "success",
             "template_id": template.template_id,
             "message": f"Template '{template.name}' created successfully"
         }
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create template: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -201,38 +224,58 @@ async def search_templates(query: str, limit: int = 20):
     ]
 
 @router.post("/{template_id}/execute")
-async def execute_template(template_id: str, parameters: Dict[str, Any] = {}):
-    """Execute a workflow template immediately"""
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="execute_template",
+    feature="workflow"
+)
+async def execute_template(
+    template_id: str,
+    parameters: Dict[str, Any] = {},
+    request: Request = None,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Execute a workflow template immediately.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Workflow execution is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
     try:
         manager = get_template_manager()
-        
+
         # 1. Instantiate the template
         workflow_data = manager.create_workflow_from_template(
             template_id=template_id,
             workflow_name=f"Execution of {template_id}",
             template_parameters=parameters
         )
-        
+
         workflow_id = workflow_data.get("workflow_id")
-        
+
         # 2. Execute via orchestrator
-        from advanced_workflow_orchestrator import get_orchestrator
         import asyncio
-        
+        from advanced_workflow_orchestrator import get_orchestrator
+
         # Create execution context
         context = await get_orchestrator().execute_workflow(
             workflow_id,  # Use the instantiated workflow_id
             input_data=parameters,
-            execution_context={"source": "visual_builder"}
+            execution_context={"source": "visual_builder", "agent_id": agent_id}
         )
-        
+
+        logger.info(f"Template executed: {template_id} by agent {agent_id or 'system'}, workflow_id: {workflow_id}")
         return {
             "status": "success",
             "execution_id": context.workflow_id,
             "workflow_status": context.status.value,
             "message": f"Workflow executed. Status: {context.status.value}"
         }
-        
+
+    except HTTPException:
+        raise
     except ValueError as e:
         if "not found" in str(e).lower() and "template" in str(e).lower():
             raise HTTPException(status_code=404, detail=str(e))

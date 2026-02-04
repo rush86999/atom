@@ -4,15 +4,15 @@ Comprehensive backup and recovery system for LanceDB database
 """
 
 import asyncio
+import gzip
 import json
+import logging
 import os
 import shutil
 import subprocess
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from pathlib import Path
-import logging
-import gzip
+from typing import Any, Dict, List, Optional
 import boto3
 import botocore
 
@@ -358,8 +358,8 @@ class AtomCommunicationMemoryBackupSystem:
     async def _extract_backup(self, backup_path: Path, extract_path: Path):
         """Extract compressed backup"""
         try:
-            import tarfile
             import gzip
+            import tarfile
             
             with open(backup_path, 'rb') as f:
                 with gzip.GzipFile(fileobj=f) as gz:

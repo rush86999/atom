@@ -4,10 +4,10 @@ Flask App Route Inspection Test
 Tests the actual Flask application to see which routes are registered
 """
 
-import requests
 import json
 import sys
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+import requests
 
 
 class FlaskRouteInspector:

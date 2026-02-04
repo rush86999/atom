@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from pydantic import BaseModel
-from typing import Dict, List, Any
-from core.models import User
-from core.admin_endpoints import get_super_admin
-from core.skill_builder_service import skill_builder_service, SkillMetadata
+from typing import Any, Dict, List
 from atom_security.analyzers.static import StaticAnalyzer
+from fastapi import APIRouter, Body, Depends, HTTPException
+from pydantic import BaseModel
+
+from core.admin_endpoints import get_super_admin
+from core.models import User
+from core.skill_builder_service import SkillMetadata, skill_builder_service
 
 router = APIRouter(tags=["Admin Skills"])
 
@@ -31,9 +32,9 @@ async def create_new_skill(
         
         # Proactive Security Audit
         try:
-            from atom_security.analyzers.static import StaticAnalyzer
             from atom_security.analyzers.llm import LLMAnalyzer
-            
+            from atom_security.analyzers.static import StaticAnalyzer
+
             # Static Scan
             static_analyzer = StaticAnalyzer()
             combined_content = f"{request.instructions}\n" + "\n".join(request.scripts.values())

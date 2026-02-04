@@ -14,7 +14,7 @@ CONFIG_DIR="$HOME/.claude"
 CONFIG_FILE="$CONFIG_DIR/settings.json"
 API_BASE_URL="https://api.z.ai/api/anthropic"
 API_KEY_URL="https://z.ai/manage-apikey/apikey-list"
-API_TIMEOUT_MS=3000000
+API_TIMEOUT_MS=300000
 
 # ========================
 #       Functions
@@ -119,7 +119,7 @@ install_claude_code() {
     fi
 }
 
-configure_claude_json(){
+configure_claude_onboarding(){
   node --eval '
       const os = require("os");
       const fs = require("fs");
@@ -147,6 +147,12 @@ configure_claude() {
 
     if [ -z "$api_key" ]; then
         log_error "API key cannot be empty. Please run the script again."
+        exit 1
+    fi
+
+    # Validate API key format (sk-ant-xxx or similar format with dot)
+    if [[ ! "$api_key" =~ ^[a-zA-Z0-9]+\.[a-zA-Z0-9]+$ ]]; then
+        log_error "Invalid API key format. Expected format: key_part.signature_part"
         exit 1
     fi
 
@@ -192,7 +198,7 @@ main() {
 
     check_nodejs
     install_claude_code
-    configure_claude_json
+    configure_claude_onboarding
     configure_claude
 
     echo ""

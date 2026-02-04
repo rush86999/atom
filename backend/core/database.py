@@ -1,17 +1,17 @@
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from sqlalchemy.pool import StaticPool
+import logging
 import os
 import sys
-import logging
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 load_dotenv()
 
 # CRITICAL: Production database configuration
 logger = logging.getLogger(__name__)
-print(f"DEBUG: Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}", file=sys.stderr)
+logger.debug(f"Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}")
 
 def get_database_url():
     """Get database URL with production safety checks"""
@@ -121,8 +121,192 @@ class Base(DeclarativeBase):
     pass
 
 def get_db():
+    """
+    Dependency injection pattern for API routes.
+
+    Usage in FastAPI endpoints:
+        @app.get("/users/{user_id}")
+        def get_user(user_id: str, db: Session = Depends(get_db)):
+            user = db.query(User).filter(User.id == user_id).first()
+            return user
+
+    This is the RECOMMENDED pattern for API routes.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
+# ============================================================================
+# Database Session Management Patterns
+# ============================================================================
+
+def get_db_session():
+    """
+    Context manager pattern for service layer functions.
+
+    This is the RECOMMENDED pattern for service layer code, background tasks,
+    and any non-API-route code that needs database access.
+
+    Usage:
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            user = db.query(User).first()
+            user.name = "Updated"
+            db.commit()
+        # Session automatically closed after context
+
+    Benefits:
+    - Automatic cleanup with context manager
+    - Clear scope for database operations
+    - Prevents connection leaks
+    - Thread-safe
+
+    Preferred over manual `with SessionLocal() as db:` pattern.
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _session_context():
+        db = SessionLocal()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    return _session_context()
+
+
+# Legacy alias for backwards compatibility
+# Use get_db_session() in new code
+def get_db_context():
+    """
+    DEPRECATED: Use get_db_session() instead.
+
+    This is an alias for backwards compatibility with existing code.
+    """
+    return get_db_session()
+
+
+# ============================================================================
+# Session Management Guidelines
+# ============================================================================
+
+"""
+STANDARD DATABASE SESSION PATTERNS
+
+This codebase supports three database session management patterns:
+
+1. CONTEXT MANAGER PATTERN (RECOMMENDED for Service Layer)
+   --------------------------------------------------------
+   Use for: Service layer functions, background tasks, scripts
+
+   from core.database import get_db_session
+
+   with get_db_session() as db:
+       user = db.query(User).first()
+       # ... perform operations ...
+       db.commit()  # Optional - auto-commits on success
+   # Session automatically closed
+
+   Benefits:
+   - Automatic cleanup
+   - Clear scope
+   - Prevents connection leaks
+   - Auto-commit on success, auto-rollback on exception
+
+2. DEPENDENCY INJECTION PATTERN (RECOMMENDED for API Routes)
+   ---------------------------------------------------------
+   Use for: FastAPI endpoint functions
+
+   from core.database import get_db
+   from fastapi import Depends
+
+   @app.get("/users/{user_id}")
+   def get_user(user_id: str, db: Session = Depends(get_db)):
+       return db.query(User).filter(User.id == user_id).first()
+
+   Benefits:
+   - FastAPI standard pattern
+   - Automatic lifecycle management
+   - Testable with dependency override
+   - Type-safe
+
+3. MANUAL PATTERN (DEPRECATED - Avoid in new code)
+   ------------------------------------------------
+   OLD WAY (don't use):
+       with get_db_session() as db:
+       try:
+           # operations
+           db.commit()
+       finally:
+           db.close()
+
+   NEW WAY (use context manager instead):
+       with get_db_session() as db:
+           # operations
+           # auto-commit/rollback/close
+
+MIGRATION GUIDE
+
+If you see manual session management in code:
+1. Replace `with get_db_session() as db:` with `with get_db_session() as db:`
+2. Remove the `try/finally` block (context manager handles it)
+3. Remove explicit `db.close()` calls
+4. Optionally remove explicit `db.commit()` if at end of function
+
+Example Migration:
+    # OLD
+    def process_data(data_id: str):
+        with get_db_session() as db:
+        try:
+            data = db.query(Data).filter(Data.id == data_id).first()
+            data.processed = True
+            db.commit()
+        finally:
+            db.close()
+
+    # NEW
+    from core.database import get_db_session
+
+    def process_data(data_id: str):
+        with get_db_session() as db:
+            data = db.query(Data).filter(Data.id == data_id).first()
+            data.processed = True
+            # Auto-commits on success
+
+BEST PRACTICES
+
+1. **API Routes**: Always use dependency injection (`Depends(get_db)`)
+2. **Service Layer**: Always use context manager (`with get_db_session() as db:`)
+3. **Testing**: Use dependency override or context manager
+4. **Background Tasks**: Use context manager
+5. **Scripts**: Use context manager
+
+ANTI-PATTERNS TO AVOID
+
+❌ Mixing patterns (e.g., manual + dependency injection)
+❌ Forgetting to close sessions (use context manager)
+❌ Long-running sessions (keep transactions short)
+❌ Nested sessions (use one session per operation)
+❌ Global session variables
+
+PERFORMANCE NOTES
+
+- PostgreSQL pool: 20 connections, 30 max overflow
+- SQLite: Single connection with threading disabled
+- Connection recycling: Every 3600 seconds (1 hour)
+- Pool pre-ping: Enabled (verifies connections before use)
+
+For high-throughput scenarios, consider:
+- Using async sessions with SQLAlchemy async
+- Connection pooling optimizations
+- Read replicas for read-heavy workloads
+"""

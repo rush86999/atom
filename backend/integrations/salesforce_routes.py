@@ -4,37 +4,38 @@ FastAPI routes for Salesforce CRM integration and enterprise workflow automation
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import os
-
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 # Import Salesforce services
 # Import Salesforce services
 try:
     from simple_salesforce import Salesforce
+
     from .salesforce_service import (
         create_account,
         create_contact,
         create_lead,
         create_opportunity,
+        execute_soql_query,
         get_opportunity,
         list_accounts,
         list_contacts,
-        list_opportunities,
         list_leads,
+        list_opportunities,
         update_opportunity,
-        execute_soql_query
     )
     SALESFORCE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
 
-from .auth_handler_salesforce import salesforce_auth_handler
 from core.mock_mode import get_mock_mode_manager
-from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
+from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+
+from .auth_handler_salesforce import salesforce_auth_handler
 
 # Create router
 # Auth Type: OAuth2
@@ -50,12 +51,19 @@ class SalesforceServiceMock:
 # Dependency for Salesforce access token
 # Dependency for Salesforce access token
 async def get_salesforce_access_token() -> str:
-    """Get Salesforce access token from handler"""
+    """Get Salesforce access token from handler
+
+    Raises:
+        HTTPException: If no valid Salesforce token is available
+    """
     try:
         return await salesforce_auth_handler.ensure_valid_token()
     except HTTPException:
-        # Fallback for testing/mocking if no token available
-        return os.getenv("SALESFORCE_ACCESS_TOKEN", "mock_access_token")
+        # No mock fallback - require proper authentication
+        raise HTTPException(
+            status_code=401,
+            detail="Salesforce authentication required. Please connect your Salesforce account."
+        )
 
 def get_salesforce_client_from_env() -> Optional[Any]:
     """Create Salesforce client using OAuth token"""
@@ -217,7 +225,7 @@ async def get_salesforce_accounts(
         for account in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response({"accounts": result})
@@ -316,7 +324,7 @@ async def get_salesforce_contacts(
         for contact in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
-            except:
+            except Exception as e:
                 pass
 
         return format_salesforce_response(result)
@@ -389,7 +397,7 @@ async def get_salesforce_opportunities(
         for opp in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.DEAL.value, opp)
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response(result)
@@ -455,7 +463,7 @@ async def get_salesforce_leads(
         for lead in result:
             try:
                 atom_ingestion_pipeline.ingest_record("salesforce", RecordType.LEAD.value, lead)
-            except:
+            except Exception as e:
                 pass
                 
         return format_salesforce_response(result)

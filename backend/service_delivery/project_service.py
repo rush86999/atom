@@ -1,12 +1,11 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from typing import Optional, Dict
+import logging
 from datetime import timezone
-
-from sales.models import Deal, DealStage
-from service_delivery.models import Contract, ContractType, Project, ProjectStatus, Milestone
+from typing import Dict, Optional
 from accounting.credit_risk_engine import CreditRiskEngine
+from sales.models import Deal, DealStage
+from service_delivery.models import Contract, ContractType, Milestone, Project, ProjectStatus
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +13,124 @@ class ProjectService:
     def __init__(self, db: Session):
         self.db = db
         self.risk_engine = CreditRiskEngine(db)
+
+    def _assess_project_risk_and_set_status(self, deal) -> 'ProjectStatus':
+        """
+        Assess project risk and return appropriate initial status.
+        Considers multiple factors to determine if project should be gated.
+
+        Risk Factors:
+        1. Deal risk_level (from sales intelligence)
+        2. Deal value (higher value = higher risk)
+        3. Deal health_score (lower health = higher risk)
+        4. Customer payment history (if available)
+        5. Deal probability at close (low probability = uncertain commitment)
+
+        Returns:
+            ProjectStatus: PENDING (normal), PAUSED_PAYMENT (high risk), or ON_HOLD (very high risk)
+        """
+        from service_delivery.models import ProjectStatus
+
+        risk_score = 0
+        risk_factors = []
+
+        # Factor 1: Deal risk_level (0-30 points)
+        deal_risk_level = deal.risk_level or "low"
+        if deal_risk_level == "high":
+            risk_score += 30
+            risk_factors.append("high_deal_risk")
+        elif deal_risk_level == "medium":
+            risk_score += 15
+            risk_factors.append("medium_deal_risk")
+        # low risk adds 0 points
+
+        # Factor 2: Deal value (0-25 points)
+        # Higher value deals have more financial exposure
+        deal_value = deal.value or 0
+        if deal_value > 100000:  # >$100K
+            risk_score += 25
+            risk_factors.append("high_value_deal")
+        elif deal_value > 50000:  # >$50K
+            risk_score += 15
+            risk_factors.append("medium_value_deal")
+        elif deal_value > 10000:  # >$10K
+            risk_score += 5
+            risk_factors.append("moderate_value_deal")
+
+        # Factor 3: Deal health_score (0-20 points)
+        # Lower health score indicates customer engagement issues
+        health_score = deal.health_score or 50
+        if health_score < 30:
+            risk_score += 20
+            risk_factors.append("very_low_health_score")
+        elif health_score < 50:
+            risk_score += 10
+            risk_factors.append("low_health_score")
+        elif health_score < 70:
+            risk_score += 5
+            risk_factors.append("moderate_health_score")
+
+        # Factor 4: Deal probability at close (0-15 points)
+        # Low probability even at close indicates uncertain commitment
+        probability = deal.probability or 100
+        if probability < 70:
+            risk_score += 15
+            risk_factors.append("low_close_probability")
+        elif probability < 90:
+            risk_score += 5
+            risk_factors.append("moderate_close_probability")
+
+        # Factor 5: Check for customer payment history if accounting entity linked
+        # (0-10 points)
+        try:
+            # Try to find accounting entity by deal name or metadata
+            from accounting.models import Entity
+            entity = self.db.query(Entity).filter(
+                Entity.name.ilike(f"%{deal.name}%")
+            ).first()
+
+            if entity:
+                # Check credit risk from accounting module
+                credit_risk = self.risk_engine.get_entity_risk_score(entity.id)
+                if credit_risk > 70:  # High credit risk
+                    risk_score += 10
+                    risk_factors.append("high_credit_risk")
+                elif credit_risk > 50:  # Medium credit risk
+                    risk_score += 5
+                    risk_factors.append("medium_credit_risk")
+        except Exception as e:
+            # If accounting entity check fails, continue without this factor
+            logger.debug(f"Could not check accounting entity risk: {e}")
+
+        # Determine status based on risk score
+        # Total possible risk score: 100
+        # Thresholds:
+        # - 0-40: LOW risk -> PENDING (normal flow)
+        # - 41-60: MEDIUM risk -> PENDING with monitoring (metadata flag)
+        # - 61+: HIGH/CRITICAL risk -> PAUSED_PAYMENT (gated)
+
+        if risk_score >= 61:
+            status = ProjectStatus.PAUSED_PAYMENT
+            logger.warning(
+                f"HIGH/CRITICAL RISK detected for deal {deal.name}: "
+                f"score={risk_score}, factors={risk_factors}. "
+                f"Project status set to PAUSED_PAYMENT pending risk mitigation."
+            )
+        elif risk_score >= 41:
+            status = ProjectStatus.PENDING
+            logger.info(
+                f"MEDIUM risk detected for deal {deal.name}: "
+                f"score={risk_score}, factors={risk_factors}. "
+                f"Project will proceed with enhanced monitoring."
+            )
+        else:
+            status = ProjectStatus.PENDING
+            logger.info(
+                f"LOW risk for deal {deal.name}: "
+                f"score={risk_score}. Project proceeding normally."
+            )
+
+        return status
 
     def provision_project_from_deal(self, deal_id: str) -> Optional[Project]:
         """
@@ -35,14 +152,9 @@ class ProjectService:
             # Identify the project linked?
             return existing.projects[0] if existing.projects else None
 
-        # 2. Risk Check (Payment-Aware Delivery)
-        # We need an entity_id to check risk. Assuming Deal has a pointer or we find it via metadata.
-        # For Phase 16 MVP, we'll try to find an accounting Entity linked by name/email
-        # Or simplistic: If Deal isn't linked, risk is unknown (low)
-        
-        initial_status = ProjectStatus.PENDING
-        # TODO: Lookup accounting_entity via deal.customer connection
-        # If risk > 50, initial_status = PAUSED_PAYMENT
+        # 2. Risk Assessment (Payment-Aware Delivery)
+        # Evaluate project risk based on multiple factors to determine appropriate gating
+        initial_status = self._assess_project_risk_and_set_status(deal)
         
         # 3. Create Contract
         contract = Contract(
@@ -102,7 +214,8 @@ class ProjectService:
                 logger.warning(f"Project {project.name} gated due to payment risk: {risk_data.get('reason')}")
                 
                 # Notify PM via TeamMessage
-                from core.models import TeamMessage, Team
+                from core.models import Team, TeamMessage
+
                 # Find the team associated with the project's workspace (MVP simplification)
                 team = self.db.query(Team).filter(Team.workspace_id == project.workspace_id).first()
                 if team:

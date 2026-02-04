@@ -4,9 +4,10 @@ Exposes AtomTelegramIntegration via FastAPI
 """
 
 import logging
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
 from integrations.atom_telegram_integration import atom_telegram_integration
 from integrations.universal_webhook_bridge import universal_webhook_bridge
 

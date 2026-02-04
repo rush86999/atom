@@ -3,13 +3,13 @@ Audit Report Generator for All Integrations
 Analyzes the codebase and configuration to generate a comprehensive audit report.
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
+import os
 from datetime import datetime
+from typing import Any, Dict, List
 from dotenv import load_dotenv
-from typing import Dict, Any, List
 
 # Load environment variables
 load_dotenv()
@@ -20,16 +20,23 @@ logger = logging.getLogger(__name__)
 
 # Import Integration Registry (ensure path is correct)
 import sys
+
 sys.path.append(os.getcwd())
 from backend.integration_registry import IntegrationRegistry
 
 # Import Universal Integration Service
 try:
-    from backend.integrations.universal_integration_service import UniversalIntegrationService, NATIVE_INTEGRATIONS
+    from backend.integrations.universal_integration_service import (
+        NATIVE_INTEGRATIONS,
+        UniversalIntegrationService,
+    )
 except ImportError:
     # Fallback if import fails due to path issues
     sys.path.append(os.path.join(os.getcwd(), 'backend'))
-    from integrations.universal_integration_service import UniversalIntegrationService, NATIVE_INTEGRATIONS
+    from integrations.universal_integration_service import (
+        NATIVE_INTEGRATIONS,
+        UniversalIntegrationService,
+    )
 
 async def audit_integrations():
     """Generates an audit report for all integrations."""

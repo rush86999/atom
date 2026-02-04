@@ -1,9 +1,10 @@
 import logging
-from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Any, Dict
 from sales.models import Deal, DealStage
-from integrations.zoho_books_service import ZohoBooksService
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
+from integrations.zoho_books_service import ZohoBooksService
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
-from core.trajectory import ExecutionTrace, TraceStepType
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 from pydantic import BaseModel
+
+from core.trajectory import ExecutionTrace, TraceStepType
+
 
 class TraceMetrics(BaseModel):
     step_count: int

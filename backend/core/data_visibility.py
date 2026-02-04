@@ -6,9 +6,9 @@ Enables proper data segregation based on user, team, and workspace membership.
 """
 
 from enum import Enum
-from typing import List, Any, TYPE_CHECKING
-from sqlalchemy import Column, String, ForeignKey, and_, or_
-from sqlalchemy.orm import declared_attr, Query
+from typing import TYPE_CHECKING, Any, List
+from sqlalchemy import Column, ForeignKey, String, and_, or_
+from sqlalchemy.orm import Query, declared_attr
 
 if TYPE_CHECKING:
     from core.models import User

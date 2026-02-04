@@ -3,18 +3,19 @@ OAuth Authentication Routes
 Provides OAuth 2.0 authentication endpoints for all integrations
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+
 from core.oauth_handler import (
-    OAuthHandler,
+    GITHUB_OAUTH_CONFIG,
     GOOGLE_OAUTH_CONFIG,
     MICROSOFT_OAUTH_CONFIG,
     SALESFORCE_OAUTH_CONFIG,
     SLACK_OAUTH_CONFIG,
-    GITHUB_OAUTH_CONFIG,
+    OAuthHandler,
 )
 from core.token_storage import token_storage
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -315,11 +316,11 @@ async def refresh_provider_token(provider: str):
 async def oauth_health():
     """Check OAuth configuration status"""
     from core.oauth_handler import (
+        GITHUB_OAUTH_CONFIG,
         GOOGLE_OAUTH_CONFIG,
         MICROSOFT_OAUTH_CONFIG,
         SALESFORCE_OAUTH_CONFIG,
         SLACK_OAUTH_CONFIG,
-        GITHUB_OAUTH_CONFIG,
     )
     
     return {

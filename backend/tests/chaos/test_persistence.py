@@ -1,9 +1,9 @@
 
+import json
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
-import os
-import json
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
@@ -39,6 +39,7 @@ class OrchestratorPersistenceTest(unittest.TestCase):
         # The patching above hits 'advanced_workflow_orchestrator.SessionLocal'
         # So we import the module
         import advanced_workflow_orchestrator
+
         # Force reload? No, simpler to just import.
         from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
         

@@ -1,9 +1,10 @@
-import os
 import mimetypes
+import os
 from pathlib import Path
 from typing import List, Optional
-from atom_security.core.models import Finding, ScanResult, Severity, SecurityRule
-from atom_security.core.patterns import RuleLoader, PatternMatcher
+from atom_security.core.models import Finding, ScanResult, SecurityRule, Severity
+from atom_security.core.patterns import PatternMatcher, RuleLoader
+
 
 class StaticAnalyzer:
     """

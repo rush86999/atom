@@ -3,31 +3,34 @@ ATOM Specialized Autonomous Business Agents
 Implements domain-specific agents for Accounting, Sales, Marketing, and more.
 """
 
-import logging
 import json
+import logging
 import uuid
-from typing import Dict, Any, List, Optional
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from core.models import Workspace, AgentJob, AgentJobStatus
-from integrations.ai_enhanced_service import ai_enhanced_service, AITaskType
+
+from core.database import get_db_session
+from core.models import AgentJob, AgentJobStatus, Workspace
+from integrations.ai_enhanced_service import AITaskType, ai_enhanced_service
 from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
 
-class BusinessAgent:
+class BusinessAgent(ABC):
     """Base class for specialized business agents."""
-    
+
     def __init__(self, agent_id: str, name: str, domain: str):
         self.agent_id = agent_id
         self.name = name
         self.domain = domain
         self.mcp = mcp_service
 
+    @abstractmethod
     async def run(self, workspace_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Executes the agent's logic for a specific workspace."""
-        raise NotImplementedError("Subclasses must implement run()")
+        """Executes the agent's logic for a specific workspace. Subclasses must implement this method."""
+        pass
 
 class AccountingAgent(BusinessAgent):
     """
@@ -44,35 +47,40 @@ class AccountingAgent(BusinessAgent):
 
     async def run(self, workspace_id: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         logger.info(f"Running Accounting Agent for workspace {workspace_id}")
-        db = SessionLocal()
-        try:
-            # 1. Fetch unapproved transactions (Mocking interaction with APService/Ledger)
-            # In a real scenario, we'd query the ledger for pending entries.
-            results = {
-                "categorized": 0,
-                "anomalies_detected": 0,
-                "reconciliations_performed": 0,
-                "logs": []
-            }
-            
-            # 2. Logic: Process Transactions
-            # (Simplified simulation of AI categorization)
-            results["categorized"] = 12
-            results["logs"].append("Categorized 12 transactions with > 85% confidence.")
-            
-            # 3. Logic: Anomaly Detection
-            # (Checking for duplicates or unusual spend)
-            results["anomalies_detected"] = 1
-            results["logs"].append("Detected 1 potential duplicate invoice for Vendor 'AWS'.")
-            
-            return {
-                "status": "success",
-                "agent": self.name,
-                "results": results,
-                "summary": "Completed autonomous bookkeeping and anomaly detection."
-            }
-        finally:
-            db.close()
+        with get_db_session() as db:
+            try:
+                # 1. Fetch unapproved transactions (Mocking interaction with APService/Ledger)
+                # In a real scenario, we'd query the ledger for pending entries.
+                results = {
+                    "categorized": 0,
+                    "anomalies_detected": 0,
+                    "reconciliations_performed": 0,
+                    "logs": []
+                }
+
+                # 2. Logic: Process Transactions
+                # (Simplified simulation of AI categorization)
+                results["categorized"] = 12
+                results["logs"].append("Categorized 12 transactions with > 85% confidence.")
+
+                # 3. Logic: Anomaly Detection
+                # (Checking for duplicates or unusual spend)
+                results["anomalies_detected"] = 1
+                results["logs"].append("Detected 1 potential duplicate invoice for Vendor 'AWS'.")
+
+                return {
+                    "status": "success",
+                    "agent": self.name,
+                    "results": results,
+                    "summary": "Completed autonomous bookkeeping and anomaly detection."
+                }
+            except Exception as e:
+                logger.error(f"Accounting agent failed: {e}")
+                return {
+                    "status": "error",
+                    "agent": self.name,
+                    "error": str(e)
+                }
 
 class SalesAgent(BusinessAgent):
     """

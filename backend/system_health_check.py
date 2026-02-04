@@ -1,6 +1,6 @@
 
-import requests
 import sys
+import requests
 
 BASE_URL = "http://localhost:8000/api"
 AUTH_URL = f"{BASE_URL}/auth"

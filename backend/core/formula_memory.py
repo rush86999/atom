@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -74,8 +74,9 @@ class FormulaMemoryManager:
         Add a formula to Hybrid Memory (Postgres + LanceDB).
         """
         self._ensure_initialized()
-        from core.database import SessionLocal
         from saas.models import Formula
+
+        from core.database import get_db_session
 
         if parameters is None:
             parameters = []
@@ -86,7 +87,7 @@ class FormulaMemoryManager:
         formula_id = str(uuid.uuid4())
         
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             formula = Formula(
                 id=formula_id,
                 workspace_id=self.workspace_id,
@@ -112,7 +113,7 @@ class FormulaMemoryManager:
         dep_names = []
         if dependencies:
             try:
-                db = SessionLocal()
+                with get_db_session() as db:
                 deps = db.query(Formula).filter(Formula.id.in_(dependencies)).all()
                 dep_names = [d.name for d in deps]
                 db.close()
@@ -219,11 +220,12 @@ Output: {json.dumps(example_output)}
 
     def get_formula(self, formula_id: str) -> Optional[Dict[str, Any]]:
         """Get strict formula definition from Postgres (Source of Truth)."""
-        from core.database import SessionLocal
         from saas.models import Formula
+
+        from core.database import get_db_session
         
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             formula = db.query(Formula).filter(Formula.id == formula_id).first()
             if not formula:
                 db.close()
@@ -281,13 +283,14 @@ Output: {json.dumps(example_output)}
     def delete_formula(self, formula_id: str) -> bool:
         """Delete from Postgres AND LanceDB."""
         self._ensure_initialized()
-        from core.database import SessionLocal
         from saas.models import Formula
+
+        from core.database import get_db_session
         
         success = False
         # 1. SQL Delete
         try:
-            db = SessionLocal()
+            with get_db_session() as db:
             row = db.query(Formula).filter(Formula.id == formula_id).first()
             if row:
                 db.delete(row)

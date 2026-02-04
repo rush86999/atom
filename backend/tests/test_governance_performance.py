@@ -9,15 +9,15 @@ Tests cover:
 - Target: <10ms cached check, <50ms total overhead
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, patch
 from typing import List
+from unittest.mock import Mock, patch
+import pytest
 
-from core.governance_cache import GovernanceCache, get_governance_cache
-from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
+from core.governance_cache import GovernanceCache, get_governance_cache
 from core.models import AgentRegistry, AgentStatus
 
 
@@ -262,7 +262,6 @@ class TestAgentResolutionPerformance:
                 start = time.perf_counter()
                 agent, context = await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="chat"
                 )
@@ -300,7 +299,6 @@ class TestAgentResolutionPerformance:
                     start = time.perf_counter()
                     agent, context = await resolver.resolve_agent_for_request(
                         user_id="user-1",
-                        workspace_id="workspace-1",
                         action_type="chat"
                     )
                     end = time.perf_counter()
@@ -344,7 +342,6 @@ class TestStreamingWithGovernanceOverhead:
 
                 agent, context = await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="stream_chat"
                 )
@@ -397,7 +394,6 @@ class TestConcurrentAgentResolution:
             async def resolve_concurrent():
                 await resolver.resolve_agent_for_request(
                     user_id="user-1",
-                    workspace_id="workspace-1",
                     requested_agent_id="agent-1",
                     action_type="chat"
                 )

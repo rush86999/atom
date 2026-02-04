@@ -4,9 +4,9 @@ Simple Slack Integration Test for Current Backend
 Tests the Slack integration endpoints in the running backend
 """
 
-import requests
 import json
 import time
+import requests
 
 API_BASE_URL = "http://localhost:8000"
 TEST_USER_ID = "test-user-123"

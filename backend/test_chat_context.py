@@ -4,9 +4,9 @@ Test script for Chat History & Context Resolution (Phase 28)
 """
 
 import asyncio
-import aiohttp
 import json
 import time
+import aiohttp
 
 BASE_URL = "http://localhost:8000"
 

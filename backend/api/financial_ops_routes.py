@@ -2,11 +2,15 @@
 Financial & Ops API Routes - Phase 37
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +28,26 @@ class SubscriptionRequest(BaseModel):
     category: str = "general"
 
 @router.post("/cost/subscriptions")
-async def add_subscription(request: SubscriptionRequest):
-    from core.financial_ops_engine import cost_detector, SaaSSubscription
-    
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="add_subscription",
+    feature="financial"
+)
+async def add_subscription(
+    request: SubscriptionRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Add a subscription for cost leak detection.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Financial data modification is a moderate action
+    - Requires INTERN maturity or higher
+    """
+    from core.financial_ops_engine import SaaSSubscription, cost_detector
+
     sub = SaaSSubscription(
         id=request.id,
         name=request.name,
@@ -37,6 +58,7 @@ async def add_subscription(request: SubscriptionRequest):
         category=request.category
     )
     cost_detector.add_subscription(sub)
+    logger.info(f"Subscription added: {request.id}")
     return {"status": "added", "id": request.id}
 
 @router.get("/cost/savings-report")
@@ -59,9 +81,26 @@ class SpendCheckRequest(BaseModel):
     milestone: Optional[str] = None
 
 @router.post("/budget/limits")
-async def set_budget_limit(request: BudgetLimitRequest):
-    from core.financial_ops_engine import budget_guardrails, BudgetLimit
-    
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="set_budget_limit",
+    feature="financial"
+)
+async def set_budget_limit(
+    request: BudgetLimitRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Set a budget limit for a spending category.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Budget policy modification is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
+    from core.financial_ops_engine import BudgetLimit, budget_guardrails
+
     limit = BudgetLimit(
         category=request.category,
         monthly_limit=request.monthly_limit,
@@ -69,6 +108,7 @@ async def set_budget_limit(request: BudgetLimitRequest):
         milestone_required=request.milestone_required
     )
     budget_guardrails.set_limit(limit)
+    logger.info(f"Budget limit set for category {request.category} by agent {agent_id or 'system'}")
     return {"status": "set", "category": request.category}
 
 @router.post("/budget/check")
@@ -100,9 +140,26 @@ class ContractRequest(BaseModel):
     end_date: str
 
 @router.post("/invoices")
-async def add_invoice(request: InvoiceRequest):
-    from core.financial_ops_engine import invoice_reconciler, Invoice
-    
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="add_invoice",
+    feature="financial"
+)
+async def add_invoice(
+    request: InvoiceRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Add an invoice for reconciliation.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Invoice data entry is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
+    from core.financial_ops_engine import Invoice, invoice_reconciler
+
     inv = Invoice(
         id=request.id,
         vendor=request.vendor,
@@ -111,12 +168,30 @@ async def add_invoice(request: InvoiceRequest):
         contract_id=request.contract_id
     )
     invoice_reconciler.add_invoice(inv)
+    logger.info(f"Invoice added: {request.id} by agent {agent_id or 'system'}")
     return {"status": "added", "id": request.id}
 
 @router.post("/contracts")
-async def add_contract(request: ContractRequest):
-    from core.financial_ops_engine import invoice_reconciler, Contract
-    
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="add_contract",
+    feature="financial"
+)
+async def add_contract(
+    request: ContractRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Add a contract for invoice reconciliation.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Contract management is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
+    from core.financial_ops_engine import Contract, invoice_reconciler
+
     contract = Contract(
         id=request.id,
         vendor=request.vendor,
@@ -125,6 +200,7 @@ async def add_contract(request: ContractRequest):
         end_date=datetime.fromisoformat(request.end_date)
     )
     invoice_reconciler.add_contract(contract)
+    logger.info(f"Contract added: {request.id} by agent {agent_id or 'system'}")
     return {"status": "added", "id": request.id}
 
 @router.get("/invoices/reconcile")

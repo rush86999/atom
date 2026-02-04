@@ -4,11 +4,11 @@ Populate LanceDB for Hybrid Search Validation
 Ensures rich data exists for Docs, Meetings, and Tasks with proper embeddings.
 """
 
-import sys
-import os
-from pathlib import Path
-import logging
 import asyncio
+import logging
+import os
+import sys
+from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))

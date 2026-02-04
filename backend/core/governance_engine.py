@@ -3,13 +3,14 @@ ATOM External Contact Governance Engine
 Implements safety guardrails for agent-driven external communications.
 """
 
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from core.models import Workspace, HITLAction, HITLActionStatus
+
+from core.database import get_db_session
+from core.models import HITLAction, HITLActionStatus, Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class ContactGovernance:
         """
         Determines if the action must be paused for HITL review.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
             if not workspace:
@@ -79,7 +80,7 @@ class ContactGovernance:
         """
         Calculates confidence score based on historical approval ratings.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Fetch recent HITL actions for this pattern
             actions = db.query(HITLAction).filter(
@@ -103,7 +104,7 @@ class ContactGovernance:
         """
         Pauses the action and creates a HITL record in the database.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             hitl_action = HITLAction(
                 workspace_id=workspace_id,

@@ -3,10 +3,10 @@
 Test script for Notion integration
 """
 
-import os
-import requests
 import json
+import os
 import time
+import requests
 
 API_BASE_URL = "http://localhost:8000"
 TEST_USER_ID = "test-user-123"

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
-from fastapi.responses import StreamingResponse
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
-import io
 import csv
+import io
 import logging
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from core.analytics_engine import get_analytics_engine
 

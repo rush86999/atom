@@ -1,8 +1,9 @@
 import asyncio
 import logging
 from datetime import datetime
-from core.database import SessionLocal
 from analytics.models import WorkflowExecutionLog
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class AsyncAnalyticsCollector:
 
     def _sync_write(self, data):
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 log = WorkflowExecutionLog(**data)
                 db.add(log)
                 db.commit()

@@ -3,11 +3,11 @@ WhatsApp Database Setup
 Automated database initialization for WhatsApp Business integration
 """
 
+import logging
+import os
+from datetime import datetime
 import psycopg2
 import psycopg2.extras
-import logging
-from datetime import datetime
-import os
 
 logger = logging.getLogger(__name__)
 

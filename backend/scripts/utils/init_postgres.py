@@ -1,0 +1,29 @@
+import logging
+import os
+import sys
+
+# Add the current directory to sys.path
+sys.path.append(os.getcwd())
+
+import accounting.models
+
+# Import all models to ensure they are registered with Base.metadata
+import core.models
+from core.database import Base, engine
+
+# Add other model imports as needed
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def init_db():
+    logger.info(f"Initializing database at {engine.url}")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ All tables created successfully.")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize database: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    init_db()

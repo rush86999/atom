@@ -3,15 +3,15 @@ ATOM Chat Interface - Slack Integration
 Enhanced chat interface with Slack integration, command handling, and context management
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
-from dataclasses import dataclass, asdict
-import httpx
+import os
 import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
+import httpx
 
 # Import ATOM components
 try:

@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, Optional
-
 from data_persistence import data_persistence
 
 # Configure logging

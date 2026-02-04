@@ -4,7 +4,6 @@ import logging
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 import requests
 import websocket
 from pydantic import BaseModel

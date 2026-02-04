@@ -3,17 +3,17 @@ ATOM Slack Workflow Engine
 Advanced workflow automation with triggers, actions, and execution engine
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
+import os
 import re
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 import yaml
 
 logger = logging.getLogger(__name__)

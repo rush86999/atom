@@ -3,9 +3,10 @@
 Final OAuth System Test - Working Server
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
+
 
 def test_final_oauth_system():
     """Test OAuth system with working server"""

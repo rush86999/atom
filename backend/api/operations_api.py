@@ -1,13 +1,16 @@
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
+import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.api_governance import require_governance, ActionComplexity
 from core.business_health_service import business_health_service
+from core.database import get_db
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class SimulationRequest(BaseModel):
     decision_type: str
@@ -19,14 +22,14 @@ async def get_dashboard_data(
 ):
     """Get all data for the Owner Cockpit"""
     try:
-        # We inject DB into service instance if needed using dependency, 
+        # We inject DB into service instance if needed using dependency,
         # but the service is currently a singleton managing its own sessions or receiving DB.
         # Ideally we refactor service to accept DB in methods.
         # For now, using the singleton pattern as defined.
-        
+
         priorities = await business_health_service.get_daily_priorities("default")
         metrics = business_health_service.get_health_metrics("default")
-        
+
         return {
             "success": True,
             "briefing": priorities,
@@ -36,16 +39,34 @@ async def get_dashboard_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/simulate")
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="run_simulation",
+    feature="operations"
+)
 async def run_simulation(
-    request: SimulationRequest
+    request: SimulationRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
-    """Run a business simulation"""
+    """
+    Run a business simulation.
+
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Business simulation is a moderate action
+    - Requires INTERN maturity or higher
+    """
     try:
         result = await business_health_service.simulate_decision(
-            "default", 
-            request.decision_type, 
+            "default",
+            request.decision_type,
             request.parameters
         )
+        logger.info(f"Business simulation run: {request.decision_type}")
         return {"success": True, "result": result}
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Error running simulation: {e}")
         raise HTTPException(status_code=500, detail=str(e))

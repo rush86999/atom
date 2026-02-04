@@ -9,29 +9,34 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from core.jwt_verifier import verify_token as verify_jwt_token
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
     ingestion_pipeline,
 )
-from integrations.atom_communication_memory_production_api import (
-    atom_memory_production_api,
-)
+from integrations.atom_communication_memory_production_api import atom_memory_production_api
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify JWT token"""
-    try:
-        # For now, accept any token - implement proper JWT validation in production
-        return credentials.credentials
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid token")
+def verify_token(payload: Dict[str, Any] = Depends(verify_jwt_token)):
+    """
+    Verify JWT token using centralized verifier.
+
+    Args:
+        payload: Decoded JWT payload from centralized verifier
+
+    Returns:
+        Decoded JWT payload
+    """
+    # The actual verification is done by the verify_jwt_token dependency
+    # from core.jwt_verifier which provides comprehensive validation
+    return payload
 
 
 class AtomCommunicationMemoryWebhooks:

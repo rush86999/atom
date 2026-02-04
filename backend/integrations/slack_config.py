@@ -3,10 +3,13 @@ Slack Integration Configuration
 Complete configuration management for Slack integration
 """
 
+import logging
 import os
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class SyncFrequency(Enum):
@@ -270,8 +273,60 @@ class SlackConfigManager:
     
     def update_config(self, updates: Dict[str, Any]):
         """Update configuration with new values"""
-        # Implementation for dynamic config updates
-        pass
+        try:
+            logger.info(f"Updating Slack config with {len(updates)} fields")
+
+            # Update API config
+            if "client_id" in updates:
+                self.config.api.client_id = updates["client_id"]
+            if "client_secret" in updates:
+                self.config.api.client_secret = updates["client_secret"]
+            if "signing_secret" in updates:
+                self.config.api.signing_secret = updates["signing_secret"]
+            if "redirect_uri" in updates:
+                self.config.api.redirect_uri = updates["redirect_uri"]
+            if "bot_token" in updates:
+                self.config.api.bot_token = updates["bot_token"]
+            if "user_token" in updates:
+                self.config.api.user_token = updates["user_token"]
+
+            # Update rate limits
+            if "tier_1_limit" in updates:
+                self.config.rate_limits.tier_1_limit = updates["tier_1_limit"]
+            if "tier_2_limit" in updates:
+                self.config.rate_limits.tier_2_limit = updates["tier_2_limit"]
+            if "tier_3_limit" in updates:
+                self.config.rate_limits.tier_3_limit = updates["tier_3_limit"]
+            if "tier_4_limit" in updates:
+                self.config.rate_limits.tier_4_limit = updates["tier_4_limit"]
+
+            # Update cache config
+            if "cache_enabled" in updates:
+                self.config.cache.enabled = updates["cache_enabled"]
+            if "cache_ttl" in updates:
+                self.config.cache.ttl = updates["cache_ttl"]
+            if "cache_max_size" in updates:
+                self.config.cache.max_size = updates["cache_max_size"]
+
+            # Update sync config
+            if "batch_size" in updates:
+                self.config.sync.batch_size = updates["batch_size"]
+            if "max_concurrent_requests" in updates:
+                self.config.sync.max_concurrent_requests = updates["max_concurrent_requests"]
+            if "date_range_days" in updates:
+                self.config.sync.date_range_days = updates["date_range_days"]
+
+            # Update webhook config
+            if "webhook_url" in updates:
+                self.config.webhooks.webhook_url = updates["webhook_url"]
+            if "retry_policy" in updates:
+                self.config.webhooks.retry_policy = updates["retry_policy"]
+
+            logger.info("Slack config updated successfully")
+
+        except Exception as e:
+            logger.error(f"Error updating Slack config: {e}")
+            raise
     
     def validate_config(self) -> List[str]:
         """Validate configuration and return list of errors"""

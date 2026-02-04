@@ -3,9 +3,10 @@
 FINAL COMPLETE OAUTH SYSTEM TEST - 100% CREDENTIALS
 """
 
-import requests
 import json
 from datetime import datetime
+import requests
+
 
 def test_complete_100_oauth_system():
     """Test complete OAuth system with 100% real credentials"""

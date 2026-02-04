@@ -4,11 +4,11 @@ Targeted Verification for Content & File Management Workflow
 Verifies template registration and integration connectivity.
 """
 
-import os
-import sys
 import asyncio
 import logging
-from typing import Dict, Any
+import os
+import sys
+from typing import Any, Dict
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -29,7 +29,7 @@ async def verify_template_registration():
     
     try:
         from core.workflow_template_system import template_manager
-        
+
         # Check built-in templates
         template_manager.load_built_in_templates()
         template = template_manager.templates.get("content_file_management")

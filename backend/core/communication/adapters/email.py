@@ -1,10 +1,11 @@
-from typing import Dict, Any, Optional, List
-import os
 import json
 import logging
+import os
+from email.utils import parseaddr
+from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import ClientError
-from email.utils import parseaddr
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)
@@ -64,8 +65,8 @@ class EmailAdapter(PlatformAdapter):
         if "Type" in payload and payload["Type"] == "Notification":
              try:
                  payload = json.loads(payload.get("Message", "{}"))
-             except:
-                 pass
+             except json.JSONDecodeError as e:
+                 logger.debug(f"Failed to parse SNS message: {e}")
 
         if payload.get("notificationType") != "Received":
             return None

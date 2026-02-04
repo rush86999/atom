@@ -5,21 +5,17 @@ API endpoints for advanced data mapping, bulk operations, and integration analyt
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Body
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .bulk_operations_processor import BulkOperation, IntegrationBulkProcessor, get_bulk_processor
 from .integration_data_mapper import (
-    get_data_mapper,
-    IntegrationDataMapper,
-    IntegrationSchema,
     FieldMapping,
     FieldType,
-    TransformationType
-)
-from .bulk_operations_processor import (
-    get_bulk_processor,
-    IntegrationBulkProcessor,
-    BulkOperation
+    IntegrationDataMapper,
+    IntegrationSchema,
+    TransformationType,
+    get_data_mapper,
 )
 
 router = APIRouter()
@@ -399,8 +395,8 @@ async def get_integration_analytics(
             try:
                 exported = data_mapper.export_mapping(mapping_id)
                 mapping_complexity.append(len(exported["field_mappings"]))
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to export mapping {mapping_id}: {e}")
 
         # Bulk operations analytics
         bulk_stats = bulk_processor.get_performance_stats()

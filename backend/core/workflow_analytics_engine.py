@@ -3,18 +3,18 @@ Workflow Analytics Engine
 Comprehensive analytics and monitoring system for workflow performance and usage
 """
 
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
 import sqlite3
-from pathlib import Path
-from collections import defaultdict, deque
 import statistics
 import uuid
+from collections import defaultdict, deque
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -940,6 +940,572 @@ class WorkflowAnalyticsEngine:
             events = list(self.events_buffer)
             self.events_buffer.clear()
             await self._process_events_batch(events)
+
+    # ============== ANALYTICS DASHBOARD HELPER METHODS ==============
+
+    def get_performance_metrics(self, workflow_id: str, time_window: str = "24h") -> Optional[PerformanceMetrics]:
+        """
+        Get performance metrics for a workflow or all workflows.
+        Wrapper for get_workflow_performance_metrics for compatibility.
+        """
+        if workflow_id == "*":
+            # Aggregate metrics for all workflows
+            return self._get_all_workflows_metrics(time_window)
+        return self.get_workflow_performance_metrics(workflow_id, time_window)
+
+    def _get_all_workflows_metrics(self, time_window: str = "24h") -> PerformanceMetrics:
+        """Get aggregated metrics across all workflows."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        time_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(days=1),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_map.get(time_window, timedelta(days=1))
+        start_time = datetime.now() - time_delta
+
+        try:
+            # Get all workflow execution events
+            cursor.execute("""
+                SELECT execution_id, event_type, timestamp, duration_ms, status, user_id
+                FROM workflow_events
+                WHERE timestamp >= ?
+                ORDER BY timestamp
+            """, (start_time.isoformat(),))
+
+            events = cursor.fetchall()
+
+            # Analyze executions
+            executions = defaultdict(list)
+            for event in events:
+                executions[event[1]].append(event)
+
+            completed_events = executions.get("workflow_completed", [])
+            started_events = executions.get("workflow_started", [])
+
+            total_executions = len(started_events)
+            successful_executions = len([e for e in completed_events if e[4] == "completed"])
+            failed_executions = len([e for e in completed_events if e[4] == "failed"])
+
+            # Calculate duration statistics
+            durations = [e[3] for e in completed_events if e[3] is not None]
+            avg_duration = statistics.mean(durations) if durations else 0
+            median_duration = statistics.median(durations) if durations else 0
+            p95_duration = statistics.quantiles(durations, n=20)[18] if len(durations) > 20 else 0
+            p99_duration = statistics.quantiles(durations, n=100)[98] if len(durations) > 100 else 0
+
+            # Error rate
+            error_rate = (failed_executions / total_executions * 100) if total_executions > 0 else 0
+
+            # Get unique users
+            unique_users = len(set([e[5] for e in events if e[5]]))
+
+            # Get most common errors
+            error_messages = [e[5] for e in completed_events if e[5] is not None]
+            error_counts = defaultdict(int)
+            for error in error_messages:
+                error_counts[error] += 1
+
+            most_common_errors = [
+                {"error": error, "count": count, "percentage": count/len(error_messages)*100 if error_messages else 0}
+                for error, count in sorted(error_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            ]
+
+            return PerformanceMetrics(
+                workflow_id="*",
+                time_window=time_window,
+                total_executions=total_executions,
+                successful_executions=successful_executions,
+                failed_executions=failed_executions,
+                average_duration_ms=avg_duration,
+                median_duration_ms=median_duration,
+                p95_duration_ms=p95_duration,
+                p99_duration_ms=p99_duration,
+                error_rate=error_rate,
+                most_common_errors=most_common_errors,
+                average_cpu_usage=0.0,
+                peak_memory_usage=0.0,
+                average_step_duration={},
+                unique_users=unique_users,
+                executions_by_user={},
+                timestamp=datetime.now()
+            )
+
+        except Exception as e:
+            logger.error(f"Error calculating all workflows metrics: {e}")
+            raise
+        finally:
+            conn.close()
+
+    def get_unique_workflow_count(self, time_window: str = "24h") -> int:
+        """Get count of unique workflows in time window."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        time_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(days=1),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_map.get(time_window, timedelta(days=1))
+        start_time = datetime.now() - time_delta
+
+        try:
+            cursor.execute("""
+                SELECT COUNT(DISTINCT workflow_id)
+                FROM workflow_events
+                WHERE timestamp >= ?
+            """, (start_time.isoformat(),))
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        finally:
+            conn.close()
+
+    def get_workflow_name(self, workflow_id: str) -> Optional[str]:
+        """
+        Get workflow name from metadata or events.
+        Returns workflow_id if no name found.
+        """
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            # Try to get from metadata (if we have a workflows table)
+            # For now, return workflow_id as fallback
+            # In production, this would query a workflows table
+            return workflow_id
+        finally:
+            conn.close()
+
+    def get_all_workflow_ids(self, time_window: str = "24h") -> List[str]:
+        """Get list of all workflow IDs in time window."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        time_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(days=1),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_map.get(time_window, timedelta(days=1))
+        start_time = datetime.now() - time_delta
+
+        try:
+            cursor.execute("""
+                SELECT DISTINCT workflow_id
+                FROM workflow_events
+                WHERE timestamp >= ?
+                ORDER BY workflow_id
+            """, (start_time.isoformat(),))
+
+            results = cursor.fetchall()
+            return [row[0] for row in results]
+        finally:
+            conn.close()
+
+    def get_last_execution_time(self, workflow_id: str) -> Optional[datetime]:
+        """Get timestamp of last execution for workflow."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT MAX(timestamp)
+                FROM workflow_events
+                WHERE workflow_id = ?
+            """, (workflow_id,))
+
+            result = cursor.fetchone()
+            if result and result[0]:
+                return datetime.fromisoformat(result[0])
+            return None
+        finally:
+            conn.close()
+
+    def get_execution_timeline(self, workflow_id: str, time_window: str = "24h", interval: str = "1h") -> List[Dict[str, Any]]:
+        """
+        Get execution timeline data grouped by interval.
+        Returns list of data points with timestamp, count, success/failure counts, avg duration.
+        """
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        time_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(days=1),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_map.get(time_window, timedelta(days=1))
+        start_time = datetime.now() - time_delta
+
+        # SQLite doesn't have date_trunc, so we'll group manually
+        try:
+            if workflow_id == "*":
+                cursor.execute("""
+                    SELECT timestamp, event_type, duration_ms, status
+                    FROM workflow_events
+                    WHERE timestamp >= ? AND event_type IN ('workflow_started', 'workflow_completed')
+                    ORDER BY timestamp
+                """, (start_time.isoformat(),))
+            else:
+                cursor.execute("""
+                    SELECT timestamp, event_type, duration_ms, status
+                    FROM workflow_events
+                    WHERE workflow_id = ? AND timestamp >= ? AND event_type IN ('workflow_started', 'workflow_completed')
+                    ORDER BY timestamp
+                """, (workflow_id, start_time.isoformat()))
+
+            events = cursor.fetchall()
+
+            # Group by interval
+            interval_map = {
+                "5m": timedelta(minutes=5),
+                "15m": timedelta(minutes=15),
+                "1h": timedelta(hours=1),
+                "1d": timedelta(days=1)
+            }
+            interval_delta = interval_map.get(interval, timedelta(hours=1))
+
+            # Create time buckets
+            timeline_data = []
+            current_time = start_time
+            end_time = datetime.now()
+
+            while current_time <= end_time:
+                bucket_end = current_time + interval_delta
+
+                # Filter events in this bucket
+                bucket_events = [
+                    e for e in events
+                    if current_time <= datetime.fromisoformat(e[0]) < bucket_end
+                ]
+
+                # Count events
+                count = len([e for e in bucket_events if e[1] == "workflow_started"])
+                success_count = len([e for e in bucket_events if e[1] == "workflow_completed" and e[3] == "completed"])
+                failure_count = len([e for e in bucket_events if e[1] == "workflow_completed" and e[3] == "failed"])
+
+                # Calculate average duration
+                durations = [e[2] for e in bucket_events if e[2] is not None]
+                avg_duration = statistics.mean(durations) if durations else 0
+
+                timeline_data.append({
+                    "timestamp": current_time,
+                    "count": count,
+                    "success_count": success_count,
+                    "failure_count": failure_count,
+                    "average_duration_ms": avg_duration
+                })
+
+                current_time = bucket_end
+
+            return timeline_data
+
+        except Exception as e:
+            logger.error(f"Error getting execution timeline: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_error_breakdown(self, workflow_id: str, time_window: str = "24h") -> Dict[str, Any]:
+        """
+        Get error breakdown by type and workflow.
+        Returns error types with counts, workflows with most errors, recent error messages.
+        """
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        time_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(days=1),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_map.get(time_window, timedelta(days=1))
+        start_time = datetime.now() - time_delta
+
+        try:
+            if workflow_id == "*":
+                # Get errors by workflow
+                cursor.execute("""
+                    SELECT workflow_id, COUNT(*) as error_count
+                    FROM workflow_events
+                    WHERE timestamp >= ? AND status = 'failed'
+                    GROUP BY workflow_id
+                    ORDER BY error_count DESC
+                    LIMIT 10
+                """, (start_time.isoformat(),))
+
+                workflows_with_errors = [
+                    {"workflow_id": row[0], "error_count": row[1]}
+                    for row in cursor.fetchall()
+                ]
+
+                # Get recent errors
+                cursor.execute("""
+                    SELECT workflow_id, error_message, timestamp
+                    FROM workflow_events
+                    WHERE timestamp >= ? AND error_message IS NOT NULL
+                    ORDER BY timestamp DESC
+                    LIMIT 20
+                """, (start_time.isoformat(),))
+
+                recent_errors = [
+                    {
+                        "workflow_id": row[0],
+                        "error_message": row[1],
+                        "timestamp": row[2]
+                    }
+                    for row in cursor.fetchall()
+                ]
+
+                # Aggregate error types
+                error_types = defaultdict(int)
+                for error in recent_errors:
+                    error_type = error["error_message"][:50] if error["error_message"] else "Unknown"
+                    error_types[error_type] += 1
+
+                return {
+                    "error_types": [{"type": k, "count": v} for k, v in sorted(error_types.items(), key=lambda x: x[1], reverse=True)[:10]],
+                    "workflows_with_errors": workflows_with_errors,
+                    "recent_errors": recent_errors
+                }
+            else:
+                # Get errors for specific workflow
+                cursor.execute("""
+                    SELECT error_message, timestamp, step_name
+                    FROM workflow_events
+                    WHERE workflow_id = ? AND timestamp >= ? AND error_message IS NOT NULL
+                    ORDER BY timestamp DESC
+                    LIMIT 50
+                """, (workflow_id, start_time.isoformat()))
+
+                errors = cursor.fetchall()
+
+                # Group by error type
+                error_types = defaultdict(int)
+                recent_errors = []
+                for error_msg, timestamp, step_name in errors:
+                    error_type = error_msg[:50] if error_msg else "Unknown"
+                    error_types[error_type] += 1
+                    recent_errors.append({
+                        "error_message": error_msg,
+                        "timestamp": timestamp,
+                        "step_name": step_name
+                    })
+
+                return {
+                    "workflow_id": workflow_id,
+                    "error_types": [{"type": k, "count": v} for k, v in sorted(error_types.items(), key=lambda x: x[1], reverse=True)[:10]],
+                    "recent_errors": recent_errors
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting error breakdown: {e}")
+            return {}
+        finally:
+            conn.close()
+
+    def get_all_alerts(self, workflow_id: Optional[str] = None, enabled_only: bool = False) -> List[Alert]:
+        """
+        Get all configured alerts, optionally filtered by workflow and enabled status.
+        """
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            query = "SELECT * FROM analytics_alerts WHERE 1=1"
+            params = []
+
+            if workflow_id:
+                query += " AND workflow_id = ?"
+                params.append(workflow_id)
+
+            if enabled_only:
+                query += " AND enabled = 1"
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            alerts = []
+            for row in rows:
+                alert = Alert(
+                    alert_id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    severity=AlertSeverity(row[3]),
+                    condition=row[4],
+                    threshold_value=float(row[5]) if row[5] else None,
+                    metric_name=row[6],
+                    workflow_id=row[7],
+                    step_id=row[8],
+                    enabled=bool(row[9]),
+                    created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+                    triggered_at=datetime.fromisoformat(row[11]) if row[11] else None,
+                    resolved_at=datetime.fromisoformat(row[12]) if row[12] else None,
+                    notification_channels=json.loads(row[13]) if row[13] else []
+                )
+                alerts.append(alert)
+
+            return alerts
+
+        except Exception as e:
+            logger.error(f"Error getting alerts: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_recent_events(self, limit: int = 50, workflow_id: Optional[str] = None) -> List[WorkflowExecutionEvent]:
+        """
+        Get recent execution events for real-time feed.
+        """
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            if workflow_id:
+                cursor.execute("""
+                    SELECT event_id, workflow_id, execution_id, user_id, event_type, timestamp,
+                           step_id, step_name, duration_ms, status, error_message, metadata, resource_id
+                    FROM workflow_events
+                    WHERE workflow_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, (workflow_id, limit))
+            else:
+                cursor.execute("""
+                    SELECT event_id, workflow_id, execution_id, user_id, event_type, timestamp,
+                           step_id, step_name, duration_ms, status, error_message, metadata, resource_id
+                    FROM workflow_events
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, (limit,))
+
+            rows = cursor.fetchall()
+
+            events = []
+            for row in rows:
+                event = WorkflowExecutionEvent(
+                    event_id=row[0],
+                    workflow_id=row[1],
+                    execution_id=row[2],
+                    user_id=row[3],
+                    event_type=row[4],
+                    timestamp=datetime.fromisoformat(row[5]),
+                    step_id=row[6],
+                    step_name=row[7],
+                    duration_ms=row[8],
+                    status=row[9],
+                    error_message=row[10],
+                    metadata=json.loads(row[11]) if row[11] else None,
+                    resource_id=row[12]
+                )
+                events.append(event)
+
+            return events
+
+        except Exception as e:
+            logger.error(f"Error getting recent events: {e}")
+            return []
+        finally:
+            conn.close()
+
+    # Create and update alert methods (wrappers for compatibility with API)
+    def create_alert(self, alert: Alert):
+        """Create a new alert (wrapper for compatibility)."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO analytics_alerts
+                (alert_id, name, description, severity, condition, threshold_value,
+                 metric_name, workflow_id, step_id, enabled, notification_channels)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                alert.alert_id, alert.name, alert.description, alert.severity.value,
+                alert.condition, str(alert.threshold_value) if alert.threshold_value else None,
+                alert.metric_name, alert.workflow_id, alert.step_id,
+                1 if alert.enabled else 0, json.dumps(alert.notification_channels or [])
+            ))
+
+            conn.commit()
+            self.active_alerts[alert.alert_id] = alert
+
+            logger.info(f"Created alert: {alert.name} ({alert.alert_id})")
+            return alert
+
+        except Exception as e:
+            logger.error(f"Error creating alert: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def update_alert(self, alert_id: str, enabled: Optional[bool] = None, threshold_value: Optional[float] = None):
+        """Update an existing alert."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            updates = []
+            params = []
+
+            if enabled is not None:
+                updates.append("enabled = ?")
+                params.append(1 if enabled else 0)
+
+            if threshold_value is not None:
+                updates.append("threshold_value = ?")
+                params.append(str(threshold_value))
+
+            if updates:
+                params.append(alert_id)
+                cursor.execute(f"UPDATE analytics_alerts SET {', '.join(updates)} WHERE alert_id = ?", params)
+                conn.commit()
+
+                # Update in-memory alert
+                if alert_id in self.active_alerts:
+                    alert = self.active_alerts[alert_id]
+                    if enabled is not None:
+                        alert.enabled = enabled
+                    if threshold_value is not None:
+                        alert.threshold_value = threshold_value
+
+        except Exception as e:
+            logger.error(f"Error updating alert: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def delete_alert(self, alert_id: str):
+        """Delete an alert."""
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("DELETE FROM analytics_alerts WHERE alert_id = ?", (alert_id,))
+            conn.commit()
+
+            if alert_id in self.active_alerts:
+                del self.active_alerts[alert_id]
+
+            logger.info(f"Deleted alert: {alert_id}")
+
+        except Exception as e:
+            logger.error(f"Error deleting alert: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
 
 # Global analytics engine instance
 _analytics_engine = None

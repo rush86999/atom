@@ -5,8 +5,13 @@ from pathlib import Path
 # Add backend to path
 sys.path.append(str(Path(__file__).parent))
 
-from core.workflow_template_system import WorkflowTemplateManager, TemplateCategory, TemplateComplexity
 import logging
+
+from core.workflow_template_system import (
+    TemplateCategory,
+    TemplateComplexity,
+    WorkflowTemplateManager,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Seeding")

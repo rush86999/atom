@@ -3,11 +3,12 @@
 ATOM OAuth Marketing Claims Verification & Production Readiness Audit
 """
 
-import os
-import requests
 import json
+import os
 import sys
 from datetime import datetime
+import requests
+
 
 def verify_marketing_claims():
     """Verify all marketing claims with real testing"""

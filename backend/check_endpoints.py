@@ -1,5 +1,6 @@
 import requests
 
+
 def check(url):
     try:
         r = requests.get(url, allow_redirects=False)

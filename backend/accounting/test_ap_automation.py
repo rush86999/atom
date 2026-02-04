@@ -1,25 +1,34 @@
 import asyncio
 import logging
-import sys
 import os
 import shutil
-from sqlalchemy.orm import Session
+import sys
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 # 1. PRE-MOCK PDFOCRService to avoid heavy imports
 mock_pdf_ocr = MagicMock()
 sys.modules['integrations.pdf_processing.pdf_ocr_service'] = mock_pdf_ocr
 sys.modules['integrations.pdf_processing'] = MagicMock()
 
-from core.database import SessionLocal, engine
 # from accounting.ap_service import APService  # Move this inside
-from accounting.models import Account, Transaction, Bill, Entity, Document, JournalEntry, AccountType
+from accounting.models import (
+    Account,
+    AccountType,
+    Bill,
+    Document,
+    Entity,
+    JournalEntry,
+    Transaction,
+)
 from accounting.seeds import seed_default_accounts
+
+from core.database import SessionLocal, engine
 from core.models import Workspace
 
 logging.basicConfig(level=logging.INFO)

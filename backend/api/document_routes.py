@@ -2,12 +2,15 @@
 Document Routes - API endpoints for document ingestion and search
 """
 import logging
-from typing import Any, Dict, Optional, List
-from datetime import datetime
 import uuid
-
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,48 @@ class SearchResponse(BaseModel):
     results: List[SearchResult]
     total_count: int
     timestamp: str
+
+@router.post("/ingest", response_model=DocumentResponse)
+async def ingest_document(request: DocumentIngestRequest):
+    """Ingest a document for RAG/search"""
+    try:
+        doc_id = str(uuid.uuid4())
+
+        # Get content from request
+        content = request.content or ""
+        doc_type = request.type
+        title = request.title or f"Document {doc_id[:8]}"
+
+        if not content:
+            # Return a helpful message if no content
+            content = "(Empty document)"
+
+        # Store document
+        doc = {
+            "id": doc_id,
+            "title": title,
+            "content": content,
+            "type": doc_type,
+            "metadata": request.metadata or {},
+            "ingested_at": datetime.now().isoformat(),
+            "chunk_count": max(1, len(content) // 500)  # Simple chunking estimate
+        }
+        _document_store[doc_id] = doc
+
+        logger.info(f"Document ingested: {doc_id}")
+        return DocumentResponse(
+            id=doc_id,
+            title=title,
+            type=doc_type,
+            metadata=doc.get("metadata", {}),
+            ingested_at=doc["ingested_at"],
+            chunk_count=doc["chunk_count"]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Document ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(file: UploadFile = File(...)):
@@ -108,44 +153,6 @@ async def upload_document(file: UploadFile = File(...)):
         logger.error(f"File upload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def ingest_document(request: DocumentIngestRequest):
-    """Ingest a document for RAG/search"""
-    try:
-        doc_id = str(uuid.uuid4())
-        
-        # Get content from request
-        content = request.content or ""
-        doc_type = request.type
-        title = request.title or f"Document {doc_id[:8]}"
-        
-        if not content:
-            # Return a helpful message if no content
-            content = "(Empty document)"
-        
-        # Store document
-        doc = {
-            "id": doc_id,
-            "title": title,
-            "content": content,
-            "type": doc_type,
-            "metadata": request.metadata or {},
-            "ingested_at": datetime.now().isoformat(),
-            "chunk_count": max(1, len(content) // 500)  # Simple chunking estimate
-        }
-        _document_store[doc_id] = doc
-        
-        return DocumentResponse(
-            id=doc_id,
-            title=title,
-            type=doc_type,
-            metadata=doc.get("metadata", {}),
-            ingested_at=doc["ingested_at"],
-            chunk_count=doc["chunk_count"]
-        )
-    except Exception as e:
-        logger.error(f"Document ingestion failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.get("/search", response_model=SearchResponse)
 async def search_documents(q: str, limit: int = 10):
     """Search ingested documents"""
@@ -191,11 +198,29 @@ async def get_document(doc_id: str):
     }
 
 @router.delete("/{doc_id}")
-async def delete_document(doc_id: str):
-    """Delete a document"""
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="delete_document",
+    feature="document"
+)
+async def delete_document(
+    doc_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Delete a document.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Document deletion is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
     if doc_id not in _document_store:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
     del _document_store[doc_id]
+    logger.info(f"Document deleted: {doc_id}")
     return {"message": f"Document '{doc_id}' deleted"}
 
 @router.get("")

@@ -5,23 +5,24 @@ Manages chat session metadata (Hybrid: DB + JSON fallback)
 """
 
 import json
+import logging
 import os
 import uuid
-import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
 # Conditional Import to avoid circular dependencies if simple script
 try:
-    from core.database import SessionLocal
-    from core.models import ChatSession
+    from core.database import get_db_session, SessionLocal
+    from core.models import ChatMessage, ChatSession
     DB_AVAILABLE = True
 except ImportError:
     SessionLocal = None
     ChatSession = None
+    ChatMessage = None
     DB_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -48,11 +49,10 @@ class ChatSessionManager:
             
             # Verify connection
             try:
-                db = SessionLocal()
-                db.execute("SELECT 1")
-                db.close()
-                self.use_db = True
-                logger.info("ChatSessionManager initialized in STRICT_DB mode.")
+                with get_db_session() as db:
+                    # Simple connection test
+                    self.use_db = True
+                    logger.info("ChatSessionManager initialized in STRICT_DB mode.")
             except Exception as e:
                 raise RuntimeError(f"CHAT_PERSISTENCE_MODE is STRICT_DB but database connection failed: {e}")
                 
@@ -92,22 +92,22 @@ class ChatSessionManager:
         """Load sessions from DB if available, else file"""
         if self.use_db:
              # Warning: This loads ALL sessions. Use carefully.
-            db = SessionLocal()
-            try:
-                sessions = db.query(ChatSession).all()
-                return [{
-                    "session_id": s.id,
-                    "user_id": s.user_id,
-                    "title": s.title, # Added title
-                    "created_at": s.created_at.isoformat() if s.created_at else None,
-                    "last_active": s.updated_at.isoformat() if s.updated_at else None,
-                    "history": [], # Heavy payload skipped
-                    "metadata": s.metadata_json or {}
-                } for s in sessions]
-            except Exception as e:
-                 logger.error(f"DB Load All Sessions failed: {e}")
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    sessions = db.query(ChatSession).all()
+                    return [{
+                        "session_id": s.id,
+                        "user_id": s.user_id,
+                        "title": s.title, # Added title
+                        "created_at": s.created_at.isoformat() if s.created_at else None,
+                        "last_active": s.updated_at.isoformat() if s.updated_at else None,
+                        "history": [], # Heavy payload skipped
+                        "metadata": s.metadata_json or {}
+                    } for s in sessions]
+                except Exception as e:
+                    logger.error(f"DB Load All Sessions failed: {e}")
+                finally:
+                    db.close()
                 
         return self._load_sessions_file()
     
@@ -138,31 +138,31 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                new_session = ChatSession(
-                    id=session_id,
-                    user_id=user_id,
-                    metadata_json=metadata or {},
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
-                    message_count=0
-                )
-                db.add(new_session)
-                db.commit()
-                logger.info(f"Created DB session: {session_id}")
-                return session_id
-            except Exception as e:
-                if self.persistence_mode == "STRICT_DB":
-                    logger.error(f"DB Create Session failed in STRICT_DB mode: {e}")
+            with get_db_session() as db:
+                try:
+                    new_session = ChatSession(
+                        id=session_id,
+                        user_id=user_id,
+                        metadata_json=metadata or {},
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                        message_count=0
+                    )
+                    db.add(new_session)
+                    db.commit()
+                    logger.info(f"Created DB session: {session_id}")
+                    return session_id
+                except Exception as e:
+                    if self.persistence_mode == "STRICT_DB":
+                        logger.error(f"DB Create Session failed in STRICT_DB mode: {e}")
+                        db.rollback()
+                        raise RuntimeError(f"Database write failed in STRICT_DB mode: {e}")
+
+                    logger.error(f"DB Create Session failed: {e}. Falling back to file.")
                     db.rollback()
-                    raise RuntimeError(f"Database write failed in STRICT_DB mode: {e}")
-                
-                logger.error(f"DB Create Session failed: {e}. Falling back to file.")
-                db.rollback()
-                # Fallthrough to file
-            finally:
-                db.close()
+                    # Fallthrough to file
+                finally:
+                    db.close()
 
         if self.persistence_mode == "STRICT_DB":
              raise RuntimeError("Critical Error: DB flow passed but no session returned")
@@ -186,52 +186,72 @@ class ChatSessionManager:
         """Get session by ID"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-                if session:
-                    return {
-                        "session_id": session.id,
-                        "user_id": session.user_id,
-                        "created_at": session.created_at.isoformat() if session.created_at else None,
-                        "last_active": session.updated_at.isoformat() if session.updated_at else None,
-                        "metadata": session.metadata_json or {},
-                        "message_count": session.message_count,
-                        "history": [] # TODO: Fetch history from ChatMessage table if needed here
-                    }
-            except Exception as e:
-                 if self.persistence_mode == "STRICT_DB":
-                    logger.error(f"DB Get Session failed in STRICT_DB mode: {e}")
-                    raise RuntimeError(f"Database read failed in STRICT_DB mode: {e}")
-                 logger.warning(f"DB Get Session failed: {e}")
-            finally:
-                db.close()
-        
+            with get_db_session() as db:
+                try:
+                    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                    if session:
+                        # Fetch chat history from ChatMessage table
+                        messages = db.query(ChatMessage)\
+                            .filter(ChatMessage.conversation_id == session_id)\
+                            .order_by(desc(ChatMessage.created_at))\
+                            .limit(100)\
+                            .all()
+
+                        history = [
+                            {
+                                "role": msg.role,
+                                "content": msg.content,
+                                "created_at": msg.created_at.isoformat() if msg.created_at else None
+                            }
+                            for msg in messages
+                        ]
+
+                        return {
+                            "session_id": session.id,
+                            "user_id": session.user_id,
+                            "created_at": session.created_at.isoformat() if session.created_at else None,
+                            "last_active": session.updated_at.isoformat() if session.updated_at else None,
+                            "metadata": session.metadata_json or {},
+                            "message_count": session.message_count,
+                            "history": history
+                        }
+                except Exception as e:
+                    if self.persistence_mode == "STRICT_DB":
+                        logger.error(f"DB Get Session failed in STRICT_DB mode: {e}")
+                        raise RuntimeError(f"Database read failed in STRICT_DB mode: {e}")
+                    logger.warning(f"DB Get Session failed: {e}")
+                finally:
+                    db.close()
+
         if self.persistence_mode == "STRICT_DB":
             return None # Do not fall back to file implementation
+
+        # File fallback
+        sessions = self._load_sessions_file()
         return next((s for s in sessions if s['session_id'] == session_id), None)
     
     def update_session_activity(self, session_id: str, history: List[Dict] = None, last_message: str = None):
         """Update session's last_active timestamp and history"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-                if session:
-                    session.updated_at = datetime.utcnow()
-                    if history is not None:
-                        session.message_count = len(history)
-                        # Ideally, messages are stored in ChatMessage table separately.
-                        # This manager focuses on the Session Metadata.
-                    db.commit()
-                    return # Success
-            except Exception as e:
-                if self.persistence_mode == "STRICT_DB":
-                    logger.error(f"DB Update Session failed in STRICT_DB mode: {e}")
-                    raise RuntimeError(f"Database update failed in STRICT_DB mode: {e}")
-                logger.error(f"DB Update Session failed: {e}")
-            finally:
+            with get_db_session() as db:
+                try:
+                    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                    if session:
+                        session.updated_at = datetime.utcnow()
+                        if history is not None:
+                            session.message_count = len(history)
+                            # Ideally, messages are stored in ChatMessage table separately.
+                            # This manager focuses on the Session Metadata.
+                        db.commit()
+                        return # Success
+                except Exception as e:
+                    if self.persistence_mode == "STRICT_DB":
+                        logger.error(f"DB Update Session failed in STRICT_DB mode: {e}")
+                        raise RuntimeError(f"Database update failed in STRICT_DB mode: {e}")
+                    logger.error(f"DB Update Session failed: {e}")
+                finally:
+                    db.close()
                 db.close()
         
         if self.persistence_mode == "STRICT_DB":
@@ -274,64 +294,59 @@ class ChatSessionManager:
         """List all sessions for a user (most recent first)"""
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                # Query DB
-                sessions = db.query(ChatSession)\
-                             .filter(ChatSession.user_id == user_id)\
-                             .order_by(desc(ChatSession.updated_at))\
-                             .limit(limit)\
-                             .all()
-                
-                # Convert DB sessions to dicts
-                results = [{
-                    "session_id": s.id,
-                    "user_id": s.user_id,
-                    "title": s.title,
-                    "created_at": s.created_at.isoformat() if s.created_at else None,
-                    "last_active": s.updated_at.isoformat() if s.updated_at else None,
-                    "metadata": s.metadata_json or {},
-                    "message_count": s.message_count,
-                    "history": [] # Lightweight list
-                } for s in sessions]
-
-
-
-                # STRICT_DB: Return only DB results
-                if self.persistence_mode == "STRICT_DB":
-                    return results
-
-                # HYBRID MERGE: Also load from file and append any missing ones
-                # This handles the case where we switched to DB mode but have old file sessions
+            with get_db_session() as db:
                 try:
-                    file_sessions = self._load_sessions_file()
-                    db_ids = {r["session_id"] for r in results}
-                    
-                    # Filter for this user and not in DB
-                    legacy_sessions = [
-                        s for s in file_sessions 
-                        if s.get("user_id") == user_id and s.get("session_id") not in db_ids
-                    ]
-                    
-                    # Sort legacy sessions
-                    legacy_sessions.sort(key=lambda x: x.get('last_active', ''), reverse=True)
-                    
-                    # Append (respecting limit if needed, though we might go over)
-                    results.extend(legacy_sessions)
-                    
-                    # Re-sort combined results
-                    results.sort(key=lambda x: x.get('last_active', '') or '', reverse=True)
-                    
-                    return results[:limit]
-                    
-                except Exception as e:
-                    logger.warning(f"Hybrid merge failed: {e}")
-                    return results # Return at least DB results
+                    # Query DB
+                    sessions = db.query(ChatSession)\
+                                 .filter(ChatSession.user_id == user_id)\
+                                 .order_by(desc(ChatSession.updated_at))\
+                                 .limit(limit)\
+                                 .all()
 
-            except Exception as e:
-                logger.error(f"DB List Sessions failed: {e}")
-            finally:
-                db.close()
+                    # Convert DB sessions to dicts
+                    results = [{
+                        "session_id": s.id,
+                        "user_id": s.user_id,
+                        "title": s.title,
+                        "created_at": s.created_at.isoformat() if s.created_at else None,
+                        "last_active": s.updated_at.isoformat() if s.updated_at else None,
+                        "metadata": s.metadata_json or {},
+                        "message_count": s.message_count,
+                        "history": [] # Lightweight list
+                    } for s in sessions]
+
+                    # STRICT_DB: Return only DB results
+                    if self.persistence_mode == "STRICT_DB":
+                        return results
+
+                    # HYBRID MERGE: Also load from file and append any missing ones
+                    # This handles the case where we switched to DB mode but have old file sessions
+                    try:
+                        file_sessions = self._load_sessions_file()
+                        db_ids = {r["session_id"] for r in results}
+
+                        # Filter for this user and not in DB
+                        legacy_sessions = [
+                            s for s in file_sessions
+                            if s.get("user_id") == user_id and s.get("session_id") not in db_ids
+                        ]
+
+                        # Sort legacy sessions
+                        legacy_sessions.sort(key=lambda x: x.get('last_active', ''), reverse=True)
+
+                        # Append (respecting limit if needed, though we might go over)
+                        results.extend(legacy_sessions)
+
+                        # Re-sort combined results
+                        results.sort(key=lambda x: x.get('last_active', '') or '', reverse=True)
+
+                        return results[:limit]
+
+                    except Exception as e:
+                        logger.warning(f"Hybrid merge failed: {e}")
+                        return results # Return at least DB results
+                except Exception as e:
+                    logger.error(f"DB List Sessions failed: {e}")
 
         # 2. File Path
         sessions = self._load_sessions_file()
@@ -345,17 +360,17 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-                if session:
-                    db.delete(session)
-                    db.commit()
-                    deleted = True
-            except Exception as e:
-                logger.error(f"DB Delete Session failed: {e}")
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                    if session:
+                        db.delete(session)
+                        db.commit()
+                        deleted = True
+                except Exception as e:
+                    logger.error(f"DB Delete Session failed: {e}")
+                finally:
+                    db.close()
                 
         # 2. File Path (Always try to clean up file too, just in case)
         sessions = self._load_sessions_file()
@@ -373,21 +388,21 @@ class ChatSessionManager:
         
         # 1. Database Path
         if self.use_db:
-            db = SessionLocal()
-            try:
-                session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-                if session:
-                    session.title = new_title
-                    session.updated_at = datetime.utcnow()
-                    db.commit()
-                    # We continue to file sync for hybrid safety if desired,
-                    # but usually for true hybrid we just rely on DB if active.
-                    # For now, let's keep them in sync if file exists.
-            except Exception as e:
-                logger.error(f"DB Rename Session failed: {e}")
-                return False
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+                    if session:
+                        session.title = new_title
+                        session.updated_at = datetime.utcnow()
+                        db.commit()
+                        # We continue to file sync for hybrid safety if desired,
+                        # but usually for true hybrid we just rely on DB if active.
+                        # For now, let's keep them in sync if file exists.
+                except Exception as e:
+                    logger.error(f"DB Rename Session failed: {e}")
+                    return False
+                finally:
+                    db.close()
 
         # 2. File Path (Always try to sync file for consistency in hybrid mode)
         sessions = self._load_sessions_file()

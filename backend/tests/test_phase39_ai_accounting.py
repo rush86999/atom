@@ -1,11 +1,12 @@
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime
 
 sys.path.append(os.getcwd())
 
 from core.ai_accounting_engine import AIAccountingEngine, Transaction, TransactionSource
+
 
 class TestPhase39AIAccounting(unittest.TestCase):
 

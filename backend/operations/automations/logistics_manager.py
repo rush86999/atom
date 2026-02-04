@@ -1,7 +1,7 @@
 
-import requests
-import re
 import logging
+import re
+import requests
 
 logger = logging.getLogger(__name__)
 

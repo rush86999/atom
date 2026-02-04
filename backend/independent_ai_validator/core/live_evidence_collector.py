@@ -5,13 +5,13 @@ Collects real evidence from live ATOM backend APIs for >98% validation
 """
 
 import asyncio
-import aiohttp
 import json
 import logging
 import time
-from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

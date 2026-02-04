@@ -1,7 +1,7 @@
+import logging
 import os
 import boto3
 from botocore.config import Config
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,8 @@ class StorageService:
         try:
             self.s3.head_object(Bucket=self.bucket, Key=key)
             return True
-        except:
+        except Exception as e:
+            logger.debug(f"File check failed for {key}: {e}")
             return False
 
 def get_storage_service():

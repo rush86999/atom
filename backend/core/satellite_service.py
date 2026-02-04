@@ -1,7 +1,7 @@
 import asyncio
-import logging
 import json
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,9 @@ class SatelliteService:
 
     async def handle_message(self, tenant_id: str, message: Dict[str, Any]):
         """Process incoming messages from the satellite."""
-        from core.database import SessionLocal
         from ai.device_node_service import device_node_service
+
+        from core.database import get_db_session
 
         msg_type = message.get("type")
         
@@ -92,17 +93,17 @@ class SatelliteService:
             # Register the device capabilities
             logger.info(f"Received identity for tenant {tenant_id}: {message}")
             try:
-                db = SessionLocal()
-                # Map message to node_data structure
-                node_data = {
-                    "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),
-                    "name": message.get("metadata", {}).get("hostname", "Unknown Device"),
-                    "type": "satellite_bridge",
-                    "capabilities": message.get("capabilities", []),
-                    "metadata": message.get("metadata", {})
-                }
-                device_node_service.register_node(db, tenant_id, node_data)
-                db.close()
+                with get_db_session() as db:
+                    # Map message to node_data structure
+                    node_data = {
+                        "deviceId": message.get("metadata", {}).get("hostname", f"node-{tenant_id}"),
+                        "name": message.get("metadata", {}).get("hostname", "Unknown Device"),
+                        "type": "satellite_bridge",
+                        "capabilities": message.get("capabilities", []),
+                        "metadata": message.get("metadata", {})
+                    }
+                    device_node_service.register_node(db, tenant_id, node_data)
+                    db.close()
             except Exception as e:
                 logger.error(f"Failed to register node identity: {e}")
 

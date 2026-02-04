@@ -1,15 +1,14 @@
+import asyncio
+import json
 import logging
 import os
 import re
-import json
-from typing import Optional, Dict, Any, List, AsyncGenerator
 from enum import Enum
-import asyncio
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 # Try imports
 try:
-    from openai import OpenAI
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI, OpenAI
 except ImportError:
     OpenAI = None
     AsyncOpenAI = None
@@ -311,8 +310,8 @@ class BYOKHandler:
         
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             from core.benchmarks import get_quality_score
+            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             
             # Context window requirements
@@ -486,47 +485,47 @@ class BYOKHandler:
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
-            from core.database import SessionLocal
-            from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
+            from core.database import get_db_session
+            from core.models import Tenant, Workspace
             
-            db = SessionLocal()
-            tenant_plan = "free"
-            is_managed = True
-            
-            try:
-                workspace = db.query(Workspace).filter(Workspace.id == "default").first()
-                if workspace and workspace.tenant_id:
-                    from core.models import Tenant
-                    tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
-                    if tenant:
-                        # 1. Determine Plan level
-                        plan_type = tenant.plan_type
-                        tenant_plan = plan_type.value if hasattr(plan_type, 'value') else str(plan_type).lower()
-                        
-                        # 2. Determine if Managed or BYOK (Phase 50 Hybrid Logic)
-                        complexity = self.analyze_query_complexity(prompt, task_type)
-                        
-                        # Agents always require tools (Phase 6.6)
-                        requires_tools = agent_id is not None or task_type == "agentic"
-                        
-                        # Temporary provider check for key resolution
-                        temp_provider_id, _ = self.get_optimal_provider(
-                            complexity, task_type, prefer_cost, tenant_plan, 
-                            is_managed_service=True, requires_tools=requires_tools
-                        )
-                        
-                        tenant_key = self.byok_manager.get_tenant_api_key("default", temp_provider_id)
-                        if tenant_key:
-                            is_managed = False  # Custom Key = BYOK
-                        elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
-                            is_managed = False  # Enterprise Plan = BYOK
-                            
-                        # 3. Block Managed AI for Free Tier (Phase 59 User Req)
-                        if is_managed and tenant_plan.lower() == "free":
-                            return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    tenant_plan = "free"
+                    is_managed = True
+
+                    workspace = db.query(Workspace).filter(Workspace.id == "default").first()
+                    if workspace and workspace.tenant_id:
+                        from core.models import Tenant
+                        tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
+                        if tenant:
+                            # 1. Determine Plan level
+                            plan_type = tenant.plan_type
+                            tenant_plan = plan_type.value if hasattr(plan_type, 'value') else str(plan_type).lower()
+
+                            # 2. Determine if Managed or BYOK (Phase 50 Hybrid Logic)
+                            complexity = self.analyze_query_complexity(prompt, task_type)
+
+                            # Agents always require tools (Phase 6.6)
+                            requires_tools = agent_id is not None or task_type == "agentic"
+
+                            # Temporary provider check for key resolution
+                            temp_provider_id, _ = self.get_optimal_provider(
+                                complexity, task_type, prefer_cost, tenant_plan,
+                                is_managed_service=True, requires_tools=requires_tools
+                            )
+
+                            tenant_key = self.byok_manager.get_tenant_api_key("default", temp_provider_id)
+                            if tenant_key:
+                                is_managed = False  # Custom Key = BYOK
+                            elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
+                                is_managed = False  # Enterprise Plan = BYOK
+
+                            # 3. Block Managed AI for Free Tier (Phase 59 User Req)
+                            if is_managed and tenant_plan.lower() == "free":
+                                return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
+                except Exception as e:
+                    logger.warning(f"Failed to fetch tenant plan: {e}")
 
             # Analyze complexity
             complexity = self.analyze_query_complexity(prompt, task_type)
@@ -733,33 +732,33 @@ class BYOKHandler:
                 return None
             
             # Get tenant plan and determine BYOK vs managed
-            from core.database import SessionLocal
-            from core.models import Workspace, Tenant
             from core.cost_config import BYOK_ENABLED_PLANS
+            from core.database import get_db_session
+            from core.models import Tenant, Workspace
             
-            db = SessionLocal()
-            tenant_plan = "free"
-            is_managed = True
-            
-            try:
-                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
-                if workspace and workspace.tenant_id:
-                    tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
-                    if tenant:
-                        plan_type = tenant.plan_type
-                        tenant_plan = plan_type.value if hasattr(plan_type, 'value') else str(plan_type).lower()
-                        
-                        # Check for custom BYOK keys
-                        complexity = self.analyze_query_complexity(prompt, task_type)
-                        temp_provider_id, _ = self.get_optimal_provider(complexity, task_type, True, tenant_plan, is_managed_service=True)
-                        
-                        tenant_key = self.byok_manager.get_tenant_api_key(tenant.id, temp_provider_id)
-                        if tenant_key:
-                            is_managed = False
-                        elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
-                            is_managed = False
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    tenant_plan = "free"
+                    is_managed = True
+
+                    workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+                    if workspace and workspace.tenant_id:
+                        tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
+                        if tenant:
+                            plan_type = tenant.plan_type
+                            tenant_plan = plan_type.value if hasattr(plan_type, 'value') else str(plan_type).lower()
+
+                            # Check for custom BYOK keys
+                            complexity = self.analyze_query_complexity(prompt, task_type)
+                            temp_provider_id, _ = self.get_optimal_provider(complexity, task_type, True, tenant_plan, is_managed_service=True)
+
+                            tenant_key = self.byok_manager.get_tenant_api_key(tenant.id, temp_provider_id)
+                            if tenant_key:
+                                is_managed = False
+                            elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
+                                is_managed = False
+                except Exception as e:
+                    logger.warning(f"Failed to get tenant plan: {e}")
             
             # Block free tier managed AI
             if is_managed and tenant_plan.lower() == "free":
@@ -927,7 +926,7 @@ class BYOKHandler:
                     input_tokens = len(prompt) // 4
                     output_tokens = 500
                     estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-            except:
+            except Exception as e:
                 pass
             
             return {

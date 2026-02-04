@@ -1,11 +1,18 @@
-import logging
 import json
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
-from accounting.models import Account, Transaction, CategorizationProposal, CategorizationRule
+from typing import Any, Dict, List, Optional
+from accounting.models import Account, CategorizationProposal, CategorizationRule, Transaction
+from sqlalchemy.orm import Session
+
 from core.models import AuditLog
-from integrations.ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType, AIModelType, AIServiceType
+from integrations.ai_enhanced_service import (
+    AIModelType,
+    AIRequest,
+    AIServiceType,
+    AITaskType,
+    ai_enhanced_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +98,7 @@ class AICategorizer:
             if isinstance(result, str):
                 try:
                     result = json.loads(result)
-                except:
+                except (json.JSONDecodeError, ValueError, TypeError):
                     logger.error("Failed to parse AI response as JSON")
                     return None
 

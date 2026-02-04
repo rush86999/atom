@@ -9,17 +9,17 @@ to validate all ATOM platform features and marketing claims with 98% truth accur
 Philosophy: "Test with real data, real integrations, and real user scenarios"
 """
 
-import sys
-import os
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 # Load environment variables from absolute path
@@ -28,12 +28,12 @@ load_dotenv(dotenv_path=env_path)
 
 # Add parent directory to path to import backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import aiohttp
+import queue
 import subprocess
 import threading
-import queue
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import aiohttp
 
 # Configure logging
 logging.basicConfig(

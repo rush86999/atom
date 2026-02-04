@@ -5,10 +5,10 @@ This script verifies that all workflow automation components are properly integr
 """
 
 import asyncio
-import sys
-import os
 import logging
-from typing import Dict, List, Any
+import os
+import sys
+from typing import Any, Dict, List
 
 # Add backend to path
 sys.path.insert(
@@ -241,8 +241,8 @@ class WorkflowAutomationVerifier:
             # Check if Celery components are importable
             try:
                 # Try to import from the actual location
-                import sys
                 import os
+                import sys
 
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 backend_path = os.path.join(current_dir, "..", "backend", "python-api")

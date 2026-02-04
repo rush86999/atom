@@ -4,16 +4,17 @@ Enhanced Marketing Claim Validator with Structured Evidence Collection
 Bridges e2e test results with specific marketing claims for >98% validation accuracy
 """
 
-import json
-import time
 import asyncio
 import datetime
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from pathlib import Path
-import requests
-import subprocess
+import json
 import os
+import subprocess
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+import requests
+
 
 @dataclass
 class MarketingClaim:

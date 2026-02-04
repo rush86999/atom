@@ -1,9 +1,10 @@
 
-import os
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
+import os
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
+
 from core.byok_endpoints import get_byok_manager
 from integrations.mcp_service import mcp_service
 
@@ -82,9 +83,9 @@ class ComputerUseAgent:
                 task.logs.append("Initializing Lux Agent (Local Model)...")
                 
                 # --- Governance Setup ---
-                from core.database import SessionLocal
                 from core.agent_governance_service import AgentGovernanceService
-                
+                from core.database import SessionLocal
+
                 # Define callback for governance checks
                 async def check_governance(action_type: str, details: Dict) -> bool:
                     try:

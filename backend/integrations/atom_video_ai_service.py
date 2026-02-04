@@ -3,44 +3,65 @@ ATOM Video AI Features Service
 Advanced video AI features including meeting summaries, content analysis, and video moderation
 """
 
-import os
+import asyncio
+import io
 import json
 import logging
-import asyncio
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple
-from dataclasses import dataclass, asdict
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-import httpx
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
-from collections import defaultdict, Counter
-import pandas as pd
-import numpy as np
 import cv2
 import ffmpeg
-from moviepy.editor import VideoFileClip
+import httpx
 import librosa
+import numpy as np
+import pandas as pd
+import PIL.Image
 import soundfile as sf
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoProcessor, AutoModelForVideoClassification
 import torch
 import torchaudio
-import PIL.Image
-import io
+from moviepy.editor import VideoFileClip
+from transformers import (
+    AutoModelForSeq2SeqLM,
+    AutoModelForVideoClassification,
+    AutoProcessor,
+    AutoTokenizer,
+    pipeline,
+)
 
 # Import existing ATOM services
 try:
-    from atom_enterprise_security_service import atom_enterprise_security_service, SecurityLevel, ComplianceStandard
-    from atom_workflow_automation_service import atom_workflow_automation_service, AutomationPriority, AutomationStatus
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AIResponse, AITaskType, AIModelType, AIServiceType
+    from ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIResponse,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
     from atom_ai_integration import atom_ai_integration
-    from atom_voice_ai_service import atom_voice_ai_service, VoiceRequest, VoiceResponse
+    from atom_discord_integration import atom_discord_integration
+    from atom_enterprise_security_service import (
+        ComplianceStandard,
+        SecurityLevel,
+        atom_enterprise_security_service,
+    )
+    from atom_google_chat_integration import atom_google_chat_integration
     from atom_slack_integration import atom_slack_integration
     from atom_teams_integration import atom_teams_integration
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_discord_integration import atom_discord_integration
     from atom_telegram_integration import atom_telegram_integration
+    from atom_voice_ai_service import VoiceRequest, VoiceResponse, atom_voice_ai_service
     from atom_whatsapp_integration import atom_whatsapp_integration
+    from atom_workflow_automation_service import (
+        AutomationPriority,
+        AutomationStatus,
+        atom_workflow_automation_service,
+    )
     from atom_zoom_integration import atom_zoom_integration
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
@@ -354,7 +375,7 @@ class AtomVideoAIService:
             start_time = time.time()
             
             # Load BLIP model for video summarization
-            from transformers import BlipProcessor, BlipForConditionalGeneration
+            from transformers import BlipForConditionalGeneration, BlipProcessor
             self.blip_processor = BlipProcessor.from_pretrained(self.video_config['blip_model'])
             self.blip_model = BlipForConditionalGeneration.from_pretrained(self.video_config['blip_model'])
             logger.info(f"BLIP model loaded: {self.video_config['blip_model']}")

@@ -1,10 +1,10 @@
-import os
-import aiohttp
-import json
 import base64
-from typing import Optional, Dict, Any, Union
-from abc import ABC, abstractmethod
+import json
 import logging
+import os
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, Union
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +76,8 @@ class DeepgramProvider(TextToSpeechProvider):
         
         # Add model/voice if specified, else generic default
         if voice_id:
-            # e.g., "aura-asteria-en"
-            # We append query params or payload depending on exact API version
-            # For simplicity using payload for now
-            pass 
+            # Use the specified voice_id model instead of default
+            url = f"{self.base_url}?model={voice_id}" 
 
         async with aiohttp.ClientSession() as session:
             try:

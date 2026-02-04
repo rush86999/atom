@@ -1,11 +1,13 @@
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
-from core.models import AgentRegistry, AgentStatus
-from core.atom_meta_agent import AtomMetaAgent
+from unittest.mock import AsyncMock, MagicMock
+import pytest
+
 from core.agent_governance_service import AgentGovernanceService
+from core.atom_meta_agent import AtomMetaAgent
 from core.database import SessionLocal
+from core.models import AgentRegistry, AgentStatus
+
 
 @pytest.mark.asyncio
 async def test_atom_governance_gating():

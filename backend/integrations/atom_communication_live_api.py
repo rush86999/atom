@@ -1,7 +1,7 @@
-import logging
 import asyncio
+import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 # Import Services (Lazy load or direct import depending on architecture)
@@ -95,57 +95,49 @@ async def fetch_slack_recent(limit: int = 20) -> List[Dict]:
     """Fetch recent messages from active Slack channels"""
     if not SLACK_AVAILABLE:
         return []
-    
+
     messages = []
     try:
-        # TODO: Move token management to a proper user context manager
-        # For now, we try to grab the bot token from environment/config via the service's own mechanism
-        # The unified service handles config loading internally if env vars are set
-        
-        # 1. Test connection / Get token context
-        # In this simplified architecture, we assume the helper service has access to the bot token
-        # If the service relies on passing a token every time, we need to fetch it from token_storage
-        
-        from core.token_storage import token_storage
-        tokens = token_storage.get_token("slack")
-        token = None
-        if tokens:
-            token = tokens.get("access_token")
-        
-        # Fallback to env var if no user token (Bot Mode)
-        if not token:
-             import os
-             token = os.getenv("SLACK_BOT_TOKEN")
-             
-        if not token:
+        # Use user context manager for token retrieval
+        from core.user_context_manager import get_user_context_manager
+
+        context_manager = get_user_context_manager()
+        token_context = context_manager.get_token_with_context("slack")
+
+        if not token_context or "token" not in token_context:
             logger.warning("No Slack token found for Live API")
             return []
+
+        token = token_context["token"]
+        source = token_context.get("source", "bot")
+
+        logger.debug(f"Using Slack token from {source} mode")
 
         # 2. List public channels to scan
         # For responsiveness, we limit to scanning the first few active channels or a specific 'general'
         channels = await slack_unified_service.list_channels(token=token, types="public_channel")
-        
-        # Sort channels by activity or just take first few? 
+
+        # Sort channels by activity or just take first few?
         # For MVP, let's look at the first 3 channels to build the "Inbox"
         target_channels = channels[:3]
-        
+
         for ch in target_channels:
             ch_id = ch.get("id")
             ch_name = ch.get("name")
-            
+
             # Fetch history
             history = await slack_unified_service.get_channel_history(token=token, channel_id=ch_id, limit=5)
             msgs = history.get("messages", [])
-            
+
             for m in msgs:
                 # Filter out subtypes like 'channel_join'
                 if "subtype" in m:
                     continue
-                    
+
                 # Convert timestamp
                 ts_str = m.get("ts")
                 ts_dt = datetime.fromtimestamp(float(ts_str))
-                
+
                 unified_msg = UnifiedLiveMessage(
                     id=f"slack_{ch_id}_{ts_str}",
                     provider="slack",
@@ -157,10 +149,10 @@ async def fetch_slack_recent(limit: int = 20) -> List[Dict]:
                     metadata={"original_id": ts_str}
                 )
                 messages.append(unified_msg.to_dict())
-                
+
     except Exception as e:
         logger.error(f"Error fetching Slack live: {e}")
-    
+
     return messages
 
 async def fetch_zoho_mail_recent(limit: int = 20) -> List[Dict]:

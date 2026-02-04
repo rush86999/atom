@@ -1,12 +1,13 @@
 
 import asyncio
-import sys
 import os
-from unittest.mock import MagicMock, patch, AsyncMock
-import traceback
 
 # Fix path: Add 'backend' to sys.path relative to this script
 import pathlib
+import sys
+import traceback
+from unittest.mock import AsyncMock, MagicMock, patch
+
 backend_path = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(backend_path))
 
@@ -16,7 +17,8 @@ sys.modules['google.generativeai'] = MagicMock()
 sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService, ToolCall, FinalAnswer, AgentStep
+from enhanced_ai_workflow_endpoints import AgentStep, FinalAnswer, RealAIWorkflowService, ToolCall
+
 
 async def main():
     log_file = "security_injection_result.txt"

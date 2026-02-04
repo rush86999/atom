@@ -1,9 +1,9 @@
-import logging
-import json
 import asyncio
+import json
+import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 # Import ChatOrchestrator (Lazy load to avoid circular imports)
@@ -32,22 +32,22 @@ class UniversalWebhookBridge:
     async def _get_agent_id_by_name(self, name: str) -> Optional[str]:
         """Look up agent ID by name (Registry or Template)"""
         try:
-            from core.models import AgentRegistry
-            from core.database import SessionLocal
             from core.atom_meta_agent import SpecialtyAgentTemplate
+            from core.database import get_db_session
+            from core.models import AgentRegistry
             
-            db = SessionLocal()
-            # Try exact match first
-            agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(name)).first()
-            if agent:
+            with get_db_session() as db:
+                # Try exact match first
+                agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(name)).first()
+                if agent:
+                    db.close()
+                    return agent.id
+
+                # Try fuzzy match in registry
+                agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(f"%{name}%")).first()
                 db.close()
-                return agent.id
-            
-            # Try fuzzy match in registry
-            agent = db.query(AgentRegistry).filter(AgentRegistry.name.ilike(f"%{name}%")).first()
-            db.close()
-            if agent:
-                return agent.id
+                if agent:
+                    return agent.id
                 
             # Try templates
             templates = SpecialtyAgentTemplate.TEMPLATES
@@ -118,8 +118,8 @@ class UniversalWebhookBridge:
             # --- [NEW] Automatically send response back to platform ---
             if response and response.get("message"):
                 try:
-                    from core.agent_integration_gateway import agent_integration_gateway, ActionType
-                    
+                    from core.agent_integration_gateway import ActionType, agent_integration_gateway
+
                     # Determine recipient and thread
                     # For Slack, recipient is the user or channel, and we might want to thread
                     recipient_id = unified_msg.sender_id if platform == "whatsapp" else unified_msg.recipient_id
@@ -367,7 +367,7 @@ class UniversalWebhookBridge:
 
             try:
                 from api.agent_routes import execute_agent_task
-                
+
                 # Run in background
                 params = {
                     "task_input": task_input,
@@ -381,14 +381,14 @@ class UniversalWebhookBridge:
                 asyncio.create_task(execute_agent_task(agent_id, params))
                 
                 # Acknowledge back to platform
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
                     {
                         "recipient_id": msg.sender_id if msg.platform == "whatsapp" else msg.recipient_id,
                         "channel": msg.recipient_id,
-                        "content": f"🚀 Triggering agent *{agent_name}* (ID: {agent_id}) with task: {task_input}\nI will notify you here when the results are ready!",
+                        "content": f"[ ] Triggering agent *{agent_name}* (ID: {agent_id}) with task: {task_input}\nI will notify you here when the results are ready!",
                         "thread_ts": msg.thread_id or msg.metadata.get("ts")
                     }
                 )
@@ -421,7 +421,7 @@ class UniversalWebhookBridge:
                 # Otherwise trigger by event
                 asyncio.create_task(orchestrator.trigger_event(f"manual_trigger:{workflow_id}", event_data))
                 
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
@@ -444,24 +444,24 @@ class UniversalWebhookBridge:
 
         elif command == "agents":
             try:
-                from core.models import AgentRegistry
-                from core.database import SessionLocal
                 from core.atom_meta_agent import SpecialtyAgentTemplate
+                from core.database import get_db_session
+                from core.models import AgentRegistry
                 
-                db = SessionLocal()
-                db_agents = db.query(AgentRegistry).all()
-                db.close()
+                with get_db_session() as db:
+                    db_agents = db.query(AgentRegistry).all()
+                    db.close()
+
+                    agent_list = [f"• *{a.name}* ({a.id}) - {a.description}" for a in db_agents]
+
+                    # Add templates
+                    templates = SpecialtyAgentTemplate.TEMPLATES
+                    template_list = [f"• *{t['name']}* (Template) - {t['description']}" for t in templates.values()]
+
+                    full_list = agent_list + template_list
+                    content = "[.] *Available Agents*:\n" + "\n".join(full_list) if full_list else "No agents found."
                 
-                agent_list = [f"• *{a.name}* ({a.id}) - {a.description}" for a in db_agents]
-                
-                # Add templates
-                templates = SpecialtyAgentTemplate.TEMPLATES
-                template_list = [f"• *{t['name']}* (Template) - {t['description']}" for t in templates.values()]
-                
-                full_list = agent_list + template_list
-                content = "🕵️ *Available Agents*:\n" + "\n".join(full_list) if full_list else "No agents found."
-                
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
@@ -486,7 +486,7 @@ class UniversalWebhookBridge:
                 "• `/status`: Check system and session health.\n"
                 "• `/help`: Show this message."
             )
-            from core.agent_integration_gateway import agent_integration_gateway, ActionType
+            from core.agent_integration_gateway import ActionType, agent_integration_gateway
             await agent_integration_gateway.execute_action(
                 ActionType.SEND_MESSAGE,
                 msg.platform,
@@ -505,14 +505,14 @@ class UniversalWebhookBridge:
                 # For MVP, we provide a generic status
                 user_id = f"{msg.platform}_{msg.sender_id}"
                 
-                from core.agent_integration_gateway import agent_integration_gateway, ActionType
+                from core.agent_integration_gateway import ActionType, agent_integration_gateway
                 await agent_integration_gateway.execute_action(
                     ActionType.SEND_MESSAGE,
                     msg.platform,
                     {
                         "recipient_id": msg.sender_id if msg.platform == "whatsapp" or msg.platform == "agent" else msg.recipient_id,
                         "channel": msg.recipient_id,
-                        "content": f"📊 *System Status*: Online\nConnected via: {msg.platform.capitalize()}\nNo active background agents for session {user_id}.",
+                        "content": f"[ ] *System Status*: Online\nConnected via: {msg.platform.capitalize()}\nNo active background agents for session {user_id}.",
                         "thread_ts": msg.thread_id or msg.metadata.get("ts")
                     }
                 )

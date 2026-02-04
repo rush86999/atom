@@ -1,8 +1,10 @@
 
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
 from api.agent_routes import execute_agent_task
 from core.models import AgentRegistry
+
 
 @pytest.fixture
 def mock_db_session():

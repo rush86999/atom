@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from core.database import get_db
+from typing import Any, Dict, List
 from analytics.models import WorkflowExecutionLog
 from analytics.optimizer import WorkflowOptimizer
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from core.database import get_db
 
 # Router prefix is just "/analytics". 
 # The plugin registers it under "/api/v1", resulting in "/api/v1/analytics".

@@ -4,10 +4,10 @@ AI Workflow Endpoints for Marketing Claim Validation
 Provides AI-powered workflow functionality for validation
 """
 
+import datetime
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
-import datetime
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai_workflows"])
 

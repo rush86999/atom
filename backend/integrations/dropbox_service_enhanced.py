@@ -3,15 +3,16 @@ Enhanced Dropbox Service
 Complete Dropbox integration service for the ATOM platform
 """
 
-import os
+import asyncio
+import base64
 import json
 import logging
-import asyncio
-import aiohttp
-from typing import Dict, List, Optional, Any
+import os
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
-import base64
+from typing import Any, Dict, List, Optional
+import aiohttp
+
 try:
     import dropbox
     from dropbox.exceptions import ApiError, AuthError

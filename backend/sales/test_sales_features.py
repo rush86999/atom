@@ -7,13 +7,15 @@ from sqlalchemy.orm import Session
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from core.database import SessionLocal, engine
-from sales.models import Lead, Deal, DealStage, CallTranscript, FollowUpTask
-import core.models
-from sales.lead_manager import LeadManager
-from sales.intelligence import SalesIntelligence
 from sales.call_service import CallAutomationService
+from sales.intelligence import SalesIntelligence
+from sales.lead_manager import LeadManager
+from sales.models import CallTranscript, Deal, DealStage, FollowUpTask, Lead
+
+import core.models
 from core.automation_settings import get_automation_settings
+from core.database import SessionLocal, engine
+
 
 async def test_sales_flow():
     db = SessionLocal()

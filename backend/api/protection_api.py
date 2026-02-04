@@ -1,12 +1,12 @@
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
+import os
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.risk_prevention import get_risk_services
-import os
 
 router = APIRouter()
 
@@ -68,9 +68,9 @@ async def perform_security_scan(request: ScanRequest):
     Combines static analysis and semantic LLM analysis.
     """
     try:
-        from atom_security.analyzers.static import StaticAnalyzer
         from atom_security.analyzers.llm import LLMAnalyzer
-        
+        from atom_security.analyzers.static import StaticAnalyzer
+
         # 1. Static Scan
         static_analyzer = StaticAnalyzer()
         # Combine instructions and files for comprehensive static scanning

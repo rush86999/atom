@@ -4,8 +4,8 @@ Import Path Test for ATOM Platform
 Tests which modules are being imported and from which paths
 """
 
-import sys
 import os
+import sys
 
 
 def test_import_paths():

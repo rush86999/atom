@@ -1,20 +1,22 @@
-import unittest
 import asyncio
-from typing import Dict, Any
-from core.marketing_agent import MarketingAgent, RetentionEngine
-from core.marketing_analytics import MarketingIntelligence
-from integrations.google_business_profile import GoogleBusinessProfileClient
-from core.database import Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-import core.models
+import unittest
+from typing import Any, Dict
+import accounting.models
 import ecommerce.models
 import saas.models
 import sales.models
-import accounting.models
 import service_delivery.models
-from core.models import Workspace
 from ecommerce.models import EcommerceCustomer
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.marketing_agent import MarketingAgent, RetentionEngine
+from core.marketing_analytics import MarketingIntelligence
+from core.models import Workspace
+from integrations.google_business_profile import GoogleBusinessProfileClient
+
 
 class MockAIService:
     async def analyze_text(self, text, system_prompt=None):

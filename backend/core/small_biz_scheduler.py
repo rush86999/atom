@@ -1,12 +1,13 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime, timedelta
-from core.database import SessionLocal
-from service_delivery.models import Appointment, AppointmentStatus
+from typing import Any, Dict, List, Optional
 from accounting.models import Entity
-from core.models import BusinessProductService
+from service_delivery.models import Appointment, AppointmentStatus
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
+from core.models import BusinessProductService
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class SmallBizScheduler:
         """
         Checks for overlapping appointments.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             overlaps = (
                 db.query(Appointment)
@@ -59,7 +60,7 @@ class SmallBizScheduler:
         """
         Finalizes an appointment booking.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             if not self.check_availability(workspace_id, start_time, end_time):
                 logger.warning(f"Conflict detected for workspace {workspace_id} at {start_time}")
@@ -86,7 +87,7 @@ class SmallBizScheduler:
         """
         Handles recovery for missed appointments.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
             if not appt:

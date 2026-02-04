@@ -6,11 +6,12 @@ This script tests the complete integration between frontend and backend services
 to ensure all components are working together properly.
 """
 
-import requests
 import json
-import time
 import sys
-from typing import Dict, List, Any
+import time
+from typing import Any, Dict, List
+import requests
+
 
 class AtomIntegrationTest:
     """Comprehensive integration test suite for Atom API"""

@@ -3,10 +3,10 @@
 Simple OAuth Server - Fixed Version
 """
 
-import os
 import logging
-import sys
+import os
 import secrets
+import sys
 import urllib.parse
 from flask import Flask, jsonify, request
 

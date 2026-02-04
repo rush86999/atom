@@ -1,13 +1,14 @@
 
-import logging
-import json
 import asyncio
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+from sqlalchemy import or_, select
+
+from core.database import get_db_session
 from core.lancedb_handler import get_lancedb_handler
-from core.database import SessionLocal
-from core.models import User, Team, team_members
-from sqlalchemy import select, or_
+from core.models import Team, User, team_members
 
 logger = logging.getLogger(__name__)
 
@@ -22,32 +23,32 @@ class StakeholderEngagementEngine:
         """Identify a list of stakeholders (people of interest) for the user"""
         stakeholders = {} # Email/ID -> Metadata
         ws_id = workspace_id or "default"
-        
+
         # 1. Get Team Members from SQL
-        db = SessionLocal()
-        try:
-            # Find all teams the user is in
-            team_ids = db.execute(
-                select(team_members.c.team_id).where(team_members.c.user_id == user_id)
-            ).scalars().all()
-            
-            if team_ids:
-                # Find all members of those teams
-                members = db.execute(
-                    select(User).join(team_members).where(team_members.c.team_id.in_(team_ids))
+        with get_db_session() as db:
+            try:
+                # Find all teams the user is in
+                team_ids = db.execute(
+                    select(team_members.c.team_id).where(team_members.c.user_id == user_id)
                 ).scalars().all()
-                
-                for member in members:
-                    if member.id == user_id:
-                        continue
-                    stakeholders[member.email] = {
-                        "id": member.id,
-                        "name": f"{member.first_name} {member.last_name}" if member.first_name else member.email,
-                        "email": member.email,
-                        "source": "team"
-                    }
-        finally:
-            db.close()
+
+                if team_ids:
+                    # Find all members of those teams
+                    members = db.execute(
+                        select(User).join(team_members).where(team_members.c.team_id.in_(team_ids))
+                    ).scalars().all()
+
+                    for member in members:
+                        if member.id == user_id:
+                            continue
+                        stakeholders[member.email] = {
+                            "id": member.id,
+                            "name": f"{member.first_name} {member.last_name}" if member.first_name else member.email,
+                            "email": member.email,
+                            "source": "team"
+                        }
+            finally:
+                db.close()
             
         # 2. Get Goal-related stakeholders (Mock/Future integration)
         try:

@@ -9,16 +9,16 @@ Tests cover:
 - Form submission governance validation
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.governance_cache import GovernanceCache, get_governance_cache
-from core.models import AgentRegistry, AgentStatus, User, Workspace, ChatSession
+from core.models import AgentRegistry, AgentStatus, ChatSession, User, Workspace
 
 
 @pytest.fixture
@@ -321,8 +321,9 @@ class TestAgentExecutionTracking:
 
     async def test_agent_execution_created_on_stream_start(self, mock_db):
         """Test that AgentExecution is created when streaming starts."""
-        from core.models import AgentExecution
         import uuid
+
+        from core.models import AgentExecution
 
         execution = AgentExecution(
             id=str(uuid.uuid4()),  # Explicitly provide ID

@@ -1,7 +1,7 @@
 import logging
-from sqlalchemy.orm import Session
+from typing import Any, Dict
 from ecommerce.models import EcommerceCustomer
-from typing import Dict, Any
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

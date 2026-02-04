@@ -1,10 +1,10 @@
 
 import logging
-import httpx
 import os
-from typing import Dict, Any, List, Optional
-from functools import lru_cache
 from datetime import datetime, timedelta
+from functools import lru_cache
+from typing import Any, Dict, List, Optional
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,53 @@ class NodeBridgeService:
         except Exception as e:
             logger.error(f"Execution error for {piece_name}.{action_name}: {e}")
             raise
+
+    async def get_dynamic_options(
+        self,
+        piece_name: str,
+        property_name: str,
+        action_name: Optional[str] = None,
+        trigger_name: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+        auth: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Fetches dynamic options for a property from the Node engine.
+        This is used to populate dropdowns with real data (e.g., Slack channels).
+        """
+        payload = {
+            "pieceName": piece_name,
+            "propertyName": property_name,
+            "config": config or {},
+            "auth": auth
+        }
+
+        if action_name:
+            payload["actionName"] = action_name
+        if trigger_name:
+            payload["triggerName"] = trigger_name
+
+        try:
+            resp = await self.client.post("/dynamic-options", json=payload, timeout=30.0)
+            resp.raise_for_status()
+            result = resp.json()
+
+            if not result.get("success", False):
+                error_msg = result.get("error", "Unknown error")
+                logger.error(f"Dynamic options request failed: {error_msg}")
+                return {"options": [], "error": error_msg}
+
+            return result.get("data", {"options": []})
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"Dynamic options endpoint not found for {piece_name}.{property_name}")
+                return {"options": [], "error": "Endpoint not found"}
+            logger.error(f"HTTP error fetching dynamic options: {e.response.text}")
+            return {"options": [], "error": str(e)}
+        except Exception as e:
+            logger.error(f"Error fetching dynamic options for {piece_name}.{property_name}: {e}", exc_info=True)
+            return {"options": [], "error": str(e)}
 
     async def close(self):
         await self.client.aclose()

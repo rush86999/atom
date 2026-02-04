@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
 import logging
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.models import IntegrationCatalog
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations-catalog"])
 logger = logging.getLogger(__name__)

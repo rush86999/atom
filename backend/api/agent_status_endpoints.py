@@ -3,15 +3,15 @@ Agent Status API Endpoints
 Provides status monitoring for AI agents and task execution
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel
-from datetime import datetime
-import uuid
 import asyncio
 import json
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -47,7 +47,7 @@ def load_agent_status() -> Dict[str, Any]:
     try:
         with open(AGENT_STATUS_FILE, 'r') as f:
             return json.load(f)
-    except:
+    except Exception as e:
         return {"agents": {}, "tasks": {}}
 
 def save_agent_status(data: Dict[str, Any]):

@@ -1,8 +1,9 @@
 import logging
 from sqlalchemy.orm import Session
-from core.models import User, UserStatus
+
 from core.auth import get_password_hash
-from core.database import SessionLocal
+from core.database import get_db_session
+from core.models import User, UserStatus
 
 logger = logging.getLogger("ATOM_BOOTSTRAP")
 
@@ -11,8 +12,8 @@ def ensure_admin_user():
     Ensures the admin@example.com user exists with the correct password.
     This runs INSIDE the main application process to avoid DB locks.
     """
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
+        try:
         email = "admin@example.com"
         password = "securePass123"
         

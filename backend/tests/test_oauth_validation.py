@@ -12,9 +12,9 @@ Usage:
 
 import json
 import time
-import requests
-from typing import Dict, List, Any
 from datetime import datetime
+from typing import Any, Dict, List
+import requests
 
 
 class OAuthValidator:

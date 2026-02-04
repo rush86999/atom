@@ -6,13 +6,13 @@ Uses AI to evaluate if outputs match realistic expectations
 """
 
 import asyncio
-import aiohttp
 import json
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+import time
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
