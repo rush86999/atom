@@ -104,12 +104,18 @@ class SlackAnalyticsEngine:
         # Cache for computed analytics
         self.analytics_cache: Dict[str, Any] = {}
         self.cache_ttl = config.get('cache_ttl', 300)  # 5 minutes
-        
-        # Sentiment analysis (placeholder)
+
+        # Sentiment analysis - requires ML model integration
+        # To enable: Set config['sentiment_analyzer'] to a sentiment analysis service
         self.sentiment_analyzer = config.get('sentiment_analyzer')
-        
-        # Machine learning models (placeholder)
+        if not self.sentiment_analyzer:
+            logger.debug("Sentiment analyzer not configured - using basic keyword-based analysis")
+
+        # Machine learning models for predictions and advanced analytics
+        # To enable: Set config['prediction_models'] with model instances
         self.prediction_models = config.get('prediction_models', {})
+        if not self.prediction_models:
+            logger.debug("Prediction models not configured - advanced ML features unavailable")
         
         # Report configurations
         self.reports: Dict[str, AnalyticsReport] = {}
@@ -657,12 +663,11 @@ class SlackAnalyticsEngine:
             grouped = self._group_by_raw_timestamp(raw_data)
         
         for timestamp, group in grouped.items():
-            # Analyze sentiment (placeholder)
+            # Analyze sentiment using configured analyzer or fallback to keyword-based
             sentiments = []
             for item in group:
                 text = item.get('text', '')
                 if text:
-                    # Simple sentiment analysis (placeholder)
                     sentiment_score = self._analyze_sentiment(text)
                     sentiments.append(sentiment_score)
             
@@ -1004,19 +1009,37 @@ class SlackAnalyticsEngine:
             return None
     
     def _analyze_sentiment(self, text: str) -> float:
-        """Analyze sentiment of text (placeholder)"""
-        # Simple sentiment analysis (placeholder)
+        """
+        Analyze sentiment of text.
+
+        This is a basic keyword-based sentiment analysis fallback.
+        For production use, configure a proper sentiment analyzer (e.g., TextBlob, VADER, or ML model).
+
+        Args:
+            text: The text to analyze
+
+        Returns:
+            Sentiment score between -1 (negative) and 1 (positive)
+        """
+        # Use configured sentiment analyzer if available
+        if self.sentiment_analyzer and hasattr(self.sentiment_analyzer, 'analyze'):
+            try:
+                return self.sentiment_analyzer.analyze(text)
+            except Exception as e:
+                logger.warning(f"Sentiment analyzer failed, falling back to keyword analysis: {e}")
+
+        # Fallback: Basic keyword-based sentiment analysis
         positive_words = ['good', 'great', 'awesome', 'excellent', 'amazing', 'love', 'like']
         negative_words = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'poor', 'worst']
-        
+
         text_lower = text.lower()
         positive_count = sum(1 for word in positive_words if word in text_lower)
         negative_count = sum(1 for word in negative_words if word in text_lower)
-        
+
         total_words = len(text.split())
         if total_words == 0:
             return 0
-        
+
         # Simple sentiment score between -1 and 1
         sentiment = (positive_count - negative_count) / total_words
         return max(-1, min(1, sentiment))
@@ -1038,23 +1061,34 @@ class SlackAnalyticsEngine:
         }
     
     def _extract_topics(self, text: str) -> List[str]:
-        """Extract topics from text (placeholder)"""
-        # Simple topic extraction (placeholder)
+        """
+        Extract topics from text.
+
+        This is a basic keyword and hashtag-based topic extraction.
+        For production use, configure an NLP model (e.g., LDA, BERT-based topic modeling).
+
+        Args:
+            text: The text to extract topics from
+
+        Returns:
+            List of topic strings
+        """
         topics = []
-        
-        # Look for hashtags
+
+        # Extract hashtags
         hashtags = re.findall(r'#(\w+)', text)
         topics.extend(hashtags)
-        
-        # Look for common keywords (placeholder)
-        keywords = ['project', 'deadline', 'meeting', 'review', 'update', 'feature', 'bug']
+
+        # Look for common business/tech keywords (basic extraction)
+        keywords = ['project', 'deadline', 'meeting', 'review', 'update', 'feature', 'bug',
+                   'deploy', 'release', 'sprint', 'standup', 'planning', 'retrospective']
         text_lower = text.lower()
-        
+
         for keyword in keywords:
             if keyword in text_lower:
                 topics.append(keyword)
-        
-        return topics
+
+        return list(set(topics))  # Remove duplicates
     
     def _calculate_score(self, data: List[AnalyticsDataPoint], reverse: bool = False) -> float:
         """Calculate score from data points"""

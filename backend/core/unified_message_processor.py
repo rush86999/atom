@@ -332,19 +332,19 @@ class UnifiedMessageProcessor:
         content = raw_message.get("content", "")
         attachments = raw_message.get("attachments", [])
 
-        if raw_message.get("metadata", {}).get("message_type") == "message":
-            # Regular message - continue to content analysis below
-            pass
-
+        # Check for bot messages without content (system messages)
         if raw_message.get("metadata", {}).get("bot_id") and not content.strip():
             return MessageType.SYSTEM.value
 
+        # Check for attachment-only messages
         if attachments and len(attachments) > 0 and not content.strip():
             return MessageType.ATTACHMENT.value
 
+        # Check for HTML content
         if "<html>" in content.lower() or "<div>" in content.lower():
             return MessageType.HTML.value
 
+        # Default to text message
         return MessageType.TEXT.value
 
     def _enrich_message(self, message: UnifiedMessage):
