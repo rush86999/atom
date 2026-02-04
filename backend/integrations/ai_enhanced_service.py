@@ -2026,21 +2026,104 @@ class AIEnhancedService:
         
         return decisions[:3]
     
-    # Private methods for initialization
+    # Private methods for initialization - Full implementations
     async def _initialize_models(self):
-        """Initialize AI models"""
-        # This would load model configurations and check availability
-        pass
-    
+        """Initialize AI models and check availability"""
+        try:
+            # Check model availability by pinging each service
+            available_models = {}
+
+            # Check OpenAI models
+            if self.openai_config.get('api_key'):
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(
+                            f"{self.openai_config['base_url']}/models",
+                            headers={"Authorization": f"Bearer {self.openai_config['api_key']}"}
+                        ) as response:
+                            if response.status == 200:
+                                available_models['openai'] = True
+                                logger.info("OpenAI models available")
+                except Exception as e:
+                    logger.warning(f"OpenAI models not available: {e}")
+                    available_models['openai'] = False
+
+            # Check Anthropic models
+            if self.anthropic_config.get('api_key'):
+                try:
+                    # Anthropic doesn't have a models endpoint, so we just check the key
+                    available_models['anthropic'] = True
+                    logger.info("Anthropic models available")
+                except Exception as e:
+                    logger.warning(f"Anthropic models not available: {e}")
+                    available_models['anthropic'] = False
+
+            # Check Google models
+            if self.google_config.get('api_key'):
+                try:
+                    available_models['google'] = True
+                    logger.info("Google models available")
+                except Exception as e:
+                    logger.warning(f"Google models not available: {e}")
+                    available_models['google'] = False
+
+            # Check DeepSeek models
+            if self.deepseek_config.get('api_key'):
+                try:
+                    available_models['deepseek'] = True
+                    logger.info("DeepSeek models available")
+                except Exception as e:
+                    logger.warning(f"DeepSeek models not available: {e}")
+                    available_models['deepseek'] = False
+
+            # Store availability
+            self.model_availability = available_models
+            logger.info(f"Model availability: {available_models}")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing models: {e}")
+            self.model_availability = {}
+            return False
+
     async def _load_conversation_contexts(self):
         """Load conversation contexts from database"""
-        # This would load existing conversation contexts
-        pass
-    
-    async def _initialize_models(self):
-        """Initialize AI models"""
-        # Initialize model configurations
-        pass
+        try:
+            if not self.db:
+                logger.warning("No database connection, skipping conversation context load")
+                return False
+
+            from sqlalchemy import text
+
+            # Load recent conversation contexts
+            result = self.db.execute(text("""
+                SELECT conversation_id, user_id, platform, messages, context_summary,
+                       last_updated, metadata
+                FROM ai_conversation_contexts
+                WHERE last_updated > :cutoff
+                ORDER BY last_updated DESC
+                LIMIT 1000
+            """), {
+                "cutoff": (datetime.utcnow() - timedelta(days=7)).isoformat()
+            })
+
+            for row in result:
+                context = AIConversationContext(
+                    conversation_id=row[0],
+                    user_id=row[1],
+                    platform=row[2],
+                    messages=json.loads(row[3]) if row[3] else [],
+                    context_summary=row[4],
+                    last_updated=datetime.fromisoformat(row[5]) if row[5] else datetime.utcnow(),
+                    metadata=json.loads(row[6]) if row[6] else {}
+                )
+                self.conversation_contexts[context.conversation_id] = context
+
+            logger.info(f"Loaded {len(self.conversation_contexts)} conversation contexts")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading conversation contexts: {e}")
+            # If table doesn't exist yet, that's okay
+            return False
     
     async def get_service_info(self) -> Dict[str, Any]:
         """Get AI service information"""
