@@ -9,6 +9,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
+from core.security_dependencies import get_current_user
+from core.models import User
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/document-ingestion", tags=["Document Ingestion"])
@@ -77,7 +80,9 @@ def get_workspace_id() -> str:
 # ==================== API Endpoints ====================
 
 @router.get("/settings", response_model=List[IngestionSettingsResponse])
-async def get_all_ingestion_settings():
+async def get_all_ingestion_settings(
+    current_user: User = Depends(get_current_user)
+):
     """
     Get document ingestion settings for all integrations.
     Shows which integrations have auto-sync enabled.
@@ -94,7 +99,8 @@ async def get_all_ingestion_settings():
 
 @router.get("/settings/{integration_id}", response_model=IngestionSettingsResponse)
 async def get_integration_settings(
-    integration_id: str
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get document ingestion settings for a specific integration.
@@ -121,7 +127,8 @@ async def get_integration_settings(
 
 @router.put("/settings")
 async def update_ingestion_settings(
-    request: IngestionSettingsRequest
+    request: IngestionSettingsRequest,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update document ingestion settings for an integration.
@@ -156,7 +163,8 @@ async def update_ingestion_settings(
 @router.post("/sync/{integration_id}", response_model=SyncResultResponse)
 async def trigger_document_sync(
     integration_id: str,
-    force: bool = Query(False, description="Force sync even if recently synced")
+    force: bool = Query(False, description="Force sync even if recently synced"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Trigger a document sync for an integration.
@@ -183,7 +191,8 @@ async def trigger_document_sync(
 
 @router.delete("/memory/{integration_id}", response_model=RemoveMemoryResponse)
 async def remove_integration_memory(
-    integration_id: str
+    integration_id: str,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Remove all ingested documents from a specific integration.

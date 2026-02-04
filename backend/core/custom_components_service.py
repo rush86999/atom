@@ -33,7 +33,19 @@ logger = logging.getLogger(__name__)
 
 class ComponentSecurityError(Exception):
     """Raised when component content fails security validation."""
-    pass
+
+    def __init__(self, message: str, component_name: str = "", validation_reason: str = ""):
+        super().__init__(message)
+        self.component_name = component_name
+        self.validation_reason = validation_reason
+
+    def __str__(self):
+        msg = super().__str__()
+        if self.component_name:
+            msg += f" (Component: {self.component_name})"
+        if self.validation_reason:
+            msg += f" (Reason: {self.validation_reason})"
+        return msg
 
 
 class CustomComponentsService:

@@ -587,7 +587,8 @@ async def browser_click(
             try:
                 await session.page.wait_for_selector(wait_for, timeout=5000)
             except Exception as e:
-                pass  # Don't fail if wait_for selector not found
+                logger.debug(f"Wait for selector '{wait_for}' not found or timeout: {e}")
+                # Continue anyway - don't fail the entire operation
 
         logger.info(f"Clicked {selector} in session {session_id}")
 

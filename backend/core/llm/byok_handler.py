@@ -927,7 +927,8 @@ class BYOKHandler:
                     output_tokens = 500
                     estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
             except Exception as e:
-                pass
+                logger.warning(f"Cost estimation failed for model {model}: {e}")
+                estimated_cost = None
             
             return {
                 "complexity": complexity.value,

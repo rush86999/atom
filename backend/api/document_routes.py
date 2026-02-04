@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
 from core.database import get_db
+from core.security_dependencies import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,10 @@ class SearchResponse(BaseModel):
     timestamp: str
 
 @router.post("/ingest", response_model=DocumentResponse)
-async def ingest_document(request: DocumentIngestRequest):
+async def ingest_document(
+    request: DocumentIngestRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Ingest a document for RAG/search"""
     try:
         doc_id = str(uuid.uuid4())
@@ -90,7 +95,10 @@ async def ingest_document(request: DocumentIngestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload", response_model=DocumentResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     """Upload and ingest a file directly"""
     try:
         content_bytes = await file.read()
