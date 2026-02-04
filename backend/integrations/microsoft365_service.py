@@ -189,8 +189,12 @@ class Microsoft365Service:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        
-        # Bypass for testing validation (ONLY in development)
+
+        # ============================================================================
+        # DEVELOPMENT MOCK BYPASS - FOR TESTING ONLY
+        # This allows testing OAuth flow and validation without real Microsoft credentials.
+        # NEVER active in production (ATOM_ENV=production bypasses this block)
+        # ============================================================================
         import os
         if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
              logger.info(f"MOCK BYPASS: {method} {url}")

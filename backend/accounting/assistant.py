@@ -1,9 +1,11 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from sqlalchemy import func
+
 from accounting.ledger import EventSourcedLedger
-from accounting.models import Account, AccountType, EntryType
+from accounting.models import Account, AccountType, EntryType, JournalEntry, Transaction
 from sqlalchemy.orm import Session
 
 from integrations.ai_enhanced_service import (
@@ -113,11 +115,19 @@ class AccountingAssistant:
             return {"answer": "I need a cash account to calculate runway."}
         
         cash_balance = self.ledger.get_account_balance(cash_account.id)
-        
-        # Calculate monthly burn (simplified: total expenses in last 30 days)
-        # In a real app, this would use trend analysis
-        monthly_burn = 5000.0 # Placeholder
-        
+
+        # Calculate monthly burn from actual expense transactions (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        monthly_burn = self.db.query(JournalEntry).join(Transaction).filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.transaction_date >= thirty_days_ago,
+            JournalEntry.type == EntryType.DEBIT
+        ).join(Account).filter(
+            Account.type == AccountType.EXPENSE
+        ).with_entities(
+            func.sum(JournalEntry.amount)
+        ).scalar() or 0.0
+
         if monthly_burn <= 0:
             return {"answer": "Your burn rate is 0 or positive cash flow, so your runway is infinite!"}
         
