@@ -82,12 +82,29 @@ class EpisodeBoundaryDetector:
     def _cosine_similarity(self, vec1, vec2) -> float:
         """Calculate cosine similarity between two vectors"""
         try:
+            # Try numpy first (if available)
             import numpy as np
             v1 = np.array(vec1) if not isinstance(vec1, np.ndarray) else vec1
             v2 = np.array(vec2) if not isinstance(vec2, np.ndarray) else vec2
             return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
         except:
-            return 0.0
+            # Fallback to pure Python implementation
+            import math
+            try:
+                # Calculate dot product
+                dot_product = sum(a * b for a, b in zip(vec1, vec2))
+
+                # Calculate magnitudes
+                magnitude1 = math.sqrt(sum(a * a for a in vec1))
+                magnitude2 = math.sqrt(sum(b * b for b in vec2))
+
+                # Avoid division by zero
+                if magnitude1 == 0 or magnitude2 == 0:
+                    return 0.0
+
+                return dot_product / (magnitude1 * magnitude2)
+            except:
+                return 0.0
 
 
 class EpisodeSegmentationService:

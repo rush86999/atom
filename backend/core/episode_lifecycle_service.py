@@ -10,6 +10,7 @@ Manages episode lifecycle:
 
 import logging
 from datetime import datetime, timedelta
+from typing import Dict, List
 from sqlalchemy.orm import Session
 
 from core.models import Episode, EpisodeSegment
