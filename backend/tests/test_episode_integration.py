@@ -64,15 +64,38 @@ class TestEpisodeRetrievalIntegration:
         """Test temporal episode retrieval"""
         # Setup mocks
         mock_gov_service = Mock()
-        mock_gov_service.can_perform_action = Mock(return_value={"allowed": True})
+        mock_gov_service.can_perform_action = Mock(return_value={"allowed": True, "agent_maturity": "STUDENT"})
         mock_governance.return_value = mock_gov_service
 
-        # Mock query chain
+        # Create mock episodes
+        mock_episodes = [
+            Episode(
+                id="ep_1",
+                title="Episode 1",
+                agent_id="agent_123",
+                user_id="user_123",
+                workspace_id="default",
+                status="completed",
+                maturity_at_time="STUDENT",
+                human_intervention_count=0,
+                constitutional_score=0.85,
+                importance_score=0.7,
+                started_at=datetime.now(),
+                topics=[],
+                entities=[],
+                execution_ids=[]
+            )
+        ]
+
+        # Mock query chain properly - each method returns a query-like object
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.limit = Mock(return_value=[])
-        db_session.query.return_value = mock_query
+        # limit() should return an object with all() method
+        mock_result_set = Mock()
+        mock_result_set.all = Mock(return_value=mock_episodes)
+        mock_query.limit = Mock(return_value=mock_result_set)
+        db_session.query = Mock(return_value=mock_query)
 
         service = EpisodeRetrievalService(db_session)
 
@@ -84,6 +107,7 @@ class TestEpisodeRetrievalIntegration:
 
         assert "episodes" in result
         assert "governance_check" in result
+        assert len(result["episodes"]) == 1
 
     @patch('core.episode_retrieval_service.AgentGovernanceService')
     @patch('core.episode_retrieval_service.get_lancedb_handler')
@@ -93,13 +117,7 @@ class TestEpisodeRetrievalIntegration:
         mock_gov_service = Mock()
         mock_governance.return_value = mock_gov_service
 
-        # Mock episode query
-        mock_episode_query = Mock()
-        mock_episode_query.first = Mock(return_value=mock_episode)
-        db_session.query.return_value = mock_episode_query
-
-        # Mock segment query
-        mock_segment_query = Mock()
+        # Mock segment
         mock_segment = EpisodeSegment(
             id="segment_1",
             episode_id="episode_123",
@@ -109,14 +127,23 @@ class TestEpisodeRetrievalIntegration:
             source_type="chat_message",
             created_at=datetime.now()
         )
-        mock_segment_query.order_by = Mock(return_value=mock_segment_query)
-        mock_segment_query.all = Mock(return_value=[mock_segment])
 
-        # Make second query return segment query
+        # Track which query is being called
+        query_count = [0]
+
         def query_side_effect(model):
-            if model == Episode:
+            query_count[0] += 1
+            if query_count[0] == 1:
+                # First query: Episode
+                mock_episode_query = Mock()
+                mock_episode_query.first = Mock(return_value=mock_episode)
                 return mock_episode_query
-            return mock_segment_query
+            else:
+                # Second query: EpisodeSegment
+                mock_segment_query = Mock()
+                mock_segment_query.order_by = Mock(return_value=mock_segment_query)
+                mock_segment_query.all = Mock(return_value=[mock_segment])
+                return mock_segment_query
 
         db_session.query = query_side_effect
 
@@ -137,9 +164,27 @@ class TestEpisodeLifecycle:
     """Integration tests for episode lifecycle"""
 
     @patch('core.episode_lifecycle_service.get_lancedb_handler')
-    def test_update_importance_scores(self, mock_lancedb, db_session, mock_episode):
+    def test_update_importance_scores(self, mock_lancedb, db_session):
         """Test importance score update"""
-        # Mock episode query
+        # Create a mock episode that we can modify
+        mock_episode = Episode(
+            id="episode_123",
+            title="Test Episode",
+            agent_id="agent_123",
+            user_id="user_123",
+            workspace_id="default",
+            status="completed",
+            maturity_at_time="STUDENT",
+            human_intervention_count=0,
+            constitutional_score=0.85,
+            importance_score=0.5,  # Start at 0.5
+            started_at=datetime.now(),
+            topics=[],
+            entities=[],
+            execution_ids=[]
+        )
+
+        # Mock episode query to return our mock episode
         mock_query = Mock()
         mock_query.first = Mock(return_value=mock_episode)
         db_session.query.return_value = mock_query
@@ -153,6 +198,7 @@ class TestEpisodeLifecycle:
         ))
 
         assert result is True
+        # The importance score should be updated (0.5 * 0.8 + 0.8/2 * 0.2 = 0.56)
         assert mock_episode.importance_score > 0.5
 
 
