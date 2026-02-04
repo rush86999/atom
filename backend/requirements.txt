@@ -19,6 +19,7 @@ lancedb>=0.5.3,<1.0.0
 redis>=4.5.0,<5.0.0
 
 # AI & Machine Learning
+fastembed>=0.2.0  # Fast, local embeddings (default: BAAI/bge-small-en-v1.5)
 openai>=1.0.0,<2.0.0
 transformers>=4.30.0,<5.0.0
 torch>=2.0.0,<3.0.0
