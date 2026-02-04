@@ -481,6 +481,46 @@ exam_scenarios = {
 
 ---
 
+## Security and Data Protection
+
+### Authentication Requirements (February 4, 2026)
+
+**CRITICAL**: Document and memory endpoints now require authentication to protect agent learning data.
+
+**Protected Endpoints Relevant to Graduation:**
+- `/api/document-ingestion/sync/{integration_id}` - Sync documents for agent training
+- `/api/document-ingestion/memory/{integration_id}` - Remove learning data
+- `/api/documents/ingest` - Ingest training documents
+- `/api/documents/upload` - Upload training materials
+
+**Impact on Agent Graduation:**
+1. **Training Data Protection**: Document sources used for agent learning now require authentication
+2. **Memory Management**: Removing agent memories requires user verification
+3. **Audit Trail Security**: All learning data operations are attributable to specific users
+
+### Error Handling Improvements
+
+**Enhanced Debugging (February 4, 2026)**:
+
+Exception context enhancements help diagnose graduation issues:
+- `DeepLinkParseException` - Debug episodic recall failures in training scenarios
+- `ComponentSecurityError` - Debug canvas component validation in presentations
+- Enhanced logging for LLM cost estimation failures in embeddings
+- WebSocket error logging for real-time graduation monitoring
+
+These improvements make it easier to:
+- Diagnose why agents aren't graduating
+- Track intervention causes
+- Debug constitutional compliance failures
+- Monitor graduation exam execution
+
+**See Also**:
+- `docs/EPISODIC_MEMORY_IMPLEMENTATION.md` → Security section
+- `docs/API_STANDARDS.md` → Authentication requirements
+- `docs/IMPLEMENTATION_FIXES.md` → Phase 7 (Security fixes)
+
+---
+
 ## API Endpoints
 
 ### Check Readiness

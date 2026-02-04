@@ -367,6 +367,49 @@ Content-Type: application/json
 
 ---
 
+## Security and Authentication
+
+### Document Data Protection (February 4, 2026)
+
+**CRITICAL**: All document ingestion and memory endpoints now require user authentication to protect episodic learning data.
+
+**Protected Endpoints:**
+- `/api/document-ingestion/settings` - Get/update ingestion settings
+- `/api/document-ingestion/sync/{integration_id}` - Trigger document sync
+- `/api/document-ingestion/memory/{integration_id}` - Remove integration memory
+- `/api/documents/ingest` - Ingest document
+- `/api/documents/upload` - Upload document
+
+**Impact on Episodic Memory:**
+1. **Protected Learning Data**: Document ingestion sources (agents, workflows) now require authentication
+2. **Memory Removal Protected**: Deleting integration memories requires user verification
+3. **Settings Guarded**: Ingestion settings cannot be modified without authentication
+
+**Implementation**: See `backend/docs/API_STANDARDS.md` → "User Authentication" section
+
+### Error Handling and Debugging
+
+**Enhanced Exception Context (February 4, 2026)**:
+
+Exception classes now carry debugging context for episodic memory operations:
+- `DeepLinkParseException` - Includes URL and details for episodic recall errors
+- `DeepLinkSecurityException` - Includes security_issue for validation failures
+- `ComponentSecurityError` - Includes component_name and validation_reason
+
+**Logging Improvements**:
+- Cost estimation failures logged (LLM operations for embeddings)
+- WebSocket close failures logged (real-time episode updates)
+- Browser selector timeouts logged (agent interaction tracking)
+
+These improvements make it easier to diagnose issues in:
+- Episode segmentation failures
+- Memory retrieval errors
+- Graduation validation problems
+
+See `backend/docs/IMPLEMENTATION_FIXES.md` → Phase 7 for details.
+
+---
+
 ## Testing
 
 ```bash

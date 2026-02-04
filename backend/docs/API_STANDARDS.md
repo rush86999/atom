@@ -249,6 +249,42 @@ async def api_key_endpoint(api_key: str = Header(..., alias="X-API-Key")):
     # Process request
 ```
 
+### User Authentication (Required for Document Endpoints)
+
+**CRITICAL**: All document ingestion and document management endpoints MUST require user authentication.
+
+**Required Pattern:**
+```python
+from core.security_dependencies import get_current_user
+from core.models import User
+
+@router.post("/documents/ingest")
+async def ingest_document(
+    request: DocumentIngestRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Ingest a document for RAG/search"""
+    # current_user is guaranteed to be authenticated
+    # Process request on behalf of current_user
+    pass
+```
+
+**Endpoints Requiring Authentication:**
+- `/api/document-ingestion/settings` (GET)
+- `/api/document-ingestion/settings/{integration_id}` (GET)
+- `/api/document-ingestion/settings` (PUT)
+- `/api/document-ingestion/sync/{integration_id}` (POST)
+- `/api/document-ingestion/memory/{integration_id}` (DELETE)
+- `/api/documents/ingest` (POST)
+- `/api/documents/upload` (POST)
+
+**Behavior:**
+- Unauthenticated requests receive HTTP 401
+- Authenticated requests proceed normally
+- User context available via `current_user` parameter
+
+**Implementation Date**: February 4, 2026 (Commit `e81e5023`)
+
 ### Governance Checks (Atom-Specific)
 
 **Using @require_governance Decorator (Recommended):**
