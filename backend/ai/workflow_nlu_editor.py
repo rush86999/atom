@@ -8,10 +8,10 @@ import json
 import logging
 import re
 import uuid
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from core.byok_endpoints import get_byok_manager, BYOKManager
+from core.byok_endpoints import BYOKManager, get_byok_manager
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +169,8 @@ Be specific and include necessary configuration. Respond with valid JSON."""
         system_prompt: str
     ) -> Dict[str, Any]:
         """Call AI provider API. Simplified version using OpenAI-compatible format."""
-        import aiohttp
         import asyncio
+        import aiohttp
 
         # Determine API endpoint based on provider
         provider_id = provider.id.lower()

@@ -1,16 +1,16 @@
 
-import os
-import logging
-import json
 import base64
-from typing import Dict, Any, Optional
+import json
+import logging
+import os
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 # Try to import crypto utils, fallback to dummy for initial setup
 try:
-    from backend.core.encryption import encrypt_data, decrypt_data
+    from backend.core.encryption import decrypt_data, encrypt_data
 except ImportError:
     # Fallback for dev/setup phase
     def encrypt_data(data: str) -> str:

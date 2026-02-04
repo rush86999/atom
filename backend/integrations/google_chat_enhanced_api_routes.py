@@ -3,9 +3,9 @@ Google Chat Enhanced API Routes
 Exposes GoogleChatEnhancedService via FastAPI
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional
+import logging
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 

@@ -5,9 +5,9 @@ Service Registry Enhancement Script
 Updates service registry with dynamic health checking and expands service integrations
 """
 
-import requests
 import json
 import time
+import requests
 
 BASE_URL = "http://localhost:5058"
 

@@ -168,7 +168,7 @@ def test_jira_oauth_capabilities():
     try:
         # Test if auth handler can be imported
         sys.path.append("backend/python-api-service")
-        from auth_handler_jira import JIRA_SERVER_URL, JIRA_API_TOKEN
+        from auth_handler_jira import JIRA_API_TOKEN, JIRA_SERVER_URL
 
         print("✅ Jira auth handler is properly configured")
         print(f"   Server URL in handler: {JIRA_SERVER_URL}")

@@ -1,6 +1,7 @@
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
 from core.external_integration_service import external_integration_service
 
 router = APIRouter(prefix="/api/v1/external-integrations", tags=["External Integrations"])

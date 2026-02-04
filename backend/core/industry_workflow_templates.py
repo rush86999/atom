@@ -5,10 +5,11 @@ Pre-built workflow templates tailored for different industries and use cases
 
 import json
 import os
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 
 class Industry(Enum):
     """Industry categories for workflow templates"""

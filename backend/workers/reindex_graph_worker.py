@@ -4,20 +4,20 @@ Background process to run community detection (Leiden Algorithm) on PostgreSQL G
 Consumes jobs from 'graph_reindex_jobs' Redis queue.
 """
 
+import json
+import logging
 import os
 import sys
-import logging
-import uuid
-import json
 import time
-from typing import List, Dict, Any, Optional
+import uuid
+from typing import Any, Dict, List, Optional
 from sqlalchemy import text
 
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend-saas"))
 
 from core.database import SessionLocal
-from core.models import GraphNode, GraphEdge, GraphCommunity, CommunityMembership
+from core.models import CommunityMembership, GraphCommunity, GraphEdge, GraphNode
 
 try:
     import networkx as nx

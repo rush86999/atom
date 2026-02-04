@@ -1,6 +1,6 @@
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Import Integration Services
 try:
@@ -17,6 +17,7 @@ except ImportError:
 
 try:
     from integrations.outlook_service_enhanced import OutlookEnhancedService
+
     # In a real app, this would be a singleton or dependency injected
     outlook_service = OutlookEnhancedService() 
     OUTLOOK_AVAILABLE = True
@@ -105,11 +106,15 @@ class ActiveInterventionService:
         Cancels a subscription via Stripe.
         """
         subscription_id = payload.get("subscription_id")
-        # In a real app, retrieve the access token from the user's workspace/org settings
-        stripe_access_token = payload.get("stripe_token", "mock_access_token")
+        # Require stripe_token to be provided - no mock fallback
+        stripe_access_token = payload.get("stripe_token")
 
         if not subscription_id:
              return {"status": "FAILED", "message": "Missing subscription_id"}
+
+        if not stripe_access_token:
+            logger.error("Missing stripe_token for subscription cancellation")
+            return {"status": "FAILED", "message": "Missing stripe_token"}
 
         if STRIPE_AVAILABLE:
             try:

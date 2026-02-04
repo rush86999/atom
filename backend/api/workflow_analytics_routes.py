@@ -2,9 +2,9 @@
 Workflow Analytics API Routes
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 

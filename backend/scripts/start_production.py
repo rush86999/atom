@@ -5,11 +5,11 @@ This script starts the Atom system in production mode with all services,
 BYOK functionality, and monitoring enabled.
 """
 
+import logging
 import os
+import subprocess
 import sys
 import time
-import logging
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 

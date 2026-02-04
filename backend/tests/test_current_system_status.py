@@ -5,10 +5,10 @@ Test Current System Status
 This script tests the current ATOM platform status against the session objectives.
 """
 
-import requests
 import json
 import sys
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+import requests
 
 BACKEND_URL = "http://localhost:5058"
 FRONTEND_URL = "http://localhost:3000"

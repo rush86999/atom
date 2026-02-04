@@ -1,23 +1,26 @@
-import unittest
 import asyncio
 import os
 import sys
+import unittest
 from datetime import datetime, timezone
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import ecommerce.models
-import sales.models
 import accounting.models
-import saas.models
-import service_delivery.models
+import ecommerce.models
 import marketing.models
-from core.models import Workspace
+import saas.models
+import sales.models
+import service_delivery.models
 from sales.models import Deal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import Base
+from core.models import Workspace
+
 
 class MockAIService:
     async def analyze_text(self, text, system_prompt=None):

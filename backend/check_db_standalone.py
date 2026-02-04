@@ -1,13 +1,15 @@
 
-import sys
-import os
 import logging
+import os
+import sys
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+from core.models import User
+
 # numpy mock removed for testing
 
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from core.models import User
 DATABASE_URL = "sqlite:///./atom_v2.db"
 # from core.database import DATABASE_URL, Base
 

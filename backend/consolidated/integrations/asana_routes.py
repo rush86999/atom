@@ -3,11 +3,14 @@ Enhanced Asana API Routes
 Complete Asana integration endpoints for the ATOM platform
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from core.token_storage import TokenStorage
 
 from .asana_service import asana_service
 
@@ -15,6 +18,65 @@ logger = logging.getLogger(__name__)
 
 # Initialize router
 router = APIRouter(prefix="/api/asana", tags=["asana"])
+
+
+# Asana OAuth Configuration
+ASANA_CLIENT_ID = None  # Loaded from environment
+ASANA_CLIENT_SECRET = None  # Loaded from environment
+ASANA_TOKEN_ENDPOINT = "https://app.asana.com/-/oauth_token"
+
+
+async def _refresh_asana_token(refresh_token: str) -> Optional[Dict[str, Any]]:
+    """
+    Refresh Asana OAuth token using refresh token.
+
+    Args:
+        refresh_token: The refresh token from OAuth flow
+
+    Returns:
+        Dict with new token data (access_token, refresh_token, expires_in) or None if failed
+    """
+    try:
+        import os
+        client_id = os.getenv("ASANA_CLIENT_ID")
+        client_secret = os.getenv("ASANA_CLIENT_SECRET")
+
+        if not client_id or not client_secret:
+            logger.error("ASANA_CLIENT_ID or ASANA_CLIENT_SECRET not configured")
+            return None
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                ASANA_TOKEN_ENDPOINT,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret
+                },
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                timeout=30.0
+            )
+
+            if response.status_code == 200:
+                token_data = response.json()
+                logger.info("Successfully refreshed Asana token")
+
+                # Return token data with access_token, refresh_token, expires_in
+                return {
+                    "access_token": token_data.get("access_token"),
+                    "refresh_token": token_data.get("refresh_token", refresh_token),  # Use old refresh_token if new one not provided
+                    "expires_in": token_data.get("expires_in", 3600)  # Default 1 hour
+                }
+            else:
+                logger.error(f"Failed to refresh token: {response.status_code} - {response.text}")
+                return None
+
+    except Exception as e:
+        logger.error(f"Error refreshing Asana token: {e}")
+        return None
 
 
 # Pydantic models for request/response
@@ -47,15 +109,123 @@ class SearchQuery(BaseModel):
     limit: Optional[int] = Field(20, description="Result limit")
 
 
-# Helper function to extract access token (in production, use proper auth)
+# Helper function to extract access token from token storage
 async def get_access_token(user_id: str = Query(..., description="User ID")) -> str:
     """
-    Extract access token for user.
-    In production, this would fetch from secure token storage.
+    Extract access token for user from secure token storage.
+    Retrieves Asana OAuth token for the specified user.
+    Automatically refreshes expired tokens if refresh_token is available.
     """
-    # TODO: Implement proper token retrieval from database
-    # For now, return a placeholder that would be replaced by real token
-    return "mock_access_token_placeholder"
+    try:
+        # Initialize token storage
+        token_storage = TokenStorage()
+
+        # Retrieve token for user (user_id + asana as key)
+        provider_key = f"asana_{user_id}"
+        token_data = token_storage.get_token(provider_key)
+
+        if not token_data:
+            raise HTTPException(
+                status_code=401,
+                detail=f"No Asana token found for user {user_id}. Please authorize with Asana first."
+            )
+
+        # Check if token is expired
+        if token_storage.is_token_expired(provider_key):
+            # Token expired, try to refresh if refresh_token is available
+            refresh_token = token_data.get("refresh_token")
+            if refresh_token:
+                # Attempt to refresh the token
+                new_token = await _refresh_asana_token(refresh_token)
+                if new_token:
+                    # Save the refreshed token to storage
+                    token_storage.save_token(provider_key, new_token)
+                    logger.info(f"Saved refreshed Asana token for user {user_id}")
+
+                    # Return new access token
+                    access_token = new_token.get("access_token")
+                    if access_token:
+                        return access_token
+                    else:
+                        raise HTTPException(
+                            status_code=401,
+                            detail="Invalid refreshed token (missing access_token). Please re-authorize."
+                        )
+                else:
+                    # Refresh failed, ask user to re-authorize
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Asana token refresh failed. Please re-authorize."
+                    )
+            else:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Asana token expired and no refresh token available. Please re-authorize."
+                )
+
+        # Return access token
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token data (missing access_token). Please re-authorize."
+            )
+
+        return access_token
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving Asana token for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve authentication token"
+        )
+
+
+def save_asana_token(user_id: str, token_data: Dict[str, Any]) -> bool:
+    """
+    Save Asana OAuth token for a user.
+    Called during OAuth callback to store the access token.
+
+    Args:
+        user_id: User identifier
+        token_data: OAuth token data (access_token, refresh_token, expires_in, etc.)
+
+    Returns:
+        True if token saved successfully, False otherwise
+    """
+    try:
+        token_storage = TokenStorage()
+        provider_key = f"asana_{user_id}"
+        token_storage.save_token(provider_key, token_data)
+        logger.info(f"Saved Asana token for user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save Asana token for user {user_id}: {e}")
+        return False
+
+
+def delete_asana_token(user_id: str) -> bool:
+    """
+    Delete Asana OAuth token for a user (e.g., when disconnecting integration).
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        True if token deleted successfully, False otherwise
+    """
+    try:
+        token_storage = TokenStorage()
+        provider_key = f"asana_{user_id}"
+        # TokenStorage doesn't have delete method, so we'll save empty token
+        token_storage.save_token(provider_key, {})
+        logger.info(f"Deleted Asana token for user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete Asana token for user {user_id}: {e}")
+        return False
 
 
 @router.get("/health")

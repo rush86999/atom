@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from core.auth import get_current_user
 from core.models import User
@@ -22,67 +22,67 @@ class DynamicOptionsResponse(BaseModel):
     placeholder: Optional[str] = None
 
 @router.post("/dynamic-options", response_model=DynamicOptionsResponse)
-async def get_dynamic_options(request: DynamicOptionsRequest, current_user: User = Depends(get_current_user)):
+async def get_dynamic_options(
+    request: DynamicOptionsRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
-    Fetches dynamic options for a property (e.g., list of Slack channels) 
+    Fetches dynamic options for a property (e.g., list of Slack channels)
     by calling the Node piece engine with real credentials if available.
+
+    This endpoint integrates with the Node.js engine to fetch real-time options
+    from external services (Slack channels, Gmail labels, etc.).
     """
     credentials = None
     if request.connectionId:
-        from core.connection_service import connection_service
-        credentials = await connection_service.get_connection_credentials(request.connectionId, current_user.id)
-    
-    # In a real implementation, we'd call the Node engine's dynamic options endpoint.
-    # For now, let's keep the mock for Slack if no credentials, 
-    # but try to call the Node engine if we have them.
-    
-    if credentials:
         try:
-            from integrations.bridge.node_bridge_service import node_bridge
-            
-            # This requires a new endpoint in the node engine for dynamic options
-            # For now, we will proxy this to a potential node endpoint or implement a bridge call
-            result = await node_bridge.get_dynamic_options(
-                piece_name=request.pieceId,
-                property_name=request.propertyName,
-                action_name=request.actionName,
-                trigger_name=request.triggerName,
-                config=request.config,
-                auth=credentials
+            from core.connection_service import connection_service
+            credentials = await connection_service.get_connection_credentials(
+                request.connectionId,
+                current_user.id
             )
-            return {"options": result.get("options", []), "placeholder": result.get("placeholder")}
         except Exception as e:
-            logger.error(f"Failed to fetch real dynamic options: {e}")
-            # Fallback to mock logic
-            pass
+            logger.error(f"Failed to get connection credentials: {e}", exc_info=True)
+            return {
+                "options": [],
+                "placeholder": "Failed to retrieve credentials"
+            }
 
-    # Mock logic for Slack channels
-    if request.pieceId == "@activepieces/piece-slack" and request.propertyName == "channel":
-        return {
-            "options": [
-                {"label": "# general", "value": "C12345"},
-                {"label": "# random", "value": "C67890"},
-                {"label": "# engineering", "value": "C11111"},
-                {"label": "# product", "value": "C22222"},
-                {"label": "# support", "value": "C33333"},
-            ],
-            "placeholder": "Select a channel"
-        }
-    
-    # ... (rest of the mock Gmail logic)
-    if request.pieceId == "@activepieces/piece-gmail" and request.propertyName == "label":
-        return {
-            "options": [
-                {"label": "INBOX", "value": "INBOX"},
-                {"label": "SENT", "value": "SENT"},
-                {"label": "DRAFTS", "value": "DRAFTS"},
-                {"label": "SPAM", "value": "SPAM"},
-                {"label": "TRASH", "value": "TRASH"},
-            ],
-            "placeholder": "Select a label"
-        }
+    # Try to fetch real options from Node engine
+    try:
+        from integrations.bridge.node_bridge_service import node_bridge
+
+        result = await node_bridge.get_dynamic_options(
+            piece_name=request.pieceId,
+            property_name=request.propertyName,
+            action_name=request.actionName,
+            trigger_name=request.triggerName,
+            config=request.config,
+            auth=credentials
+        )
+
+        # If we got valid options, return them
+        if result.get("options"):
+            logger.info(f"Successfully fetched {len(result['options'])} options for {request.pieceId}.{request.propertyName}")
+            return {
+                "options": result["options"],
+                "placeholder": result.get("placeholder")
+            }
+
+        # Log error if present but continue to fallback
+        if result.get("error"):
+            logger.warning(f"Node engine returned error for dynamic options: {result['error']}")
+
+    except ImportError:
+        logger.error("Node bridge service not available")
+    except Exception as e:
+        logger.error(f"Failed to fetch real dynamic options: {e}", exc_info=True)
+
+    # Fallback: Return empty options with clear message
+    # Note: Removed mock data as requested in the plan
+    logger.warning(f"No options available for {request.pieceId}.{request.propertyName}")
 
     return {
         "options": [],
-        "placeholder": f"No options found for {request.propertyName}"
+        "placeholder": f"Connect to {request.pieceId} to view {request.propertyName} options"
     }

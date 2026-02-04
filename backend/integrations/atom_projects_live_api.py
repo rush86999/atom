@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from datetime import datetime
-import logging
 import asyncio
+import logging
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from db_connection import get_db_connection
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from integrations.asana_service import asana_service
 from integrations.jira_service import get_jira_service
-from integrations.zoho_projects_service import ZohoProjectsService
 from integrations.microsoft365_service import microsoft365_service
-from db_connection import get_db_connection
+from integrations.zoho_projects_service import ZohoProjectsService
 
 router = APIRouter(prefix="/api/atom/projects/live", tags=["projects-live"])
 logger = logging.getLogger(__name__)
@@ -106,9 +106,15 @@ async def get_live_project_board(
 
     # 1. Fetch Asana Tasks
     try:
-         # Placeholder for token retrieval logic
-         # In a real user-context, we'd fetch tokens from DB
-         pass
+         # Get user's Asana access token from environment or use service account
+         asana_token = os.getenv("ASANA_ACCESS_TOKEN")
+         if not asana_token:
+             logger.warning("ASANA_ACCESS_TOKEN not configured, skipping Asana fetch")
+         else:
+             # Use asana_service to fetch tasks
+             asana_tasks = asana_service.get_user_tasks(user_id=user_id, limit=limit)
+             tasks.extend([map_asana_task(t) for t in asana_tasks])
+             providers_status["asana"] = True
     except Exception as e:
         logger.warning(f"Failed to fetch live Asana tasks: {e}")
 
@@ -158,8 +164,9 @@ async def get_live_project_board(
     # Calculate Stats
     total_active = len(tasks)
     # Simple logic for overdue - robust logic would parse dates
-    overdue = 0 
-    
+    overdue = 0
+
+    platform_counts = {
         "asana": len([t for t in tasks if t.platform == 'asana']),
         "jira": len([t for t in tasks if t.platform == 'jira']),
         "zoho": len([t for t in tasks if t.platform == 'zoho']),

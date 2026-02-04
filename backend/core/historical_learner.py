@@ -1,9 +1,10 @@
-import logging
 import json
-from typing import Dict, Any, List
-from core.lancedb_handler import get_lancedb_handler
-from core.knowledge_extractor import KnowledgeExtractor
+import logging
+from typing import Any, Dict, List
+
 from core.business_intelligence import BusinessEventIntelligence
+from core.knowledge_extractor import KnowledgeExtractor
+from core.lancedb_handler import get_lancedb_handler
 
 logger = logging.getLogger(__name__)
 

@@ -13,10 +13,10 @@ Endpoints:
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from tools.registry import get_tool_registry, ToolRegistry
+from tools.registry import ToolRegistry, get_tool_registry
 
 logger = logging.getLogger(__name__)
 

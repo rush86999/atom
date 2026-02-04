@@ -3,22 +3,23 @@ ATOM Slack Enhanced Service - Complete Production Implementation
 Comprehensive Slack service with OAuth, messaging, files, webhooks, and advanced features
 """
 
-import os
-import json
-import logging
 import asyncio
+import base64
 import hashlib
 import hmac
-import base64
+import json
+import logging
+import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import httpx
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
+
 try:
     import redis
     REDIS_AVAILABLE = True
@@ -26,6 +27,7 @@ except ImportError:
     REDIS_AVAILABLE = False
 import jwt
 from cryptography.fernet import Fernet
+
 from core.token_storage import token_storage
 
 # Configure logging

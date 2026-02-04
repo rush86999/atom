@@ -4,8 +4,8 @@ Test script for Chat History & Session Management (Phase 28)
 """
 
 import asyncio
-import aiohttp
 import json
+import aiohttp
 
 BASE_URL = "http://localhost:8000"
 

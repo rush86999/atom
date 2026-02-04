@@ -4,12 +4,11 @@ Real-World Case Studies API Endpoints
 Provides comprehensive business impact evidence for marketing claim validation
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+import logging
+from typing import Any, Dict, List
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
-
 from real_world_case_studies import case_studies_generator
 
 logger = logging.getLogger(__name__)

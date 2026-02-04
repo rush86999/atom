@@ -1,10 +1,10 @@
 
 import asyncio
-import sys
 import os
+import sys
 import time
-from unittest.mock import MagicMock, AsyncMock, patch
 import traceback
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Fix path
 sys.path.append(os.getcwd())
@@ -16,6 +16,7 @@ sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 async def main():
     print(f"\n>>> [CHAOS] Starting TEST 1: The Slowpoke Simulation", flush=True)
@@ -40,8 +41,8 @@ async def main():
             mock_client = MagicMock()
             mock_client.chat.completions.create = AsyncMock()
             
-            from enhanced_ai_workflow_endpoints import AgentStep, ToolCall, FinalAnswer
-            
+            from enhanced_ai_workflow_endpoints import AgentStep, FinalAnswer, ToolCall
+
             # Step 1: LLM calls 'slow_tool'
             step_1 = AgentStep(action=ToolCall(tool_name="slow_tool", parameters={}, reasoning="Testing delay"))
             # Step 2: LLM finishes

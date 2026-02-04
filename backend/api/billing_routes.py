@@ -1,20 +1,40 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, List, Optional
-from core.database import get_db
-from sqlalchemy.orm import Session
-from core.billing_orchestrator import billing_orchestrator
+import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, Request, HTTPException
 from service_delivery.models import Milestone, MilestoneStatus
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.billing_orchestrator import billing_orchestrator
+from core.database import get_db
 
 router = APIRouter(prefix="/billing", tags=["Billing & Invoicing"])
+logger = logging.getLogger(__name__)
 
 @router.post("/milestone/{milestone_id}")
-async def bill_milestone(milestone_id: str):
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="bill_milestone",
+    feature="billing"
+)
+async def bill_milestone(
+    milestone_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Manually trigger billing for a completed milestone.
+
+    **Governance**: Requires AUTONOMOUS maturity (CRITICAL complexity).
+    - Payment processing requires AUTONOMOUS maturity
+    - Financial operations are tightly controlled
     """
     result = await billing_orchestrator.process_milestone_completion(milestone_id, "default")
     if result["status"] == "error":
         raise HTTPException(status_code=400, detail=result["message"])
+
+    logger.info(f"Milestone billed: {milestone_id}")
     return result
 
 @router.get("/unbilled-milestones")

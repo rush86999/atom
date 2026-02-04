@@ -5,10 +5,10 @@ Aggregates and presents ATOM's competitive advantages and differentiators
 
 import json
 import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

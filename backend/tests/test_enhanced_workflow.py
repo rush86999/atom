@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """Enhanced workflow engine tests for new features."""
 
-import pytest
 import asyncio
-import sys
 import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from core.workflow_engine import WorkflowEngine, SchemaValidationError, MissingInputError, StepTimeoutError
+from core.workflow_engine import (
+    MissingInputError,
+    SchemaValidationError,
+    StepTimeoutError,
+    WorkflowEngine,
+)
 
 
 class TestEnhancedWorkflowEngine:

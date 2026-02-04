@@ -3,23 +3,29 @@ ATOM Teams Integration Module
 Integrates Microsoft Teams seamlessly into ATOM's Communication ecosystem
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
 try:
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from teams_enhanced_service import teams_enhanced_service, TeamsWorkspace, TeamsChannel, TeamsMessage, TeamsFile
     from teams_analytics_engine import teams_analytics_engine
+    from teams_enhanced_service import (
+        TeamsChannel,
+        TeamsFile,
+        TeamsMessage,
+        TeamsWorkspace,
+        teams_enhanced_service,
+    )
 except ImportError as e:
     logging.warning(f"Teams integration services not available: {e}")
     teams_enhanced_service = None

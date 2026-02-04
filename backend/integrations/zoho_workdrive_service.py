@@ -1,12 +1,13 @@
-import os
 import json
 import logging
-import httpx
-from typing import Dict, List, Optional, Any
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+import httpx
 from fastapi import HTTPException
-from core.database import SessionLocal
+
 from core.connection_service import connection_service
+from core.database import get_db_session
 from core.models import IngestedDocument, IntegrationMetric
 
 logger = logging.getLogger(__name__)
@@ -149,7 +150,7 @@ class ZohoWorkDriveService:
             if not files:
                 return {"success": True, "files_synced": 0}
             
-            db = SessionLocal()
+            with get_db_session() as db:
             synced_count = 0
             try:
                 for f in files:
@@ -166,7 +167,7 @@ class ZohoWorkDriveService:
                     if f.get("modified_at"):
                         try:
                             modified_at = datetime.fromisoformat(f["modified_at"].replace("Z", "+00:00"))
-                        except:
+                        except Exception as e:
                             pass
 
                     if existing:
@@ -214,7 +215,7 @@ class ZohoWorkDriveService:
             # Count by type
             docs_count = sum(1 for f in files if f.get("type") == "files")
             
-            db = SessionLocal()
+            with get_db_session() as db:
             metrics_synced = 0
             try:
                 metrics_to_save = [

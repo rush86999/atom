@@ -16,23 +16,23 @@ Security:
 - Full audit trail for all deep link invocations
 """
 
-import re
 import json
 import logging
+import re
 import uuid
-from typing import Dict, Any, Optional, List
-from urllib.parse import urlparse, parse_qs, unquote
-
+from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qs, unquote, urlparse
 from sqlalchemy.orm import Session
 
-from core.models import AgentRegistry, AgentExecution, DeepLinkAudit
 from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, AgentRegistry, DeepLinkAudit
 
 logger = logging.getLogger(__name__)
 
 
 # Feature flags
 import os
+
 DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
 DEEPLINK_AUDIT_ENABLED = os.getenv("DEEPLINK_AUDIT_ENABLED", "true").lower() == "true"
 
@@ -583,7 +583,7 @@ def generate_deep_link(
 
     # Add query parameters
     if parameters:
-        from urllib.parse import urlencode, quote
+        from urllib.parse import quote, urlencode
 
         # Convert params to JSON if it's a dict
         if 'params' in parameters and isinstance(parameters['params'], dict):

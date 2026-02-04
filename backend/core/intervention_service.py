@@ -1,10 +1,11 @@
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from core.models import HITLAction, HITLActionStatus, User, AgentRegistry, UserRole
-import logging
 import json
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
+from core.models import AgentRegistry, HITLAction, HITLActionStatus, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class InterventionService:
         Create a new HITL action request in the database.
         """
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 hitl_action = HITLAction(
                     workspace_id=workspace_id,
                     agent_id=agent_id,
@@ -62,7 +63,7 @@ class InterventionService:
         """
         Get all pending interventions, optionally filtered by workspace or user ownership.
         """
-        with SessionLocal() as db:
+        with get_db_session() as db:
             query = db.query(HITLAction).filter(HITLAction.status == HITLActionStatus.PENDING.value)
             
             if workspace_id and workspace_id != "default":
@@ -99,7 +100,7 @@ class InterventionService:
         """
         Approve a pending intervention.
         """
-        with SessionLocal() as db:
+        with get_db_session() as db:
             action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
             if not action:
                 return {"success": False, "message": "Action not found"}
@@ -127,7 +128,7 @@ class InterventionService:
         """
         Reject a pending intervention.
         """
-        with SessionLocal() as db:
+        with get_db_session() as db:
             action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
             if not action:
                 return {"success": False, "message": "Action not found"}

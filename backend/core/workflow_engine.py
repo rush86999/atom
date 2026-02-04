@@ -11,19 +11,21 @@ Handles the execution of workflows with support for:
 import asyncio
 import logging
 import re
-from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
 import uuid
-import jsonschema
-from jsonschema import validate, ValidationError
-
-from core.execution_state_manager import get_state_manager, ExecutionStateManager
-from core.auto_healing import async_retry_with_backoff
-from core.websockets import get_connection_manager
-from core.token_storage import token_storage
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 import httpx
-from core.models import IntegrationCatalog
-from core.database import SessionLocal
+import jsonschema
+from jsonschema import ValidationError, validate
+
+from core.auto_healing import async_retry_with_backoff
+from core.database import get_db_session
+from core.exceptions import AgentExecutionError, AuthenticationError, ExternalServiceError
+from core.exceptions import ValidationError as AtomValidationError
+from core.execution_state_manager import ExecutionStateManager, get_state_manager
+from core.models import IntegrationCatalog, WorkflowStepExecution
+from core.token_storage import token_storage
+from core.websockets import get_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class WorkflowEngine:
         self.var_pattern = re.compile(r'\${([^}]+)}')
         self.max_concurrent_steps = max_concurrent_steps
         self.semaphore = asyncio.Semaphore(max_concurrent_steps)
+        self.cancellation_requests = set()
 
     async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
         """Start a new workflow execution"""
@@ -426,17 +429,28 @@ class WorkflowEngine:
         state = await self.state_manager.get_execution_state(execution_id)
         if not state:
             raise ValueError(f"Execution {execution_id} not found")
-            
+
         if state["status"] != "PAUSED":
             logger.warning(f"Cannot resume execution {execution_id} in state {state['status']}")
             return False
-            
+
         # Update state with new inputs
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
-        
+
         # Resume execution
         asyncio.create_task(self._run_execution(execution_id, workflow))
+        return True
+
+    async def cancel_execution(self, execution_id: str) -> bool:
+        """Request cancellation of a running workflow execution."""
+        self.cancellation_requests.add(execution_id)
+        logger.info(f"Cancellation requested for execution {execution_id}")
+
+        # Notify via WebSocket
+        ws_manager = get_connection_manager()
+        await self.state_manager.update_execution_status(execution_id, "CANCELLED")
+        await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
     async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]):
@@ -469,7 +483,15 @@ class WorkflowEngine:
             
             for step in steps:
                 step_id = step["id"]
-                
+
+                # Check for cancellation
+                if execution_id in self.cancellation_requests:
+                    logger.info(f"Execution {execution_id} cancelled")
+                    await self.state_manager.update_execution_status(execution_id, "CANCELLED")
+                    await ws_manager.notify_workflow_status(user_id, execution_id, "CANCELLED")
+                    self.cancellation_requests.discard(execution_id)
+                    return
+
                 # Check if step already completed (for resume scenarios)
                 step_state = state["steps"].get(step_id, {})
                 if step_state.get("status") == "COMPLETED":
@@ -527,12 +549,47 @@ class WorkflowEngine:
                 # Execute step
                 await self.state_manager.update_step_status(execution_id, step_id, "RUNNING")
                 await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_RUNNING", {"step_id": step_id})
+
+                # Create step execution record
+                with get_db_session() as db:
+                    try:
+                        step_exec = WorkflowStepExecution(
+                            execution_id=execution_id,
+                            workflow_id=workflow.get("id", "unknown"),
+                            step_id=step["id"],
+                            step_name=step.get("name", step["id"]),
+                            step_type=step.get("type", "action"),
+                            sequence_order=step.get("sequence_order", 0),
+                            status="running",
+                            started_at=datetime.utcnow(),
+                            input_data=resolved_params
+                        )
+                        db.add(step_exec)
+                        db.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to create step execution record: {e}")
                 
                 try:
                     output = await self._execute_step(step, resolved_params)
                     self._validate_output_schema(step, output)
                     await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
                     await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})
+
+                    # Update step execution record
+                    with get_db_session() as db:
+                        try:
+                            step_exec = db.query(WorkflowStepExecution).filter(
+                                WorkflowStepExecution.execution_id == execution_id,
+                                WorkflowStepExecution.step_id == step_id
+                            ).first()
+                            if step_exec:
+                                step_exec.status = "completed"
+                                step_exec.completed_at = datetime.utcnow()
+                                step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
+                                step_exec.output_data = output
+                                db.commit()
+                        except Exception as e:
+                            logger.error(f"Failed to update step execution record: {e}")
                     
                     # Update in-memory state for next steps
                     state = await self.state_manager.get_execution_state(execution_id)
@@ -896,7 +953,7 @@ class WorkflowEngine:
     async def _execute_slack_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Slack service actions"""
         from integrations.slack_service_unified import slack_unified_service
-        
+
         # Try to get token if connection_id is present
         token_data = None
         if connection_id:
@@ -920,7 +977,7 @@ class WorkflowEngine:
                 channel = params.get("channel")
                 text = params.get("text")
                 if not token:
-                    raise Exception("Slack authentication required (no token found)")
+                    raise AuthenticationError("Slack authentication required (no token found)")
                 result = await slack_unified_service.post_message(token=token, channel_id=channel, text=text)
             else:
                  # Generic fallback or other actions
@@ -952,7 +1009,7 @@ class WorkflowEngine:
         try:
             result = None
             if not token:
-                 raise Exception("Asana authentication required")
+                 raise AuthenticationError("Asana authentication required")
 
             if action == "create_task":
                  task_data = {
@@ -992,7 +1049,7 @@ class WorkflowEngine:
         
         try:
             if not token and not discord_service.bot_token:
-                 raise Exception("Discord authentication required")
+                 raise AuthenticationError("Discord authentication required")
 
             if action == "send_message":
                  channel_id = params.get("channel_id")
@@ -1021,7 +1078,7 @@ class WorkflowEngine:
         
         try:
             if not token and not hubspot_service.access_token:
-                 raise Exception("HubSpot authentication required")
+                 raise AuthenticationError("HubSpot authentication required")
 
             if action == "create_contact":
                  email = params.get("email")
@@ -1068,7 +1125,7 @@ class WorkflowEngine:
             
             # If no dynamic client, validation fails unless we have some other fallback (which SF service doesn't really have easily)
             if not sf:
-                 raise Exception("Salesforce authentication required (token + instance_url)")
+                 raise AuthenticationError("Salesforce authentication required (token + instance_url)")
 
             if action == "create_lead":
                  last_name = params.get("lastname")
@@ -1184,7 +1241,7 @@ class WorkflowEngine:
     async def _execute_gmail_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Gmail service actions"""
         from integrations.gmail_service import gmail_service
-        
+
         # Try to get token if connection_id is present
         token_data = None
         if connection_id:
@@ -1203,20 +1260,20 @@ class WorkflowEngine:
                 body = params.get("body")
                 
                 if not token:
-                     raise Exception("Gmail authentication required (no token found)")
-                
+                     raise AuthenticationError("Gmail authentication required (no token found)")
+
                 # Use refactored send_message with token
                 result = gmail_service.send_message(to=to, subject=subject, body=body, token=token)
-                
+
                 if not result:
-                    raise Exception("Failed to send email")
+                    raise ExternalServiceError("Gmail", "Failed to send email")
             
             elif action == "create_draft":
                  to = params.get("to")
                  subject = params.get("subject")
                  body = params.get("body")
                  if not token:
-                     raise Exception("Gmail authentication required")
+                     raise AuthenticationError("Gmail authentication required")
                  result = gmail_service.draft_message(to=to, subject=subject, body=body, token=token)
 
             else:
@@ -1382,7 +1439,11 @@ class WorkflowEngine:
             }
 
         except Exception as e:
-            raise Exception(f"Agent execution failed: {e}")
+            raise AgentExecutionError(
+                agent_id=params.get("agent_id", "unknown"),
+                reason=str(e),
+                cause=e
+            )
 
     async def _execute_email_automation_action(self, action: str, params: dict) -> dict:
         """Execute email automation service actions (Follow-ups, etc.)"""
@@ -1471,8 +1532,8 @@ class WorkflowEngine:
 
     def _load_workflow_by_id(self, workflow_id: str) -> Optional[Dict[str, Any]]:
         """Load workflow definition by ID from workflows.json."""
-        import os
         import json
+        import os
 
         # Calculate path to workflows.json (same as in workflow_endpoints.py)
         workflows_file = os.path.join(
@@ -1759,22 +1820,22 @@ class WorkflowEngine:
         
         if not catalog_data:
             # 1. Fetch metadata from DB
-            db = SessionLocal()
-            try:
-                catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
-                if not catalog_item:
-                    raise ValueError(f"Service '{service_name}' not found in Integration Catalog")
-                
-                # Serialize for cache
-                catalog_data = {
-                    "id": catalog_item.id,
-                    "actions": catalog_item.actions
-                }
-                # Cache for 1 hour
-                await cache.set(cache_key, catalog_data, expire=3600)
-                
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    catalog_item = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == service_name).first()
+                    if not catalog_item:
+                        raise ValueError(f"Service '{service_name}' not found in Integration Catalog")
+
+                    # Serialize for cache
+                    catalog_data = {
+                        "id": catalog_item.id,
+                        "actions": catalog_item.actions
+                    }
+                    # Cache for 1 hour
+                    await cache.set(cache_key, catalog_data, expire=3600)
+                except Exception as e:
+                    logger.error(f"Failed to fetch catalog item: {e}")
+                    raise
             
         # 2. Find specific action definition
         actions = catalog_data.get("actions") or []

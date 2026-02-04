@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 import os
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
+from core.models import User
 from core.risk_prevention import customer_protection, early_warning, fraud_detection
 
 router = APIRouter(prefix="/api/risk", tags=["Risk & Security"])
@@ -12,7 +14,8 @@ MOCK_MODE = os.getenv("FINANCIAL_FORENSICS_MOCK", "false").lower() == "true"
 
 @router.get("/customer-protection")
 async def get_customer_protection_intel(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
     Get Churn Risk and VIP opportunities.
@@ -41,7 +44,8 @@ async def get_customer_protection_intel(
 
 @router.get("/early-warning")
 async def get_early_warning_alerts(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
     Get AR Alerts and Booking trends.
@@ -63,7 +67,8 @@ async def get_early_warning_alerts(
 
 @router.get("/fraud")
 async def get_fraud_alerts(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
     Get Fraud anomalies.

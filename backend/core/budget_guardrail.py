@@ -1,11 +1,12 @@
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
+from accounting.models import Bill, Transaction
+from service_delivery.models import BudgetStatus, Milestone, Project, ProjectTask
 from sqlalchemy import func
-from service_delivery.models import Project, Milestone, ProjectTask, BudgetStatus
-from accounting.models import Transaction, Bill
-from core.database import SessionLocal
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class BudgetGuardrailService:
         """
         Aggregates costs for the project.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Labor Costs (Calculated from project tasks)
             # In a real system, we'd join with User.hourly_cost_rate
@@ -54,7 +55,7 @@ class BudgetGuardrailService:
     def _calculate_labor_burn(self, project_id: str, db: Session) -> float:
         """Sum of actual_hours * user.hourly_cost_rate for all tasks in project."""
         from core.models import User
-        
+
         # Simplified for MVP: sum(task.actual_hours * (user.hourly_cost_rate or 50.0))
         # Note: In a real query, we'd use a join
         tasks = db.query(ProjectTask).filter(ProjectTask.project_id == project_id).all()

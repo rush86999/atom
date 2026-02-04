@@ -45,6 +45,13 @@ Thumbs.db
 test_reports/
 coverage/
 
+# Test result JSON files
+*_oauth_test_*.json
+*_OAUTH_TEST_*.json
+*_test_*.json
+*_TEST_*.json
+tests/artifacts/*.json
+
 # Temporary files
 tmp/
 temp/

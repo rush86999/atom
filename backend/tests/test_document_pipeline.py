@@ -1,8 +1,8 @@
 import asyncio
+import logging
 import os
 import sys
 import tempfile
-import logging
 from pathlib import Path
 
 # Add project root to path
@@ -22,8 +22,8 @@ async def test_document_processing_pipeline():
     """
     try:
         # Import required modules
-        from backend.python_api_service.document_service_enhanced import EnhancedDocumentService
         from backend.python-api-service.lancedb_handler import get_lancedb_connection
+        from backend.python_api_service.document_service_enhanced import EnhancedDocumentService
 
         logger.info("🚀 Starting Document Processing Pipeline Test")
 
@@ -168,10 +168,10 @@ async def test_document_processor():
         logger.info("🔧 Testing document processor module...")
 
         from backend.python-api-service.document_processor import (
-            extract_text_from_pdf,
             extract_text_from_docx,
+            extract_text_from_html,
+            extract_text_from_pdf,
             extract_text_from_txt,
-            extract_text_from_html
         )
 
         # Create test files
@@ -209,8 +209,8 @@ async def test_lancedb_integration():
         logger.info("💾 Testing LanceDB integration...")
 
         from backend.python-api-service.lancedb_handler import (
+            create_generic_document_tables_if_not_exist,
             get_lancedb_connection,
-            create_generic_document_tables_if_not_exist
         )
 
         # Test connection

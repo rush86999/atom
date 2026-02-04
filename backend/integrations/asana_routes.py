@@ -3,11 +3,11 @@ Enhanced Asana API Routes
 Complete Asana integration endpoints for the ATOM platform
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from .asana_service import asana_service
 
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Initialize router
 router = APIRouter(prefix="/api/asana", tags=["asana"])
 
+from core.oauth_handler import ASANA_OAUTH_CONFIG, OAuthHandler
 from core.token_storage import token_storage
-from core.oauth_handler import OAuthHandler, ASANA_OAUTH_CONFIG
 
 
 # Pydantic models for request/response
@@ -86,9 +86,21 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
     if env_token:
         return env_token
 
-    # Return a placeholder that would be replaced by real token
-    # This allows the validator to pass without full auth setup
-    return "mock_access_token_placeholder"
+    # 3. No token found - raise proper error
+    environment = os.getenv("ENVIRONMENT", "development")
+    if environment == "production":
+        raise HTTPException(
+            status_code=401,
+            detail="Asana access token not found. Please provide ASANA_ACCESS_TOKEN environment variable "
+            "or complete OAuth authentication to connect your Asana account."
+        )
+    else:
+        # In development, provide a more helpful error message
+        raise HTTPException(
+            status_code=401,
+            detail="Asana access token not found. Please set ASANA_ACCESS_TOKEN environment variable, "
+            "or complete OAuth flow at POST /api/asana/auth/token to connect your Asana account."
+        )
 
 @router.post("/auth/token")
 async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(None, embed=True)):
@@ -100,20 +112,26 @@ async def set_access_token(token: str = Body(..., embed=True), user_id: str = Bo
 @router.get("/health")
 async def asana_health(access_token: str = Depends(get_access_token)):
     """Check Asana API connectivity"""
-    # Allow health check to pass with placeholder token (for validator)
-    if access_token == "mock_access_token_placeholder":
+    try:
+        result = await asana_service.health_check(access_token)
+        if not result["ok"]:
+            raise HTTPException(status_code=503, detail=result["error"])
         return {
+            "success": True,
             "ok": True,
             "service": "asana",
             "status": "connected",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "note": "Health check passed (unauthenticated)"
+            **result
         }
-        
-    result = await asana_service.health_check(access_token)
-    if not result["ok"]:
-        raise HTTPException(status_code=503, detail=result["error"])
-    return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Asana health check failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Asana health check failed: {str(e)}"
+        )
 
 
 @router.get("/user/profile")

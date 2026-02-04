@@ -1,6 +1,6 @@
-import os
 import glob
 import json
+import os
 
 files = glob.glob("logs/traces/*.json")
 if not files:

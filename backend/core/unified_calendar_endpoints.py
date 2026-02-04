@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query, Body
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
 import uuid
-from core.schedule_optimizer import schedule_optimizer, ResolutionSlot
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from core.schedule_optimizer import ResolutionSlot, schedule_optimizer
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["unified_calendar"])
 

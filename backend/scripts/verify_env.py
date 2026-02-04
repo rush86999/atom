@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+
 def check_env_vars():
     # Load .env file
     env_path = Path(__file__).parent.parent / '.env'

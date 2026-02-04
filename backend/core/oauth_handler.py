@@ -3,12 +3,12 @@ Centralized OAuth 2.0 Handler
 Provides reusable OAuth flow implementation for all integrations
 """
 
+import logging
+import os
 from typing import Dict, Optional
+import httpx
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
-import httpx
-import os
-import logging
 
 logger = logging.getLogger(__name__)
 

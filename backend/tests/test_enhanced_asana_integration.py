@@ -3,13 +3,13 @@ Comprehensive Asana Integration Test Script
 Tests the complete Asana OAuth and API integration
 """
 
+import asyncio
+import json
 import os
 import sys
-import requests
-import json
 import time
 from datetime import datetime, timezone
-import asyncio
+import requests
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "backend"))

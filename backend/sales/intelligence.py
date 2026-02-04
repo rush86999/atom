@@ -1,15 +1,19 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List
 from sales.models import Deal, DealStage
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
 from core.websockets import manager
 
 logger = logging.getLogger(__name__)
 
 try:
-    from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+    from integrations.atom_communication_ingestion_pipeline import (
+        CommunicationAppType,
+        ingestion_pipeline,
+    )
     INGESTION_AVAILABLE = True
 except ImportError:
     INGESTION_AVAILABLE = False

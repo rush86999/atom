@@ -3,16 +3,19 @@ Performance Optimization Middleware
 Provides caching, compression, and connection pooling
 """
 
-import time
+import asyncio
 import hashlib
 import json
-from typing import Dict, Any, Optional
+import logging
+import time
 from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Dict, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-import aioredis
-import asyncio
-from functools import wraps
+
+logger = logging.getLogger(__name__)
+
 
 # Simple in-memory cache for MVP (replace with Redis in production)
 class SimpleCache:
@@ -194,24 +197,63 @@ class CompressionMiddleware(BaseHTTPMiddleware):
 
 
 class DatabaseConnectionPool:
-    """Simple database connection pool manager"""
+    """Simple database connection pool manager
 
-    def __init__(self, max_connections: int = 10):
+    Note: For database connections, SQLAlchemy already handles connection pooling.
+    This class is designed for HTTP client connection pooling for external API calls.
+    """
+
+    def __init__(self, max_connections: int = 10, connection_timeout: float = 30.0):
         self.max_connections = max_connections
-        self.connections = []
-        self.available = []
-        self.in_use = []
+        self.connection_timeout = connection_timeout
+        self._pool = None
+        self._initialized = False
+
+    async def _get_pool(self):
+        """Lazy-initialize HTTP connection pool"""
+        if not self._initialized:
+            import httpx
+
+            # Create async HTTP client with connection pooling
+            self._pool = httpx.AsyncClient(
+                limits=httpx.Limits(
+                    max_connections=self.max_connections,
+                    max_keepalive_connections=self.max_connections // 2
+                ),
+                timeout=httpx.Timeout(self.connection_timeout),
+                http2=True,  # Enable HTTP/2 for better performance
+            )
+            self._initialized = True
+            logger.info(f"HTTP connection pool initialized: max={self.max_connections} connections")
+
+        return self._pool
 
     async def get_connection(self):
-        """Get a connection from the pool"""
-        # For MVP, return None (no actual DB connections)
-        # In production, implement proper connection pooling
-        return None
+        """Get the HTTP client (uses connection pooling internally)"""
+        pool = await self._get_pool()
+        return pool
 
     async def release_connection(self, connection):
-        """Release a connection back to the pool"""
-        # For MVP, do nothing
+        """Release is handled automatically by httpx.AsyncClient context manager"""
+        # httpx.AsyncClient handles connection pooling internally
+        # No explicit release needed
         pass
+
+    async def close(self):
+        """Close the connection pool"""
+        if self._pool and self._initialized:
+            await self._pool.aclose()
+            self._initialized = False
+            logger.info("HTTP connection pool closed")
+
+    async def __aenter__(self):
+        """Async context manager support"""
+        await self._get_pool()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Clean up on exit"""
+        await self.close()
 
 
 class RequestMetricsMiddleware(BaseHTTPMiddleware):

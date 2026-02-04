@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+from service_delivery.models import Milestone, Project, ProjectTask
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
+
 from core.database import get_db
-from service_delivery.models import Project, Milestone, ProjectTask
 from core.pm_engine import pm_engine
 from core.pm_orchestrator import pm_orchestrator
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/pm", tags=["Project Management"])
 

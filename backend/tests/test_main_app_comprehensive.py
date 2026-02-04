@@ -6,12 +6,12 @@ This script tests all core functionality of the ATOM main application
 to ensure the platform is stable and operational.
 """
 
+import json
 import os
 import sys
-import json
-import requests
 import time
 from datetime import datetime
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:5058"

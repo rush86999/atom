@@ -1,11 +1,11 @@
 import logging
 from typing import Optional, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
-
-from ecommerce.models import EcommerceCustomer
 from accounting.models import Entity, EntityType
+from ecommerce.models import EcommerceCustomer
 from sales.models import Lead
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
 # Assuming a CRM contact model or similar exists, but using Lead for now as proxy
 # In a real system, we'd have a unified 'Contact' model.
 

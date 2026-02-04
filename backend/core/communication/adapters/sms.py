@@ -1,10 +1,11 @@
-from typing import Dict, Any, Optional
-import os
 import base64
 import hashlib
 import hmac
-import httpx
 import logging
+import os
+from typing import Any, Dict, Optional
+import httpx
+
 from core.communication.adapters.base import PlatformAdapter
 
 logger = logging.getLogger(__name__)

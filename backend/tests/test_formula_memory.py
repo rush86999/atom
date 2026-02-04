@@ -3,9 +3,9 @@ Unit Tests for Formula Memory System
 Tests formula storage, search, lineage, and execution.
 """
 
-import pytest
 import json
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
 
 
 class TestFormulaMemoryManager:
@@ -181,7 +181,7 @@ class TestFormulaRoutes:
             mock_instance.add_formula.return_value = "test_formula_id"
             mock_manager.return_value = mock_instance
             
-            from api.formula_routes import create_formula, FormulaCreateRequest
+            from api.formula_routes import FormulaCreateRequest, create_formula
             
             request = FormulaCreateRequest(
                 expression="Revenue - Cost",

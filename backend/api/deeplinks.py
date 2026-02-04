@@ -12,27 +12,27 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import DeepLinkAudit, AgentRegistry
 from core.deeplinks import (
-    parse_deep_link,
+    DeepLinkParseException,
+    DeepLinkSecurityException,
     execute_deep_link,
     generate_deep_link,
-    DeepLinkParseException,
-    DeepLinkSecurityException
+    parse_deep_link,
 )
+from core.models import AgentRegistry, DeepLinkAudit
 
 logger = logging.getLogger(__name__)
 
 # Feature flags
 import os
+
 DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
 
 router = APIRouter()

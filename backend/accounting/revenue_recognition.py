@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
-from sqlalchemy.orm import Session, joinedload
-from core.database import SessionLocal
-from service_delivery.models import Milestone, Project, Contract
-from accounting.models import Account, AccountType, EntryType
+from typing import Any, Dict, Optional
 from accounting.ledger import EventSourcedLedger
+from accounting.models import Account, AccountType, EntryType
+from service_delivery.models import Contract, Milestone, Project
+from sqlalchemy.orm import Session, joinedload
+
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,8 @@ class RevenueRecognitionService:
     """
 
     async def record_revenue_recognition(self, milestone_id: str) -> Dict[str, Any]:
-        db = SessionLocal()
-        try:
+        """Record revenue recognition for a milestone using context manager."""
+        with get_db_session() as db:
             milestone = db.query(Milestone).options(
                 joinedload(Milestone.project)
                 .joinedload(Project.contract)
@@ -27,7 +28,7 @@ class RevenueRecognitionService:
 
             project = milestone.project
             contract = project.contract if project else None
-            
+
             if not contract:
                 return {"status": "error", "message": "Contract or project not found for milestone"}
 
@@ -43,7 +44,7 @@ class RevenueRecognitionService:
                 Account.workspace_id == workspace_id,
                 Account.code == "4000"
             ).first()
-            
+
             deferred_acc = db.query(Account).filter(
                 Account.workspace_id == workspace_id,
                 Account.code == "2100"
@@ -51,21 +52,21 @@ class RevenueRecognitionService:
 
             if not revenue_acc or not deferred_acc:
                 return {
-                    "status": "error", 
+                    "status": "error",
                     "message": "Required accounts (4000 or 2100) not found in Chart of Accounts"
                 }
 
             # 2. Record Transaction
             ledger = EventSourcedLedger(db)
-            
+
             product_name = contract.product_service.name if contract.product_service else "General Service"
             description = f"Revenue Recognition for Milestone: {milestone.name} ({product_name})"
-            
+
             entries = [
                 {"account_id": deferred_acc.id, "type": EntryType.DEBIT, "amount": amount},
                 {"account_id": revenue_acc.id, "type": EntryType.CREDIT, "amount": amount}
             ]
-            
+
             metadata = {
                 "milestone_id": milestone_id,
                 "project_id": project.id,
@@ -84,16 +85,10 @@ class RevenueRecognitionService:
             )
 
             return {
-                "status": "success", 
+                "status": "success",
                 "transaction_id": tx.id,
                 "amount": amount,
                 "product": product_name
             }
-
-        except Exception as e:
-            logger.error(f"Failed to record revenue recognition: {e}")
-            return {"status": "error", "message": str(e)}
-        finally:
-            db.close()
 
 revenue_recognition_service = RevenueRecognitionService()

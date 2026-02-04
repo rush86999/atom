@@ -1,8 +1,8 @@
-import os
-import requests
 import json
-from typing import Dict, List, Optional
 import logging
+import os
+from typing import Dict, List, Optional
+import requests
 
 logger = logging.getLogger(__name__)
 

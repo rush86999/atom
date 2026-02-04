@@ -4,10 +4,10 @@ Test script to verify core Atom functionality without running Flask server.
 This script tests the database, calendar, and transcription services directly.
 """
 
-import os
-import sys
 import asyncio
 import logging
+import os
+import sys
 from datetime import datetime, timedelta
 
 # Configure logging
@@ -43,7 +43,7 @@ async def test_database_connection():
         # Import database utilities
         import sys
         sys.path.append('backend/python-api-service')
-        from db_utils import init_db_pool, get_db_pool, execute_query
+        from db_utils import execute_query, get_db_pool, init_db_pool
 
         # Initialize connection pool
         pool = init_db_pool()

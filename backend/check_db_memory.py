@@ -1,10 +1,11 @@
 
-import sys
-import os
 import logging
+import os
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.models import User, Base, UserStatus
+
+from core.models import Base, User, UserStatus
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)

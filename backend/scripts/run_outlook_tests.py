@@ -4,16 +4,17 @@
 Direct test execution without subprocess
 """
 
+import json
 import os
 import sys
-import json
-import requests
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+import requests
 
 # Import test class
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from test_outlook_integration_new import OutlookIntegrationTester
+
 
 async def main():
     """Main execution function"""

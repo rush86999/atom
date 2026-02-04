@@ -1,12 +1,11 @@
-import logging
 import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import Optional, Dict
+import logging
 from datetime import timezone
-
-from saas.models import UsageEvent
+from typing import Dict, Optional
 from ecommerce.models import Subscription
+from saas.models import UsageEvent
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

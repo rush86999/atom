@@ -4,10 +4,10 @@ ATOM Asana Integration Test Suite
 Complete testing for Asana integration following established patterns
 """
 
-import requests
 import json
-import time
 import random
+import time
+import requests
 
 # Configuration
 API_BASE_URL = "http://localhost:5000"

@@ -1,11 +1,12 @@
+import asyncio
 import importlib
 import logging
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import wraps
+
 from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline
 
 logger = logging.getLogger(__name__)
@@ -39,8 +40,8 @@ class IntegrationLoader:
         if not condition:
             return None
 
-        # Print progress
-        print(f"  Loading {module_path}...", end="", flush=True)
+        # Log progress
+        logger.info(f"  Loading {module_path}...")
         start_time = time.time()
 
         try:
@@ -50,7 +51,7 @@ class IntegrationLoader:
                 try:
                     router = future.result(timeout=self.timeout_seconds)
                     elapsed = time.time() - start_time
-                    print(f" ✓ ({elapsed:.1f}s)")
+                    logger.info(f"  ✓ {module_path} loaded ({elapsed:.1f}s)")
                     self.integrations.append({
                         "name": module_path,
                         "router": router,
@@ -59,7 +60,7 @@ class IntegrationLoader:
                     logger.info(f"[OK] {module_path} loaded")
                     return router
                 except FuturesTimeoutError:
-                    print(f" ✗ TIMEOUT (>{self.timeout_seconds}s)")
+                    logger.warning(f"  ✗ TIMEOUT {module_path} (>{self.timeout_seconds}s)")
                     logger.warning(f"[TIMEOUT] {module_path} took too long to load")
                     self.integrations.append({
                         "name": module_path,
@@ -70,7 +71,7 @@ class IntegrationLoader:
                     return None
         except ImportError as e:
             elapsed = time.time() - start_time
-            print(f" ✗ Not available ({elapsed:.1f}s)")
+            logger.warning(f"  ✗ Not available: {module_path} ({elapsed:.1f}s)")
             logger.warning(f"[WARN] {module_path} not available: {e}")
             self.integrations.append({
                 "name": module_path,
@@ -81,12 +82,12 @@ class IntegrationLoader:
             return None
         except AttributeError as e:
             elapsed = time.time() - start_time
-            print(f" ✗ Router not found ({elapsed:.1f}s)")
+            logger.warning(f"  ✗ Router not found: {module_path} ({elapsed:.1f}s)")
             logger.error(f"[ERR] {module_path} loaded but '{router_name}' not found: {e}")
             return None
         except Exception as e:
             elapsed = time.time() - start_time
-            print(f" ✗ Error ({elapsed:.1f}s)")
+            logger.warning(f"  ✗ Error: {module_path} ({elapsed:.1f}s)")
             logger.error(f"[ERR] {module_path} failed: {e}")
             self.integrations.append({
                 "name": module_path,

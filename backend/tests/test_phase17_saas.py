@@ -1,20 +1,22 @@
-import sys
+import datetime
 import os
+import sys
 import unittest
 import uuid
-import datetime
 from datetime import timezone
 
 # Add project root
 sys.path.append(os.getcwd())
 
-from core.database import SessionLocal
-from core.models import Workspace
-from ecommerce.models import Subscription, EcommerceCustomer
-from saas.models import SaaSTier, UsageEvent
-from saas.usage_service import UsageMeteringService
+from ecommerce.models import EcommerceCustomer, Subscription
 from saas.billing_engine import TieredBillingService
 from saas.churn_detector import ChurnRiskDetector
+from saas.models import SaaSTier, UsageEvent
+from saas.usage_service import UsageMeteringService
+
+from core.database import SessionLocal
+from core.models import Workspace
+
 
 class TestPhase17SaaS(unittest.TestCase):
     def setUp(self):

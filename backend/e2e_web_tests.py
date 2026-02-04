@@ -10,10 +10,10 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 try:
-    from playwright.async_api import async_playwright, Page, Browser
+    from playwright.async_api import Browser, Page, async_playwright
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -21,8 +21,7 @@ except ImportError:
 
 # Suppress Windows-specific asyncio errors
 if sys.platform == "win32":
-    from asyncio import base_subprocess
-    from asyncio import proactor_events
+    from asyncio import base_subprocess, proactor_events
     
     def _silence_del(self):
         try:

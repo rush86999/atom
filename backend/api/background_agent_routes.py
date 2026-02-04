@@ -2,10 +2,14 @@
 Background Agent API Routes - Phase 35
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.api_governance import require_governance, ActionComplexity
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -35,20 +39,55 @@ async def list_background_tasks():
         }
 
 @router.post("/{agent_id}/register")
-async def register_background_agent(agent_id: str, request: RegisterAgentRequest):
-    """Register an agent for background execution"""
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="register_background_agent",
+    feature="background_agent"
+)
+async def register_background_agent(
+    agent_id: str,
+    request: RegisterAgentRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    requesting_agent_id: Optional[str] = None
+):
+    """
+    Register an agent for background execution.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Background agent registration is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
     from core.background_agent_runner import background_runner
-    
+
     background_runner.register_agent(agent_id, request.interval_seconds)
+    logger.info(f"Background agent registered: {agent_id}")
     return {"status": "registered", "agent_id": agent_id, "interval": request.interval_seconds}
 
 @router.post("/{agent_id}/start")
-async def start_background_agent(agent_id: str):
-    """Start periodic execution of an agent"""
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="start_background_agent",
+    feature="background_agent"
+)
+async def start_background_agent(
+    agent_id: str,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    requesting_agent_id: Optional[str] = None
+):
+    """
+    Start periodic execution of an agent.
+
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Starting background agents is a high-complexity action
+    - Requires SUPERVISED maturity or higher
+    """
     from core.background_agent_runner import background_runner
-    
+
     try:
         await background_runner.start_agent(agent_id)
+        logger.info(f"Background agent started: {agent_id}")
         return {"status": "started", "agent_id": agent_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

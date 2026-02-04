@@ -1,17 +1,23 @@
-import logging
-import json
 import asyncio
-from typing import Dict, Any, List, Optional
+import json
+import logging
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-
-from core.database import SessionLocal
-from sales.models import Lead, Deal
+from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceOrder
 from marketing.models import AdSpendEntry
+from sales.models import Deal, Lead
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from core.database import get_db_session
 from core.models import AgentJob
-from integrations.ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType, AIModelType, AIServiceType
+from integrations.ai_enhanced_service import (
+    AIModelType,
+    AIRequest,
+    AIServiceType,
+    AITaskType,
+    ai_enhanced_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +31,7 @@ class BusinessHealthService:
 
     @property
     def db(self):
-        return self._db or SessionLocal()
+        return self._db or get_db_session()
 
     async def get_daily_priorities(self, workspace_id: str) -> Dict[str, Any]:
         """

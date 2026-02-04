@@ -6,10 +6,10 @@ Provides comprehensive GitHub integration functionality
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
-import requests
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
+import requests
 
 logger = logging.getLogger(__name__)
 

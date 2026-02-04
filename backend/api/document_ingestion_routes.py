@@ -3,11 +3,11 @@ Automatic Document Ingestion API Routes
 Manage per-integration document ingestion settings and memory removal.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import logging
 import io
+import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +290,7 @@ async def list_supported_file_types():
     """
     # Check docling availability
     try:
-        from core.docling_processor import is_docling_available, get_docling_processor
+        from core.docling_processor import get_docling_processor, is_docling_available
         docling_available = is_docling_available()
         if docling_available:
             processor = get_docling_processor()
@@ -338,7 +338,7 @@ async def get_ocr_status():
     
     # Check docling
     try:
-        from core.docling_processor import is_docling_available, get_docling_processor
+        from core.docling_processor import get_docling_processor, is_docling_available
         if is_docling_available():
             processor = get_docling_processor()
             proc_status = processor.get_status()
@@ -355,7 +355,9 @@ async def get_ocr_status():
     # Check other OCR engines
     try:
         from integrations.pdf_processing.pdf_ocr_service import (
-            TESSERACT_AVAILABLE, EASYOCR_AVAILABLE, DOCLING_AVAILABLE
+            DOCLING_AVAILABLE,
+            EASYOCR_AVAILABLE,
+            TESSERACT_AVAILABLE,
         )
         if TESSERACT_AVAILABLE:
             status["ocr_engines"].append("tesseract")

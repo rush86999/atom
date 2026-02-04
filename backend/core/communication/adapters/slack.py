@@ -1,10 +1,11 @@
-import os
-import hmac
 import hashlib
-import time
+import hmac
 import logging
-from typing import Dict, Any, Optional
+import os
+import time
+from typing import Any, Dict, Optional
 from fastapi import Request
+
 from .base import PlatformAdapter
 
 logger = logging.getLogger(__name__)

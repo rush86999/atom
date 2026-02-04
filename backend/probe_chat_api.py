@@ -1,6 +1,6 @@
-import requests
 import json
 import sys
+import requests
 
 # Force UTF-8 for Windows console
 if sys.platform == 'win32':

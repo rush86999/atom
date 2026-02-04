@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Project, ProjectTask
 from sqlalchemy import func
-from core.database import SessionLocal
-from core.models import User, Team
-from service_delivery.models import ProjectTask, Project
+
+from core.database import get_db_session
+from core.models import Team, User
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class WorkforceAnalyticsService:
         """
         Calculates throughput (tasks completed) and average cycle time.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             start_date = datetime.utcnow() - timedelta(days=days)
             
@@ -57,7 +58,7 @@ class WorkforceAnalyticsService:
         """
         Identifies users with high task-to-capacity ratios or long-stalled tasks.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Find users with > 5 'in_progress' tasks
             bottlenecks = []
@@ -110,7 +111,7 @@ class WorkforceAnalyticsService:
         Calculates a 'Focus Score' (0-100) for a user.
         High switching between different projects/contexts lowers the score.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Analyze active tasks for different projects
             active_tasks = (
@@ -138,7 +139,7 @@ class WorkforceAnalyticsService:
         """
         Calculates the variance between planned and actual durations/hours for a user or workspace.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             query = db.query(ProjectTask).filter(ProjectTask.workspace_id == workspace_id).filter(ProjectTask.status == "completed")
             if user_id:
@@ -205,7 +206,7 @@ class WorkforceAnalyticsService:
         """
         Identifies missing competencies by comparing task requirements against team skills.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # 1. Fetch all active users and their skills
             users = db.query(User).filter(User.status == "active").all()

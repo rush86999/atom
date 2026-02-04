@@ -4,12 +4,12 @@ Sends Slack/Email notifications on workflow completion/failure.
 Includes user-configurable notification settings.
 """
 
-import os
-import logging
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field, asdict
-from enum import Enum
 import json
+import logging
+import os
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

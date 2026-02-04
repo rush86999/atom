@@ -7,15 +7,17 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+import httpx
+
 try:
     import lancedb
-    import pyarrow as pa
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+    import pyarrow as pa
 except ImportError:
     lancedb = None
     pa = None
@@ -31,6 +33,7 @@ except ImportError:
     np = MagicMock()
 
 from pathlib import Path
+
 from core.knowledge_ingestion import get_knowledge_ingestion
 
 logger = logging.getLogger(__name__)
@@ -438,14 +441,95 @@ class CommunicationIngestionPipeline:
         self.memory_manager = memory_manager
         self.ingestion_configs = {}
         self.active_streams = {}
+        self.fetch_timestamps = {}  # Track last fetch time for each app
+        self.app_configs = {}  # Store app-specific configurations
+        self.webhook_enabled = {}  # Track which apps have webhooks enabled
+
+        # Import webhook processor (lazy import to avoid circular dependency)
+        try:
+            from core.webhook_handlers import get_webhook_processor
+            self.webhook_processor = get_webhook_processor()
+            # Register callback for webhook messages
+            self.webhook_processor.register_message_callback(self._handle_webhook_message)
+            logger.info("Webhook processor initialized and callback registered")
+        except ImportError:
+            self.webhook_processor = None
+            logger.warning("Webhook handlers not available, real-time ingestion disabled")
         
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
         """Configure ingestion for specific app"""
-        self.ingestion_configs[app_type.value] = {
+        config_dict = {
             **asdict(config),
             "app_type": app_type.value
         }
+        self.ingestion_configs[app_type.value] = config_dict
+        self.app_configs[app_type.value] = config_dict
         logger.info(f"Configured ingestion for {app_type.value}")
+
+    def enable_webhook_ingestion(self, app_type: str, enabled: bool = True):
+        """
+        Enable or disable webhook-based real-time ingestion for an app.
+
+        Args:
+            app_type: App type (slack, teams, gmail, outlook)
+            enabled: Whether to enable webhook ingestion
+        """
+        self.webhook_enabled[app_type] = enabled
+        status = "enabled" if enabled else "disabled"
+        logger.info(f"Webhook ingestion {status} for {app_type}")
+
+    def is_webhook_enabled(self, app_type: str) -> bool:
+        """Check if webhook ingestion is enabled for an app"""
+        return self.webhook_enabled.get(app_type, False)
+
+    async def _handle_webhook_message(self, message_data: Dict[str, Any]):
+        """
+        Handle incoming webhook message from real-time sources.
+
+        This is called by the webhook processor when a new message arrives
+        via Slack/Teams/Gmail webhooks.
+
+        Args:
+            message_data: Normalized message data from webhook
+        """
+        try:
+            app_type = message_data.get("app_type", "")
+            if not app_type:
+                logger.warning("Webhook message missing app_type")
+                return
+
+            # Only process if webhook is enabled for this app
+            if not self.is_webhook_enabled(app_type):
+                logger.debug(f"Webhook ingestion disabled for {app_type}, skipping")
+                return
+
+            # Ingest the message
+            logger.info(f"Processing webhook message from {app_type}")
+            success = await self.ingest_message(app_type, message_data)
+
+            if success:
+                logger.info(f"Successfully ingested webhook message from {app_type}")
+            else:
+                logger.error(f"Failed to ingest webhook message from {app_type}")
+
+        except Exception as e:
+            logger.error(f"Error handling webhook message: {e}")
+
+    def get_webhook_status(self) -> Dict[str, Any]:
+        """
+        Get webhook ingestion status for all apps.
+
+        Returns:
+            Dictionary with webhook status for each app
+        """
+        return {
+            app_type: {
+                "enabled": self.is_webhook_enabled(app_type),
+                "processor_available": self.webhook_processor is not None
+            }
+            for app_type in ["slack", "teams", "gmail", "outlook"]
+        }
+
     
     async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
         """Ingest single message from any communication app"""
@@ -490,7 +574,9 @@ class CommunicationIngestionPipeline:
                                 ))
                                 
                                 # 2. Advanced Communication Intelligence (Intent + Responses)
-                                from core.communication_intelligence import CommunicationIntelligenceService
+                                from core.communication_intelligence import (
+                                    CommunicationIntelligenceService,
+                                )
                                 intel_service = CommunicationIntelligenceService()
                                 loop.create_task(intel_service.analyze_and_route(
                                     comm_data=asdict(comm_data),
@@ -530,18 +616,955 @@ class CommunicationIngestionPipeline:
     
     async def _real_time_ingestion(self, app_type: str):
         """Async real-time ingestion for specific app"""
+        config = self.app_configs.get(app_type, {})
+        polling_interval = config.get('polling_interval_seconds', 30)
+
+        logger.info(f"Starting real-time ingestion for {app_type} (polling every {polling_interval}s)")
+
         while True:
             try:
-                # This would connect to the actual app's webhook/API
-                # For now, simulate real-time ingestion
-                await asyncio.sleep(30)  # Check every 30 seconds
-                
-                # TODO: Implement actual app-specific real-time ingestion
-                logger.debug(f"Real-time check for {app_type}")
-                
+                # Fetch new messages from the app's API
+                new_messages = await self._fetch_new_messages(app_type)
+
+                if new_messages:
+                    logger.info(f"Fetched {len(new_messages)} new messages from {app_type}")
+
+                    # Ingest each message
+                    for message in new_messages:
+                        try:
+                            await self.ingest_message(app_type, message)
+                        except Exception as e:
+                            logger.error(f"Failed to ingest message from {app_type}: {e}")
+
+                # Wait before next poll
+                await asyncio.sleep(polling_interval)
+
             except Exception as e:
                 logger.error(f"Error in real-time ingestion for {app_type}: {str(e)}")
                 await asyncio.sleep(60)  # Wait longer on error
+
+    async def _fetch_new_messages(self, app_type: str) -> List[Dict[str, Any]]:
+        """
+        Fetch new messages from the app's API.
+        This method implements app-specific polling logic.
+
+        Args:
+            app_type: The communication app type
+
+        Returns:
+            List of new message data dictionaries
+        """
+        # Get the last fetch timestamp for this app
+        last_fetch_key = f"last_fetch_{app_type}"
+        last_fetch = self.fetch_timestamps.get(last_fetch_key)
+
+        try:
+            # Fetch messages based on app type
+            messages = []
+            if app_type == CommunicationAppType.WHATSAPP.value:
+                messages = await self._fetch_whatsapp_messages(last_fetch)
+            elif app_type == CommunicationAppType.SLACK.value:
+                messages = await self._fetch_slack_messages(last_fetch)
+            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value:
+                messages = await self._fetch_teams_messages(last_fetch)
+            elif app_type == CommunicationAppType.EMAIL.value:
+                messages = await self._fetch_email_messages(last_fetch)
+            elif app_type == CommunicationAppType.GMAIL.value:
+                messages = await self._fetch_gmail_messages(last_fetch)
+            elif app_type == CommunicationAppType.OUTLOOK.value:
+                messages = await self._fetch_outlook_messages(last_fetch)
+            else:
+                logger.warning(f"No polling implementation for {app_type}")
+
+            # Update last fetch timestamp (only on success)
+            self.fetch_timestamps[last_fetch_key] = datetime.now()
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"Error fetching messages from {app_type}: {e}")
+            # Note: Don't update timestamp on error, so we can retry the same time range
+            return []
+
+    async def _fetch_whatsapp_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new WhatsApp messages via Business API or webhook buffer.
+
+        For production, this should use the WhatsApp Business API for polling
+        or integrate with a webhook receiver that buffers messages.
+        """
+        try:
+            from integrations.atom_whatsapp_integration import whatsapp_integration_service
+
+            messages = await whatsapp_integration_service.get_messages(
+                since=last_fetch,
+                limit=100
+            )
+            return messages
+        except ImportError:
+            logger.warning("WhatsApp integration service not available")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching WhatsApp messages: {e}")
+            return []
+
+    async def _fetch_slack_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Slack messages via Slack API.
+
+        Uses the AsyncWebClient from slack_sdk to fetch message history.
+        Implements cursor-based pagination and handles rate limiting.
+
+        Requires:
+        - SLACK_BOT_TOKEN environment variable
+        - channels:history OAuth scope
+        - Configured monitored_channels in app config
+        """
+        try:
+            import os
+            from slack_sdk.errors import SlackApiError
+            from slack_sdk.web.async_client import AsyncWebClient
+
+            bot_token = os.getenv("SLACK_BOT_TOKEN")
+            if not bot_token:
+                logger.warning("SLACK_BOT_TOKEN not configured for Slack polling")
+                return []
+
+            # Get list of channels to monitor
+            config = self.app_configs.get(CommunicationAppType.SLACK.value, {})
+            channels = config.get("monitored_channels", [])
+
+            if not channels:
+                logger.info("No Slack channels configured for monitoring")
+                return []
+
+            # Calculate oldest timestamp
+            oldest_ts = None
+            if last_fetch:
+                oldest_ts = str(last_fetch.timestamp())
+                logger.debug(f"Fetching Slack messages since {oldest_ts}")
+            else:
+                logger.debug("Fetching recent Slack messages (no timestamp provided)")
+
+            all_messages = []
+            client = AsyncWebClient(token=bot_token)
+
+            # Fetch messages from each channel
+            for channel_id in channels:
+                try:
+                    logger.debug(f"Fetching messages from Slack channel {channel_id}")
+
+                    # Fetch conversations history with pagination
+                    cursor = None
+                    messages_count = 0
+
+                    while True:
+                        # API call to fetch messages
+                        response = await client.conversations_history(
+                            channel=channel_id,
+                            oldest=oldest_ts,
+                            limit=100,  # Max messages per request
+                            cursor=cursor,
+                            inclusive=False  # Exclude the message with oldest_ts
+                        )
+
+                        if not response.get("ok"):
+                            error_msg = response.get("error", "Unknown error")
+                            logger.error(f"Slack API error for channel {channel_id}: {error_msg}")
+                            break
+
+                        messages = response.get("messages", [])
+                        if not messages:
+                            logger.debug(f"No more messages in channel {channel_id}")
+                            break
+
+                        # Process and normalize messages
+                        for msg in messages:
+                            # Skip messages from bots (unless configured to include)
+                            msg_type = msg.get("type", "")
+                            subtype = msg.get("subtype", "")
+                            bot_id = msg.get("bot_id", "")
+
+                            if msg_type != "message":
+                                continue
+
+                            # Skip bot messages unless configured
+                            if bot_id and not config.get("include_bot_messages", False):
+                                continue
+
+                            # Skip message changed/deleted events
+                            if subtype in ["message_changed", "message_deleted"]:
+                                continue
+
+                            # Normalize message
+                            normalized_msg = {
+                                "id": msg.get("ts"),  # Use timestamp as ID
+                                "app_type": CommunicationAppType.SLACK.value,
+                                "timestamp": datetime.fromtimestamp(float(msg.get("ts")), tz=timezone.utc),
+                                "direction": "inbound",
+                                "sender": msg.get("user", "UNKNOWN"),
+                                "recipient": channel_id,  # Channel ID
+                                "subject": None,  # Slack messages don't have subjects
+                                "content": msg.get("text", ""),
+                                "attachments": msg.get("files", []),
+                                "metadata": {
+                                    "channel_id": channel_id,
+                                    "channel_name": await self._get_channel_name(client, channel_id),
+                                    "thread_ts": msg.get("thread_ts"),
+                                    "parent_user_id": msg.get("parent_user_id"),
+                                    "subtype": subtype,
+                                    "reactions": msg.get("reactions", []),
+                                    "slack_metadata": msg
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": []
+                            }
+
+                            all_messages.append(normalized_msg)
+                            messages_count += 1
+
+                        # Check for pagination
+                        cursor = response.get("response_metadata", {}).get("next_cursor")
+                        if not cursor:
+                            logger.debug(f"Fetched {messages_count} messages from channel {channel_id}")
+                            break
+
+                        # Rate limiting: small delay between pagination requests
+                        await asyncio.sleep(0.5)
+
+                    logger.info(f"Successfully fetched {messages_count} messages from Slack channel {channel_id}")
+
+                except SlackApiError as e:
+                    if e.response.get("error") == "ratelimited":
+                        # Handle rate limiting
+                        retry_after = int(e.response.headers.get("Retry-After", 60))
+                        logger.warning(f"Slack API rate limited. Retry after {retry_after}s")
+                        # Don't block other channels, just skip this one for now
+                        continue
+                    else:
+                        logger.error(f"Slack API error for channel {channel_id}: {e}")
+                        continue
+
+                except Exception as e:
+                    logger.error(f"Error fetching from Slack channel {channel_id}: {e}")
+                    continue
+
+            # Close the client
+            await client.close()
+
+            # Sort by timestamp (oldest first)
+            all_messages.sort(key=lambda m: m["timestamp"])
+
+            logger.info(f"Total Slack messages fetched: {len(all_messages)}")
+            return all_messages
+
+        except ImportError:
+            logger.error("slack_sdk not available. Install with: pip install slack_sdk")
+            return []
+        except Exception as e:
+            logger.error(f"Failed to fetch Slack messages: {e}")
+            return []
+
+    async def _get_channel_name(self, client, channel_id: str) -> Optional[str]:
+        """Get channel name from channel ID"""
+        try:
+            response = await client.conversations_info(channel=channel_id)
+            if response.get("ok"):
+                return response.get("channel", {}).get("name")
+        except Exception as e:
+            logger.debug(f"Could not get channel name for {channel_id}: {e}")
+        return None
+
+    async def _fetch_teams_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Microsoft Teams messages via Microsoft Graph API.
+
+        Fetches from:
+        - 1:1 chats
+        - Group chats
+        - Channel messages (from joined teams)
+
+        Requires Microsoft Teams OAuth access token with Chat.Read, ChannelMessage.Read.All scopes.
+        """
+        try:
+            from core.token_storage import token_storage
+
+            token_data = token_storage.get_token("microsoft")
+            if not token_data:
+                logger.warning("No Microsoft OAuth token found for Teams polling")
+                return []
+
+            access_token = token_data.get("access_token")
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+            all_messages = []
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # 1. Fetch 1:1 and group chats
+                all_messages.extend(await self._fetch_teams_chat_messages(client, headers, last_fetch))
+
+                # 2. Fetch channel messages from teams
+                all_messages.extend(await self._fetch_teams_channel_messages(client, headers, last_fetch))
+
+                # Sort by timestamp
+                all_messages.sort(key=lambda m: m.get("timestamp", datetime.min))
+
+                logger.info(f"Fetched {len(all_messages)} total messages from Microsoft Teams")
+                return all_messages
+
+        except ImportError:
+            logger.warning("token_storage module not available for Teams polling")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching Teams messages: {e}")
+            return []
+
+    async def _fetch_teams_chat_messages(
+        self,
+        client: httpx.AsyncClient,
+        headers: Dict[str, str],
+        last_fetch: Optional[datetime]
+    ) -> List[Dict[str, Any]]:
+        """Fetch messages from Teams chats (1:1 and group chats)"""
+        all_messages = []
+
+        try:
+            # Get all chats
+            chats_response = await client.get(
+                "https://graph.microsoft.com/v1.0/me/chats",
+                headers=headers
+            )
+
+            if chats_response.status_code != 200:
+                logger.warning(f"Failed to fetch Teams chats: {chats_response.status_code}")
+                return []
+
+            chats = chats_response.json().get("value", [])
+            logger.debug(f"Found {len(chats)} Teams chats")
+
+            for chat in chats:
+                chat_id = chat.get("id")
+                if not chat_id:
+                    continue
+
+                # Build filter for messages since last fetch
+                filter_str = None
+                if last_fetch:
+                    filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+
+                # Get messages from each chat
+                params = {"$top": 50}  # Reduced batch size for better performance
+                if filter_str:
+                    params["$filter"] = filter_str
+
+                try:
+                    msgs_response = await client.get(
+                        f"https://graph.microsoft.com/v1.0/me/chats/{chat_id}/messages",
+                        headers=headers,
+                        params=params
+                    )
+
+                    if msgs_response.status_code == 200:
+                        messages = msgs_response.json().get("value", [])
+
+                        # Normalize messages
+                        for msg in messages:
+                            # Extract sender info
+                            from_user = msg.get("from", {}).get("user", {})
+                            sender_display_name = from_user.get("displayName", "UNKNOWN")
+                            sender_email = from_user.get("email", "")
+
+                            # Extract content (handle different formats)
+                            body_content = msg.get("body", {})
+                            content = body_content.get("content", "")
+                            content_type = body_content.get("contentType", "text")
+
+                            # Handle Adaptive Cards
+                            attachments = msg.get("attachments", [])
+                            adaptive_card_data = None
+                            for attachment in attachments:
+                                if attachment.get("contentType") == "application/vnd.microsoft.card.adaptive":
+                                    adaptive_card_data = attachment.get("content", {})
+
+                            normalized_msg = {
+                                "id": msg.get("id"),
+                                "app_type": CommunicationAppType.MICROSOFT_TEAMS.value,
+                                "timestamp": datetime.fromisoformat(
+                                    msg.get("createdDateTime", datetime.now().isoformat())
+                                ).replace(tzinfo=None),
+                                "direction": "inbound",
+                                "sender": sender_display_name,
+                                "sender_email": sender_email,
+                                "recipient": chat_id,
+                                "subject": msg.get("subject"),
+                                "content": content,
+                                "content_type": content_type,
+                                "attachments": attachments,
+                                "metadata": {
+                                    "chat_id": chat_id,
+                                    "chat_type": chat.get("chatType"),
+                                    "chat_title": chat.get("topic"),
+                                    "web_url": msg.get("webUrl"),
+                                    "message_type": msg.get("messageType"),
+                                    "created_datetime": msg.get("createdDateTime"),
+                                    "last_modified_datetime": msg.get("lastModifiedDateTime"),
+                                    "adaptive_card": adaptive_card_data,
+                                    "teams_metadata": msg
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": ["teams", "chat"]
+                            }
+                            all_messages.append(normalized_msg)
+
+                    elif msgs_response.status_code == 429:
+                        # Rate limited - wait and retry
+                        retry_after = int(msgs_response.headers.get("Retry-After", 30))
+                        logger.warning(f"Teams API rate limited, waiting {retry_after}s")
+                        await asyncio.sleep(retry_after)
+
+                except Exception as e:
+                    logger.error(f"Error fetching messages from chat {chat_id}: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Error in _fetch_teams_chat_messages: {e}")
+
+        return all_messages
+
+    async def _fetch_teams_channel_messages(
+        self,
+        client: httpx.AsyncClient,
+        headers: Dict[str, str],
+        last_fetch: Optional[datetime]
+    ) -> List[Dict[str, Any]]:
+        """Fetch messages from Teams channels (requires ChannelMessage.Read.All permission)"""
+        all_messages = []
+
+        try:
+            # Get joined teams
+            teams_response = await client.get(
+                "https://graph.microsoft.com/v1.0/me/joinedTeams",
+                headers=headers
+            )
+
+            if teams_response.status_code != 200:
+                logger.debug(f"Could not fetch Teams (may need ChannelMessage.Read.All permission): {teams_response.status_code}")
+                return []
+
+            teams = teams_response.json().get("value", [])
+            logger.debug(f"Found {len(teams)} joined Teams")
+
+            for team in teams:
+                team_id = team.get("id")
+                team_name = team.get("displayName", "Unknown Team")
+
+                if not team_id:
+                    continue
+
+                # Get channels for this team
+                channels_response = await client.get(
+                    f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels",
+                    headers=headers
+                )
+
+                if channels_response.status_code != 200:
+                    logger.debug(f"Could not fetch channels for team {team_id}")
+                    continue
+
+                channels = channels_response.json().get("value", [])
+
+                for channel in channels:
+                    channel_id = channel.get("id")
+                    channel_name = channel.get("displayName", "General")
+
+                    if not channel_id:
+                        continue
+
+                    # Build filter for messages since last fetch
+                    filter_str = None
+                    if last_fetch:
+                        filter_str = f"createdDateTime gt {last_fetch.isoformat()}"
+
+                    # Get messages from channel
+                    params = {"$top": 50}
+                    if filter_str:
+                        params["$filter"] = filter_str
+
+                    try:
+                        msgs_response = await client.get(
+                            f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages",
+                            headers=headers,
+                            params=params
+                        )
+
+                        if msgs_response.status_code == 200:
+                            messages = msgs_response.json().get("value", [])
+
+                            for msg in messages:
+                                from_user = msg.get("from", {}).get("user", {})
+                                sender_display_name = from_user.get("displayName", "UNKNOWN")
+                                sender_email = from_user.get("email", "")
+
+                                body_content = msg.get("body", {})
+                                content = body_content.get("content", "")
+                                content_type = body_content.get("contentType", "text")
+
+                                attachments = msg.get("attachments", [])
+
+                                normalized_msg = {
+                                    "id": msg.get("id"),
+                                    "app_type": CommunicationAppType.MICROSOFT_TEAMS.value,
+                                    "timestamp": datetime.fromisoformat(
+                                        msg.get("createdDateTime", datetime.now().isoformat())
+                                    ).replace(tzinfo=None),
+                                    "direction": "inbound",
+                                    "sender": sender_display_name,
+                                    "sender_email": sender_email,
+                                    "recipient": f"{team_name}/{channel_name}",
+                                    "subject": msg.get("subject"),
+                                    "content": content,
+                                    "content_type": content_type,
+                                    "attachments": attachments,
+                                    "metadata": {
+                                        "team_id": team_id,
+                                        "team_name": team_name,
+                                        "channel_id": channel_id,
+                                        "channel_name": channel_name,
+                                        "web_url": msg.get("webUrl"),
+                                        "message_type": msg.get("messageType"),
+                                        "reply_to_id": msg.get("replyToId"),
+                                        "created_datetime": msg.get("createdDateTime"),
+                                        "last_modified_datetime": msg.get("lastModifiedDateTime"),
+                                        "teams_metadata": msg
+                                    },
+                                    "status": "active",
+                                    "priority": "normal",
+                                    "tags": ["teams", "channel"]
+                                }
+                                all_messages.append(normalized_msg)
+
+                        elif msgs_response.status_code == 429:
+                            # Rate limited
+                            retry_after = int(msgs_response.headers.get("Retry-After", 30))
+                            logger.warning(f"Teams channel API rate limited, waiting {retry_after}s")
+                            await asyncio.sleep(retry_after)
+
+                    except Exception as e:
+                        logger.error(f"Error fetching messages from channel {channel_id}: {e}")
+                        continue
+
+        except Exception as e:
+            logger.error(f"Error in _fetch_teams_channel_messages: {e}")
+
+        return all_messages
+
+    async def _fetch_email_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """Fetch new email messages via IMAP"""
+        try:
+            import email
+            import imaplib
+            from email.header import decode_header
+
+            imap_server = os.getenv("IMAP_SERVER")
+            imap_user = os.getenv("IMAP_USER")
+            imap_password = os.getenv("IMAP_PASSWORD")
+
+            if not all([imap_server, imap_user, imap_password]):
+                logger.warning("IMAP credentials not configured - set IMAP_SERVER, IMAP_USER, IMAP_PASSWORD")
+                return []
+
+            # Run IMAP operations in executor to avoid blocking
+            loop = asyncio.get_running_loop()
+            messages = await loop.run_in_executor(None, self._fetch_imap_messages, imap_server, imap_user, imap_password, last_fetch)
+
+            return messages
+
+        except Exception as e:
+            logger.error(f"Error fetching email via IMAP: {e}")
+            return []
+
+    def _fetch_imap_messages(self, imap_server: str, imap_user: str, imap_password: str, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """Synchronous IMAP fetching - runs in executor"""
+        try:
+            import email
+            import imaplib
+            from email.header import decode_header
+
+            # Connect to IMAP server
+            mail = imaplib.IMAP4_SSL(imap_server)
+            mail.login(imap_user, imap_password)
+            mail.select("INBOX")
+
+            # Search for new messages
+            since_date = last_fetch.strftime("%d-%b-%Y") if last_fetch else "01-Jan-1970"
+            status, messages = mail.search(None, f'(SINCE "{since_date}")')
+
+            messages_data = []
+
+            if status == "OK":
+                for msg_id in messages[0].split()[-100:]:  # Limit to last 100 messages
+                    _, msg_data = mail.fetch(msg_id, "(RFC822)")
+
+                    for response_part in msg_data:
+                        if isinstance(response_part, tuple):
+                            msg = email.message_from_bytes(response_part[1])
+
+                            # Decode subject
+                            subject = msg.get("Subject", "")
+                            if subject:
+                                decoded_parts = decode_header(subject)
+                                subject = ""
+                                for content, encoding in decoded_parts:
+                                    if isinstance(content, bytes):
+                                        subject += content.decode(encoding or "utf-8", errors="ignore")
+                                    else:
+                                        subject += content
+
+                            # Get email body
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    content_type = part.get_content_type()
+                                    content_disposition = str(part.get("Content-Disposition", ""))
+
+                                    if content_type == "text/plain" and "attachment" not in content_disposition:
+                                        try:
+                                            body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                                            break
+                                        except Exception as e:
+                                            pass
+                            else:
+                                try:
+                                    body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+                                except Exception as e:
+                                    body = msg.get_payload()
+
+                            # Extract attachments
+                            attachments = []
+                            for part in msg.walk():
+                                if part.get_filename():
+                                    attachments.append({
+                                        "filename": part.get_filename(),
+                                        "size": part.get("Content-Length"),
+                                        "content_type": part.get_content_type()
+                                    })
+
+                            messages_data.append({
+                                "id": msg_id.decode(),
+                                "app_type": CommunicationAppType.EMAIL.value,
+                                "timestamp": datetime.fromtimestamp(email.utils.mktime_tz(email.utils.parsedate_tz(msg.get("Date")))),
+                                "direction": "inbound",
+                                "sender": msg.get("From"),
+                                "recipient": msg.get("To"),
+                                "subject": subject,
+                                "content": body,
+                                "attachments": attachments,
+                                "metadata": {
+                                    "message_id": msg.get("Message-ID"),
+                                    "thread_id": msg.get("Thread-Index"),
+                                    "email_metadata": {
+                                        "cc": msg.get("CC"),
+                                        "reply_to": msg.get("Reply-To"),
+                                        "in_reply_to": msg.get("In-Reply-To")
+                                    }
+                                },
+                                "status": "active",
+                                "priority": "normal",
+                                "tags": []
+                            })
+
+            mail.close()
+            mail.logout()
+
+            logger.info(f"Fetched {len(messages_data)} messages via IMAP")
+            return messages_data
+
+        except Exception as e:
+            logger.error(f"IMAP fetch error: {e}")
+            return []
+
+    async def _fetch_gmail_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Gmail messages via Gmail API.
+
+        Requires Gmail OAuth access token with gmail.readonly scope.
+        Supports incremental fetching and proper message normalization.
+        """
+        try:
+            import asyncio
+
+            from integrations.gmail_service import GmailService
+
+            gmail_service = GmailService()
+
+            # Check if authenticated
+            if not gmail_service.service:
+                # Try to authenticate
+                try:
+                    gmail_service._authenticate()
+                except Exception as e:
+                    logger.warning(f"Gmail authentication failed: {e}")
+                    return []
+
+            if not gmail_service.service:
+                logger.warning("Gmail service not available after authentication attempt")
+                return []
+
+            # Build query for incremental fetching
+            query = ""
+            if last_fetch:
+                # Gmail search query for messages after a date
+                # Format: after:YYYY/MM/DD
+                date_str = last_fetch.strftime("%Y/%m/%d")
+                query = f"after:{date_str}"
+
+            # Run in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            messages = await loop.run_in_executor(
+                None,
+                lambda: gmail_service.get_messages(query=query, max_results=100)
+            )
+
+            # Normalize to unified message format
+            normalized_messages = []
+            for msg in messages:
+                try:
+                    # Parse timestamp from Gmail message
+                    timestamp_str = msg.get("timestamp")
+                    if timestamp_str:
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str)
+                        except (ValueError, TypeError):
+                            timestamp = datetime.fromtimestamp(int(timestamp_str))
+                    else:
+                        timestamp = datetime.now()
+
+                    # Extract sender name and email
+                    sender = msg.get("sender", "")
+                    sender_name = sender
+                    sender_email = sender
+
+                    # Parse email from "Name <email@domain.com>" format
+                    if "<" in sender and ">" in sender:
+                        parts = sender.rsplit("<", 1)
+                        sender_name = parts[0].strip()
+                        sender_email = parts[1].rstrip(">")
+                    elif "@" in sender:
+                        sender_email = sender
+                        sender_name = sender.split("@")[0]
+
+                    # Extract recipients
+                    recipient = msg.get("recipient", "")
+                    recipients_list = recipient.split(",") if recipient else []
+
+                    # Parse attachments
+                    attachments_data = msg.get("attachments", [])
+                    attachments = []
+                    for att in attachments_data:
+                        attachments.append({
+                            "id": att.get("id"),
+                            "filename": att.get("filename"),
+                            "size": att.get("size"),
+                            "content_type": att.get("contentType")
+                        })
+
+                    normalized_msg = {
+                        "id": msg.get("id"),
+                        "app_type": CommunicationAppType.GMAIL.value,
+                        "timestamp": timestamp,
+                        "direction": "inbound",
+                        "sender": sender_name,
+                        "sender_email": sender_email,
+                        "recipient": recipient,
+                        "subject": msg.get("subject", ""),
+                        "content": msg.get("body", ""),
+                        "content_type": "text",
+                        "attachments": attachments,
+                        "metadata": {
+                            "thread_id": msg.get("threadId"),
+                            "label_ids": msg.get("labelIds", []),
+                            "snippet": msg.get("snippet", ""),
+                            "history_id": msg.get("historyId"),
+                            "internal_date": msg.get("internalDate"),
+                            "size_estimate": msg.get("sizeEstimate"),
+                            "gmail_metadata": msg
+                        },
+                        "status": "active",
+                        "priority": "high" if "IMPORTANT" in msg.get("labelIds", []) else "normal",
+                        "tags": ["gmail"] + msg.get("labelIds", [])
+                    }
+                    normalized_messages.append(normalized_msg)
+
+                except Exception as e:
+                    logger.error(f"Error normalizing Gmail message {msg.get('id')}: {e}")
+                    continue
+
+            logger.info(f"Fetched {len(normalized_messages)} messages from Gmail")
+            return normalized_messages
+
+        except ImportError:
+            logger.warning("Gmail service not available")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching Gmail messages: {e}")
+            return []
+
+    async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Outlook messages via Microsoft Graph API.
+
+        Requires Outlook OAuth access token with Mail.Read permission.
+        Supports incremental fetching and rate limiting.
+        """
+        try:
+            from core.token_storage import token_storage
+
+            token_data = token_storage.get_token("microsoft")
+            if not token_data:
+                logger.warning("No Microsoft OAuth token found for Outlook polling")
+                return []
+
+            access_token = token_data.get("access_token")
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+            all_messages = []
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Build filter for messages since last fetch
+                params = {"$top": 50}
+                if last_fetch:
+                    params["$filter"] = f"receivedDateTime gt {last_fetch.isoformat()}"
+
+                # Pagination support
+                next_link = None
+                fetch_count = 0
+                max_fetches = 5  # Prevent infinite loops
+
+                while fetch_count < max_fetches:
+                    try:
+                        if next_link:
+                            response = await client.get(next_link, headers=headers)
+                        else:
+                            response = await client.get(
+                                "https://graph.microsoft.com/v1.0/me/messages",
+                                headers=headers,
+                                params=params
+                            )
+
+                        if response.status_code == 429:
+                            # Rate limited
+                            retry_after = int(response.headers.get("Retry-After", 30))
+                            logger.warning(f"Outlook API rate limited, waiting {retry_after}s")
+                            await asyncio.sleep(retry_after)
+                            continue
+
+                        elif response.status_code != 200:
+                            logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
+                            break
+
+                        data = response.json()
+                        messages = data.get("value", [])
+
+                        # Normalize messages
+                        for msg in messages:
+                            try:
+                                # Parse timestamp
+                                received_datetime = msg.get("receivedDateTime")
+                                if received_datetime:
+                                    timestamp = datetime.fromisoformat(received_datetime)
+                                else:
+                                    timestamp = datetime.now()
+
+                                # Extract sender
+                                from_data = msg.get("from", {})
+                                sender_email = from_data.get("emailAddress", {}).get("address", "UNKNOWN")
+                                sender_name = from_data.get("emailAddress", {}).get("name", sender_email)
+
+                                # Extract recipients
+                                to_recipients = msg.get("toRecipients", [])
+                                recipients_list = [
+                                    recipient.get("emailAddress", {}).get("address", "")
+                                    for recipient in to_recipients
+                                ]
+                                recipient = ", ".join(filter(None, recipients_list))
+
+                                # Extract body content (prefer HTML, fallback to text)
+                                body_data = msg.get("body", {})
+                                body_content = body_data.get("content", "")
+                                body_type = body_data.get("contentType", "text")
+
+                                # Parse attachments
+                                attachments_data = msg.get("attachments", [])
+                                attachments = []
+                                for att in attachments_data:
+                                    attachments.append({
+                                        "id": att.get("id"),
+                                        "name": att.get("name"),
+                                        "size": att.get("size"),
+                                        "content_type": att.get("contentType"),
+                                        "is_inline": att.get("isInline", False)
+                                    })
+
+                                normalized_msg = {
+                                    "id": msg.get("id"),
+                                    "app_type": CommunicationAppType.OUTLOOK.value,
+                                    "timestamp": timestamp,
+                                    "direction": "inbound",
+                                    "sender": sender_name,
+                                    "sender_email": sender_email,
+                                    "recipient": recipient,
+                                    "subject": msg.get("subject", ""),
+                                    "content": body_content,
+                                    "content_type": body_type,
+                                    "attachments": attachments,
+                                    "metadata": {
+                                        "conversation_id": msg.get("conversationId"),
+                                        "parent_folder_id": msg.get("parentFolderId"),
+                                        "importance": msg.get("importance"),
+                                        "is_read": msg.get("isRead"),
+                                        "is_draft": msg.get("isRead", False),
+                                        "flag": msg.get("flag"),
+                                        "web_link": msg.get("webLink"),
+                                        "outlook_metadata": msg
+                                    },
+                                    "status": "read" if msg.get("isRead") else "unread",
+                                    "priority": "high" if msg.get("importance") == "High" else "normal",
+                                    "tags": ["outlook"]
+                                }
+
+                                # Add category tags if present
+                                categories = msg.get("categories", [])
+                                if categories:
+                                    normalized_msg["tags"].extend(categories)
+
+                                all_messages.append(normalized_msg)
+
+                            except Exception as e:
+                                logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
+                                continue
+
+                        # Check for next page
+                        next_link = data.get("@odata.nextLink")
+                        if not next_link:
+                            break
+
+                        fetch_count += 1
+
+                    except Exception as e:
+                        logger.error(f"Error fetching Outlook messages page: {e}")
+                        break
+
+            logger.info(f"Fetched {len(all_messages)} messages from Outlook")
+            return all_messages
+
+        except ImportError:
+            logger.warning("token_storage module not available for Outlook polling")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching Outlook messages: {e}")
+            return []
     
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format"""

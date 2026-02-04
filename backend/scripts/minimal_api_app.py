@@ -7,7 +7,6 @@ Simple FastAPI server that provides core functionality without complex dependenc
 import logging
 import os
 from datetime import datetime
-
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

@@ -5,11 +5,11 @@ This script tests the LanceDB search API endpoints and verifies that
 both web app and desktop app search functionality works correctly.
 """
 
-import requests
 import json
-import time
 import sys
-from typing import Dict, List, Any
+import time
+from typing import Any, Dict, List
+import requests
 
 # Configuration
 BACKEND_URL = "http://localhost:5058"

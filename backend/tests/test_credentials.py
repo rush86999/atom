@@ -4,10 +4,11 @@
 Test all your third-party integration credentials
 """
 
-import os
-import requests
 import json
+import os
 from datetime import datetime
+import requests
+
 
 def test_backend_available():
     """Test if backend is available"""

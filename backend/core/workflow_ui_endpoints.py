@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+import logging
+import os
 import uuid
 from datetime import datetime
-import random
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-# Import core workflow models if available, otherwise define local ones for UI
-# For now, we'll define UI-specific models to match the frontend expectations
+from core.database import get_db
+from core.models import WorkflowTemplate
+
+logger = logging.getLogger(__name__)
+
+# Feature flags
+WORKFLOW_MOCK_ENABLED = os.getenv("WORKFLOW_MOCK_ENABLED", "false").lower() == "true"
 
 router = APIRouter(tags=["workflow_ui"])
 
@@ -184,74 +191,330 @@ MOCK_SERVICES = {
 # --- Endpoints ---
 
 @router.get("/templates")
-async def get_templates():
-    return {"success": True, "templates": [t.dict() for t in MOCK_TEMPLATES]}
+async def get_templates(
+    category: Optional[str] = None,
+    complexity: Optional[str] = None,
+    is_public: bool = True,
+    db: Session = Depends(get_db)
+):
+    """
+    Get workflow templates from database.
+
+    Args:
+        category: Filter by category (automation, data_processing, ai_ml, etc.)
+        complexity: Filter by complexity (beginner, intermediate, advanced, expert)
+        is_public: Only show public templates
+        db: Database session
+    """
+    # Use mock data if feature flag is enabled (for migration/testing)
+    if WORKFLOW_MOCK_ENABLED:
+        logger.warning("Using mock workflow templates (WORKFLOW_MOCK_ENABLED=true)")
+        return {"success": True, "templates": [t.dict() for t in MOCK_TEMPLATES]}
+
+    # Query database for templates
+    query = db.query(WorkflowTemplate).filter(WorkflowTemplate.is_public == is_public)
+
+    if category:
+        query = query.filter(WorkflowTemplate.category == category)
+
+    if complexity:
+        query = query.filter(WorkflowTemplate.complexity == complexity)
+
+    # Order by rating and usage count
+    templates = query.order_by(
+        WorkflowTemplate.is_featured.desc(),
+        WorkflowTemplate.rating.desc(),
+        WorkflowTemplate.usage_count.desc()
+    ).limit(50).all()
+
+    # Transform to match expected format
+    result = []
+    for template in templates:
+        result.append({
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description,
+            "category": template.category,
+            "complexity": template.complexity,
+            "icon": template.tags[0] if template.tags and isinstance(template.tags, list) else "workflow",
+            "steps": template.steps_schema or [],
+            "input_schema": template.inputs_schema or {},
+            "rating": template.rating,
+            "usage_count": template.usage_count,
+            "is_featured": template.is_featured,
+            "author_id": template.author_id,
+            "version": template.version,
+            "tags": template.tags or []
+        })
+
+    return {
+        "success": True,
+        "templates": result,
+        "count": len(result)
+    }
 
 @router.get("/services")
 async def get_services():
     return {"success": True, "services": [s.dict() for s in MOCK_SERVICES.values()]}
 
 @router.get("/definitions")
-async def get_workflows():
-    return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
+async def get_workflows(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Get workflow definitions (legacy endpoint, uses templates)"""
+    # Use mock data if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        logger.warning("Using mock workflow definitions (WORKFLOW_MOCK_ENABLED=true)")
+        return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
+
+    # Query database for templates (workflows are now templates)
+    templates = db.query(WorkflowTemplate).filter(
+        WorkflowTemplate.is_public == True
+    ).order_by(
+        WorkflowTemplate.created_at.desc()
+    ).limit(limit).offset(offset).all()
+
+    result = []
+    for template in templates:
+        result.append({
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description,
+            "steps": template.steps_schema or [],
+            "input_schema": template.inputs_schema or {},
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+            "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "category": template.category,
+            "complexity": template.complexity,
+            "rating": template.rating,
+            "usage_count": template.usage_count
+        })
+
+    return {
+        "success": True,
+        "workflows": result,
+        "count": len(result)
+    }
 
 # Alias for /workflows to match common API patterns
 @router.get("/workflows")
-async def list_workflows():
+async def list_workflows(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
     """List all workflows (alias for /definitions)"""
-    return {"success": True, "workflows": [w.dict() for w in MOCK_WORKFLOWS]}
+    return await get_workflows(limit=limit, offset=offset, db=db)
 
 @router.get("/workflows/{workflow_id}")
-async def get_workflow_by_id(workflow_id: str):
+async def get_workflow_by_id(workflow_id: str, db: Session = Depends(get_db)):
     """Get a specific workflow by ID"""
-    for w in MOCK_WORKFLOWS:
-        if w.id == workflow_id:
-            return {"success": True, "workflow": w.dict()}
-    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+    # Use mock data if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        for w in MOCK_WORKFLOWS:
+            if w.id == workflow_id:
+                return {"success": True, "workflow": w.dict()}
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    # Query database
+    template = db.query(WorkflowTemplate).filter(
+        WorkflowTemplate.template_id == workflow_id
+    ).first()
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    return {
+        "success": True,
+        "workflow": {
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description,
+            "steps": template.steps_schema or [],
+            "input_schema": template.inputs_schema or {},
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+            "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "category": template.category,
+            "complexity": template.complexity,
+            "rating": template.rating,
+            "usage_count": template.usage_count,
+            "tags": template.tags or [],
+            "version": template.version,
+            "author_id": template.author_id
+        }
+    }
 
 @router.post("/workflows")
-async def create_workflow(payload: Dict[str, Any]):
-    """Create a new workflow"""
-    new_id = f"wf_{uuid.uuid4().hex[:8]}"
-    new_workflow = WorkflowDefinition(
-        id=new_id,
+async def create_workflow(
+    payload: Dict[str, Any],
+    author_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Create a new workflow template"""
+    # Use mock if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        new_id = f"wf_{uuid.uuid4().hex[:8]}"
+        new_workflow = WorkflowDefinition(
+            id=new_id,
+            name=payload.get("name", "New Workflow"),
+            description=payload.get("description", ""),
+            steps=[],
+            input_schema={},
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat(),
+            steps_count=len(payload.get("steps", []))
+        )
+        MOCK_WORKFLOWS.insert(0, new_workflow)
+        return {"success": True, "workflow": new_workflow.dict()}
+
+    # Create database record
+    template_id = f"tpl_{uuid.uuid4().hex[:8]}"
+    template = WorkflowTemplate(
+        template_id=template_id,
         name=payload.get("name", "New Workflow"),
         description=payload.get("description", ""),
-        steps=[],
-        input_schema={},
-        created_at=datetime.now().isoformat(),
-        updated_at=datetime.now().isoformat(),
-        steps_count=len(payload.get("steps", []))
+        category=payload.get("category", "automation"),
+        complexity=payload.get("complexity", "beginner"),
+        tags=payload.get("tags", []),
+        author_id=author_id,
+        is_public=payload.get("is_public", False),
+        template_json=payload,
+        inputs_schema=payload.get("input_schema", {}),
+        steps_schema=payload.get("steps", []),
+        output_schema=payload.get("output_schema", {}),
+        version="1.0.0"
     )
-    MOCK_WORKFLOWS.insert(0, new_workflow)
-    return {"success": True, "workflow": new_workflow.dict()}
+
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+
+    return {
+        "success": True,
+        "workflow": {
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description,
+            "category": template.category,
+            "complexity": template.complexity,
+            "tags": template.tags,
+            "author_id": template.author_id,
+            "is_public": template.is_public,
+            "steps": template.steps_schema or [],
+            "input_schema": template.inputs_schema or {},
+            "output_schema": template.output_schema or {},
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+            "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "version": template.version
+        }
+    }
 
 @router.put("/workflows/{workflow_id}")
-async def update_workflow(workflow_id: str, payload: Dict[str, Any]):
+async def update_workflow(
+    workflow_id: str,
+    payload: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
     """Update an existing workflow"""
-    for i, w in enumerate(MOCK_WORKFLOWS):
-        if w.id == workflow_id:
-            MOCK_WORKFLOWS[i] = WorkflowDefinition(
-                id=workflow_id,
-                name=payload.get("name", w.name),
-                description=payload.get("description", w.description),
-                steps=w.steps,
-                input_schema=w.input_schema,
-                created_at=w.created_at,
-                updated_at=datetime.now().isoformat(),
-                steps_count=w.steps_count
-            )
-            return {"success": True, "workflow": MOCK_WORKFLOWS[i].dict()}
-    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+    # Use mock if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        for i, w in enumerate(MOCK_WORKFLOWS):
+            if w.id == workflow_id:
+                MOCK_WORKFLOWS[i] = WorkflowDefinition(
+                    id=workflow_id,
+                    name=payload.get("name", w.name),
+                    description=payload.get("description", w.description),
+                    steps=w.steps,
+                    input_schema=w.input_schema,
+                    created_at=w.created_at,
+                    updated_at=datetime.now().isoformat(),
+                    steps_count=w.steps_count
+                )
+                return {"success": True, "workflow": MOCK_WORKFLOWS[i].dict()}
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    # Update database record
+    template = db.query(WorkflowTemplate).filter(
+        WorkflowTemplate.template_id == workflow_id
+    ).first()
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    # Update fields
+    if "name" in payload:
+        template.name = payload["name"]
+    if "description" in payload:
+        template.description = payload["description"]
+    if "category" in payload:
+        template.category = payload["category"]
+    if "complexity" in payload:
+        template.complexity = payload["complexity"]
+    if "tags" in payload:
+        template.tags = payload["tags"]
+    if "input_schema" in payload:
+        template.inputs_schema = payload["input_schema"]
+    if "steps" in payload:
+        template.steps_schema = payload["steps"]
+    if "output_schema" in payload:
+        template.output_schema = payload["output_schema"]
+    if "is_public" in payload:
+        template.is_public = payload["is_public"]
+
+    db.commit()
+    db.refresh(template)
+
+    return {
+        "success": True,
+        "workflow": {
+            "id": template.template_id,
+            "name": template.name,
+            "description": template.description,
+            "category": template.category,
+            "complexity": template.complexity,
+            "tags": template.tags,
+            "is_public": template.is_public,
+            "steps": template.steps_schema or [],
+            "input_schema": template.inputs_schema or {},
+            "output_schema": template.output_schema or {},
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+            "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "version": template.version
+        }
+    }
 
 @router.delete("/workflows/{workflow_id}")
-async def delete_workflow(workflow_id: str):
+async def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
     """Delete a workflow"""
-    for i, w in enumerate(MOCK_WORKFLOWS):
-        if w.id == workflow_id:
-            del MOCK_WORKFLOWS[i]
-            return {"success": True, "message": f"Workflow '{workflow_id}' deleted"}
-    raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+    # Use mock if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        for i, w in enumerate(MOCK_WORKFLOWS):
+            if w.id == workflow_id:
+                del MOCK_WORKFLOWS[i]
+                return {"success": True, "message": f"Workflow '{workflow_id}' deleted"}
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    # Delete from database
+    template = db.query(WorkflowTemplate).filter(
+        WorkflowTemplate.template_id == workflow_id
+    ).first()
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+
+    db.delete(template)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Workflow '{workflow_id}' deleted"
+    }
 
 @router.post("/workflows/{workflow_id}/execute")
 async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundTasks, payload: Dict[str, Any] = None):
@@ -268,9 +531,10 @@ async def execute_workflow_by_id(workflow_id: str, background_tasks: BackgroundT
     
     try:
         background_tasks.add_task(_run_orchestration)
-    except:
-        pass  # Orchestrator may not be available
-    
+    except Exception as e:
+        logger.error(f"Failed to schedule workflow execution: {e}", exc_info=True)
+        # Orchestrator may not be available
+
     return {"success": True, "execution_id": execution_id, "workflow_id": workflow_id}
 
 @router.get("/workflows/{workflow_id}/history")
@@ -300,7 +564,7 @@ async def create_workflow_definition(payload: Dict[str, Any]):
 async def get_executions():
     # Fetch real executions from the orchestrator
     try:
-        from advanced_workflow_orchestrator import get_orchestrator, WorkflowStatus
+        from advanced_workflow_orchestrator import WorkflowStatus, get_orchestrator
         orchestrator = get_orchestrator()
         
         executions = []
@@ -375,7 +639,7 @@ async def get_executions():
             except Exception as e:
                 # Log but don't crash the whole list
                 import traceback
-                print(f"Error parsing execution context: {e}")
+                logger.error(f"Error parsing execution context: {e}")
                 # traceback.print_exc()
                 continue
 
@@ -394,7 +658,14 @@ async def get_executions():
 
 @router.post("/execute")
 async def execute_workflow(payload: Dict[str, Any], background_tasks: BackgroundTasks):
-    from advanced_workflow_orchestrator import get_orchestrator, WorkflowContext, WorkflowStatus, WorkflowDefinition, WorkflowStep, WorkflowStepType
+    from advanced_workflow_orchestrator import (
+        WorkflowContext,
+        WorkflowDefinition,
+        WorkflowStatus,
+        WorkflowStep,
+        WorkflowStepType,
+        get_orchestrator,
+    )
     orchestrator = get_orchestrator()
     
     workflow_id = payload.get("workflow_id")
@@ -462,9 +733,8 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             
             orchestrator.workflows[workflow_id] = new_def
             orchestrator_id = workflow_id # Use the ID we just registered
-            pass
         else:
-             print(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
+             logger.warning(f"Warning: Workflow ID {workflow_id} not found in orchestrator or mocks.")
 
     # Generate Execution ID for immediate UI feedback
     execution_id = f"exec_{uuid.uuid4().hex[:8]}"
@@ -488,9 +758,9 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             # Pass the ALREADY CREATED contex ID
             await orchestrator.execute_workflow(orchestrator_id, input_data, execution_id=execution_id)
         except Exception as e:
-            print(f"Background execution failed: {e}")
+            logger.error(f"Background execution failed: {e}")
             import traceback
-            traceback.print_exc()
+            logger.error(traceback.format_exc())
             context.status = WorkflowStatus.FAILED
             context.error_message = str(e)
             context.completed_at = datetime.now()

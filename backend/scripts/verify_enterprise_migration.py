@@ -1,8 +1,8 @@
 
-import requests
 import json
 import sys
 import time
+import requests
 
 BASE_URL = "http://localhost:5063"
 

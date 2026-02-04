@@ -3,8 +3,9 @@
 Quick GitHub OAuth Test
 """
 
-import requests
 import os
+import requests
+
 
 def quick_github_test():
     """Quick test of GitHub OAuth"""
@@ -47,12 +48,10 @@ def quick_github_test():
 
 if __name__ == "__main__":
     success = quick_github_test()
-    
+
     print("\n" + "=" * 40)
     if success:
         print("🎉 GITHUB OAUTH IS WORKING!")
         print("✅ Ready for Microsoft OAuth setup")
     else:
         print("⚠️  GitHub OAuth needs debugging")
-    
-    return success

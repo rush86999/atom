@@ -1,14 +1,15 @@
-import sys
-import os
-import unittest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
+import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, MagicMock
 
 # Add project root
 sys.path.append(os.getcwd())
 
 from core.secret_manager import get_secret_manager
 from core.websockets import manager as ws_manager
+
 
 class TestPhase15Infra(unittest.TestCase):
     def test_secret_manager(self):

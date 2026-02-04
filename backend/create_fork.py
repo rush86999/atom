@@ -1,5 +1,5 @@
-import requests
 import sys
+import requests
 
 # Read last execution ID
 try:

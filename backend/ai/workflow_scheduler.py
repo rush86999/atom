@@ -1,12 +1,12 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from typing import Any, Dict, List, Optional
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +65,9 @@ class WorkflowScheduler:
             settings = get_automation_settings().get_settings()
             pipeline_config = settings.get("pipelines", {})
 
-            from integrations.atom_sales_memory_pipeline import sales_pipeline
-            from integrations.atom_projects_memory_pipeline import projects_pipeline
             from integrations.atom_finance_memory_pipeline import finance_pipeline
+            from integrations.atom_projects_memory_pipeline import projects_pipeline
+            from integrations.atom_sales_memory_pipeline import sales_pipeline
             
             pipelines = {
                 'sales': sales_pipeline,

@@ -3,15 +3,15 @@ Comprehensive Error Handling Middleware
 Provides detailed error responses and logging for production use
 """
 
+import json
 import logging
 import traceback
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
-from fastapi import Request, Response, HTTPException
+from typing import Any, Dict, Optional
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-import json
 
 # Configure error logging
 error_logger = logging.getLogger("atom.errors")

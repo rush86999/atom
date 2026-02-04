@@ -5,11 +5,7 @@ A comprehensive AI-powered system for diagnosing and resolving workflow automati
 Provides intelligent troubleshooting, monitoring, and alerting capabilities.
 """
 
-from .diagnostic_analyzer import (
-    AIDiagnosticAnalyzer,
-    DiagnosticFinding,
-    DiagnosticPattern,
-)
+from .diagnostic_analyzer import AIDiagnosticAnalyzer, DiagnosticFinding, DiagnosticPattern
 from .monitoring_system import (
     MonitoringRule,
     WorkflowAlert,

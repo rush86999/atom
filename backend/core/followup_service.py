@@ -1,10 +1,11 @@
-import logging
 import asyncio
+import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from sales.models import Deal, NegotiationState
-from core.database import SessionLocal
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class AutonomousFollowupService:
         """
         Main entry point for the follow-up background worker.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             # Find deals that haven't been engaged in > 48 hours
             # and aren't already WON/LOST

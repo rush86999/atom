@@ -7,11 +7,11 @@ to ensure the documentation matches actual implementation and real-world usage.
 """
 
 import json
-import requests
-import time
-import sys
 import os
-from typing import Dict, List, Any, Optional
+import sys
+import time
+from typing import Any, Dict, List, Optional
+import requests
 
 
 class UserJourneyValidator:

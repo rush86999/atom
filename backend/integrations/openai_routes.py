@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
+
 from integrations.openai_service import openai_service
 
 router = APIRouter(prefix="/api/openai", tags=["OpenAI Integration"])

@@ -6,7 +6,6 @@ It handles API endpoints for file operations, authentication, and search.
 """
 
 from typing import Any, Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

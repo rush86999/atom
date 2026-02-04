@@ -1,7 +1,7 @@
-import logging
 import asyncio
-from typing import Optional, List, Dict
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+import logging
+from typing import Dict, List, Optional
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 logger = logging.getLogger(__name__)
 

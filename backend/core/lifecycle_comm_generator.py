@@ -1,8 +1,9 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
+from typing import Any, Dict, List, Optional
+
 from core.byok_endpoints import get_byok_manager
-from core.database import SessionLocal
+from core.database import get_db_session
 from core.models import BusinessRule
 
 logger = logging.getLogger(__name__)
@@ -23,15 +24,15 @@ class LifecycleCommGenerator:
         # Fetch relevant business rules if workspace_id is provided
         rules_context = ""
         if workspace_id:
-            db = SessionLocal()
-            try:
-                rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
-                if rules:
-                    rules_context = "\nApplicable Business Rules & Calculations:\n"
-                    for r in rules:
-                        rules_context += f"- {r.description}: {r.formula or r.value} (Applies to: {r.applies_to or 'General'})\n"
-            finally:
-                db.close()
+            with get_db_session() as db:
+                try:
+                    rules = db.query(BusinessRule).filter(BusinessRule.workspace_id == workspace_id, BusinessRule.is_active == True).all()
+                    if rules:
+                        rules_context = "\nApplicable Business Rules & Calculations:\n"
+                        for r in rules:
+                            rules_context += f"- {r.description}: {r.formula or r.value} (Applies to: {r.applies_to or 'General'})\n"
+                finally:
+                    db.close()
 
         prompt = self._get_prompt_for_intent(intent, context)
         if rules_context:

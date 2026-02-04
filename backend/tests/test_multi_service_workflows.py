@@ -5,10 +5,10 @@ Test Multi-Service Workflow Coordination
 Tests complex workflows that span multiple services
 """
 
-import requests
 import json
 import logging
 from datetime import datetime
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

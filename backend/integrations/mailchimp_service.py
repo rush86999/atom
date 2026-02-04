@@ -1,6 +1,7 @@
 import os
+from typing import Any, Dict, List, Optional
 import httpx
-from typing import Dict, Any, List, Optional
+
 
 class MailchimpService:
     def __init__(self):

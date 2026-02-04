@@ -6,8 +6,8 @@ Starts a simple Flask backend with Asana endpoints immediately accessible
 
 import os
 import sys
-from flask import Flask, jsonify, request
 import time
+from flask import Flask, jsonify, request
 
 # Create Flask app
 app = Flask(__name__)

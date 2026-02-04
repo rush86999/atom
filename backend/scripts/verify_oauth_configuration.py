@@ -12,11 +12,11 @@ Features verified:
 - Endpoint accessibility and response format
 """
 
-import os
-import requests
 import json
+import os
 import sys
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:5058"

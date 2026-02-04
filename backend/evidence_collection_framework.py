@@ -4,17 +4,17 @@ Evidence Collection Framework for AI Workflow Marketing Claim Validation
 Systematically collects, organizes, and presents evidence for independent AI validators
 """
 
-import os
+import asyncio
+import datetime
 import json
 import logging
-import asyncio
+import os
 import time
-import datetime
-from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Union
+import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import requests
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -281,14 +281,14 @@ class EvidenceCollectionFramework:
             try:
                 response = requests.get(f"{base_url}/api/v1/ai/providers", timeout=5)
                 integration_tests["ai_workflow_api"] = response.status_code == 200
-            except:
+            except Exception:
                 integration_tests["ai_workflow_api"] = False
 
             # Test advanced workflow endpoints
             try:
                 response = requests.get(f"{base_url}/api/v1/workflows/definitions", timeout=5)
                 integration_tests["advanced_workflow_api"] = response.status_code == 200
-            except:
+            except Exception:
                 integration_tests["advanced_workflow_api"] = False
 
             # Check integration modules
@@ -303,12 +303,12 @@ class EvidenceCollectionFramework:
                     try:
                         __import__(f"integrations.{module}_routes")
                         available_integrations += 1
-                    except:
+                    except Exception:
                         pass
 
                 integration_tests["available_integrations"] = available_integrations
                 integration_tests["total_integration_modules"] = len(integration_modules)
-            except:
+            except Exception:
                 integration_tests["integration_modules_available"] = 0
 
             return {

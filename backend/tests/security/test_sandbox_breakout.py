@@ -1,11 +1,12 @@
 import asyncio
-import sys
-import os
 import json
-from unittest.mock import MagicMock, patch, AsyncMock
+import os
 
 # Fix path
 import pathlib
+import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
 backend_path = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(backend_path))
 
@@ -16,6 +17,7 @@ sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 async def main():
     log_file = "security_sandbox_result.txt"

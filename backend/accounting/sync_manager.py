@@ -1,13 +1,17 @@
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
-from accounting.models import Transaction, Account, JournalEntry, EntryType
-from integrations.zoho_books_service import ZohoBooksService
-from integrations.xero_service import XeroService
-from integrations.quickbooks_service import QuickBooksService
+from typing import Any, Dict, List, Optional
 from accounting.categorizer import AICategorizer
-from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+from accounting.models import Account, EntryType, JournalEntry, Transaction
+from sqlalchemy.orm import Session
+
+from integrations.atom_communication_ingestion_pipeline import (
+    CommunicationAppType,
+    ingestion_pipeline,
+)
+from integrations.quickbooks_service import QuickBooksService
+from integrations.xero_service import XeroService
+from integrations.zoho_books_service import ZohoBooksService
 
 logger = logging.getLogger(__name__)
 

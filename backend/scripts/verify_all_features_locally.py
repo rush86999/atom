@@ -6,16 +6,16 @@ This script performs thorough testing of all ATOM features locally before deploy
 It verifies backend APIs, frontend functionality, service integrations, and end-to-end flows.
 """
 
-import os
-import sys
-import requests
 import json
-import time
+import os
 import subprocess
-import psycopg2
-from pathlib import Path
+import sys
 import threading
+import time
 from datetime import datetime, timedelta
+from pathlib import Path
+import psycopg2
+import requests
 
 
 class ATOMFeatureVerifier:
@@ -458,7 +458,7 @@ class ATOMFeatureVerifier:
             import sys
 
             sys.path.append("backend/python-api-service")
-            from crypto_utils import encrypt_data, decrypt_data
+            from crypto_utils import decrypt_data, encrypt_data
 
             # If we get here, the encryption framework is available
             self.print_result(

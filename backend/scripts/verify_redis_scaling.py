@@ -1,8 +1,8 @@
 
 import asyncio
-import sys
-import os
 import logging
+import os
+import sys
 from unittest.mock import MagicMock, patch
 
 # Add backend to path
@@ -15,7 +15,7 @@ async def test_redis_scaling_config():
     print("🚀 Starting Redis Scaling & Production Readiness Verification...")
     print("=" * 60)
     
-    from core.config import get_config, ATOMConfig
+    from core.config import ATOMConfig, get_config
     config = get_config()
     
     # 1. Test Default Config (SQLite/Internal)

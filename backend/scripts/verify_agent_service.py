@@ -1,8 +1,8 @@
 
 import asyncio
-import httpx
-import sys
 import logging
+import sys
+import httpx
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

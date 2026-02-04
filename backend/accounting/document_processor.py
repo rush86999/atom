@@ -1,12 +1,27 @@
-import logging
 import json
-from typing import Dict, Any, Optional, List
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 import dateparser
+from accounting.models import Bill, BillStatus, Document, Entity, EntityType, Invoice, InvoiceStatus
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
-from accounting.models import Entity, EntityType, Document, Bill, BillStatus, Invoice, InvoiceStatus
-from integrations.ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType, AIModelType, AIServiceType
+
+# Optional PDF OCR integration
+try:
+    from integrations.pdf_processing.pdf_ocr_service import PDFOCRService
+    PDF_OCR_AVAILABLE = True
+except ImportError:
+    PDF_OCR_AVAILABLE = False
+    PDFOCRService = None
+from integrations.ai_enhanced_service import (
+    AIModelType,
+    AIRequest,
+    AIServiceType,
+    AITaskType,
+    ai_enhanced_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +32,8 @@ class AIDocumentProcessor:
 
     def __init__(self, db: Session):
         self.db = db
+        # Initialize PDF OCR service if available
+        self.pdf_ocr_service = PDFOCRService() if PDF_OCR_AVAILABLE else None
 
     async def process_document(
         self, 
@@ -40,9 +57,16 @@ class AIDocumentProcessor:
         # in document.extracted_data["raw_text"]
         raw_text = document.extracted_data.get("raw_text") if document.extracted_data else ""
         if not raw_text:
-            logger.warning(f"No raw text found for document {document_id}")
-            # In a real implementation, we would trigger OCR here
-            return None
+            logger.warning(f"No raw text found for document {document_id}, attempting OCR extraction")
+            # Attempt OCR extraction if PDF OCR service is available
+            if self.pdf_ocr_service and document.file_path:
+                raw_text = await self._perform_ocr(document)
+                if not raw_text:
+                    logger.error(f"OCR extraction failed for document {document_id}")
+                    return None
+            else:
+                logger.error(f"No raw text found and OCR service unavailable for document {document_id}")
+                return None
 
         # 1. AI Extraction
         extraction_data = await self._ai_extract(raw_text, doc_type)
@@ -97,7 +121,7 @@ class AIDocumentProcessor:
         try:
             ai_response = await ai_enhanced_service.process_ai_request(ai_request)
             data = ai_response.output_data
-            print(f"DEBUG: AI Output Data: {data}")
+            logger.debug(f"AI Output Data: {data}")
             if isinstance(data, str):
                 # Clean potential markdown code blocks
                 data = data.replace("```json", "").replace("```", "").strip()
@@ -161,5 +185,51 @@ class AIDocumentProcessor:
         try:
             dt = dateparser.parse(date_str)
             return dt if dt else datetime.utcnow()
-        except:
+        except (ValueError, TypeError, AttributeError):
             return datetime.utcnow()
+
+    async def _perform_ocr(self, document) -> Optional[str]:
+        """
+        Perform OCR extraction on a document using the PDF OCR service.
+
+        Args:
+            document: Document model instance with file_path attribute
+
+        Returns:
+            Extracted text content or None if extraction fails
+        """
+        if not self.pdf_ocr_service:
+            logger.error("PDF OCR service not available")
+            return None
+
+        try:
+            import asyncio
+            from pathlib import Path
+
+            # Read PDF file
+            file_path = Path(document.file_path)
+            if not file_path.exists():
+                logger.error(f"Document file not found: {document.file_path}")
+                return None
+
+            with open(file_path, 'rb') as f:
+                pdf_data = f.read()
+
+            # Process PDF with OCR service
+            result = await self.pdf_ocr_service.process_pdf(
+                pdf_data=pdf_data,
+                perform_ocr=True,
+                fallback_strategy="cascade",
+                use_advanced_comprehension=False
+            )
+
+            if result.get("success") and result.get("extracted_text"):
+                logger.info(f"Successfully extracted {result.get('total_chars', 0)} characters from document")
+                return result["extracted_text"]
+            else:
+                logger.error(f"OCR processing failed: {result.get('error', 'Unknown error')}")
+                return None
+
+        except Exception as e:
+            logger.error(f"OCR extraction failed for document {document.id}: {e}")
+            return None

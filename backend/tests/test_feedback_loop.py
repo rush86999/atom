@@ -1,9 +1,11 @@
 
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, AgentFeedback, User, AgentStatus
 from core.agent_world_model import AgentExperience
+from core.models import AgentFeedback, AgentRegistry, AgentStatus, User
+
 
 @pytest.fixture
 def mock_db_session():

@@ -5,8 +5,8 @@ Starts the backend server with proper Jira OAuth configuration
 """
 
 import os
-import sys
 import subprocess
+import sys
 import time
 from pathlib import Path
 

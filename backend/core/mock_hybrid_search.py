@@ -4,7 +4,7 @@ Provides search functionality without LanceDB dependency
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 

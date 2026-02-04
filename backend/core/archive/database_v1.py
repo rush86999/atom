@@ -1,8 +1,8 @@
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 load_dotenv()
 
@@ -27,8 +27,8 @@ class Base(DeclarativeBase):
     pass
 
 def get_db():
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
+        try:
         yield db
     finally:
         db.close()

@@ -4,11 +4,12 @@
 Test all third-party integrations with your real credentials
 """
 
+import json
 import os
 import sys
-import json
-import requests
 from datetime import datetime
+import requests
+
 
 class IntegrationTester:
     def __init__(self, base_url="http://localhost:8000"):

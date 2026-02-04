@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime, timedelta
 
+
 def create_sprint_1_completion_tasks():
     """Create tasks to complete Sprint 1"""
     

@@ -4,9 +4,10 @@ Quick endpoint validation tests - tests that existing backend endpoints respond 
 These don't need credentials, just verify endpoints exist and return valid responses
 """
 import asyncio
-import aiohttp
 import sys
 from typing import List, Tuple
+import aiohttp
+
 
 async def test_endpoint(session: aiohttp.ClientSession, name: str, url: str, method: str = 'GET', expected_codes: List[int] = [200]) -> Tuple[str, bool, str]:
     """Test an endpoint and return result"""

@@ -3,10 +3,10 @@ Notification Settings API Routes
 Allows users to configure workflow notification preferences.
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
 import logging
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def get_notification_settings(workflow_id: str):
 @router.put("/{workflow_id}")
 async def update_notification_settings(workflow_id: str, request: NotificationSettingsRequest):
     """Update notification settings for a workflow"""
-    from core.workflow_notifier import set_notification_settings, NotificationSettings
+    from core.workflow_notifier import NotificationSettings, set_notification_settings
     
     settings = NotificationSettings(
         enabled=request.enabled,
@@ -61,7 +61,7 @@ async def update_notification_settings(workflow_id: str, request: NotificationSe
 @router.post("/{workflow_id}/test")
 async def test_notification(workflow_id: str):
     """Send a test notification for a workflow"""
-    from core.workflow_notifier import notifier, get_notification_settings
+    from core.workflow_notifier import get_notification_settings, notifier
     
     settings = get_notification_settings(workflow_id)
     

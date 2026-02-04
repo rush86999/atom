@@ -1,7 +1,9 @@
 import asyncio
 import os
 import shutil
+
 from core.lancedb_handler import get_lancedb_handler
+
 
 async def verify_isolation():
     print("Verifying Memory Isolation...")

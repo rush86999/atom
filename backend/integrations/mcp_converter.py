@@ -1,5 +1,6 @@
 from typing import Any
 
+
 class MCPToolConverter:
     @staticmethod
     def convert_to_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:

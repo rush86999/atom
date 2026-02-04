@@ -9,12 +9,12 @@ This script validates all integrated services by:
 4. Testing actual service connectivity
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -228,7 +228,7 @@ class ServiceValidator:
         try:
             from asana.api_client import ApiClient
             from asana.configuration import Configuration
-            
+
             # Note: This requires OAuth tokens for full testing
             return {
                 "status": "sdk_available",
@@ -294,7 +294,7 @@ class ServiceValidator:
         """Test GitHub API connectivity"""
         try:
             from github import Github
-            
+
             # Note: This requires a GitHub token for full testing
             return {
                 "status": "sdk_available",

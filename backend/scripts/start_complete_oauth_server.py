@@ -3,14 +3,14 @@
 Complete OAuth Server with Status and Authorization Endpoints
 """
 
-import os
 import logging
-import sys
+import os
 import secrets
-import urllib.parse
-from flask import Flask, Blueprint, jsonify, request
-from threading import Thread
+import sys
 import time
+import urllib.parse
+from threading import Thread
+from flask import Blueprint, Flask, jsonify, request
 
 # Set up logging
 logging.basicConfig(

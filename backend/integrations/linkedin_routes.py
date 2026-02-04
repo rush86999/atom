@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 try:
     from .linkedin_service import get_linkedin_service

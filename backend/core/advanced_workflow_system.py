@@ -3,14 +3,14 @@ Advanced Workflow System
 Supports multi-input, multi-step, multi-output workflows with state management
 """
 
+import asyncio
 import json
+import logging
 import uuid
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Union, Callable
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 from pydantic import BaseModel, Field, validator
-import asyncio
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +229,157 @@ class StateManager:
                 return json.load(f)
         except Exception:
             return None
+
+    def list_workflows(
+        self,
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        sort_by: str = "updated_at",
+        sort_order: str = "desc",
+        limit: Optional[int] = None,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        List all workflows with comprehensive filtering and sorting.
+
+        Args:
+            status: Optional status filter (e.g., "draft", "running", "completed", "failed")
+            category: Optional category filter
+            tags: Optional list of tags to filter (workflows must have ALL specified tags)
+            sort_by: Field to sort by (updated_at, created_at, name)
+            sort_order: Sort order ("asc" or "desc")
+            limit: Optional maximum number of workflows to return
+            offset: Number of workflows to skip (for pagination)
+
+        Returns:
+            List of workflow summaries with id, name, status, and metadata
+        """
+        try:
+            import os
+            workflows = []
+            seen_workflow_ids = set()
+
+            # First, collect in-memory workflows (might not be persisted yet)
+            for workflow_id, state in self.state_store.items():
+                if state:
+                    summary = self._create_workflow_summary(workflow_id, state)
+                    if self._matches_filters(summary, status, category, tags):
+                        workflows.append(summary)
+                        seen_workflow_ids.add(workflow_id)
+
+            # Then, scan workflow_states directory for persisted workflows
+            state_dir = "workflow_states"
+            if os.path.exists(state_dir):
+                # Load all workflow files
+                for filename in os.listdir(state_dir):
+                    if filename.endswith(".json"):
+                        workflow_id = filename[:-5]  # Remove .json extension
+
+                        # Skip if we already have this workflow from memory
+                        if workflow_id in seen_workflow_ids:
+                            continue
+
+                        state = self._load_from_file(workflow_id)
+
+                        if state:
+                            summary = self._create_workflow_summary(workflow_id, state)
+                            if self._matches_filters(summary, status, category, tags):
+                                workflows.append(summary)
+
+            # Sort workflows
+            reverse = (sort_order.lower() == "desc")
+            if sort_by in ["updated_at", "created_at", "name"]:
+                workflows.sort(key=lambda w: (w.get(sort_by) or "") if sort_by != "name" else w.get("name", "").lower(), reverse=reverse)
+            else:
+                # Default sort by updated_at
+                workflows.sort(key=lambda w: w.get("updated_at") or w.get("created_at") or "", reverse=True)
+
+            # Apply pagination (offset and limit)
+            if offset > 0:
+                workflows = workflows[offset:]
+            if limit is not None:
+                workflows = workflows[:limit]
+
+            logger.info(f"Found {len(workflows)} workflows" + (f" matching filters" if any([status, category, tags]) else ""))
+            return workflows
+
+        except Exception as e:
+            logger.error(f"Failed to list workflows: {e}")
+            return []
+
+    def _create_workflow_summary(self, workflow_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a workflow summary from state data"""
+        steps = state.get("steps", [])
+        return {
+            "workflow_id": workflow_id,
+            "name": state.get("name", "Unnamed Workflow"),
+            "description": state.get("description", ""),
+            "status": state.get("state", state.get("status", "unknown")),
+            "created_at": state.get("created_at"),
+            "updated_at": state.get("updated_at"),
+            "saved_at": state.get("saved_at"),
+            "current_step": state.get("current_step"),
+            "total_steps": len(steps),
+            "category": state.get("category", "general"),
+            "tags": state.get("tags", []),
+            "version": state.get("version", "1.0"),
+            "created_by": state.get("created_by"),
+        }
+
+    def _matches_filters(
+        self,
+        summary: Dict[str, Any],
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> bool:
+        """Check if workflow summary matches all specified filters"""
+        # Status filter
+        if status is not None and summary.get("status") != status:
+            return False
+
+        # Category filter
+        if category is not None and summary.get("category") != category:
+            return False
+
+        # Tags filter (workflow must have ALL specified tags)
+        if tags:
+            workflow_tags = set(summary.get("tags", []))
+            if not set(tags).issubset(workflow_tags):
+                return False
+
+        return True
+
+    def delete_state(self, workflow_id: str) -> bool:
+        """
+        Delete workflow state from memory and file storage.
+
+        Args:
+            workflow_id: ID of workflow to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            import os
+
+            # Remove from memory
+            if workflow_id in self.state_store:
+                del self.state_store[workflow_id]
+
+            # Remove from file storage
+            filename = f"workflow_states/{workflow_id}.json"
+            if os.path.exists(filename):
+                os.remove(filename)
+                logger.info(f"Deleted workflow state for {workflow_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete state for {workflow_id}: {e}")
+            return False
 
 class ParameterValidator:
     """Validates workflow input parameters"""

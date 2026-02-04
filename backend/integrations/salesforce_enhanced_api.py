@@ -10,7 +10,6 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
-
 from flask import Blueprint, jsonify, request
 
 from .salesforce_core_service import get_salesforce_core_service

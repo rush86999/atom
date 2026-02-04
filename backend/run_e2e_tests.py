@@ -3,9 +3,9 @@
 Non-interactive E2E test runner with auto-loaded credentials
 Loads credentials from environment and runs comprehensive tests
 """
+import asyncio
 import os
 import sys
-import asyncio
 
 # Pre-set credentials in environment (these will be loaded if available)
 # The E2E tester will pick them up automatically
@@ -26,6 +26,7 @@ for key, val in ENV_VARS.items():
 
 # Import after setting env vars
 from comprehensive_e2e_integration_tester import ComprehensiveE2ETester
+
 
 async def main():
     print('🚀 Running Non-Interactive E2E Tests with Backend Active')

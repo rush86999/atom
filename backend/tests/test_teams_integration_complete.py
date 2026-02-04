@@ -6,10 +6,10 @@ Verifies that Teams enhanced API is working correctly
 
 import asyncio
 import json
-import requests
 import os
 import sys
 from datetime import datetime, timezone
+import requests
 
 # Configuration
 API_BASE_URL = "http://localhost:5058"

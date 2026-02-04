@@ -4,17 +4,17 @@ ATOM Enhanced Slack Integration - Setup, Test & Deploy Script
 Complete deployment script with testing, validation, and configuration
 """
 
-import os
-import sys
-import json
-import subprocess
+import argparse
 import asyncio
+import json
 import logging
-import requests
+import os
+import subprocess
+import sys
 import time
 from datetime import datetime
-from typing import Dict, Any, List
-import argparse
+from typing import Any, Dict, List
+import requests
 
 # Configure logging
 logging.basicConfig(

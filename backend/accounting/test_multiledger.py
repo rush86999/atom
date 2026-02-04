@@ -1,18 +1,19 @@
 import asyncio
 import logging
-import sys
 import os
-from sqlalchemy.orm import Session
+import sys
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from core.database import SessionLocal, engine
-from accounting.sync_manager import AccountingSyncManager
-from accounting.models import Account, Transaction, CategorizationRule, CategorizationProposal
+from accounting.models import Account, CategorizationProposal, CategorizationRule, Transaction
 from accounting.seeds import seed_default_accounts
-from core.models import Workspace, User
+from accounting.sync_manager import AccountingSyncManager
+
+from core.database import SessionLocal, engine
+from core.models import User, Workspace
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

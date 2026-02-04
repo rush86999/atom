@@ -4,13 +4,14 @@ Tests all active integrations: GitHub, Linear, Jira, Asana, Notion, Slack, Teams
 """
 
 import asyncio
-import aiohttp
 import json
+import os
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+import aiohttp
 from loguru import logger
-import os
+
 
 class IntegrationTestSuite:
     def __init__(self):

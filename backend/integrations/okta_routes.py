@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+
 from integrations.okta_service import okta_service
 
 router = APIRouter(prefix="/api/okta", tags=["Okta"])

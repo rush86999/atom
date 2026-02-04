@@ -1,8 +1,8 @@
+import json
 import os
 import sys
+from typing import Any, Dict
 import requests
-import json
-from typing import Dict, Any
 
 
 def test_api_key_validation():

@@ -3,7 +3,8 @@ Environment Configuration for WhatsApp Business Integration
 """
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
+
 
 def get_whatsapp_environment_config() -> Dict[str, Any]:
     """Get WhatsApp Business configuration from environment variables"""

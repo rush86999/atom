@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-
 from flask import Blueprint, jsonify, request
 
 from .github_service import GitHubService

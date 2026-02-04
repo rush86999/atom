@@ -3,19 +3,24 @@ Workflow Analytics API Endpoints
 REST API for workflow analytics, monitoring, and dashboard data
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from core.auth import get_current_user
+from core.database import get_db
+from core.models import AgentExecution, Dashboard, DashboardWidget, IntegrationHealthMetrics, User
 
 from .workflow_analytics_engine import (
-    WorkflowAnalyticsEngine,
     Alert,
     AlertSeverity,
     MetricType,
-    WorkflowStatus
+    WorkflowAnalyticsEngine,
+    WorkflowStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -392,96 +397,366 @@ async def delete_alert(alert_id: str):
 
 # Dashboard Endpoints
 @router.get("/dashboards")
-async def list_dashboards(include_public: bool = Query(True)):
+async def list_dashboards(
+    include_public: bool = Query(True),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """List available dashboards"""
     try:
-        # This would query the dashboards database
+        query = db.query(Dashboard).filter(Dashboard.is_active == True)
+
+        if not include_public:
+            # Filter to user's dashboards and public dashboards
+            query = query.filter(
+                (Dashboard.owner_id == current_user.id) |
+                (Dashboard.is_public == True)
+            )
+
+        dashboards = query.order_by(Dashboard.created_at.desc()).all()
+
         return {
-            "status": "success",
-            "dashboards": []  # Would contain dashboard list
+            "success": True,
+            "dashboards": [
+                {
+                    "id": d.id,
+                    "name": d.name,
+                    "description": d.description,
+                    "owner_id": d.owner_id,
+                    "is_public": d.is_public,
+                    "configuration": d.configuration,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                    "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+                    "widget_count": len(d.widgets) if d.widgets else 0
+                }
+                for d in dashboards
+            ]
         }
 
     except Exception as e:
-        logger.error(f"Failed to list dashboards: {e}")
+        logger.error(f"Failed to list dashboards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/dashboards")
-async def create_dashboard(dashboard_data: Dict[str, Any]):
+async def create_dashboard(
+    dashboard_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Create a new analytics dashboard"""
     try:
-        # This would create a dashboard in the database
-        return {
-            "status": "success",
-            "dashboard_id": "new_dashboard_id",  # Would be actual generated ID
-            "message": "Dashboard created successfully"
-        }
+        # Get owner_id from authenticated user
+        owner_id = current_user.id
 
-    except Exception as e:
-        logger.error(f"Failed to create dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        dashboard = Dashboard(
+            name=dashboard_data.get("name", "Untitled Dashboard"),
+            description=dashboard_data.get("description"),
+            owner_id=owner_id,
+            configuration=dashboard_data.get("configuration", {}),
+            is_public=dashboard_data.get("is_public", False),
+            is_active=True
+        )
 
-@router.get("/dashboards/{dashboard_id}")
-async def get_dashboard(dashboard_id: str):
-    """Get dashboard configuration and data"""
-    try:
-        # This would get dashboard from database and populate with data
+        db.add(dashboard)
+        db.commit()
+        db.refresh(dashboard)
+
+        logger.info(f"Created dashboard {dashboard.id} for user {owner_id}")
+
         return {
-            "status": "success",
+            "success": True,
+            "dashboard_id": dashboard.id,
+            "message": "Dashboard created successfully",
             "dashboard": {
-                "dashboard_id": dashboard_id,
-                "configuration": {},  # Would contain dashboard config
-                "data": {}  # Would contain live data for widgets
+                "id": dashboard.id,
+                "name": dashboard.name,
+                "description": dashboard.description,
+                "owner_id": dashboard.owner_id,
+                "is_public": dashboard.is_public,
+                "configuration": dashboard.configuration,
+                "created_at": dashboard.created_at.isoformat() if dashboard.created_at else None
             }
         }
 
     except Exception as e:
-        logger.error(f"Failed to get dashboard {dashboard_id}: {e}")
+        logger.error(f"Failed to create dashboard: {e}", exc_info=True)
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dashboards/{dashboard_id}")
+async def get_dashboard(
+    dashboard_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get dashboard configuration and data"""
+    try:
+        dashboard = db.query(Dashboard).filter(
+            Dashboard.id == dashboard_id,
+            Dashboard.is_active == True
+        ).first()
+
+        if not dashboard:
+            raise HTTPException(status_code=404, detail=f"Dashboard {dashboard_id} not found")
+
+        # Get widgets with their data
+        widgets_data = []
+        for widget in dashboard.widgets:
+            widget_data = {
+                "id": widget.id,
+                "widget_type": widget.widget_type,
+                "widget_name": widget.widget_name,
+                "data_source": widget.data_source,
+                "position": widget.position,
+                "display_config": widget.display_config,
+                "refresh_interval_seconds": widget.refresh_interval_seconds
+            }
+
+            # Fetch live data based on widget type and data source
+            widget_data["data"] = await _fetch_widget_data(widget, db)
+            widgets_data.append(widget_data)
+
+        return {
+            "success": True,
+            "dashboard": {
+                "id": dashboard.id,
+                "name": dashboard.name,
+                "description": dashboard.description,
+                "owner_id": dashboard.owner_id,
+                "is_public": dashboard.is_public,
+                "configuration": dashboard.configuration,
+                "created_at": dashboard.created_at.isoformat() if dashboard.created_at else None,
+                "updated_at": dashboard.updated_at.isoformat() if dashboard.updated_at else None,
+                "widgets": widgets_data
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get dashboard {dashboard_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _fetch_widget_data(widget: DashboardWidget, db: Session) -> Dict[str, Any]:
+    """
+    Fetch live data for a widget based on its data source configuration
+    """
+    widget_type = widget.widget_type
+    data_source = widget.data_source or {}
+
+    try:
+        if widget_type == "agent_execution_stats":
+            # Fetch agent execution statistics
+            time_window_hours = data_source.get("time_window_hours", 24)
+            since = datetime.utcnow() - timedelta(hours=time_window_hours)
+
+            executions = db.query(AgentExecution).filter(
+                AgentExecution.started_at >= since
+            ).all()
+
+            total = len(executions)
+            successful = sum(1 for e in executions if e.status == "completed")
+            failed = sum(1 for e in executions if e.status == "failed")
+            running = sum(1 for e in executions if e.status == "running")
+
+            return {
+                "total_executions": total,
+                "successful": successful,
+                "failed": failed,
+                "running": running,
+                "success_rate": successful / total if total > 0 else 0,
+                "time_window_hours": time_window_hours
+            }
+
+        elif widget_type == "integration_health":
+            # Fetch integration health metrics
+            integration_id = data_source.get("integration_id")
+
+            if integration_id:
+                metrics = db.query(IntegrationHealthMetrics).filter(
+                    IntegrationHealthMetrics.integration_id == integration_id
+                ).order_by(IntegrationHealthMetrics.created_at.desc()).limit(100).all()
+
+                return {
+                    "integration_id": integration_id,
+                    "metrics": [
+                        {
+                            "latency_ms": m.latency_ms,
+                            "success_rate": m.success_rate,
+                            "error_count": m.error_count,
+                            "request_count": m.request_count,
+                            "health_trend": m.health_trend,
+                            "created_at": m.created_at.isoformat() if m.created_at else None
+                        }
+                        for m in metrics
+                    ]
+                }
+            else:
+                # Aggregate health across all integrations
+                metrics = db.query(IntegrationHealthMetrics).order_by(
+                    IntegrationHealthMetrics.created_at.desc()
+                ).limit(100).all()
+
+                return {
+                    "metrics": [
+                        {
+                            "integration_id": m.integration_id,
+                            "latency_ms": m.latency_ms,
+                            "success_rate": m.success_rate,
+                            "error_count": m.error_count,
+                            "request_count": m.request_count,
+                            "health_trend": m.health_trend
+                        }
+                        for m in metrics
+                    ]
+                }
+
+        elif widget_type == "workflow_timeline":
+            # Fetch workflow execution timeline
+            time_window_hours = data_source.get("time_window_hours", 24)
+            since = datetime.utcnow() - timedelta(hours=time_window_hours)
+
+            executions = db.query(AgentExecution).filter(
+                AgentExecution.started_at >= since
+            ).order_by(AgentExecution.started_at.desc()).limit(50).all()
+
+            return {
+                "executions": [
+                    {
+                        "id": e.id,
+                        "agent_id": e.agent_id,
+                        "status": e.status,
+                        "started_at": e.started_at.isoformat() if e.started_at else None,
+                        "completed_at": e.completed_at.isoformat() if e.completed_at else None,
+                        "duration_seconds": e.duration_seconds,
+                        "error_message": e.error_message
+                    }
+                    for e in executions
+                ]
+            }
+
+        else:
+            logger.warning(f"Unknown widget type: {widget_type}")
+            return {}
+
+    except Exception as e:
+        logger.error(f"Failed to fetch data for widget {widget.id}: {e}", exc_info=True)
+        return {"error": str(e)}
 
 # Real-time Updates Endpoints
 @router.get("/workflows/{workflow_id}/live-status")
-async def get_workflow_live_status(workflow_id: str):
+async def get_workflow_live_status(
+    workflow_id: str,
+    db: Session = Depends(get_db)
+):
     """Get live status of a workflow"""
     try:
-        return {
-            "status": "success",
-            "workflow_id": workflow_id,
-            "current_status": "running",  # Would get actual status
-            "current_step": "step_2",
-            "progress_percentage": 65,
-            "estimated_completion": "2025-12-14T16:50:00Z",
-            "resource_usage": {
-                "cpu_percent": 45.2,
-                "memory_mb": 256.7,
-                "disk_io_mb": 12.3
+        # Find the most recent execution for this workflow
+        execution = db.query(AgentExecution).filter(
+            AgentExecution.agent_id == workflow_id
+        ).order_by(AgentExecution.started_at.desc()).first()
+
+        if not execution:
+            return {
+                "success": True,
+                "workflow_id": workflow_id,
+                "current_status": "not_found",
+                "message": "No executions found for this workflow"
             }
+
+        # Calculate progress percentage
+        progress_percentage = 0
+        if execution.status == "completed":
+            progress_percentage = 100
+        elif execution.status == "running" and execution.started_at:
+            # Estimate based on average duration (this is simplistic)
+            elapsed = (datetime.utcnow() - execution.started_at).total_seconds()
+            if execution.duration_seconds and execution.duration_seconds > 0:
+                progress_percentage = min(100, int((elapsed / execution.duration_seconds) * 100))
+            else:
+                progress_percentage = 50  # Default to 50% if we don't have duration data
+
+        # Estimate completion time
+        estimated_completion = None
+        if execution.status == "running" and execution.duration_seconds:
+            remaining_seconds = max(0, execution.duration_seconds - elapsed)
+            estimated_completion = (datetime.utcnow() + timedelta(seconds=remaining_seconds)).isoformat()
+
+        return {
+            "success": True,
+            "workflow_id": workflow_id,
+            "execution_id": execution.id,
+            "current_status": execution.status,
+            "progress_percentage": progress_percentage,
+            "started_at": execution.started_at.isoformat() if execution.started_at else None,
+            "completed_at": execution.completed_at.isoformat() if execution.completed_at else None,
+            "estimated_completion": estimated_completion,
+            "duration_seconds": execution.duration_seconds,
+            "error_message": execution.error_message,
+            "triggered_by": execution.triggered_by
         }
 
     except Exception as e:
-        logger.error(f"Failed to get live status for {workflow_id}: {e}")
+        logger.error(f"Failed to get live status for {workflow_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/system/health")
-async def get_system_health():
+async def get_system_health(db: Session = Depends(get_db)):
     """Get system health status"""
     try:
+        # Get recent execution statistics
+        now = datetime.utcnow()
+        last_24h = now - timedelta(hours=24)
+
+        recent_executions = db.query(AgentExecution).filter(
+            AgentExecution.started_at >= last_24h
+        ).all()
+
+        active_workflows = sum(1 for e in recent_executions if e.status == "running")
+        successful_executions = sum(1 for e in recent_executions if e.status == "completed")
+        failed_executions = sum(1 for e in recent_executions if e.status == "failed")
+
+        # Get integration health
+        integration_metrics = db.query(IntegrationHealthMetrics).order_by(
+            IntegrationHealthMetrics.created_at.desc()
+        ).limit(50).all()
+
+        # Calculate overall health status
+        overall_status = "healthy"
+        if integration_metrics:
+            avg_success_rate = sum(m.success_rate for m in integration_metrics) / len(integration_metrics)
+            avg_latency = sum(m.latency_ms for m in integration_metrics) / len(integration_metrics)
+
+            if avg_success_rate < 0.9 or avg_latency > 1000:
+                overall_status = "degraded"
+            if avg_success_rate < 0.7 or avg_latency > 5000:
+                overall_status = "unhealthy"
+
         return {
-            "status": "success",
+            "success": True,
             "system_health": {
-                "overall_status": "healthy",
+                "overall_status": overall_status,
                 "components": {
-                    "analytics_engine": "healthy",
+                    "analytics_engine": "healthy" if overall_status != "unhealthy" else "unhealthy",
                     "database": "healthy",
                     "metrics_processor": "healthy"
                 },
-                "active_workflows": 5,
-                "pending_events": 23,
-                "last_processed_event": "2025-12-14T16:48:30Z",
-                "alerts": {
-                    "active": 2,
-                    "critical": 0,
-                    "total_today": 8
-                }
+                "active_workflows": active_workflows,
+                "executions_last_24h": {
+                    "total": len(recent_executions),
+                    "successful": successful_executions,
+                    "failed": failed_executions,
+                    "success_rate": successful_executions / len(recent_executions) if recent_executions else 1.0
+                },
+                "integration_health": {
+                    "average_success_rate": sum(m.success_rate for m in integration_metrics) / len(integration_metrics) if integration_metrics else 1.0,
+                    "average_latency_ms": sum(m.latency_ms for m in integration_metrics) / len(integration_metrics) if integration_metrics else 0,
+                    "total_errors": sum(m.error_count for m in integration_metrics) if integration_metrics else 0
+                },
+                "last_checked": now.isoformat()
             }
         }
 

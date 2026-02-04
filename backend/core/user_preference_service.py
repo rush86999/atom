@@ -1,10 +1,12 @@
 
-from sqlalchemy import Column, String, Text, DateTime, UniqueConstraint
+import json
+import uuid
+from sqlalchemy import Column, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+
 from core.database import Base
-import uuid
-import json
+
 
 class UserPreference(Base):
     __tablename__ = "user_preferences"
@@ -61,7 +63,8 @@ class UserPreferenceService:
         if pref and pref.value:
             try:
                 return json.loads(pref.value)
-            except:
+            except json.JSONDecodeError as e:
+                logger.debug(f"Failed to parse preference as JSON: {e}")
                 return pref.value # Fallback to raw string if not JSON
         return default
 
@@ -75,6 +78,7 @@ class UserPreferenceService:
         for p in prefs:
             try:
                 result[p.key] = json.loads(p.value)
-            except:
+            except json.JSONDecodeError as e:
+                logger.debug(f"Failed to parse preference {p.key} as JSON: {e}")
                 result[p.key] = p.value
         return result

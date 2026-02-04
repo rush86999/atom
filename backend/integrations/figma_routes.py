@@ -1,7 +1,6 @@
 import logging
-from typing import Dict, List, Optional
 from datetime import datetime
-
+from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -104,24 +103,71 @@ async def get_figma_user():
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/files")
-async def list_figma_files():
-    """List Figma files (requires authentication)"""
+async def list_figma_files(team_id: Optional[str] = Query(None), project_id: Optional[str] = Query(None)):
+    """
+    List Figma files (requires authentication)
+
+    Note: Figma API requires either team_id or project_id to list files.
+    Without these parameters, we cannot retrieve files from the API.
+
+    To get your team_id:
+    1. Go to Figma and open your team
+    2. The team_id is in the URL: https://www.figma.com/files/team/<team_id>/...
+
+    Args:
+        team_id: Optional Figma team ID to list files from all projects
+        project_id: Optional Figma project ID to list files from a specific project
+
+    Returns:
+        List of Figma files with metadata
+    """
     try:
         service = get_figma_service()
         await service.ensure_valid_token()
-        
-        # Note: Figma API requires team_id or project_id to list files.
-        # Without it, we can't list "all" files for a user easily.
-        # We return a placeholder list or we could try to get team projects if we had team_id.
-        
-        return {
-            "ok": True,
-            "files": [
-                {"key": "fig-001", "name": "Homepage Design", "type": "design"},
-                {"key": "fig-002", "name": "Mobile App UI", "type": "design"},
-            ],
-            "message": "Listing files requires team_id or project_id context"
-        }
+
+        # If team_id is provided, get all projects and their files
+        if team_id:
+            projects = await service.get_team_projects(team_id)
+            all_files = []
+
+            for project in projects:
+                project_files = await service.get_project_files(project['id'])
+                for file in project_files:
+                    file['project_id'] = project['id']
+                    file['project_name'] = project.get('name', 'Unknown')
+                all_files.extend(project_files)
+
+            return {
+                "ok": True,
+                "files": all_files,
+                "count": len(all_files),
+                "source": "team_projects"
+            }
+
+        # If project_id is provided, get files from that project
+        elif project_id:
+            files = await service.get_project_files(project_id)
+            return {
+                "ok": True,
+                "files": files,
+                "count": len(files),
+                "source": "project"
+            }
+
+        # No context provided - return helpful error
+        else:
+            return {
+                "ok": False,
+                "error": "missing_context",
+                "message": "Listing files requires either team_id or project_id parameter",
+                "usage": {
+                    "endpoint": "/api/figma/files?team_id=<YOUR_TEAM_ID>",
+                    "alternative": "/api/figma/files?project_id=<YOUR_PROJECT_ID>",
+                    "note": "Find your team_id in Figma URL: https://www.figma.com/files/team/<team_id>/..."
+                },
+                "files": []
+            }
+
     except HTTPException:
         raise
     except Exception as e:

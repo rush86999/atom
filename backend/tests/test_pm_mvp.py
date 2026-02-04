@@ -1,23 +1,25 @@
-import unittest
 import asyncio
-import uuid
 import os
-import sqlalchemy
+import unittest
+import uuid
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+import sqlalchemy
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
+from sqlalchemy.orm import configure_mappers, sessionmaker
 
 # Override DATABASE_URL for in-memory testing
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-from core.database import Base
-import core.models
-import sales.models
 import accounting.models
+import sales.models
 import service_delivery.models
+from service_delivery.models import Milestone, MilestoneStatus, Project, ProjectStatus, ProjectTask
+
+import core.models
+from core.database import Base
 from core.pm_engine import AIProjectManager
-from service_delivery.models import Project, Milestone, ProjectTask, ProjectStatus, MilestoneStatus
+
 
 class TestAIPMMVP(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

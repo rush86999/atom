@@ -1,23 +1,26 @@
-import unittest
 import os
 import sys
+import unittest
+
 sys.path.append(os.getcwd())
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, configure_mappers
-from core.database import Base
-import core.models
-import service_delivery.models
-import sales.models
+from datetime import datetime, timedelta
 import accounting.models
 import ecommerce.models
 import saas.models
-from core.models import User, Workspace, Team
-from service_delivery.models import Project, ProjectTask, Contract, ProjectStatus
-from accounting.models import Entity, Invoice, InvoiceStatus, Account, AccountType
+import sales.models
+import service_delivery.models
 from accounting.margin_service import margin_calculator
+from accounting.models import Account, AccountType, Entity, Invoice, InvoiceStatus
+from service_delivery.models import Contract, Project, ProjectStatus, ProjectTask
 from service_delivery.project_service import ProjectService
-from datetime import datetime, timedelta
+from sqlalchemy import create_engine
+from sqlalchemy.orm import configure_mappers, sessionmaker
+
+import core.models
+from core.database import Base
+from core.models import Team, User, Workspace
+
 
 class TestMarginIntelligence(unittest.IsolatedAsyncioTestCase):
     def setUp(self):

@@ -1,6 +1,8 @@
 import pytest
-from core.messaging_schemas import TaskRequest, AgentMessage
 from pydantic import ValidationError
+
+from core.messaging_schemas import AgentMessage, TaskRequest
+
 
 def test_schema_validation_success():
     """Test that valid data passes schema validation"""

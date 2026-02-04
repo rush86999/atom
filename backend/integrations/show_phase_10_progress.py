@@ -3,8 +3,9 @@
 Execute Phase 10 progress report to show current status
 """
 
-import sys
 import os
+import sys
+
 sys.path.append('/home/developer/projects/atom/atom/backend/integrations')
 
 # Import and execute the Phase 10 progress report

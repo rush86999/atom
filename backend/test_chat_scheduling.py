@@ -1,9 +1,9 @@
 import asyncio
-import aiohttp
 import json
-import uuid
-import sys
 import logging
+import sys
+import uuid
+import aiohttp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')

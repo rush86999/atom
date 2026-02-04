@@ -1,7 +1,7 @@
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -9,13 +9,22 @@ from sqlalchemy.orm import Session
 # Add the current directory to sys.path
 sys.path.append(os.getcwd())
 
-from core.database import SessionLocal, engine
-from core.models import Workspace
-from ecommerce.models import EcommerceOrder, EcommerceCustomer, EcommerceOrderItem
-from accounting.models import Account, AccountType, Transaction, JournalEntry, EntryType, Entity, EntityType
-from sales.models import Lead
-from core.identity_resolver import CustomerResolutionEngine
+from accounting.models import (
+    Account,
+    AccountType,
+    Entity,
+    EntityType,
+    EntryType,
+    JournalEntry,
+    Transaction,
+)
 from ecommerce.ledger_mapper import OrderToLedgerMapper
+from ecommerce.models import EcommerceCustomer, EcommerceOrder, EcommerceOrderItem
+from sales.models import Lead
+
+from core.database import SessionLocal, engine
+from core.identity_resolver import CustomerResolutionEngine
+from core.models import Workspace
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

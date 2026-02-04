@@ -1,13 +1,13 @@
-from typing import List, Dict, Any, Optional
 import json
 import logging
 import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
-from core.models import AgentRegistry, AgentStatus, ChatMessage
+from core.database import get_db_session
 from core.lancedb_handler import LanceDBHandler, get_lancedb_handler
-from core.database import SessionLocal
+from core.models import AgentRegistry, AgentStatus, ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,17 @@ class AgentExperience(BaseModel):
     confidence_score: float = 0.5 # 0.0 to 1.0 (How confident are we this was a good run?)
     feedback_score: Optional[float] = None # -1.0 to 1.0 (Human feedback)
     artifacts: List[str] = []
-    
+
     # TRACE Framework Metrics (Phase 6.6)
     step_efficiency: float = 1.0  # (Steps Taken / Expected Steps) - lower is better
     metadata_trace: Dict[str, Any] = {} # Detailed execution trace, plan adherence, etc.
-    
+
+    # Enhanced Rating Fields (NEW)
+    thumbs_up_down: Optional[bool] = None  # Quick thumbs up/down feedback
+    rating: Optional[int] = None  # Star rating (1-5)
+    agent_execution_id: Optional[str] = None  # Link to agent execution
+    feedback_type: Optional[str] = None  # Type of feedback (correction, rating, approval, comment)
+
     # Context for Scoping
     agent_role: str       # e.g. "Finance", "Operations"
     specialty: Optional[str] = None
@@ -82,7 +88,7 @@ class WorldModelService:
             f"Outcome: {experience.outcome}\n"
             f"Learnings: {experience.learnings}"
         )
-        
+
         metadata = {
             "agent_id": experience.agent_id,
             "task_type": experience.task_type,
@@ -94,9 +100,14 @@ class WorldModelService:
             "feedback_score": experience.feedback_score,
             "step_efficiency": experience.step_efficiency,
             "trace": experience.metadata_trace,
-            "type": "experience"
+            "type": "experience",
+            # Enhanced rating fields (NEW)
+            "thumbs_up_down": experience.thumbs_up_down if hasattr(experience, 'thumbs_up_down') else None,
+            "rating": experience.rating if hasattr(experience, 'rating') else None,
+            "agent_execution_id": experience.agent_execution_id if hasattr(experience, 'agent_execution_id') else None,
+            "feedback_type": experience.feedback_type if hasattr(experience, 'feedback_type') else None
         }
-        
+
         return self.db.add_document(
             table_name=self.table_name,
             text=text_representation,
@@ -236,10 +247,51 @@ class WorldModelService:
         Boost confidence when an experience leads to successful outcomes.
         Called when an agent successfully reuses a past experience pattern.
         """
-        # This is a lighter-weight update than full feedback
-        # In production, this would use a proper update mechanism
-        logger.info(f"Boosting experience {experience_id} confidence by {boost_amount}")
-        return True  # Placeholder - would implement with proper DB update
+        try:
+            # Search for the experience by ID
+            results = self.db.search(
+                table_name=self.table_name,
+                query="",  # Empty query to get all records
+                limit=1000  # Increase limit to find the target experience
+            )
+
+            for res in results:
+                if res.get("id") == experience_id:
+                    meta = res.get("metadata", {})
+
+                    # Boost confidence score (cap at 1.0)
+                    old_confidence = meta.get("confidence_score", 0.5)
+                    new_confidence = min(1.0, old_confidence + boost_amount)
+
+                    # Track boost count
+                    boost_count = meta.get("boost_count", 0) + 1
+
+                    meta["confidence_score"] = new_confidence
+                    meta["boost_count"] = boost_count
+                    meta["last_boosted_at"] = datetime.now().isoformat()
+
+                    # Re-add with updated metadata (LanceDB append-only)
+                    self.db.add_document(
+                        table_name=self.table_name,
+                        text=res.get("text", ""),
+                        source=res.get("source", "system"),
+                        metadata=meta,
+                        user_id="confidence_boost_system"
+                    )
+
+                    logger.info(
+                        f"Boosted experience {experience_id} confidence: "
+                        f"{old_confidence:.3f} -> {new_confidence:.3f} "
+                        f"(boost #{boost_count})"
+                    )
+                    return True
+
+            logger.warning(f"Experience {experience_id} not found for confidence boost")
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to boost experience confidence: {e}")
+            return False
 
     async def get_experience_statistics(
         self,
@@ -396,23 +448,23 @@ class WorldModelService:
         This keeps Postgres small and fast while preserving long-term memory on S3.
         """
         try:
-            db = SessionLocal()
-            messages = db.query(ChatMessage).filter(
-                ChatMessage.conversation_id == conversation_id,
-                ChatMessage.tenant_id == self.db.workspace_id
-            ).order_by(ChatMessage.created_at.asc()).all()
-            
-            if not messages:
-                db.close()
-                return False
-                
-            # Combine session history into a single archival document
-            session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
-            metadata = {
-                "conversation_id": conversation_id,
-                "msg_count": len(messages),
-                "type": "archived_session",
-                "archived_at": datetime.now().isoformat()
+            with get_db_session() as db:
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.conversation_id == conversation_id,
+                    ChatMessage.tenant_id == self.db.workspace_id
+                ).order_by(ChatMessage.created_at.asc()).all()
+
+                if not messages:
+                    db.close()
+                    return False
+
+                # Combine session history into a single archival document
+                session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
+                metadata = {
+                    "conversation_id": conversation_id,
+                    "msg_count": len(messages),
+                    "type": "archived_session",
+                    "archived_at": datetime.now().isoformat()
             }
             
             # Save to LanceDB (Cold Storage)
@@ -551,25 +603,24 @@ class WorldModelService:
             if len(formula_results) < limit:
                 try:
                     from saas.models import Formula
-                    db = SessionLocal()
-                    hot_formulas = db.query(Formula).filter(
-                        Formula.workspace_id == self.db.workspace_id,
-                        Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
-                    ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
-                    
-                    for f in hot_formulas:
-                        # Avoid duplicates
-                        if not any(fr["id"] == f.id for fr in formula_results):
-                            formula_results.append({
-                                "id": f.id,
-                                "name": f.name,
-                                "expression": f.expression,
-                                "domain": f.domain,
-                                "description": f.description,
-                                "parameters": f.parameters,
-                                "type": "formula_hot"
-                            })
-                    db.close()
+                    with get_db_session() as db:
+                        hot_formulas = db.query(Formula).filter(
+                            Formula.workspace_id == self.db.workspace_id,
+                            Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
+                        ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
+
+                        for f in hot_formulas:
+                            # Avoid duplicates
+                            if not any(fr["id"] == f.id for fr in formula_results):
+                                formula_results.append({
+                                    "id": f.id,
+                                    "name": f.name,
+                                    "expression": f.expression,
+                                    "domain": f.domain,
+                                    "description": f.description,
+                                    "parameters": f.parameters,
+                                    "type": "formula_hot"
+                                })
                 except Exception as he:
                     logger.warning(f"Hot formula fallback failed: {he}")
         except Exception as fe:
@@ -578,14 +629,14 @@ class WorldModelService:
         # 4. Search Conversations (Postgres Persistence)
         conversation_results = []
         try:
-            db = SessionLocal()
-            # Get latest 5 messages for this tenant/agent context (generic)
-            # In a real scenario, we might want to filter by keywords or session_id
-            messages = db.query(ChatMessage).filter(
-                ChatMessage.tenant_id == self.db.workspace_id
-            ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
-            
-            conversation_results = [
+            with get_db_session() as db:
+                # Get latest 5 messages for this tenant/agent context (generic)
+                # In a real scenario, we might want to filter by keywords or session_id
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.tenant_id == self.db.workspace_id
+                ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
+
+                conversation_results = [
                 {
                     "role": m.role,
                     "content": m.content,
@@ -601,11 +652,29 @@ class WorldModelService:
         # 5. Search Business Facts (Trusted Memory)
         business_facts = await self.get_relevant_business_facts(current_task_description, limit=limit)
 
+        # 6. Search Episodes (NEW)
+        episodes_result = []
+        try:
+            from core.episode_retrieval_service import EpisodeRetrievalService
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                episode_service = EpisodeRetrievalService(db)
+                episodes_response = await episode_service.retrieve_contextual(
+                    agent_id=agent.id,
+                    current_task=current_task_description,
+                    limit=limit
+                )
+                episodes_result = episodes_response.get("episodes", [])
+        except Exception as ee:
+            logger.warning(f"Episode recall failed: {ee}")
+
         return {
             "experiences": valid_experiences,
             "knowledge": knowledge_results,
-            "knowledge_graph": graph_context, 
+            "knowledge_graph": graph_context,
             "formulas": formula_results,
             "conversations": conversation_results,
-            "business_facts": business_facts
+            "business_facts": business_facts,
+            "episodes": episodes_result  # NEW
         }

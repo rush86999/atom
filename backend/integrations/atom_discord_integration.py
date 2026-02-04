@@ -3,23 +3,29 @@ ATOM Discord Integration Module
 Integrates Discord seamlessly into ATOM's unified communication ecosystem
 """
 
-import os
+import asyncio
 import json
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
 try:
+    from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from discord_enhanced_service import discord_enhanced_service, DiscordGuild, DiscordChannel, DiscordMessage, DiscordUser
     from discord_analytics_engine import discord_analytics_engine
+    from discord_enhanced_service import (
+        DiscordChannel,
+        DiscordGuild,
+        DiscordMessage,
+        DiscordUser,
+        discord_enhanced_service,
+    )
 except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
     discord_enhanced_service = None

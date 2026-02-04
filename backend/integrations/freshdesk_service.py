@@ -7,10 +7,9 @@ Provides customer support, ticket management, and analytics capabilities
 import json
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
-from dataclasses import dataclass
-
 import httpx
 from pydantic import BaseModel
 

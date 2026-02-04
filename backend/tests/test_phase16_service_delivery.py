@@ -1,20 +1,22 @@
-import sys
+import datetime
 import os
+import sys
 import unittest
 import uuid
-import datetime
 from datetime import timezone
 
 # Add project root
 sys.path.append(os.getcwd())
 
+from accounting.models import Entity, EntityType, Invoice
+from sales.models import Deal, DealStage
+from service_delivery.billing_service import BillingService
+from service_delivery.models import Contract, Milestone, MilestoneStatus, Project, ProjectStatus
+from service_delivery.project_service import ProjectService
+
 from core.database import SessionLocal
 from core.models import Workspace
-from sales.models import Deal, DealStage
-from service_delivery.models import Contract, Project, Milestone, MilestoneStatus, ProjectStatus
-from service_delivery.project_service import ProjectService
-from service_delivery.billing_service import BillingService
-from accounting.models import Invoice, Entity, EntityType
+
 
 class TestPhase16ServiceDelivery(unittest.TestCase):
     def setUp(self):

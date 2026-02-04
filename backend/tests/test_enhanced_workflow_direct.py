@@ -137,9 +137,7 @@ def test_workflow_monitoring():
     print("\n🧪 Testing Workflow Monitoring Integration...")
 
     try:
-        from enhanced_workflow.workflow_monitoring_integration import (
-            WorkflowMonitoringIntegration,
-        )
+        from enhanced_workflow.workflow_monitoring_integration import WorkflowMonitoringIntegration
 
         monitoring = WorkflowMonitoringIntegration()
         print("✅ Workflow Monitoring Integration initialized")

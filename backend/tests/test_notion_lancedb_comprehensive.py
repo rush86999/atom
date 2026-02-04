@@ -10,10 +10,10 @@ This script tests the complete pipeline:
 5. ATOM agent memory access
 """
 
-import os
-import sys
 import asyncio
 import json
+import os
+import sys
 from datetime import datetime, timezone
 
 # Set up environment for testing
@@ -71,12 +71,12 @@ def test_text_processing():
     
     try:
         from text_processing_service import (
-            get_text_processing_service,
-            process_text_for_embeddings,
             generate_embeddings,
-            get_text_statistics
+            get_text_processing_service,
+            get_text_statistics,
+            process_text_for_embeddings,
         )
-        
+
         # Test text processing service
         service = get_text_processing_service()
         print("  ✓ Text processing service initialized")
@@ -130,11 +130,8 @@ def test_notion_document_processor():
     print("\n📄 Testing Notion Document Processor...")
     
     try:
-        from notion_document_processor import (
-            NotionProcessorConfig,
-            create_notion_processor
-        )
-        
+        from notion_document_processor import NotionProcessorConfig, create_notion_processor
+
         # Create test configuration
         config = NotionProcessorConfig(
             user_id="test_user_123",
@@ -204,10 +201,10 @@ def test_notion_integration_service():
     
     try:
         from notion_integration_service import (
+            NotionIntegrationService,
             get_notion_integration_service,
-            NotionIntegrationService
         )
-        
+
         # Create integration service
         service = get_notion_integration_service()
         print("  ✓ Notion integration service created")
@@ -237,11 +234,11 @@ def test_sync_system():
     try:
         from sync.source_change_detector import (
             SourceChangeDetector,
-            SourceType,
             SourceConfig,
-            create_source_change_detector
+            SourceType,
+            create_source_change_detector,
         )
-        
+
         # Test source change detector
         detector = create_source_change_detector("test_sync_state")
         print("  ✓ Source change detector created")
@@ -262,10 +259,7 @@ def test_sync_system():
         print("  ✓ Notion source configuration added")
         
         # Test orchestration service
-        from sync.orchestration_service import (
-            OrchestrationService,
-            OrchestrationConfig
-        )
+        from sync.orchestration_service import OrchestrationConfig, OrchestrationService
         
         orch_config = OrchestrationConfig(
             local_db_path="test_lancedb",
@@ -278,8 +272,8 @@ def test_sync_system():
         # Test incremental sync service
         from sync.incremental_sync_service import (
             IncrementalSyncService,
+            SyncConfig,
             create_incremental_sync_service,
-            SyncConfig
         )
         
         sync_config = SyncConfig(
@@ -308,7 +302,7 @@ def test_api_endpoints():
     try:
         from flask import Flask
         from main_api_app import app
-        
+
         # Check if app has Notion routes
         notion_routes = []
         for rule in app.url_map.iter_rules():

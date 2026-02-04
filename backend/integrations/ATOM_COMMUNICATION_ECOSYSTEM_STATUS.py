@@ -3,11 +3,11 @@ ATOM Enhanced Communication Ecosystem - Complete Integration Status
 Teams seamlessly integrated into ATOM's unified communication platform
 """
 
-import os
 import json
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -6,13 +6,13 @@ This script verifies that all core Atom features are implemented and functional.
 It tests each major component without requiring a full Flask server or database.
 """
 
-import os
-import sys
 import importlib
 import inspect
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 import logging
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

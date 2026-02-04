@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
-from accounting.models import Account, AccountType
 import uuid
+from accounting.models import Account, AccountType
+from sqlalchemy.orm import Session
+
 
 def seed_default_accounts(db: Session, workspace_id: str):
     """Seed a basic Chart of Accounts for a workspace"""

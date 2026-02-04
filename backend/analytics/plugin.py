@@ -1,7 +1,7 @@
-from fastapi import FastAPI
 import logging
-from analytics.routes import router as analytics_router
 from analytics.instrumentation import activate_analytics
+from analytics.routes import router as analytics_router
+from fastapi import FastAPI
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,9 @@ def enable_workflow_dna(app: FastAPI):
         logger.info("🔌 Workflow DNA Plugin: API Routes Registered (at /api/v1/analytics)")
         
         # 1.5. Ensure Analytics Tables Exist
-        from core.database import engine
         from analytics.models import WorkflowExecutionLog
+
+        from core.database import engine
         WorkflowExecutionLog.metadata.create_all(bind=engine)
         logger.info("🔌 Workflow DNA Plugin: Database Schema Verified")
 

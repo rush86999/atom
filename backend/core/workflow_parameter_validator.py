@@ -3,25 +3,38 @@ Workflow Parameter Validator
 Advanced validation system for workflow inputs with dependencies and conditions
 """
 
-import re
-import logging
-from typing import Dict, Any, List, Optional, Union, Callable
-from datetime import datetime
-from pydantic import BaseModel, validator
 import json
+import logging
+import re
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Union
+from pydantic import BaseModel, validator
 
 logger = logging.getLogger(__name__)
 
-class ValidationRule:
-    """Base class for validation rules"""
+class ValidationRule(ABC):
+    """
+    Base class for validation rules (Abstract).
+
+    Concrete implementations must override the validate() method.
+    """
 
     def __init__(self, name: str, config: Dict[str, Any]):
         self.name = name
         self.config = config
 
+    @abstractmethod
     def validate(self, value: Any, context: Dict[str, Any] = None) -> tuple[bool, Optional[str]]:
-        """Validate a value against this rule"""
-        raise NotImplementedError
+        """
+        Validate a value against this rule.
+
+        Subclasses must implement this method.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        pass
 
 class RequiredRule(ValidationRule):
     """Required field validation"""

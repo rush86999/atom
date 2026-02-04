@@ -3,11 +3,12 @@ WhatsApp Performance Benchmarking
 API and database performance testing
 """
 
-import time
-import requests
 import json
-from datetime import datetime
 import statistics
+import time
+from datetime import datetime
+import requests
+
 
 class WhatsAppPerformanceBenchmark:
     """Performance benchmarking for WhatsApp integration"""

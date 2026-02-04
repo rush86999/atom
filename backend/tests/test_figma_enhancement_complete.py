@@ -1,4 +1,7 @@
-import { Skill, SkillContext, SkillResult } from '../../../types/skillTypes';
+import '../../../types/skillTypes'
+import SkillContext
+import SkillResult }
+import { Skill
 
 /**
  * Test Figma Enhancement

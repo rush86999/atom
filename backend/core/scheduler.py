@@ -1,13 +1,13 @@
-import logging
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor
-from sqlalchemy.orm import Session
-import uuid
 import datetime
 import json
+import logging
+import uuid
+from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy.orm import Session
 
-from core.database import SessionLocal, engine
+from core.database import engine, get_db_session
 from core.models import AgentJob, AgentJobStatus, AgentRegistry
 
 logger = logging.getLogger(__name__)
@@ -92,8 +92,8 @@ class AgentScheduler:
         """
         Execution wrapper that creates AgentJob record.
         """
-        db = SessionLocal()
-        job_record = AgentJob(
+        with get_db_session() as db:
+        with get_db_session() as db:
             id=str(uuid.uuid4()),
             agent_id=agent_id,
             status=AgentJobStatus.RUNNING.value,
@@ -130,12 +130,12 @@ class AgentScheduler:
         """
         # 1. Define the execution wrapper
         async def run_agent_wrapper():
-            from core.database import SessionLocal
-            from core.models import AgentRegistry
+            from core.database import get_db_session
             from core.generic_agent import GenericAgent
+            from core.models import AgentRegistry
             
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
+                try:
                 agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                 if agent_model:
                     runner = GenericAgent(agent_model)
@@ -158,7 +158,7 @@ class AgentScheduler:
         """
         Load all agents with active schedules from DB.
         """
-        db = SessionLocal()
+        with get_db_session() as db:
         try:
             agents = db.query(AgentRegistry).all() # In prod, filter by active schedule
             count = 0

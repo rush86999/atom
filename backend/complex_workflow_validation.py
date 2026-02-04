@@ -5,19 +5,19 @@ Tests advanced multi-service AI-driven workflows and integrations
 """
 
 import asyncio
-import logging
 import json
-import time
-from typing import Dict, Any, List
-import sys
+import logging
 import os
+import sys
+import time
+from typing import Any, Dict, List
 
 # Add the independent_ai_validator to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'independent_ai_validator'))
 
-from independent_ai_validator.core.validator_engine import IndependentAIValidator
 from independent_ai_validator.core.credential_manager import CredentialManager
-from independent_ai_validator.providers.base_provider import ValidationRequest, LLMResponse
+from independent_ai_validator.core.validator_engine import IndependentAIValidator
+from independent_ai_validator.providers.base_provider import LLMResponse, ValidationRequest
 
 logger = logging.getLogger(__name__)
 

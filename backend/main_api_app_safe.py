@@ -1,7 +1,8 @@
 import os
 import sys
-from unittest.mock import MagicMock
 import types
+from unittest.mock import MagicMock
+
 
 # --- FORCE MOCKS ---
 def mock_package(name):
@@ -24,9 +25,9 @@ sys.modules["lancedb"] = MagicMock()
 import logging
 from pathlib import Path
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

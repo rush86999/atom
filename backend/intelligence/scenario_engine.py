@@ -1,9 +1,8 @@
-import logging
 import json
-from sqlalchemy.orm import Session
-from typing import Dict, Any
-
+import logging
+from typing import Any, Dict
 from intelligence.models import BusinessScenario, ResourceRole
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

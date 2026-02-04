@@ -5,10 +5,10 @@ Enhanced with feedback capabilities for agent learning.
 
 import logging
 import uuid
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -262,10 +262,10 @@ class ReasoningTracker:
     async def _check_user_trust(self, user_id: str, agent_id: str = None) -> tuple:
         """Check if user is trusted to provide feedback"""
         try:
-            from core.database import SessionLocal
-            from core.models import User, AgentRegistry, UserRole
+            from core.database import get_db_session
+            from core.models import AgentRegistry, User, UserRole
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 user = db.query(User).filter(User.id == user_id).first()
                 if not user:
                     return False, None
@@ -290,13 +290,13 @@ class ReasoningTracker:
     async def _apply_feedback_to_agent(self, feedback: ReasoningFeedback, step: ReasoningStep):
         """Apply trusted feedback to agent learning via Governance Service"""
         try:
-            from core.database import SessionLocal
             from core.agent_governance_service import AgentGovernanceService
+            from core.database import get_db_session
             
             if not step.agent_id:
                 return
             
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 governance = AgentGovernanceService(db)
                 
                 # Convert reasoning feedback to agent feedback

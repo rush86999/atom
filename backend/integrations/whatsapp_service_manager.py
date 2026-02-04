@@ -9,10 +9,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from .whatsapp_business_integration import (
-    WhatsAppBusinessIntegration,
-    whatsapp_integration,
-)
+from .whatsapp_business_integration import WhatsAppBusinessIntegration, whatsapp_integration
 
 logger = logging.getLogger(__name__)
 
@@ -336,7 +333,7 @@ class WhatsAppServiceManager:
                 conversations = self.integration.get_conversations(limit=100)
                 return len(conversations)
             return 0
-        except:
+        except Exception as e:
             return 0
 
     def _register_with_service_registry(self):

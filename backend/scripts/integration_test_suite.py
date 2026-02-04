@@ -4,11 +4,12 @@ ATOM Integration Test Suite
 Tests all frontend-backend connections
 """
 
-import requests
 import json
-import time
 import sys
-from typing import Dict, List, Any
+import time
+from typing import Any, Dict, List
+import requests
+
 
 class AtomIntegrationTester:
     def __init__(self):

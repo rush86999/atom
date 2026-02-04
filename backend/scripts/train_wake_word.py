@@ -1,22 +1,22 @@
 # This script is based on the training scripts from the openWakeWord project.
 # For more information, see: https://github.com/dscripka/openWakeWord
-import os
 import collections
-import numpy as np
-from numpy.lib.format import open_memmap
-from pathlib import Path
-from tqdm import tqdm
-import openwakeword
-import openwakeword.data
-import openwakeword.utils
-import openwakeword.metrics
-import scipy
-import datasets
-import torch
-from torch import nn
+import os
 import tarfile
 import zipfile
+from pathlib import Path
+import datasets
 import librosa
+import numpy as np
+import openwakeword
+import openwakeword.data
+import openwakeword.metrics
+import openwakeword.utils
+import scipy
+import torch
+from numpy.lib.format import open_memmap
+from torch import nn
+from tqdm import tqdm
 
 # --- Configuration ---
 POSITIVE_SAMPLES_DIR = "audio_samples"

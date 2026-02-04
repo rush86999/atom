@@ -1,7 +1,6 @@
-import logging
 import asyncio
-from typing import Dict, Any, Optional
-
+import logging
+from typing import Any, Dict, Optional
 from browser_engine.agent import BrowserAgent
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,6 @@ Uses the real discord_service.py for all operations
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

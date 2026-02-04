@@ -1,19 +1,20 @@
 
-import os
-import sys
 import asyncio
 import json
+import os
+import sys
 import numpy as np
+
 try:
     import openwakeword
     from openwakeword.model import Model
 except ImportError:
     openwakeword = None
     Model = None
+import logging
+import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
-import uvicorn
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

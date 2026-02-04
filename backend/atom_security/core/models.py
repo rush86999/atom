@@ -1,7 +1,8 @@
 import enum
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+
 
 class Severity(str, enum.Enum):
     CRITICAL = "CRITICAL"

@@ -1,31 +1,31 @@
-import logging
-import uuid
 import json
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-from sqlalchemy.orm import Session
-from fastapi import BackgroundTasks
-
-from core.database import SessionLocal
-from core.models import User, AgentExecution, UserIdentity
-from core.agent_world_model import WorldModelService
-from core.notification_manager import notification_manager
-from core.atom_meta_agent import handle_manual_trigger, SpecialtyAgentTemplate
-from core.communication.adapters.base import PlatformAdapter, GenericAdapter
-from core.communication.adapters.slack import SlackAdapter
-from core.communication.adapters.discord import DiscordAdapter
-from core.communication.adapters.whatsapp import WhatsAppAdapter
-from core.communication.adapters.email import EmailAdapter
-from core.communication.adapters.sms import SMSAdapter
-from core.communication.adapters.google_chat import GoogleChatAdapter
-from core.communication.adapters.matrix import MatrixAdapter
-from core.communication.adapters.facebook import FacebookAdapter
-from core.communication.adapters.line import LineAdapter
-from core.communication.adapters.signal import SignalAdapter
-from core.communication.adapters.telegram import TelegramAdapter
-from core.communication.adapters.teams import TeamsAdapter
-from core.communication.adapters.intercom import IntercomAdapter
+import logging
 import os
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import BackgroundTasks
+from sqlalchemy.orm import Session
+
+from core.agent_world_model import WorldModelService
+from core.atom_meta_agent import SpecialtyAgentTemplate, handle_manual_trigger
+from core.communication.adapters.base import GenericAdapter, PlatformAdapter
+from core.communication.adapters.discord import DiscordAdapter
+from core.communication.adapters.email import EmailAdapter
+from core.communication.adapters.facebook import FacebookAdapter
+from core.communication.adapters.google_chat import GoogleChatAdapter
+from core.communication.adapters.intercom import IntercomAdapter
+from core.communication.adapters.line import LineAdapter
+from core.communication.adapters.matrix import MatrixAdapter
+from core.communication.adapters.signal import SignalAdapter
+from core.communication.adapters.slack import SlackAdapter
+from core.communication.adapters.sms import SMSAdapter
+from core.communication.adapters.teams import TeamsAdapter
+from core.communication.adapters.telegram import TelegramAdapter
+from core.communication.adapters.whatsapp import WhatsAppAdapter
+from core.database import get_db_session
+from core.models import AgentExecution, User, UserIdentity
+from core.notification_manager import notification_manager
 
 logger = logging.getLogger(__name__)
 
@@ -97,32 +97,32 @@ class CommunicationService:
             return {"status": "ignored", "reason": "empty_content"}
 
         # 1. Resolve User and Workspace
-        db = SessionLocal()
-        user = None
-        workspace_id = "default"
-        
-        try:
-            # Lookup User Identity
-            from core.models import UserIdentity
-            
-            identity = db.query(UserIdentity).filter(
-                UserIdentity.provider == source,
-                UserIdentity.provider_user_id == sender_id
-            ).first()
-            
-            if identity and identity.user:
-                user = identity.user
-                logger.info(f"Resolved user {user.email} from {source} ID {sender_id}")
-                # Use first workspace for now
-                if user.workspaces:
-                    workspace_id = user.workspaces[0].id
-            else:
-                # Security: Reject messages from unknown identities instead of falling back to admin
-                logger.error(f"No identity found for {source}:{sender_id}. Rejecting message for security.")
-                return {"status": "error", "message": "User identity not found. Please link your account."}
-                
-        finally:
-            db.close()
+        with get_db_session() as db:
+            user = None
+            workspace_id = "default"
+
+            try:
+                # Lookup User Identity
+                from core.models import UserIdentity
+
+                identity = db.query(UserIdentity).filter(
+                    UserIdentity.provider == source,
+                    UserIdentity.provider_user_id == sender_id
+                ).first()
+
+                if identity and identity.user:
+                    user = identity.user
+                    logger.info(f"Resolved user {user.email} from {source} ID {sender_id}")
+                    # Use first workspace for now
+                    if user.workspaces:
+                        workspace_id = user.workspaces[0].id
+                else:
+                    # Security: Reject messages from unknown identities instead of falling back to admin
+                    logger.error(f"No identity found for {source}:{sender_id}. Rejecting message for security.")
+                    return {"status": "error", "message": "User identity not found. Please link your account."}
+            except Exception as e:
+                logger.error(f"Failed to resolve user identity: {e}")
+                return {"status": "error", "message": "Failed to resolve user identity"}
 
         if not user:
              logger.warning(f"Could not resolve user for {source} sender {sender_id}")

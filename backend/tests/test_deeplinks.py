@@ -9,32 +9,26 @@ Comprehensive test suite for deep link functionality including:
 - REST API endpoints
 """
 
-import pytest
 import uuid
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
+from core.database import SessionLocal
 from core.deeplinks import (
-    parse_deep_link,
-    execute_deep_link,
-    execute_agent_deep_link,
-    execute_workflow_deep_link,
-    execute_canvas_deep_link,
-    execute_tool_deep_link,
-    generate_deep_link,
     DeepLink,
     DeepLinkParseException,
-    DeepLinkSecurityException
+    DeepLinkSecurityException,
+    execute_agent_deep_link,
+    execute_canvas_deep_link,
+    execute_deep_link,
+    execute_tool_deep_link,
+    execute_workflow_deep_link,
+    generate_deep_link,
+    parse_deep_link,
 )
-from core.models import (
-    AgentRegistry,
-    AgentExecution,
-    DeepLinkAudit,
-    BrowserSession
-)
-from core.database import SessionLocal
-
+from core.models import AgentExecution, AgentRegistry, BrowserSession, DeepLinkAudit
 
 # ============================================================================
 # Fixtures

@@ -1,6 +1,17 @@
 """
 Device Automation Tool
 
+**✅ REAL IMPLEMENTATION (WebSocket-based)**
+
+This module provides REAL device communication via WebSocket to React Native mobile apps.
+No longer using mock implementations - all device functions communicate with actual devices.
+
+Architecture:
+- Backend (FastAPI) <--WebSocket--> Mobile App (React Native + Socket.IO)
+- Devices connect via WebSocket and register their capabilities
+- Server sends commands (camera, location, etc.) and receives real results
+- Connection tracking and heartbeat monitoring
+
 Provides device hardware access for AI agents:
 - Camera capture (snap/clip)
 - Screen recording (start/stop)
@@ -16,24 +27,37 @@ Governance Integration:
 - Agent execution tracking for all device sessions
 """
 
-import logging
-import uuid
 import asyncio
 import json
-from typing import Optional, Dict, Any, List
+import logging
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.models import (
-    DeviceSession, DeviceAudit, AgentExecution, User, DeviceNode
-)
-from core.agent_governance_service import AgentGovernanceService
 from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
 
 logger = logging.getLogger(__name__)
 
+# Import WebSocket communication
+try:
+    from api.device_websocket import (
+        get_connected_devices_info,
+        is_device_online,
+        send_device_command,
+    )
+    WEBSOCKET_AVAILABLE = True
+    logger.info("Device WebSocket module loaded - real device communication enabled")
+except ImportError as e:
+    WEBSOCKET_AVAILABLE = False
+    logger.warning(f"Device WebSocket module not available: {e}")
+    logger.warning("Device functions will fail with connection error")
+
 # Feature flags
 import os
+
 DEVICE_GOVERNANCE_ENABLED = os.getenv("DEVICE_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
@@ -303,21 +327,36 @@ async def device_camera_snap(
             }
 
     try:
-        # Get device node
-        device = db.query(DeviceNode).filter(
-            DeviceNode.device_id == device_node_id
-        ).first()
+        # Check WebSocket availability
+        if not WEBSOCKET_AVAILABLE:
+            raise ValueError("Device WebSocket module not available. Cannot communicate with devices.")
 
-        if not device:
-            raise ValueError(f"Device {device_node_id} not found")
+        # Check if device is online
+        if not is_device_online(device_node_id):
+            raise ValueError(
+                f"Device {device_node_id} is not currently connected. "
+                "Please ensure the mobile app is running and connected via WebSocket."
+            )
 
-        # TODO: Send WebSocket command to device
-        # This will be implemented when Tauri integration is complete
-        # For now, return a mock response
+        # Send WebSocket command to device
+        response = await send_device_command(
+            device_node_id=device_node_id,
+            command="camera_snap",
+            params={
+                "camera_id": camera_id or "default",
+                "resolution": resolution,
+                "save_path": save_path
+            },
+            db=db
+        )
+
+        if not response.get("success"):
+            raise ValueError(response.get("error", "Camera capture failed on device"))
 
         result = {
             "success": True,
-            "file_path": save_path or f"/tmp/camera_{uuid.uuid4()}.jpg",
+            "file_path": response.get("file_path"),
+            "base64_data": response.get("data", {}).get("base64_data"),
             "resolution": resolution,
             "camera_id": camera_id or "default",
             "captured_at": datetime.now().isoformat()
@@ -465,8 +504,33 @@ async def device_screen_record_start(
         db.add(db_session)
         db.commit()
 
-        # TODO: Send WebSocket command to device to start recording
-        # This will be implemented when Tauri integration is complete
+        # Send WebSocket command to device to start recording
+        if WEBSOCKET_AVAILABLE:
+            try:
+                response = await send_device_command(
+                    device_node_id=device_node_id,
+                    command="screen_record_start",
+                    params={
+                        "session_id": session["session_id"],
+                        "duration_seconds": duration_seconds or max_duration,
+                        "audio_enabled": audio_enabled,
+                        "resolution": resolution,
+                        "output_format": output_format
+                    },
+                    db=db
+                )
+
+                if not response.get("success"):
+                    # Update session status to failed
+                    db_session.status = "failed"
+                    db.commit()
+                    raise ValueError(response.get("error", "Screen recording start failed on device"))
+
+            except ValueError as e:
+                # Update session status to failed
+                db_session.status = "failed"
+                db.commit()
+                raise
 
         result = {
             "success": True,
@@ -557,8 +621,30 @@ async def device_screen_record_stop(
         if session["user_id"] != user_id:
             raise ValueError(f"Session {session_id} does not belong to user {user_id}")
 
-        # TODO: Send WebSocket command to device to stop recording
-        # This will be implemented when Tauri integration is complete
+        # Send WebSocket command to device to stop recording
+        file_path = None
+        duration_seconds = 0
+
+        if WEBSOCKET_AVAILABLE:
+            try:
+                response = await send_device_command(
+                    device_node_id=session["device_node_id"],
+                    command="screen_record_stop",
+                    params={
+                        "session_id": session_id
+                    },
+                    db=db
+                )
+
+                if response.get("success"):
+                    file_path = response.get("file_path")
+                    duration_seconds = response.get("data", {}).get("duration_seconds", 0)
+                else:
+                    raise ValueError(response.get("error", "Screen recording stop failed on device"))
+
+            except ValueError as e:
+                logger.error(f"Failed to stop screen recording: {e}")
+                # Continue to close session even if stop command fails
 
         # Close session
         session_manager.close_session(session_id)
@@ -576,8 +662,8 @@ async def device_screen_record_stop(
         result = {
             "success": True,
             "session_id": session_id,
-            "file_path": f"/tmp/recording_{session_id}.mp4",
-            "duration_seconds": (datetime.now() - session["created_at"]).total_seconds(),
+            "file_path": file_path or f"/tmp/recording_{session_id}.mp4",
+            "duration_seconds": duration_seconds or (datetime.now() - session["created_at"]).total_seconds(),
             "stopped_at": datetime.now().isoformat()
         }
 
@@ -650,25 +736,38 @@ async def device_get_location(
             }
 
     try:
-        # Get device node
-        device = db.query(DeviceNode).filter(
-            DeviceNode.device_id == device_node_id
-        ).first()
+        # Check WebSocket availability
+        if not WEBSOCKET_AVAILABLE:
+            raise ValueError("Device WebSocket module not available. Cannot communicate with devices.")
 
-        if not device:
-            raise ValueError(f"Device {device_node_id} not found")
+        # Check if device is online
+        if not is_device_online(device_node_id):
+            raise ValueError(
+                f"Device {device_node_id} is not currently connected. "
+                "Please ensure the mobile app is running and connected via WebSocket."
+            )
 
-        # TODO: Send WebSocket command to device
-        # This will be implemented when Tauri integration is complete
-        # For now, return a mock response
+        # Send WebSocket command to device
+        response = await send_device_command(
+            device_node_id=device_node_id,
+            command="get_location",
+            params={
+                "accuracy": accuracy
+            },
+            db=db
+        )
 
+        if not response.get("success"):
+            raise ValueError(response.get("error", "Get location failed on device"))
+
+        location_data = response.get("data", {})
         result = {
             "success": True,
-            "latitude": 37.7749,  # Mock: San Francisco
-            "longitude": -122.4194,
+            "latitude": location_data.get("latitude"),
+            "longitude": location_data.get("longitude"),
             "accuracy": accuracy,
-            "altitude": None,
-            "timestamp": datetime.now().isoformat()
+            "altitude": location_data.get("altitude"),
+            "timestamp": location_data.get("timestamp", datetime.now().isoformat())
         }
 
         # Create audit entry
@@ -759,16 +858,32 @@ async def device_send_notification(
             }
 
     try:
-        # Get device node
-        device = db.query(DeviceNode).filter(
-            DeviceNode.device_id == device_node_id
-        ).first()
+        # Check WebSocket availability
+        if not WEBSOCKET_AVAILABLE:
+            raise ValueError("Device WebSocket module not available. Cannot communicate with devices.")
 
-        if not device:
-            raise ValueError(f"Device {device_node_id} not found")
+        # Check if device is online
+        if not is_device_online(device_node_id):
+            raise ValueError(
+                f"Device {device_node_id} is not currently connected. "
+                "Please ensure the mobile app is running and connected via WebSocket."
+            )
 
-        # TODO: Send WebSocket command to device
-        # This will be implemented when Tauri integration is complete
+        # Send WebSocket command to device
+        response = await send_device_command(
+            device_node_id=device_node_id,
+            command="send_notification",
+            params={
+                "title": title,
+                "body": body,
+                "icon": icon,
+                "sound": sound
+            },
+            db=db
+        )
+
+        if not response.get("success"):
+            raise ValueError(response.get("error", "Send notification failed on device"))
 
         result = {
             "success": True,
@@ -903,15 +1018,39 @@ async def device_execute_command(
         if timeout_seconds > 300:  # 5 minutes max
             raise ValueError(f"Timeout {timeout_seconds}s exceeds maximum 300s")
 
-        # TODO: Send WebSocket command to device
-        # This will be implemented when Tauri integration is complete
-        # For now, return a mock response
+        # Check WebSocket availability
+        if not WEBSOCKET_AVAILABLE:
+            raise ValueError("Device WebSocket module not available. Cannot communicate with devices.")
 
+        # Check if device is online
+        if not is_device_online(device_node_id):
+            raise ValueError(
+                f"Device {device_node_id} is not currently connected. "
+                "Please ensure the mobile app is running and connected via WebSocket."
+            )
+
+        # Send WebSocket command to device
+        response = await send_device_command(
+            device_node_id=device_node_id,
+            command="execute_command",
+            params={
+                "command": command,
+                "working_dir": working_dir,
+                "timeout_seconds": timeout_seconds,
+                "environment": environment
+            },
+            db=db
+        )
+
+        if not response.get("success"):
+            raise ValueError(response.get("error", "Command execution failed on device"))
+
+        command_data = response.get("data", {})
         result = {
             "success": True,
-            "exit_code": 0,
-            "stdout": f"Mock output for: {command}",
-            "stderr": "",
+            "exit_code": command_data.get("exit_code", 0),
+            "stdout": command_data.get("stdout", ""),
+            "stderr": command_data.get("stderr", ""),
             "command": command,
             "working_dir": working_dir,
             "timeout_seconds": timeout_seconds,

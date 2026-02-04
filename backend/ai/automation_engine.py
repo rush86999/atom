@@ -1,16 +1,17 @@
 import asyncio
 import json
 import logging
-import uuid
 import os
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
+from services.agent_service import agent_service
+
+from core.oauth_handler import SLACK_OAUTH_CONFIG
 from integrations.gmail_service import get_gmail_service
 from integrations.slack_enhanced_service import SlackEnhancedService
-from services.agent_service import agent_service
-from core.oauth_handler import SLACK_OAUTH_CONFIG
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

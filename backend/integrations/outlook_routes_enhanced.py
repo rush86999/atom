@@ -3,21 +3,20 @@ Enhanced Outlook API Routes with Comprehensive Microsoft Graph API Integration
 Complete enterprise-grade Outlook integration for the ATOM platform
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, timedelta
-import logging
 import asyncio
-
+import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from outlook_service_enhanced import (
-    OutlookEnhancedService,
-    OutlookEmail,
     OutlookCalendarEvent,
     OutlookContact,
-    OutlookTask,
+    OutlookEmail,
+    OutlookEnhancedService,
     OutlookFolder,
+    OutlookTask,
 )
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

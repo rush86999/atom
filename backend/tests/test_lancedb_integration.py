@@ -4,10 +4,10 @@ Test script for LanceDB integration in Atom personal assistant.
 This script tests the complete LanceDB functionality including document storage and retrieval.
 """
 
-import os
-import sys
 import asyncio
 import logging
+import os
+import sys
 from datetime import datetime, timezone
 
 # Add the backend directory to the path
@@ -27,12 +27,12 @@ async def test_lancedb_integration():
     try:
         # Import the LanceDB handler
         from lancedb_handler import (
-            get_lancedb_connection,
-            create_generic_document_tables_if_not_exist,
             add_processed_document,
-            search_documents,
+            create_generic_document_tables_if_not_exist,
+            delete_document,
             get_document_stats,
-            delete_document
+            get_lancedb_connection,
+            search_documents,
         )
 
         # Set test environment
@@ -177,9 +177,9 @@ async def test_document_processor_integration():
     print("\n🧪 Testing Document Processor Integration...")
 
     try:
-        from document_processor import process_document_and_store
-        import tempfile
         import os
+        import tempfile
+        from document_processor import process_document_and_store
 
         # Create a test document in a temporary file
         test_content = """

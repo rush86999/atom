@@ -1,7 +1,7 @@
-from typing import List, Optional, Dict, Any
+import os
 import time
 from datetime import datetime
-import os
+from typing import Any, Dict, List, Optional
 
 # Make psutil optional for system monitoring
 try:

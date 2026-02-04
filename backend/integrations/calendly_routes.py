@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 try:
     from .calendly_service import get_calendly_service

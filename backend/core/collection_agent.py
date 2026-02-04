@@ -1,9 +1,10 @@
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
-from core.database import SessionLocal
+from typing import Any, Dict, List
 from accounting.models import Invoice, InvoiceStatus
+
 from core.communication_intelligence import CommunicationIntelligenceService
+from core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class CollectionAgent:
         """
         Scans for overdue invoices and triggers appropriate collection actions.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             overdue_invoices = (
                 db.query(Invoice)

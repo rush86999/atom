@@ -1,12 +1,14 @@
 
-import sys
-import os
 import logging
+import os
+import sys
+
 # Add parent directory to path to import core modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from core.database import engine, Base
+from core.database import Base, engine
 from core.models import User, UserStatus
+
 # Import other models if needed to ensure they are registered with Base
 # from core.workflow_models import ... 
 

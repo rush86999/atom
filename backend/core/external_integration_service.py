@@ -1,6 +1,7 @@
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from integrations.bridge.node_bridge_service import node_bridge
 
 logger = logging.getLogger(__name__)

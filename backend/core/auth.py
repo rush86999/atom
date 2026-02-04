@@ -1,18 +1,19 @@
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Union, Any
-from jose import jwt, JWTError
-
+from typing import Any, Dict, Optional, Union
 import bcrypt
+from jose import JWTError, jwt
+
 BCRYPT_AVAILABLE = True
 
-from fastapi import Depends, HTTPException, status, Request
+import logging
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+
 from core.database import get_db
 from core.models import User
-import logging
 
 # Configuration
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password using bcrypt"""
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
@@ -47,7 +48,7 @@ def verify_password(plain_password, hashed_password):
         logger.error(f"Error in verify_password: {e}")
         return False
 
-def get_password_hash(password):
+def get_password_hash(password: str) -> str:
     """Hash password using bcrypt"""
     if isinstance(password, str):
         # Encode to bytes, truncate to 71 bytes (safe margin)
@@ -57,7 +58,7 @@ def get_password_hash(password):
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -74,7 +75,7 @@ async def get_current_user(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
+) -> User:
     """
     Get current user from Bearer token OR NextAuth session cookie
     """
@@ -118,7 +119,7 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-async def get_current_user_ws(token: str, db: Session):
+async def get_current_user_ws(token: str, db: Session) -> Optional[User]:
     """Get user from token for WebSocket connections"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -129,6 +130,28 @@ async def get_current_user_ws(token: str, db: Session):
     except JWTError:
         return None
 
+def decode_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Decode and verify JWT token.
+
+    Returns the token payload if valid, None otherwise.
+    This is a synchronous version for use in non-async contexts.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError as e:
+        logger.warning(f"Failed to decode token: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error decoding token: {e}")
+        return None
+
 def generate_satellite_key() -> str:
-    """Generate a secure Satellite API Key (sk-...)"""
+    """
+    Generate a secure Satellite API Key (sk-...)
+
+    Returns:
+        str: A securely generated API key
+    """
     return f"sk-{secrets.token_hex(24)}"

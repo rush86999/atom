@@ -1,15 +1,19 @@
-import logging
 import json
-from typing import Dict, Any, List
-from sqlalchemy.orm import Session
-from sales.models import Deal, CallTranscript, FollowUpTask
+import logging
+from typing import Any, Dict, List
+from sales.models import CallTranscript, Deal, FollowUpTask
 from sales.objection_service import ObjectionService
+from sqlalchemy.orm import Session
+
 from core.automation_settings import get_automation_settings
 
 logger = logging.getLogger(__name__)
 
 try:
-    from integrations.atom_communication_ingestion_pipeline import ingestion_pipeline, CommunicationAppType
+    from integrations.atom_communication_ingestion_pipeline import (
+        CommunicationAppType,
+        ingestion_pipeline,
+    )
     INGESTION_AVAILABLE = True
 except ImportError:
     INGESTION_AVAILABLE = False

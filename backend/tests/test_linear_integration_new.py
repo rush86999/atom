@@ -3,9 +3,10 @@
 Test Linear Integration
 """
 
-import requests
 import json
 import sys
+import requests
+
 
 def test_linear_health():
     """Test Linear health endpoint"""

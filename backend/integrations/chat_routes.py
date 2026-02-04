@@ -3,24 +3,23 @@ Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
 import os
-from typing import Any, Dict, Optional
-
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
 # Add parent directory to path to import from backend
 import sys
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()

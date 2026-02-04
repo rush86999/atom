@@ -1,10 +1,11 @@
-import sys
-import asyncio
 import argparse
+import asyncio
+import sys
 from pathlib import Path
-from atom_security.analyzers.static import StaticAnalyzer
 from atom_security.analyzers.llm import LLMAnalyzer
+from atom_security.analyzers.static import StaticAnalyzer
 from atom_security.core.models import Severity
+
 
 async def run_scan(args):
     target_path = Path(args.path)

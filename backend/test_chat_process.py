@@ -5,9 +5,10 @@ Run with: python test_chat_process.py
 """
 
 import asyncio
-import sys
-import os
 import logging
+import os
+import sys
+
 logging.basicConfig(level=logging.DEBUG)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

@@ -8,20 +8,15 @@ Tests for governance integration with device capabilities including:
 - Audit trail creation
 """
 
-import pytest
 import uuid
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
+import pytest
 from sqlalchemy.orm import Session
 
-from core.models import DeviceNode, DeviceAudit, AgentRegistry, User, AgentStatus
 from core.agent_governance_service import AgentGovernanceService
-from tools.device_tool import (
-    device_camera_snap,
-    device_screen_record_start,
-    device_execute_command,
-)
-
+from core.models import AgentRegistry, AgentStatus, DeviceAudit, DeviceNode, User
+from tools.device_tool import device_camera_snap, device_execute_command, device_screen_record_start
 
 # ============================================================================
 # Fixtures
@@ -461,6 +456,7 @@ class TestDeviceFeatureFlags:
 
                 # Reload the module to pick up the env var
                 import importlib
+
                 import tools.device_tool
                 importlib.reload(tools.device_tool)
 

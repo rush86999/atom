@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
-from core.database import SessionLocal
-from service_delivery.models import Project, ProjectTask, Milestone
+from typing import Any, Dict, Optional
+from service_delivery.models import Milestone, Project, ProjectTask
+
+from core.database import get_db_session
 from core.workforce_analytics import WorkforceAnalyticsService
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class TimelinePredictionService:
         """
         Estimates the completion date for a project.
         """
-        db = self.db or SessionLocal()
+        db = self.db or get_db_session()
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:

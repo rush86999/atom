@@ -20,7 +20,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
-
 import psycopg2
 import requests
 from flask import Blueprint, current_app, jsonify, request
@@ -726,6 +725,7 @@ def _process_incoming_message(message: Dict[str, Any]):
         # Phase 2: Route to Universal Webhook Bridge
         try:
             from integrations.universal_webhook_bridge import universal_webhook_bridge
+
             # Handle in background using asyncio if in an async context, 
             # or just call if it's sync. WhatsApp BP is sync (Flask).
             # We need to bridge to async.

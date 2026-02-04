@@ -4,11 +4,11 @@ Targeted Privacy Cleanup
 Clean specific important files for public repository
 """
 
+import json
 import os
 import sys
-import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 print("🔒 TARGETED PRIVACY CLEANUP")
 print("=" * 80)

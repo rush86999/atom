@@ -4,13 +4,13 @@ Comprehensive Asana Integration Test Script
 Tests all Asana endpoints and functionality
 """
 
+import json
+import logging
 import os
 import sys
 import time
-import requests
-import json
-import logging
 from datetime import datetime, timedelta
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -570,12 +570,7 @@ def test_service_imports():
 
                 print_success(f"✅ {module_name} imported successfully")
             elif module_name == "db_oauth_asana":
-                from db_oauth_asana import (
-                    store_tokens,
-                    get_tokens,
-                    update_tokens,
-                    delete_tokens,
-                )
+                from db_oauth_asana import delete_tokens, get_tokens, store_tokens, update_tokens
 
                 print_success(f"✅ {module_name} imported successfully")
         except ImportError as e:
@@ -599,14 +594,7 @@ def test_asana_package_availability():
         print_success(f"Asana Python SDK available (version: {version})")
 
         # Test key imports
-        from asana.api import (
-            TasksApi,
-            ProjectsApi,
-            WorkspacesApi,
-            UsersApi,
-            TeamsApi,
-            SectionsApi,
-        )
+        from asana.api import ProjectsApi, SectionsApi, TasksApi, TeamsApi, UsersApi, WorkspacesApi
         from asana.api_client import ApiClient
         from asana.configuration import Configuration
 

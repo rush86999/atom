@@ -1,6 +1,7 @@
 import os
 import string
 
+
 def sanitize_env_file(file_path):
     try:
         print(f"Sanitizing {file_path}...")

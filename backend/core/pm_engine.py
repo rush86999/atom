@@ -1,17 +1,18 @@
-import logging
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+from service_delivery.models import Milestone, MilestoneStatus, Project, ProjectStatus, ProjectTask
 from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from service_delivery.models import Project, Milestone, ProjectTask, ProjectStatus, MilestoneStatus
+
+from core.ai_service import get_ai_service
+from core.database import get_db_session
 from core.graphrag_engine import graphrag_engine
 from core.knowledge_extractor import KnowledgeExtractor
-from core.ai_service import get_ai_service
-from core.workforce_analytics import WorkforceAnalyticsService
-from core.resource_reasoning import ResourceReasoningEngine
 from core.pm_swarm import AutonomousBusinessSwarm
+from core.resource_reasoning import ResourceReasoningEngine
+from core.workforce_analytics import WorkforceAnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class AIProjectManager:
             # Assuming nlu_result contains the parsed JSON
             project_data = response.get("nlu_result", response)
             
-            db = self.db_session or SessionLocal()
+            db = self.db_session or get_db_session()
             try:
                 # 0. Calculate Workspace Bias for duration adjustment
                 ws_bias = self.analytics.calculate_estimation_bias(workspace_id)
@@ -130,7 +131,7 @@ class AIProjectManager:
         """
         logger.info(f"Inferring status for project {project_id}")
         
-        db = self.db_session or SessionLocal()
+        db = self.db_session or get_db_session()
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
@@ -179,7 +180,7 @@ class AIProjectManager:
         """
         Detects schedule slips and budget risks.
         """
-        db = self.db_session or SessionLocal()
+        db = self.db_session or get_db_session()
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
@@ -235,7 +236,7 @@ class AIProjectManager:
         """
         logger.info(f"Auto-assigning resources for project {project_id}")
         
-        db = self.db_session or SessionLocal()
+        db = self.db_session or get_db_session()
         try:
             tasks = db.query(ProjectTask).filter(ProjectTask.project_id == project_id).all()
             assignments = []

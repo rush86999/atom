@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Dict, Any, List, Optional
-from core.database import get_db
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from core.database import get_db
 from core.resource_manager import resource_monitor
 from core.staffing_advisor import staffing_advisor
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/resources", tags=["Resource Management"])
 

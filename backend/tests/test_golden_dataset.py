@@ -3,8 +3,8 @@ import asyncio
 import json
 import os
 import sys
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
 # Fix path
 sys.path.append(os.path.join(os.getcwd(), 'backend'))
@@ -17,6 +17,7 @@ sys.modules['zhipuai'] = MagicMock()
 sys.modules['instructor'] = MagicMock()
 
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+
 
 def load_golden_cases():
     dataset_dir = os.path.join(os.getcwd(), 'backend', 'tests', 'golden_dataset')
@@ -73,7 +74,7 @@ async def test_golden_case_execution(case):
     # Clean output fragment for the mock to return
     # (The test case expectation is the truth, we want the LLM to provide it)
     from enhanced_ai_workflow_endpoints import AgentStep, FinalAnswer
-    
+
     # Create the "Correct" LLM response object
     # SIMULATION LOGIC:
     # If we are testing the "Bad Trace" scenario (ID: bad_trace_simulation),

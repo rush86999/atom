@@ -1,0 +1,19 @@
+{
+  "workflow_id": "workflow_002",
+  "name": "Email Campaign",
+  "description": "Marketing email automation",
+  "state": "completed",
+  "category": "marketing",
+  "tags": [
+    "automation",
+    "email"
+  ],
+  "created_at": "2026-02-01T03:13:19.822664+00:00",
+  "updated_at": "2026-02-02T03:13:19.822664+00:00",
+  "steps": [
+    {
+      "step_id": "step1"
+    }
+  ],
+  "saved_at": "2026-02-01T22:13:19.822978"
+}

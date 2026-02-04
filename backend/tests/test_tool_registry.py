@@ -4,10 +4,10 @@ Unit tests for Tool Registry system.
 Tests tool discovery, metadata management, and the tool discovery API.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+import pytest
 
-from tools.registry import ToolRegistry, ToolMetadata, get_tool_registry
+from tools.registry import ToolMetadata, ToolRegistry, get_tool_registry
 
 
 class TestToolMetadata:

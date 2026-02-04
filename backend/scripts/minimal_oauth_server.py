@@ -4,9 +4,10 @@ SIMPLIFIED OAUTH SERVER
 Minimal working OAuth server for immediate startup
 """
 
-import os
 import json
+import os
 from flask import Flask, jsonify, request
+
 
 def create_minimal_oauth_server():
     """Create minimal OAuth server"""

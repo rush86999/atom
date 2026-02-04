@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import sys
-import os
-import time
-import signal
 import importlib
+import os
+import signal
+import sys
+import time
 
 print("=" * 60, flush=True)
 print("🔍 DEBUG CI IMPORTS: START", flush=True)
@@ -51,7 +51,7 @@ print("\n--- TEST: Core Database ---")
 try:
     db_module = debug_import("core.database")
     # Verify the Engine URL
-    from core.database import engine, DATABASE_URL
+    from core.database import DATABASE_URL, engine
     print(f"   -> core.database.DATABASE_URL = {DATABASE_URL}")
     print(f"   -> engine.url = {engine.url}")
     

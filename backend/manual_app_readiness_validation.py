@@ -5,8 +5,11 @@ Comprehensive assessment of implemented features
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class AppReadinessValidator:
     def __init__(self):
@@ -115,75 +118,75 @@ class AppReadinessValidator:
         return report
 
 def main():
-    print("=" * 80)
-    print("ATOM Application Readiness - Manual Validation")
-    print("=" * 80)
-    print()
-    
+    logger.info("=" * 80)
+    logger.info("ATOM Application Readiness - Manual Validation")
+    logger.info("=" * 80)
+    logger.info("")
+
     validator = AppReadinessValidator()
-    
-    print("Running comprehensive feature validation...")
-    print()
-    
+
+    logger.info("Running comprehensive feature validation...")
+    logger.info("")
+
     results = validator.run_validation()
-    
+
     for i, result in enumerate(results, 1):
-        print(f"[{i}/{len(results)}] {result['feature']}")
-        print(f"    Score: {result['score']:.1%} ({result['passed_checks']}/{result['total_checks']} checks passed)")
-        print(f"    Status: {result['status']}")
-        print()
-    
+        logger.info(f"[{i}/{len(results)}] {result['feature']}")
+        logger.info(f"    Score: {result['score']:.1%} ({result['passed_checks']}/{result['total_checks']} checks passed)")
+        logger.info(f"    Status: {result['status']}")
+        logger.info("")
+
     report = validator.generate_report()
-    
-    print("=" * 80)
-    print("VALIDATION SUMMARY")
-    print("=" * 80)
-    print()
-    print(f"Overall Readiness: {report['overall_percentage']} ({report['readiness_status']})")
-    print(f"Total Checks: {report['passed_checks']}/{report['total_checks']} passed")
-    print()
-    
-    print(f"✓ Excellent (>90%): {len(report['summary']['excellent'])} features")
+
+    logger.info("=" * 80)
+    logger.info("VALIDATION SUMMARY")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info(f"Overall Readiness: {report['overall_percentage']} ({report['readiness_status']})")
+    logger.info(f"Total Checks: {report['passed_checks']}/{report['total_checks']} passed")
+    logger.info("")
+
+    logger.info(f"✓ Excellent (>90%): {len(report['summary']['excellent'])} features")
     for feature in report['summary']['excellent']:
-        print(f"  • {feature['feature']}")
-    print()
-    
-    print(f"⚠ Good (70-90%): {len(report['summary']['good'])} features")
+        logger.info(f"  • {feature['feature']}")
+    logger.info("")
+
+    logger.info(f"⚠ Good (70-90%): {len(report['summary']['good'])} features")
     for feature in report['summary']['good']:
-        print(f"  • {feature['feature']}")
-    print()
-    
-    print(f"✗ Needs Work (<70%): {len(report['summary']['needs_work'])} features")
+        logger.info(f"  • {feature['feature']}")
+    logger.info("")
+
+    logger.info(f"✗ Needs Work (<70%): {len(report['summary']['needs_work'])} features")
     for feature in report['summary']['needs_work']:
-        print(f"  • {feature['feature']}")
-    print()
-    
+        logger.info(f"  • {feature['feature']}")
+    logger.info("")
+
     # Save report
     report_path = Path(f"/home/developer/projects/atom/atom/backend/manual_app_readiness_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2)
-    
-    print(f"✓ Detailed report saved to: {report_path}")
-    print()
-    
+
+    logger.info(f"✓ Detailed report saved to: {report_path}")
+    logger.info("")
+
     # Final assessment
-    print("=" * 80)
-    print("FINAL ASSESSMENT")
-    print("=" * 80)
-    print()
-    
+    logger.info("=" * 80)
+    logger.info("FINAL ASSESSMENT")
+    logger.info("=" * 80)
+    logger.info("")
+
     if report['overall_score'] >= 0.8:
-        print("✅ APPLICATION IS READY FOR PRODUCTION")
-        print("   All core features are implemented and functional.")
-        print("   Ready for real-world integration.")
+        logger.info("✅ APPLICATION IS READY FOR PRODUCTION")
+        logger.info("   All core features are implemented and functional.")
+        logger.info("   Ready for real-world integration.")
         return 0
     elif report['overall_score'] >= 0.6:
-        print("⚠️  APPLICATION IS MOSTLY READY")
-        print("   Minor improvements recommended.")
+        logger.warning("⚠️  APPLICATION IS MOSTLY READY")
+        logger.warning("   Minor improvements recommended.")
         return 0
     else:
-        print("❌ APPLICATION NEEDS WORK")
-        print("   Critical features missing or not functional.")
+        logger.error("❌ APPLICATION NEEDS WORK")
+        logger.error("   Critical features missing or not functional.")
         return 1
 
 if __name__ == "__main__":

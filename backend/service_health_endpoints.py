@@ -4,13 +4,13 @@ Service Health Endpoints for Integration Validation
 Provides mock/demonstration endpoints for third-party service health checks
 """
 
+import asyncio
+import logging
+import random
+import time
+from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List
-import asyncio
-import time
-import random
-import logging
 
 logger = logging.getLogger(__name__)
 
