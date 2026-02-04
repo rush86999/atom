@@ -303,8 +303,8 @@ class EvidenceCollectionFramework:
                     try:
                         __import__(f"integrations.{module}_routes")
                         available_integrations += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Integration module {module} not available: {e}")
 
                 integration_tests["available_integrations"] = available_integrations
                 integration_tests["total_integration_modules"] = len(integration_modules)

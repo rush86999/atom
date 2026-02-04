@@ -297,8 +297,8 @@ class BrowserAgent:
             # Ensure context closed cleanly
             try:
                 await context.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error closing browser context: {e}")
 
     async def _capture_state(self, page: Page) -> Dict[str, Any]:
         """

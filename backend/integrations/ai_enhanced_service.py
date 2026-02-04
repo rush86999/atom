@@ -21,57 +21,65 @@ import httpx
 # import pandas as pd
 # import numpy as np
 
-# Import existing ATOM services
-# Import existing ATOM services - DISABLED TO PREVENT CRASH
-# try:
-#     from atom_memory_service import AtomMemoryService
-# except ImportError as e:
-#     logging.warning(f"AtomMemoryService not available: {e}")
-#
-# try:
-#     from atom_search_service import AtomSearchService
-# except ImportError as e:
-#     logging.warning(f"AtomSearchService not available: {e}")
-#
-# try:
-#     from atom_workflow_service import AtomWorkflowService
-# except ImportError as e:
-#     logging.warning(f"AtomWorkflowService not available: {e}")
-#
-# try:
-#     from atom_ingestion_pipeline import AtomIngestionPipeline
-# except ImportError as e:
-#     logging.warning(f"AtomIngestionPipeline not available: {e}")
-#
-# try:
-#     from atom_slack_integration import atom_slack_integration
-# except ImportError as e:
-#     logging.warning(f"atom_slack_integration not available: {e}")
-#
-# try:
-#     from atom_teams_integration import atom_teams_integration
-# except ImportError as e:
-#     logging.warning(f"atom_teams_integration not available: {e}")
-#
-# try:
-#     from atom_google_chat_integration import atom_google_chat_integration
-# except ImportError as e:
-#     logging.warning(f"atom_google_chat_integration not available: {e}")
-#
-# try:
-#     from atom_discord_integration import atom_discord_integration
-# except ImportError as e:
-#     logging.warning(f"atom_discord_integration not available: {e}")
-
-# try:
-#     from core.byok_endpoints import get_byok_manager
-# except ImportError as e:
-#     logging.warning(f"get_byok_manager not available: {e}")
-#     def get_byok_manager(): return None
-def get_byok_manager(): return None
-
-# Configure logging
+# Configure logging FIRST before using logger
 logger = logging.getLogger(__name__)
+
+# Import existing ATOM services (all optional)
+try:
+    from atom_memory_service import AtomMemoryService
+except ImportError:
+    logger.debug("AtomMemoryService not available - memory features will be limited")
+    AtomMemoryService = None
+
+try:
+    from atom_search_service import AtomSearchService
+except ImportError:
+    logger.debug("AtomSearchService not available - search features will be limited")
+    AtomSearchService = None
+
+try:
+    from atom_workflow_service import AtomWorkflowService
+except ImportError:
+    logger.debug("AtomWorkflowService not available - workflow features will be limited")
+    AtomWorkflowService = None
+
+try:
+    from atom_ingestion_pipeline import AtomIngestionPipeline
+except ImportError:
+    logger.debug("AtomIngestionPipeline not available - ingestion features will be limited")
+    AtomIngestionPipeline = None
+
+try:
+    from atom_slack_integration import atom_slack_integration
+except ImportError:
+    logger.debug("atom_slack_integration not available")
+    atom_slack_integration = None
+
+try:
+    from atom_teams_integration import atom_teams_integration
+except ImportError:
+    logger.debug("atom_teams_integration not available")
+    atom_teams_integration = None
+
+try:
+    from atom_google_chat_integration import atom_google_chat_integration
+except ImportError:
+    logger.debug("atom_google_chat_integration not available")
+    atom_google_chat_integration = None
+
+try:
+    from atom_discord_integration import atom_discord_integration
+except ImportError:
+    logger.debug("atom_discord_integration not available")
+    atom_discord_integration = None
+
+try:
+    from core.byok_endpoints import get_byok_manager
+except ImportError:
+    logger.debug("get_byok_manager not available - using fallback")
+    def get_byok_manager():
+        """Fallback BYOK manager when core module is unavailable"""
+        return None
 
 class AIModelType(Enum):
     """AI model types"""
