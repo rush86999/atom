@@ -55,6 +55,8 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 - **Capability Recall**: Agents remember your connected services
 - **Unified Index**: Search emails, docs, tickets, and Slack instantly
 - **Knowledge Graph**: Understands relationships, not just keywords
+- **Episodic Memory**: Agents learn from past experiences with automatic segmentation
+- **Graduation Validation**: Promote agents only when they demonstrate reliable performance
 - **Privacy First**: API keys and PII automatically encrypted
 
 ### 🛡️ Agent Governance System
@@ -119,6 +121,7 @@ Access at: **http://localhost:3000**
 ✅ 46+ pre-built integrations
 ✅ Multi-platform communication bridge (12+ platforms)
 ✅ Agent governance and maturity system
+✅ Episodic memory and graduation framework
 ✅ Memory and knowledge graph
 ✅ Voice interface
 ✅ Docker deployment
@@ -127,7 +130,16 @@ Access at: **http://localhost:3000**
 
 ## Recent Features (February 2026)
 
-### Student Agent Training System ✨ NEW
+### Episodic Memory & Graduation Framework ✨ NEW
+- **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
+- **Hybrid storage architecture**: PostgreSQL (hot data) + LanceDB (cold archives) for efficient scaling
+- **Four retrieval modes**: Temporal (time-based), Semantic (vector search), Sequential (full episodes), Contextual (hybrid)
+- **Graduation validation**: Assess agent readiness using episodic memory before maturity promotions
+- **Constitutional compliance**: Track intervention rates and validate against governance rules
+- **Use cases**: MedScribe (clinical documentation), Brennan.ca (pricing validation), workflow optimization
+- [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
+
+### Student Agent Training System
 - **Maturity-based routing**: Prevents STUDENT agents from automated triggers
 - **AI training proposals**: Personalized learning with duration estimation
 - **Real-time supervision**: Monitor SUPERVISED agents with intervention controls
@@ -153,6 +165,8 @@ Access at: **http://localhost:3000**
 ## Documentation
 
 - [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
+- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Experience-based learning system
+- [Agent Graduation Guide](docs/AGENT_GRADUATION_GUIDE.md) - Promotion validation framework
 - [Student Agent Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity-based routing system
 - [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system details
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
