@@ -534,18 +534,35 @@ class AtomGoogleChatIntegration:
             logger.error(f"Error handling Google Chat space event cross-platform: {e}")
     
     def _get_space_by_id(self, space_id: str) -> Optional[GoogleChatSpace]:
-        """Get Google Chat space by ID"""
+        """
+        Get Google Chat space by ID.
+
+        This method retrieves space information from the active spaces cache.
+        For production use, this should query a database or persistent cache.
+
+        Args:
+            space_id: The Google Chat space ID to retrieve
+
+        Returns:
+            GoogleChatSpace if found, None otherwise
+        """
         try:
-            # This would get from database or cache
-            # For now, return placeholder
-            return GoogleChatSpace(
-                space_id=space_id,
-                name='Google Chat Space',
-                display_name='Google Chat Space',
-                type='SPACE'
-            )
+            # First check the active spaces cache
+            for space in self.active_spaces:
+                if space.space_id == space_id:
+                    return space
+
+            # If not found in cache, try to fetch from the service
+            if self.google_chat_service:
+                # This would call the Google Chat API to get space details
+                # For now, log that the space was not found
+                logger.warning(f"Space {space_id} not found in active spaces cache")
+
+            # Return None if space not found (caller should handle this)
+            return None
+
         except Exception as e:
-            logger.error(f"Error getting Google Chat space by ID: {e}")
+            logger.error(f"Error getting Google Chat space by ID {space_id}: {e}")
             return None
     
     def _convert_google_chat_reactions(self, reactions: List[Dict]) -> List[Dict]:
