@@ -1,15 +1,72 @@
 
+import base64
 import datetime
 import enum
+import hashlib
+import json
 import uuid
 from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Float, ForeignKey, Index, Integer, String, Table, Text
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
+from cryptography.fernet import Fernet
 
 from core.data_visibility import DataVisibility
 from core.database import Base
+
+
+# ============================================================================
+# Token Encryption Helpers
+# ============================================================================
+
+_fernet_instances = {}
+
+def _get_fernet_for_token():
+    """
+    Get or create a Fernet instance for token encryption.
+    Uses the same encryption key pattern as connection_service.py.
+    """
+    global _fernet_instances
+    if 'token' not in _fernet_instances:
+        # Lazy import to avoid circular dependency
+        from core.config import get_config
+        key = get_config().security.encryption_key or get_config().security.secret_key
+        # Fernet key must be 32 url-safe base64-encoded bytes
+        key_bytes = key.encode()
+        key_hash = hashlib.sha256(key_bytes).digest()
+        fernet_key = base64.urlsafe_b64encode(key_hash)
+        _fernet_instances['token'] = Fernet(fernet_key)
+    return _fernet_instances['token']
+
+def _encrypt_token(token: str) -> str:
+    """Encrypt a token string for storage."""
+    if not token:
+        return ""
+    f = _get_fernet_for_token()
+    return f.encrypt(token.encode()).decode()
+
+def _decrypt_token(encrypted_token: str) -> str:
+    """
+    Decrypt a token string from storage.
+    Supports backwards compatibility with plaintext tokens.
+    """
+    if not encrypted_token:
+        return ""
+
+    # If it's already a plaintext token (doesn't look like Fernet output)
+    # Fernet output is base64-encoded and typically 44+ chars starting with 'gAAAA'
+    if not encrypted_token.startswith('gAAAA') and len(encrypted_token) < 40:
+        # Assume plaintext (backwards compatibility)
+        return encrypted_token
+
+    try:
+        f = _get_fernet_for_token()
+        decrypted = f.decrypt(encrypted_token.encode()).decode()
+        return decrypted
+    except Exception:
+        # If decryption fails, return as-is (might be legacy plaintext)
+        return encrypted_token
 
 
 # Enums
@@ -740,6 +797,9 @@ class OAuthToken(Base):
     Stores access tokens, refresh tokens, and metadata for OAuth integrations.
     Supports multiple providers (Google, GitHub, Notion, etc.) with automatic
     token refresh capabilities.
+
+    Security: Access tokens are automatically encrypted at rest using Fernet.
+    Refresh tokens are also encrypted for additional security.
     """
     __tablename__ = "oauth_tokens"
 
@@ -747,9 +807,31 @@ class OAuthToken(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     provider = Column(String, nullable=False, index=True)  # google, github, notion, etc.
 
-    # Token data (access_token should be encrypted in production)
-    access_token = Column(Text, nullable=False)  # TODO: Encrypt at rest
-    refresh_token = Column(Text, nullable=True)  # Some providers don't have refresh tokens
+    # Encrypted token storage (actual database columns)
+    _encrypted_access_token = Column("encrypted_access_token", Text, nullable=True)
+    _encrypted_refresh_token = Column("encrypted_refresh_token", Text, nullable=True)
+
+    # Properties for automatic encryption/decryption
+    @property
+    def access_token(self) -> str:
+        """Get decrypted access token."""
+        return _decrypt_token(self._encrypted_access_token or "")
+
+    @access_token.setter
+    def access_token(self, value: str):
+        """Set encrypted access token."""
+        self._encrypted_access_token = _encrypt_token(value) if value else ""
+
+    @property
+    def refresh_token(self) -> str:
+        """Get decrypted refresh token."""
+        return _decrypt_token(self._encrypted_refresh_token or "")
+
+    @refresh_token.setter
+    def refresh_token(self, value: str):
+        """Set encrypted refresh token."""
+        self._encrypted_refresh_token = _encrypt_token(value) if value else None
+
     token_type = Column(String, default="Bearer")  # Typically "Bearer"
 
     # Token metadata
