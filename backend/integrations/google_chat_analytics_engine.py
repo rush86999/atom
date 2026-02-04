@@ -808,10 +808,15 @@ class GoogleChatAnalyticsEngine:
                 'engagement_score': min(1.0, (result['message_count'] or 0) / 200),  # Normalized score
                 'time_range': time_range.value
             }
-        
+
         except Exception as e:
-            logger.error(f"Error getting user activity summary: {e}")
-            return {}
+            logger.error(f"Error getting user activity summary: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "operation": "get_user_activity_summary"
+            }
     
     async def get_space_activity_report(self, space_id: str, time_range: GoogleChatAnalyticsTimeRange) -> Dict[str, Any]:
         """Get comprehensive activity report for space"""
@@ -903,10 +908,15 @@ class GoogleChatAnalyticsEngine:
                 'engagement_trend': 'stable',  # Would calculate trend
                 'time_range': time_range.value
             }
-        
+
         except Exception as e:
-            logger.error(f"Error getting space activity report: {e}")
-            return {}
+            logger.error(f"Error getting space activity report: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "operation": "get_space_activity_report"
+            }
     
     async def export_analytics_data(self, metric: GoogleChatAnalyticsMetric,
                                  time_range: GoogleChatAnalyticsTimeRange,
