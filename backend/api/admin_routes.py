@@ -411,16 +411,27 @@ async def get_admin_role(
 
 
 @router.post("/roles", response_model=AdminRoleResponse, status_code=status.HTTP_201_CREATED)
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="create_admin_role",
+    feature="admin"
+)
 async def create_admin_role(
     request: CreateAdminRoleRequest,
+    http_request: Request,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Create a new admin role
 
     Creates a new admin role with specified permissions.
     Role names must be unique.
+
+    **Governance**: Agent-based creation requires AUTONOMOUS maturity (CRITICAL).
+    - Admin role creation is a critical action
+    - Requires AUTONOMOUS maturity for agents
     """
     # Check if role name already exists
     existing = db.query(AdminRole).filter(AdminRole.name == request.name).first()
@@ -499,16 +510,27 @@ async def update_admin_role(
 
 
 @router.delete("/roles/{role_id}", response_model=DeleteAdminRoleResponse)
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="delete_admin_role",
+    feature="admin"
+)
 async def delete_admin_role(
     role_id: str,
+    http_request: Request,
     current_admin: User = Depends(require_super_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
 ):
     """
     Delete admin role
 
     Permanently deletes an admin role.
     Fails if the role is currently assigned to any admin users.
+
+    **Governance**: Agent-based deletion requires AUTONOMOUS maturity (CRITICAL).
+    - Admin role deletion is a critical action
+    - Requires AUTONOMOUS maturity for agents
     """
     role = db.query(AdminRole).filter(AdminRole.id == role_id).first()
 

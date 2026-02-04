@@ -28,36 +28,24 @@ class SubscriptionRequest(BaseModel):
     category: str = "general"
 
 @router.post("/cost/subscriptions")
-async def add_subscription(request: SubscriptionRequest, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="add_subscription",
+    feature="financial"
+)
+async def add_subscription(
+    request: SubscriptionRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Add a subscription for cost leak detection.
 
-    **Governance**: Requires INTERN+ maturity for financial data modifications.
+    **Governance**: Requires INTERN+ maturity (MODERATE complexity).
+    - Financial data modification is a moderate action
+    - Requires INTERN maturity or higher
     """
-    # Governance check for financial operations
-    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="add_subscription",
-                resource_type="financial_data",
-                complexity=2  # MODERATE - financial data modification
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for add_subscription by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.financial_ops_engine import SaaSSubscription, cost_detector
 
     sub = SaaSSubscription(
@@ -70,7 +58,7 @@ async def add_subscription(request: SubscriptionRequest, agent_id: Optional[str]
         category=request.category
     )
     cost_detector.add_subscription(sub)
-    logger.info(f"Subscription added: {request.id} by agent {agent_id or 'system'}")
+    logger.info(f"Subscription added: {request.id}")
     return {"status": "added", "id": request.id}
 
 @router.get("/cost/savings-report")
@@ -93,36 +81,24 @@ class SpendCheckRequest(BaseModel):
     milestone: Optional[str] = None
 
 @router.post("/budget/limits")
-async def set_budget_limit(request: BudgetLimitRequest, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="set_budget_limit",
+    feature="financial"
+)
+async def set_budget_limit(
+    request: BudgetLimitRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Set a budget limit for a spending category.
 
-    **Governance**: Requires SUPERVISED+ maturity for budget policy changes.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Budget policy modification is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for budget policy changes
-    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="set_budget_limit",
-                resource_type="budget_policy",
-                complexity=3  # HIGH - budget policy modification
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for set_budget_limit by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.financial_ops_engine import BudgetLimit, budget_guardrails
 
     limit = BudgetLimit(
@@ -164,36 +140,24 @@ class ContractRequest(BaseModel):
     end_date: str
 
 @router.post("/invoices")
-async def add_invoice(request: InvoiceRequest, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="add_invoice",
+    feature="financial"
+)
+async def add_invoice(
+    request: InvoiceRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Add an invoice for reconciliation.
 
-    **Governance**: Requires INTERN+ maturity for invoice data entry.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Invoice data entry is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for invoice entry
-    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="add_invoice",
-                resource_type="financial_data",
-                complexity=2  # MODERATE - financial data entry
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for add_invoice by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.financial_ops_engine import Invoice, invoice_reconciler
 
     inv = Invoice(
@@ -208,36 +172,24 @@ async def add_invoice(request: InvoiceRequest, agent_id: Optional[str] = None):
     return {"status": "added", "id": request.id}
 
 @router.post("/contracts")
-async def add_contract(request: ContractRequest, agent_id: Optional[str] = None):
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="add_contract",
+    feature="financial"
+)
+async def add_contract(
+    request: ContractRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
     """
     Add a contract for invoice reconciliation.
 
-    **Governance**: Requires SUPERVISED+ maturity for contract management.
+    **Governance**: Requires SUPERVISED+ maturity (HIGH complexity).
+    - Contract management is a high-complexity action
+    - Requires SUPERVISED maturity or higher
     """
-    # Governance check for contract entry
-    if FINANCIAL_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
-        from core.agent_governance_service import AgentGovernanceService
-        from core.database import get_db
-
-        db = next(get_db())
-        try:
-            governance = AgentGovernanceService(db)
-            check = governance.can_perform_action(
-                agent_id=agent_id,
-                action="add_contract",
-                resource_type="contract_data",
-                complexity=3  # HIGH - contract management
-            )
-
-            if not check["allowed"]:
-                logger.warning(f"Governance check failed for add_contract by agent {agent_id}: {check['reason']}")
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Governance check failed: {check['reason']}"
-                )
-        finally:
-            db.close()
-
     from core.financial_ops_engine import Contract, invoice_reconciler
 
     contract = Contract(
