@@ -55,7 +55,8 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
         try:
             await websocket.close(code=1011)
         except Exception as e:
-            pass
+            logger.debug(f"Failed to close WebSocket: {e}")
+            # Connection already closed - not critical
 
 @router.get("/api/satellite/key")
 async def get_satellite_key(
