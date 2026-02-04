@@ -6,6 +6,7 @@ Provides aggregated metrics and KPIs for the analytics dashboard
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from fastapi import Query
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter

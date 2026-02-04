@@ -33,6 +33,9 @@ except ImportError as e:
     google_chat_enhanced_service = None
     google_chat_analytics_engine = None
     UnifiedWorkspace = None
+    GoogleChatSpace = None
+    GoogleChatMessage = None
+    GoogleChatFile = None
 
 logger = logging.getLogger(__name__)
 
