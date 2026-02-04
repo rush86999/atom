@@ -1,13 +1,14 @@
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from fastapi import Query, Depends
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import IntegrationCatalog
 
-router = APIRouter(prefix="/api/v1/integrations", tags=["integrations-catalog"])
+router = BaseAPIRouter(prefix="/api/v1/integrations", tags=["integrations-catalog"])
 logger = logging.getLogger(__name__)
 
 class IntegrationResponse(BaseModel):
@@ -70,11 +71,11 @@ async def get_integrations_catalog(
                 "popular": i.popular,
                 "native_id": i.native_id
             })
-            
+
         return response
     except Exception as e:
         logger.error(f"Error fetching integrations catalog: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise router.internal_error(message="Internal server error")
 
 @router.get("/catalog/{piece_id}", response_model=IntegrationResponse)
 async def get_integration_details(piece_id: str, db: Session = Depends(get_db)):
@@ -83,8 +84,8 @@ async def get_integration_details(piece_id: str, db: Session = Depends(get_db)):
     """
     piece = db.query(IntegrationCatalog).filter(IntegrationCatalog.id == piece_id).first()
     if not piece:
-        raise HTTPException(status_code=404, detail="Integration not found")
-        
+        raise router.not_found_error("Integration", piece_id)
+
     return {
         "id": piece.id,
         "name": piece.name,

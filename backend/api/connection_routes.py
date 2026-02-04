@@ -1,16 +1,17 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.connection_service import connection_service
 from core.database import get_db
 from core.models import User
 
-router = APIRouter(prefix="/api/v1/connections", tags=["Connections"])
+router = BaseAPIRouter(prefix="/api/v1/connections", tags=["Connections"])
 logger = logging.getLogger(__name__)
 
 class ConnectionResponse(BaseModel):
@@ -47,10 +48,10 @@ async def delete_connection(
     """
     success = connection_service.delete_connection(connection_id, current_user.id)
     if not success:
-        raise HTTPException(status_code=404, detail="Connection not found")
+        raise router.not_found_error("Connection", connection_id)
 
     logger.info(f"Connection deleted: {connection_id}")
-    return {"status": "success"}
+    return router.success_response(message="Connection deleted successfully")
 
 class RenameConnectionRequest(BaseModel):
     name: str
@@ -78,10 +79,10 @@ async def rename_connection(
     """
     success = connection_service.update_connection_name(connection_id, current_user.id, req.name)
     if not success:
-        raise HTTPException(status_code=404, detail="Connection not found")
+        raise router.not_found_error("Connection", connection_id)
 
     logger.info(f"Connection renamed: {connection_id}")
-    return {"status": "success"}
+    return router.success_response(message="Connection renamed successfully")
 
 @router.get("/{connection_id}/credentials")
 async def get_credentials(connection_id: str, current_user: User = Depends(get_current_user)):
@@ -90,5 +91,5 @@ async def get_credentials(connection_id: str, current_user: User = Depends(get_c
     """
     creds = connection_service.get_connection_credentials(connection_id, current_user.id)
     if not creds:
-        raise HTTPException(status_code=404, detail="Connection not found")
-    return creds
+        raise router.not_found_error("Connection", connection_id)
+    return router.success_response(data=creds, message="Credentials retrieved")

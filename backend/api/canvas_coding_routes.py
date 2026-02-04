@@ -1,15 +1,16 @@
 """Coding Canvas API Routes"""
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_coding_service import CodingCanvasService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/canvas/coding", tags=["canvas_coding"])
+router = BaseAPIRouter(prefix="/api/canvas/coding", tags=["canvas_coding"])
 
 
 class CreateCodingRequest(BaseModel):
@@ -48,8 +49,16 @@ async def create_coding_canvas(request: CreateCodingRequest, db: Session = Depen
         layout=request.layout
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="CODING_CANVAS_CREATE_FAILED",
+            message=result.get("error", "Failed to create coding canvas"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message="Coding canvas created successfully"
+    )
 
 
 @router.post("/{canvas_id}/file")
@@ -64,8 +73,16 @@ async def add_file(canvas_id: str, request: AddFileRequest, db: Session = Depend
         language=request.language
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ADD_FILE_FAILED",
+            message=result.get("error", "Failed to add file"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"File {request.path} added successfully"
+    )
 
 
 @router.post("/{canvas_id}/diff")
@@ -80,8 +97,16 @@ async def add_diff(canvas_id: str, request: AddDiffRequest, db: Session = Depend
         new_content=request.new_content
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ADD_DIFF_FAILED",
+            message=result.get("error", "Failed to add diff"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"Diff for {request.file_path} added successfully"
+    )
 
 
 @router.get("/{canvas_id}")
@@ -97,6 +122,12 @@ async def get_coding_canvas(canvas_id: str, db: Session = Depends(get_db)):
     ).order_by(desc(CanvasAudit.created_at)).first()
 
     if not audit:
-        raise HTTPException(status_code=404, detail="Coding canvas not found")
+        raise router.not_found_error(
+            resource="CodingCanvas",
+            resource_id=canvas_id
+        )
 
-    return audit.audit_metadata
+    return router.success_response(
+        data=audit.audit_metadata,
+        message="Coding canvas retrieved successfully"
+    )

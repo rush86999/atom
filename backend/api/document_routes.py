@@ -5,18 +5,19 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import Depends, File, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.security_dependencies import get_current_user
 from core.models import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 # In-memory document store (would use LanceDB/vector store in production)
 _document_store: Dict[str, Dict[str, Any]] = {}
@@ -88,11 +89,9 @@ async def ingest_document(
             ingested_at=doc["ingested_at"],
             chunk_count=doc["chunk_count"]
         )
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
@@ -159,7 +158,7 @@ async def upload_document(
         )
     except Exception as e:
         logger.error(f"File upload failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 @router.get("/search", response_model=SearchResponse)
 async def search_documents(q: str, limit: int = 10):
@@ -188,22 +187,24 @@ async def search_documents(q: str, limit: int = 10):
         )
     except Exception as e:
         logger.error(f"Document search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 @router.get("/{doc_id}")
 async def get_document(doc_id: str):
     """Get a specific document by ID"""
     if doc_id not in _document_store:
-        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+        raise router.not_found_error("Document", doc_id)
     doc = _document_store[doc_id]
-    return {
-        "id": doc_id,
-        "title": doc.get("title"),
-        "type": doc.get("type"),
-        "content_preview": str(doc.get("content", ""))[:500],
-        "metadata": doc.get("metadata", {}),
-        "ingested_at": doc.get("ingested_at")
-    }
+    return router.success_response(
+        data={
+            "id": doc_id,
+            "title": doc.get("title"),
+            "type": doc.get("type"),
+            "content_preview": str(doc.get("content", ""))[:500],
+            "metadata": doc.get("metadata", {}),
+            "ingested_at": doc.get("ingested_at")
+        }
+    )
 
 @router.delete("/{doc_id}")
 @require_governance(
@@ -225,18 +226,18 @@ async def delete_document(
     - Requires SUPERVISED maturity or higher
     """
     if doc_id not in _document_store:
-        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+        raise router.not_found_error("Document", doc_id)
 
     del _document_store[doc_id]
     logger.info(f"Document deleted: {doc_id}")
-    return {"message": f"Document '{doc_id}' deleted"}
+    return router.success_response(message=f"Document '{doc_id}' deleted")
 
 @router.get("")
 async def list_documents(limit: int = 100):
     """List all ingested documents"""
     docs = list(_document_store.values())[:limit]
-    return {
-        "documents": [
+    return router.success_response(
+        data=[
             {
                 "id": d["id"],
                 "title": d.get("title"),
@@ -245,5 +246,5 @@ async def list_documents(limit: int = 100):
             }
             for d in docs
         ],
-        "total": len(_document_store)
-    }
+        metadata={"total": len(_document_store)}
+    )

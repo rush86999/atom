@@ -5,7 +5,8 @@ Financial & Ops API Routes - Phase 37
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from core.base_routes import BaseAPIRouter
+from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 # ==================== COST LEAK DETECTION ====================
 

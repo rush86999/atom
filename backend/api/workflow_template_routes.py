@@ -1,15 +1,16 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 # Lazy import to avoid circular dependencies
 def get_template_manager():
@@ -86,11 +87,12 @@ async def create_template(
             "message": f"Template '{template.name}' created successfully"
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to create template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to create template",
+            details={"error": str(e)}
+        )
 
 @router.get("/", response_model=List[Dict[str, Any]])
 async def list_templates(category: Optional[str] = None, limit: int = 50):
@@ -104,7 +106,11 @@ async def list_templates(category: Optional[str] = None, limit: int = 50):
             try:
                 cat_enum = TemplateCategory(category)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
+                raise router.validation_error(
+                    field="category",
+                    message=f"Invalid category: {category}",
+                    details={"provided_category": category}
+                )
             templates = manager.list_templates(category=cat_enum, limit=limit)
         else:
             templates = manager.list_templates(limit=limit)
@@ -126,7 +132,10 @@ async def list_templates(category: Optional[str] = None, limit: int = 50):
         ]
     except Exception as e:
         logger.error(f"Failed to list templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to list templates",
+            details={"error": str(e)}
+        )
 
 @router.get("/{template_id}")
 async def get_template(template_id: str):
@@ -135,7 +144,7 @@ async def get_template(template_id: str):
     template = manager.get_template(template_id)
     
     if not template:
-        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+        raise router.not_found_error("Template", template_id)
     
     return template.dict()
 
@@ -149,7 +158,10 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
         updates = {k: v for k, v in request.dict().items() if v is not None}
         
         if not updates:
-             raise HTTPException(status_code=400, detail="No updates provided")
+             raise router.validation_error(
+                 field="updates",
+                 message="No updates provided"
+             )
 
         # Special handling for steps if provided (need to map format)
         if "steps" in updates:
@@ -180,10 +192,17 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise router.not_found_error(
+            "Template",
+            template_id,
+            details={"reason": str(e)}
+        )
     except Exception as e:
         logger.error(f"Failed to update template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to update template",
+            details={"error": str(e)}
+        )
 
 @router.post("/{template_id}/instantiate")
 async def instantiate_template(template_id: str, request: InstantiateRequest):
@@ -201,10 +220,17 @@ async def instantiate_template(template_id: str, request: InstantiateRequest):
         return result
         
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise router.validation_error(
+            field="template_id",
+            message=str(e),
+            details={"template_id": template_id}
+        )
     except Exception as e:
         logger.error(f"Failed to instantiate template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to instantiate template",
+            details={"error": str(e)}
+        )
 
 @router.get("/search")
 async def search_templates(query: str, limit: int = 20):
@@ -274,12 +300,21 @@ async def execute_template(
             "message": f"Workflow executed. Status: {context.status.value}"
         }
 
-    except HTTPException:
-        raise
     except ValueError as e:
         if "not found" in str(e).lower() and "template" in str(e).lower():
-            raise HTTPException(status_code=404, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+            raise router.not_found_error(
+                "Template",
+                template_id,
+                details={"reason": str(e)}
+            )
+        raise router.validation_error(
+            field="template_id",
+            message=str(e),
+            details={"template_id": template_id}
+        )
     except Exception as e:
         logger.error(f"Failed to execute template: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to execute template",
+            details={"error": str(e)}
+        )

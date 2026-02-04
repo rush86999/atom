@@ -747,6 +747,38 @@ try:
     except ImportError as e:
         logger.warning(f"Integration Health Stubs not found: {e}")
 
+    # 16. Messaging Routes (Proactive, Scheduled, Condition Monitoring)
+    try:
+        from api.messaging_routes import router as messaging_router
+        app.include_router(messaging_router, tags=["Messaging"])
+        logger.info("✓ Messaging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Messaging routes not found: {e}")
+
+    # 16.1. Scheduled Messaging Routes
+    try:
+        from api.scheduled_messaging_routes import router as scheduled_messaging_router
+        app.include_router(scheduled_messaging_router, tags=["Scheduled Messaging"])
+        logger.info("✓ Scheduled Messaging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Scheduled messaging routes not found: {e}")
+
+    # 16.2. Condition Monitoring Routes
+    try:
+        from api.monitoring_routes import router as monitoring_router
+        app.include_router(monitoring_router, tags=["Condition Monitoring"])
+        logger.info("✓ Condition Monitoring Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Condition monitoring routes not found: {e}")
+
+    # 16.3. Google Chat Enhanced Routes (OAuth, Cards, Dialogs, Space Management)
+    try:
+        from api.google_chat_enhanced_routes import router as google_chat_enhanced_router
+        app.include_router(google_chat_enhanced_router, tags=["Google Chat Enhanced"])
+        logger.info("✓ Google Chat Enhanced Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Google Chat enhanced routes not found: {e}")
+
     # 15.1 Canvas Routes (Canvas system for charts and forms)
     try:
         from api.canvas_routes import router as canvas_router

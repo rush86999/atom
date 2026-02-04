@@ -1,15 +1,16 @@
 """Email Canvas API Routes"""
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_email_service import EmailCanvasService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
+router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
 
 
 class CreateEmailRequest(BaseModel):
@@ -59,7 +60,11 @@ async def create_email_canvas(request: CreateEmailRequest, db: Session = Depends
         template=request.template
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="EMAIL_CANVAS_CREATE_FAILED",
+            message=result.get("error", "Failed to create email canvas"),
+            status_code=400
+        )
     return result
 
 
@@ -77,7 +82,11 @@ async def add_message(canvas_id: str, request: AddMessageRequest, db: Session = 
         attachments=request.attachments
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="EMAIL_MESSAGE_ADD_FAILED",
+            message=result.get("error", "Failed to add message to email thread"),
+            status_code=400
+        )
     return result
 
 
@@ -94,7 +103,11 @@ async def save_draft(canvas_id: str, request: SaveDraftRequest, db: Session = De
         body=request.body
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="EMAIL_DRAFT_SAVE_FAILED",
+            message=result.get("error", "Failed to save email draft"),
+            status_code=400
+        )
     return result
 
 
@@ -109,7 +122,11 @@ async def categorize_email(canvas_id: str, request: CategorizeRequest, db: Sessi
         color=request.color
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="EMAIL_CATEGORIZE_FAILED",
+            message=result.get("error", "Failed to categorize email"),
+            status_code=400
+        )
     return result
 
 
@@ -126,6 +143,6 @@ async def get_email_canvas(canvas_id: str, db: Session = Depends(get_db)):
     ).order_by(desc(CanvasAudit.created_at)).first()
 
     if not audit:
-        raise HTTPException(status_code=404, detail="Email canvas not found")
+        raise router.not_found_error("Email Canvas", canvas_id)
 
     return audit.audit_metadata

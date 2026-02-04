@@ -1026,7 +1026,8 @@ class IndependentAIValidator:
             if isinstance(item, bytes):
                 try:
                     return clean_string(item.decode('utf-8', errors='ignore'))
-                except:
+                except (UnicodeDecodeError, AttributeError) as e:
+                    logger.debug(f"Failed to decode bytes: {e}")
                     return str(item)
             
             # Handle strings with cleaning
@@ -1076,13 +1077,15 @@ class IndependentAIValidator:
                                 logger.debug(f"Skipping attribute {attr_name}: {e}")
                                 continue
                     return result
-                except:
+                except (AttributeError, TypeError) as e:
+                    logger.debug(f"Failed to serialize object: {e}")
                     return clean_string(str(item))
-            
+
             # Fallback to string conversion
             try:
                 return clean_string(str(item))
-            except:
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to convert item to string: {e}")
                 return "<unable to serialize>"
         
         try:
@@ -1105,7 +1108,8 @@ class IndependentAIValidator:
                         else:
                             evidence["basic_backend_health"] = "unhealthy"
                             evidence["backend_status_code"] = response.status
-                except:
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.debug(f"Backend health check failed: {e}")
                     evidence["basic_backend_health"] = "unreachable"
 
         except Exception as e:
@@ -1125,7 +1129,8 @@ class IndependentAIValidator:
                         else:
                             existing_evidence["fallback_backend_health"] = "unhealthy"
                             existing_evidence["fallback_backend_status_code"] = response.status
-                except:
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.debug(f"Fallback backend health check failed: {e}")
                     existing_evidence["fallback_backend_health"] = "unreachable"
 
                 # Basic endpoint testing based on claim category
@@ -1158,7 +1163,8 @@ class IndependentAIValidator:
                 else:
                     evidence["ai_analysis"] = "error"
                     evidence["ai_analysis_status"] = response.status
-        except:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            logger.debug(f"AI features test failed: {e}")
             evidence["ai_analysis"] = "unavailable"
 
     async def _test_integrations(self, session, evidence):
@@ -1178,8 +1184,9 @@ class IndependentAIValidator:
                     else:
                         service_name = endpoint.split('/')[-1].replace('_', ' ')
                         evidence[f"{service_name}_service"] = f"error_{response.status}"
-            except:
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 service_name = endpoint.split('/')[-1].replace('_', ' ')
+                logger.debug(f"Integration {service_name} unavailable: {e}")
                 evidence[f"{service_name}_service"] = "unavailable"
 
     async def _test_analytics(self, session, evidence):
@@ -1195,7 +1202,8 @@ class IndependentAIValidator:
                 else:
                     evidence["analytics_dashboard"] = "error"
                     evidence["analytics_status"] = response.status
-        except:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            logger.debug(f"Analytics test failed: {e}")
             evidence["analytics_dashboard"] = "unavailable"
 
     async def _test_enterprise_features(self, session, evidence):
@@ -1212,7 +1220,7 @@ class IndependentAIValidator:
                 async with session.get(f"http://localhost:8000{endpoint}", timeout=5) as response:
                     if response.status == 200:
                         working_endpoints += 1
-            except:
+            except (aiohttp.ClientError, asyncio.TimeoutError):
                 pass
 
         evidence["enterprise_reliability"] = f"{working_endpoints}/{len(endpoints_to_test)} endpoints working"

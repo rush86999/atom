@@ -2,10 +2,11 @@
 import logging
 from typing import Any, Dict, List, Optional
 from ai.device_node_service import device_node_service
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import DeviceNode, User
 from core.security import get_current_user
@@ -25,7 +26,7 @@ class DeviceNodeResponse(BaseModel):
     status: str
     type: str
 
-router = APIRouter(prefix="/api/devices/nodes", tags=["Device Nodes"])
+router = BaseAPIRouter(prefix="/api/devices/nodes", tags=["Device Nodes"])
 logger = logging.getLogger("DEVICE_API")
 
 @router.post("/register")
@@ -44,14 +45,17 @@ async def register_node(
     
     try:
         registered_node = device_node_service.register_node(
-            db, 
+            db,
             workspace_id,
             node.dict()
         )
-        return {"status": "success", "node_id": registered_node.id}
+        return router.success_response(
+            data={"node_id": registered_node.id},
+            message="Device node registered successfully"
+        )
     except Exception as e:
         logger.error(f"Failed to register node: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 @router.post("/{device_id}/heartbeat")
 async def heartbeat(
@@ -64,7 +68,7 @@ async def heartbeat(
     """
     workspace_id = current_user.workspaces[0].id if current_user.workspaces else "default"
     device_node_service.heartbeat(db, workspace_id, device_id)
-    return {"status": "ok"}
+    return router.success_response(message="Heartbeat received")
 
 @router.get("/", response_model=List[DeviceNodeResponse])
 async def list_nodes(

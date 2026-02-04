@@ -7,18 +7,19 @@ with agent governance and learning systems.
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import CanvasRecording, CanvasRecordingReview, User, UserRole
 from core.recording_review_service import RecordingReviewService, get_recording_review_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/canvas/recording/review", tags=["canvas-recording-review"])
+router = BaseAPIRouter(prefix="/api/canvas/recording/review", tags=["canvas-recording-review"])
 
 
 # Request/Response Models
@@ -114,10 +115,7 @@ async def create_review(
         ).first()
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {request.recording_id} not found"
-            )
+            raise router.not_found_error("Recording", request.recording_id)
 
         # Create review
         review_id = await review_service.create_review(
@@ -151,16 +149,10 @@ async def create_review(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("review", str(e))
     except Exception as e:
         logger.error(f"Failed to create review: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create review: {str(e)}"
-        )
+        raise router.internal_error(detail=f"Failed to create review: {str(e)}")
 
 
 @router.get("/{review_id}", response_model=ReviewResponse)
@@ -184,10 +176,7 @@ async def get_review(
         ).first()
 
         if not review:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Review {review_id} not found"
-            )
+            raise router.not_found_error("Review", review_id)
 
         # Verify user has access (owns the recording or is admin)
         recording = db.query(CanvasRecording).filter(
@@ -197,9 +186,10 @@ async def get_review(
         if not recording or (recording.user_id != user.id):
             # Verify user is admin
             if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SECURITY_ADMIN.value]:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied. You must own this recording or be an admin."
+                raise router.permission_denied_error(
+                    action="get_review",
+                    resource="Recording",
+                    details={"reason": "You must own this recording or be an admin"}
                 )
 
         return ReviewResponse(
@@ -226,14 +216,9 @@ async def get_review(
             created_at=review.created_at.isoformat()
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get review: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get review: {str(e)}"
-        )
+        raise router.internal_error(detail=f"Failed to get review: {str(e)}")
 
 
 @router.get("/recording/{recording_id}", response_model=list[ReviewResponse])
@@ -254,15 +239,13 @@ async def get_recording_reviews(
         ).first()
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {recording_id} not found"
-            )
+            raise router.not_found_error("Recording", recording_id)
 
         if recording.user_id != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have access to this recording"
+            raise router.permission_denied_error(
+                action="get_recording_reviews",
+                resource="Recording",
+                details={"recording_id": recording_id}
             )
 
         # Get reviews
@@ -297,14 +280,9 @@ async def get_recording_reviews(
             for r in reviews
         ]
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get recording reviews: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get recording reviews: {str(e)}"
-        )
+        raise router.internal_error(detail=f"Failed to get recording reviews: {str(e)}")
 
 
 @router.get("/agent/{agent_id}/metrics", response_model=ReviewMetricsResponse)
@@ -338,10 +316,7 @@ async def get_agent_review_metrics(
 
     except Exception as e:
         logger.error(f"Failed to get agent metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get agent metrics: {str(e)}"
-        )
+        raise router.internal_error(detail=f"Failed to get agent metrics: {str(e)}")
 
 
 @router.post("/recording/{recording_id}/auto-review")
@@ -369,38 +344,31 @@ async def trigger_auto_review(
         ).first()
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {recording_id} not found"
-            )
+            raise router.not_found_error("Recording", recording_id)
 
         # Trigger auto-review
         review_id = await review_service.auto_review_recording(recording_id)
 
         if review_id:
-            return {
-                "success": True,
-                "message": "Auto-review created",
-                "review_id": review_id
-            }
+            return router.success_response(
+                data={"review_id": review_id},
+                message="Auto-review created"
+            )
         else:
-            return {
-                "success": True,
-                "message": "Auto-review skipped (low confidence or disabled)",
-                "review_id": None
-            }
+            return router.success_response(
+                data={"review_id": None},
+                message="Auto-review skipped (low confidence or disabled)"
+            )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to trigger auto-review: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to trigger auto-review: {str(e)}"
-        )
+        raise router.internal_error(detail=f"Failed to trigger auto-review: {str(e)}")
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "recording_review"}
+    return router.success_response(
+        data={"service": "recording_review"},
+        message="Service is healthy"
+    )

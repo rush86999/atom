@@ -6,16 +6,17 @@ Mobile-optimized endpoints for workflow access on mobile devices
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import WorkflowExecution, WorkflowExecutionLog
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/mobile/workflows", tags=["mobile-workflows"])
+router = BaseAPIRouter(prefix="/api/mobile/workflows", tags=["mobile-workflows"])
 
 
 # Request/Response Models
@@ -153,7 +154,10 @@ async def get_mobile_workflows(
 
     except Exception as e:
         logger.error(f"Error fetching mobile workflows: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch mobile workflows",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}")
@@ -171,7 +175,7 @@ async def get_mobile_workflow_details(
         workflow_dict = _load_workflow_definition(db, workflow_id)
 
         if not workflow_dict:
-            raise HTTPException(status_code=404, detail="Workflow not found")
+            raise router.not_found_error("Workflow", workflow_id)
 
         # Get recent executions (last 10)
         recent_executions = db.query(WorkflowExecution).filter(
@@ -200,11 +204,12 @@ async def get_mobile_workflow_details(
             ]
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error fetching mobile workflow details: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch mobile workflow details",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/trigger", response_model=TriggerResponse)
@@ -223,12 +228,13 @@ async def trigger_workflow_mobile(
         # Verify workflow exists
         workflow_dict = _load_workflow_definition(db, request.workflow_id)
         if not workflow_dict:
-            raise HTTPException(status_code=404, detail="Workflow not found")
+            raise router.not_found_error("Workflow", workflow_id)
 
         if workflow_dict.get("status") != 'active':
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot trigger workflow with status: {workflow_dict.get('status')}"
+            raise router.validation_error(
+                field="workflow_status",
+                message=f"Cannot trigger workflow with status: {workflow_dict.get('status')}",
+                details={"workflow_id": request.workflow_id, "status": workflow_dict.get('status')}
             )
 
         # Create execution record
@@ -255,7 +261,7 @@ async def trigger_workflow_mobile(
             engine = get_workflow_engine()
 
             if not workflow_dict:
-                raise HTTPException(status_code=404, detail="Workflow definition not found")
+                raise router.not_found_error("Workflow", request.workflow_id)
 
             # Create completion event
             completion_event = asyncio.Event()
@@ -299,7 +305,7 @@ async def trigger_workflow_mobile(
                     workflow_dict
                 )
             else:
-                raise HTTPException(status_code=404, detail="Workflow definition not found")
+                raise router.not_found_error("Workflow", request.workflow_id)
 
         logger.info(f"Mobile trigger: workflow={request.workflow_id}, execution={execution.execution_id}")
 
@@ -310,12 +316,13 @@ async def trigger_workflow_mobile(
             workflow_id=request.workflow_id
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error triggering workflow: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to trigger workflow",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/executions/{execution_id}")
@@ -334,7 +341,7 @@ async def get_mobile_execution_details(
         ).first()
 
         if not execution:
-            raise HTTPException(status_code=404, detail="Execution not found")
+            raise router.not_found_error("WorkflowExecution", execution_id)
 
         # Get workflow name
         workflow_dict = _load_workflow_definition(db, execution.workflow_id)
@@ -373,11 +380,12 @@ async def get_mobile_execution_details(
             ]
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error fetching execution details: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch execution details",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}/executions")
@@ -396,7 +404,7 @@ async def get_workflow_executions_mobile(
         workflow_dict = _load_workflow_definition(db, workflow_id)
 
         if not workflow_dict:
-            raise HTTPException(status_code=404, detail="Workflow not found")
+            raise router.not_found_error("Workflow", workflow_id)
 
         # Get executions
         executions = db.query(WorkflowExecution).filter(
@@ -416,11 +424,12 @@ async def get_workflow_executions_mobile(
             for exec in executions
         ]
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error fetching workflow executions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch workflow executions",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}/executions/{execution_id}/logs")
@@ -461,7 +470,10 @@ async def get_execution_logs_mobile(
 
     except Exception as e:
         logger.error(f"Error fetching execution logs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch execution logs",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}/executions/{execution_id}/steps")
@@ -510,11 +522,12 @@ async def get_execution_steps_mobile(
             "steps": steps_data
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error fetching execution steps: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to fetch execution steps",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/executions/{execution_id}/cancel")
@@ -534,18 +547,24 @@ async def cancel_execution_mobile(
         ).first()
 
         if not execution:
-            raise HTTPException(status_code=404, detail="Execution not found")
+            raise router.not_found_error("WorkflowExecution", execution_id)
 
         if execution.status != 'running':
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot cancel execution with status: {execution.status}"
+            raise router.validation_error(
+                field="execution_status",
+                message=f"Cannot cancel execution with status: {execution.status}",
+                details={"execution_id": execution_id, "status": execution.status}
             )
 
         if execution.triggered_by != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only cancel executions you triggered"
+            raise router.permission_denied_error(
+                action="cancel_execution",
+                resource="WorkflowExecution",
+                details={
+                    "execution_id": execution_id,
+                    "triggered_by": execution.triggered_by,
+                    "user_id": user_id
+                }
             )
 
         # Update execution status
@@ -567,12 +586,13 @@ async def cancel_execution_mobile(
             "execution_id": execution_id
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error cancelling execution: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to cancel execution",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/search")
@@ -608,7 +628,10 @@ async def search_workflows_mobile(
 
     except Exception as e:
         logger.error(f"Error searching workflows: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to search workflows",
+            details={"error": str(e)}
+        )
 
 
 def _load_workflow_definition(db: Session, workflow_id: str) -> Optional[Dict[str, Any]]:

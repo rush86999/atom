@@ -7,10 +7,11 @@ Supports all maturity levels: STUDENT (training), INTERN (proposals), SUPERVISED
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, status
+from fastapi import Depends, Query, WebSocket
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import (
     AgentProposal,
@@ -27,7 +28,7 @@ from core.student_training_service import StudentTrainingService, TrainingOutcom
 from core.supervision_service import SupervisionOutcome, SupervisionService
 from core.training_websocket_events import TrainingWebSocketEvents
 
-router = APIRouter(prefix="/api/maturity", tags=["Agent Maturity"])
+router = BaseAPIRouter(prefix="/api/maturity", tags=["Agent Maturity"])
 
 
 # ============================================================================
@@ -144,10 +145,7 @@ async def get_training_proposal(
     ).first()
 
     if not proposal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Training proposal {proposal_id} not found"
-        )
+        raise router.not_found_error("Training proposal", proposal_id)
 
     return {
         "id": proposal.id,
@@ -188,15 +186,15 @@ async def approve_training_proposal(
         ).first()
 
         if not proposal:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Proposal {proposal_id} not found"
-            )
+            raise router.not_found_error("Proposal", proposal_id)
 
         proposal.status = ProposalStatus.REJECTED.value
         db.commit()
 
-        return {"message": "Training proposal rejected", "proposal_id": proposal_id}
+        return router.success_response(
+            data={"proposal_id": proposal_id},
+            message="Training proposal rejected"
+        )
 
     # Approve and create session
     training_service = StudentTrainingService(db)
@@ -224,10 +222,7 @@ async def approve_training_proposal(
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 @router.post("/training/proposals/{proposal_id}/reject")
@@ -243,10 +238,7 @@ async def reject_training_proposal(
     ).first()
 
     if not proposal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Proposal {proposal_id} not found"
-        )
+        raise router.not_found_error("Proposal", proposal_id)
 
     proposal.status = ProposalStatus.REJECTED.value
     proposal.approved_by = user_id
@@ -300,10 +292,7 @@ async def complete_training_session(
         return result
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 @router.get("/agents/{agent_id}/training-history")
@@ -324,10 +313,7 @@ async def get_agent_training_history(
         return {"agent_id": agent_id, "training_history": history}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(str(e))
 
 
 # ============================================================================
@@ -388,10 +374,7 @@ async def get_action_proposal(
     ).first()
 
     if not proposal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Proposal {proposal_id} not found"
-        )
+        raise router.not_found_error("Proposal", proposal_id)
 
     return {
         "id": proposal.id,
@@ -462,10 +445,7 @@ async def approve_action_proposal(
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 @router.post("/proposals/{proposal_id}/reject")
@@ -496,10 +476,7 @@ async def reject_action_proposal(
         return {"message": "Proposal rejected", "proposal_id": proposal_id}
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 @router.get("/agents/{agent_id}/proposal-history")
@@ -520,10 +497,7 @@ async def get_agent_proposal_history(
         return {"agent_id": agent_id, "proposal_history": history}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(str(e))
 
 
 # ============================================================================
@@ -581,10 +555,7 @@ async def get_supervision_session(
     ).first()
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Supervision session {session_id} not found"
-        )
+        raise router.not_found_error("Supervision session", session_id)
 
     return {
         "id": session.id,
@@ -636,10 +607,7 @@ async def intervene_in_session(
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 @router.post("/supervision/sessions/{session_id}/complete")
@@ -680,10 +648,7 @@ async def complete_supervision(
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise router.validation_error("request", str(e))
 
 
 # ============================================================================

@@ -4,15 +4,16 @@ Provides endpoints for user profile and session management
 """
 from datetime import datetime
 from typing import List, Optional, Tuple
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Depends, Request, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User, UserSession
 
-router = APIRouter(prefix="/api/users", tags=["User Management"])
+router = BaseAPIRouter(prefix="/api/users", tags=["User Management"])
 
 
 async def get_current_session_token(
@@ -172,10 +173,7 @@ async def revoke_session(
     ).first()
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise router.not_found_error("Session", session_id)
 
     session.is_active = False
     db.commit()

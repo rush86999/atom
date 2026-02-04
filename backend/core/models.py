@@ -3424,3 +3424,265 @@ class EpisodeAccessLog(Base):
         Index('ix_episode_access_logs_created_at', 'created_at'),
         Index('ix_episode_access_logs_access_type', 'access_type'),
     )
+
+
+# ============================================================================
+# Messaging Feature Parity Models
+# ============================================================================
+
+class ProactiveMessageStatus(str, enum.Enum):
+    """Status for proactive messages"""
+    PENDING = "pending"
+    APPROVED = "approved"
+    SENT = "sent"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ProactiveMessage(Base):
+    """
+    Proactive messages initiated by agents (not responses).
+
+    Agents can initiate conversations based on business logic, alerts, or automation.
+    All proactive messages are governed by agent maturity levels:
+    - STUDENT: Blocked from proactive messaging
+    - INTERN: Requires human approval before sending
+    - SUPERVISED: Sent with real-time monitoring
+    - AUTONOMOUS: Full access with audit trail
+    """
+    __tablename__ = "proactive_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized for quick queries
+    agent_maturity_level = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+
+    # Message Details
+    platform = Column(String, nullable=False, index=True)  # slack, discord, whatsapp, etc.
+    recipient_id = Column(String, nullable=False, index=True)  # User ID, channel ID, phone number
+    content = Column(Text, nullable=False)
+
+    # Scheduling
+    scheduled_for = Column(DateTime(timezone=True), nullable=True, index=True)  # Send at specific time
+    send_now = Column(Boolean, default=False)  # If True, send immediately (if approved)
+
+    # Status & Approval
+    status = Column(String, default=ProactiveMessageStatus.PENDING.value, index=True)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Governance
+    governance_metadata = Column(JSON, default={})  # Governance check results, risk level, etc.
+
+    # Execution
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    platform_message_id = Column(String, nullable=True)  # ID returned by platform
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="proactive_messages")
+    approver = relationship("User", foreign_keys=[approved_by])
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_proactive_messages_agent_status', 'agent_id', 'status'),
+        Index('ix_proactive_messages_platform_status', 'platform', 'status'),
+        Index('ix_proactive_messages_scheduled', 'scheduled_for', 'status'),
+        Index('ix_proactive_messages_created', 'created_at'),
+    )
+
+
+class ScheduledMessageStatus(str, enum.Enum):
+    """Status for scheduled messages"""
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ScheduledMessage(Base):
+    """
+    Scheduled and recurring messages.
+
+    Supports one-time and recurring messages with cron expressions.
+    Messages can include templates with variable substitution.
+    """
+    __tablename__ = "scheduled_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized
+
+    # Schedule Details
+    platform = Column(String, nullable=False, index=True)
+    recipient_id = Column(String, nullable=False, index=True)
+
+    # Message Content (Template)
+    template = Column(Text, nullable=False)  # Can include variables like {{customer_name}}
+    template_variables = Column(JSON, default={})  # Variable definitions for substitution
+
+    # Schedule Configuration
+    schedule_type = Column(String, nullable=False, index=True)  # one_time, recurring
+    cron_expression = Column(String, nullable=True)  # For recurring: "0 9 * * *" (daily at 9am)
+    natural_language_schedule = Column(String, nullable=True)  # "every day at 9am"
+
+    # Execution Tracking
+    next_run = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_run = Column(DateTime(timezone=True), nullable=True)
+    run_count = Column(Integer, default=0, nullable=False)
+
+    # Recurring Settings
+    max_runs = Column(Integer, nullable=True)  # Limit number of executions (None = infinite)
+    end_date = Column(DateTime(timezone=True), nullable=True)  # Stop after this date
+
+    # Status
+    status = Column(String, default=ScheduledMessageStatus.ACTIVE.value, index=True)
+    timezone = Column(String, default="UTC")  # Timezone for schedule
+
+    # Governance
+    governance_metadata = Column(JSON, default={})
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="scheduled_messages")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_scheduled_messages_next_run', 'next_run', 'status'),
+        Index('ix_scheduled_messages_agent_status', 'agent_id', 'status'),
+        Index('ix_scheduled_messages_platform', 'platform', 'status'),
+        Index('ix_scheduled_messages_created', 'created_at'),
+    )
+
+
+class ConditionMonitorType(str, enum.Enum):
+    """Types of conditions to monitor"""
+    INBOX_VOLUME = "inbox_volume"
+    TASK_BACKLOG = "task_backlog"
+    API_METRICS = "api_metrics"
+    DATABASE_QUERY = "database_query"
+    COMPOSITE = "composite"
+
+
+class ConditionAlertStatus(str, enum.Enum):
+    """Status for condition alerts"""
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    ACKNOWLEDGED = "acknowledged"
+
+
+class ConditionMonitor(Base):
+    """
+    Real-time business condition monitors.
+
+    Monitors business conditions (inbox volume, task backlog, API metrics, etc.)
+    and sends alerts when thresholds are exceeded.
+    """
+    __tablename__ = "condition_monitors"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized
+
+    # Monitor Details
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Condition Configuration
+    condition_type = Column(String, nullable=False, index=True)  # inbox_volume, task_backlog, api_metrics, etc.
+    threshold_config = Column(JSON, nullable=False)  # Threshold configuration
+    # Examples:
+    # {"metric": "unread_count", "operator": ">", "value": 100}
+    # {"metric": "error_rate", "operator": ">", "value": 0.05, "window": "5m"}
+
+    # Composite Conditions (AND/OR logic)
+    composite_logic = Column(String, nullable=True)  # "AND", "OR"
+    composite_conditions = Column(JSON, nullable=True)  # List of sub-conditions
+
+    # Monitoring Schedule
+    check_interval_seconds = Column(Integer, default=300, nullable=False)  # Default: 5 minutes
+
+    # Alert Configuration
+    platforms = Column(JSON, nullable=False)  # [{"platform": "slack", "recipient_id": "C12345"}]
+    alert_template = Column(Text, nullable=True)  # Alert message template
+
+    # Throttling (prevent alert spam)
+    throttle_minutes = Column(Integer, default=60)  # Wait X minutes between alerts
+    last_alert_sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Status
+    status = Column(String, default="active", index=True)  # active, paused, disabled
+
+    # Governance
+    governance_metadata = Column(JSON, default={})
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="condition_monitors")
+    alerts = relationship("ConditionAlert", backref="monitor", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_condition_monitors_agent_status', 'agent_id', 'status'),
+        Index('ix_condition_monitors_type', 'condition_type', 'status'),
+        Index('ix_condition_monitors_created', 'created_at'),
+    )
+
+
+class ConditionAlert(Base):
+    """
+    Alert history for condition monitors.
+
+    Records every time a condition threshold is triggered.
+    """
+    __tablename__ = "condition_alerts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Monitor Reference
+    monitor_id = Column(String, ForeignKey("condition_monitors.id"), nullable=False, index=True)
+
+    # Condition Details
+    condition_value = Column(JSON, nullable=False)  # Actual value that triggered alert
+    threshold_value = Column(JSON, nullable=False)  # Threshold that was exceeded
+
+    # Alert Content
+    alert_message = Column(Text, nullable=False)
+    platforms_sent = Column(JSON, default=[])  # [{"platform": "slack", "status": "sent", "message_id": "..."}]
+
+    # Status
+    status = Column(String, default=ConditionAlertStatus.PENDING.value, index=True)
+
+    # Timestamps
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Error Handling
+    error_message = Column(Text, nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_condition_alerts_monitor', 'monitor_id', 'triggered_at'),
+        Index('ix_condition_alerts_status', 'status'),
+        Index('ix_condition_alerts_triggered', 'triggered_at'),
+    )

@@ -1,15 +1,16 @@
 """Orchestration Canvas API Routes"""
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_orchestration_service import OrchestrationCanvasService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/canvas/orchestration", tags=["canvas_orchestration"])
+router = BaseAPIRouter(prefix="/api/canvas/orchestration", tags=["canvas_orchestration"])
 
 
 class CreateOrchestrationRequest(BaseModel):
@@ -57,8 +58,16 @@ async def create_orchestration_canvas(request: CreateOrchestrationRequest, db: S
         tasks=request.tasks
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ORCHESTRATION_CANVAS_CREATE_FAILED",
+            message=result.get("error", "Failed to create orchestration canvas"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"Orchestration canvas '{request.title}' created successfully"
+    )
 
 
 @router.post("/{canvas_id}/node")
@@ -74,8 +83,16 @@ async def add_integration_node(canvas_id: str, request: AddNodeRequest, db: Sess
         position=request.position
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ADD_NODE_FAILED",
+            message=result.get("error", "Failed to add integration node"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"Integration node '{request.app_name}' added successfully"
+    )
 
 
 @router.post("/{canvas_id}/connect")
@@ -90,8 +107,16 @@ async def connect_nodes(canvas_id: str, request: ConnectNodesRequest, db: Sessio
         condition=request.condition
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="CONNECT_NODES_FAILED",
+            message=result.get("error", "Failed to connect nodes"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"Nodes connected: {request.from_node} -> {request.to_node}"
+    )
 
 
 @router.post("/{canvas_id}/task")
@@ -107,8 +132,16 @@ async def add_task(canvas_id: str, request: AddTaskRequest, db: Session = Depend
         integrations=request.integrations
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
-    return result
+        raise router.error_response(
+            error_code="ADD_TASK_FAILED",
+            message=result.get("error", "Failed to add task"),
+            status_code=400
+        )
+
+    return router.success_response(
+        data=result,
+        message=f"Task '{request.title}' added successfully"
+    )
 
 
 @router.get("/{canvas_id}")
@@ -124,6 +157,12 @@ async def get_orchestration_canvas(canvas_id: str, db: Session = Depends(get_db)
     ).order_by(desc(CanvasAudit.created_at)).first()
 
     if not audit:
-        raise HTTPException(status_code=404, detail="Orchestration canvas not found")
+        raise router.not_found_error(
+            resource="OrchestrationCanvas",
+            resource_id=canvas_id
+        )
 
-    return audit.audit_metadata
+    return router.success_response(
+        data=audit.audit_metadata,
+        message="Orchestration canvas retrieved successfully"
+    )

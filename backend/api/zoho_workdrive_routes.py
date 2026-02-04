@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from core.base_routes import BaseAPIRouter
+from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from integrations.zoho_workdrive_service import ZohoWorkDriveService
@@ -9,7 +10,7 @@ from integrations.zoho_workdrive_service import ZohoWorkDriveService
 logger = logging.getLogger(__name__)
 
 # Initialize router
-router = APIRouter(prefix="/api/zoho-workdrive", tags=["zoho-workdrive"])
+router = BaseAPIRouter(prefix="/api/zoho-workdrive", tags=["zoho-workdrive"])
 
 # Initialize service
 zoho_service = ZohoWorkDriveService()

@@ -4,11 +4,12 @@ Workflow Analytics API Routes
 
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter()
 
 @router.get("/analytics")
 async def get_workflow_analytics(days: int = 7):

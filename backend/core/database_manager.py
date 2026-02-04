@@ -1,14 +1,31 @@
 """
 Database Manager
 
-Handles database connections and operations using SQLAlchemy async.
-Provides async methods for executing queries and managing transactions.
-Unified database layer using SQLAlchemy models.
+⚠️ DEPRECATED - Retained for Async Operations Only
+
+This module is kept ONLY for async database operations needed by chat_process_manager.py.
+For all NEW code, use core.database with get_db() (dependency injection) or get_db_session() (context manager).
+
+Why This File Still Exists:
+    - chat_process_manager.py requires async database operations (execute, fetch_one, fetch_all)
+    - core.database currently provides only synchronous SQLAlchemy sessions
+    - TODO: Migrate chat_process_manager.py to async SQLAlchemy or add async support to core.database
+
+Migration Status:
+    - Phase 4 (Cleanup): Cannot remove until chat_process_manager.py is migrated
+    - All other code has been migrated to core.database patterns
+    - See: docs/DATABASE_SESSION_GUIDE.md for proper database patterns
+
+For Production Code:
+    - API Routes: Use `db: Session = Depends(get_db)`
+    - Services: Use `with get_db_session() as db:`
+    - Tests: Use `SessionLocal()` directly is acceptable
 """
 
 import json
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -240,6 +257,20 @@ def get_db_session(
     rollback_on_error: bool = True
 ):
     """
+    ⚠️ DEPRECATED: Use core.database.get_db_session() instead.
+
+    This function is deprecated and will be removed in a future version.
+    Please migrate to core.database.get_db_session() which provides the
+    same functionality with better integration.
+
+    Migration:
+        OLD: from core.database_manager import get_db_session
+        NEW: from core.database import get_db_session
+
+    The new function has the same signature and behavior.
+
+    ---
+
     Unified database session manager with auto-commit/rollback.
 
     Provides a context manager for database sessions that automatically:
@@ -274,6 +305,15 @@ def get_db_session(
     Feature Flags:
         None - this is a core utility function
     """
+    # Emit deprecation warning
+    warnings.warn(
+        "database_manager.get_db_session() is deprecated. "
+        "Use core.database.get_db_session() instead. "
+        "This function will be removed in version 2.0.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     db = SessionLocal()
     try:
         yield db
@@ -290,6 +330,17 @@ def get_db_session(
 
 def get_db_session_for_request():
     """
+    ⚠️ DEPRECATED: Use core.database.get_db() instead.
+
+    This function is deprecated and will be removed in a future version.
+    Please migrate to core.database.get_db() for FastAPI dependencies.
+
+    Migration:
+        OLD: from core.database_manager import get_db_session_for_request
+        NEW: from core.database import get_db
+
+    ---
+
     Get database session for FastAPI request dependency.
 
     This is a generator function that can be used with FastAPI's Depends:
@@ -303,6 +354,15 @@ def get_db_session_for_request():
     Note: This function does NOT auto-commit or auto-close.
     FastAPI handles the lifecycle of the session.
     """
+    # Emit deprecation warning
+    warnings.warn(
+        "database_manager.get_db_session_for_request() is deprecated. "
+        "Use core.database.get_db() instead for FastAPI dependencies. "
+        "This function will be removed in version 2.0.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     db = SessionLocal()
     try:
         yield db
@@ -378,6 +438,14 @@ session_health_monitor = SessionHealthMonitor()
 @contextmanager
 def get_monitored_db_session(commit: bool = False, close: bool = True):
     """
+    ⚠️ DEPRECATED: Health monitoring is now integrated into core.database.
+
+    This function is deprecated. Use core.database.get_db_session() for
+    standard operations. Health monitoring is available through the
+    ErrorHandlingMiddleware in production.
+
+    ---
+
     Get database session with health monitoring.
 
     Tracks session creation time and error rates for observability.
@@ -388,6 +456,16 @@ def get_monitored_db_session(commit: bool = False, close: bool = True):
             db.add(user)
             # Session creation time and errors are automatically tracked
     """
+    # Emit deprecation warning
+    warnings.warn(
+        "database_manager.get_monitored_db_session() is deprecated. "
+        "Use core.database.get_db_session() instead. "
+        "Health monitoring is now handled by ErrorHandlingMiddleware. "
+        "This function will be removed in version 2.0.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     start_time = time.time()
 
     try:

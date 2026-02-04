@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Set
 from fastapi import WebSocket
@@ -48,8 +49,9 @@ class ConnectionManager:
         # Authenticate
         with get_db_session() as db:
             try:
-                # Allow dev bypass
-                if token == "dev-token":
+                # Allow dev bypass ONLY in non-production environments
+                if token == "dev-token" and os.getenv("ENVIRONMENT") != "production":
+                    logger.warning("WebSocket dev-token bypass used in non-production environment")
                     # Create a mock user for dev
                     class MockUser:
                         id = "dev-user"

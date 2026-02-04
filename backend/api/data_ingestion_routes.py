@@ -5,16 +5,17 @@ Exposes endpoints for managing automatic data sync from integrations.
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import require_governance, ActionComplexity
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/data-ingestion", tags=["Data Ingestion"])
+router = BaseAPIRouter(prefix="/api/data-ingestion", tags=["Data Ingestion"])
 
 
 # Request/Response Models
@@ -62,7 +63,7 @@ async def get_integration_usage():
         return UsageSummaryResponse(**summary)
     except Exception as e:
         logger.error(f"Failed to get usage summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.post("/enable-sync")
@@ -106,16 +107,13 @@ async def enable_auto_sync(
                 stats.sync_frequency_minutes = request.sync_frequency_minutes
 
         logger.info(f"Auto-sync enabled for {request.integration_id}")
-        return {
-            "success": True,
-            "message": f"Auto-sync enabled for {request.integration_id}",
-            "integration_id": request.integration_id
-        }
-    except HTTPException:
-        raise
+        return router.success_response(
+            data={"integration_id": request.integration_id},
+            message=f"Auto-sync enabled for {request.integration_id}"
+        )
     except Exception as e:
         logger.error(f"Failed to enable auto-sync: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.post("/disable-sync/{integration_id}")
@@ -143,16 +141,13 @@ async def disable_auto_sync(
         service.disable_auto_sync(integration_id)
 
         logger.info(f"Auto-sync disabled for {integration_id}")
-        return {
-            "success": True,
-            "message": f"Auto-sync disabled for {integration_id}",
-            "integration_id": integration_id
-        }
-    except HTTPException:
-        raise
+        return router.success_response(
+            data={"integration_id": integration_id},
+            message=f"Auto-sync disabled for {integration_id}"
+        )
     except Exception as e:
         logger.error(f"Failed to disable auto-sync: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResponse)
@@ -190,7 +185,7 @@ async def trigger_sync(
         )
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.get("/sync-status/{integration_id}")
@@ -227,7 +222,7 @@ async def get_sync_status(
         }
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(detail=str(e))
 
 
 @router.get("/available-integrations")
@@ -236,7 +231,7 @@ async def list_available_integrations():
     List all integrations that support hybrid data ingestion.
     """
     from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS
-    
+
     integrations = []
     for integration_id, config in DEFAULT_SYNC_CONFIGS.items():
         integrations.append({
@@ -245,8 +240,8 @@ async def list_available_integrations():
             "default_sync_days": config.sync_last_n_days,
             "max_records": config.max_records_per_sync
         })
-    
-    return {
-        "integrations": integrations,
-        "count": len(integrations)
-    }
+
+    return router.success_response(
+        data=integrations,
+        metadata={"count": len(integrations)}
+    )

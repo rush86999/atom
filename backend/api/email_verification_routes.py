@@ -9,16 +9,17 @@ import secrets
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import EmailVerificationToken, User, UserStatus
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/email-verification", tags=["Email Verification"])
+router = BaseAPIRouter(prefix="/api/email-verification", tags=["Email Verification"])
 
 # Rate limiting: Track email sending per user (in-memory for simplicity)
 # For production, use Redis or similar
@@ -89,10 +90,7 @@ class EmailService:
             if not self.enabled:
                 logger.warning(f"🔑 DEV MODE (rate limit bypassed): Verification code for {to_email}: {code}")
                 return True
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=reason
-            )
+            raise router.rate_limit_error()
 
         if not self.enabled:
             # Development mode: log the verification code
@@ -254,10 +252,7 @@ async def verify_email(
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+        raise router.not_found_error("User", request.email)
 
     # Find valid token
     token = db.query(EmailVerificationToken).filter(
@@ -267,9 +262,9 @@ async def verify_email(
     ).first()
 
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification code"
+        raise router.validation_error(
+            field="code",
+            message="Invalid or expired verification code"
         )
 
     # Mark user as verified and active
@@ -280,7 +275,10 @@ async def verify_email(
     db.delete(token)
     db.commit()
 
-    return VerifyEmailResponse(message="Email verified successfully")
+    return router.success_response(
+        data={"verified": True},
+        message="Email verified successfully"
+    )
 
 
 @router.post("/send", response_model=SendVerificationResponse)
@@ -325,4 +323,6 @@ async def send_verification_email(
     # Send verification email (with graceful fallback to logging)
     await email_service.send_verification_email(user.email, code)
 
-    return SendVerificationResponse(message="Verification email sent")
+    return router.success_response(
+        message="Verification email sent"
+    )

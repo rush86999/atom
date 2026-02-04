@@ -30,6 +30,10 @@ except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
     discord_enhanced_service = None
     discord_analytics_engine = None
+    DiscordGuild = None  # Define as None if import fails
+    DiscordChannel = None
+    DiscordMessage = None
+    DiscordUser = None
 
 logger = logging.getLogger(__name__)
 

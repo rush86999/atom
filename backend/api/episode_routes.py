@@ -7,12 +7,13 @@ REST endpoints for episodic memory system with governance integration.
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.episode_retrieval_service import EpisodeRetrievalService
@@ -23,7 +24,7 @@ from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/episodes", tags=["episodes"])
+router = BaseAPIRouter(prefix="/api/episodes", tags=["episodes"])
 
 # Feature flags
 EPISODE_GOVERNANCE_ENABLED = os.getenv("EPISODE_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -76,14 +77,20 @@ async def create_episode(
     )
 
     if not episode:
-        raise HTTPException(status_code=400, detail="Failed to create episode")
+        raise router.error_response(
+            error_code="EPISODE_CREATE_FAILED",
+            message="Failed to create episode",
+            status_code=400
+        )
 
-    return {
-        "success": True,
-        "episode_id": episode.id,
-        "title": episode.title,
-        "status": episode.status
-    }
+    return router.success_response(
+        data={
+            "episode_id": episode.id,
+            "title": episode.title,
+            "status": episode.status
+        },
+        message="Episode created successfully"
+    )
 
 
 @router.post("/retrieve/temporal")
@@ -152,8 +159,8 @@ async def list_episodes(
         Episode.agent_id == agent_id
     ).order_by(Episode.started_at.desc()).offset(skip).limit(limit).all()
 
-    return {
-        "episodes": [
+    return router.success_response(
+        data=[
             {
                 "id": e.id,
                 "title": e.title,
@@ -165,8 +172,8 @@ async def list_episodes(
             }
             for e in episodes
         ],
-        "count": len(episodes)
-    }
+        metadata={"count": len(episodes)}
+    )
 
 
 @router.post("/{episode_id}/feedback")
@@ -181,7 +188,10 @@ async def submit_feedback(
         episode_id, request.feedback_score
     )
 
-    return {"success": success}
+    return router.success_response(
+        data={"updated": success},
+        message="Feedback submitted successfully"
+    )
 
 
 # Graduation endpoints
@@ -218,7 +228,14 @@ async def promote_agent(
     service = AgentGraduationService(db)
     success = await service.promote_agent(agent_id, new_maturity, validated_by)
 
-    return {"success": success}
+    return router.success_response(
+        data={
+            "agent_id": agent_id,
+            "new_maturity": new_maturity,
+            "promoted": success
+        },
+        message=f"Agent promoted to {new_maturity}" if success else "Promotion failed"
+    )
 
 
 @router.get("/graduation/audit/{agent_id}")
@@ -267,10 +284,12 @@ async def get_stats(
         func.sum(Episode.human_intervention_count).label("total_interventions")
     ).filter(Episode.agent_id == agent_id).first()
 
-    return {
-        "agent_id": agent_id,
-        "total_episodes": stats.total or 0,
-        "avg_importance_score": float(stats.avg_importance or 0),
-        "avg_constitutional_score": float(stats.avg_constitutional or 0),
-        "total_interventions": stats.total_interventions or 0
-    }
+    return router.success_response(
+        data={
+            "agent_id": agent_id,
+            "total_episodes": stats.total or 0,
+            "avg_importance_score": float(stats.avg_importance or 0),
+            "avg_constitutional_score": float(stats.avg_constitutional or 0),
+            "total_interventions": stats.total_interventions or 0
+        }
+    )

@@ -12,16 +12,17 @@ Provides REST endpoints for:
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.workflow_debugger import WorkflowDebugger
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/workflows/debug", tags=["debugging-advanced"])
+router = BaseAPIRouter(prefix="/api/workflows/debug", tags=["debugging-advanced"])
 
 
 # ==================== Request/Response Models ====================
@@ -104,21 +105,23 @@ async def modify_variable(
     )
 
     if not result:
-        raise HTTPException(status_code=404, detail="Debug session not found")
+        raise router.not_found_error("Debug session", request.session_id)
 
-    return {
-        "success": True,
-        "variable": {
-            "variable_id": result.id,
-            "variable_name": result.variable_name,
-            "variable_type": result.variable_type,
-            "value": result.value,
-            "value_preview": result.value_preview,
-            "scope": result.scope,
-            "is_changed": result.is_changed,
-            "previous_value": result.previous_value,
-        }
-    }
+    return router.success_response(
+        data={
+            "variable": {
+                "variable_id": result.id,
+                "variable_name": result.variable_name,
+                "variable_type": result.variable_type,
+                "value": result.value,
+                "value_preview": result.value_preview,
+                "scope": result.scope,
+                "is_changed": result.is_changed,
+                "previous_value": result.previous_value,
+            }
+        },
+        message="Variable modified successfully"
+    )
 
 
 @router.post("/variables/modify-bulk")
@@ -138,19 +141,21 @@ async def bulk_modify_variables(
         scope=request.scope,
     )
 
-    return {
-        "success": True,
-        "modified_count": len(results),
-        "variables": [
-            {
-                "variable_id": v.id,
-                "variable_name": v.variable_name,
-                "value": v.value,
-                "is_changed": v.is_changed,
-            }
-            for v in results
-        ]
-    }
+    return router.success_response(
+        data={
+            "modified_count": len(results),
+            "variables": [
+                {
+                    "variable_id": v.id,
+                    "variable_name": v.variable_name,
+                    "value": v.value,
+                    "is_changed": v.is_changed,
+                }
+                for v in results
+            ]
+        },
+        message=f"Modified {len(results)} variables"
+    )
 
 
 # ==================== Session Persistence Endpoints ====================
@@ -169,7 +174,7 @@ async def export_debug_session(
     export_data = debugger.export_session(session_id)
 
     if not export_data:
-        raise HTTPException(status_code=404, detail="Debug session not found")
+        raise router.not_found_error("Debug session", session_id)
 
     return ExportSessionResponse(**export_data)
 
@@ -192,15 +197,17 @@ async def import_debug_session(
     )
 
     if not new_session:
-        raise HTTPException(status_code=400, detail="Failed to import session")
+        raise router.internal_error("Failed to import session")
 
-    return {
-        "success": True,
-        "session_id": new_session.id,
-        "workflow_id": new_session.workflow_id,
-        "session_name": new_session.session_name,
-        "status": new_session.status,
-    }
+    return router.success_response(
+        data={
+            "session_id": new_session.id,
+            "workflow_id": new_session.workflow_id,
+            "session_name": new_session.session_name,
+            "status": new_session.status,
+        },
+        message="Debug session imported successfully"
+    )
 
 
 # ==================== Performance Profiling Endpoints ====================
@@ -219,9 +226,9 @@ async def start_performance_profiling(
     success = debugger.start_performance_profiling(session_id)
 
     if not success:
-        raise HTTPException(status_code=404, detail="Debug session not found")
+        raise router.not_found_error("Debug session", session_id)
 
-    return {"success": True, "message": "Performance profiling started"}
+    return router.success_response(message="Performance profiling started")
 
 
 @router.post("/profiling/record-timing")
@@ -246,9 +253,9 @@ async def record_step_timing(
     )
 
     if not success:
-        raise HTTPException(status_code=400, detail="Failed to record timing")
+        raise router.validation_error("timing", "Failed to record timing")
 
-    return {"success": True}
+    return router.success_response(message="Timing recorded successfully")
 
 
 @router.get("/sessions/{session_id}/profiling/report")
@@ -265,7 +272,7 @@ async def get_performance_report(
     report = debugger.get_performance_report(session_id)
 
     if not report:
-        raise HTTPException(status_code=404, detail="Performance report not found")
+        raise router.not_found_error("Performance report", session_id)
 
     return PerformanceReportResponse(**report)
 
@@ -291,9 +298,9 @@ async def add_collaborator(
     success = debugger.add_collaborator(session_id, user_id, permission)
 
     if not success:
-        raise HTTPException(status_code=404, detail="Debug session not found")
+        raise router.not_found_error("Debug session", session_id)
 
-    return {"success": True, "message": f"Added collaborator {user_id}"}
+    return router.success_response(message=f"Added collaborator {user_id}")
 
 
 @router.delete("/sessions/{session_id}/collaborators/{user_id}")
@@ -307,9 +314,9 @@ async def remove_collaborator(
     success = debugger.remove_collaborator(session_id, user_id)
 
     if not success:
-        raise HTTPException(status_code=404, detail="Collaborator not found")
+        raise router.not_found_error("Collaborator", user_id)
 
-    return {"success": True, "message": f"Removed collaborator {user_id}"}
+    return router.success_response(message=f"Removed collaborator {user_id}")
 
 
 @router.get("/sessions/{session_id}/collaborators")
@@ -321,11 +328,14 @@ async def get_session_collaborators(
     debugger = WorkflowDebugger(db)
     collaborators = debugger.get_session_collaborators(session_id)
 
-    return {
-        "session_id": session_id,
-        "collaborators": collaborators,
-        "count": len(collaborators),
-    }
+    return router.success_response(
+        data={
+            "session_id": session_id,
+            "collaborators": collaborators,
+            "count": len(collaborators),
+        },
+        message=f"Retrieved {len(collaborators)} collaborators"
+    )
 
 
 @router.get("/sessions/{session_id}/collaborators/{user_id}/permissions")
@@ -345,12 +355,14 @@ async def check_collaborator_permission(
         session_id, user_id, required_permission
     )
 
-    return {
-        "session_id": session_id,
-        "user_id": user_id,
-        "required_permission": required_permission,
-        "has_permission": has_permission,
-    }
+    return router.success_response(
+        data={
+            "session_id": session_id,
+            "user_id": user_id,
+            "required_permission": required_permission,
+            "has_permission": has_permission,
+        }
+    )
 
 
 # ==================== Real-time Trace Streaming Endpoints ====================
@@ -371,11 +383,13 @@ async def create_trace_stream(
         execution_id=request.execution_id,
     )
 
-    return {
-        "success": True,
-        "stream_id": stream_id,
-        "websocket_url": f"ws://localhost:8000/api/debug/streams/{stream_id}",
-    }
+    return router.success_response(
+        data={
+            "stream_id": stream_id,
+            "websocket_url": f"ws://localhost:8000/api/debug/streams/{stream_id}",
+        },
+        message="Trace stream created successfully"
+    )
 
 
 @router.post("/streams/{stream_id}/close")
@@ -387,8 +401,13 @@ async def close_trace_stream(
     debugger = WorkflowDebugger(db)
     success = debugger.close_trace_stream(stream_id)
 
-    return {
-        "success": success,
-        "stream_id": stream_id,
-        "message": "Stream closed" if success else "Failed to close stream",
-    }
+    if success:
+        return router.success_response(
+            data={"stream_id": stream_id},
+            message="Stream closed successfully"
+        )
+    else:
+        return router.success_response(
+            data={"stream_id": stream_id},
+            message="Failed to close stream"
+        )
