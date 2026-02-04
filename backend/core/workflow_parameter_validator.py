@@ -34,7 +34,6 @@ class ValidationRule(ABC):
         Returns:
             Tuple of (is_valid, error_message)
         """
-        pass
 
 class RequiredRule(ValidationRule):
     """Required field validation"""
@@ -404,10 +403,10 @@ class WorkflowParameterValidator:
                 if isinstance(value, str):
                     return json.loads(value)
                 return dict(value)
-        except (ValueError, TypeError, json.JSONDecodeError):
-            pass
-
-        return value
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
+            logger.warning(f"Failed to transform value {type(value).__name__} to {param_type}: {e}")
+            # Return original value if transformation fails
+            return value
 
     def get_missing_required_parameters(
         self,

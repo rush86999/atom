@@ -444,16 +444,16 @@ class PasswordResetToken(Base):
     user = relationship("User", backref="sessions")
 
 class AgentJobStatus(str, enum.Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
 
 class HITLActionStatus(str, enum.Enum):
     """Status for Human-in-the-loop actions requiring user approval"""
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
     EXPIRED = "expired"
 
 class AgentJob(Base):
@@ -461,7 +461,7 @@ class AgentJob(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, nullable=False)
-    status = Column(String, default=AgentJobStatus.PENDING.value)
+    status = Column(SQLEnum(AgentJobStatus), default=AgentJobStatus.PENDING, nullable=False)
     start_time = Column(DateTime(timezone=True), server_default=func.now())
     end_time = Column(DateTime(timezone=True), nullable=True)
     logs = Column(Text, nullable=True) # JSON Logs
@@ -3203,6 +3203,40 @@ class DashboardWidget(Base):
 # ============================================================================
 # AUTHENTICATION AND SECURITY MODELS
 # ============================================================================
+
+class ActiveToken(Base):
+    """
+    Active JWT Token Tracker
+
+    Tracks issued JWT tokens for proper revocation management.
+    When a user logs in or receives a new token, it's tracked here.
+    This enables revocation of all user tokens (e.g., on password change).
+
+    Cleanup: Expired entries should be periodically removed via maintenance job.
+    """
+    __tablename__ = "active_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    jti = Column(String(255), unique=True, nullable=False, index=True)
+    issued_at = Column(DateTime, server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)  # For cleanup
+
+    # Track which user owns the token
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Optional: Track token context (IP, user agent)
+    issued_ip = Column(String(50), nullable=True)
+    issued_user_agent = Column(String(500), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+
+    # Indexes for efficient lookups and cleanup
+    __table_args__ = (
+        Index('ix_active_tokens_jti', 'jti'),
+        Index('ix_active_tokens_expires', 'expires_at'),
+        Index('ix_active_tokens_user', 'user_id', 'issued_at'),
+    )
 
 class RevokedToken(Base):
     """
