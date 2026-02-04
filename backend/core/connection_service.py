@@ -196,8 +196,16 @@ class ConnectionService:
                 should_refresh = True
         else:
             # Heuristic: if last updated > 55 mins ago and we have a refresh token, maybe just refresh?
-            # For now, stay with explicit expiry or manually triggered.
-            pass
+            # For now, we'll use this heuristic: if token was updated more than 55 minutes ago
+            # and we have a refresh token available, proactively refresh it.
+            if conn.updated_at:
+                token_age = datetime.now() - conn.updated_at
+                if token_age > timedelta(minutes=55) and refresh_token:
+                    logger.info(
+                        f"Token for {conn.integration_id} is {token_age.seconds // 60} minutes old, "
+                        f"proactively refreshing"
+                    )
+                    should_refresh = True
             
         if not should_refresh:
             return None

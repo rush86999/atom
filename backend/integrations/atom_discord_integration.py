@@ -785,16 +785,30 @@ class AtomDiscordIntegration:
     async def _update_workspace_cross_platform(self, event_data: Dict[str, Any], platform: str):
         """Update workspace information across platforms"""
         try:
-            # This would update unified workspace information
-            pass
+            # Cross-platform workspace updates would go here
+            # For now, log the event for tracking purposes
+            logger.debug(
+                f"Cross-platform workspace update requested: platform={platform}, "
+                f"event_type={event_data.get('type')}, "
+                f"guild_id={event_data.get('guild_id')}"
+            )
+            # TODO: Implement cross-platform workspace synchronization
+            # This would update unified workspace information across all platforms
         except Exception as e:
             logger.error(f"Error updating workspace cross-platform: {e}")
-    
+
     async def _update_voice_state_cross_platform(self, event_data: Dict[str, Any], platform: str):
         """Update voice state information across platforms"""
         try:
-            # This would update voice state in unified workspace
-            pass
+            # Cross-platform voice state updates would go here
+            # For now, log the state change for tracking purposes
+            logger.debug(
+                f"Cross-platform voice state update requested: platform={platform}, "
+                f"user_id={event_data.get('user_id')}, "
+                f"state={event_data.get('state')}"
+            )
+            # TODO: Implement cross-platform voice state synchronization
+            # This would update voice state in unified workspace across all platforms
         except Exception as e:
             logger.error(f"Error updating voice state cross-platform: {e}")
     

@@ -17,9 +17,16 @@ class ConflictResolution(BaseModel):
 
 class ScheduleOptimizer:
     """Engine to resolve scheduling conflicts and find optimal gaps"""
-    
-    def __init__(self):
-        pass
+
+    def __init__(self, buffer_minutes: int = 15):
+        """
+        Initialize the schedule optimizer.
+
+        Args:
+            buffer_minutes: Minimum buffer time between events (default: 15 minutes)
+        """
+        self.buffer_minutes = buffer_minutes
+        self.cache = {}  # Cache for optimization results
 
     async def find_resolution_slots(self, 
                                    conflicting_event: Dict[str, Any], 
