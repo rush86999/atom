@@ -135,11 +135,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ### 10. Episodic Memory & Graduation Framework ✨ NEW
 - **Files**: `episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`
 - **Purpose**: Agent learning from past experiences with constitutional compliance validation
+- **✨ Canvas & Feedback Integration**: Episodes now include canvas presentations and user feedback for enriched reasoning
 - **Features**:
   - Automatic episode segmentation (time gaps, topic changes, task completion)
   - Four retrieval modes: Temporal, Semantic, Sequential, Contextual
   - Hybrid PostgreSQL (hot) + LanceDB (cold) storage architecture
   - Episode lifecycle: decay, consolidation, archival
+  - **Canvas-aware episodes**: Track canvas presentations (charts, forms, sheets) with action filtering
+  - **Feedback-linked episodes**: Aggregate user feedback scores for retrieval weighting
+  - **Enriched sequential retrieval**: Episodes include canvas_context and feedback_context
+  - **Canvas type filtering**: Retrieve episodes by canvas type (sheets, charts, forms)
+  - **Feedback-weighted analytics**: Prioritize high-rated episodes
   - **🎓 Graduation framework**: Validate agent promotion readiness using episodic memory
   - **Constitutional compliance**: Track interventions and validate against Knowledge Graph rules
   - **Audit trail**: EpisodeAccessLog for all memory operations
@@ -148,13 +154,27 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
   - INTERN → SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
   - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
 - **Performance**: Episode creation <5s, Temporal retrieval ~10ms, Semantic retrieval ~50-100ms
-- **API**: 20+ REST endpoints for episodes and graduation
-- **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`
-- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`
+- **API**: 25+ REST endpoints for episodes, graduation, and canvas/feedback integration
+- **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`, `test_canvas_feedback_episode_integration.py`
+- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
 ---
 
 ## Recent Major Changes
+
+### Canvas & Feedback Integration with Episodic Memory (Feb 4, 2026) ✨ NEW
+- **Metadata-only linkage**: Episodes store lightweight references to CanvasAudit and AgentFeedback records
+- **Canvas-aware episodes**: Track all canvas interactions (present, submit, close, update, execute) with type filtering
+- **Feedback-linked episodes**: Aggregate user feedback scores (-1.0 to 1.0) for retrieval weighting
+- **Enriched sequential retrieval**: Episodes include canvas_context and feedback_context by default
+- **Canvas type filtering**: Retrieve episodes by canvas type (sheets, charts, forms) and action
+- **Feedback-weighted retrieval**: Positive feedback gets +0.2 boost, negative gets -0.3 penalty
+- **Agent decision-making**: Agents always fetch canvas/feedback context during episode recall
+- **Coverage**: Supports all 7 built-in canvas types (generic, docs, email, sheets, orchestration, terminal, coding) and custom components
+- **Performance**: <100ms retrieval overhead, ~100 bytes storage per episode
+- **Files modified**: 7 files (models, 3 services, API routes, migration)
+- **Tests**: 25+ comprehensive tests for creation, retrieval, enrichment, and performance
+- **See**: `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
 ### Episodic Memory & Graduation Framework (Feb 3, 2026) ✨ NEW
 - Comprehensive episodic memory system with hybrid PostgreSQL + LanceDB storage

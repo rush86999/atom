@@ -15,7 +15,14 @@ from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.lancedb_handler import get_lancedb_handler
-from core.models import AgentRegistry, Episode, EpisodeAccessLog, EpisodeSegment
+from core.models import (
+    AgentFeedback,
+    AgentRegistry,
+    CanvasAudit,
+    Episode,
+    EpisodeAccessLog,
+    EpisodeSegment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,9 +177,26 @@ class EpisodeRetrievalService:
     async def retrieve_sequential(
         self,
         episode_id: str,
-        agent_id: str
+        agent_id: str,
+        include_canvas: bool = True,
+        include_feedback: bool = True
     ) -> Dict[str, Any]:
-        """Retrieve full episode with segments"""
+        """
+        Retrieve full episode with segments and canvas/feedback context.
+
+        NOTE: Canvas and feedback are included by default to ensure agents
+        have complete context for decision-making. Only set to False for
+        performance optimization in specific scenarios.
+
+        Args:
+            episode_id: Episode ID
+            agent_id: Agent ID
+            include_canvas: Include canvas context (default: True)
+            include_feedback: Include feedback context (default: True)
+
+        Returns:
+            Episode with segments, canvas_context, and feedback_context
+        """
         episode = self.db.query(Episode).filter(
             Episode.id == episode_id,
             Episode.agent_id == agent_id
@@ -186,24 +210,44 @@ class EpisodeRetrievalService:
             EpisodeSegment.episode_id == episode_id
         ).order_by(EpisodeSegment.sequence_order.asc()).all()
 
-        # Log access
-        await self._log_access(episode_id, "sequential", {"allowed": True}, agent_id, 1)
-
-        return {
+        result = {
             "episode": self._serialize_episode(episode),
             "segments": [self._serialize_segment(s) for s in segments]
         }
+
+        # Enrich with canvas context (DEFAULT: True)
+        if include_canvas and episode.canvas_ids:
+            result["canvas_context"] = await self._fetch_canvas_context(episode.canvas_ids)
+
+        # Enrich with feedback context (DEFAULT: True)
+        if include_feedback and episode.feedback_ids:
+            result["feedback_context"] = await self._fetch_feedback_context(episode.feedback_ids)
+
+        # Log access
+        await self._log_access(episode_id, "sequential", {"allowed": True}, agent_id, 1)
+
+        return result
 
     async def retrieve_contextual(
         self,
         agent_id: str,
         current_task: str,
-        limit: int = 5
+        limit: int = 5,
+        require_canvas: bool = False,
+        require_feedback: bool = False
     ) -> Dict[str, Any]:
         """
         Hybrid retrieval: combines temporal + semantic + relevance
 
-        Returns episodes most relevant to current task context.
+        Returns episodes most relevant to current task context with canvas
+        and feedback awareness.
+
+        Args:
+            agent_id: Agent ID
+            current_task: Current task description
+            limit: Max results
+            require_canvas: Only return episodes with canvas context
+            require_feedback: Only return episodes with feedback
         """
         # 1. Get recent episodes (temporal)
         recent_result = await self.retrieve_temporal(agent_id, "30d", limit=limit*2)
@@ -220,18 +264,46 @@ class EpisodeRetrievalService:
         for ep in semantic_episodes:
             scored[ep["id"]] = scored.get(ep["id"], 0) + 0.7  # Semantic weight
 
-        # 4. Sort by score and return top N
+        # 4. Apply canvas/feedback boosts
+        for ep_id, score in scored.items():
+            ep = self.db.query(Episode).filter(Episode.id == ep_id).first()
+            if not ep:
+                continue
+
+            # Canvas boost: episodes with canvas interactions get +0.1
+            if ep.canvas_action_count > 0:
+                scored[ep_id] += 0.1
+
+            # Feedback boost: positive feedback gets +0.2, negative gets -0.3
+            # This matches the feedback-aware boosting requirements
+            if ep.aggregate_feedback_score:
+                if ep.aggregate_feedback_score > 0:  # Positive feedback
+                    scored[ep_id] += 0.2
+                elif ep.aggregate_feedback_score < 0:  # Negative feedback
+                    scored[ep_id] -= 0.3
+                # Neutral feedback (score near 0) gets no adjustment
+
+        # 5. Sort by score and return top N
         sorted_ids = sorted(scored.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-        episodes = []
+        # 6. Filter by requirements and build results
+        filtered_episodes = []
         for ep_id, score in sorted_ids:
             ep = self.db.query(Episode).filter(Episode.id == ep_id).first()
-            if ep:
-                episodes.append({**self._serialize_episode(ep), "relevance_score": score})
+            if not ep:
+                continue
+
+            # Apply filters
+            if require_canvas and ep.canvas_action_count == 0:
+                continue
+            if require_feedback and not ep.feedback_ids:
+                continue
+
+            filtered_episodes.append({**self._serialize_episode(ep), "relevance_score": score})
 
         return {
-            "episodes": episodes,
-            "count": len(episodes),
+            "episodes": filtered_episodes,
+            "count": len(filtered_episodes),
             "query": current_task
         }
 
@@ -291,4 +363,143 @@ class EpisodeRetrievalService:
             "source_type": segment.source_type,
             "source_id": segment.source_id,
             "created_at": segment.created_at.isoformat() if segment.created_at else None
+        }
+
+    async def _fetch_canvas_context(self, canvas_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch canvas audit records by ID list.
+
+        Args:
+            canvas_ids: List of CanvasAudit IDs
+
+        Returns:
+            List of canvas context dictionaries
+        """
+        if not canvas_ids:
+            return []
+
+        try:
+            canvases = self.db.query(CanvasAudit).filter(
+                CanvasAudit.id.in_(canvas_ids)
+            ).all()
+
+            return [{
+                "id": c.id,
+                "canvas_type": c.canvas_type,
+                "component_type": c.component_type,
+                "component_name": c.component_name,
+                "action": c.action,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "metadata": c.audit_metadata
+            } for c in canvases]
+
+        except Exception as e:
+            logger.error(f"Failed to fetch canvas context: {e}")
+            return []
+
+    async def _fetch_feedback_context(self, feedback_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch feedback records by ID list.
+
+        Args:
+            feedback_ids: List of AgentFeedback IDs
+
+        Returns:
+            List of feedback context dictionaries
+        """
+        if not feedback_ids:
+            return []
+
+        try:
+            feedbacks = self.db.query(AgentFeedback).filter(
+                AgentFeedback.id.in_(feedback_ids)
+            ).all()
+
+            return [{
+                "id": f.id,
+                "feedback_type": f.feedback_type,
+                "rating": f.rating,
+                "thumbs_up_down": f.thumbs_up_down,
+                "corrections": f.user_correction,
+                "created_at": f.created_at.isoformat() if f.created_at else None
+            } for f in feedbacks]
+
+        except Exception as e:
+            logger.error(f"Failed to fetch feedback context: {e}")
+            return []
+
+    async def retrieve_by_canvas_type(
+        self,
+        agent_id: str,
+        canvas_type: str,
+        action: Optional[str] = None,
+        time_range: str = "30d",
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Retrieve episodes filtered by canvas type and action.
+
+        Useful for: "Show me episodes where I presented spreadsheets"
+
+        Args:
+            agent_id: Agent ID
+            canvas_type: Canvas type (sheets, charts, generic, etc.)
+            action: Optional action filter (present, submit, close, etc.)
+            time_range: Time range (1d, 7d, 30d, 90d)
+            limit: Max results
+
+        Returns:
+            Filtered episodes with canvas type info
+        """
+        # Governance check
+        governance_check = self.governance.can_perform_action(
+            agent_id=agent_id,
+            action_type="read_memory"
+        )
+
+        if not governance_check.get("allowed", True):
+            return {
+                "episodes": [],
+                "error": governance_check.get("reason", "Governance check failed"),
+                "governance_check": governance_check
+            }
+
+        # Time filter
+        deltas = {"1d": 1, "7d": 7, "30d": 30, "90d": 90}
+        days = deltas.get(time_range, 30)
+        cutoff = datetime.now() - timedelta(days=days)
+
+        # Query episodes with canvas
+        query = self.db.query(Episode).filter(
+            Episode.agent_id == agent_id,
+            Episode.started_at >= cutoff,
+            Episode.status != "archived",
+            Episode.canvas_action_count > 0
+        )
+
+        # Filter by canvas type (requires joining CanvasAudit)
+        canvas_subquery = self.db.query(CanvasAudit.episode_id).filter(
+            CanvasAudit.canvas_type == canvas_type
+        )
+
+        if action:
+            canvas_subquery = canvas_subquery.filter(CanvasAudit.action == action)
+
+        query = query.filter(Episode.id.in_(canvas_subquery))
+
+        episodes = query.order_by(Episode.started_at.desc()).limit(limit).all()
+
+        # Log access
+        for episode in episodes:
+            await self._log_access(
+                episode.id, "canvas_type_filter", governance_check, agent_id, len(episodes)
+            )
+
+        return {
+            "episodes": [self._serialize_episode(ep) for ep in episodes],
+            "count": len(episodes),
+            "canvas_type": canvas_type,
+            "action": action,
+            "time_range": time_range,
+            "governance_check": governance_check
         }

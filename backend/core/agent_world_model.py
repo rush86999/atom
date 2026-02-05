@@ -666,6 +666,46 @@ class WorldModelService:
                     limit=limit
                 )
                 episodes_result = episodes_response.get("episodes", [])
+
+                # 7. Enrich episodes with canvas and feedback context (ALWAYS)
+                # This happens for EVERY episode recall, not just canvas-specific tasks
+                enriched_episodes = []
+                for episode_result in episodes_result:
+                    episode_id = episode_result.get("id")
+                    if not episode_id:
+                        enriched_episodes.append(episode_result)
+                        continue
+
+                    # ALWAYS fetch canvas context (if available)
+                    canvas_context = []
+                    if episode_result.get("canvas_ids"):
+                        try:
+                            canvas_context = await episode_service._fetch_canvas_context(
+                                episode_result["canvas_ids"]
+                            )
+                        except Exception as ce:
+                            logger.warning(f"Canvas context fetch failed for episode {episode_id}: {ce}")
+
+                    # ALWAYS fetch feedback context (if available)
+                    feedback_context = []
+                    if episode_result.get("feedback_ids"):
+                        try:
+                            feedback_context = await episode_service._fetch_feedback_context(
+                                episode_result["feedback_ids"]
+                            )
+                        except Exception as fe:
+                            logger.warning(f"Feedback context fetch failed for episode {episode_id}: {fe}")
+
+                    # Enrich episode with full context
+                    enriched_episodes.append({
+                        **episode_result,
+                        "canvas_context": canvas_context,
+                        "feedback_context": feedback_context
+                    })
+
+                # Replace with enriched episodes
+                episodes_result = enriched_episodes
+
         except Exception as ee:
             logger.warning(f"Episode recall failed: {ee}")
 
@@ -676,5 +716,99 @@ class WorldModelService:
             "formulas": formula_results,
             "conversations": conversation_results,
             "business_facts": business_facts,
-            "episodes": episodes_result  # NEW
+            "episodes": episodes_result  # NEW - Enriched with canvas/feedback
         }
+
+    def _extract_canvas_insights(self, enriched_episodes: List[Any]) -> Dict[str, Any]:
+        """
+        Extract actionable insights from canvas context in episodes.
+
+        Analyzes canvas presentations and user feedback to derive patterns
+        that can inform agent decision-making.
+
+        Args:
+            enriched_episodes: List of episodes with canvas_context and feedback_context
+
+        Returns:
+            {
+                "canvas_type_counts": Dict[str, int],
+                "user_actions": Dict[str, int],
+                "high_engagement_canvases": List[Dict],
+                "preferred_canvas_types": List[str],
+                "user_interaction_patterns": Dict[str, List[str]]
+            }
+        """
+        insights = {
+            "canvas_type_counts": {},
+            "user_actions": {},
+            "high_engagement_canvases": [],
+            "preferred_canvas_types": [],
+            "user_interaction_patterns": {
+                "closes_quickly": [],
+                "engages": [],
+                "submits": []
+            }
+        }
+
+        try:
+            for episode in enriched_episodes:
+                canvas_context = episode.get("canvas_context", [])
+                feedback_context = episode.get("feedback_context", [])
+
+                for canvas in canvas_context:
+                    canvas_type = canvas.get("canvas_type")
+                    action = canvas.get("action")
+
+                    if not canvas_type:
+                        continue
+
+                    # Track canvas type usage
+                    insights["canvas_type_counts"][canvas_type] = \
+                        insights["canvas_type_counts"].get(canvas_type, 0) + 1
+
+                    # Track user actions
+                    if action:
+                        insights["user_actions"][action] = \
+                            insights["user_actions"].get(action, 0) + 1
+
+                        # Track interaction patterns
+                        if action == "close":
+                            insights["user_interaction_patterns"]["closes_quickly"].append(canvas_type)
+                        elif action in ["present", "update"]:
+                            insights["user_interaction_patterns"]["engages"].append(canvas_type)
+                        elif action == "submit":
+                            insights["user_interaction_patterns"]["submits"].append(canvas_type)
+
+                # Track high-engagement canvases (positive feedback)
+                if feedback_context and canvas_context:
+                    # Calculate average feedback rating
+                    ratings = [
+                        f.get("rating", 3)
+                        for f in feedback_context
+                        if f.get("rating") is not None
+                    ]
+
+                    if ratings:
+                        avg_feedback = sum(ratings) / len(ratings)
+
+                        if avg_feedback >= 4:
+                            # This episode had high engagement
+                            for canvas in canvas_context:
+                                insights["high_engagement_canvases"].append({
+                                    "canvas_id": canvas.get("id"),
+                                    "canvas_type": canvas.get("canvas_type"),
+                                    "action": canvas.get("action"),
+                                    "avg_feedback": avg_feedback
+                                })
+
+            # Determine preferred canvas types (most used with positive engagement)
+            type_counts = insights["canvas_type_counts"]
+            if type_counts:
+                # Sort by count descending
+                sorted_types = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)
+                insights["preferred_canvas_types"] = [t[0] for t in sorted_types]
+
+        except Exception as e:
+            logger.warning(f"Failed to extract canvas insights: {e}")
+
+        return insights
