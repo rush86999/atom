@@ -434,8 +434,8 @@ class CanvasDataModel(BaseModel):
 
     @field_validator('component_type')
     @classmethod
-    def component_type_must_match_canvas_type(cls, v, values):
-        canvas_type = values.get('canvas_type')
+    def component_type_must_match_canvas_type(cls, v, info):
+        canvas_type = info.data.get('canvas_type')
         if canvas_type == "generic":
             valid_components = ["chart", "markdown", "form", "table", "image", "text"]
             if v not in valid_components:
