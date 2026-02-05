@@ -7,7 +7,7 @@ Provides REST endpoints for LINE messaging integration.
 import logging
 from typing import Any, Dict, List, Optional
 from core.base_routes import BaseAPIRouter
-from fastapi import Depends, HTTPException, Query, status, Header
+from fastapi import Depends, Query, status, Header
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.requests import Request
@@ -77,10 +77,7 @@ async def handle_line_webhook(
         # Verify signature
         if not line_adapter.verify_signature(body, x_line_signature):
             logger.warning("Invalid LINE webhook signature")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid signature"
-            )
+            raise router.permission_denied_error(message="Invalid signature")
 
         # Parse JSON body
         import json
@@ -94,10 +91,7 @@ async def handle_line_webhook(
         raise
     except Exception as e:
         logger.error(f"Error handling LINE webhook: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error handling LINE webhook", details={"error": str(e)})
 
 
 @router.post("/send-message")
@@ -118,9 +112,9 @@ async def send_line_message(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send message')
+            raise router.internal_error(
+                message="Failed to send message",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -129,10 +123,7 @@ async def send_line_message(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE message: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending LINE message", details={"error": str(e)})
 
 
 @router.post("/send-messages")
@@ -153,9 +144,9 @@ async def send_line_messages(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send messages')
+            raise router.internal_error(
+                message="Failed to send messages",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -164,10 +155,7 @@ async def send_line_messages(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE messages: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending LINE messages", details={"error": str(e)})
 
 
 @router.post("/send-quick-reply")
@@ -189,9 +177,9 @@ async def send_line_quick_reply(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send quick reply')
+            raise router.internal_error(
+                message="Failed to send quick reply",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -200,10 +188,7 @@ async def send_line_quick_reply(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE quick reply: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending LINE quick reply", details={"error": str(e)})
 
 
 @router.post("/send-template")
@@ -225,9 +210,9 @@ async def send_line_template(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send template')
+            raise router.internal_error(
+                message="Failed to send template",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -236,10 +221,7 @@ async def send_line_template(
         raise
     except Exception as e:
         logger.error(f"Error sending LINE template: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending LINE template", details={"error": str(e)})
 
 
 @router.get("/user/{user_id}/profile")
@@ -252,10 +234,7 @@ async def get_line_user_profile(
         result = await line_adapter.get_user_profile(user_id)
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=result.get('error', 'User not found')
-            )
+            raise router.not_found_error(message="User not found", details={"error": result.get('error', 'Unknown error')})
 
         return result
 
@@ -263,10 +242,7 @@ async def get_line_user_profile(
         raise
     except Exception as e:
         logger.error(f"Error getting LINE user profile: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error getting LINE user profile", details={"error": str(e)})
 
 
 @router.get("/health")

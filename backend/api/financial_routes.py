@@ -169,10 +169,7 @@ async def get_financial_account(
     ).first()
 
     if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial account not found"
-        )
+        raise router.not_found_error("Financial account", account_id)
 
     return FinancialAccountDetailResponse(
         id=account.id,
@@ -242,10 +239,7 @@ async def update_financial_account(
     ).first()
 
     if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial account not found"
-        )
+        raise router.not_found_error("Financial account", account_id)
 
     # Update only provided fields
     if request.account_type is not None:
@@ -292,10 +286,7 @@ async def delete_financial_account(
     ).first()
 
     if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Financial account not found"
-        )
+        raise router.not_found_error("Financial account", account_id)
 
     db.delete(account)
     db.commit()

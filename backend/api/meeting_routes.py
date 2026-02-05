@@ -73,10 +73,7 @@ async def get_meeting_attendance(
     ).first()
 
     if not attendance:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Meeting attendance not found"
-        )
+        raise router.not_found_error("Meeting attendance", task_id)
 
     return MeetingAttendanceResponse(
         task_id=attendance.task_id,
@@ -137,10 +134,7 @@ async def create_meeting_attendance(
     ).first()
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendance record for this task already exists"
-        )
+        raise router.conflict_error("Attendance record for this task already exists")
 
     attendance = MeetingAttendanceStatus(
         task_id=request.task_id,
@@ -186,10 +180,7 @@ async def update_meeting_attendance(
     ).first()
 
     if not attendance:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Meeting attendance not found"
-        )
+        raise router.not_found_error("Meeting attendance", task_id)
 
     # Update only provided fields
     if request.platform is not None:
@@ -238,10 +229,7 @@ async def delete_meeting_attendance(
     ).first()
 
     if not attendance:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Meeting attendance not found"
-        )
+        raise router.not_found_error("Meeting attendance", task_id)
 
     db.delete(attendance)
     db.commit()

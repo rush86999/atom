@@ -366,7 +366,10 @@ async def delete_component(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -403,7 +406,10 @@ async def get_component_versions(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -441,7 +447,10 @@ async def rollback_component(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -496,7 +505,10 @@ async def record_component_usage(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -529,6 +541,9 @@ async def get_component_stats(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result

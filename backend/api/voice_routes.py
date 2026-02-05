@@ -66,7 +66,7 @@ async def transcribe_audio(
         )
     except Exception as e:
         logger.error(f"Transcription failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Transcription failed", details={"error": str(e)})
 
 @router.post("/tts", response_model=TTSResponse)
 async def text_to_speech(request: TTSRequest):
@@ -80,7 +80,7 @@ async def text_to_speech(request: TTSRequest):
         )
     except Exception as e:
         logger.error(f"TTS failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="TTS failed", details={"error": str(e)})
 
 @router.get("/languages")
 async def list_supported_languages():

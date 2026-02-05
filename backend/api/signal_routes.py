@@ -68,18 +68,18 @@ async def send_signal_message(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send message')
+            raise router.internal_error(
+                message="Failed to send Signal message",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
 
     except Exception as e:
         logger.error(f"Error sending Signal message: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        raise router.internal_error(
+            message="Error sending Signal message",
+            details={"error": str(e)}
         )
 
 
@@ -141,9 +141,9 @@ async def verify_signal_webhook(
         return result
     except Exception as e:
         logger.error(f"Error verifying Signal webhook: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        raise router.internal_error(
+            message="Error verifying Signal webhook",
+            details={"error": str(e)}
         )
 
 

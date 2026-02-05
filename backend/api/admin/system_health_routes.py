@@ -2,10 +2,11 @@ import logging
 import time
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from core.admin_endpoints import get_super_admin
 from core.cache import cache
-from core.database import get_db_session
+from core.database import get_db
 from core.models import User
 
 # Initialize cache service (use global)
@@ -24,7 +25,10 @@ logger = logging.getLogger(__name__)
 
 # Hardcoded path to avoid prefix issues
 @router.get("/api/admin/health")
-def get_system_health(admin: User = Depends(get_super_admin)):
+def get_system_health(
+    admin: User = Depends(get_super_admin),
+    db: Session = Depends(get_db)
+):
     """
     Real system health check for Admin Dashboard.
     Verifies connectivity to:
@@ -32,15 +36,14 @@ def get_system_health(admin: User = Depends(get_super_admin)):
     2. Cache (Redis/Upstash)
     3. Vector Store (LanceDB/R2)
     """
-    
+
     # 1. Database Check
     db_status = "unknown"
     try:
         start = time.time()
-        with get_db_session() as db:
-            db.execute(text("SELECT 1"))
-            db_time = time.time() - start
-            db_status = "operational" if db_time < 2.0 else "degraded"
+        db.execute(text("SELECT 1"))
+        db_time = time.time() - start
+        db_status = "operational" if db_time < 2.0 else "degraded"
     except Exception as e:
         logger.error(f"Health Check DB Error: {e}")
         db_status = "degraded"
