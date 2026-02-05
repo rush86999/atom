@@ -7,14 +7,14 @@ Governance Integration:
 - All browser actions require INTERN+ maturity level
 - Full audit trail via browser_audit table
 - Agent execution tracking for all browser sessions
+
+Refactored to use standardized decorators and service factory.
 """
 
 from datetime import datetime
-import logging
-import os
 from typing import Any, Dict, Optional
 import uuid
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -22,8 +22,13 @@ from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.error_handler_decorator import handle_errors, handle_database_errors
+from core.error_handlers import ErrorCode
+from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, AgentRegistry, BrowserAudit, BrowserSession, User
 from core.security_dependencies import get_current_user
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
 from tools.browser_tool import (
     browser_click,
     browser_close_session,
@@ -37,13 +42,9 @@ from tools.browser_tool import (
     get_browser_manager,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = BaseAPIRouter(prefix="/api/browser", tags=["browser"])
-
-# Feature flags
-BROWSER_GOVERNANCE_ENABLED = os.getenv("BROWSER_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 # ============================================================================
@@ -122,10 +123,10 @@ async def _check_browser_governance(
     agent = None
     governance_check = None
 
-    if agent_id and BROWSER_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+    if agent_id and FeatureFlags.should_enforce_governance('browser'):
         try:
             resolver = AgentContextResolver(db)
-            governance = AgentGovernanceService(db)
+            governance = ServiceFactory.get_governance_service(db)
 
             agent, _ = await resolver.resolve_agent_for_request(
                 user_id=user_id,
@@ -208,6 +209,7 @@ def _create_browser_audit(
 # ============================================================================
 
 @router.post("/session/create")
+@handle_errors(error_code=ErrorCode.INTERNAL_SERVER_ERROR)
 async def create_browser_session(
     request: CreateSessionRequest,
     current_user: User = Depends(get_current_user),
@@ -250,12 +252,17 @@ async def create_browser_session(
 
         result["db_session_id"] = db_session.id
     except Exception as e:
-        logger.error(f"Failed to create browser session record: {e}")
+        logger.error(
+            "Failed to create browser session record",
+            session_id=result.get("session_id"),
+            error=str(e)
+        )
 
     return result
 
 
 @router.post("/navigate")
+@handle_errors(error_code=ErrorCode.INTERNAL_SERVER_ERROR)
 async def navigate(
     request: NavigateRequest,
     current_user: User = Depends(get_current_user),
@@ -267,10 +274,10 @@ async def navigate(
     governance_check = None
 
     # Governance check if agent_id provided
-    if request.agent_id and BROWSER_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+    if request.agent_id and FeatureFlags.should_enforce_governance('browser'):
         try:
             resolver = AgentContextResolver(db)
-            governance = AgentGovernanceService(db)
+            governance = ServiceFactory.get_governance_service(db)
 
             agent, _ = await resolver.resolve_agent_for_request(
                 user_id=current_user.id,

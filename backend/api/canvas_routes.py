@@ -9,10 +9,10 @@ Now includes governance integration with:
 - Complete audit trail for state-changing operations
 
 Migrated to BaseAPIRouter for standardized responses and error handling.
+Refactored to use standardized decorators and service factory.
 """
 
 from datetime import datetime
-import logging
 import os
 from typing import Any, Dict, Optional
 import uuid
@@ -20,22 +20,20 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.governance_config import check_governance
-from core.models import AgentExecution, CanvasAudit, User
+from core.error_handler_decorator import handle_errors
+from core.error_handlers import ErrorCode
+from core.feature_flags import FeatureFlags
+from core.models import AgentExecution, AgentRegistry, CanvasAudit, User
 from core.security_dependencies import get_current_user
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
 from core.websockets import manager as ws_manager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = BaseAPIRouter(prefix="/api/canvas", tags=["canvas"])
-
-# Feature flags
-FORM_GOVERNANCE_ENABLED = os.getenv("FORM_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 class FormSubmission(BaseModel):
@@ -46,6 +44,7 @@ class FormSubmission(BaseModel):
 
 
 @router.post("/submit")
+@handle_errors(error_code=ErrorCode.INTERNAL_SERVER_ERROR)
 async def submit_form(
     submission: FormSubmission,
     current_user: User = Depends(get_current_user),
@@ -72,31 +71,28 @@ async def submit_form(
     governance_check = None
     submission_execution = None
 
-    try:
-        # ============================================
-        # GOVERNANCE: Agent Resolution & Validation
-        # ============================================
-        if FORM_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
-            resolver = AgentContextResolver(db)
-            governance = AgentGovernanceService(db)
+    # ============================================
+    # GOVERNANCE: Agent Resolution & Validation
+    # ============================================
+    if FeatureFlags.should_enforce_governance('form'):
+        governance = ServiceFactory.get_governance_service(db)
 
-            # Get originating execution if provided
-            if submission.agent_execution_id:
-                originating_execution = db.query(AgentExecution).filter(
-                    AgentExecution.id == submission.agent_execution_id
-                ).first()
+        # Get originating execution if provided
+        if submission.agent_execution_id:
+            originating_execution = db.query(AgentExecution).filter(
+                AgentExecution.id == submission.agent_execution_id
+            ).first()
 
-            # Resolve agent - prefer originating execution's agent
-            agent_id = submission.agent_id
-            if originating_execution and not agent_id:
-                agent_id = originating_execution.agent_id
+        # Resolve agent - prefer originating execution's agent
+        agent_id = submission.agent_id
+        if originating_execution and not agent_id:
+            agent_id = originating_execution.agent_id
 
-            if agent_id:
-                # Query AgentRegistry (not AgentExecution) for agent details
-                from core.models import AgentRegistry
-                agent = db.query(AgentRegistry).filter(
-                    AgentRegistry.id == agent_id
-                ).first()
+        if agent_id:
+            # Query AgentRegistry (not AgentExecution) for agent details
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
 
             # Perform governance check (submit_form = complexity 3, SUPERVISED+)
             if agent:
@@ -107,7 +103,9 @@ async def submit_form(
 
                 if not governance_check["allowed"]:
                     logger.warning(
-                        f"Governance blocked form submission: {governance_check['reason']}"
+                        "Governance blocked form submission",
+                        agent_id=agent.id if hasattr(agent, 'id') else agent_id,
+                        reason=governance_check['reason']
                     )
                     raise router.governance_denied_error(
                         agent_id=agent.id if hasattr(agent, 'id') else agent_id,
@@ -130,8 +128,9 @@ async def submit_form(
                 db.refresh(submission_execution)
 
                 logger.info(
-                    f"Agent submission execution {submission_execution.id} created "
-                    f"for form submission"
+                    "Agent submission execution created",
+                    submission_execution_id=submission_execution.id,
+                    canvas_id=submission.canvas_id
                 )
 
         audit = CanvasAudit(
@@ -155,9 +154,11 @@ async def submit_form(
         db.commit()
 
         logger.info(
-            f"Form submission from user {current_user.id}: "
-            f"{len(submission.form_data)} fields" +
-            (f" (agent: {agent.name if hasattr(agent, 'name') else agent_id})" if agent else "")
+            "Form submission received",
+            user_id=current_user.id,
+            canvas_id=submission.canvas_id,
+            field_count=len(submission.form_data),
+            agent_id=agent.id if agent and hasattr(agent, 'id') else None
         )
 
         # Notify agent via WebSocket with full context
@@ -174,7 +175,7 @@ async def submit_form(
         })
 
         # Mark submission execution as completed
-        if submission_execution and FORM_GOVERNANCE_ENABLED:
+        if submission_execution and FeatureFlags.should_enforce_governance('form'):
             try:
                 submission_execution.status = "completed"
                 submission_execution.output_summary = f"Form submitted successfully with {len(submission.form_data)} fields"
@@ -193,7 +194,11 @@ async def submit_form(
 
                 logger.info(f"Submission execution {submission_execution.id} completed")
             except Exception as completion_error:
-                logger.error(f"Failed to mark submission execution as completed: {completion_error}")
+                logger.error(
+                    "Failed to mark submission execution as completed",
+                    submission_execution_id=submission_execution.id,
+                    error=str(completion_error)
+                )
 
         return router.success_response(
             data={
@@ -205,39 +210,16 @@ async def submit_form(
             message="Form submitted successfully"
         )
 
-    except Exception as e:
-        logger.error(f"Form submission failed: {e}")
-
-        # Mark submission execution as failed if it exists
-        if submission_execution and FORM_GOVERNANCE_ENABLED:
-            try:
-                submission_execution.status = "failed"
-                submission_execution.error_message = str(e)
-                submission_execution.completed_at = datetime.now()
-                db.commit()
-
-                if agent:
-                    governance = AgentGovernanceService(db)
-                    await governance.record_outcome(
-                        agent.id if hasattr(agent, 'id') else submission.agent_id,
-                        success=False
-                    )
-            except Exception as inner_e:
-                logger.error(f"Failed to record submission failure: {inner_e}")
-
-        raise router.internal_error(
-            message="Form submission failed",
-            details={"error": str(e)}
-        )
-
 
 @router.get("/status")
+@handle_errors()
 async def get_canvas_status(
     current_user: User = Depends(get_current_user)
 ):
     """
     Get canvas status for the current user.
     """
+    logger.info("Canvas status requested", user_id=current_user.id)
     return router.success_response(
         data={
             "status": "active",
