@@ -94,6 +94,11 @@ class TestThreadSafety:
 class TestServiceReuse:
     """Test suite for service reuse within thread"""
 
+    @pytest.fixture
+    def mock_db(self):
+        """Create mock database session"""
+        return Mock(spec=Session)
+
     def test_governance_service_reuse(self, mock_db):
         """Test that governance service is reused within same thread"""
         with patch('core.service_factory.AgentGovernanceService') as mock_class:
