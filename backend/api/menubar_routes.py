@@ -81,6 +81,7 @@ class QuickChatRequest(BaseModel):
     """Quick chat request from menu bar"""
     message: str
     agent_id: Optional[str] = None
+    session_id: Optional[str] = None
     context: Optional[dict] = None
 
 
