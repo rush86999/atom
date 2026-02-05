@@ -1421,6 +1421,12 @@ class DeviceNode(Base):
     # Metadata
     metadata_json = Column(JSON, default={})
 
+    # App type (desktop, mobile, menubar)
+    app_type = Column(String, default="desktop")
+
+    # Last command execution timestamp (for menu bar)
+    last_command_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -2756,6 +2762,11 @@ class MobileDevice(Base):
     notification_enabled = Column(Boolean, default=True)
     notification_preferences = Column(JSON, default=dict)  # {agent_alerts, system_alerts, etc.}
 
+    # Biometric authentication support
+    biometric_public_key = Column(Text, nullable=True)  # Public key for signature verification
+    biometric_enabled = Column(Boolean, default=False)  # Whether biometric auth is enabled
+    last_biometric_auth = Column(DateTime(timezone=True), nullable=True)  # Last successful biometric auth
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_active = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -2770,6 +2781,8 @@ class MobileDevice(Base):
         Index('ix_mobile_devices_token', 'device_token'),
         Index('ix_mobile_devices_platform', 'platform'),
         Index('ix_mobile_devices_status', 'status'),
+        Index('ix_mobile_devices_user_status', 'user_id', 'status'),  # Composite index for faster lookups
+        Index('ix_mobile_devices_biometric_enabled', 'biometric_enabled'),
     )
 
 
@@ -2805,6 +2818,9 @@ class OfflineAction(Base):
         Index('ix_offline_actions_status', 'status'),
         Index('ix_offline_actions_priority', 'priority'),
         Index('ix_offline_actions_created', 'created_at'),
+        # Composite indexes for better performance
+        Index('ix_offline_actions_priority_status', 'priority', 'status'),
+        Index('ix_offline_actions_user_pending', 'user_id', 'status'),
     )
 
 
@@ -2831,6 +2847,10 @@ class SyncState(Base):
     # Sync configuration
     auto_sync_enabled = Column(Boolean, default=True)
     sync_interval_seconds = Column(Integer, default=300)  # 5 minutes default
+
+    # Conflict resolution
+    conflict_resolution = Column(String, default="last_write_wins")  # last_write_wins, manual, server_wins
+    last_conflict_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

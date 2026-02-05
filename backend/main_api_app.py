@@ -1189,6 +1189,15 @@ try:
 except ImportError as e:
     logger.warning(f"Meeting routes not found: {e}")
 
+# MENU BAR COMPANION ROUTES
+# ============================================================================
+try:
+    from api.menubar_routes import router as menubar_router
+    app.include_router(menubar_router)
+    logger.info("✓ Menu Bar Companion Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Menu Bar routes not found: {e}")
+
 try:
     from api.financial_routes import router as financial_router
     app.include_router(financial_router)
