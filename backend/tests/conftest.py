@@ -27,13 +27,17 @@ from core.database import Base, get_db
 from core.models import (
     AgentRegistry, AgentExecution, AgentFeedback,
     AgentOperationTracker, AgentRequestLog, CanvasAudit,
+    DeviceNode,
     Episode, EpisodeSegment, EpisodeAccessLog,
     User, UserRole, Workspace,
-    WorkflowExecution, WorkflowExecutionStatus
+    WorkflowExecution, WorkflowExecutionStatus,
+    MobileDevice, OfflineAction, SyncState
 )
 
 # Test database (sync)
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
+import os
+test_db_path = os.path.join(os.path.dirname(__file__), "..", "test.db")
+SQLALCHEMY_TEST_DATABASE_URL = f"sqlite:///{test_db_path}"
 engine = create_engine(
     SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
 )
@@ -52,39 +56,44 @@ AsyncTestingSessionLocal = async_sessionmaker(
 @pytest.fixture
 def db_session():
     """Create a fresh database session for each test"""
-    # Drop all tables first to ensure clean state
-    Base.metadata.drop_all(bind=engine)
-    try:
-        # Create all tables
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        # If index already exists, recreate tables one by one to avoid conflicts
-        if "already exists" in str(e):
-            from core.database import get_database_url
-            import re
+    import logging
+    logger = logging.getLogger(__name__)
 
-            # Extract database name from URL
-            db_url = get_database_url()
-            db_name = re.search(r'sqlite:///\.?/?([^/]+\.db)', db_url)
-            if db_name:
-                db_file = db_name.group(1)
-                if os.path.exists(db_file):
-                    os.remove(db_file)
-                    # Try creating tables again
-                    Base.metadata.create_all(bind=engine)
-            else:
-                raise
-        else:
-            raise
+    # Remove test database file if it exists to ensure clean state
+    if os.path.exists(test_db_path):
+        os.remove(test_db_path)
+
+    # Create all tables - create individually to handle errors gracefully
+    created_count = 0
+    for table in Base.metadata.sorted_tables:
+        try:
+            table.create(bind=engine, checkfirst=True)
+            created_count += 1
+        except Exception as e:
+            # Log error but continue creating other tables
+            logger.warning(f"Warning creating table {table.name}: {e}")
+
+    logger.warning(f"[MENUBAR TEST] Created {created_count}/{len(Base.metadata.tables)} tables")
+
+    # Debug: Verify critical tables exist
+    import sqlite3
+    conn = sqlite3.connect(test_db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('agent_executions', 'canvas_audit', 'device_nodes')")
+    tables = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    logger.warning(f"[MENUBAR TEST] Critical tables created: {tables}")
 
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        # Clean up after test
+        # Clean up after test - remove database file to ensure fresh state
         db.rollback()
         Base.metadata.drop_all(bind=engine)
+        if os.path.exists(test_db_path):
+            os.remove(test_db_path)
 
 
 @pytest.fixture
@@ -133,7 +142,7 @@ def clean_test_databases():
                 pass
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def async_setup():
     """Setup async database for tests that need it"""
     # Create all tables
