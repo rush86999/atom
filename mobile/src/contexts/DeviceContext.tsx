@@ -9,10 +9,16 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as Device from 'expo-device';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Expo modules for permissions
+import * as Camera from 'expo-camera';
+import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 // Types
 interface DeviceCapabilities {
@@ -243,26 +249,100 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       let granted = false;
 
       switch (capability) {
-        case 'camera':
-          // Would import and use expo-camera
-          granted = true; // Placeholder
+        case 'camera': {
+          const { status } = await Camera.requestCameraPermissionsAsync();
+          granted = status === 'granted';
+          if (!granted) {
+            Alert.alert(
+              'Camera Permission Required',
+              'Camera access is needed for this feature. Please enable it in your device settings.',
+              [{ text: 'OK' }]
+            );
+          }
           break;
-        case 'location':
-          // Would import and use expo-location
-          granted = true; // Placeholder
+        }
+
+        case 'location': {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          granted = status === 'granted';
+          if (!granted) {
+            Alert.alert(
+              'Location Permission Required',
+              'Location access is needed for this feature. Please enable it in your device settings.',
+              [{ text: 'OK' }]
+            );
+          }
           break;
-        case 'notifications':
-          // Would import and use expo-notifications
-          granted = true; // Placeholder
+        }
+
+        case 'notifications': {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+
+          granted = finalStatus === 'granted';
+          if (!granted) {
+            Alert.alert(
+              'Notification Permission Required',
+              'Notifications are needed for this feature. Please enable them in your device settings.',
+              [{ text: 'OK' }]
+            );
+          }
           break;
-        case 'biometric':
-          // Would import and use expo-local-authentication
-          granted = true; // Placeholder
+        }
+
+        case 'biometric': {
+          // Check if biometric authentication is available
+          const compatible = await LocalAuthentication.hasHardwareAsync();
+          if (!compatible) {
+            Alert.alert(
+              'Biometric Not Available',
+              'This device does not support biometric authentication.',
+              [{ text: 'OK' }]
+            );
+            granted = false;
+            break;
+          }
+
+          const enrolled = await LocalAuthentication.isEnrolledAsync();
+          if (!enrolled) {
+            Alert.alert(
+              'No Biometric Enrolled',
+              'Please enroll a fingerprint or face ID in your device settings.',
+              [{ text: 'OK' }]
+            );
+            granted = false;
+            break;
+          }
+
+          // Attempt authentication
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: 'Authenticate to access this feature',
+            fallbackLabel: 'Use password',
+          });
+
+          granted = result.success;
+          if (!granted) {
+            // User cancelled or authentication failed
+            console.log('Biometric authentication failed or was cancelled');
+          }
           break;
+        }
+
         case 'screenRecording':
           // Screen recording is not supported on mobile
           granted = false;
+          Alert.alert(
+            'Feature Not Available',
+            'Screen recording is not available on mobile devices.',
+            [{ text: 'OK' }]
+          );
           break;
+
         default:
           granted = false;
       }
@@ -279,6 +359,11 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return granted;
     } catch (error) {
       console.error(`Failed to request ${capability} capability:`, error);
+      Alert.alert(
+        'Permission Error',
+        `Failed to request permission for ${capability}. Please try again.`,
+        [{ text: 'OK' }]
+      );
       return false;
     }
   };
@@ -288,8 +373,35 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
    */
   const checkCapability = async (capability: keyof DeviceCapabilities): Promise<boolean> => {
     try {
-      // In a real implementation, you'd check the actual permission status
-      return deviceState.capabilities[capability];
+      switch (capability) {
+        case 'camera': {
+          const { status } = await Camera.getCameraPermissionsAsync();
+          return status === 'granted';
+        }
+
+        case 'location': {
+          const { status } = await Location.getForegroundPermissionsAsync();
+          return status === 'granted';
+        }
+
+        case 'notifications': {
+          const { status } = await Notifications.getPermissionsAsync();
+          return status === 'granted';
+        }
+
+        case 'biometric': {
+          const compatible = await LocalAuthentication.hasHardwareAsync();
+          const enrolled = await LocalAuthentication.isEnrolledAsync();
+          return compatible && enrolled;
+        }
+
+        case 'screenRecording':
+          // Screen recording is not supported on mobile
+          return false;
+
+        default:
+          return false;
+      }
     } catch (error) {
       console.error(`Failed to check ${capability} capability:`, error);
       return false;

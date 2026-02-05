@@ -283,35 +283,61 @@ async def list_user_documents(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     pdf_type: Optional[str] = Query(None),
+    tags: Optional[str] = Query(None),  # Comma-separated tags
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     service: PDFMemoryIntegration = Depends(get_pdf_memory_service),
 ):
     """
     List all PDF documents for a user.
 
     Returns a paginated list of document metadata (without full text content).
+
+    Query Parameters:
+    - limit: Number of results per page (1-200, default 50)
+    - offset: Number of results to skip (default 0)
+    - pdf_type: Filter by PDF type (searchable, scanned, mixed)
+    - tags: Filter by tags (comma-separated list)
+    - date_from: Filter by start date (ISO format)
+    - date_to: Filter by end date (ISO format)
     """
     try:
         # Validate required fields
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
 
-        # This would typically query the database for document listings
-        # For now, return a placeholder response
-        # In production, implement proper pagination and filtering
+        # Parse tags if provided
+        tag_list = None
+        if tags:
+            tag_list = [t.strip() for t in tags.split(",") if t.strip()]
 
-        placeholder_response = {
+        # Call the service method
+        result = await service.list_documents(
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+            pdf_type=pdf_type,
+            tags=tag_list,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500, detail=result.get("error", "Unknown error")
+            )
+
+        # Format response
+        return {
             "success": True,
             "user_id": user_id,
             "pagination": {
-                "limit": limit,
-                "offset": offset,
-                "total": 0,  # Would be actual count in production
+                "limit": result["limit"],
+                "offset": result["offset"],
+                "total": result["total"],
             },
-            "documents": [],
-            "message": "Document listing endpoint - implementation pending",
+            "documents": result["documents"],
         }
-
-        return placeholder_response
 
     except HTTPException:
         raise
@@ -324,8 +350,8 @@ async def list_user_documents(
 
 @router.post("/documents/{doc_id}/tags")
 async def update_document_tags(
-    user_id: str,
     doc_id: str,
+    user_id: str,
     tags: List[str],
     service: PDFMemoryIntegration = Depends(get_pdf_memory_service),
 ):
@@ -333,6 +359,13 @@ async def update_document_tags(
     Update tags for a PDF document.
 
     Replaces existing tags with the provided list.
+
+    Request Body:
+    - tags: List of tag strings (max 50 characters each)
+
+    Query Parameters:
+    - user_id: User ID for authentication/authorization
+    - doc_id: Document ID to update tags for
     """
     try:
         # Validate required fields
@@ -342,17 +375,28 @@ async def update_document_tags(
         if not doc_id:
             raise HTTPException(status_code=400, detail="doc_id is required")
 
-        # This would update tags in the database
-        # For now, return a placeholder response
+        if not isinstance(tags, list):
+            raise HTTPException(status_code=400, detail="tags must be a list")
 
-        placeholder_response = {
+        # Call the service method
+        result = await service.update_document_tags(
+            user_id=user_id, doc_id=doc_id, tags=tags
+        )
+
+        if not result.get("success"):
+            # Determine appropriate status code
+            error_msg = result.get("error", "")
+            if "not found" in error_msg.lower():
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
+        return {
             "success": True,
             "doc_id": doc_id,
-            "tags": tags,
-            "message": "Tag update endpoint - implementation pending",
+            "tags": result["tags"],
+            "message": result.get("message", "Tags updated successfully"),
         }
-
-        return placeholder_response
 
     except HTTPException:
         raise

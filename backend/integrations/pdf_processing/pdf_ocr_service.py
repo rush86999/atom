@@ -693,20 +693,102 @@ class PDFOCRService:
 
     async def _pdf_to_images(self, pdf_data: bytes) -> List[Image.Image]:
         """Convert PDF to list of PIL Images."""
-        # This is a simplified implementation
-        # In production, you might use pdf2image or similar libraries
         try:
-            pdf_file = io.BytesIO(pdf_data)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            # Try using pdf2image if available (best quality)
+            try:
+                from pdf2image import convert_from_bytes
 
-            images = []
-            for page in pdf_reader.pages:
-                # Create a simple placeholder image for demonstration
-                # In real implementation, use proper PDF to image conversion
-                img = Image.new("RGB", (800, 1000), color="white")
-                images.append(img)
+                logger.debug("Using pdf2image for PDF to image conversion")
+                # Convert PDF to list of images at 200 DPI for OCR quality
+                images = await asyncio.to_thread(
+                    convert_from_bytes, pdf_data, dpi=200, fmt="jpeg"
+                )
+                logger.info(f"Converted {len(images)} pages using pdf2image")
+                return images
 
-            return images
+            except ImportError:
+                logger.warning(
+                    "pdf2image not available, using fallback method. "
+                    "Install with: pip install pdf2image"
+                )
+
+                # Fallback: Try to render PDF pages using PyMuPDF (fitz) if available
+                try:
+                    import fitz
+
+                    logger.debug("Using PyMuPDF (fitz) for PDF to image conversion")
+                    pdf_document = fitz.open(stream=pdf_data, filetype="pdf")
+                    images = []
+
+                    for page_num in range(pdf_document.page_count):
+                        page = pdf_document[page_num]
+                        # Render page to pixmap (zoom=2 for better quality)
+                        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                        img_data = pix.tobytes("jpeg")
+                        img = Image.open(io.BytesIO(img_data))
+                        images.append(img)
+
+                    pdf_document.close()
+                    logger.info(f"Converted {len(images)} pages using PyMuPDF")
+                    return images
+
+                except ImportError:
+                    logger.warning(
+                        "PyMuPDF not available. Install with: pip install PyMuPDF"
+                    )
+
+                    # Final fallback: Create placeholder images with page info
+                    pdf_file = io.BytesIO(pdf_data)
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    page_count = len(pdf_reader.pages)
+
+                    logger.warning(
+                        f"Using placeholder images for {page_count} pages. "
+                        "Install pdf2image or PyMuPDF for proper conversion."
+                    )
+
+                    images = []
+                    for i, page in enumerate(pdf_reader.pages):
+                        # Try to extract page dimensions
+                        try:
+                            mediabox = page.mediabox
+                            width = int(mediabox.width)
+                            height = int(mediabox.height)
+                            # Limit max size to avoid memory issues
+                            width = min(width, 2000)
+                            height = min(height, 2000)
+                        except:
+                            width, height = 800, 1000
+
+                        # Create a white image with extracted text overlay if possible
+                        img = Image.new("RGB", (width, height), color="white")
+
+                        # Try to extract text and add to image (basic rendering)
+                        try:
+                            text = page.extract_text()
+                            if text and text.strip():
+                                from PIL import ImageDraw, ImageFont
+
+                                draw = ImageDraw.Draw(img)
+                                # Use default font
+                                try:
+                                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+                                except:
+                                    font = ImageFont.load_default()
+
+                                # Draw text (first 500 chars to avoid overflow)
+                                lines = text[:500].split("\n")
+                                y_offset = 20
+                                for line in lines[:30]:  # Max 30 lines
+                                    if line.strip():
+                                        draw.text((20, y_offset), line, fill="black", font=font)
+                                        y_offset += 20
+                        except Exception as e:
+                            logger.debug(f"Could not add text to placeholder image: {e}")
+
+                        images.append(img)
+
+                    return images
 
         except Exception as e:
             logger.error(f"PDF to image conversion failed: {e}")
@@ -716,9 +798,111 @@ class PDFOCRService:
         self, pdf_data: bytes, use_advanced_comprehension: bool
     ) -> Dict[str, Any]:
         """Extract and process images from PDF."""
-        # This would extract embedded images and process them
-        # For now, return placeholder structure
-        return {"images_found": 0, "image_descriptions": [], "success": True}
+        try:
+            images_found = 0
+            image_descriptions = []
+
+            # Try using PyMuPDF (fitz) which has excellent image extraction
+            try:
+                import fitz
+
+                logger.debug("Using PyMuPDF for image extraction")
+                pdf_document = fitz.open(stream=pdf_data, filetype="pdf")
+
+                for page_num in range(pdf_document.page_count):
+                    page = pdf_document[page_num]
+                    image_list = page.get_images(full=True)
+
+                    for img_index, img in enumerate(image_list):
+                        xref = img[0]
+                        base_image = pdf_document.extract_image(xref)
+
+                        if base_image:
+                            images_found += 1
+                            image_info = {
+                                "page": page_num + 1,
+                                "index": img_index,
+                                "format": base_image.get("ext", "unknown"),
+                                "width": base_image.get("width", 0),
+                                "height": base_image.get("height", 0),
+                                "size_bytes": len(base_image.get("image", b"")),
+                            }
+
+                            # Basic description based on dimensions
+                            if base_image.get("width", 0) > 500:
+                                image_info["description"] = "Large image (possibly photo or chart)"
+                            elif base_image.get("width", 0) > 200:
+                                image_info["description"] = "Medium image (possibly icon or diagram)"
+                            else:
+                                image_info["description"] = "Small image (possibly icon or bullet point)"
+
+                            image_descriptions.append(image_info)
+
+                            # Advanced comprehension if requested and BYOK available
+                            if use_advanced_comprehension and self.use_byok and self.byok_manager:
+                                try:
+                                    # Save image to temp file for processing
+                                    import tempfile
+
+                                    with tempfile.NamedTemporaryFile(
+                                        delete=False, suffix=f".{base_image.get('ext', 'png')}"
+                                    ) as tmp:
+                                        tmp.write(base_image["image"])
+                                        tmp_path = tmp.name
+
+                                    # Use vision model to describe image
+                                    from PIL import Image as PILImage
+
+                                    img_pil = PILImage.open(tmp_path)
+                                    # TODO: Implement vision-based description
+                                    # This would require BYOK vision model integration
+                                    os.unlink(tmp_path)
+
+                                except Exception as e:
+                                    logger.debug(f"Advanced image comprehension failed: {e}")
+
+                pdf_document.close()
+
+            except ImportError:
+                logger.warning("PyMuPDF not available for image extraction")
+
+                # Fallback: Try using PyPDF2 to count images
+                try:
+                    pdf_file = io.BytesIO(pdf_data)
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        if "/XObject" in page["/Resources"]:
+                            xObject = page["/Resources"]["/XObject"].get_object()
+
+                            for obj in xObject:
+                                if xObject[obj]["/Subtype"] == "/Image":
+                                    images_found += 1
+                                    image_descriptions.append(
+                                        {
+                                            "page": page_num + 1,
+                                            "description": "Image detected (limited info without PyMuPDF)",
+                                        }
+                                    )
+
+                except Exception as e:
+                    logger.debug(f"PyPDF2 image extraction failed: {e}")
+
+            logger.info(f"Extracted {images_found} images from PDF")
+            return {
+                "images_found": images_found,
+                "image_descriptions": image_descriptions,
+                "success": True,
+            }
+
+        except Exception as e:
+            logger.error(f"Image extraction failed: {e}")
+            return {
+                "images_found": 0,
+                "image_descriptions": [],
+                "success": False,
+                "error": str(e),
+            }
 
     def _combine_results(
         self,
