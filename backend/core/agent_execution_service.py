@@ -102,7 +102,6 @@ async def execute_agent_chat(
             # Resolve agent for this request
             agent, resolution_context = await resolver.resolve_agent_for_request(
                 user_id=user_id,
-                workspace_id=workspace_id,
                 session_id=session_id,
                 requested_agent_id=agent_id,
                 action_type="chat"
