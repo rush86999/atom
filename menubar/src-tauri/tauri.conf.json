@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Atom Menu Bar",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.atom.menubar",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -22,8 +22,9 @@
       }
     ],
     "security": {
-      "csp": null
-    }
+      "csp": "default-src 'self'; connect-src 'self' https://api.atom-platform.com wss://api.atom-platform.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
@@ -36,8 +37,26 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.13"
-    }
+      "minimumSystemVersion": "10.15",
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": "Developer ID Application: Your Name (TEAM_ID)"
+    },
+    "category": "public.app-category.productivity",
+    "shortDescription": "AI-powered automation at your fingertips",
+    "longDescription": "Atom Menu Bar provides quick access to AI agents, canvases, and automation workflows from your macOS menu bar.",
+    "copyright": "Copyright © 2026 Atom Platform. All rights reserved."
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/rush86999/atom/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "YOUR_PUBLIC_KEY_HERE"
+    }
+  }
 }
