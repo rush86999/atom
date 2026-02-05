@@ -19,8 +19,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.canvas_type_registry import CanvasType, canvas_type_registry
-from core.error_handler_decorator import handle_errors, log_errors
+from core.canvas_type_registry import canvas_type_registry
 from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, CanvasAudit
 from core.service_factory import ServiceFactory

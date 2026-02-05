@@ -19,13 +19,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.error_handler_decorator import handle_errors, handle_database_errors
+from core.error_handler_decorator import handle_errors
 from core.error_handlers import ErrorCode
 from core.feature_flags import FeatureFlags
-from core.models import AgentExecution, AgentRegistry, BrowserAudit, BrowserSession, User
+from core.models import AgentExecution, BrowserAudit, BrowserSession, User
 from core.security_dependencies import get_current_user
 from core.service_factory import ServiceFactory
 from core.structured_logger import get_logger
@@ -39,7 +38,6 @@ from tools.browser_tool import (
     browser_get_page_info,
     browser_navigate,
     browser_screenshot,
-    get_browser_manager,
 )
 
 logger = get_logger(__name__)

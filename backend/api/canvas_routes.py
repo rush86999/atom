@@ -13,7 +13,6 @@ Refactored to use standardized decorators and service factory.
 """
 
 from datetime import datetime
-import os
 from typing import Any, Dict, Optional
 import uuid
 from fastapi import Depends
