@@ -175,13 +175,49 @@ class NaturalLanguageEngine:
 
     def _llm_parse_command(self, command: str) -> Optional[CommandIntent]:
         """Parse command using LLM for high-quality intent extraction"""
-        
+
         if not self._is_llm_available():
             return None
 
-        prompt = f"""Analyze this natural language command and extract the user's intent.
-        
-        # ... (rest of method unchanged, but wait, replace works on chunk)
+        try:
+            prompt = f"""Analyze this natural language command and extract the user's intent.
+
+            Command: {command}
+
+            Extract:
+            - Command type (SEARCH, CREATE, UPDATE, DELETE, SCHEDULE, ANALYZE, REPORT, NOTIFY, TRIGGER, BUSINESS_HEALTH)
+            - Platforms involved (COMMUNICATION, STORAGE, PRODUCTIVITY, CRM, FINANCIAL, MARKETING, ANALYTICS)
+            - Entities (people, projects, files, etc.)
+            - Parameters (dates, times, amounts, etc.)
+
+            Return as JSON.
+            """
+
+            response = self._llm_client.chat.completions.create(
+                model=NLU_LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a command parsing assistant. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+
+            result = json.loads(response.choices[0].message.content)
+
+            return CommandIntent(
+                command_type=CommandType(result.get("command_type", "unknown")),
+                platforms=[PlatformType(p) for p in result.get("platforms", [])],
+                entities=result.get("entities", []),
+                parameters=result.get("parameters", {}),
+                confidence=result.get("confidence", 0.5),
+                raw_command=command,
+                llm_parsed=True
+            )
+
+        except Exception as e:
+            logger.error(f"LLM parsing failed: {e}")
+            return None
 
     def query_llm(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1000) -> Optional[str]:
         """
@@ -623,3 +659,4 @@ if __name__ == "__main__":
         print(f"  Confidence: {intent.confidence:.2f}")
         print(f"  LLM Parsed: {intent.llm_parsed}")
         print(f"  Message: {response['message']}")
+

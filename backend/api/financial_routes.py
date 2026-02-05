@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -37,8 +37,7 @@ class FinancialAccountResponse(BaseModel):
     currency: str
     created_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateFinancialAccountRequest(BaseModel):
@@ -70,8 +69,7 @@ class FinancialAccountDetailResponse(BaseModel):
     currency: str
     created_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeleteFinancialAccountResponse(BaseModel):

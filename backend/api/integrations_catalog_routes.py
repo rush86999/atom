@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 from fastapi import Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -24,8 +24,7 @@ class IntegrationResponse(BaseModel):
     popular: bool = False
     native_id: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/catalog", response_model=List[IntegrationResponse])
 async def get_integrations_catalog(

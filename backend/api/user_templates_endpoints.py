@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional
 import uuid
 from fastapi import Depends, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -118,8 +118,7 @@ class TemplateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublishTemplateRequest(BaseModel):

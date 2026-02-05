@@ -9,7 +9,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -60,8 +60,7 @@ class MonitorResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateMonitorRequest(BaseModel):
@@ -86,8 +85,7 @@ class AlertResponse(BaseModel):
     sent_at: Optional[datetime]
     error_message: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TestConditionResponse(BaseModel):

@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 import uuid
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +44,10 @@ class TemplateParameter(BaseModel):
     help_text: Optional[str] = None
     example_value: Optional[Any] = None
 
-    @validator('label', 'description', pre=True, always=True)
-    def set_defaults(cls, v, values):
-        return v or values.get('name', 'Parameter')
+    @field_validator('label', 'description', mode='before')
+    @classmethod
+    def set_defaults(cls, v):
+        return v or 'Parameter'
 
 class TemplateStep(BaseModel):
     """Template step definition"""
@@ -63,10 +64,10 @@ class TemplateStep(BaseModel):
     is_optional: bool = False
     retry_config: Dict[str, Any] = {}
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
-    @validator('depends_on')
+    @field_validator('depends_on')
+    @classmethod
     def validate_dependencies(cls, v):
         """Ensure dependency chains don't create cycles"""
         # Basic validation - more complex cycle detection would be done at template level
@@ -108,7 +109,8 @@ class WorkflowTemplate(BaseModel):
     is_featured: bool = False
     license: str = "MIT"
 
-    @validator('steps')
+    @field_validator('steps')
+    @classmethod
     def validate_step_connections(cls, v):
         """Validate that step dependencies are valid"""
         step_ids = {step.step_id for step in v}
@@ -150,8 +152,7 @@ class TemplateMarketplace(BaseModel):
     tags_index: Dict[str, List[str]] = {}
     search_index: Dict[str, List[str]] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 class WorkflowTemplateManager:
     """Manages workflow templates, marketplace, and template operations"""

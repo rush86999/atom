@@ -8,7 +8,7 @@ import pytest
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import chat_interface_phase3
+from scripts.dev import chat_interface_phase3
 
 
 class TestBasic:

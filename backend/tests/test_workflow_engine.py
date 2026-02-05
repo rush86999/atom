@@ -8,7 +8,7 @@ import pytest
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import workflow_engine
+from core import workflow_engine
 
 
 class TestBasic:

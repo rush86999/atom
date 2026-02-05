@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 import uuid
 from fastapi import Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -37,8 +37,7 @@ class ArtifactResponse(ArtifactBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/", response_model=List[ArtifactResponse])
 async def list_artifacts(

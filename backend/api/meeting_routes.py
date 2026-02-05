@@ -5,7 +5,7 @@ Handles meeting attendance tracking and status
 from datetime import datetime
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -28,8 +28,7 @@ class MeetingAttendanceResponse(BaseModel):
     final_notion_page_url: Optional[str]
     error_details: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateMeetingAttendanceRequest(BaseModel):

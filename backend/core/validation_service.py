@@ -6,7 +6,7 @@ Provides centralized input validation with Pydantic models and validation logic.
 
 import logging
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 
 
 logger = logging.getLogger(__name__)
@@ -374,33 +374,38 @@ class AgentConfigModel(BaseModel):
     description: Optional[str] = None
     system_prompt: Optional[str] = None
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def name_must_not_be_empty(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError("Agent name cannot be empty")
         return v
 
-    @validator('domain')
+    @field_validator('domain')
+    @classmethod
     def domain_must_be_valid(cls, v):
         valid_domains = ["customer_support", "data_analysis", "content_creation", "automation", "research"]
         if v not in valid_domains:
             raise ValueError(f"Invalid domain: {v}")
         return v
 
-    @validator('maturity_level')
+    @field_validator('maturity_level')
+    @classmethod
     def maturity_must_be_valid(cls, v):
         valid_levels = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
         if v not in valid_levels:
             raise ValueError(f"Invalid maturity level: {v}")
         return v
 
-    @validator('temperature')
+    @field_validator('temperature')
+    @classmethod
     def temperature_must_be_valid(cls, v):
         if v is not None and (v < 0 or v > 2):
             raise ValueError("Temperature must be between 0 and 2")
         return v
 
-    @validator('max_tokens')
+    @field_validator('max_tokens')
+    @classmethod
     def max_tokens_must_be_positive(cls, v):
         if v is not None and (v < 1 or v > 32000):
             raise ValueError("Max tokens must be between 1 and 32000")
@@ -419,14 +424,16 @@ class CanvasDataModel(BaseModel):
     chart_type: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
 
-    @validator('canvas_type')
+    @field_validator('canvas_type')
+    @classmethod
     def canvas_type_must_be_valid(cls, v):
         valid_types = ["generic", "docs", "email", "sheets", "orchestration", "terminal", "coding", "status_panel", "form"]
         if v not in valid_types:
             raise ValueError(f"Invalid canvas_type: {v}")
         return v
 
-    @validator('component_type')
+    @field_validator('component_type')
+    @classmethod
     def component_type_must_match_canvas_type(cls, v, values):
         canvas_type = values.get('canvas_type')
         if canvas_type == "generic":
@@ -449,13 +456,15 @@ class ExecutionRequestModel(BaseModel):
     context: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
-    @validator('agent_id')
+    @field_validator('agent_id')
+    @classmethod
     def agent_id_must_not_be_empty(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError("Agent ID cannot be empty")
         return v
 
-    @validator('message')
+    @field_validator('message')
+    @classmethod
     def message_must_not_be_empty(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError("Message cannot be empty")
@@ -463,7 +472,8 @@ class ExecutionRequestModel(BaseModel):
             raise ValueError("Message too long (max 100,000 characters)")
         return v
 
-    @validator('max_tokens')
+    @field_validator('max_tokens')
+    @classmethod
     def max_tokens_must_be_positive(cls, v):
         if v is not None and v < 1:
             raise ValueError("Max tokens must be positive")

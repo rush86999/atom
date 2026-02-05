@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import logging
 from typing import List, Optional
 from fastapi import BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
@@ -58,8 +58,7 @@ class ProactiveMessageResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApproveMessageRequest(BaseModel):

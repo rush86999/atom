@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import uuid
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +32,8 @@ class WorkflowTemplate(BaseModel):
     created_by: Optional[str] = Field(default=None, description="Creator user ID")
     is_active: bool = Field(default=True, description="Whether template is active")
 
-    @validator('template_id')
-    def validate_template_id(cls, v):
-        if not v or not v.strip():
-            raise ValueError("template_id cannot be empty")
-        return v
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "template_id": "email_campaign_workflow",
                 "name": "Email Campaign Workflow",
@@ -64,6 +58,14 @@ class WorkflowTemplate(BaseModel):
                 "version": "1.0.0"
             }
         }
+    )
+
+    @field_validator('template_id')
+    @classmethod
+    def validate_template_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError("template_id cannot be empty")
+        return v
 
 
 class WorkflowTemplateManager:

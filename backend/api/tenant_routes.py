@@ -4,7 +4,7 @@ Handles tenant context and subdomain-based routing
 """
 from typing import Optional
 from fastapi import Depends, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -24,8 +24,7 @@ class TenantResponse(BaseModel):
     plan_type: str
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TenantContextResponse(BaseModel):

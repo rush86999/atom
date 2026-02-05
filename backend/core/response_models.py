@@ -6,7 +6,7 @@ Provides consistent Pydantic models for API responses.
 
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Optional, TypeVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Generic type variable for data field
 T = TypeVar('T')
@@ -31,14 +31,13 @@ class SuccessResponse(BaseModel, Generic[T]):
             message="Operation completed"
         )
     """
-
     success: bool = Field(True, description="Always true for success responses")
     data: T = Field(..., description="Response data")
     message: Optional[str] = Field(None, description="Optional success message")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "data": {"id": "123", "name": "Example"},
@@ -46,6 +45,7 @@ class SuccessResponse(BaseModel, Generic[T]):
                 "timestamp": "2026-02-02T12:00:00.000000"
             }
         }
+    )
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -63,14 +63,13 @@ class PaginatedResponse(BaseModel, Generic[T]):
             page_size=page_size
         )
     """
-
     success: bool = Field(True, description="Always true for success responses")
     data: List[T] = Field(..., description="List of items for current page")
     pagination: Dict[str, Any] = Field(..., description="Pagination metadata")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "data": [{"id": "1"}, {"id": "2"}, {"id": "3"}],
@@ -85,6 +84,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
                 "timestamp": "2026-02-02T12:00:00.000000"
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -103,7 +103,6 @@ class ErrorResponse(BaseModel):
             ).dict()
         )
     """
-
     success: bool = Field(False, description="Always false for error responses")
     error_code: str = Field(..., description="Standardized error code")
     message: str = Field(..., description="Human-readable error message")
@@ -111,8 +110,8 @@ class ErrorResponse(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": False,
                 "error_code": "RESOURCE_NOT_FOUND",
@@ -122,6 +121,7 @@ class ErrorResponse(BaseModel):
                 "request_id": "req_abc123"
             }
         }
+    )
 
 
 class ValidationErrorResponse(BaseModel):
@@ -139,15 +139,14 @@ class ValidationErrorResponse(BaseModel):
             ]
         )
     """
-
     success: bool = Field(False, description="Always false for validation errors")
     error_code: str = Field("VALIDATION_ERROR", description="Error code for validation failures")
     message: str = Field(..., description="Overall validation error message")
     errors: List[Dict[str, Any]] = Field(..., description="List of field-specific validation errors")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": False,
                 "error_code": "VALIDATION_ERROR",
@@ -159,6 +158,7 @@ class ValidationErrorResponse(BaseModel):
                 "timestamp": "2026-02-02T12:00:00.000000"
             }
         }
+    )
 
 
 class BatchOperationResponse(BaseModel):
@@ -174,7 +174,6 @@ class BatchOperationResponse(BaseModel):
             errors=[{"id": "item1", "error": "Invalid data"}]
         )
     """
-
     success: bool = Field(True, description="True if any operations succeeded")
     total_count: int = Field(..., description="Total number of operations")
     success_count: int = Field(..., description="Number of successful operations")
@@ -182,8 +181,8 @@ class BatchOperationResponse(BaseModel):
     errors: List[Dict[str, Any]] = Field(default_factory=list, description="List of errors")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "total_count": 100,
@@ -196,6 +195,7 @@ class BatchOperationResponse(BaseModel):
                 "timestamp": "2026-02-02T12:00:00.000000"
             }
         }
+    )
 
 
 class HealthCheckResponse(BaseModel):
@@ -211,14 +211,13 @@ class HealthCheckResponse(BaseModel):
             checks={"database": "ok", "redis": "ok"}
         )
     """
-
     status: str = Field(..., description="Overall health status: healthy, degraded, or unhealthy")
     version: str = Field(..., description="Application version")
     checks: Dict[str, str] = Field(default_factory=dict, description="Individual health checks")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "healthy",
                 "version": "1.0.0",
@@ -230,6 +229,7 @@ class HealthCheckResponse(BaseModel):
                 "timestamp": "2026-02-02T12:00:00.000000"
             }
         }
+    )
 
 
 # Helper functions for creating responses
