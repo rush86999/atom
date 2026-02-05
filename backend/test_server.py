@@ -8,9 +8,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # Create minimal FastAPI app
 app = FastAPI(title="Atom Test Server")

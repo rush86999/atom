@@ -4,11 +4,11 @@ IMMEDIATE BACKEND API IMPLEMENTATION - CRITICAL PRIORITY
 Create real FastAPI endpoints with database connectivity and actual functionality
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 import requests
 
 

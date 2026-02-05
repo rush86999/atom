@@ -8,14 +8,14 @@ Provides four retrieval modes:
 4. Contextual - Hybrid score for current task
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.lancedb_handler import get_lancedb_handler
-from core.models import Episode, EpisodeSegment, EpisodeAccessLog, AgentRegistry
+from core.models import AgentRegistry, Episode, EpisodeAccessLog, EpisodeSegment
 
 logger = logging.getLogger(__name__)
 

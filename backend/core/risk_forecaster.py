@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List
 from service_delivery.models import Project, ProjectTask
 

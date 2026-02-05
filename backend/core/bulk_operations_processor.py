@@ -4,13 +4,13 @@ Handles high-volume operations across integrations with performance optimization
 """
 
 import asyncio
-import json
-import logging
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import json
+import logging
 from pathlib import Path
+import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from .integration_data_mapper import BulkOperation, IntegrationDataMapper, get_data_mapper
@@ -298,8 +298,9 @@ class IntegrationBulkProcessor:
         This implementation integrates with the AsanaService to perform
         bulk create, update, delete, and complete operations on Asana tasks.
         """
-        from integrations.asana_service import AsanaService
         import os
+
+        from integrations.asana_service import AsanaService
 
         results = []
 

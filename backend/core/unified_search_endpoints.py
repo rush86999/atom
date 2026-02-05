@@ -3,8 +3,8 @@ Unified Search Endpoints for ATOM Application
 Provides hybrid semantic + keyword search across user documents, meetings, and notes using LanceDB.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field

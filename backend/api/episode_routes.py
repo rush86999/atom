@@ -13,13 +13,13 @@ from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.agent_graduation_service import AgentGraduationService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.episode_segmentation_service import EpisodeSegmentationService
-from core.episode_retrieval_service import EpisodeRetrievalService
-from core.agent_graduation_service import AgentGraduationService
 from core.episode_lifecycle_service import EpisodeLifecycleService
-from core.models import User, Episode
+from core.episode_retrieval_service import EpisodeRetrievalService
+from core.episode_segmentation_service import EpisodeSegmentationService
+from core.models import Episode, User
 from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)

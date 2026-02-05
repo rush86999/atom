@@ -5,12 +5,12 @@ Basic testing for core functionality during development
 Focus: Quick verification, not exhaustive testing
 """
 
+from datetime import datetime
 import json
 import os
+from pathlib import Path
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
 import requests
 
 

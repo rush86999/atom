@@ -457,6 +457,7 @@ async def _execute_optimization_implementation(
 
         # Import required modules
         from sqlalchemy.orm import Session
+
         from core.models import DB_SESSION_FACTORY
 
         # Create database session

@@ -4,12 +4,12 @@ AI-powered natural language editing for workflow automation.
 Integrates with BYOK (Bring Your Own Key) system for AI model selection.
 """
 
+from dataclasses import dataclass
 import json
 import logging
 import re
-import uuid
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+import uuid
 
 from core.byok_endpoints import BYOKManager, get_byok_manager
 

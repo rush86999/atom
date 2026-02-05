@@ -6,10 +6,10 @@ Complete OAuth setup for production deployment
 
 import json
 import os
-import sys
-import webbrowser
 from pathlib import Path
+import sys
 from typing import Dict, List, Optional, Tuple
+import webbrowser
 import requests
 
 

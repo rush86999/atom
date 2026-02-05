@@ -1,6 +1,6 @@
+from enum import Enum
 import logging
 import re
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 from accounting.models import Entity, Invoice, InvoiceStatus, TaxNexus
 from sqlalchemy import func

@@ -2,8 +2,8 @@ import logging
 import os
 import time
 from typing import Any, Dict, Optional
-import httpx
 from fastapi import Request
+import httpx
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 

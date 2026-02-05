@@ -5,10 +5,10 @@ Uses Web Speech API on frontend or Whisper for backend transcription.
 
 import asyncio
 import base64
-import io
-import logging
 from dataclasses import dataclass
 from datetime import datetime
+import io
+import logging
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)

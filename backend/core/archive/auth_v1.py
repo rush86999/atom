@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta
 import os
 import secrets
-from datetime import datetime, timedelta
 from typing import Any, Optional, Union
 from jose import JWTError, jwt
 

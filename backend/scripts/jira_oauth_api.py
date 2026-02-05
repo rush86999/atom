@@ -9,10 +9,10 @@ import json
 import os
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlencode
-import httpx
 from cryptography.fernet import Fernet
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
+import httpx
 from pydantic import BaseModel
 
 # Configuration

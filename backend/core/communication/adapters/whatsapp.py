@@ -3,8 +3,8 @@ import hmac
 import logging
 import os
 from typing import Any, Dict, Optional
-import httpx
 from fastapi import Request
+import httpx
 
 from core.communication.adapters.base import PlatformAdapter
 

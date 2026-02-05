@@ -11,13 +11,13 @@ This script creates a local production-ready environment:
 - Deployment scripts
 """
 
+from datetime import datetime
 import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 import uuid
-from datetime import datetime
-from pathlib import Path
 
 print("🚀 LOCAL PRODUCTION SETUP")
 print("=" * 80)

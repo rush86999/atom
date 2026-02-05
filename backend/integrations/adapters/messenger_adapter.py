@@ -4,12 +4,12 @@ Facebook Messenger Adapter for ATOM Messaging Platform
 Provides integration with Facebook Messenger using Facebook Graph API.
 """
 
+from datetime import datetime
 import hashlib
 import hmac
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 try:
     import httpx

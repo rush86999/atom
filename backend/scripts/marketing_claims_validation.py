@@ -6,13 +6,13 @@ This script systematically tests and validates the marketing claims made in the 
 against the actual system capabilities with improved error handling and fallback mechanisms.
 """
 
+from datetime import datetime
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
 import requests
 
 # Configure logging

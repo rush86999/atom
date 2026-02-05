@@ -6,9 +6,9 @@ Provides reusable OAuth flow implementation for all integrations
 import logging
 import os
 from typing import Dict, Optional
-import httpx
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
+import httpx
 
 logger = logging.getLogger(__name__)
 

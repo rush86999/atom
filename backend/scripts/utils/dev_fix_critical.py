@@ -5,10 +5,10 @@ Development-focused fixes for blocking issues
 """
 
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 
 def log(message, level="INFO"):

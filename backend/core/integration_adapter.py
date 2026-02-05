@@ -2,8 +2,8 @@
 Base Integration Adapter
 Abstract interface for all integrations
 """
-import logging
 from abc import ABC, abstractmethod
+import logging
 from typing import Any, Dict, Optional
 import httpx
 

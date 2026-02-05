@@ -10,8 +10,8 @@ from fastapi import Depends, File, Query, UploadFile
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
-from core.security_dependencies import get_current_user
 from core.models import User
+from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 

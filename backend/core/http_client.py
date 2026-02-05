@@ -9,7 +9,6 @@ timeouts, and proper resource cleanup.
 import logging
 import os
 from typing import Optional
-
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -131,6 +130,7 @@ def reset_http_clients():
     if _async_client:
         try:
             import asyncio
+
             # Try to close if there's a running loop
             try:
                 loop = asyncio.get_running_loop()

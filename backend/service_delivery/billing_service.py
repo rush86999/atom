@@ -1,8 +1,18 @@
 import datetime
-import logging
 from datetime import timezone
+import logging
 from typing import List, Optional
-from accounting.models import Account, AccountType, Entity, EntityType, EntryType, Invoice, InvoiceStatus, JournalEntry, Transaction
+from accounting.models import (
+    Account,
+    AccountType,
+    Entity,
+    EntityType,
+    EntryType,
+    Invoice,
+    InvoiceStatus,
+    JournalEntry,
+    Transaction,
+)
 from service_delivery.models import Milestone, MilestoneStatus
 from sqlalchemy.orm import Session
 

@@ -4,9 +4,9 @@ OAuth Flow Test Suite
 Tests OAuth User Context and related functionality
 """
 
+from datetime import datetime, timedelta
 import os
 import sys
-from datetime import datetime, timedelta
 
 # Add backend to path
 sys.path.insert(0, '/Users/rushiparikh/projects/atom/backend')
@@ -192,8 +192,10 @@ def test_google_services():
 
     # Test Gmail Service
     print("\n2. Testing Gmail Service...")
-    from integrations.gmail_service import GOOGLE_APIS_AVAILABLE as GMAIL_API_AVAILABLE
-    from integrations.gmail_service import GmailService
+    from integrations.gmail_service import (
+        GOOGLE_APIS_AVAILABLE as GMAIL_API_AVAILABLE,
+        GmailService,
+    )
 
     gmail_service = GmailService()
     assert hasattr(gmail_service, '_authenticate')

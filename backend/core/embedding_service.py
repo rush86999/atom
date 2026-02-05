@@ -18,10 +18,10 @@ Performance:
     Cohere: ~150-400ms per document (cloud)
 """
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict, List, Optional
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -182,8 +182,8 @@ class EmbeddingService:
         Returns:
             Preprocessed text
         """
-        import unicodedata
         import re
+        import unicodedata
 
         if not text:
             return ""
@@ -417,8 +417,8 @@ class LanceDBHandler:
             vector_column: Name of the vector column
         """
         try:
-            import pyarrow as pa
             import pandas as pd
+            import pyarrow as pa
 
             # Check if table exists
             table_names = self.db.table_names()

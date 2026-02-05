@@ -7,9 +7,10 @@ sys.path.append(os.getcwd())
 
 import accounting.models
 
+from core.database import Base, engine
+
 # Import all models to ensure they are registered with Base.metadata
 import core.models
-from core.database import Base, engine
 
 # Add other model imports as needed
 

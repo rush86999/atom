@@ -3,8 +3,8 @@ Linear Integration Routes for ATOM Platform
 Uses the real linear_service.py for all GraphQL operations
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

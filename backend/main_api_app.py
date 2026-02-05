@@ -13,19 +13,17 @@ sys.modules["pyarrow"] = None
 
 print("WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
 
-import logging
-import threading
 from datetime import datetime
+import logging
 from pathlib import Path
-import uvicorn
+import threading
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+import uvicorn
 
-import core.models
-import core.models_registration  # Fixes circular relationship issues
 from core.circuit_breaker import circuit_breaker
 from core.database import SessionLocal, get_db
 
@@ -36,6 +34,8 @@ from core.lazy_integration_registry import (
     get_loaded_integrations,
     load_integration,
 )
+import core.models
+import core.models_registration  # Fixes circular relationship issues
 from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
@@ -70,6 +70,7 @@ DISABLE_DOCS = ENVIRONMENT == "production"
 
 # Import config
 from core.config import get_config
+
 config = get_config()
 
 # Override with config values
@@ -96,6 +97,7 @@ async def lifespan(app: FastAPI):
     try:
         from analytics.models import WorkflowExecutionLog  # Force registration
         from sqlalchemy import inspect
+
         from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
@@ -241,7 +243,7 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 # Standardized error handling for all uncaught exceptions
 # ============================================================================
 try:
-    from core.error_handlers import global_exception_handler, atom_exception_handler
+    from core.error_handlers import atom_exception_handler, global_exception_handler
     from core.exceptions import AtomException
 
     # Register general exception handler (catches all)

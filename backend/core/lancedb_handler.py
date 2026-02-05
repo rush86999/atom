@@ -30,10 +30,10 @@ except (ImportError, BaseException) as e:
 
 try:
     import lancedb
-    import pyarrow as pa
     from lancedb.db import LanceDBConnection
     from lancedb.pydantic import LanceModel, Vector
     from lancedb.table import Table
+    import pyarrow as pa
 
     # Allow disabling via env var (crucial for CI reliability)
     if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":

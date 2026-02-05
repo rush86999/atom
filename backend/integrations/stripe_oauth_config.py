@@ -3,10 +3,10 @@ Stripe OAuth Configuration Helper
 Configuration and utilities for Stripe OAuth 2.0 authentication flow
 """
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode, urljoin
 import requests

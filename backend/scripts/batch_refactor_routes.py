@@ -5,9 +5,9 @@ Batch refactor API routes to use @require_governance decorator.
 This script helps automate the migration from inline governance checks
 to the new decorator pattern.
 """
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 
 
 def refactor_file(file_path: str, dry_run: bool = True) -> int:

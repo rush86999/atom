@@ -4,14 +4,14 @@ Complete Slack service with consistent error handling and rate limiting
 """
 
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 import httpx
 

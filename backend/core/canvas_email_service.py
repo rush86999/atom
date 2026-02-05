@@ -4,10 +4,10 @@ Email Canvas Service
 Backend service for email canvas with threaded conversations,
 compose interface, and attachment management.
 """
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 

@@ -8,9 +8,9 @@ Includes:
 - Execution records for audit trail
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -37,11 +37,15 @@ except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
 
-from core.mock_mode import get_mock_mode_manager
-from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 from core.database import get_db
+from core.mock_mode import get_mock_mode_manager
 from core.models import User
-from integrations.integration_helpers import with_governance_check, create_execution_record, standard_error_response
+from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+from integrations.integration_helpers import (
+    create_execution_record,
+    standard_error_response,
+    with_governance_check,
+)
 
 from .auth_handler_salesforce import salesforce_auth_handler
 

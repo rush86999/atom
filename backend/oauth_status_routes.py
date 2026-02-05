@@ -11,8 +11,8 @@ Services covered:
 - Gmail, Outlook, Slack, Teams, Trello, Asana, Notion, GitHub, Dropbox, Google Drive
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
 

@@ -8,13 +8,13 @@ Manages episode lifecycle:
 - Update importance scores
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Dict, List
 from sqlalchemy.orm import Session
 
-from core.models import Episode, EpisodeSegment
 from core.lancedb_handler import get_lancedb_handler
+from core.models import Episode, EpisodeSegment
 
 logger = logging.getLogger(__name__)
 

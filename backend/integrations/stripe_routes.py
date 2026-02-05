@@ -3,17 +3,17 @@ Stripe Integration Routes
 FastAPI routes for Stripe payment processing and financial management
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-import stripe
 from accounting.ingestion import TransactionIngestor
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+import stripe
 
-from core.automation_settings import get_automation_settings
 from core.auth import get_current_user
+from core.automation_settings import get_automation_settings
 from core.database import get_db
 from core.models import StripeToken, User
 

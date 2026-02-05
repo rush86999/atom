@@ -239,9 +239,9 @@ def _check_governance(
     try:
         # Import here to avoid circular dependencies
         from core.agent_governance_service import AgentGovernanceService
+        from core.database import get_db_session
         from core.governance_cache import GovernanceCache
         from core.models import AgentRegistry
-        from core.database import get_db_session
 
         # Try cache first for performance
         cache = GovernanceCache()
@@ -336,8 +336,8 @@ class GovernanceAudit:
     ):
         """Log a governance check to the database"""
         try:
-            from core.models import GovernanceAuditLog
             from core.database import get_db_session
+            from core.models import GovernanceAuditLog
 
             with get_db_session() as db:
                 log = GovernanceAuditLog(

@@ -2,9 +2,9 @@
 Lazy Integration Registry
 Loads integrations on-demand instead of at startup
 """
+from functools import lru_cache
 import importlib
 import logging
-from functools import lru_cache
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)

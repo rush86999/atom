@@ -5,8 +5,8 @@ Privacy verification for public repository
 """
 
 import os
-import sys
 from pathlib import Path
+import sys
 
 print("🔒 FINAL PRIVACY STATUS REPORT")
 print("=" * 80)

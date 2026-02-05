@@ -5,8 +5,8 @@ No dependencies on existing backend infrastructure.
 
 import asyncio
 import json
-import uuid
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

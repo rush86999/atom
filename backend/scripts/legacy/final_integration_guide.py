@@ -4,9 +4,9 @@ FINAL INTEGRATION GUIDE - Complete Working Application
 Step-by-step guide to make everything work together
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def create_final_integration_guide():

@@ -1,6 +1,6 @@
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent))

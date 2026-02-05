@@ -7,8 +7,8 @@ without complex testing dependencies.
 """
 
 import os
-import sys
 from pathlib import Path
+import sys
 
 
 def check_file_exists(file_path, description):

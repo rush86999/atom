@@ -3,8 +3,8 @@ Burnout Detection Engine
 Analyzes productivity and communication patterns to detect signs of overload.
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 

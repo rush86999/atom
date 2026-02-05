@@ -9,8 +9,8 @@ RESTful API endpoints for workflow debugging functionality including:
 - Execution trace viewing
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Path, Query
 from pydantic import BaseModel, Field

@@ -3,11 +3,11 @@ Webhook Handlers for Real-Time Communication Ingestion
 Handles webhook events from Slack, Teams, and Gmail for real-time message processing.
 """
 
+from datetime import datetime
 import hashlib
 import hmac
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse

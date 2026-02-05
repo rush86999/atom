@@ -5,9 +5,9 @@ Supports >98% marketing claim validation with comprehensive evidence
 """
 
 import asyncio
+from datetime import datetime, timedelta
 import random
 import time
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

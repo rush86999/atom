@@ -4,10 +4,10 @@ Signal Adapter for ATOM Messaging Platform
 Provides integration with Signal secure messaging platform using Signal REST API.
 """
 
+from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 try:
     import httpx

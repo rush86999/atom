@@ -5,11 +5,11 @@ Complete Dropbox integration service for the ATOM platform
 
 import asyncio
 import base64
+from dataclasses import asdict, dataclass
+from datetime import datetime
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 import aiohttp
 

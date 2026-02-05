@@ -4,9 +4,9 @@ import io
 import logging
 import os
 from typing import Any, Dict, List, Optional
+from PIL import Image
 from ai.lux_model import ComputerActionType, LuxModel
 from browser_engine.driver import BrowserManager
-from PIL import Image
 from playwright.async_api import Page
 
 from integrations.mcp_service import mcp_service

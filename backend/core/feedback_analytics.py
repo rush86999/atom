@@ -19,8 +19,8 @@ Usage:
     trends = analytics.get_feedback_trends(days=30)
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session

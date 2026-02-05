@@ -5,11 +5,11 @@ Simplified, reliable startup with proper error handling
 """
 
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 
 def check_python_version():
@@ -92,8 +92,8 @@ def start_backend():
     
     # Import after checking dependencies
     try:
-        import uvicorn
         from main_api_app import app
+        import uvicorn
 
         # Configuration
         host = os.getenv('HOST', '0.0.0.0')

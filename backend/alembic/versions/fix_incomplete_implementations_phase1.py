@@ -12,8 +12,8 @@ This migration fixes critical security and governance issues:
 Note: SQLite compatibility - simplified approach that skips ALTER COLUMN operations.
 """
 from typing import Sequence, Union
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = 'fix_incomplete_phase1'
 down_revision: Union[str, Sequence[str], None] = '1a3970744150'

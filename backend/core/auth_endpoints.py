@@ -1,9 +1,9 @@
+from datetime import datetime, timedelta
 import hashlib
 import logging
 import secrets
-import uuid
-from datetime import datetime, timedelta
 from typing import Optional
+import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
@@ -66,8 +66,8 @@ async def login_for_access_token(
     db: Session = Depends(get_db)
 ):
     import traceback
-    import pyotp
     from fastapi.responses import JSONResponse
+    import pyotp
     try:
         user = db.query(User).filter(User.email == login_data.username).first()
         if not user or not verify_password(login_data.password, user.password_hash):

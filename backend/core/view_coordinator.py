@@ -11,10 +11,10 @@ Features:
 - Agent-controlled view orchestration
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry, CanvasAudit, ViewOrchestrationState

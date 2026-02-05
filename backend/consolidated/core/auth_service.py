@@ -8,11 +8,11 @@ This service provides unified authentication and OAuth management across multipl
 - Token lifecycle management
 """
 
+from datetime import datetime, timedelta
+from enum import Enum
 import json
 import logging
 import os
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -457,8 +457,8 @@ class AuthService:
         redirect_uri: str,
     ):
         """Store OAuth state for validation"""
-        from core.models import OAuthState
         from core.database import get_db_session
+        from core.models import OAuthState
 
         with get_db_session() as db:
             # Create OAuth state record with 10-minute expiration
@@ -480,8 +480,8 @@ class AuthService:
         self, user_id: str, provider: str, state: str
     ) -> bool:
         """Validate OAuth state parameter"""
-        from core.models import OAuthState
         from core.database import get_db_session
+        from core.models import OAuthState
 
         with get_db_session() as db:
             # Query for valid, unused, non-expired state
@@ -502,8 +502,8 @@ class AuthService:
 
     async def _cleanup_auth_state(self, user_id: str, provider: str, state: str):
         """Clean up OAuth state after use"""
-        from core.models import OAuthState
         from core.database import get_db_session
+        from core.models import OAuthState
 
         with get_db_session() as db:
             # Mark state as used (soft delete for audit trail)
@@ -522,8 +522,8 @@ class AuthService:
         self, user_id: str, provider: str, tokens: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Store OAuth tokens securely"""
-        from core.models import OAuthToken
         from core.database import get_db_session
+        from core.models import OAuthToken
 
         expires_in = tokens.get("expires_in", 3600)
         expires_at = None if expires_in == 0 else (datetime.now() + timedelta(seconds=expires_in))
@@ -578,8 +578,8 @@ class AuthService:
         self, user_id: str, provider: str
     ) -> Optional[Dict[str, Any]]:
         """Get stored OAuth tokens"""
-        from core.models import OAuthToken
         from core.database import get_db_session
+        from core.models import OAuthToken
 
         with get_db_session() as db:
             oauth_token = db.query(OAuthToken).filter(
@@ -616,8 +616,8 @@ class AuthService:
 
     async def _delete_tokens(self, user_id: str, provider: str):
         """Delete stored OAuth tokens"""
-        from core.models import OAuthToken
         from core.database import get_db_session
+        from core.models import OAuthToken
 
         with get_db_session() as db:
             oauth_token = db.query(OAuthToken).filter(

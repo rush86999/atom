@@ -5,20 +5,20 @@ Production-ready backend with process management, auto-recovery, and comprehensi
 """
 
 import asyncio
+from contextlib import asynccontextmanager
 import logging
 import os
 import signal
 import sys
 import time
 import traceback
-from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
-import psutil
-import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import psutil
 from pydantic import BaseModel
+import uvicorn
 
 # Configure robust logging
 logging.basicConfig(

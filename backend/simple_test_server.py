@@ -5,12 +5,12 @@ Minimal server to achieve 98% validation target
 """
 
 import asyncio
-import json
 from datetime import datetime
+import json
 from typing import Any, Dict
-import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 app = FastAPI(
     title="ATOM E2E Test Backend",

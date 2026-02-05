@@ -24,10 +24,10 @@ sys.modules["lancedb"] = MagicMock()
 
 import logging
 from pathlib import Path
-import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

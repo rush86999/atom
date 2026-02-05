@@ -4,11 +4,11 @@ Complete Freshdesk API service for ATOM platform
 Provides customer support, ticket management, and analytics capabilities
 """
 
+from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
 import logging
 import os
-from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 import httpx
 from pydantic import BaseModel

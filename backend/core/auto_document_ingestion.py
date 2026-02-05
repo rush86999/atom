@@ -5,13 +5,13 @@ Supports: Excel, PDF, DOC/DOCX, TXT, CSV, Markdown files
 """
 
 import asyncio
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 import io
 import json
 import logging
 import os
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
 # Import for lazy loading to avoid circular imports
@@ -587,8 +587,9 @@ class AutoDocumentIngestionService:
     async def _list_google_drive_files(self, settings: IngestionSettings) -> List[Dict]:
         """List files from Google Drive"""
         try:
-            from integrations.google_drive_service import google_drive_service
             import os
+
+            from integrations.google_drive_service import google_drive_service
 
             access_token = os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
             if not access_token:
@@ -615,8 +616,8 @@ class AutoDocumentIngestionService:
     async def _download_google_drive_file(self, file_info: Dict) -> Optional[bytes]:
         """Download from Google Drive"""
         try:
-            import httpx
             import os
+            import httpx
 
             access_token = os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
             if not access_token:
@@ -658,8 +659,8 @@ class AutoDocumentIngestionService:
     async def _list_dropbox_files(self, settings: IngestionSettings) -> List[Dict]:
         """List files from Dropbox"""
         try:
-            import httpx
             import os
+            import httpx
 
             access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
             if not access_token:
@@ -705,8 +706,8 @@ class AutoDocumentIngestionService:
     async def _download_dropbox_file(self, file_info: Dict) -> Optional[bytes]:
         """Download from Dropbox"""
         try:
-            import httpx
             import os
+            import httpx
 
             access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
             if not access_token:

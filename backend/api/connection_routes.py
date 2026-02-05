@@ -4,7 +4,7 @@ from fastapi import Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.api_governance import require_governance, ActionComplexity
+from core.api_governance import ActionComplexity, require_governance
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.connection_service import connection_service

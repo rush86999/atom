@@ -5,13 +5,13 @@ Validates agent readiness for promotion using episodic memory.
 Provides data-driven audit trails for governance compliance.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.models import Episode, EpisodeSegment, AgentRegistry, AgentStatus
 from core.lancedb_handler import get_lancedb_handler
+from core.models import AgentRegistry, AgentStatus, Episode, EpisodeSegment
 
 logger = logging.getLogger(__name__)
 

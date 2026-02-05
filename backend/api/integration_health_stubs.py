@@ -2,10 +2,10 @@
 Integration Health Check Endpoints
 Provides actual health verification for integrations by checking configuration and optional connectivity.
 """
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 from core.base_routes import BaseAPIRouter
 

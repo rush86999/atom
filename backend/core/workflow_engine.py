@@ -9,19 +9,23 @@ Handles the execution of workflows with support for:
 """
 
 import asyncio
+from datetime import datetime
 import logging
 import re
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
+import uuid
 import httpx
 import jsonschema
 from jsonschema import ValidationError, validate
 
 from core.auto_healing import async_retry_with_backoff
 from core.database import get_db_session
-from core.exceptions import AgentExecutionError, AuthenticationError, ExternalServiceError
-from core.exceptions import ValidationError as AtomValidationError
+from core.exceptions import (
+    AgentExecutionError,
+    AuthenticationError,
+    ExternalServiceError,
+    ValidationError as AtomValidationError,
+)
 from core.execution_state_manager import ExecutionStateManager, get_state_manager
 from core.models import IntegrationCatalog, WorkflowStepExecution
 from core.token_storage import token_storage
@@ -1418,8 +1422,8 @@ class WorkflowEngine:
         access to MCP tools during execution.
         """
         try:
-            from core.llm.byok_handler import BYOKHandler
             from core.agent_context_resolver import AgentContextResolver
+            from core.llm.byok_handler import BYOKHandler
             from core.models import AgentRegistry
 
             action = agent_context.get("action", "unknown")

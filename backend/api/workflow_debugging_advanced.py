@@ -9,8 +9,8 @@ Provides REST endpoints for:
 - Real-time trace streaming
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field

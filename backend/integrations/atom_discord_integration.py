@@ -4,12 +4,12 @@ Integrates Discord seamlessly into ATOM's unified communication ecosystem
 """
 
 import asyncio
-import json
-import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import json
+import logging
+import os
 from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
@@ -18,7 +18,6 @@ try:
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from core.models import UnifiedWorkspace
     from discord_analytics_engine import discord_analytics_engine
     from discord_enhanced_service import (
         DiscordChannel,
@@ -27,6 +26,8 @@ try:
         DiscordUser,
         discord_enhanced_service,
     )
+
+    from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
     discord_enhanced_service = None

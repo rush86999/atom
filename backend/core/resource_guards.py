@@ -2,8 +2,8 @@
 Resource Guards - Timeouts and limits for integrations
 """
 import asyncio
-import logging
 from functools import wraps
+import logging
 from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)

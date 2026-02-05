@@ -30,11 +30,11 @@ Usage:
         ...
 """
 
+from dataclasses import dataclass
+from enum import Enum
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
-from enum import Enum
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

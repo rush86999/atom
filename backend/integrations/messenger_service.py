@@ -3,9 +3,9 @@ Messenger Service for ATOM Platform
 Handles Facebook Messenger Messaging API interactions
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, Optional
 import httpx
 

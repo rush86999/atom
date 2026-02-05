@@ -5,8 +5,8 @@ WebSocket events for training, proposals, and supervision notifications.
 Integrates with existing WebSocket infrastructure.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 

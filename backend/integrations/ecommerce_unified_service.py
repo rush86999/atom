@@ -3,10 +3,10 @@ ATOM Ecommerce Unified Service
 Aggregates data from Amazon Seller, Etsy, WooCommerce, and Shopify.
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
 
 try:

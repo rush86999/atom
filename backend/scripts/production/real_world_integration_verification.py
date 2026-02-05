@@ -4,11 +4,11 @@ REAL-WORLD SERVICE INTEGRATION VERIFICATION
 Test each service integration with real-world usage per user journey
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 import requests
 
 

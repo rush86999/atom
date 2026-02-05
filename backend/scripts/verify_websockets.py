@@ -5,8 +5,8 @@ Tests WebSocket connection, subscription, and broadcasting
 """
 
 import asyncio
-import json
 from datetime import datetime
+import json
 import websockets
 
 print("="*70)

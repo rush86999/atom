@@ -3,11 +3,11 @@ Email Verification API Routes
 Handles email verification codes and sending verification emails via Mailgun
 """
 import asyncio
+from collections import defaultdict
+from datetime import datetime, timedelta
 import logging
 import os
 import secrets
-from collections import defaultdict
-from datetime import datetime, timedelta
 from typing import Dict, Optional
 from fastapi import Depends, status
 from pydantic import BaseModel, EmailStr, Field

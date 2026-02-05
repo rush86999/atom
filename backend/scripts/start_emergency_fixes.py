@@ -4,11 +4,11 @@ EMERGENCY FIXES IMPLEMENTATION - START NEXT STEPS
 Apply all critical fixes to make application usable immediately
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def start_emergency_fixes_implementation():

@@ -9,17 +9,23 @@ Automatically segments agent interactions into coherent episodes using:
 Archives episodes to LanceDB for semantic search.
 """
 
-import logging
-import uuid
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.lancedb_handler import get_lancedb_handler
 from core.models import (
-    AgentRegistry, AgentExecution, Episode, EpisodeSegment,
-    ChatSession, ChatMessage, User, AgentStatus
+    AgentExecution,
+    AgentRegistry,
+    AgentStatus,
+    ChatMessage,
+    ChatSession,
+    Episode,
+    EpisodeSegment,
+    User,
 )
 
 logger = logging.getLogger(__name__)

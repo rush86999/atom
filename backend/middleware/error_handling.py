@@ -3,12 +3,12 @@ Comprehensive Error Handling Middleware
 Provides detailed error responses and logging for production use
 """
 
+from datetime import datetime
 import json
 import logging
 import traceback
-import uuid
-from datetime import datetime
 from typing import Any, Dict, Optional
+import uuid
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

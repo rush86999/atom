@@ -1,6 +1,6 @@
 import datetime
-import logging
 from datetime import timezone
+import logging
 from typing import Dict, Optional
 from ecommerce.models import Subscription
 from saas.models import UsageEvent

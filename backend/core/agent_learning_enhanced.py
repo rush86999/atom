@@ -19,10 +19,10 @@ Usage:
     signals = learning.get_learning_signals("agent-1", days=30)
 """
 
-import logging
-import uuid
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_world_model import AgentExperience, WorldModelService
