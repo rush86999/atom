@@ -87,10 +87,10 @@ class AgentGuidanceSystem:
 
                 if agent:
                     # Check if agent can present operations (INTERN+)
-                    governance_check = await self.governance.check_action_permission(
+                    governance_check = self.governance.can_perform_action(
                         agent_id=agent_id,
-                        action="present_canvas",
-                        action_complexity=2  # MODERATE - presenting information
+                        action_type="present_canvas",
+                        require_approval=False
                     )
 
                     if not governance_check.get("allowed"):
@@ -107,7 +107,7 @@ class AgentGuidanceSystem:
 
             # Get workspace_id
             workspace_id = "default"
-            if agent and agent.workspace_id:
+            if agent and hasattr(agent, 'workspace_id') and agent.workspace_id:
                 workspace_id = agent.workspace_id
 
             # Create operation tracker

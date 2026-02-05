@@ -17,6 +17,15 @@ from main_api_app import app
 
 from core.database import Base, get_db
 
+# Import all models so they're registered with Base.metadata
+# Must import models that inherit from Base before creating tables
+from core.models import (
+    AgentRegistry, AgentExecution, AgentFeedback,
+    AgentOperationTracker, AgentRequestLog, CanvasAudit,
+    Episode, EpisodeSegment, EpisodeAccessLog,
+    User, UserRole, Workspace
+)
+
 # Test database
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(
@@ -30,8 +39,29 @@ def db_session():
     """Create a fresh database session for each test"""
     # Drop all tables first to ensure clean state
     Base.metadata.drop_all(bind=engine)
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    try:
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        # If index already exists, recreate tables one by one to avoid conflicts
+        if "already exists" in str(e):
+            from core.database import get_database_url
+            import re
+
+            # Extract database name from URL
+            db_url = get_database_url()
+            db_name = re.search(r'sqlite:///\.?/?([^/]+\.db)', db_url)
+            if db_name:
+                db_file = db_name.group(1)
+                if os.path.exists(db_file):
+                    os.remove(db_file)
+                    # Try creating tables again
+                    Base.metadata.create_all(bind=engine)
+            else:
+                raise
+        else:
+            raise
+
     db = TestingSessionLocal()
     try:
         yield db
