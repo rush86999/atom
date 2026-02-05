@@ -1,10 +1,11 @@
 import logging
 import time
-from fastapi import APIRouter, Depends
+from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.admin_endpoints import get_super_admin
+from core.base_routes import BaseAPIRouter
 from core.cache import cache
 from core.database import get_db
 from core.models import User
@@ -20,7 +21,7 @@ except ImportError as e:
     logging.getLogger(__name__).error(f"Failed to import LanceDBHandler: {e}")
     HAS_LANCEDB = False
 
-router = APIRouter(tags=["Admin Health"])
+router = BaseAPIRouter(prefix="/api/admin/health", tags=["Admin Health"])
 logger = logging.getLogger(__name__)
 
 # Hardcoded path to avoid prefix issues
@@ -92,13 +93,15 @@ def get_system_health(
     elif redis_status == "degraded" or vector_status == "degraded":
         overall_status = "degraded"
 
-    return {
-        "version": "2.1.0",
-        "status": overall_status,
-        "services": {
-            "database": db_status,
-            "redis": redis_status,
-            "vector_store": vector_status
+    return router.success_response(
+        data={
+            "version": "2.1.0",
+            "status": overall_status,
+            "services": {
+                "database": db_status,
+                "redis": redis_status,
+                "vector_store": vector_status
+            }
         },
-        "timestamp": time.time()
-    }
+        message="System health check completed"
+    )
