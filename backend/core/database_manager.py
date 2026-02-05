@@ -1,25 +1,23 @@
 """
 Database Manager
 
-⚠️ DEPRECATED - Retained for Async Operations Only
+⚠️ DEPRECATED - This module is deprecated and should NOT be used for new code.
 
-This module is kept ONLY for async database operations needed by chat_process_manager.py.
-For all NEW code, use core.database with get_db() (dependency injection) or get_db_session() (context manager).
+Migration Status (February 2026):
+    - ✅ chat_process_manager.py: MIGRATED to get_async_db_session()
+    - ✅ execution_state_manager.py: MIGRATED to get_async_db_session()
+    - ✅ enhanced_execution_state_manager.py: MIGRATED to get_async_db_session()
+    - ✅ api_routes.py: MIGRATED to direct SQLAlchemy ORM
+    - ⚠️ Some files in integrations/ may still use this module (30+ files identified)
 
-Why This File Still Exists:
-    - chat_process_manager.py requires async database operations (execute, fetch_one, fetch_all)
-    - core.database currently provides only synchronous SQLAlchemy sessions
-    - TODO: Migrate chat_process_manager.py to async SQLAlchemy or add async support to core.database
+For NEW code, use:
+    - API Routes: `db: Session = Depends(get_db)` from core.database
+    - Async Services: `async with get_async_db_session() as db:` from core.database
+    - Sync Services: `with get_db_session() as db:` from core.database
 
-Migration Status:
-    - Phase 4 (Cleanup): Cannot remove until chat_process_manager.py is migrated
-    - All other code has been migrated to core.database patterns
-    - See: docs/DATABASE_SESSION_GUIDE.md for proper database patterns
+See: docs/DATABASE_SESSION_GUIDE.md for proper database patterns
 
-For Production Code:
-    - API Routes: Use `db: Session = Depends(get_db)`
-    - Services: Use `with get_db_session() as db:`
-    - Tests: Use `SessionLocal()` directly is acceptable
+Planned Removal: Version 2.0 - After all remaining usages are migrated
 """
 
 import json
