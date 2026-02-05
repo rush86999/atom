@@ -179,6 +179,79 @@ class AsanaService:
             logger.error(f"Failed to get projects: {e}")
             return {"ok": False, "error": str(e)}
 
+    async def create_project(
+        self,
+        access_token: str,
+        workspace_gid: str,
+        name: str,
+        notes: str = None,
+        team_gid: str = None,
+        color: str = None,
+        **kwargs
+    ) -> Dict:
+        """
+        Create a new Asana project.
+
+        Args:
+            access_token: Asana OAuth access token
+            workspace_gid: Workspace GID (required)
+            name: Project name (required)
+            notes: Project description/notes
+            team_gid: Team GID (optional, for team projects)
+            color: Project color (optional, e.g., "light-green", "red")
+            **kwargs: Additional project fields (due_on, public, etc.)
+
+        Returns:
+            Created project data with GID
+
+        Raises:
+            Exception: If project creation fails
+
+        Example:
+            await asana.create_project(
+                access_token="...",
+                workspace_gid="123456789",
+                name="Q1 Marketing Campaign",
+                notes="Annual Q1 marketing initiatives",
+                team_gid="987654321"
+            )
+        """
+        try:
+            data = {
+                "workspace": workspace_gid,
+                "name": name,
+            }
+
+            if notes:
+                data["notes"] = notes
+            if team_gid:
+                data["team"] = team_gid
+            if color:
+                data["color"] = color
+
+            # Add any additional fields
+            data.update(kwargs)
+
+            result = self._make_request("POST", "/projects", access_token, data=data)
+            project = result.get("data", {})
+
+            return {
+                "ok": True,
+                "project": {
+                    "gid": project.get("gid"),
+                    "name": project.get("name"),
+                    "notes": project.get("notes"),
+                    "color": project.get("color"),
+                    "created_at": project.get("created_at"),
+                    "modified_at": project.get("modified_at"),
+                    "workspace_gid": project.get("workspace", {}).get("gid"),
+                    "team_gid": project.get("team", {}).get("gid") if team_gid else None,
+                }
+            }
+        except Exception as e:
+            logger.error(f"Failed to create project: {e}")
+            return {"ok": False, "error": str(e)}
+
     async def get_tasks(
         self,
         access_token: str,
