@@ -20,7 +20,7 @@ from core.workflow_analytics_engine import (
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(tags=["analytics-dashboard"])
+router = BaseAPIRouter(prefix="/api/analytics", tags=["Analytics Dashboard"])
 
 # Global analytics engine instance
 _analytics_engine: Optional[WorkflowAnalyticsEngine] = None

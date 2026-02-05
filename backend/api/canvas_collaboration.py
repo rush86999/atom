@@ -30,7 +30,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/canvas-collab", tags=["Canvas Collaboration"])
 
 
 # ============================================================================

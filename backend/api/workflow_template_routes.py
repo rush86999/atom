@@ -10,7 +10,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/workflow-templates", tags=["Workflow Templates"])
 
 # Lazy import to avoid circular dependencies
 def get_template_manager():

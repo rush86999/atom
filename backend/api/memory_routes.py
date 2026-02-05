@@ -14,7 +14,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/memory", tags=["Memory"])
 
 # Pydantic Models
 class MemoryStoreRequest(BaseModel):

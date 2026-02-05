@@ -24,7 +24,7 @@ from core.models import AgentFeedback, User
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/feedback/batch", tags=["Feedback Batch"])
 
 
 # ============================================================================

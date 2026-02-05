@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/voice", tags=["Voice"])
 
 # Pydantic Models
 class TranscriptionRequest(BaseModel):

@@ -10,7 +10,7 @@ from core.base_routes import BaseAPIRouter
 from core.business_health_service import business_health_service
 from core.database import get_db
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/operations", tags=["Operations"])
 logger = logging.getLogger(__name__)
 
 class SimulationRequest(BaseModel):

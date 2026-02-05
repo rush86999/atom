@@ -7,7 +7,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.financial_forensics import get_forensics_services
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/forensics", tags=["Forensics"])
 
 @router.get("/vendor-drift")
 async def get_vendor_drift(

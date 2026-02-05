@@ -15,7 +15,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/financial-ops", tags=["Financial Ops"])
 
 # ==================== COST LEAK DETECTION ====================
 
