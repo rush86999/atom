@@ -4,11 +4,16 @@ Pytest configuration and fixtures
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 import pytest
+import pytest_asyncio
+import asyncio
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -23,15 +28,25 @@ from core.models import (
     AgentRegistry, AgentExecution, AgentFeedback,
     AgentOperationTracker, AgentRequestLog, CanvasAudit,
     Episode, EpisodeSegment, EpisodeAccessLog,
-    User, UserRole, Workspace
+    User, UserRole, Workspace,
+    WorkflowExecution, WorkflowExecutionStatus
 )
 
-# Test database
+# Test database (sync)
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(
     SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Async test database
+SQLALCHEMY_TEST_DATABASE_URL_ASYNC = "sqlite+aiosqlite:///./test_async.db"
+async_engine = create_async_engine(
+    SQLALCHEMY_TEST_DATABASE_URL_ASYNC, connect_args={"check_same_thread": False}
+)
+AsyncTestingSessionLocal = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 @pytest.fixture
@@ -96,9 +111,9 @@ def mock_external_services():
 def clean_test_databases():
     """Clean up test databases before and after test session"""
     # Clean up before tests
-    import os
     db_files = [
         "./test.db",
+        "./test_async.db",
         "./atom.db",
         "./atom_dev.db",
         "./analytics.db",
@@ -116,3 +131,35 @@ def clean_test_databases():
                 os.remove(db_file)
             except:
                 pass
+
+
+@pytest.fixture(autouse=True)
+async def async_setup():
+    """Setup async database for tests that need it"""
+    # Create all tables
+    async with async_engine.begin() as conn:
+        try:
+            await conn.run_sync(Base.metadata.drop_all)
+        except:
+            pass
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield
+
+    # Clean up
+    async with async_engine.begin() as conn:
+        try:
+            await conn.run_sync(Base.metadata.drop_all)
+        except:
+            pass
+
+
+# Configure pytest-asyncio
+pytest_plugins = ('pytest_asyncio',)
+
+
+@pytest_asyncio.fixture
+async def async_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh async database session for tests that need it"""
+    async with AsyncTestingSessionLocal() as session:
+        yield session
