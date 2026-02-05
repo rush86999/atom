@@ -10,54 +10,46 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from core.database import SessionLocal
 from core.models import AgentOperationTracker, AgentRegistry, CanvasAudit, User, Workspace
 from tools.agent_guidance_canvas_tool import AgentGuidanceSystem
 
 
 @pytest.fixture
-def db():
-    """Database session fixture."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture
-def test_user(db):
+def test_user(db_session):
     """Create test user."""
     user = User(
         id=str(uuid.uuid4()),
         email="test@example.com",
         password_hash="hash"
     )
-    db.add(user)
-    db.commit()
+    db_session.add(user)
+    db_session.commit()
     return user
 
 
 @pytest.fixture
-def test_agent(db):
+def test_agent(db_session):
     """Create test agent."""
     agent = AgentRegistry(
         id=str(uuid.uuid4()),
         name="Test Agent",
-        agent_type="assistant",
-        status="student",
-        confidence_score=0.6,
+        description="Test agent for guidance system",
+        category="Test",
+        module_path="tests.test_module",
+        class_name="TestAgent",
+        status="autonomous",  # High maturity to pass governance checks
+        confidence_score=0.95,
         required_role_for_autonomy="team_lead"
     )
-    db.add(agent)
-    db.commit()
+    db_session.add(agent)
+    db_session.commit()
     return agent
 
 
 @pytest.fixture
-def guidance_system(db):
+def guidance_system(db_session):
     """Agent guidance system fixture."""
-    return AgentGuidanceSystem(db)
+    return AgentGuidanceSystem(db_session)
 
 
 @pytest.mark.asyncio
@@ -97,7 +89,7 @@ async def test_start_operation(guidance_system, test_user, test_agent):
 
 
 @pytest.mark.asyncio
-async def test_start_operation_creates_tracker(db, guidance_system, test_user, test_agent):
+async def test_start_operation_creates_tracker(db_session, guidance_system, test_user, test_agent):
     """Test that start_operation creates database tracker."""
     with patch('core.websockets.manager.broadcast'):
         operation_id = await guidance_system.start_operation(
@@ -112,7 +104,7 @@ async def test_start_operation_creates_tracker(db, guidance_system, test_user, t
         )
 
         # Verify tracker created in database
-        tracker = db.query(AgentOperationTracker).filter(
+        tracker = db_session.query(AgentOperationTracker).filter(
             AgentOperationTracker.operation_id == operation_id
         ).first()
 
@@ -283,7 +275,7 @@ async def test_add_log_entry(guidance_system, test_user, test_agent):
 
 
 @pytest.mark.asyncio
-async def test_progress_calculation(db, guidance_system, test_user, test_agent):
+async def test_progress_calculation(db_session, guidance_system, test_user, test_agent):
     """Test automatic progress calculation."""
     with patch('core.websockets.manager.broadcast'):
         operation_id = await guidance_system.start_operation(
@@ -309,7 +301,7 @@ async def test_progress_calculation(db, guidance_system, test_user, test_agent):
         )
 
         # Verify progress calculated automatically
-        tracker = db.query(AgentOperationTracker).filter(
+        tracker = db_session.query(AgentOperationTracker).filter(
             AgentOperationTracker.operation_id == operation_id
         ).first()
 
@@ -318,7 +310,7 @@ async def test_progress_calculation(db, guidance_system, test_user, test_agent):
 
 
 @pytest.mark.asyncio
-async def test_audit_trail_creation(db, guidance_system, test_user, test_agent):
+async def test_audit_trail_creation(db_session, guidance_system, test_user, test_agent):
     """Test that operations create audit trail."""
     with patch('core.websockets.manager.broadcast'):
         await guidance_system.start_operation(
@@ -329,7 +321,7 @@ async def test_audit_trail_creation(db, guidance_system, test_user, test_agent):
         )
 
     # Verify audit entry created
-    audit = db.query(CanvasAudit).filter(
+    audit = db_session.query(CanvasAudit).filter(
         CanvasAudit.component_type == "agent_operation_tracker",
         CanvasAudit.action == "start_operation"
     ).first()
@@ -340,7 +332,7 @@ async def test_audit_trail_creation(db, guidance_system, test_user, test_agent):
 
 
 @pytest.mark.asyncio
-async def test_feature_flag_disabled(db, guidance_system, test_user, test_agent):
+async def test_feature_flag_disabled(db_session, guidance_system, test_user, test_agent):
     """Test that operations skip when feature flag disabled."""
     with patch('tools.agent_guidance_canvas_tool.AGENT_GUIDANCE_ENABLED', False):
         with patch('core.websockets.manager.broadcast') as mock_broadcast:
@@ -371,12 +363,12 @@ async def test_unknown_operation_update(guidance_system, test_user):
         mock_broadcast.assert_not_called()
 
 
-def test_guidance_system_instantiation(db):
+def test_guidance_system_instantiation(db_session):
     """Test AgentGuidanceSystem can be instantiated."""
     from tools.agent_guidance_canvas_tool import get_agent_guidance_system
 
-    system = get_agent_guidance_system(db)
+    system = get_agent_guidance_system(db_session)
     assert system is not None
-    assert system.db == db
+    assert system.db == db_session
     assert system.resolver is not None
     assert system.governance is not None
