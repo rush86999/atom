@@ -1,0 +1,800 @@
+{
+  "n_plus_one_issues": [],
+  "missing_indexes": [
+    {
+      "model": "WorkspaceStatus(str,",
+      "table": null,
+      "line": 136,
+      "code": "Column('user_id', String, ForeignKey('users.id'), primary_key=True),"
+    },
+    {
+      "model": "WorkspaceStatus(str,",
+      "table": null,
+      "line": 137,
+      "code": "Column('team_id', String, ForeignKey('teams.id'), primary_key=True),"
+    },
+    {
+      "model": "WorkspaceStatus(str,",
+      "table": null,
+      "line": 145,
+      "code": "Column('user_id', String, ForeignKey('users.id'), primary_key=True),"
+    },
+    {
+      "model": "WorkspaceStatus(str,",
+      "table": null,
+      "line": 146,
+      "code": "Column('workspace_id', String, ForeignKey('workspaces.id'), primary_key=True),"
+    },
+    {
+      "model": "Team(Base):",
+      "table": "teams",
+      "line": 185,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "TeamMessage(Base):",
+      "table": "team_messages",
+      "line": 247,
+      "code": "team_id = Column(String, ForeignKey(\"teams.id\"), nullable=False)"
+    },
+    {
+      "model": "TeamMessage(Base):",
+      "table": "team_messages",
+      "line": 248,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "ChatProcess(Base):",
+      "table": "chat_processes",
+      "line": 378,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "AuditLog(Base):",
+      "table": "audit_logs",
+      "line": 409,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "AuditLog(Base):",
+      "table": "audit_logs",
+      "line": 411,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=True)"
+    },
+    {
+      "model": "UserSession(Base):",
+      "table": "user_sessions",
+      "line": 429,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "PasswordResetToken(Base):",
+      "table": "password_reset_tokens",
+      "line": 445,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "BusinessProductService(Base):",
+      "table": "business_product_services",
+      "line": 486,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "BusinessRule(Base):",
+      "table": "business_rules",
+      "line": 508,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "HITLAction(Base):",
+      "table": "hitl_actions",
+      "line": 525,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "HITLAction(Base):",
+      "table": "hitl_actions",
+      "line": 542,
+      "code": "reviewed_by = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "AgentFeedback(Base):",
+      "table": "agent_feedback",
+      "line": 599,
+      "code": "agent_id = Column(String, ForeignKey(\"agent_registry.id\"), nullable=False)"
+    },
+    {
+      "model": "AgentFeedback(Base):",
+      "table": "agent_feedback",
+      "line": 601,
+      "code": "user_id = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "IntegrationMetric(Base):",
+      "table": "integration_metrics",
+      "line": 944,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "CommunityMembership(Base):",
+      "table": "community_memberships",
+      "line": 1050,
+      "code": "community_id = Column(String, ForeignKey(\"graph_communities.id\", ondelete=\"CASCADE\"), nullable=False)"
+    },
+    {
+      "model": "CommunityMembership(Base):",
+      "table": "community_memberships",
+      "line": 1051,
+      "code": "node_id = Column(String, ForeignKey(\"graph_nodes.id\", ondelete=\"CASCADE\"), nullable=False)"
+    },
+    {
+      "model": "AgentOperationTracker(Base):",
+      "table": "agent_operation_tracker",
+      "line": 1168,
+      "code": "workspace_id = Column(String, ForeignKey(\"workspaces.id\"), nullable=False)"
+    },
+    {
+      "model": "AgentRequestLog(Base):",
+      "table": "agent_request_log",
+      "line": 1206,
+      "code": "agent_id = Column(String, ForeignKey(\"agent_registry.id\"), nullable=False)"
+    },
+    {
+      "model": "ViewOrchestrationState(Base):",
+      "table": "view_orchestration_state",
+      "line": 1243,
+      "code": "controlling_agent = Column(String, ForeignKey(\"agent_registry.id\"), nullable=True)"
+    },
+    {
+      "model": "Artifact(Base):",
+      "table": "artifacts",
+      "line": 1334,
+      "code": "locked_by_user_id = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "Artifact(Base):",
+      "table": "artifacts",
+      "line": 1335,
+      "code": "author_id = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "ArtifactVersion(Base):",
+      "table": "artifact_versions",
+      "line": 1358,
+      "code": "author_id = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "CustomComponent(Base):",
+      "table": "custom_components",
+      "line": 1813,
+      "code": "parent_component_id = Column(String, ForeignKey(\"custom_components.id\"), nullable=True)"
+    },
+    {
+      "model": "ComponentVersion(Base):",
+      "table": "component_versions",
+      "line": 1856,
+      "code": "changed_by = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "WorkflowTemplate(Base):",
+      "table": "workflow_templates",
+      "line": 1954,
+      "code": "parent_template_id = Column(String, ForeignKey(\"workflow_templates.template_id\"), nullable=True)"
+    },
+    {
+      "model": "TemplateVersion(Base):",
+      "table": "template_versions",
+      "line": 2002,
+      "code": "changed_by_id = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "WorkflowCollaborationSession(Base):",
+      "table": "workflow_collaboration_sessions",
+      "line": 2066,
+      "code": "created_by = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "WorkflowShare(Base):",
+      "table": "workflow_shares",
+      "line": 2191,
+      "code": "revoked_by = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "CollaborationComment(Base):",
+      "table": "collaboration_comments",
+      "line": 2232,
+      "code": "resolved_by = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "WorkflowBreakpoint(Base):",
+      "table": "workflow_breakpoints",
+      "line": 2378,
+      "code": "created_by = Column(String, ForeignKey(\"users.id\"), nullable=False)"
+    },
+    {
+      "model": "AdminUser(Base):",
+      "table": "admin_users",
+      "line": 2549,
+      "code": "role_id = Column(String, ForeignKey(\"admin_roles.id\"), nullable=False)"
+    },
+    {
+      "model": "CanvasRecording(Base):",
+      "table": "canvas_recordings",
+      "line": 2638,
+      "code": "agent_id = Column(String, ForeignKey(\"agent_registry.id\"))"
+    },
+    {
+      "model": "CanvasRecordingReview(Base):",
+      "table": "canvas_recording_reviews",
+      "line": 2712,
+      "code": "reviewed_by = Column(String, ForeignKey(\"users.id\"), nullable=True)"
+    },
+    {
+      "model": "Episode(Base):",
+      "table": "episodes",
+      "line": 3337,
+      "code": "consolidated_into = Column(String, ForeignKey(\"episodes.id\"), nullable=True)"
+    }
+  ],
+  "caching_opportunities": [
+    {
+      "type": "user_queries",
+      "file": "backend/core/governance_helper.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/push_notification_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/view_coordinator.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/view_coordinator.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_context_resolver.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/agent_context_resolver.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_promotion_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/auth.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/condition_monitoring_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/auth_endpoints.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_world_model.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/deeplinks.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/deeplinks.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/proposal_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/proposal_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/episode_segmentation_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/episode_segmentation_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/communication_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/feedback_advanced_analytics.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/logging_config.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_request_manager.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/agent_request_manager.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/workforce_analytics.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/student_training_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/student_training_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/workflow_engine.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/workflow_engine.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/governance_engine.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/reasoning_chain.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/reasoning_chain.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/custom_components_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/custom_components_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/database_manager.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_graduation_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/agent_graduation_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/governance_wrapper.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/staffing_advisor.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/communication_intelligence.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/database.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/team_messaging.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/connection_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/resource_manager.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/atom_meta_agent.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/atom_meta_agent.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/feedback_analytics.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/resource_reasoning.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/security_dependencies.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/api_routes.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/canvas_docs_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/canvas_recording_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/canvas_recording_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/workflow_analytics_endpoints.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/canvas_collaboration_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/canvas_collaboration_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/episode_retrieval_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/background_agent_runner.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/atom_agent_endpoints.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/canvas_orchestration_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/admin_bootstrap.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/canvas_email_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/health_monitoring_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/health_monitoring_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/collaboration_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/offline_sync_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/recording_review_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/recording_review_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/supervision_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_governance_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/agent_governance_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/user_preference_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/database_helper.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/database_helper.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/trigger_interceptor.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/trigger_interceptor.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/meta_agent_training_orchestrator.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/scheduled_messaging_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/error_guidance_engine.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/data_visibility.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/scheduler.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/error_handlers.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/enterprise_auth_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/pm_swarm.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/ab_testing_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/intervention_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/intervention_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/enterprise_user_management.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/proactive_messaging_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/proactive_messaging_service.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/auth_helpers.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/agent_learning_enhanced.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/agent_learning_enhanced.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "user_queries",
+      "file": "backend/core/budget_guardrail.py",
+      "recommendation": "Cache User lookups by user_id",
+      "priority": "MEDIUM"
+    },
+    {
+      "type": "agent_registry",
+      "file": "backend/core/feedback_export_service.py",
+      "recommendation": "Cache AgentRegistry queries by agent_id",
+      "priority": "HIGH"
+    }
+  ],
+  "slow_endpoints": []
+}
