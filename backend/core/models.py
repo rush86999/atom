@@ -599,6 +599,7 @@ class AgentFeedback(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    episode_id = Column(String, ForeignKey("episodes.id"), nullable=True, index=True)  # NEW - Episode backlink
 
     # The Interaction
     input_context = Column(Text, nullable=True) # What triggered the agent
@@ -1148,6 +1149,7 @@ class CanvasAudit(Base):
     action = Column(String, nullable=False)  # 'present', 'close', 'submit', 'update'
     audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
     governance_check_passed = Column(Boolean, nullable=True)
+    episode_id = Column(String, ForeignKey("episodes.id"), nullable=True, index=True)  # NEW - Episode backlink
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     def __repr__(self):
@@ -3311,6 +3313,14 @@ class Episode(Base):
     session_id = Column(String, nullable=True, index=True)  # Links to ChatSession
     execution_ids = Column(JSON, default=list)  # List of AgentExecution IDs
 
+    # Canvas linkage (NEW - Feb 2026)
+    canvas_ids = Column(JSON, default=list)  # List of CanvasAudit IDs
+    canvas_action_count = Column(Integer, default=0)  # Total canvas actions in episode
+
+    # Feedback linkage (NEW - Feb 2026)
+    feedback_ids = Column(JSON, default=list)  # List of AgentFeedback IDs
+    aggregate_feedback_score = Column(Float, nullable=True)  # -1.0 to 1.0 aggregate score
+
     # Boundaries
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -3357,6 +3367,7 @@ class Episode(Base):
         Index('ix_episodes_started_at', 'started_at'),
         Index('ix_episodes_maturity', 'maturity_at_time'),
         Index('ix_episodes_importance', 'importance_score'),
+        Index('ix_episodes_agent_canvas', 'agent_id', 'canvas_action_count'),  # NEW - Canvas queries
     )
 
 

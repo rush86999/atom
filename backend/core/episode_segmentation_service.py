@@ -20,8 +20,10 @@ from core.database import get_db_session
 from core.lancedb_handler import get_lancedb_handler
 from core.models import (
     AgentExecution,
+    AgentFeedback,
     AgentRegistry,
     AgentStatus,
+    CanvasAudit,
     ChatMessage,
     ChatSession,
     Episode,
@@ -161,6 +163,10 @@ class EpisodeSegmentationService:
             AgentExecution.session_id == session_id
         ).order_by(AgentExecution.created_at.asc()).all()
 
+        # 2.5. Fetch canvas and feedback context (NEW)
+        canvas_audits = self._fetch_canvas_context(session_id)
+        feedback_records = self._fetch_feedback_context(session_id, agent_id, [e.id for e in executions])
+
         if not messages and not executions:
             logger.warning(f"No data for session {session_id}")
             return None
@@ -187,6 +193,11 @@ class EpisodeSegmentationService:
             workspace_id=session.workspace_id or "default",
             session_id=session_id,
             execution_ids=[e.id for e in executions],
+            # NEW - Canvas and feedback linkage
+            canvas_ids=[c.id for c in canvas_audits],
+            canvas_action_count=len(canvas_audits),
+            feedback_ids=[f.id for f in feedback_records],
+            aggregate_feedback_score=self._calculate_feedback_score(feedback_records),
             started_at=messages[0].created_at if messages else executions[0].created_at,
             ended_at=messages[-1].created_at if messages else executions[-1].created_at,
             duration_seconds=self._calculate_duration(messages, executions),
@@ -205,6 +216,17 @@ class EpisodeSegmentationService:
         self.db.add(episode)
         self.db.commit()
         self.db.refresh(episode)
+
+        # 4.5. Link back to source records (NEW)
+        # Update CanvasAudit with episode_id
+        for canvas in canvas_audits:
+            canvas.episode_id = episode.id
+
+        # Update AgentFeedback with episode_id
+        for feedback in feedback_records:
+            feedback.episode_id = episode.id
+
+        self.db.commit()
 
         # 5. Create segments
         await self._create_segments(episode, messages, executions, message_boundaries)
@@ -527,3 +549,103 @@ Topics: {', '.join(episode.topics)}
 
         except Exception as e:
             logger.error(f"Failed to archive episode to LanceDB: {e}")
+
+    def _fetch_canvas_context(self, session_id: str) -> List[CanvasAudit]:
+        """
+        Fetch all canvas events for a session during episode creation.
+
+        Args:
+            session_id: ChatSession ID
+
+        Returns:
+            List of CanvasAudit records ordered by creation time
+        """
+        try:
+            canvases = self.db.query(CanvasAudit).filter(
+                CanvasAudit.session_id == session_id
+            ).order_by(CanvasAudit.created_at.asc()).all()
+
+            logger.debug(f"Found {len(canvases)} canvas events for session {session_id}")
+            return canvases
+
+        except Exception as e:
+            logger.error(f"Failed to fetch canvas context for session {session_id}: {e}")
+            return []
+
+    def _fetch_feedback_context(
+        self,
+        session_id: str,
+        agent_id: str,
+        execution_ids: List[str]
+    ) -> List[AgentFeedback]:
+        """
+        Fetch feedback for session/agent during episode creation.
+
+        Queries by agent_execution_id linkage to capture feedback related
+        to executions in this session.
+
+        Args:
+            session_id: ChatSession ID
+            agent_id: Agent ID
+            execution_ids: List of AgentExecution IDs in this session
+
+        Returns:
+            List of AgentFeedback records
+        """
+        try:
+            if not execution_ids:
+                return []
+
+            # Query feedback by agent_execution_id linkage
+            feedbacks = self.db.query(AgentFeedback).filter(
+                AgentFeedback.agent_id == agent_id,
+                AgentFeedback.agent_execution_id.in_(execution_ids)
+            ).all()
+
+            logger.debug(f"Found {len(feedbacks)} feedback records for agent {agent_id}")
+            return feedbacks
+
+        except Exception as e:
+            logger.error(f"Failed to fetch feedback context for session {session_id}: {e}")
+            return []
+
+    def _calculate_feedback_score(self, feedbacks: List[AgentFeedback]) -> Optional[float]:
+        """
+        Calculate aggregate feedback score (-1.0 to 1.0).
+
+        Scoring:
+        - thumbs_up: +1.0
+        - thumbs_down: -1.0
+        - rating 1-5: converted to -1.0 to 1.0 scale
+
+        Args:
+            feedbacks: List of AgentFeedback records
+
+        Returns:
+            Aggregate score or None if no feedback
+        """
+        if not feedbacks:
+            return None
+
+        try:
+            scores = []
+            for f in feedbacks:
+                if f.feedback_type == "thumbs_up" or f.thumbs_up_down is True:
+                    scores.append(1.0)
+                elif f.feedback_type == "thumbs_down" or f.thumbs_up_down is False:
+                    scores.append(-1.0)
+                elif f.feedback_type == "rating" and f.rating:
+                    # Convert 1-5 scale to -1.0 to 1.0
+                    # 1 -> -1.0, 2 -> -0.5, 3 -> 0.0, 4 -> 0.5, 5 -> 1.0
+                    scores.append((f.rating - 3) / 2)
+
+            if not scores:
+                return None
+
+            aggregate = sum(scores) / len(scores)
+            logger.debug(f"Calculated aggregate feedback score: {aggregate:.2f}")
+            return aggregate
+
+        except Exception as e:
+            logger.error(f"Failed to calculate feedback score: {e}")
+            return None
