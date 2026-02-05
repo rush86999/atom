@@ -5,7 +5,7 @@ Provides endpoints for user profile and session management
 from datetime import datetime
 from typing import List, Optional, Tuple
 from fastapi import Depends, Request, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -58,8 +58,7 @@ class UserResponse(BaseModel):
     created_at: Optional[datetime]
     last_login: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSessionResponse(BaseModel):
@@ -74,8 +73,7 @@ class UserSessionResponse(BaseModel):
     is_active: bool
     is_current: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RevokeSessionResponse(BaseModel):

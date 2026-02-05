@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 import uuid
 from fastapi import APIRouter, Body, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 router = APIRouter()
 
@@ -20,8 +20,7 @@ class WorkflowRequest(BaseModel):
     description: Optional[str] = None
     input: Optional[str] = None
 
-    class Config:
-        extra = 'allow'
+    model_config = ConfigDict(extra='allow')
 
 # --- Endpoints ---
 

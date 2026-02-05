@@ -14,7 +14,7 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from .auth import get_current_user, get_password_hash
@@ -31,7 +31,8 @@ class UserCreate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None  # Optional for OAuth users
 
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         if '@' not in v or '.' not in v.split('@')[1]:
             raise ValueError('Invalid email format')

@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 from typing import Dict, List, Optional
 from fastapi import Depends, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
@@ -53,8 +53,7 @@ class AdminUserWithRole(BaseModel):
     status: str
     last_login: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateLastLoginResponse(BaseModel):
@@ -87,8 +86,7 @@ class AdminUserResponse(BaseModel):
     last_login: Optional[datetime]
     created_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeleteAdminUserResponse(BaseModel):
@@ -117,8 +115,7 @@ class AdminRoleResponse(BaseModel):
     permissions: Dict[str, bool]
     description: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeleteAdminRoleResponse(BaseModel):

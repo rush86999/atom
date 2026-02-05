@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,8 @@ class AdvancedWorkflowDefinition(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     created_by: Optional[str] = None
 
-    @validator('steps', each_item=True)
+    @field_validator('steps', mode='before')
+    @classmethod
     def validate_step_ids(cls, v):
         if isinstance(v, WorkflowStep):
             v.step_id = str(v.step_id)
