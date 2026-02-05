@@ -1,6 +1,8 @@
 """
 Enhanced Execution State Manager
 Extends the existing ExecutionStateManager with multi-step, pause/resume, and multi-output support
+
+MIGRATED: Now uses SQLAlchemy async ORM instead of raw SQL via database_manager
 """
 
 import json
@@ -10,10 +12,15 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from .database_manager import db_manager
-from .execution_state_manager import ExecutionStateManager, get_state_manager
+from pydantic import BaseModel
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.database import get_async_db_session
+from core.execution_state_manager import ExecutionStateManager, get_state_manager
 
 logger = logging.getLogger(__name__)
+
 
 class WorkflowState(str, Enum):
     DRAFT = "draft"
@@ -25,6 +32,7 @@ class WorkflowState(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+
 class StepState(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
@@ -32,6 +40,7 @@ class StepState(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
+
 
 class ParameterDefinition(BaseModel):
     """Enhanced parameter definition with validation and dependencies"""
@@ -47,12 +56,14 @@ class ParameterDefinition(BaseModel):
     show_when: Optional[Dict[str, Any]] = None  # Condition to show this parameter
     multi_step: bool = False  # Can be collected across multiple steps
 
+
 class MultiOutputConfig(BaseModel):
     """Configuration for multi-step outputs"""
     output_type: str  # single, multiple, aggregated, stream
     aggregation_method: Optional[str] = None  # merge, append, transform
     output_schema: Dict[str, Any] = {}
     step_outputs: Dict[str, List[str]] = {}  # Map step_id to output fields
+
 
 class EnhancedExecutionState:
     """Enhanced execution state with multi-step tracking"""
@@ -76,6 +87,7 @@ class EnhancedExecutionState:
         self.error_details: Optional[str] = None
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
+
 
 class EnhancedExecutionStateManager(ExecutionStateManager):
     """Enhanced execution state manager with advanced features"""
@@ -135,38 +147,39 @@ class EnhancedExecutionStateManager(ExecutionStateManager):
 
         # Try to load enhanced fields from database
         try:
-            query = """
-                SELECT enhanced_data FROM workflow_executions_enhanced
-                WHERE execution_id = ?
-            """
-            row = await self.db.fetch_one(query, (execution_id,))
+            async with get_async_db_session() as db:
+                result = await db.execute(
+                    text("SELECT enhanced_data FROM workflow_executions_enhanced WHERE execution_id = :execution_id"),
+                    {"execution_id": execution_id}
+                )
+                row = result.fetchone()
 
-            if row and row["enhanced_data"]:
-                enhanced_data = json.loads(row["enhanced_data"])
+                if row and row[0]:
+                    enhanced_data = json.loads(row[0])
 
-                # Recreate enhanced state
-                enhanced_state = EnhancedExecutionState(execution_id, base_state["workflow_id"])
+                    # Recreate enhanced state
+                    enhanced_state = EnhancedExecutionState(execution_id, base_state["workflow_id"])
 
-                # Populate from enhanced data
-                enhanced_state.state = WorkflowState(enhanced_data.get("state", "pending"))
-                enhanced_state.current_step_index = enhanced_data.get("current_step_index", 0)
-                enhanced_state.step_states = {
-                    k: StepState(v) for k, v in enhanced_data.get("step_states", {}).items()
-                }
-                enhanced_state.step_inputs = enhanced_data.get("step_inputs", {})
-                enhanced_state.step_outputs = enhanced_data.get("step_outputs", {})
-                enhanced_state.collected_inputs = enhanced_data.get("collected_inputs", {})
-                enhanced_state.missing_inputs = enhanced_data.get("missing_inputs", [])
-                enhanced_state.execution_context = enhanced_data.get("execution_context", {})
-                enhanced_state.aggregated_outputs = enhanced_data.get("aggregated_outputs", {})
-                enhanced_state.pause_reason = enhanced_data.get("pause_reason")
-                enhanced_state.error_details = enhanced_data.get("error_details")
+                    # Populate from enhanced data
+                    enhanced_state.state = WorkflowState(enhanced_data.get("state", "pending"))
+                    enhanced_state.current_step_index = enhanced_data.get("current_step_index", 0)
+                    enhanced_state.step_states = {
+                        k: StepState(v) for k, v in enhanced_data.get("step_states", {}).items()
+                    }
+                    enhanced_state.step_inputs = enhanced_data.get("step_inputs", {})
+                    enhanced_state.step_outputs = enhanced_data.get("step_outputs", {})
+                    enhanced_state.collected_inputs = enhanced_data.get("collected_inputs", {})
+                    enhanced_state.missing_inputs = enhanced_data.get("missing_inputs", [])
+                    enhanced_state.execution_context = enhanced_data.get("execution_context", {})
+                    enhanced_state.aggregated_outputs = enhanced_data.get("aggregated_outputs", {})
+                    enhanced_state.pause_reason = enhanced_data.get("pause_reason")
+                    enhanced_state.error_details = enhanced_data.get("error_details")
 
-                if enhanced_data.get("multi_output_config"):
-                    enhanced_state.multi_output_config = MultiOutputConfig(**enhanced_data["multi_output_config"])
+                    if enhanced_data.get("multi_output_config"):
+                        enhanced_state.multi_output_config = MultiOutputConfig(**enhanced_data["multi_output_config"])
 
-                self.enhanced_states[execution_id] = enhanced_state
-                return enhanced_state
+                    self.enhanced_states[execution_id] = enhanced_state
+                    return enhanced_state
 
         except Exception as e:
             logger.error(f"Error loading enhanced state {execution_id}: {e}")
@@ -199,35 +212,61 @@ class EnhancedExecutionStateManager(ExecutionStateManager):
         # Create enhanced table if not exists
         await self._ensure_enhanced_table()
 
-        # Upsert enhanced state
-        query = """
-            INSERT OR REPLACE INTO workflow_executions_enhanced
-            (execution_id, workflow_id, enhanced_data, updated_at)
-            VALUES (?, ?, ?, ?)
-        """
-
-        await self.db.execute(
-            query,
-            (
-                state.execution_id,
-                state.workflow_id,
-                json.dumps(enhanced_data),
-                datetime.now().isoformat()
+        # Upsert enhanced state using SQLAlchemy
+        async with get_async_db_session() as db:
+            # Check if row exists
+            result = await db.execute(
+                text("SELECT execution_id FROM workflow_executions_enhanced WHERE execution_id = :execution_id"),
+                {"execution_id": state.execution_id}
             )
-        )
+            existing = result.fetchone()
+
+            if existing:
+                # Update
+                await db.execute(
+                    text("""
+                        UPDATE workflow_executions_enhanced
+                        SET enhanced_data = :enhanced_data, updated_at = :updated_at
+                        WHERE execution_id = :execution_id
+                    """),
+                    {
+                        "execution_id": state.execution_id,
+                        "enhanced_data": json.dumps(enhanced_data),
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                )
+            else:
+                # Insert
+                await db.execute(
+                    text("""
+                        INSERT INTO workflow_executions_enhanced
+                        (execution_id, workflow_id, enhanced_data, updated_at)
+                        VALUES (:execution_id, :workflow_id, :enhanced_data, :updated_at)
+                    """),
+                    {
+                        "execution_id": state.execution_id,
+                        "workflow_id": state.workflow_id,
+                        "enhanced_data": json.dumps(enhanced_data),
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                )
+            await db.commit()
 
     async def _ensure_enhanced_table(self):
         """Ensure enhanced workflow executions table exists"""
-        query = """
-            CREATE TABLE IF NOT EXISTS workflow_executions_enhanced (
-                execution_id TEXT PRIMARY KEY,
-                workflow_id TEXT NOT NULL,
-                enhanced_data TEXT,
-                updated_at TEXT,
-                FOREIGN KEY (execution_id) REFERENCES workflow_executions (execution_id)
+        async with get_async_db_session() as db:
+            await db.execute(
+                text("""
+                    CREATE TABLE IF NOT EXISTS workflow_executions_enhanced (
+                        execution_id TEXT PRIMARY KEY,
+                        workflow_id TEXT NOT NULL,
+                        enhanced_data TEXT,
+                        updated_at TEXT,
+                        FOREIGN KEY (execution_id) REFERENCES workflow_executions (execution_id)
+                    )
+                """)
             )
-        """
-        await self.db.execute(query)
+            await db.commit()
 
     async def start_step_execution(
         self,
@@ -521,6 +560,7 @@ class EnhancedExecutionStateManager(ExecutionStateManager):
     def register_step_completion_callback(self, execution_id: str, callback: Callable):
         """Register a callback to be called when a step completes"""
         self.step_completion_callbacks[execution_id] = callback
+
 
 # Global instance
 _enhanced_state_manager = None

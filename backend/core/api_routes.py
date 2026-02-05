@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 from .auth import get_current_user, get_password_hash
 from .chat_process_manager import get_process_manager
 from .database import get_db
-from .database_manager import db_manager
 from .models import User
 
 # Initialize router
@@ -90,12 +89,28 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if user.password:
         password_hash = get_password_hash(user.password)
 
-    new_user = await db_manager.create_user(
+    # Use SQLAlchemy ORM directly instead of db_manager
+    new_user = User(
         email=user.email,
-        name=user.name,
-        password_hash=password_hash
+        first_name=user.name,
+        password_hash=password_hash,
+        status="active",
+        role="member"
     )
-    return {"user": new_user, "message": "User created successfully"}
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": user.name,
+            "first_name": new_user.first_name,
+            "last_name": new_user.last_name
+        },
+        "message": "User created successfully"
+    }
 
 
 @router.get("/users/me", response_model=UserProfile)
