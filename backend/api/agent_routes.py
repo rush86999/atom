@@ -121,23 +121,29 @@ async def run_agent(
     
     if is_sync:
         # Run immediately and return result
-        # Note: calling execute_agent_task directly might have session issues if it creates its own session 
+        # Note: calling execute_agent_task directly might have session issues if it creates its own session
         # but execute_agent_task creates a SessionLocal(), so it is fine.
         # We need to capture the return value from execute_agent_task (which currently returns nothing/void, just logs/notifies).
         # We need to refactor execute_agent_task to return result if needed.
-        # Let's import it or call the logic directly. 
+        # Let's import it or call the logic directly.
         # Actually, let's just instantiate GenericAgent here if it's a generic agent to get the Result object?
         # Or better, refactor execute_agent_task to return the result.
-        
+
         # Refactoring execute_agent_task is best.
         result = await execute_agent_task(agent_id, run_req.parameters)
-        return {"status": "completed", "agent_id": agent_id, "result": result}
+        return router.success_response(
+            data={"agent_id": agent_id, "result": result},
+            message="Agent execution completed"
+        )
 
     # Run in background
     # We pass agent_id only, task will re-fetch to ensure fresh state/object access
     background_tasks.add_task(execute_agent_task, agent_id, run_req.parameters)
-    
-    return {"status": "started", "agent_id": agent_id}
+
+    return router.success_response(
+        data={"agent_id": agent_id},
+        message="Agent execution started"
+    )
 
 @router.post("/{agent_id}/feedback")
 async def submit_agent_feedback(

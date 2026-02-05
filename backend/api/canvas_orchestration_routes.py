@@ -1,5 +1,6 @@
 """Orchestration Canvas API Routes"""
 import logging
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from fastapi import Depends
 from pydantic import BaseModel
@@ -11,6 +12,16 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/orchestration", tags=["canvas_orchestration"])
+
+
+class TaskStatus(str, Enum):
+    """Task status enum for orchestration workflows"""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    TODO = "todo"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class CreateOrchestrationRequest(BaseModel):
@@ -40,7 +51,7 @@ class ConnectNodesRequest(BaseModel):
 class AddTaskRequest(BaseModel):
     user_id: str
     title: str
-    status: str = "todo"
+    status: TaskStatus = TaskStatus.TODO
     assignee: Optional[str] = None
     integrations: Optional[List[str]] = None
 
