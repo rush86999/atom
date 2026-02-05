@@ -1159,3 +1159,21 @@ class BYOKHandler:
 
             # If streaming fails, yield error message
             yield f"\n\n[Streaming error: {str(e)}]"
+
+    def _is_trial_restricted(self) -> bool:
+        """
+        Check if the workspace has trial restrictions.
+        Returns False for now (can be enhanced later).
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import Workspace
+
+            with get_db_session() as db:
+                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+                if workspace and hasattr(workspace, 'trial_ended') and workspace.trial_ended:
+                    return True
+                return False
+        except Exception as e:
+            logger.debug(f"Could not check trial restriction: {e}")
+            return False
