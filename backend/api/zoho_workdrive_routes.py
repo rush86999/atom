@@ -29,10 +29,7 @@ async def get_teams(user_id: str = Query(..., description="User ID")):
     """Get teams for the authenticated Zoho user"""
     try:
         teams = await zoho_service.get_teams(user_id)
-        return {
-            "success": True,
-            "data": teams
-        }
+        return router.success_response(data=teams)
     except Exception as e:
         logger.error(f"Error fetching Zoho teams: {e}")
         raise router.internal_error(message="Error fetching Zoho teams", details={"error": str(e)})
@@ -42,10 +39,7 @@ async def list_files(request: FileListRequest):
     """List files and folders in a specific parent ID"""
     try:
         files = await zoho_service.list_files(request.user_id, request.parent_id)
-        return {
-            "success": True,
-            "data": files
-        }
+        return router.success_response(data=files)
     except Exception as e:
         logger.error(f"Error listing Zoho files: {e}")
         raise router.internal_error(message="Error listing Zoho files", details={"error": str(e)})
@@ -68,8 +62,9 @@ async def health_check():
         zoho_service.client_secret,
         zoho_service.redirect_uri
     ])
-    return {
-        "success": True,
-        "status": "configured" if is_configured else "unconfigured",
-        "message": "Zoho WorkDrive integration is ready" if is_configured else "Zoho credentials missing in environment"
-    }
+    return router.success_response(
+        data={
+            "status": "configured" if is_configured else "unconfigured"
+        },
+        message="Zoho WorkDrive integration is ready" if is_configured else "Zoho credentials missing in environment"
+    )
