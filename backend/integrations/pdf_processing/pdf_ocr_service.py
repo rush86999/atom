@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import io
 import logging
 import os
@@ -7,7 +8,14 @@ import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
 from PIL import Image
 import PyPDF2
-import numpy as np
+
+# Optional numpy import
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
 
 # BYOK Integration
 try:
@@ -475,7 +483,11 @@ class PDFOCRService:
             total_chars = 0
 
             for page_num, image in enumerate(images):
-                # Convert PIL image to numpy array
+                # Convert PIL image to numpy array (if numpy is available)
+                if not NUMPY_AVAILABLE:
+                    logger.error("NumPy is required for EasyOCR but not available")
+                    raise ImportError("NumPy is required for EasyOCR")
+
                 image_np = np.array(image)
 
                 # Run OCR
@@ -852,10 +864,39 @@ class PDFOCRService:
 
                                     # Use vision model to describe image
                                     from PIL import Image as PILImage
+                                    import base64
+                                    import io
 
                                     img_pil = PILImage.open(tmp_path)
-                                    # TODO: Implement vision-based description
-                                    # This would require BYOK vision model integration
+
+                                    # Convert PIL image to base64 for vision API
+                                    buffered = io.BytesIO()
+                                    img_pil.save(buffered, format="PNG")
+                                    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+                                    # Get vision description using BYOK handler
+                                    try:
+                                        byok_handler = self.byok_manager.get_handler(
+                                            tenant_id="default",  # System-level operation
+                                            db=None
+                                        )
+
+                                        # Use coordinated vision description
+                                        vision_description = await byok_handler._get_coordinated_vision_description(
+                                            image_payload=img_base64,
+                                            tenant_plan="free",
+                                            is_managed=True
+                                        )
+
+                                        if vision_description:
+                                            image_info["ai_description"] = vision_description
+                                            logger.info(f"Generated AI description for image on page {page_num + 1}")
+
+                                    except Exception as vision_error:
+                                        logger.warning(f"Vision API call failed: {vision_error}")
+                                        # Fall back to basic description (already set above)
+
+                                    # Clean up temp file
                                     os.unlink(tmp_path)
 
                                 except Exception as e:

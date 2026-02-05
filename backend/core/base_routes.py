@@ -573,20 +573,20 @@ def safe_db_operation(operation: callable, error_message: str = "Database operat
     Example:
         @safe_db_operation
         def update_agent(agent_id: str, **kwargs):
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 agent = db.query(AgentRegistry).filter(...).first()
                 agent.name = kwargs.get("name")
                 db.commit()
                 return agent
     """
     def wrapper(*args, **kwargs):
-        from core.database import SessionLocal
+        from core.database import get_db_session
         import logging
 
         logger = logging.getLogger(__name__)
 
         try:
-            with SessionLocal() as db:
+            with get_db_session() as db:
                 # Inject db session if operation expects it
                 if 'db' in operation.__code__.co_varnames:
                     kwargs['db'] = db
@@ -633,13 +633,13 @@ def execute_db_query(
 
         agent = execute_db_query(lambda db: get_agent(db, agent_id))
     """
-    from core.database import SessionLocal
+    from core.database import get_db_session
     import logging
 
     logger = logging.getLogger(__name__)
 
     try:
-        with SessionLocal() as db:
+        with get_db_session() as db:
             return query_func(db)
 
     except Exception as e:
