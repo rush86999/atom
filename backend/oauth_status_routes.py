@@ -328,7 +328,7 @@ async def teams_authorize(user_id: str = Query("test_user", description="User ID
 
 @router.get("/trello/authorize")
 async def trello_authorize(user_id: str = Query("test_user", description="User ID for authorization")):
-    """Initiate Trello OAuth flow"""
+    """Initiate Trello OAuth flow - redirects to actual OAuth endpoint"""
     config = get_oauth_config()
     creds = config.get_credentials("trello")
 
@@ -343,14 +343,15 @@ async def trello_authorize(user_id: str = Query("test_user", description="User I
         "service": "trello",
         "user_id": user_id,
         "configured": creds.configured,
-        "message": "Trello OAuth initiate endpoint needs to be implemented in oauth_routes.py",
+        "auth_url": "/api/auth/trello/initiate",
+        "message": "Use /api/auth/trello/initiate to start OAuth flow",
         "timestamp": datetime.now().isoformat(),
     }
 
 
 @router.get("/asana/authorize")
 async def asana_authorize(user_id: str = Query("test_user", description="User ID for authorization")):
-    """Initiate Asana OAuth flow"""
+    """Initiate Asana OAuth flow - redirects to actual OAuth endpoint"""
     config = get_oauth_config()
     creds = config.get_credentials("asana")
 
@@ -365,14 +366,15 @@ async def asana_authorize(user_id: str = Query("test_user", description="User ID
         "service": "asana",
         "user_id": user_id,
         "configured": creds.configured,
-        "message": "Asana OAuth initiate endpoint needs to be implemented in oauth_routes.py",
+        "auth_url": "/api/auth/asana/initiate",
+        "message": "Use /api/auth/asana/initiate to start OAuth flow",
         "timestamp": datetime.now().isoformat(),
     }
 
 
 @router.get("/notion/authorize")
 async def notion_authorize(user_id: str = Query("test_user", description="User ID for authorization")):
-    """Initiate Notion OAuth flow"""
+    """Initiate Notion OAuth flow - redirects to actual OAuth endpoint"""
     config = get_oauth_config()
     creds = config.get_credentials("notion")
 
@@ -387,14 +389,15 @@ async def notion_authorize(user_id: str = Query("test_user", description="User I
         "service": "notion",
         "user_id": user_id,
         "configured": creds.configured,
-        "message": "Notion OAuth initiate endpoint needs to be implemented in oauth_routes.py",
+        "auth_url": "/api/auth/notion/initiate",
+        "message": "Use /api/auth/notion/initiate to start OAuth flow",
         "timestamp": datetime.now().isoformat(),
     }
 
 
 @router.get("/github/authorize")
 async def github_authorize(user_id: str = Query("test_user", description="User ID for authorization")):
-    """Initiate GitHub OAuth flow (alias for existing github/initiate)"""
+    """Initiate GitHub OAuth flow - redirects to actual OAuth endpoint"""
     config = get_oauth_config()
     creds = config.get_credentials("github")
 
@@ -409,14 +412,15 @@ async def github_authorize(user_id: str = Query("test_user", description="User I
         "service": "github",
         "user_id": user_id,
         "configured": creds.configured,
-        "message": "GitHub OAuth initiate endpoint needs to be implemented in oauth_routes.py",
+        "auth_url": "/api/auth/github/initiate",
+        "message": "Use /api/auth/github/initiate to start OAuth flow",
         "timestamp": datetime.now().isoformat(),
     }
 
 
 @router.get("/dropbox/authorize")
 async def dropbox_authorize(user_id: str = Query("test_user", description="User ID for authorization")):
-    """Initiate Dropbox OAuth flow"""
+    """Initiate Dropbox OAuth flow - redirects to actual OAuth endpoint"""
     config = get_oauth_config()
     creds = config.get_credentials("dropbox")
 
@@ -431,7 +435,8 @@ async def dropbox_authorize(user_id: str = Query("test_user", description="User 
         "service": "dropbox",
         "user_id": user_id,
         "configured": creds.configured,
-        "message": "Dropbox OAuth initiate endpoint needs to be implemented in oauth_routes.py",
+        "auth_url": "/api/auth/dropbox/initiate",
+        "message": "Use /api/auth/dropbox/initiate to start OAuth flow",
         "timestamp": datetime.now().isoformat(),
     }
 
