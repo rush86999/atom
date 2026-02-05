@@ -8,11 +8,15 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
 from core.oauth_handler import (
+    ASANA_OAUTH_CONFIG,
+    DROPBOX_OAUTH_CONFIG,
     GITHUB_OAUTH_CONFIG,
     GOOGLE_OAUTH_CONFIG,
     MICROSOFT_OAUTH_CONFIG,
+    NOTION_OAUTH_CONFIG,
     SALESFORCE_OAUTH_CONFIG,
     SLACK_OAUTH_CONFIG,
+    TRELLO_OAUTH_CONFIG,
     OAuthHandler,
 )
 from core.token_storage import token_storage
@@ -251,25 +255,323 @@ async def github_oauth_callback(request: Request):
     try:
         data = await request.json()
         code = data.get("code")
-        
+
         if not code:
             raise HTTPException(status_code=400, detail="Authorization code is required")
 
         handler = OAuthHandler(GITHUB_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
-        
+
         # Store tokens securely
         token_storage.save_token("github", tokens)
-        
+
         logger.info("GitHub OAuth successful - tokens received and stored")
         return {"status": "success", "provider": "github", "tokens": tokens}
-    
+
     except HTTPException as e:
         logger.error(f"GitHub OAuth callback failed: {e.detail}")
         raise e
     except Exception as e:
         logger.error(f"GitHub OAuth callback error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/github/callback")
+async def github_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle GitHub OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(GITHUB_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("github", tokens)
+
+        logger.info("GitHub OAuth successful - tokens received and stored")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=github")
+
+    except HTTPException as e:
+        logger.error(f"GitHub OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"GitHub OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
+# Asana OAuth Routes
+@router.get("/asana/initiate")
+async def asana_oauth_initiate():
+    """Initiate Asana OAuth flow"""
+    try:
+        handler = OAuthHandler(ASANA_OAUTH_CONFIG)
+        auth_url = handler.get_authorization_url(state="asana_oauth")
+        return RedirectResponse(url=auth_url)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Asana OAuth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/asana/callback")
+async def asana_oauth_callback(request: Request):
+    """Handle Asana OAuth callback"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(ASANA_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("asana", tokens)
+
+        logger.info("Asana OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "asana", "tokens": tokens}
+
+    except HTTPException as e:
+        logger.error(f"Asana OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Asana OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/asana/callback")
+async def asana_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle Asana OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(ASANA_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("asana", tokens)
+
+        logger.info("Asana OAuth successful - tokens received and stored")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=asana")
+
+    except HTTPException as e:
+        logger.error(f"Asana OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"Asana OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
+# Notion OAuth Routes
+@router.get("/notion/initiate")
+async def notion_oauth_initiate():
+    """Initiate Notion OAuth flow"""
+    try:
+        handler = OAuthHandler(NOTION_OAUTH_CONFIG)
+        auth_url = handler.get_authorization_url(state="notion_oauth")
+        return RedirectResponse(url=auth_url)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Notion OAuth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/notion/callback")
+async def notion_oauth_callback(request: Request):
+    """Handle Notion OAuth callback"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(NOTION_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("notion", tokens)
+
+        logger.info("Notion OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "notion", "tokens": tokens}
+
+    except HTTPException as e:
+        logger.error(f"Notion OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Notion OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/notion/callback")
+async def notion_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle Notion OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(NOTION_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("notion", tokens)
+
+        logger.info("Notion OAuth successful - tokens received and stored")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=notion")
+
+    except HTTPException as e:
+        logger.error(f"Notion OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"Notion OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
+# Trello OAuth Routes
+@router.get("/trello/initiate")
+async def trello_oauth_initiate():
+    """Initiate Trello OAuth flow"""
+    try:
+        handler = OAuthHandler(TRELLO_OAUTH_CONFIG)
+        auth_url = handler.get_authorization_url(state="trello_oauth")
+        return RedirectResponse(url=auth_url)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Trello OAuth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/trello/callback")
+async def trello_oauth_callback(request: Request):
+    """Handle Trello OAuth callback"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(TRELLO_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("trello", tokens)
+
+        logger.info("Trello OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "trello", "tokens": tokens}
+
+    except HTTPException as e:
+        logger.error(f"Trello OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Trello OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/trello/callback")
+async def trello_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle Trello OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(TRELLO_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("trello", tokens)
+
+        logger.info("Trello OAuth successful - tokens received and stored")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=trello")
+
+    except HTTPException as e:
+        logger.error(f"Trello OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"Trello OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
+# Dropbox OAuth Routes
+@router.get("/dropbox/initiate")
+async def dropbox_oauth_initiate():
+    """Initiate Dropbox OAuth flow"""
+    try:
+        handler = OAuthHandler(DROPBOX_OAUTH_CONFIG)
+        auth_url = handler.get_authorization_url(state="dropbox_oauth")
+        return RedirectResponse(url=auth_url)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Dropbox OAuth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dropbox/callback")
+async def dropbox_oauth_callback(request: Request):
+    """Handle Dropbox OAuth callback"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(DROPBOX_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("dropbox", tokens)
+
+        logger.info("Dropbox OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "dropbox", "tokens": tokens}
+
+    except HTTPException as e:
+        logger.error(f"Dropbox OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Dropbox OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dropbox/callback")
+async def dropbox_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle Dropbox OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(DROPBOX_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("dropbox", tokens)
+
+        logger.info("Dropbox OAuth successful - tokens received and stored")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=dropbox")
+
+    except HTTPException as e:
+        logger.error(f"Dropbox OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"Dropbox OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
 
 
 @router.post("/{provider}/refresh")
@@ -316,13 +618,17 @@ async def refresh_provider_token(provider: str):
 async def oauth_health():
     """Check OAuth configuration status"""
     from core.oauth_handler import (
+        ASANA_OAUTH_CONFIG,
+        DROPBOX_OAUTH_CONFIG,
         GITHUB_OAUTH_CONFIG,
         GOOGLE_OAUTH_CONFIG,
         MICROSOFT_OAUTH_CONFIG,
+        NOTION_OAUTH_CONFIG,
         SALESFORCE_OAUTH_CONFIG,
         SLACK_OAUTH_CONFIG,
+        TRELLO_OAUTH_CONFIG,
     )
-    
+
     return {
         "oauth_configured": {
             "google": GOOGLE_OAUTH_CONFIG.is_configured(),
@@ -330,5 +636,9 @@ async def oauth_health():
             "salesforce": SALESFORCE_OAUTH_CONFIG.is_configured(),
             "slack": SLACK_OAUTH_CONFIG.is_configured(),
             "github": GITHUB_OAUTH_CONFIG.is_configured(),
+            "asana": ASANA_OAUTH_CONFIG.is_configured(),
+            "notion": NOTION_OAUTH_CONFIG.is_configured(),
+            "trello": TRELLO_OAUTH_CONFIG.is_configured(),
+            "dropbox": DROPBOX_OAUTH_CONFIG.is_configured(),
         }
     }

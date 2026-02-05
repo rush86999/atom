@@ -35,7 +35,7 @@ async def get_teams(user_id: str = Query(..., description="User ID")):
         }
     except Exception as e:
         logger.error(f"Error fetching Zoho teams: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Error fetching Zoho teams", details={"error": str(e)})
 
 @router.post("/files/list", summary="List files in a folder")
 async def list_files(request: FileListRequest):
@@ -48,7 +48,7 @@ async def list_files(request: FileListRequest):
         }
     except Exception as e:
         logger.error(f"Error listing Zoho files: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Error listing Zoho files", details={"error": str(e)})
 
 @router.post("/ingest", summary="Ingest file to ATOM memory")
 async def ingest_file(request: IngestRequest):
@@ -58,7 +58,7 @@ async def ingest_file(request: IngestRequest):
         return result
     except Exception as e:
         logger.error(f"Error ingesting Zoho file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Error ingesting Zoho file", details={"error": str(e)})
 
 @router.get("/health", summary="Zoho WorkDrive health check")
 async def health_check():

@@ -176,10 +176,7 @@ async def get_scheduled_message(
     message = service.get_scheduled_message(message_id=message_id)
 
     if not message:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Scheduled message {message_id} not found"
-        )
+        raise router.not_found_error("Scheduled message", message_id)
 
     return message
 
@@ -317,9 +314,9 @@ async def parse_natural_language_schedule(
             description=description,
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+        raise router.validation_error(
+            field="schedule",
+            message=str(e)
         )
 
 

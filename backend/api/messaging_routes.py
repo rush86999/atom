@@ -120,9 +120,9 @@ async def schedule_proactive_message(
     The message will be sent when the scheduled time arrives.
     """
     if not request.scheduled_for:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="scheduled_for is required for scheduled messages"
+        raise router.validation_error(
+            field="scheduled_for",
+            message="scheduled_for is required for scheduled messages"
         )
 
     service = ProactiveMessagingService(db)
@@ -266,10 +266,7 @@ async def get_proactive_message(
     message = service.get_message(message_id=message_id)
 
     if not message:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Proactive message {message_id} not found"
-        )
+        raise router.not_found_error("Proactive message", message_id)
 
     return message
 

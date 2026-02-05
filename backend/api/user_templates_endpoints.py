@@ -386,9 +386,10 @@ async def update_template(
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to update this template"
+            raise router.permission_denied_error(
+                action="update_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Update fields
@@ -455,9 +456,10 @@ async def delete_template(
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to delete this template"
+            raise router.permission_denied_error(
+                action="delete_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Delete related records
@@ -504,9 +506,10 @@ async def publish_template(
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to publish this template"
+            raise router.permission_denied_error(
+                action="publish_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Update visibility

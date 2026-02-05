@@ -204,10 +204,7 @@ async def get_condition_monitor(
     monitor = service.get_monitor(monitor_id=monitor_id)
 
     if not monitor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Condition monitor {monitor_id} not found"
-        )
+        raise router.not_found_error("Condition monitor", monitor_id)
 
     return monitor
 
@@ -379,9 +376,10 @@ async def apply_preset(
     preset = next((p for p in presets if p["name"] == preset_name), None)
 
     if not preset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Preset '{preset_name}' not found. Available: {[p['name'] for p in presets]}"
+        raise router.not_found_error(
+            resource="Monitoring preset",
+            resource_id=preset_name,
+            details={"available_presets": [p['name'] for p in presets]}
         )
 
     # Apply overrides if provided

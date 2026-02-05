@@ -62,9 +62,10 @@ async def add_bank_entry(
                 )
 
                 if not governance_check["allowed"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action="financial_data_modification",
+                        reason=governance_check['reason']
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -80,14 +81,11 @@ async def add_bank_entry(
 
         return {"status": "added", "id": request.id}
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Failed to add bank entry: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add bank entry: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to add bank entry", details={"error": str(e)})
 
 
 @router.post("/ledger-entries")
@@ -124,9 +122,10 @@ async def add_ledger_entry(
                 )
 
                 if not governance_check["allowed"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action="financial_data_modification",
+                        reason=governance_check['reason']
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -142,14 +141,11 @@ async def add_ledger_entry(
 
         return {"status": "added", "id": request.id}
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Failed to add ledger entry: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add ledger entry: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to add ledger entry", details={"error": str(e)})
 
 
 @router.post("/reconcile")
@@ -168,10 +164,7 @@ async def run_reconciliation(
         return result
     except Exception as e:
         logger.error(f"Reconciliation failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Reconciliation failed: {str(e)}"
-        )
+        raise router.internal_error(message="Reconciliation failed", details={"error": str(e)})
 
 
 @router.get("/anomalies")
@@ -205,10 +198,7 @@ async def get_anomalies(
         }
     except Exception as e:
         logger.error(f"Failed to get anomalies: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get anomalies: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to get anomalies", details={"error": str(e)})
 
 
 @router.post("/detect-anomalies")
@@ -228,10 +218,7 @@ async def detect_anomalies(
         return {"detected": len(new_anomalies)}
     except Exception as e:
         logger.error(f"Anomaly detection failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Anomaly detection failed: {str(e)}"
-        )
+        raise router.internal_error(message="Anomaly detection failed", details={"error": str(e)})
 
 
 @router.post("/anomalies/{anomaly_id}/resolve")
@@ -252,7 +239,4 @@ async def resolve_anomaly(
         return {"status": "resolved", "id": anomaly_id}
     except Exception as e:
         logger.error(f"Failed to resolve anomaly: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to resolve anomaly: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to resolve anomaly", details={"error": str(e)})

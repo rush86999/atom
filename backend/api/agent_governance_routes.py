@@ -11,7 +11,8 @@ from fastapi import Depends, Query
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
-from core.database import get_db_session
+from core.database import get_db, get_db_session
+from sqlalchemy.orm import Session
 
 # Import newly created intervention service
 from core.intervention_service import intervention_service
@@ -416,26 +417,26 @@ async def list_pending_approvals(
 @router.post("/approve/{approval_id}")
 async def approve_workflow(
     approval_id: str,
-    approver_id: str = Query(..., description="ID of the approving user")
+    approver_id: str = Query(..., description="ID of the approving user"),
+    db: Session = Depends(get_db)
 ):
     """
     Approve a pending workflow.
     """
     try:
         # RBAC Check
-        with get_db_session() as db:
-            user = db.query(User).filter(User.id == approver_id).first()
-            if not user:
-                raise router.not_found_error("User", approver_id)
+        user = db.query(User).filter(User.id == approver_id).first()
+        if not user:
+            raise router.not_found_error("User", approver_id)
 
-            # Require at least Team Lead
-            allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
-            if user.role not in allowed_roles:
-                raise router.permission_denied_error(
-                    action="approve_workflow",
-                    resource="Workflow Approval",
-                    details={"required_role": "TEAM_LEAD or ADMIN", "user_role": user.role}
-                )
+        # Require at least Team Lead
+        allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
+        if user.role not in allowed_roles:
+            raise router.permission_denied_error(
+                action="approve_workflow",
+                resource="Workflow Approval",
+                details={"required_role": "TEAM_LEAD or ADMIN", "user_role": user.role}
+            )
 
         # Use intervention service
         result = await intervention_service.approve_intervention(approval_id, approver_id)

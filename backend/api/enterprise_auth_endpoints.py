@@ -222,10 +222,14 @@ async def refresh_token(
 
         # Check user still exists and is active
         user = db.query(User).filter(User.id == user_id).first()
-        if not user or user.status != "active":
-            raise router.unauthorized_error(
-                message="User not found or inactive"
-            )
+    except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
+        logger.error(f"Token refresh error: {e}")
+        raise router.unauthorized_error(
+            message="Invalid refresh token",
+            details={"error": str(e)}
+        )
 
         # Get user credentials for token creation
         user_creds = auth_service.verify_credentials(db, user.email, "")  # No password needed for refresh
@@ -351,9 +355,8 @@ async def change_password(
         # Verify current user
         claims = auth_service.verify_token(current_user)
         if not claims:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
+            raise router.unauthorized_error(
+                message="Invalid token"
             )
 
         user_id = claims.get('user_id')

@@ -7,7 +7,7 @@ Provides REST endpoints for Facebook Messenger integration.
 import logging
 from typing import Any, Dict, List, Optional
 from core.base_routes import BaseAPIRouter
-from fastapi import Depends, HTTPException, Query, status, Header
+from fastapi import Depends, Query, status, Header
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.requests import Request
@@ -61,10 +61,7 @@ async def verify_messenger_webhook(
         result = messenger_adapter.verify_webhook(mode, token, challenge)
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=result.get('error', 'Verification failed')
-            )
+            raise router.permission_denied_error(message="Verification failed", details={"error": result.get('error', 'Unknown error')})
 
         # Return challenge to verify webhook
         return {"hub.challenge": result['challenge']}
@@ -73,10 +70,7 @@ async def verify_messenger_webhook(
         raise
     except Exception as e:
         logger.error(f"Error verifying Messenger webhook: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error verifying Messenger webhook", details={"error": str(e)})
 
 
 @router.post("/webhook")
@@ -99,10 +93,7 @@ async def handle_messenger_webhook(
         if x_hub_signature and messenger_adapter.app_secret:
             if not messenger_adapter.verify_signature(body, x_hub_signature):
                 logger.warning("Invalid webhook signature")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Invalid signature"
-                )
+                raise router.permission_denied_error(message="Invalid signature")
 
         # Parse JSON body
         import json
@@ -116,10 +107,7 @@ async def handle_messenger_webhook(
         raise
     except Exception as e:
         logger.error(f"Error handling Messenger webhook: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error handling Messenger webhook", details={"error": str(e)})
 
 
 @router.post("/send-message")
@@ -141,9 +129,9 @@ async def send_messenger_message(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send message')
+            raise router.internal_error(
+                message="Failed to send message",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -152,10 +140,7 @@ async def send_messenger_message(
         raise
     except Exception as e:
         logger.error(f"Error sending Messenger message: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending Messenger message", details={"error": str(e)})
 
 
 @router.post("/send-attachment")
@@ -177,9 +162,9 @@ async def send_messenger_attachment(
         )
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to send attachment')
+            raise router.internal_error(
+                message="Failed to send attachment",
+                details={"error": result.get('error', 'Unknown error')}
             )
 
         return result
@@ -188,10 +173,7 @@ async def send_messenger_attachment(
         raise
     except Exception as e:
         logger.error(f"Error sending Messenger attachment: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error sending Messenger attachment", details={"error": str(e)})
 
 
 @router.get("/user/{user_id}")
@@ -204,10 +186,7 @@ async def get_messenger_user_info(
         result = await messenger_adapter.get_user_info(user_id)
 
         if not result.get('ok'):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=result.get('error', 'User not found')
-            )
+            raise router.not_found_error(message="User not found", details={"error": result.get('error', 'Unknown error')})
 
         return result
 
@@ -215,10 +194,7 @@ async def get_messenger_user_info(
         raise
     except Exception as e:
         logger.error(f"Error getting Messenger user info: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise router.internal_error(message="Error getting Messenger user info", details={"error": str(e)})
 
 
 @router.get("/health")

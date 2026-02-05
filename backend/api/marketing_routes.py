@@ -92,10 +92,7 @@ async def get_marketing_summary(
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching marketing summary: {str(e)}"
-        )
+        raise router.internal_error(message="Error fetching marketing summary", details={"error": str(e)})
 
 
 @router.post("/leads/{lead_id}/score")
@@ -109,10 +106,7 @@ async def score_lead(
     """
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
     if not lead:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lead not found"
-        )
+        raise router.not_found_error("Lead", lead_id)
         
     # Get interaction history (Simplified)
     history = [f"Lead source: {lead.source}"]

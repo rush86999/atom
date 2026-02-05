@@ -1,16 +1,18 @@
 import logging
+import os
 from typing import Any, Dict, List
 from atom_security.analyzers.static import StaticAnalyzer
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.admin_endpoints import get_super_admin
+from core.base_routes import BaseAPIRouter
 from core.models import User
 from core.skill_builder_service import SkillMetadata, skill_builder_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Admin Skills"])
+router = BaseAPIRouter(prefix="/api/admin/skills", tags=["Admin Skills"])
 
 class CreateSkillRequest(BaseModel):
     name: str
@@ -56,9 +58,10 @@ async def create_new_skill(
             critical_findings = [f.dict() for f in all_findings if f.severity.value in ["HIGH", "CRITICAL"]]
             
             if critical_findings:
-                raise HTTPException(
-                    status_code=403, 
-                    detail={
+                raise router.permission_denied_error(
+                    action="create_skill",
+                    resource="Skill",
+                    details={
                         "message": "Skill rejected due to security policy violations.",
                         "findings": critical_findings
                     }
@@ -84,9 +87,12 @@ async def create_new_skill(
         )
         
         if not result["success"]:
-            raise HTTPException(status_code=400, detail=result["message"])
-            
-        return result
-        
+            raise router.validation_error(result["message"])
+
+        return router.success_response(
+            data=result,
+            message="Skill created successfully"
+        )
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

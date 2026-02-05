@@ -71,7 +71,7 @@ async def create_formula(request: FormulaCreateRequest):
         return FormulaResponse(**formula)
     except Exception as e:
         logger.error(f"Failed to create formula: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Failed to create formula", details={"error": str(e)})
 
 @router.get("", response_model=List[FormulaResponse])
 async def list_formulas(category: Optional[str] = None, tag: Optional[str] = None):
@@ -89,14 +89,14 @@ async def list_formulas(category: Optional[str] = None, tag: Optional[str] = Non
 async def get_formula(formula_id: str):
     """Get a formula by ID"""
     if formula_id not in _formula_store:
-        raise HTTPException(status_code=404, detail=f"Formula '{formula_id}' not found")
+        raise router.not_found_error("Formula", formula_id)
     return FormulaResponse(**_formula_store[formula_id])
 
 @router.put("/{formula_id}", response_model=FormulaResponse)
 async def update_formula(formula_id: str, request: FormulaCreateRequest):
     """Update a formula"""
     if formula_id not in _formula_store:
-        raise HTTPException(status_code=404, detail=f"Formula '{formula_id}' not found")
+        raise router.not_found_error("Formula", formula_id)
     
     formula = _formula_store[formula_id]
     formula.update({
@@ -115,7 +115,7 @@ async def update_formula(formula_id: str, request: FormulaCreateRequest):
 async def delete_formula(formula_id: str):
     """Delete a formula"""
     if formula_id not in _formula_store:
-        raise HTTPException(status_code=404, detail=f"Formula '{formula_id}' not found")
+        raise router.not_found_error("Formula", formula_id)
     del _formula_store[formula_id]
     return {"message": f"Formula '{formula_id}' deleted"}
 
@@ -123,7 +123,7 @@ async def delete_formula(formula_id: str):
 async def execute_formula(formula_id: str, context: Optional[Dict[str, Any]] = None):
     """Execute a formula"""
     if formula_id not in _formula_store:
-        raise HTTPException(status_code=404, detail=f"Formula '{formula_id}' not found")
+        raise router.not_found_error("Formula", formula_id)
     
     try:
         formula = _formula_store[formula_id]
@@ -145,7 +145,7 @@ async def execute_formula(formula_id: str, context: Optional[Dict[str, Any]] = N
         )
     except Exception as e:
         logger.error(f"Formula execution failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Formula execution failed", details={"error": str(e)})
 
 @router.get("/categories")
 async def list_categories():

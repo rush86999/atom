@@ -245,3 +245,22 @@ NOTION_OAUTH_CONFIG = OAuthConfig(
     token_url="https://api.notion.com/v1/oauth/token",
     scopes=[]  # Notion selects scopes during auth flow UI
 )
+
+TRELLO_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="TRELLO_API_KEY",
+    client_secret_env="TRELLO_API_SECRET",
+    redirect_uri_env="TRELLO_REDIRECT_URI",
+    auth_url="https://trello.com/1/OAuthAuthorizeToken",
+    token_url="https://trello.com/1/OAuthGetAccessToken",
+    scopes=["read,write"],
+    additional_params={"expiration": "never", "name": "Atom App"}
+)
+
+DROPBOX_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="DROPBOX_CLIENT_ID",
+    client_secret_env="DROPBOX_CLIENT_SECRET",
+    redirect_uri_env="DROPBOX_REDIRECT_URI",
+    auth_url="https://www.dropbox.com/oauth2/authorize",
+    token_url="https://api.dropboxapi.com/oauth2/token",
+    scopes=["files.metadata.write", "files.content.write", "files.content.read"]
+)
