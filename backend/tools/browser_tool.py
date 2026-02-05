@@ -21,15 +21,14 @@ Refactored to use standardized decorators and service factory.
 import asyncio
 import base64
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import uuid
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.error_handler_decorator import handle_errors, log_errors
 from core.feature_flags import FeatureFlags
-from core.models import AgentExecution, User
+from core.models import AgentExecution
 from core.service_factory import ServiceFactory
 from core.structured_logger import get_logger
 import os
