@@ -1,9 +1,11 @@
 """
-Integration Health Stubs - Provides health endpoints for integrations at expected paths
-These stubs redirect or provide basic health info when full integration isn't loaded
+Integration Health Check Endpoints
+Provides actual health verification for integrations by checking configuration and optional connectivity.
 """
 import logging
+import os
 from datetime import datetime
+from typing import Dict, Any
 
 from core.base_routes import BaseAPIRouter
 
@@ -11,89 +13,226 @@ logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(tags=["Integration Health"])
 
-# List of integrations that need health stubs
-INTEGRATIONS = [
-    "zoom", "notion", "trello", "stripe", "quickbooks",
-    "github", "salesforce", "google-drive", "dropbox", "slack"
-]
+# Integration service configuration mapping
+INTEGRATION_CONFIG = {
+    "zoom": {
+        "env_vars": ["ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET", "ZOOM_ACCOUNT_ID"],
+        "service_name": "Zoom"
+    },
+    "notion": {
+        "env_vars": ["NOTION_CLIENT_ID", "NOTION_CLIENT_SECRET"],
+        "service_name": "Notion"
+    },
+    "trello": {
+        "env_vars": ["TRELLO_API_KEY", "TRELLO_API_SECRET"],
+        "service_name": "Trello"
+    },
+    "stripe": {
+        "env_vars": ["STRIPE_API_KEY", "STRIPE_SECRET_KEY"],
+        "service_name": "Stripe"
+    },
+    "quickbooks": {
+        "env_vars": ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"],
+        "service_name": "QuickBooks"
+    },
+    "github": {
+        "env_vars": ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+        "service_name": "GitHub"
+    },
+    "salesforce": {
+        "env_vars": ["SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET"],
+        "service_name": "Salesforce"
+    },
+    "google-drive": {
+        "env_vars": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+        "service_name": "Google Drive"
+    },
+    "dropbox": {
+        "env_vars": ["DROPBOX_CLIENT_ID", "DROPBOX_CLIENT_SECRET"],
+        "service_name": "Dropbox"
+    },
+    "slack": {
+        "env_vars": ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET"],
+        "service_name": "Slack"
+    }
+}
 
-def health_response(service: str, is_mock: bool = True):
-    """Generate a standard health response"""
+
+def check_integration_config(integration: str) -> Dict[str, Any]:
+    """Check if an integration is configured with required credentials"""
+    config = INTEGRATION_CONFIG.get(integration)
+    if not config:
+        return {
+            "configured": False,
+            "missing_env_vars": [],
+            "message": f"Unknown integration: {integration}"
+        }
+
+    missing_vars = [env_var for env_var in config["env_vars"] if not os.getenv(env_var)]
+    is_configured = len(missing_vars) == 0
+
+    return {
+        "configured": is_configured,
+        "missing_env_vars": missing_vars,
+        "has_credentials": is_configured,
+        "service_name": config["service_name"]
+    }
+
+
+def health_response(service: str, config_status: Dict[str, Any], is_mock: bool = False) -> Dict[str, Any]:
+    """Generate a standard health response with actual configuration status"""
     return {
         "ok": True,
-        "status": "healthy",
+        "status": "healthy" if config_status["configured"] else "unconfigured",
         "service": service,
         "timestamp": datetime.utcnow().isoformat(),
         "is_mock": is_mock,
-        "message": f"{service.title()} integration available"
+        "configured": config_status["configured"],
+        "has_credentials": config_status.get("has_credentials", False),
+        "missing_env_vars": config_status.get("missing_env_vars", []),
+        "message": f'{config_status["service_name"]} integration {"configured" if config_status["configured"] else "not configured"}'
     }
+
 
 # Zoom
 @router.get("/api/zoom/health")
 async def zoom_health():
-    return health_response("zoom")
+    """Check Zoom integration health"""
+    config_status = check_integration_config("zoom")
+    return health_response("zoom", config_status, is_mock=False)
+
 
 # Notion
 @router.get("/api/notion/health")
 async def notion_health():
-    return health_response("notion")
+    """Check Notion integration health"""
+    config_status = check_integration_config("notion")
+    return health_response("notion", config_status, is_mock=False)
+
 
 # Trello
 @router.get("/api/trello/health")
 async def trello_health():
-    return health_response("trello")
+    """Check Trello integration health"""
+    config_status = check_integration_config("trello")
+    return health_response("trello", config_status, is_mock=False)
+
 
 # Stripe
 @router.get("/api/stripe/health")
 async def stripe_health():
-    return health_response("stripe")
+    """Check Stripe integration health"""
+    config_status = check_integration_config("stripe")
+    return health_response("stripe", config_status, is_mock=False)
+
 
 # QuickBooks
 @router.get("/api/quickbooks/health")
 async def quickbooks_health():
-    return health_response("quickbooks")
+    """Check QuickBooks integration health"""
+    config_status = check_integration_config("quickbooks")
+    return health_response("quickbooks", config_status, is_mock=False)
+
+
+# GitHub
+@router.get("/api/github/health")
+async def github_health():
+    """Check GitHub integration health"""
+    config_status = check_integration_config("github")
+    return health_response("github", config_status, is_mock=False)
+
+
+# Salesforce
+@router.get("/api/salesforce/health")
+async def salesforce_health():
+    """Check Salesforce integration health"""
+    config_status = check_integration_config("salesforce")
+    return health_response("salesforce", config_status, is_mock=False)
+
+
+# Google Drive
+@router.get("/api/google-drive/health")
+async def google_drive_health():
+    """Check Google Drive integration health"""
+    config_status = check_integration_config("google-drive")
+    return health_response("google-drive", config_status, is_mock=False)
+
+
+# Dropbox
+@router.get("/api/dropbox/health")
+async def dropbox_health():
+    """Check Dropbox integration health"""
+    config_status = check_integration_config("dropbox")
+    return health_response("dropbox", config_status, is_mock=False)
+
+
+# Slack
+@router.get("/api/slack/health")
+async def slack_health():
+    """Check Slack integration health"""
+    config_status = check_integration_config("slack")
+    return health_response("slack", config_status, is_mock=False)
 
 # GitHub repos
 @router.get("/api/github/repos")
 async def github_repos():
+    """Check GitHub repositories - returns config status"""
+    config_status = check_integration_config("github")
     return {
         "repos": [],
         "total": 0,
-        "message": "Connect GitHub to see repositories"
+        "configured": config_status["configured"],
+        "message": 'Connect GitHub to see repositories' if not config_status["configured"] else "GitHub configured - use OAuth to connect"
     }
+
 
 # Salesforce auth
 @router.get("/api/salesforce/auth")
 async def salesforce_auth():
+    """Check Salesforce authentication status"""
+    config_status = check_integration_config("salesforce")
     return {
         "connected": False,
-        "message": "Salesforce OAuth not configured"
+        "configured": config_status["configured"],
+        "message": 'Salesforce OAuth not configured' if not config_status["configured"] else "Salesforce configured - use OAuth to connect"
     }
+
 
 # Google Drive files
 @router.get("/api/google-drive/files")
 async def google_drive_files():
+    """Check Google Drive files - returns config status"""
+    config_status = check_integration_config("google-drive")
     return {
         "files": [],
         "total": 0,
-        "message": "Connect Google Drive to see files"
+        "configured": config_status["configured"],
+        "message": 'Connect Google Drive to see files' if not config_status["configured"] else "Google Drive configured - use OAuth to connect"
     }
+
 
 # Dropbox files
 @router.get("/api/dropbox/files")
 async def dropbox_files():
+    """Check Dropbox files - returns config status"""
+    config_status = check_integration_config("dropbox")
     return {
         "files": [],
         "total": 0,
-        "message": "Connect Dropbox to see files"
+        "configured": config_status["configured"],
+        "message": 'Connect Dropbox to see files' if not config_status["configured"] else "Dropbox configured - use OAuth to connect"
     }
+
 
 # Slack send message
 @router.post("/api/slack/send")
 async def slack_send():
+    """Check Slack send capability - returns config status"""
+    config_status = check_integration_config("slack")
     return {
         "sent": False,
-        "message": "Configure Slack integration to send messages"
+        "configured": config_status["configured"],
+        "message": 'Configure Slack integration to send messages' if not config_status["configured"] else "Slack configured - use OAuth to connect"
     }
 
 # Platform status

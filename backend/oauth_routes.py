@@ -588,24 +588,28 @@ async def refresh_provider_token(provider: str):
             "microsoft": MICROSOFT_OAUTH_CONFIG,
             "salesforce": SALESFORCE_OAUTH_CONFIG,
             "slack": SLACK_OAUTH_CONFIG,
-            "github": GITHUB_OAUTH_CONFIG
+            "github": GITHUB_OAUTH_CONFIG,
+            "asana": ASANA_OAUTH_CONFIG,
+            "notion": NOTION_OAUTH_CONFIG,
+            "trello": TRELLO_OAUTH_CONFIG,
+            "dropbox": DROPBOX_OAUTH_CONFIG,
         }
-        
+
         if provider not in configs:
             raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
-            
+
         handler = OAuthHandler(configs[provider])
         new_tokens = await handler.refresh_access_token(stored_token["refresh_token"])
-        
+
         # Merge with old tokens to preserve refresh_token if not returned
         for key, value in stored_token.items():
             if key not in new_tokens:
                 new_tokens[key] = value
-                
+
         token_storage.save_token(provider, new_tokens)
-        
+
         return {"status": "success", "message": f"Token refreshed for {provider}"}
-    
+
     except HTTPException as e:
         raise e
     except Exception as e:
