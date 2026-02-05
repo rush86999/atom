@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/graphrag", tags=["GraphRAG"])
 
 class IngestRequest(BaseModel):
     doc_id: str

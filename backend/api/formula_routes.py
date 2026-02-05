@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/formulas", tags=["Formulas"])
 
 # In-memory formula store
 _formula_store: Dict[str, Dict[str, Any]] = {}

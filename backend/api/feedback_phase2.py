@@ -30,7 +30,7 @@ from core.feedback_export_service import FeedbackExportService
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/feedback/phase2", tags=["Feedback Phase 2"])
 
 
 # ============================================================================

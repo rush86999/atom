@@ -9,7 +9,7 @@ from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/workflows", tags=["Workflow Analytics"])
 
 @router.get("/analytics")
 async def get_workflow_analytics(days: int = 7):

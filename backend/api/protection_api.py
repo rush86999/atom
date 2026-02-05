@@ -12,7 +12,7 @@ from core.risk_prevention import get_risk_services
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/protection", tags=["Protection"])
 
 class ScanRequest(BaseModel):
     skill_name: str

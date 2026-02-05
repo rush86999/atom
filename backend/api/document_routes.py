@@ -17,7 +17,7 @@ from core.models import User
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/documents", tags=["Documents"])
 
 # In-memory document store (would use LanceDB/vector store in production)
 _document_store: Dict[str, Dict[str, Any]] = {}

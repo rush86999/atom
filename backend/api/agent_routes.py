@@ -30,7 +30,7 @@ from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 
 # --- Data Models ---
 class AgentRunRequest(BaseModel):

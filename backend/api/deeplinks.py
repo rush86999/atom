@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/deeplinks", tags=["Deep Links"])
 
 
 # Request/Response Models

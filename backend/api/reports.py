@@ -1,6 +1,6 @@
 from core.base_routes import BaseAPIRouter
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/reports", tags=["Reports"])
 
 @router.get("/")
 async def reports_root():

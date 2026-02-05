@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
 
-router = BaseAPIRouter()
+router = BaseAPIRouter(prefix="/api/apar", tags=["AP/AR"])
 
 class APIntakeRequest(BaseModel):
     vendor: str
