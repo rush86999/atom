@@ -9,13 +9,13 @@ Usage:
     python initialize_lancedb.py
 """
 
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import sys
-import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, List
+import uuid
 
 # Configure logging
 logging.basicConfig(

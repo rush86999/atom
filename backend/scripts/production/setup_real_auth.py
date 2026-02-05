@@ -7,10 +7,10 @@ and initializes demo users for immediate testing.
 """
 
 import os
+from pathlib import Path
 import sqlite3
 import sys
 import uuid
-from pathlib import Path
 import bcrypt
 
 # Configuration

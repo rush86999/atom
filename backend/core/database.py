@@ -336,11 +336,7 @@ Benefits:
 """
 
 try:
-    from sqlalchemy.ext.asyncio import (
-        AsyncSession,
-        async_sessionmaker,
-        create_async_engine
-    )
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     # Create async database URL
     # SQLite: sqlite:///./dev.db -> sqlite+aiosqlite:///./dev.db

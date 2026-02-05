@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta, timezone
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
 from ecommerce.models import Subscription
 from sales.models import Deal, DealStage
 from sqlalchemy.orm import Session

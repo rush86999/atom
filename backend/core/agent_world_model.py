@@ -1,8 +1,8 @@
+from datetime import datetime
 import json
 import logging
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+import uuid
 from pydantic import BaseModel
 
 from core.database import get_db_session
@@ -655,8 +655,8 @@ class WorldModelService:
         # 6. Search Episodes (NEW)
         episodes_result = []
         try:
-            from core.episode_retrieval_service import EpisodeRetrievalService
             from core.database import get_db_session
+            from core.episode_retrieval_service import EpisodeRetrievalService
 
             with get_db_session() as db:
                 episode_service = EpisodeRetrievalService(db)

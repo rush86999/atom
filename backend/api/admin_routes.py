@@ -2,23 +2,23 @@
 Admin User Management API Routes
 Handles administrative users and role-based access control
 """
-import logging
 from datetime import datetime
+import logging
 from typing import Dict, List, Optional
 from fastapi import Depends, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from core.api_governance import require_governance, ActionComplexity
+from core.api_governance import ActionComplexity, require_governance
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.exceptions import (
+    MissingFieldError,
     UserAlreadyExistsError,
     UserNotFoundError,
     ValidationError,
-    MissingFieldError,
-    WorkspaceNotFoundError
+    WorkspaceNotFoundError,
 )
 from core.models import AdminRole, AdminUser, User
 

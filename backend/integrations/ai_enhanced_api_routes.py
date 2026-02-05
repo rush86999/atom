@@ -6,10 +6,10 @@ Migrated from Flask to FastAPI with governance integration
 """
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -19,7 +19,11 @@ from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.database import get_db
 from core.models import User
-from integrations.integration_helpers import with_governance_check, create_execution_record, standard_error_response
+from integrations.integration_helpers import (
+    create_execution_record,
+    standard_error_response,
+    with_governance_check,
+)
 
 logger = logging.getLogger(__name__)
 

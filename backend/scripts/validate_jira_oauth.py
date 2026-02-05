@@ -9,8 +9,8 @@ import json
 import os
 import sys
 from urllib.parse import urlencode
-import httpx
 from dotenv import load_dotenv
+import httpx
 
 # Add backend to path for imports
 sys.path.append(

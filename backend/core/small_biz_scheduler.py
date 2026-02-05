@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta
 import json
 import logging
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from accounting.models import Entity
 from service_delivery.models import Appointment, AppointmentStatus

@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from datetime import datetime, timedelta
+import logging
 from accounting.categorizer import AICategorizer
 from accounting.export_service import AccountExporter
 from accounting.models import (
@@ -15,9 +15,9 @@ from accounting.seeds import seed_default_accounts
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import core.models
 from core.cross_system_reasoning import CrossSystemReasoningEngine
 from core.database import Base
+import core.models
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

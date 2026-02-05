@@ -4,18 +4,28 @@ import datetime
 import enum
 import hashlib
 import json
-import uuid
 from typing import Optional
-from sqlalchemy import JSON, Boolean, Column, DateTime
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Table, Text
+import uuid
+from cryptography.fernet import Fernet
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
-from cryptography.fernet import Fernet
 
 from core.data_visibility import DataVisibility
 from core.database import Base
-
 
 # ============================================================================
 # Token Encryption Helpers

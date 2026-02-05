@@ -8,20 +8,24 @@ Includes:
 - Execution records for audit trail
 """
 
+from datetime import datetime, timezone
 import logging
 import os
 import secrets
-from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.oauth_handler import SLACK_OAUTH_CONFIG, OAuthHandler
-from core.token_storage import token_storage
 from core.database import get_db
 from core.models import User
-from integrations.integration_helpers import with_governance_check, create_execution_record, standard_error_response
+from core.oauth_handler import SLACK_OAUTH_CONFIG, OAuthHandler
+from core.token_storage import token_storage
+from integrations.integration_helpers import (
+    create_execution_record,
+    standard_error_response,
+    with_governance_check,
+)
 
 try:
     from slack_sdk import WebClient
@@ -350,6 +354,7 @@ async def get_conversation_history(
         try:
             # Import here to avoid circular dependency
             from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+
             # Add channel info to message for better context in memory
             msg_with_context = {**msg, "channel": channel}
             atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)

@@ -4,9 +4,9 @@ STEP 2: Build Application Backend
 Main API server, database integration, connect to OAuth
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def build_application_backend():

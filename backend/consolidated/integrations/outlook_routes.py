@@ -4,8 +4,8 @@ Complete enterprise-grade Outlook integration for the ATOM platform
 """
 
 import asyncio
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from outlook_service_enhanced import (

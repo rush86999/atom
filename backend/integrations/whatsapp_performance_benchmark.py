@@ -3,10 +3,10 @@ WhatsApp Performance Benchmarking
 API and database performance testing
 """
 
+from datetime import datetime
 import json
 import statistics
 import time
-from datetime import datetime
 import requests
 
 

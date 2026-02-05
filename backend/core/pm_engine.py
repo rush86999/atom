@@ -1,8 +1,8 @@
+from datetime import datetime, timedelta
 import json
 import logging
-import uuid
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+import uuid
 from service_delivery.models import Milestone, MilestoneStatus, Project, ProjectStatus, ProjectTask
 from sqlalchemy.orm import Session
 

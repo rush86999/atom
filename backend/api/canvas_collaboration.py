@@ -17,8 +17,8 @@ Endpoints:
 - POST /api/canvas-collab/session/{session_id}/complete - Complete session
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field

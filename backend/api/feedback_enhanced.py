@@ -11,8 +11,8 @@ Endpoints:
 - GET /api/feedback/trends - Get feedback trends over time
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field

@@ -4,11 +4,11 @@ IMPROVED OAUTH SERVER - Emergency Fix
 Complete OAuth server with all required endpoints
 """
 
+from datetime import datetime
 import json
 import os
 import secrets
 import urllib.parse
-from datetime import datetime
 from flask import Flask, jsonify, request
 
 

@@ -6,8 +6,8 @@ Guides users through environment configuration step-by-step.
 
 import base64
 import os
-import secrets
 from pathlib import Path
+import secrets
 
 
 def generate_secret_key() -> str:

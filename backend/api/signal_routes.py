@@ -6,11 +6,11 @@ Provides REST endpoints for Signal messaging integration.
 
 import logging
 from typing import Any, Dict, List, Optional
-from core.base_routes import BaseAPIRouter
 from fastapi import Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
 from integrations.adapters.signal_adapter import signal_adapter
 

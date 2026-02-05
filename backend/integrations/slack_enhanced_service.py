@@ -5,15 +5,15 @@ Comprehensive Slack service with OAuth, messaging, files, webhooks, and advanced
 
 import asyncio
 import base64
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
 import os
 import time
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import httpx
 from slack_sdk import WebClient
@@ -25,8 +25,8 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-import jwt
 from cryptography.fernet import Fernet
+import jwt
 
 from core.token_storage import token_storage
 

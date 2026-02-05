@@ -5,13 +5,13 @@ Complete enterprise-grade Outlook integration for the ATOM platform
 
 import asyncio
 import base64
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 import aiohttp
 

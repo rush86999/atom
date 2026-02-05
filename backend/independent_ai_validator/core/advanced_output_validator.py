@@ -6,11 +6,11 @@ Uses AI to evaluate if outputs match realistic expectations
 """
 
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime
 import json
 import logging
 import time
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 import aiohttp
 

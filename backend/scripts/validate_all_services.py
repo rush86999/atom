@@ -9,11 +9,11 @@ This script validates all integrated services by:
 4. Testing actual service connectivity
 """
 
+from datetime import datetime
 import json
 import logging
 import os
 import sys
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # Configure logging

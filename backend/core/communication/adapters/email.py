@@ -1,7 +1,7 @@
+from email.utils import parseaddr
 import json
 import logging
 import os
-from email.utils import parseaddr
 from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import ClientError

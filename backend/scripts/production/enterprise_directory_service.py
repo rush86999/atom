@@ -1,10 +1,10 @@
+from datetime import datetime
 import logging
 import ssl
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
-import ldap3
 from fastapi import APIRouter, Depends, HTTPException
+import ldap3
 from ldap3 import ALL, ALL_ATTRIBUTES, ALL_OPERATIONAL_ATTRIBUTES, Connection, Server
 from ldap3.core.exceptions import LDAPException, LDAPSocketOpenError
 from pydantic import BaseModel, Field

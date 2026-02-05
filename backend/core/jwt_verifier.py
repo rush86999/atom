@@ -16,14 +16,14 @@ Security Features:
 - Graceful degradation with security-first approach
 """
 
-import logging
-import os
 from datetime import datetime, timedelta
 from ipaddress import ip_address, ip_network
+import logging
+import os
 from typing import Any, Dict, List, Optional
-import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
 from sqlalchemy.orm import Session
 
 from core.models import RevokedToken

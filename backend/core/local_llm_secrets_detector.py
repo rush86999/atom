@@ -8,11 +8,11 @@ semantic detection that can catch secrets patterns might miss.
 """
 
 import asyncio
+from dataclasses import dataclass, field
+from enum import Enum
 import json
 import logging
 import re
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)

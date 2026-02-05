@@ -4,9 +4,9 @@ REAL WORLD USER VALUE VERIFICATION
 Test every claimed feature to see what's actually working
 """
 
+from datetime import datetime
 import json
 import time
-from datetime import datetime
 import requests
 
 

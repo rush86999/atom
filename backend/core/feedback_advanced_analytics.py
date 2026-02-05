@@ -22,9 +22,9 @@ Usage:
     predictions = analytics.predict_agent_performance("agent-1")
 """
 
-import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session

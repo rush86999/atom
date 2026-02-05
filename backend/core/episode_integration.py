@@ -2,8 +2,8 @@
 Episode auto-creation helper for agent endpoints
 """
 
-import logging
 import asyncio
+import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,8 @@ async def _create_episode_after_execution(
         title: Optional title for episode
     """
     try:
-        from core.episode_segmentation_service import EpisodeSegmentationService
         from core.database import get_db_session
+        from core.episode_segmentation_service import EpisodeSegmentationService
 
         with get_db_session() as db:
             service = EpisodeSegmentationService(db)

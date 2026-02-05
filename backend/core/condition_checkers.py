@@ -5,17 +5,13 @@ Implements the actual condition checking logic for different condition types.
 Each checker evaluates a specific business condition and returns the result.
 """
 
+from datetime import datetime, timedelta, timezone
 import logging
-from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentExecution,
-    TeamMessage,
-    ConditionMonitor,
-)
+from core.models import AgentExecution, ConditionMonitor, TeamMessage
 
 logger = logging.getLogger(__name__)
 

@@ -4,13 +4,13 @@ Integrates Google Chat seamlessly into ATOM's unified communication ecosystem
 """
 
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import json
 import logging
 import os
 import secrets
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
@@ -20,7 +20,6 @@ try:
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
-    from core.models import UnifiedWorkspace
     from google_chat_analytics_engine import google_chat_analytics_engine
     from google_chat_enhanced_service import (
         GoogleChatFile,
@@ -28,6 +27,8 @@ try:
         GoogleChatSpace,
         google_chat_enhanced_service,
     )
+
+    from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
     google_chat_enhanced_service = None

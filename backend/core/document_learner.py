@@ -2,8 +2,8 @@ import json
 import logging
 import os
 from typing import Any, Dict, List
-import pandas as pd
 from docx import Document
+import pandas as pd
 
 from core.business_intelligence import BusinessEventIntelligence
 from core.knowledge_extractor import KnowledgeExtractor

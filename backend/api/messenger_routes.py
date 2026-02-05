@@ -6,12 +6,12 @@ Provides REST endpoints for Facebook Messenger integration.
 
 import logging
 from typing import Any, Dict, List, Optional
-from core.base_routes import BaseAPIRouter
-from fastapi import Depends, Query, status, Header
+from fastapi import Depends, Header, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
 from integrations.adapters.messenger_adapter import messenger_adapter
 

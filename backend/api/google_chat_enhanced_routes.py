@@ -6,7 +6,7 @@ Complete Google Chat integration with OAuth, interactive cards, dialogs, and spa
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Query, BackgroundTasks
+from fastapi import BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 

@@ -15,6 +15,8 @@ Integration:
     app.add_middleware(ErrorHandlingMiddleware)
 """
 
+from collections import defaultdict
+from datetime import datetime
 import json
 import logging
 import os
@@ -25,8 +27,6 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-from datetime import datetime
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

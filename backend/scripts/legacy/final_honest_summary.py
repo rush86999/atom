@@ -4,9 +4,9 @@ Final Honest Summary for Real World Usage
 Complete transparent assessment of what actually works
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def generate_final_honest_summary():

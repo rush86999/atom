@@ -3,10 +3,10 @@ FastAPI ServiceNow Integration Router
 ServiceNow IT Service Management integration for ATOM Chat Interface
 """
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field

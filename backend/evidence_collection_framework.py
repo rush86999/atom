@@ -5,16 +5,16 @@ Systematically collects, organizes, and presents evidence for independent AI val
 """
 
 import asyncio
+from dataclasses import dataclass, field
 import datetime
 import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import requests
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -4,9 +4,9 @@ OAuth Endpoint Test Suite
 Tests OAuth endpoints with real implementation
 """
 
+from datetime import datetime
 import os
 import sys
-from datetime import datetime
 
 # Add backend to path
 sys.path.insert(0, '/Users/rushiparikh/projects/atom/backend')

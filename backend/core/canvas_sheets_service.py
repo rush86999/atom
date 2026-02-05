@@ -4,10 +4,10 @@ Spreadsheet Canvas Service
 Backend service for spreadsheet canvas with grid editing,
 formulas, charts, and pivot tables.
 """
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.models import CanvasAudit

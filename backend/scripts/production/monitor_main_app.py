@@ -6,13 +6,13 @@ This script monitors the main application startup and provides diagnostics
 when the application gets stuck during initialization.
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
 import subprocess
 import sys
 import threading
 import time
-from datetime import datetime, timedelta
 import requests
 
 # Configure logging

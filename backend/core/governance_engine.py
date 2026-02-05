@@ -3,9 +3,9 @@ ATOM External Contact Governance Engine
 Implements safety guardrails for agent-driven external communications.
 """
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 

@@ -4,7 +4,7 @@ from fastapi import Depends, Request
 from service_delivery.models import Milestone, MilestoneStatus
 from sqlalchemy.orm import Session
 
-from core.api_governance import require_governance, ActionComplexity
+from core.api_governance import ActionComplexity, require_governance
 from core.base_routes import BaseAPIRouter
 from core.billing_orchestrator import billing_orchestrator
 from core.database import get_db

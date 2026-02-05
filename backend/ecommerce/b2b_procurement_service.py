@@ -5,8 +5,8 @@ Handles Purchase Order (PO) extraction and personalized pricing for B2B customer
 
 import json
 import logging
-import uuid
 from typing import Any, Dict, List, Optional
+import uuid
 from ecommerce.b2b_data_push_service import B2BDataPushService
 from ecommerce.models import EcommerceCustomer, EcommerceOrderItem
 from sqlalchemy.orm import Session

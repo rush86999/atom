@@ -7,11 +7,11 @@ based on agent maturity levels (STUDENT, INTERN, SUPERVISED, AUTONOMOUS).
 Performance target: <5ms routing decision latency using GovernanceCache.
 """
 
-import logging
-import uuid
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, Literal, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.governance_cache import get_async_governance_cache

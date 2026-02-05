@@ -6,13 +6,13 @@ Complete deployment script with testing, validation, and configuration
 
 import argparse
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 from typing import Any, Dict, List
 import requests
 

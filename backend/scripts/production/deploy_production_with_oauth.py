@@ -10,13 +10,13 @@ Usage:
     python deploy_production_with_oauth.py
 """
 
+from datetime import datetime
 import json
 import os
 import secrets
 import subprocess
 import sys
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Tuple
 import requests
 

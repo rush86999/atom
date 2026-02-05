@@ -1,7 +1,7 @@
 
+from collections import defaultdict
 import logging
 import time
-from collections import defaultdict
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 

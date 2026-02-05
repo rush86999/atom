@@ -1,19 +1,19 @@
 """
 Document Routes - API endpoints for document ingestion and search
 """
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import Depends, File, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.api_governance import require_governance, ActionComplexity
+from core.api_governance import ActionComplexity, require_governance
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.security_dependencies import get_current_user
 from core.models import User
+from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 

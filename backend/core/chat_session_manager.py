@@ -4,19 +4,19 @@ Chat Session Manager for ATOM
 Manages chat session metadata (Hybrid: DB + JSON fallback)
 """
 
+from datetime import datetime
 import json
 import logging
 import os
-import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 # Conditional Import to avoid circular dependencies if simple script
 try:
-    from core.database import get_db_session, SessionLocal
+    from core.database import SessionLocal, get_db_session
     from core.models import ChatMessage, ChatSession
     DB_AVAILABLE = True
 except ImportError:

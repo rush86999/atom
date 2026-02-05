@@ -3,10 +3,10 @@ Enhanced Integration System Optimization Validation
 Validates AI intelligence and cross-service detection improvements
 """
 
+from datetime import datetime
 import json
 import os
 import sys
-from datetime import datetime
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

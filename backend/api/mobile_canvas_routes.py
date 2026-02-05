@@ -5,10 +5,10 @@ Mobile-optimized endpoints for canvas operations on mobile devices.
 Includes push notification registration, offline sync, and mobile-friendly responses.
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import Depends, status
 from pydantic import BaseModel
 from sqlalchemy import func

@@ -1,10 +1,10 @@
 """
 Circuit Breaker - Automatically disable failing integrations
 """
-import logging
-import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+import logging
+import time
 from typing import Dict, Set
 
 logger = logging.getLogger(__name__)

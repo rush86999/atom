@@ -1,11 +1,11 @@
 import logging
 from typing import Any, Dict, List
-from core.base_routes import BaseAPIRouter
 from fastapi import Depends, HTTPException, Query, status
 from sales.models import Lead
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.marketing_analytics import PlainEnglishReporter
 from core.marketing_manager import AIMarketingManager

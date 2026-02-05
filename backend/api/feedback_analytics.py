@@ -12,8 +12,8 @@ Endpoints:
 
 import logging
 from typing import Any, Dict, List
+from fastapi import Depends, Query
 from sqlalchemy.orm import Session
-from fastapi import Query, Depends
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db

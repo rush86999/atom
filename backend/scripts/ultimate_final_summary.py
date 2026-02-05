@@ -4,9 +4,9 @@ ULTIMATE FINAL SUMMARY - Complete Next Steps
 Everything you need to run complete working application
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def create_ultimate_final_summary():

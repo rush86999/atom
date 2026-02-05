@@ -4,8 +4,8 @@ Token Management Routes
 Provides endpoints for JWT token revocation and management.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Optional
 from fastapi import Depends, Request
 from fastapi.security import HTTPBearer
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
-from core.auth_helpers import revoke_token, cleanup_expired_revoked_tokens
+from core.auth_helpers import cleanup_expired_revoked_tokens, revoke_token
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.jwt_verifier import verify_token_string

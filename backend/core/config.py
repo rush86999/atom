@@ -3,10 +3,10 @@ Configuration Management for ATOM Platform
 Centralized configuration with environment variables and defaults
 """
 
+from dataclasses import asdict, dataclass
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 

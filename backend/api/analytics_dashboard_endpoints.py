@@ -3,8 +3,8 @@ Analytics Dashboard API Endpoints
 Provides aggregated metrics and KPIs for the analytics dashboard
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import Query
 from pydantic import BaseModel, Field

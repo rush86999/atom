@@ -5,18 +5,18 @@ Advanced AI model for desktop automation and computer control
 
 import asyncio
 import base64
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 import io
 import json
 import logging
 import os
 import platform
 import subprocess
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
-import anthropic
 from PIL import Image, ImageGrab
+import anthropic
 
 try:
     import pyautogui

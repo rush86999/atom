@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List
 from sales.models import Deal, NegotiationState
 

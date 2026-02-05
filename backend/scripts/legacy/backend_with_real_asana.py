@@ -3,8 +3,8 @@ import os
 import sys
 import time
 from urllib.parse import urlencode
-import requests
 from flask import Flask, jsonify, redirect, request
+import requests
 
 # Set environment variables with your actual credentials
 os.environ["ASANA_CLIENT_ID"] = "1211551350187489"

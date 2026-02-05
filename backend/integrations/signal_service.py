@@ -3,9 +3,9 @@ Signal Service for ATOM Platform
 Handles interaction with signal-cli-rest-api
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, Optional
 import httpx
 

@@ -6,12 +6,12 @@ This script uses the tokenize module to precisely fix indentation issues
 where `with get_db_session() as db:` is followed by an incorrectly indented `try:` block.
 """
 
+import io
 import os
+from pathlib import Path
 import sys
 import tokenize
-from pathlib import Path
 from typing import List, Tuple
-import io
 
 # Backend directory
 BACKEND_DIR = Path("/Users/rushiparikh/projects/atom/backend")

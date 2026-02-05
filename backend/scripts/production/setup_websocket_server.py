@@ -11,18 +11,18 @@ This script implements:
 """
 
 import asyncio
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 import json
 import logging
 import os
 import sys
 import threading
 import time
-import uuid
-from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Set
+import uuid
 import websockets
 from websockets.server import WebSocketServerProtocol
 

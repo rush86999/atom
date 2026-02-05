@@ -4,10 +4,10 @@ Periodic health checks for all OAuth integrations
 """
 
 import asyncio
-import logging
-import time
 from datetime import datetime
 from enum import Enum
+import logging
+import time
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)

@@ -7,11 +7,11 @@ Tests governance cache, database queries, and API response times.
 """
 
 import asyncio
+from datetime import datetime
 import os
 import statistics
 import sys
 import time
-from datetime import datetime
 from typing import Dict, List, Tuple
 
 # Add parent directory to path

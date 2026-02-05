@@ -5,10 +5,10 @@ Validates features, detects gaps, and provides readiness assessment
 """
 
 import asyncio
-import json
-import sys
 from datetime import datetime
+import json
 from pathlib import Path
+import sys
 from independent_ai_validator.core.validator_engine import IndependentAIValidator, MarketingClaim
 
 # Marketing claims to validate

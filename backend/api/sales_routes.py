@@ -1,9 +1,9 @@
 import logging
 from typing import Any, Dict, List
-from core.base_routes import BaseAPIRouter
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from integrations.mcp_service import mcp_service
 

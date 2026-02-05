@@ -15,9 +15,8 @@ Usage:
 """
 import functools
 import logging
-from typing import Callable, Optional, List
-
-from fastapi import Request, HTTPException, status
+from typing import Callable, List, Optional
+from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver

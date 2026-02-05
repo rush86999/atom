@@ -5,16 +5,16 @@ Provides standardized user authentication and resolution functions
 to replace default_user placeholder authentication throughout the codebase.
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
-import uuid
-from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+import uuid
 from fastapi import HTTPException
+from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError, ExpiredSignatureError
 
-from core.models import ActiveToken, User, RevokedToken
+from core.models import ActiveToken, RevokedToken, User
 
 logger = logging.getLogger(__name__)
 

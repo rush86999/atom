@@ -10,15 +10,15 @@ Philosophy: "Test with real data, real integrations, and real user scenarios"
 """
 
 import asyncio
-import json
-import logging
-import os
-import sys
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
+import json
+import logging
+import os
 from pathlib import Path
+import sys
+import time
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -28,11 +28,11 @@ load_dotenv(dotenv_path=env_path)
 
 # Add parent directory to path to import backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import queue
 import subprocess
 import threading
-from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import aiohttp
 
 # Configure logging

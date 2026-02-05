@@ -1,6 +1,6 @@
 import logging
-import uuid
 from typing import Any, Dict, Optional
+import uuid
 import httpx
 
 from core.communication.adapters.base import PlatformAdapter

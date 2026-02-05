@@ -8,9 +8,9 @@ Usage:
     python monitor_services.py
 """
 
+from datetime import datetime
 import json
 import time
-from datetime import datetime
 import requests
 
 BASE_URL = "http://localhost:5058"

@@ -2,10 +2,10 @@ import json
 import logging
 import os
 from typing import Any, Dict, Optional
-import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import Request
+import httpx
 
 from core.communication.adapters.base import PlatformAdapter
 

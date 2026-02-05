@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime, timedelta, timezone
+import logging
 from typing import Any, Dict, List
 from sales.models import Deal, DealStage
 from sqlalchemy.orm import Session

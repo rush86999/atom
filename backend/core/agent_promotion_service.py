@@ -16,8 +16,8 @@ Usage:
     ready = service.is_agent_ready_for_promotion("agent-1", target_status="AUTONOMOUS")
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session

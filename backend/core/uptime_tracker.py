@@ -16,10 +16,10 @@ Usage:
     print(f"Uptime: {metrics.uptime_percentage:.2f}%")
 """
 
-import logging
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+import logging
+import time
 from typing import Any, Dict, List, Optional
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session

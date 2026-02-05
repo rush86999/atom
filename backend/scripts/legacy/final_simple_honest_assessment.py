@@ -4,9 +4,9 @@ Final Simple Honest Assessment
 What actually works vs marketing claims
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def simple_honest_assessment():

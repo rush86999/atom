@@ -3,14 +3,14 @@ Integration Helper Module
 Standard patterns for governance, error handling, and audit trails
 """
 import logging
-from typing import Optional, Dict, Any, Tuple
-from fastapi import HTTPException, Depends
+from typing import Any, Dict, Optional, Tuple
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentRegistry, AgentExecution, User
 from core.database import get_db
+from core.models import AgentExecution, AgentRegistry, User
 
 logger = logging.getLogger(__name__)
 

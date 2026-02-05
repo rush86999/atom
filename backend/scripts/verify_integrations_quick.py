@@ -6,9 +6,9 @@ This script provides a quick verification of third-party service integrations
 with workflow automation and Atom agent chat interface.
 """
 
+from datetime import datetime
 import json
 import sys
-from datetime import datetime
 from typing import Any, Dict, List
 import requests
 

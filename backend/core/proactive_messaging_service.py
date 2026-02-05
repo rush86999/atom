@@ -11,21 +11,15 @@ Maturity Levels:
 - AUTONOMOUS: Full access with audit trail
 """
 
-import logging
 from datetime import datetime, timezone
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.agent_integration_gateway import ActionType, agent_integration_gateway
-from core.models import (
-    AgentRegistry,
-    AgentStatus,
-    ProactiveMessage,
-    ProactiveMessageStatus,
-    User,
-)
 from core.governance_cache import get_governance_cache
+from core.models import AgentRegistry, AgentStatus, ProactiveMessage, ProactiveMessageStatus, User
 
 logger = logging.getLogger(__name__)
 

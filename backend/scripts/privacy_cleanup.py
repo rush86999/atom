@@ -7,12 +7,12 @@ This script replaces personal information with generic alternatives
 to maintain privacy in public repositories.
 """
 
+from datetime import datetime
 import json
 import os
+from pathlib import Path
 import re
 import sys
-from datetime import datetime
-from pathlib import Path
 
 print("🔒 PRIVACY CLEANUP SCRIPT")
 print("=" * 80)

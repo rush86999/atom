@@ -1,6 +1,6 @@
 
-import sys
 import logging
+import sys
 import requests
 
 # Configure logging

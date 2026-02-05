@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from datetime import datetime
+import logging
 from analytics.models import WorkflowExecutionLog
 
 from core.database import get_db_session
