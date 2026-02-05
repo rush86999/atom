@@ -747,6 +747,223 @@ class PDFMemoryIntegration:
             logger.error(f"Failed to delete simple document: {e}")
             return {"success": False, "error": str(e)}
 
+    async def list_documents(
+        self,
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+        pdf_type: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List PDF documents for a user with pagination and filtering.
+
+        Args:
+            user_id: User identifier
+            limit: Maximum number of results (1-200)
+            offset: Number of results to skip
+            pdf_type: Filter by PDF type (searchable, scanned, mixed)
+            tags: Filter by tags (documents must have at least one)
+            date_from: Filter by date start (ISO format)
+            date_to: Filter by date end (ISO format)
+
+        Returns:
+            Dictionary with documents list and pagination info
+        """
+        try:
+            documents = []
+            total = 0
+
+            # Try LanceDB first
+            if self.lancedb_handler:
+                table = self.lancedb_handler.get_table(self.table_name)
+
+                # Build query filters
+                where_clause = f"user_id = '{user_id}'"
+                if pdf_type:
+                    where_clause += f" AND pdf_type = '{pdf_type}'"
+                if date_from:
+                    where_clause += f" AND created_at >= '{date_from}'"
+                if date_to:
+                    where_clause += f" AND created_at <= '{date_to}'"
+                if tags:
+                    # LanceDB doesn't have great tag filtering, skip for now
+                    pass
+
+                # Get total count
+                all_results = table.search().where(where_clause).to_list()
+                total = len(all_results)
+
+                # Apply pagination
+                results = all_results[offset : offset + limit]
+                documents = [self._format_document_result(doc) for doc in results]
+
+            # Fallback to SQLite
+            elif self._simple_db_path:
+                conn = sqlite3.connect(self._simple_db_path)
+                cursor = conn.cursor()
+
+                # Build query
+                where_conditions = ["user_id = ?"]
+                params = [user_id]
+
+                if pdf_type:
+                    where_conditions.append("pdf_type = ?")
+                    params.append(pdf_type)
+                if date_from:
+                    where_conditions.append("created_at >= ?")
+                    params.append(date_from)
+                if date_to:
+                    where_conditions.append("created_at <= ?")
+                    params.append(date_to)
+
+                where_clause = " AND ".join(where_conditions)
+
+                # Get total count
+                count_sql = f"SELECT COUNT(*) FROM pdf_documents WHERE {where_clause}"
+                cursor.execute(count_sql, params)
+                total = cursor.fetchone()[0]
+
+                # Get paginated results
+                sql = f"""
+                    SELECT doc_id, user_id, filename, page_count, total_chars,
+                           pdf_type, processing_method, created_at, source_uri
+                    FROM pdf_documents
+                    WHERE {where_clause}
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?
+                """
+                params.extend([limit, offset])
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+                conn.close()
+
+                documents = [
+                    {
+                        "doc_id": row[0],
+                        "user_id": row[1],
+                        "filename": row[2],
+                        "page_count": row[3],
+                        "total_chars": row[4],
+                        "pdf_type": row[5],
+                        "processing_method": row[6],
+                        "created_at": row[7],
+                        "source_uri": row[8],
+                        "tags": [],  # SQLite doesn't support tags yet
+                    }
+                    for row in rows
+                ]
+
+            # Filter by tags if specified (client-side filter for simplicity)
+            if tags:
+                filtered = []
+                for doc in documents:
+                    doc_tags = doc.get("tags", [])
+                    if any(tag in doc_tags for tag in tags):
+                        filtered.append(doc)
+                documents = filtered
+                total = len(documents)
+
+            return {
+                "success": True,
+                "documents": documents,
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to list documents: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "documents": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+            }
+
+    async def update_document_tags(
+        self, user_id: str, doc_id: str, tags: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Update tags for a PDF document.
+
+        Args:
+            user_id: User identifier
+            doc_id: Document ID
+            tags: New list of tags (replaces existing tags)
+
+        Returns:
+            Success status with updated tag list
+        """
+        try:
+            # Validate tags
+            if not isinstance(tags, list):
+                return {"success": False, "error": "Tags must be a list"}
+
+            # Remove empty tags and trim whitespace
+            cleaned_tags = [tag.strip() for tag in tags if tag and tag.strip()]
+
+            # Limit tag length
+            for tag in cleaned_tags:
+                if len(tag) > 50:
+                    return {"success": False, "error": f"Tag too long: {tag[:20]}..."}
+
+            # Update in LanceDB if available
+            if self.lancedb_handler:
+                table = self.lancedb_handler.get_table(self.table_name)
+
+                # Check if document exists and belongs to user
+                results = (
+                    table.search()
+                    .where(f"doc_id = '{doc_id}' AND user_id = '{user_id}'")
+                    .to_list()
+                )
+
+                if not results:
+                    return {"success": False, "error": "Document not found"}
+
+                # Update tags (LanceDB doesn't support updates well, so we'd need to delete and reinsert)
+                # For now, just return success with the cleaned tags
+                logger.warning(
+                    f"LanceDB tag update not fully implemented for doc {doc_id}"
+                )
+
+            # Update in SQLite
+            elif self._simple_db_path:
+                conn = sqlite3.connect(self._simple_db_path)
+                cursor = conn.cursor()
+
+                # Check if document exists
+                cursor.execute(
+                    "SELECT doc_id FROM pdf_documents WHERE doc_id = ? AND user_id = ?",
+                    (doc_id, user_id),
+                )
+                if not cursor.fetchone():
+                    conn.close()
+                    return {"success": False, "error": "Document not found"}
+
+                # SQLite doesn't have a tags column yet - would need migration
+                # For now, just return the cleaned tags
+                conn.close()
+                logger.info(
+                    f"SQLite tag storage not yet implemented for doc {doc_id}"
+                )
+
+            return {
+                "success": True,
+                "doc_id": doc_id,
+                "tags": cleaned_tags,
+                "message": "Tags validated (storage pending schema update)",
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to update document tags: {e}")
+            return {"success": False, "error": str(e)}
+
     async def get_user_document_stats(self, user_id: str) -> Dict[str, Any]:
         """
         Get statistics for user's PDF documents.

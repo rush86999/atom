@@ -16,6 +16,7 @@ import { WorkflowTriggerScreen } from '../screens/workflows/WorkflowTriggerScree
 import { ExecutionProgressScreen } from '../screens/workflows/ExecutionProgressScreen';
 import { WorkflowLogsScreen } from '../screens/workflows/WorkflowLogsScreen';
 import { AnalyticsDashboardScreen } from '../screens/analytics/AnalyticsDashboardScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 
 // Stack Navigator for Workflows
 const WorkflowStack = createNativeStackNavigator();
@@ -165,7 +166,7 @@ export function AppNavigator() {
         />
         <Tab.Screen
           name="SettingsTab"
-          component={WorkflowStackNavigator} // Placeholder, will be SettingsScreen later
+          component={SettingsScreen}
           options={{
             tabBarLabel: 'Settings',
           }}

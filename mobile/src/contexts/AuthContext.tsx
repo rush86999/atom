@@ -10,9 +10,12 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Device from 'expo-device';
+import * as Constants from 'expo-constants';
 
 // Types
 interface AuthTokens {
@@ -162,19 +165,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
 
+      // Generate device token if not exists
+      let deviceToken = await AsyncStorage.getItem(DEVICE_ID_KEY);
+      if (!deviceToken) {
+        deviceToken = generateDeviceId();
+        await AsyncStorage.setItem(DEVICE_ID_KEY, deviceToken);
+      }
+
+      // Build device info
+      const deviceInfo = {
+        platform: Platform.OS as 'ios' | 'android',
+        model: Device.modelName || 'Unknown',
+        os_version: Platform.Version as string,
+        app_version: Constants.expoConfig?.version || '1.0.0',
+        device_name: Device.deviceName || 'Unknown Device',
+        is_device: Device.isDevice,
+      };
+
+      // Send login request with device information
       const response = await fetch(`${API_BASE_URL}/api/auth/mobile/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          ...credentials,
+          device_token: deviceToken,
+          platform: Platform.OS,
+          device_info: deviceInfo,
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
+
+        // Provide specific error messages based on status code
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: 'Invalid email or password',
+          };
+        } else if (response.status === 400) {
+          return {
+            success: false,
+            error: errorData.detail || 'Invalid request. Please check your input.',
+          };
+        } else if (response.status === 429) {
+          return {
+            success: false,
+            error: 'Too many login attempts. Please try again later.',
+          };
+        } else if (response.status >= 500) {
+          return {
+            success: false,
+            error: 'Server error. Please try again later.',
+          };
+        }
+
         return {
           success: false,
-          error: errorData.detail || 'Login failed',
+          error: errorData.detail || `Login failed (status: ${response.status})`,
         };
       }
 
@@ -196,6 +246,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(data.user);
       }
 
+      // Update device info
+      setDeviceInfo({
+        device_token: deviceToken,
+        platform: Platform.OS as 'ios' | 'android',
+        model: deviceInfo.model,
+        os_version: deviceInfo.os_version,
+        app_version: deviceInfo.app_version,
+      });
+
       setIsAuthenticated(true);
 
       return { success: true };
@@ -215,11 +274,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const logout = async () => {
     try {
+      // Call backend logout endpoint if available
+      const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      if (accessToken) {
+        try {
+          await fetch(`${API_BASE_URL}/api/auth/mobile/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+        } catch (error) {
+          console.warn('Backend logout failed, clearing local state:', error);
+        }
+      }
+
+      // Clear all local state
       await clearTokens();
       setIsAuthenticated(false);
       setUser(null);
+      setDeviceInfo(null);
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if logout fails, clear local state
+      await clearTokens();
+      setIsAuthenticated(false);
+      setUser(null);
+      setDeviceInfo(null);
     }
   };
 
