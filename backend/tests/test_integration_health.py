@@ -13,7 +13,7 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from main import app
+from main_api_app import app
 
 
 class TestIntegrationHealthEndpoints:

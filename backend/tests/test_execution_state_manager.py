@@ -202,15 +202,11 @@ class TestMigratedFromDatabaseManager:
         assert "WorkflowExecution" in source
 
 
-@pytest.mark.parametrize("workflow_id,input_data,step_id,status,output", [
-    ("wf1", {"key": "value"}, "step1", "running", {"result": "success"}),
-    ("wf2", {"data": "test"}, "step2", "completed", {"done": True}),
-])
 class TestExecutionStateManagerWithVariousInputs:
     """Test execution state manager with different input scenarios"""
 
     @pytest.mark.asyncio
-    async def test_execution_lifecycle(self, client):
+    async def test_execution_lifecycle(self):
         """Test complete execution lifecycle from creation to completion"""
         manager = ExecutionStateManager()
 

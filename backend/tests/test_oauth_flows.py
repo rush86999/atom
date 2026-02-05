@@ -21,7 +21,7 @@ from core.oauth_handler import (
     NOTION_OAUTH_CONFIG,
     TRELLO_OAUTH_CONFIG,
 )
-from main import app
+from main_api_app import app
 
 
 class TestOAuthEndpoints:
