@@ -14,28 +14,29 @@ Governance Integration:
 - All browser actions require INTERN+ maturity level
 - Full audit trail via browser_audit table
 - Agent execution tracking for all browser sessions
+
+Refactored to use standardized decorators and service factory.
 """
 
 import asyncio
 import base64
 from datetime import datetime
-import logging
 from typing import Any, Dict, List, Optional
 import uuid
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
+from core.error_handler_decorator import handle_errors, log_errors
+from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, User
-
-logger = logging.getLogger(__name__)
-
-# Feature flags
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
 import os
 
-BROWSER_GOVERNANCE_ENABLED = os.getenv("BROWSER_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+logger = get_logger(__name__)
+
+# Feature flags
 BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "true").lower() == "true"
 
 
@@ -219,9 +220,9 @@ async def browser_create_session(
 
     try:
         # Governance: Check agent permissions (browser_navigate = INTERN+)
-        if BROWSER_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id and db:
+        if FeatureFlags.should_enforce_governance('browser') and agent_id and db:
             resolver = AgentContextResolver(db)
-            governance = AgentGovernanceService(db)
+            governance = ServiceFactory.get_governance_service(db)
 
             agent, _ = await resolver.resolve_agent_for_request(
                 user_id=user_id,
@@ -266,8 +267,8 @@ async def browser_create_session(
         )
 
         # Record outcome
-        if agent and db and BROWSER_GOVERNANCE_ENABLED:
-            governance = AgentGovernanceService(db)
+        if agent and db and FeatureFlags.should_enforce_governance('browser'):
+            governance = ServiceFactory.get_governance_service(db)
             await governance.record_outcome(agent.id, success=True)
 
             if agent_execution:
@@ -292,7 +293,7 @@ async def browser_create_session(
 
         if agent_execution and db and BROWSER_GOVERNANCE_ENABLED:
             try:
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
                 await governance.record_outcome(agent.id, success=False)
 
                 agent_execution.status = "failed"

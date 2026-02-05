@@ -9,22 +9,26 @@ Governance Integration:
 - Command Execution: AUTONOMOUS only (security critical)
 - Full audit trail via device_audit table
 - Agent execution tracking for all device sessions
+
+Refactored to use standardized decorators and service factory.
 """
 
 from datetime import datetime
-import logging
-import os
 from typing import Any, Dict, List, Optional
 from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.error_handler_decorator import handle_errors
+from core.error_handlers import ErrorCode
+from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
 from core.security_dependencies import get_current_user
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
 from tools.device_tool import (
     device_camera_snap,
     device_execute_command,
@@ -36,13 +40,9 @@ from tools.device_tool import (
     list_devices,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = BaseAPIRouter(prefix="/api/devices", tags=["devices"])
-
-# Feature flags
-DEVICE_GOVERNANCE_ENABLED = os.getenv("DEVICE_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 
 # ============================================================================
