@@ -591,17 +591,33 @@ async def stop_agent(
     db: Session = Depends(get_db)
 ):
     """
-    Attempt to stop a running agent.
-    Note: Async task cancellation is varying in reliability depending on the runner.
-    For this implementation, we will mark the status in DB (if we tracked runs there) 
-    or potentially signal the scheduler/meta-agent.
+    Stop a running agent by cancelling its active tasks.
+    Uses the AgentTaskRegistry to cancel all running tasks for the agent.
     """
-    # For MVP, we'll log the request. In a full system, we'd look up the running task ID 
-    # (stored in memory or Redis) and cancel the asyncio Task.
+    from core.agent_task_registry import agent_task_registry
+
     logger.info(f"Stop request received for agent {agent_id} by user {user.id}")
-    
-    # Placeholder: if we had a task registry, we'd cancel it here.
-    return router.success_response(
-        data={"agent_id": agent_id},
-        message="Signal sent to stop agent (Best Effort)"
-    )
+
+    # Try to cancel tasks via registry
+    cancelled_count = await agent_task_registry.cancel_agent_tasks(agent_id)
+
+    if cancelled_count > 0:
+        # Successfully cancelled tasks
+        return router.success_response(
+            data={
+                "agent_id": agent_id,
+                "cancelled_tasks": cancelled_count
+            },
+            message=f"Successfully stopped {cancelled_count} running task(s)"
+        )
+    else:
+        # No tasks in registry - agent might not be running or already stopped
+        # Check if agent exists
+        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise router.not_found_error("Agent", agent_id)
+
+        return router.success_response(
+            data={"agent_id": agent_id, "cancelled_tasks": 0},
+            message="No running tasks found for this agent"
+        )

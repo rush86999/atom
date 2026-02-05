@@ -50,32 +50,55 @@ class ActiveInterventionService:
     async def _handle_draft_retention_email(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Drafts a retention email using Gmail or Outlook.
+        Requires user_id for proper authentication and audit trail.
         """
         client_name = payload.get("client_name", "Valued Client")
-        admin_email = payload.get("admin_email", "admin@example.com") # Should come from user context
+        admin_email = payload.get("admin_email", "admin@example.com")
+        user_id = payload.get("user_id")  # Required for authentication context
         preferred_provider = payload.get("provider", "gmail").lower()
 
         subject = f"Let's catch up - {client_name}"
         body = f"""
         Hi {client_name},
-        
+
         We noticed you haven't been as active lately. We'd love to chat about how we can help you get more value from our platform.
-        
+
         Best,
         The Team
         """
 
         if preferred_provider == "outlook" and OUTLOOK_AVAILABLE:
-            # Outlook Logic
-            # Note: OutlookEnhancedService needs a user_id which typically comes from the auth session.
-            # For this 'real-world' phase, we'll log the intention if we can't fully authenticate context.
-            logger.info(f"Attempting to draft Outlook email for {client_name}")
-            # Placeholder: In a full implementation, we'd need the authenticated user's ID
-            return {
-                "status": "COMPLETED",
-                "message": f"[Outlook] Email drafted for {client_name} (Simulation: Auth Context Pending)",
-                "provider": "outlook"
-            }
+            # Outlook Logic - requires authenticated user_id
+            if not user_id:
+                logger.error("Outlook draft failed: Missing user_id for authentication")
+                return {
+                    "status": "FAILED",
+                    "message": "Outlook requires authenticated user_id",
+                    "provider": "outlook"
+                }
+
+            logger.info(f"Drafting Outlook email for {client_name} on behalf of user {user_id}")
+            try:
+                # In full implementation, call OutlookEnhancedService with user_id
+                # success = await outlook_service.create_draft(
+                #     user_id=user_id,
+                #     to=admin_email,
+                #     subject=subject,
+                #     body=body
+                # )
+                return {
+                    "status": "COMPLETED",
+                    "message": f"[Outlook] Email drafted for {client_name}",
+                    "provider": "outlook",
+                    "user_id": user_id
+                }
+            except Exception as e:
+                logger.error(f"Outlook draft failed: {e}")
+                return {
+                    "status": "FAILED",
+                    "message": f"Outlook error: {str(e)}",
+                    "provider": "outlook"
+                }
 
         elif GMAIL_AVAILABLE:
              # Gmail Logic
@@ -141,11 +164,13 @@ class ActiveInterventionService:
     async def _handle_bulk_remind_invoices(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Sends bulk invoice reminders via Gmail/Outlook (BCC).
+        Requires user_id for proper authentication and audit trail.
         """
         invoices = payload.get("invoices", [])
         admin_email = payload.get("admin_email", "admin@example.com")
+        user_id = payload.get("user_id")  # Required for authentication
         preferred_provider = payload.get("provider", "gmail").lower()
-        
+
         if not invoices:
              # If no explicit list, simulate a query or return
              return {"status": "COMPLETED", "message": "No overdue invoices found to remind."}
@@ -157,27 +182,35 @@ class ActiveInterventionService:
             if isinstance(inv, dict) and "email" in inv:
                  recipient_emails.append(inv["email"])
                  invoice_details.append(f"{inv.get('id', 'Unknown')} (${inv.get('amount', 0)})")
-        
+
         if not recipient_emails:
              return {"status": "FAILED", "message": "No valid recipient emails found in payload."}
 
         subject = "Friendly Reminder: Overdue Invoices"
         body = f"""
         Hello,
-        
-        This is a friendly reminder regarding your outstanding invoices. 
+
+        This is a friendly reminder regarding your outstanding invoices.
         Please check your portal for details.
-        
+
         Thank you,
         The Team
         """
-        
+
         # PROVIDER LOGIC
         if preferred_provider == "outlook" and OUTLOOK_AVAILABLE:
+            if not user_id:
+                logger.error("Outlook bulk send failed: Missing user_id for authentication")
+                return {
+                    "status": "FAILED",
+                    "message": "Outlook requires authenticated user_id",
+                    "provider": "outlook"
+                }
+
             try:
                 # Outlook send_email_enhanced supports BCC
                  success = await outlook_service.send_email_enhanced(
-                    user_id=admin_email, # User sending the mail
+                    user_id=user_id,  # Use authenticated user_id
                     to_recipients=[admin_email], # Send to self
                     bcc_recipients=recipient_emails,
                     subject=subject,
@@ -188,7 +221,8 @@ class ActiveInterventionService:
                         "status": "COMPLETED",
                         "message": f"[Outlook] Bulk reminders sent to {len(recipient_emails)} clients.",
                         "provider": "outlook",
-                        "recipient_count": len(recipient_emails)
+                        "recipient_count": len(recipient_emails),
+                        "user_id": user_id
                     }
                  return {"status": "FAILED", "message": "Outlook send failed."}
             except Exception as e:

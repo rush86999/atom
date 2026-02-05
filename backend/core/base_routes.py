@@ -553,3 +553,107 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error_content
     )
+
+
+# ============================================================================
+# Database Operation Utilities
+# ============================================================================
+
+def safe_db_operation(operation: callable, error_message: str = "Database operation failed"):
+    """
+    Decorator for safe database operations with automatic error handling and rollback.
+
+    Args:
+        operation: The database operation function to wrap
+        error_message: Custom error message for failures
+
+    Returns:
+        Result of the operation or raises HTTPException on failure
+
+    Example:
+        @safe_db_operation
+        def update_agent(agent_id: str, **kwargs):
+            with SessionLocal() as db:
+                agent = db.query(AgentRegistry).filter(...).first()
+                agent.name = kwargs.get("name")
+                db.commit()
+                return agent
+    """
+    def wrapper(*args, **kwargs):
+        from core.database import SessionLocal
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            with SessionLocal() as db:
+                # Inject db session if operation expects it
+                if 'db' in operation.__code__.co_varnames:
+                    kwargs['db'] = db
+
+                result = operation(*args, **kwargs)
+                return result
+
+        except Exception as e:
+            logger.error(f"{error_message}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "DATABASE_ERROR",
+                        "message": error_message,
+                        "details": str(e) if os.getenv("DEBUG") else None
+                    }
+                }
+            )
+
+    return wrapper
+
+
+def execute_db_query(
+    query_func: callable,
+    error_message: str = "Query execution failed",
+    return_value: Any = None
+) -> Any:
+    """
+    Execute a database query with proper error handling and context management.
+
+    Args:
+        query_func: Function that executes the query (receives db session)
+        error_message: Custom error message
+        return_value: Default return value on failure (if not raising exception)
+
+    Returns:
+        Query result or default value
+
+    Example:
+        def get_agent(db, agent_id):
+            return db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+
+        agent = execute_db_query(lambda db: get_agent(db, agent_id))
+    """
+    from core.database import SessionLocal
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        with SessionLocal() as db:
+            return query_func(db)
+
+    except Exception as e:
+        logger.error(f"{error_message}: {e}")
+        if return_value is not None:
+            return return_value
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "success": False,
+                "error": {
+                    "code": "DATABASE_ERROR",
+                    "message": error_message
+                }
+            }
+        )
+

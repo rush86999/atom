@@ -11,6 +11,7 @@ Archives episodes to LanceDB for semantic search.
 
 from datetime import datetime, timedelta
 import logging
+import os
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -277,9 +278,57 @@ class EpisodeSegmentationService:
         return list(topics)[:5]
 
     def _extract_entities(self, messages, executions) -> List[str]:
-        """Extract named entities from episode"""
-        # Placeholder for entity extraction
-        return []
+        """Extract named entities from episode using regex-based NLP"""
+        import re
+        entities = set()
+
+        # Extract from messages
+        for msg in messages:
+            # Email addresses
+            emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', msg.content)
+            entities.update(emails)
+
+            # Phone numbers (US format)
+            phones = re.findall(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', msg.content)
+            entities.update(phones)
+
+            # URLs
+            urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', msg.content)
+            entities.update(urls)
+
+            # Extract from metadata if available (ChatMessage may not have this field)
+            metadata = getattr(msg, 'metadata_json', None)
+            if metadata:
+                for key, value in metadata.items():
+                    if isinstance(value, str) and 3 < len(value) < 50:
+                        # Filter for likely entities (alphanumeric with some special chars)
+                        if re.match(r'^[A-Za-z0-9._@-]+$', value):
+                            entities.add(value)
+
+        # Extract from executions
+        for exec in executions:
+            # Try multiple field names for task description
+            task_desc = getattr(exec, 'task_description', None) or \
+                       getattr(exec, 'input_summary', None) or \
+                       getattr(exec, 'output_summary', None)
+
+            if task_desc:
+                # Extract task-related entities
+                words = task_desc.split()
+                # Capitalized words might be proper nouns
+                for word in words:
+                    if word[0].isupper() and len(word) > 3:
+                        entities.add(word)
+
+            # Extract from execution metadata if available
+            metadata = getattr(exec, 'metadata_json', None)
+            if metadata:
+                for key, value in metadata.items():
+                    if isinstance(value, str) and 3 < len(value) < 50:
+                        entities.add(value)
+
+        # Return limited list to avoid overwhelming
+        return list(entities)[:20]
 
     def _calculate_importance(self, messages, executions) -> float:
         """Calculate episode importance score (0.0 to 1.0)"""
@@ -329,8 +378,25 @@ class EpisodeSegmentationService:
         return edits
 
     def _get_world_model_version(self) -> str:
-        """Get current world model version"""
-        # Placeholder for version tracking
+        """Get current world model version from environment or configuration"""
+        # Check environment variable first
+        version = os.getenv("WORLD_MODEL_VERSION")
+        if version:
+            return version
+
+        # Check database for version configuration
+        try:
+            from core.models import SystemConfig
+            config = self.db.query(SystemConfig).filter(
+                SystemConfig.key == "world_model_version"
+            ).first()
+
+            if config and config.value:
+                return config.value
+        except Exception as e:
+            logger.debug(f"Could not fetch world model version from DB: {e}")
+
+        # Return default version
         return "v1.0"
 
     async def _create_segments(
