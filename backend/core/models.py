@@ -3933,8 +3933,11 @@ class SocialPostHistory(Base):
     scheduled_for = Column(DateTime(timezone=True), nullable=True)
     posted_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Background task tracking
+    job_id = Column(String, nullable=True, index=True)  # RQ job ID for scheduled posts
+
     # Status tracking
-    status = Column(String, default="pending", index=True)  # pending, posted, failed, scheduled
+    status = Column(String, default="pending", index=True)  # pending, posted, failed, scheduled, posting, partial, cancelled
     error_message = Column(Text, nullable=True)
 
     # Metadata
@@ -3949,6 +3952,7 @@ class SocialPostHistory(Base):
         Index("ix_social_post_history_user_created", "user_id", "created_at"),
         Index("ix_social_post_history_status_created", "status", "created_at"),
         Index("ix_social_post_history_scheduled", "scheduled_for"),
+        Index("ix_social_post_history_job_id", "job_id"),
     )
 
 

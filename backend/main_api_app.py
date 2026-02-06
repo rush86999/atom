@@ -497,6 +497,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load Security routes: {e}")
 
+    # Task Monitoring Routes (NEW)
+    try:
+        from api.task_monitoring_routes import router as task_monitoring_router
+        app.include_router(task_monitoring_router)  # Prefix defined in router (/api/v1/tasks)
+        logger.info("✓ Task Monitoring Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Task Monitoring routes: {e}")
+
     try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
