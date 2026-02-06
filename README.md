@@ -207,8 +207,10 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Support
 
-- **Documentation**: `docs/` directory
-- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
+- **Documentation**: See [docs/INDEX.md](docs/INDEX.md) for complete documentation index
+- **Developer Guide**: See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and deployment
+- **Implementation History**: See [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) for recent changes
+- **Issues**: [GitHub Issues](https://github.com/rush8699/atom/issues)
 - **License**: AGPL v3 - See [LICENSE.md](LICENSE.md)
 
 ---
