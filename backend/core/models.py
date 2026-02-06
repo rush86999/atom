@@ -3950,3 +3950,42 @@ class SocialPostHistory(Base):
         Index("ix_social_post_history_status_created", "status", "created_at"),
         Index("ix_social_post_history_scheduled", "scheduled_for"),
     )
+
+
+class SecurityAuditLog(Base):
+    """
+    Security Audit Log
+
+    Tracks security-related events for compliance and monitoring.
+    """
+    __tablename__ = "security_audit_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Event information
+    event_type = Column(String(100), nullable=False, index=True)  # webhook_signature_invalid, default_secret_key, etc.
+    severity = Column(String(20), nullable=False, index=True)  # critical, warning, info
+
+    # User context
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    # Event details
+    details = Column(JSON, nullable=False, default=dict)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="security_events")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_security_audit_log_timestamp", "timestamp"),
+        Index("ix_security_audit_log_event_type", "event_type"),
+        Index("ix_security_audit_log_severity", "severity"),
+        Index("ix_security_audit_log_user", "user_id", "timestamp"),
+        Index("ix_security_audit_log_severity_timestamp", "severity", "timestamp"),
+    )

@@ -97,11 +97,27 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
   const [prediction, setPrediction] = useState<AIPrediction | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Validation function for prediction data
+  const isValidPrediction = (data: any): data is AIPrediction => {
+    return (
+      typeof data.leadScore === 'number' &&
+      typeof data.confidence === 'number' &&
+      typeof data.predictedValue === 'number' &&
+      typeof data.conversionProbability === 'number' &&
+      Array.isArray(data.keyFactors) &&
+      Array.isArray(data.recommendations)
+    );
+  };
 
   const analyzeLead = useCallback(async () => {
     if (!contact) return;
 
     setIsAnalyzing(true);
+    setPrediction(null);
+    setError(null);
+
     try {
       const response = await fetch('/api/hubspot/ai/analyze-lead', {
         method: 'POST',
@@ -115,37 +131,27 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Analysis failed: ${response.statusText}`);
       }
 
       const data: AIPrediction = await response.json();
+
+      // Validate prediction structure
+      if (!isValidPrediction(data)) {
+        throw new Error('Invalid prediction data format from server');
+      }
+
       setPrediction(data);
       onScoreUpdate?.(data);
-    } catch (error) {
-      console.error('AI analysis failed:', error);
-      // Fallback for demo purposes if backend fails
-      const mockPrediction: AIPrediction = {
-        leadScore: Math.floor(Math.random() * 40) + 60,
-        confidence: 85,
-        predictedValue: 75000,
-        conversionProbability: 75,
-        timeframe: '2-4 weeks',
-        keyFactors: [
-          {
-            factor: 'Service Unavailable',
-            impact: 0.5,
-            description: 'Connectivity issues with AI service',
-          }
-        ],
-        recommendations: [
-          {
-            action: 'Try again later',
-            priority: 'medium',
-            description: 'Check backend connectivity',
-          }
-        ],
-      };
-      setPrediction(mockPrediction);
+    } catch (err) {
+      console.error('AI analysis failed:', err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to analyze lead. Please try again later.'
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -346,6 +352,26 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                   {isAnalyzing ? 'Analyzing...' : 'Analyze Lead'}
                 </Button>
               </div>
+
+              {/* Error State */}
+              {error && (
+                <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                  <AlertTitle className="text-sm font-semibold">Analysis Failed</AlertTitle>
+                  <AlertDescription className="text-sm">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Empty State */}
+              {!isAnalyzing && !prediction && !error && (
+                <Card className="bg-gray-50 dark:bg-gray-800">
+                  <CardContent className="pt-6">
+                    <div className="text-center text-gray-600 dark:text-gray-400">
+                      <Brain className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p>Click "Analyze Lead" to get AI-powered insights</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {prediction && (
                 <div className="space-y-4">

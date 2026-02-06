@@ -39,7 +39,7 @@ INTEGRATION_REGISTRY = {
     "unified_task": "core.unified_task_endpoints:router",
     "unified_project": "core.unified_task_endpoints:project_router",
     "unified_calendar": "core.unified_calendar_endpoints:router",
-    "unified_search": "core.mock_search_endpoints:router",  # Using mock instead of LanceDB
+    "unified_search": "core.unified_search_endpoints:router",  # Using LanceDB (production)
     
     # AI & Workflows
     "enhanced_ai_workflow": "enhanced_ai_workflow_endpoints:router",
@@ -164,7 +164,7 @@ ESSENTIAL_INTEGRATIONS = [
     # "atom_agent",  # Agent chat functionality
     # "unified_calendar",  # Calendar endpoints
     # "unified_task",  # Task management
-    # "unified_search",  # Temporarily disabled - LanceDB has Python 3.13 compatibility issues
+    # "unified_search",  # Enabled - LanceDB integration ready
 ]
 
 

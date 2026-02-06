@@ -24,6 +24,27 @@ router = BaseAPIRouter(prefix="/api/v1/integrations", tags=["oauth"])
 logger = logging.getLogger(__name__)
 
 
+def _is_valid_user_id(user_id: str) -> bool:
+    """Validate user ID format to prevent injection attacks"""
+    if not user_id or not isinstance(user_id, str):
+        return False
+    import re
+    return bool(re.match(r'^[a-zA-Z0-9_\-]+$', user_id))
+
+
+def _is_valid_email(email: str) -> bool:
+    """Validate email format"""
+    if not email or not isinstance(email, str):
+        return False
+    import re
+    return bool(re.match(r'^[^@]+@[^@]+\.[^@]+$', email))
+
+
+def _log_auth_event(event_type: str, user_id: str, method: str, details: dict):
+    """Log authentication security events"""
+    logger.info(f"Auth Event: {event_type} - {user_id} - {method} - {details}")
+
+
 # Request/Response Models
 class OAuthCallbackRequest(BaseModel):
     """OAuth callback request payload"""
@@ -76,24 +97,43 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     # Method 2: Try X-User-ID header (from NextAuth session)
     user_id = request.headers.get("X-User-ID")
     if user_id:
+        if not _is_valid_user_id(user_id):
+            logger.warning(f"Invalid X-User-ID format: {user_id}")
+            _log_auth_event("invalid_user_id", user_id, "x-user-id", {"reason": "invalid_format"})
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid user ID format")
+
         user = db.query(User).filter(User.id == user_id).first()
         if user:
+            _log_auth_event("auth_success", user_id, "x-user-id", {})
             return user
 
     # Method 3: Try X-User-Email header (alternative from session)
     user_email = request.headers.get("X-User-Email")
     if user_email:
+        if not _is_valid_email(user_email):
+            logger.warning(f"Invalid X-User-Email format: {user_email}")
+            _log_auth_event("invalid_email", user_email, "x-user-email", {"reason": "invalid_format"})
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid email format")
+
         user = db.query(User).filter(User.email == user_email).first()
         if user:
+            _log_auth_event("auth_success", user_email, "x-user-email", {})
             return user
 
-    # Method 4: Create temp user for development (if in dev mode)
-    import os
-    if os.getenv("ENVIRONMENT", "development") == "development":
+    # Method 4: Development-only temporary user creation
+    is_dev_mode = (
+        os.getenv("ENVIRONMENT", "development") == "development" and
+        os.getenv("ALLOW_DEV_TEMP_USERS", "false").lower() == "true"
+    )
+
+    if is_dev_mode:
         temp_id = request.headers.get("X-User-ID") or "dev_user"
+
+        if not _is_valid_user_id(temp_id):
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid temp user ID format")
+
         user = db.query(User).filter(User.id == temp_id).first()
         if not user:
-            # Create temporary user for development
             user = User(
                 id=temp_id,
                 email=f"dev_{temp_id}@example.com",
@@ -103,6 +143,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
             db.add(user)
             db.commit()
             db.refresh(user)
+
+            logger.warning(f"⚠️ DEVELOPMENT MODE: Created temporary user {temp_id}. This should NEVER happen in production.")
+            _log_auth_event("temp_user_created", temp_id, "dev_temp_user", {"environment": os.getenv('ENVIRONMENT', 'development')})
+
         return user
 
     raise HTTPException(

@@ -128,17 +128,38 @@ class SecurityConfig:
     jwt_expiration: int = 86400  # 24 hours
     cors_origins: list = None
     encryption_key: str = None
-    
+    allow_dev_temp_users: bool = False
+
     def __post_init__(self):
+        environment = os.getenv('ENVIRONMENT', 'development')
+
+        # Check if using default secret key
+        if environment == 'production' and self.secret_key == "atom-secret-key-change-in-production":
+            logger.error("🚨 CRITICAL: Using default SECRET_KEY in production!")
+            self._log_security_event("default_secret_key", "critical", {"environment": environment})
+
+        # For development, generate secure random key if not set
+        elif environment == 'development' and not os.getenv('SECRET_KEY'):
+            import secrets
+            self.secret_key = secrets.token_urlsafe(32)
+            logger.warning(f"⚠️ Generated temporary SECRET_KEY for development: {self.secret_key[:8]}...")
+
         self.secret_key = os.getenv('SECRET_KEY', self.secret_key)
         if os.getenv('JWT_EXPIRATION'):
             self.jwt_expiration = int(os.getenv('JWT_EXPIRATION'))
         if os.getenv('ENCRYPTION_KEY'):
             self.encryption_key = os.getenv('ENCRYPTION_KEY')
-        
+
+        self.allow_dev_temp_users = os.getenv('ALLOW_DEV_TEMP_USERS', 'false').lower() == 'true'
+
         if self.cors_origins is None:
             cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:1420')
             self.cors_origins = [origin.strip() for origin in cors_origins.split(',')]
+
+    def _log_security_event(self, event_type: str, severity: str, details: dict):
+        """Log security events for audit trail"""
+        logger.info(f"Security Audit: {event_type} - {severity} - {details}")
+        # Note: Would also write to SecurityAuditLog table when implemented
 
 @dataclass
 class APIConfig:
