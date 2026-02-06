@@ -86,8 +86,27 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"Server will start on {config.server.host}:{config.server.port}")
     logger.info(f"Environment: {ENVIRONMENT}")
-    
-    # 0. Initialize Database (Critical for in-memory DB)
+
+    # 0. Validate Configuration (warnings only, don't block startup)
+    try:
+        import subprocess
+        import sys
+        logger.info("Validating configuration...")
+        result = subprocess.run(
+            [sys.executable, "scripts/validate_config.py"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent
+        )
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                logger.info(line)
+        if result.returncode != 0:
+            logger.warning(f"Configuration validation completed with issues (exit code: {result.returncode})")
+    except Exception as e:
+        logger.warning(f"Configuration validation failed: {e}")
+
+    # 1. Initialize Database (Critical for in-memory DB)
     try:
         from analytics.models import WorkflowExecutionLog  # Force registration
         from sqlalchemy import inspect
@@ -469,6 +488,14 @@ try:
         logger.info("✓ Episodic Memory & Graduation Routes Loaded")
     except ImportError as e:
         logger.warning(f"Failed to load Episodic Memory routes: {e}")
+
+    # Security Routes (NEW)
+    try:
+        from api.security_routes import router as security_router
+        app.include_router(security_router)  # Prefix defined in router (/api/security)
+        logger.info("✓ Security Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Security routes: {e}")
 
     try:
         from core.workflow_endpoints import router as workflow_router

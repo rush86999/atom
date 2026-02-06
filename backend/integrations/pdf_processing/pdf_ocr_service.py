@@ -769,7 +769,11 @@ class PDFOCRService:
                             # Limit max size to avoid memory issues
                             width = min(width, 2000)
                             height = min(height, 2000)
-                        except:
+                        except (AttributeError, ValueError, TypeError) as e:
+                            logger.debug(f"Could not extract page dimensions, using defaults: {e}")
+                            width, height = 800, 1000
+                        except Exception as e:
+                            logger.warning(f"Unexpected error extracting page dimensions: {e}", exc_info=True)
                             width, height = 800, 1000
 
                         # Create a white image with extracted text overlay if possible
@@ -785,7 +789,11 @@ class PDFOCRService:
                                 # Use default font
                                 try:
                                     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-                                except:
+                                except (IOError, OSError) as e:
+                                    logger.debug(f"Custom font not available, using default: {e}")
+                                    font = ImageFont.load_default()
+                                except Exception as e:
+                                    logger.warning(f"Unexpected error loading font: {e}", exc_info=True)
                                     font = ImageFont.load_default()
 
                                 # Draw text (first 500 chars to avoid overflow)

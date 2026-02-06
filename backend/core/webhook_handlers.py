@@ -52,20 +52,41 @@ class SlackWebhookHandler:
 
     def verify_signature(self, timestamp: str, signature: str, body: bytes) -> bool:
         """Verify Slack webhook signature"""
+        environment = os.getenv('ENVIRONMENT', 'development')
+
         if not self.signing_secret:
-            logger.warning("No Slack signing secret configured, skipping signature verification")
-            return True  # Allow in development
+            if environment == 'production':
+                logger.error("🚨 SECURITY: Slack signing secret not configured in production. Rejecting webhook.")
+                self._log_security_event("webhook_signature_missing", "critical", {"endpoint": "slack"})
+                return False
+            else:
+                logger.warning("⚠️ SECURITY WARNING: No Slack signing secret in development. Webhook signature verification bypassed.")
+                self._log_security_event("webhook_signature_bypass_dev", "warning", {"endpoint": "slack"})
+                return True
 
-        # Create signature
-        basestring = f"v0:{timestamp}".encode() + body
-        expected_signature = "v0=" + hmac.new(
-            self.signing_secret.encode(),
-            basestring,
-            hashlib.sha256
-        ).hexdigest()
+        # Verify signature
+        try:
+            basestring = f"v0:{timestamp}".encode() + body
+            expected_signature = "v0=" + hmac.new(
+                self.signing_secret.encode(),
+                basestring,
+                hashlib.sha256
+            ).hexdigest()
 
-        # Constant-time comparison to prevent timing attacks
-        return hmac.compare_digest(expected_signature, signature)
+            is_valid = hmac.compare_digest(expected_signature, signature)
+
+            if not is_valid:
+                logger.warning(f"Invalid webhook signature from Slack")
+                self._log_security_event("webhook_signature_invalid", "warning", {})
+
+            return is_valid
+        except Exception as e:
+            logger.error(f"Error verifying webhook signature: {e}", exc_info=True)
+            return False
+
+    def _log_security_event(self, event_type: str, severity: str, details: dict):
+        """Log security events for audit trail"""
+        logger.info(f"Webhook Security Audit: {event_type} - {severity} - {details}")
 
     def parse_event(self, raw_event: Dict[str, Any]) -> Optional[WebhookEvent]:
         """Parse Slack webhook event"""
@@ -132,9 +153,30 @@ class TeamsWebhookHandler:
 
     def verify_signature(self, auth_header: Optional[str]) -> bool:
         """Verify Teams webhook authorization"""
+        environment = os.getenv('ENVIRONMENT', 'development')
+
+        if not auth_header:
+            if environment == 'production':
+                logger.error("🚨 SECURITY: Teams auth header missing in production. Rejecting webhook.")
+                self._log_security_event("webhook_signature_missing", "critical", {"endpoint": "teams"})
+                return False
+            else:
+                logger.warning("⚠️ SECURITY WARNING: No Teams auth header in development. Webhook verification bypassed.")
+                self._log_security_event("webhook_signature_bypass_dev", "warning", {"endpoint": "teams"})
+                return True
+
         # Teams uses Bearer token from Microsoft Graph
-        # For now, we'll rely on the endpoint being secured
+        # For now, we'll verify the header is present
+        if not auth_header.startswith("Bearer "):
+            logger.warning(f"Invalid Teams auth header format")
+            self._log_security_event("webhook_signature_invalid", "warning", {"endpoint": "teams"})
+            return False
+
         return True
+
+    def _log_security_event(self, event_type: str, severity: str, details: dict):
+        """Log security events for audit trail"""
+        logger.info(f"Webhook Security Audit: {event_type} - {severity} - {details}")
 
     def parse_event(self, raw_event: Dict[str, Any]) -> Optional[WebhookEvent]:
         """Parse Teams webhook event"""
@@ -192,9 +234,30 @@ class GmailWebhookHandler:
 
     def verify_signature(self, headers: Dict[str, str]) -> bool:
         """Verify Gmail webhook notification"""
+        environment = os.getenv('ENVIRONMENT', 'development')
+
         # Gmail uses Google's Pub/Sub verification
-        # For now, we'll rely on the endpoint being secured
+        # For now, check for required headers
+        if not headers:
+            if environment == 'production':
+                logger.error("🚨 SECURITY: No headers in Gmail webhook. Rejecting.")
+                self._log_security_event("webhook_signature_missing", "critical", {"endpoint": "gmail"})
+                return False
+            else:
+                logger.warning("⚠️ SECURITY WARNING: No headers in Gmail webhook development mode.")
+                self._log_security_event("webhook_signature_bypass_dev", "warning", {"endpoint": "gmail"})
+                return True
+
+        # Gmail requires specific headers
+        if 'message' not in headers.get('content-type', ''):
+            logger.warning(f"Invalid Gmail webhook content-type")
+            self._log_security_event("webhook_signature_invalid", "warning", {"endpoint": "gmail"})
+
         return True
+
+    def _log_security_event(self, event_type: str, severity: str, details: dict):
+        """Log security events for audit trail"""
+        logger.info(f"Webhook Security Audit: {event_type} - {severity} - {details}")
 
     def parse_event(self, raw_event: Dict[str, Any]) -> Optional[WebhookEvent]:
         """Parse Gmail webhook notification"""

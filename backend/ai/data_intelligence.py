@@ -1033,7 +1033,11 @@ class DataIntelligenceEngine:
                 if isinstance(updated_at, str):
                     try:
                         updated_at = datetime.fromisoformat(updated_at)
-                    except:
+                    except (AttributeError, TypeError, ValueError) as e:
+                        logger.debug(f"Skipping invalid datetime format: {e}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Unexpected error processing datetime: {e}", exc_info=True)
                         continue
                 
                 # For this demo, we'll just check if there are 0 tasks linked
