@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse

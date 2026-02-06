@@ -31,8 +31,10 @@ class TestTaskQueueManager:
     def test_init_with_redis_unavailable(self):
         """Test initialization when Redis is unavailable"""
         with patch('core.task_queue.RQ_AVAILABLE', True):
+            # Mock redis to raise ConnectionError
             with patch('core.task_queue.redis') as mock_redis:
                 mock_redis.Redis.side_effect = Exception("Connection refused")
+                mock_redis.ConnectionError = Exception  # Make it inherit from Exception
 
                 manager = TaskQueueManager()
 
