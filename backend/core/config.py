@@ -395,6 +395,32 @@ class ATOMConfig:
         """Check if running in development"""
         return os.getenv('ENVIRONMENT', 'development') == 'development'
 
+    def validate(self) -> Dict[str, Any]:
+        """Validate configuration and return any issues"""
+        issues = []
+
+        # Check database config
+        if not self.database.url:
+            issues.append("Database URL is required")
+
+        # Check security config
+        if not self.security.secret_key or self.security.secret_key == "atom-secret-key-change-in-production":
+            if os.getenv('ENVIRONMENT', 'development') == 'production':
+                issues.append("Secret key must be set in production")
+
+        # Check integration tokens
+        if os.getenv('ENVIRONMENT', 'development') == 'production':
+            # Check critical integrations
+            if not self.integrations.google_client_id:
+                issues.append("Google client ID is recommended for full functionality")
+            if not self.integrations.microsoft_client_id:
+                issues.append("Microsoft client ID is recommended for full functionality")
+
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues
+        }
+
 # Global configuration instance
 config = ATOMConfig.from_env()
 

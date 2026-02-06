@@ -111,12 +111,13 @@ class TestGetCurrentUser:
     def test_x_user_id_header_valid(self, mock_logger, mock_user):
         """Test X-User-ID header with valid format"""
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = Mock(id="user123")
+        mock_user_obj = Mock()
+        mock_user_obj.id = "user123"
+        mock_query.filter.return_value.first.return_value = mock_user_obj
         mock_user.query.return_value = mock_query
 
         request = Mock()
         request.headers = {"X-User-ID": "user123"}
-        request.headers.get = lambda k, d=None: {"X-User-ID": "user123"}.get(k, d)
 
         db = Mock()
 
@@ -131,7 +132,6 @@ class TestGetCurrentUser:
         """Test X-User-ID header with invalid format"""
         request = Mock()
         request.headers = {"X-User-ID": "user@123"}
-        request.headers.get = lambda k, d=None: {"X-User-ID": "user@123"}.get(k, d)
 
         db = Mock()
 
