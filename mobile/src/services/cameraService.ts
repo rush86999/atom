@@ -265,7 +265,11 @@ class CameraService {
       return media;
     } catch (error) {
       console.error('CameraService: Failed to pick image:', error);
-      return [];
+      throw new Error(
+        error instanceof Error
+          ? `Failed to pick image: ${error.message}`
+          : 'Failed to pick image from gallery'
+      );
     }
   }
 

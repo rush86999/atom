@@ -16,17 +16,22 @@ async def get_insights():
     Fetch cross-platform smart insights and anomalies.
     """
     try:
-        # For demo/mock purposes, ensure we have some data if registry is empty
-        if not engine.entity_registry:
-            logger.info("Initializing Intelligence Engine with mock data for /insights")
+        # Check environment to disable mock logic in production
+        import os
+        ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+        
+        # Only allow auto-seeding in development if explicitly desired,
+        # otherwise return empty results if no data is present.
+        if engine.entity_registry:
+            pass # Data exists, proceed to detect anomalies
+        elif ENVIRONMENT == "development" and not engine.entity_registry:
+            logger.info("Initializing Intelligence Engine with mock data for /insights (DEVELOPMENT ONLY)")
             platforms_to_seed = [
                 PlatformType.ASANA,
                 PlatformType.SALESFORCE,
                 PlatformType.HUBSPOT,
             ]
             for platform in platforms_to_seed:
-                # We can't await in a generator or similar easily if it's not async
-                # But here we are in an async function
                 data = await engine._get_platform_data(platform)
                 await engine.ingest_platform_data(platform, data)
 

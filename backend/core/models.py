@@ -3905,3 +3905,48 @@ class GovernanceAuditLog(Base):
         Index("ix_governance_audit_logs_allowed", "allowed", "checked_at"),
         Index("ix_governance_audit_logs_maturity", "agent_maturity", "allowed"),
     )
+
+
+class SocialPostHistory(Base):
+    """
+    Social Media Post History
+
+    Tracks all social media posts made through the platform.
+    Supports rate limiting and audit trail.
+    """
+    __tablename__ = "social_post_history"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Post content
+    content = Column(Text, nullable=False)
+    platforms = Column(JSON, nullable=False)  # ["twitter", "linkedin"]
+    media_urls = Column(JSON, nullable=True)  # List of image/video URLs
+    link_url = Column(String, nullable=True)  # Attached link
+
+    # Post results
+    platform_results = Column(JSON, nullable=True)  # Results from each platform
+    post_ids = Column(JSON, nullable=True)  # Platform-specific post IDs
+
+    # Scheduling
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Status tracking
+    status = Column(String, default="pending", index=True)  # pending, posted, failed, scheduled
+    error_message = Column(Text, nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="social_posts")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_social_post_history_user_created", "user_id", "created_at"),
+        Index("ix_social_post_history_status_created", "status", "created_at"),
+        Index("ix_social_post_history_scheduled", "scheduled_for"),
+    )

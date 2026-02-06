@@ -118,21 +118,28 @@ const StripeIntegration: React.FC = () => {
   const loadStripeData = async () => {
     setLoading(true);
     try {
-      // Mock data/fetch logic here (simplified for this fix)
-      // In real scenario, fetch from /api/stripe/...
-      setPayments([]);
-      setCustomers([]);
-      setSubscriptions([]);
-      setProducts([]);
-      setAnalytics({
-        totalRevenue: 1250000, // $12,500.00
-        monthlyRecurringRevenue: 450000,
-        activeCustomers: 124,
-        totalPayments: 1450,
-        paymentSuccessRate: 98.5,
-        averageOrderValue: 8600,
-        revenueGrowth: 12.5,
-        customerGrowth: 8.2,
+      const { apiClient } = await import('../lib/api-client');
+
+      // Fetch all required data from backend
+      const [paymentsRes, customersRes, productsRes, analyticsRes] = await Promise.all([
+        apiClient.get("/api/stripe/payments") as Promise<any>,
+        apiClient.get("/api/stripe/customers") as Promise<any>,
+        apiClient.get("/api/stripe/products") as Promise<any>,
+        apiClient.get("/api/stripe/analytics") as Promise<any>
+      ]);
+
+      setPayments(paymentsRes.data?.payments || []);
+      setCustomers(customersRes.data?.customers || []);
+      setProducts(productsRes.data?.products || []);
+      setAnalytics(analyticsRes.data?.analytics || {
+        totalRevenue: 0,
+        monthlyRecurringRevenue: 0,
+        activeCustomers: 0,
+        totalPayments: 0,
+        paymentSuccessRate: 100,
+        averageOrderValue: 0,
+        revenueGrowth: 0,
+        customerGrowth: 0,
       });
 
       toast({
@@ -140,13 +147,23 @@ const StripeIntegration: React.FC = () => {
         variant: "success",
         duration: 2000,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading Stripe data:", error);
-      toast({
-        title: "Failed to load Stripe data",
-        description: "Please check your Stripe configuration and try again.",
-        variant: "error",
-      });
+
+      // Handle 401/404 specifically for unconfigured integrations
+      if (error.response?.status === 401 || error.response?.status === 404) {
+        toast({
+          title: "Stripe not configured",
+          description: "Please set up your Stripe API keys in the dashboard.",
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: "Failed to load Stripe data",
+          description: "An unexpected error occurred. Please try again later.",
+          variant: "error",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -154,29 +171,30 @@ const StripeIntegration: React.FC = () => {
 
   const createPayment = async (amount: number, currency: string, description: string) => {
     try {
-      const newPayment: StripePayment = {
-        id: `pi_${Math.random().toString(36).substr(2, 9)}`,
-        amount: Math.round(amount * 100), // convert to cents
+      const { apiClient } = await import('../lib/api-client');
+      const response = await apiClient.post("/api/stripe/payments/create", {
+        amount: Math.round(amount * 100),
         currency: currency.toLowerCase(),
-        status: "succeeded",
-        customer: "cus_mock",
-        description,
-        created: new Date().toISOString(),
-        receipt_url: "https://receipt.stripe.com/test",
-      };
+        description
+      }) as any;
 
-      setPayments((prev) => [newPayment, ...prev]);
-      setIsCreatePaymentOpen(false);
-      setNewPaymentAmount("");
-      setNewPaymentDescription("");
+      if (response.data?.success) {
+        setPayments((prev) => [response.data.payment, ...prev]);
+        setIsCreatePaymentOpen(false);
+        setNewPaymentAmount("");
+        setNewPaymentDescription("");
 
-      toast({
-        title: "Payment created successfully",
-        variant: "success",
-      });
-    } catch (error) {
+        toast({
+          title: "Payment created successfully",
+          variant: "success",
+        });
+      } else {
+        throw new Error(response.data?.message || "Failed to create payment");
+      }
+    } catch (error: any) {
       toast({
         title: "Failed to create payment",
+        description: error.response?.data?.message || error.message,
         variant: "error",
       });
     }
@@ -184,29 +202,29 @@ const StripeIntegration: React.FC = () => {
 
   const createCustomer = async (name: string, email: string) => {
     try {
-      const newCustomer: StripeCustomer = {
-        id: `cus_${Math.random().toString(36).substr(2, 9)}`,
+      const { apiClient } = await import('../lib/api-client');
+      const response = await apiClient.post("/api/stripe/customers/create", {
         name,
-        email,
-        description: "New Customer",
-        balance: 0,
-        currency: "usd",
-        created: new Date().toISOString(),
-        subscriptions_count: 0
-      };
+        email
+      }) as any;
 
-      setCustomers((prev) => [newCustomer, ...prev]);
-      setIsCreateCustomerOpen(false);
-      setNewCustomerName("");
-      setNewCustomerEmail("");
+      if (response.data?.success) {
+        setCustomers((prev) => [response.data.customer, ...prev]);
+        setIsCreateCustomerOpen(false);
+        setNewCustomerName("");
+        setNewCustomerEmail("");
 
-      toast({
-        title: "Customer created successfully",
-        variant: "success",
-      });
-    } catch (error) {
+        toast({
+          title: "Customer created successfully",
+          variant: "success",
+        });
+      } else {
+        throw new Error(response.data?.message || "Failed to create customer");
+      }
+    } catch (error: any) {
       toast({
         title: "Failed to create customer",
+        description: error.response?.data?.message || error.message,
         variant: "error",
       });
     }
@@ -214,39 +232,53 @@ const StripeIntegration: React.FC = () => {
 
   const createProduct = async (name: string, description: string, price: number) => {
     try {
-      const newProduct: StripeProduct = {
-        id: `prod_${Math.random().toString(36).substr(2, 9)}`,
+      const { apiClient } = await import('../lib/api-client');
+      const response = await apiClient.post("/api/stripe/products/create", {
         name,
         description,
-        active: true,
-        created: new Date().toISOString(),
-        price: Math.round(price * 100),
-        images: []
-      };
+        price: Math.round(price * 100)
+      }) as any;
 
-      setProducts((prev) => [newProduct, ...prev]);
-      setIsCreateProductOpen(false);
-      setNewProductName("");
-      setNewProductDescription("");
-      setNewProductPrice("");
+      if (response.data?.success) {
+        setProducts((prev) => [response.data.product, ...prev]);
+        setIsCreateProductOpen(false);
+        setNewProductName("");
+        setNewProductDescription("");
+        setNewProductPrice("");
 
-      toast({
-        title: "Product created successfully",
-        variant: "success",
-      });
-    } catch (error) {
+        toast({
+          title: "Product created successfully",
+          variant: "success",
+        });
+      } else {
+        throw new Error(response.data?.message || "Failed to create product");
+      }
+    } catch (error: any) {
       toast({
         title: "Failed to create product",
+        description: error.response?.data?.message || error.message,
         variant: "error",
       });
     }
   };
 
-  const handleSubscriptionAction = (subId: string, action: string) => {
-    toast({
-      title: `Subscription ${action}d`,
-      variant: 'success'
-    });
+  const handleSubscriptionAction = async (subId: string, action: string) => {
+    try {
+      const { apiClient } = await import('../lib/api-client');
+      await apiClient.post(`/api/stripe/subscriptions/${subId}/${action}`);
+
+      toast({
+        title: `Subscription ${action}ed`,
+        variant: 'success'
+      });
+      loadStripeData(); // Refresh data
+    } catch (error: any) {
+      toast({
+        title: `Failed to ${action} subscription`,
+        description: error.response?.data?.message || error.message,
+        variant: 'error'
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {

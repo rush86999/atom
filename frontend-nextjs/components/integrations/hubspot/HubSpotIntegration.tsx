@@ -25,142 +25,7 @@ import HubSpotDashboard from "./HubSpotDashboard";
 import HubSpotPredictiveAnalytics from "./HubSpotPredictiveAnalytics";
 import HubSpotAIService from "./HubSpotAIService";
 
-// Mock data for fallback demonstration
-const mockContacts: HubSpotContact[] = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    company: "TechCorp",
-    phone: "+1-555-0101",
-    lifecycleStage: "Customer",
-    leadStatus: "Active",
-    leadScore: 85,
-    lastActivityDate: "2024-01-15",
-    createdDate: "2024-01-10",
-    owner: "Sarah Wilson",
-    industry: "Technology",
-    country: "United States",
-  },
-  {
-    id: "2",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    company: "Innovate LLC",
-    phone: "+1-555-0102",
-    lifecycleStage: "Lead",
-    leadStatus: "Qualified",
-    leadScore: 72,
-    lastActivityDate: "2024-01-14",
-    createdDate: "2024-01-08",
-    owner: "Mike Johnson",
-    industry: "Healthcare",
-    country: "Canada",
-  },
-  {
-    id: "3",
-    firstName: "Bob",
-    lastName: "Johnson",
-    email: "bob.johnson@example.com",
-    company: "Global Solutions",
-    phone: "+1-555-0103",
-    lifecycleStage: "Opportunity",
-    leadStatus: "In Progress",
-    leadScore: 45,
-    lastActivityDate: "2024-01-13",
-    createdDate: "2024-01-05",
-    owner: "Sarah Wilson",
-    industry: "Finance",
-    country: "United Kingdom",
-  },
-];
-
-const mockCompanies: HubSpotCompany[] = [
-  {
-    id: "1",
-    name: "TechCorp",
-    domain: "techcorp.com",
-    industry: "Technology",
-    size: "Enterprise",
-    country: "United States",
-    city: "San Francisco",
-    annualRevenue: 50000000,
-    owner: "Sarah Wilson",
-    lastActivityDate: "2024-01-15",
-    createdDate: "2024-01-10",
-    dealStage: "Closed Won",
-  },
-  {
-    id: "2",
-    name: "Innovate LLC",
-    domain: "innovatellc.com",
-    industry: "Healthcare",
-    size: "Medium",
-    country: "Canada",
-    city: "Toronto",
-    annualRevenue: 15000000,
-    owner: "Mike Johnson",
-    lastActivityDate: "2024-01-14",
-    createdDate: "2024-01-08",
-    dealStage: "Negotiation",
-  },
-];
-
-const mockDeals: HubSpotDeal[] = [
-  {
-    id: "1",
-    name: "Enterprise Software License",
-    amount: 250000,
-    stage: "Closed Won",
-    closeDate: "2024-01-20",
-    createdDate: "2024-01-05",
-    owner: "Sarah Wilson",
-    company: "TechCorp",
-    contact: "John Doe",
-    probability: 100,
-    pipeline: "Default",
-  },
-  {
-    id: "2",
-    name: "Healthcare Platform Implementation",
-    amount: 150000,
-    stage: "Negotiation",
-    closeDate: "2024-02-15",
-    createdDate: "2024-01-08",
-    owner: "Mike Johnson",
-    company: "Innovate LLC",
-    contact: "Jane Smith",
-    probability: 75,
-    pipeline: "Default",
-  },
-];
-
-const mockActivities: HubSpotActivity[] = [
-  {
-    id: "1",
-    type: "Email",
-    subject: "Follow-up: Enterprise Software Demo",
-    body: "Following up on our demo call from last week...",
-    timestamp: "2024-01-15T10:30:00Z",
-    contact: "John Doe",
-    company: "TechCorp",
-    owner: "Sarah Wilson",
-    engagementType: "Email",
-  },
-  {
-    id: "2",
-    type: "Call",
-    subject: "Initial Discovery Call",
-    body: "Discussed platform requirements and timeline...",
-    timestamp: "2024-01-14T14:15:00Z",
-    contact: "Jane Smith",
-    company: "Innovate LLC",
-    owner: "Mike Johnson",
-    engagementType: "Call",
-  },
-];
+// No mock data needed for production
 
 const HubSpotIntegration: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -204,27 +69,18 @@ const HubSpotIntegration: React.FC = () => {
             hubspotApi.getAIPredictions(),
           ]);
 
-          setContacts(
-            contactsData.contacts.length > 0
-              ? contactsData.contacts
-              : mockContacts,
-          );
-          setCompanies(
-            companiesData.companies.length > 0
-              ? companiesData.companies
-              : mockCompanies,
-          );
-          setDeals(dealsData.deals.length > 0 ? dealsData.deals : mockDeals);
-          setCampaigns(campaignsData);
-          setPipelines(pipelinesData);
-          setAnalytics(analyticsData);
-          setAIPredictions(aiPredictionsData);
-          setSelectedContact(contactsData.contacts[0] || null);
+          setContacts(contactsData.contacts || []);
+          setCompanies(companiesData.companies || []);
+          setDeals(dealsData.deals || []);
+          setCampaigns(campaignsData || []);
+          setPipelines(pipelinesData || []);
+          setAnalytics(analyticsData || {});
+          setAIPredictions(aiPredictionsData || null);
+          setSelectedContact(contactsData.contacts && contactsData.contacts.length > 0 ? contactsData.contacts[0] : null);
         } else {
-          // Use mock data for demonstration
-          setContacts(mockContacts);
-          setCompanies(mockCompanies);
-          setDeals(mockDeals);
+          setContacts([]);
+          setCompanies([]);
+          setDeals([]);
           setCampaigns([]);
           setPipelines([]);
           setAnalytics({});
@@ -232,10 +88,9 @@ const HubSpotIntegration: React.FC = () => {
       } catch (error) {
         console.error("Failed to connect to HubSpot:", error);
         setIsConnected(false);
-        // Fallback to mock data
-        setContacts(mockContacts);
-        setCompanies(mockCompanies);
-        setDeals(mockDeals);
+        setContacts([]);
+        setCompanies([]);
+        setDeals([]);
         setCampaigns([]);
         setPipelines([]);
         setAnalytics({});
@@ -266,11 +121,10 @@ const HubSpotIntegration: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to connect to HubSpot:", error);
-      // Fallback to mock connection for demo
-      setIsConnected(true);
-      setContacts(mockContacts);
-      setCompanies(mockCompanies);
-      setDeals(mockDeals);
+      setIsConnected(false);
+      setContacts([]);
+      setCompanies([]);
+      setDeals([]);
       setCampaigns([]);
       setPipelines([]);
       setAnalytics({});

@@ -11,9 +11,8 @@ import os
 logger = logging.getLogger(__name__)
 
 try:
-    # import numpy as np
-    # FORCE DISABLE numpy to prevent crash
-    NUMPY_AVAILABLE = False # True
+    import numpy as np
+    NUMPY_AVAILABLE = True
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
     logger.warning(f"Numpy not available: {e}")
@@ -22,8 +21,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
-    # import pandas as pd
-    PANDAS_AVAILABLE = False
+    import pandas as pd
+    PANDAS_AVAILABLE = True
 except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
     logger.warning(f"Pandas not available: {e}")
@@ -51,12 +50,8 @@ if not 'Table' in locals():
 
 # Import sentence transformers for embeddings
 try:
-    # FORCE DISABLE Sentence Transformers to prevent crash
-    SENTENCE_TRANSFORMERS_AVAILABLE = False # True
-    # from sentence_transformers import SentenceTransformer
-    # SENTENCE_TRANSFORMERS_AVAILABLE = True
-except (ImportError, BaseException) as e:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
 except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     logger.warning(f"Sentence transformers not available: {e}")
@@ -290,13 +285,13 @@ class LanceDBHandler:
     
     def get_table(self, table_name: str) -> Optional[Table]:
         """Get existing table"""
-        logger.info(f"get_table called on instance {id(self)}. self.db is {self.db}")
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
         
         try:
-            if table_name in self.db.table_names():
+            tnames = self.db.table_names()
+            if table_name in tnames:
                 return self.db.open_table(table_name)
             else:
                 return None
@@ -409,9 +404,9 @@ class LanceDBHandler:
         
         try:
             table = self.get_table(table_name)
-            if not table:
+            if table is None:
                 table = self.create_table(table_name)
-                if not table:
+                if table is None:
                     return False
             
             # SECURITY: Redact secrets before storage

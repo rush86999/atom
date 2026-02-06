@@ -275,7 +275,11 @@ class StorageService {
       return [...mmkvKeys, ...asyncKeys];
     } catch (error) {
       console.error('StorageService: Failed to get all keys:', error);
-      return [];
+      throw new Error(
+        error instanceof Error
+          ? `Failed to retrieve storage keys: ${error.message}`
+          : 'Storage system is unavailable'
+      );
     }
   }
 
