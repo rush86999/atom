@@ -482,14 +482,50 @@ async def create_social_post(
                 detail="Rate limit exceeded: Maximum 10 posts per hour"
             )
 
-        # Handle scheduled posts (TODO: Implement background job queue)
+        # Handle scheduled posts
         if payload.scheduled_for and payload.scheduled_for > datetime.utcnow():
+            from core.task_queue import enqueue_scheduled_post
+
+            post_id = str(uuid.uuid4())
+
+            # Enqueue the scheduled post
+            job_id = enqueue_scheduled_post(
+                post_id=post_id,
+                platforms=payload.platforms,
+                text=payload.text,
+                scheduled_for=payload.scheduled_for,
+                media_urls=payload.media_urls,
+                link_url=payload.link_url,
+                user_id=current_user.id
+            )
+
+            # Check if task queue is available
+            if job_id is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Task queue is not available. Scheduled posts are currently disabled."
+                )
+
+            # Create history record
+            history = SocialPostHistory(
+                user_id=current_user.id,
+                content=payload.text,
+                platforms=payload.platforms,
+                media_urls=payload.media_urls,
+                link_url=payload.link_url,
+                scheduled_for=payload.scheduled_for,
+                status="scheduled",
+                job_id=job_id
+            )
+            db.add(history)
+            db.commit()
+
             return SocialPostResponse(
                 success=True,
-                post_id=str(uuid.uuid4()),
-                platform_results={},
+                post_id=post_id,
+                platform_results={"job_id": job_id},
                 scheduled=True,
-                scheduled_for=payload.scheduled_for,
+                scheduled_for=payload.scheduled_for
             )
 
         # Post to each platform
