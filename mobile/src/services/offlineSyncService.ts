@@ -534,7 +534,11 @@ class OfflineSyncService {
       }));
     } catch (error) {
       console.error('OfflineSync: Failed to parse queue:', error);
-      return [];
+      // Clear corrupted data
+      await mmkvStorage.delete('offline_queue' as StorageKey);
+      throw new Error(
+        'Offline queue data corrupted. Queue has been reset. Please try again.'
+      );
     }
   }
 

@@ -136,9 +136,10 @@ class DataIntelligenceEngine:
         import os
         
         mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
+        ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
         
         # Check if mock mode is explicitly enabled for development
-        if mock_mode:
+        if mock_mode and ENVIRONMENT == "development":
             return self._mock_platform_connector(platform)
         
         # Try to get real data from integration services

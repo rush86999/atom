@@ -206,6 +206,209 @@ class DropboxService:
                 detail=f"Failed to create folder: {str(e)}"
             )
 
+    async def upload_file(
+        self,
+        path: str,
+        file_content: bytes,
+        access_token: str = None,
+        autorename: bool = True
+    ) -> Dict[str, Any]:
+        """Upload a file to Dropbox"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            import json
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/octet-stream",
+                "Dropbox-API-Arg": json.dumps({
+                    "path": path,
+                    "mode": "add",
+                    "autorename": autorename,
+                    "mute": False,
+                    "strict_conflict": False
+                })
+            }
+            
+            response = await self.client.post(
+                f"{self.content_url}/files/upload",
+                headers=headers,
+                content=file_content
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to upload file: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to upload file: {str(e)}"
+            )
+
+    async def download_file(
+        self,
+        path: str,
+        access_token: str = None
+    ) -> bytes:
+        """Download a file from Dropbox"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            import json
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Dropbox-API-Arg": json.dumps({"path": path})
+            }
+            
+            response = await self.client.post(
+                f"{self.content_url}/files/download",
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            return response.content
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to download file: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to download file: {str(e)}"
+            )
+
+    async def delete_item(
+        self,
+        path: str,
+        access_token: str = None
+    ) -> Dict[str, Any]:
+        """Delete a file or folder"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            payload = {"path": path}
+            
+            response = await self.client.post(
+                f"{self.base_url}/files/delete_v2",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to delete item: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to delete item: {str(e)}"
+            )
+
+    async def move_item(
+        self,
+        from_path: str,
+        to_path: str,
+        access_token: str = None,
+        autorename: bool = True
+    ) -> Dict[str, Any]:
+        """Move a file or folder"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            payload = {
+                "from_path": from_path,
+                "to_path": to_path,
+                "autorename": autorename
+            }
+            
+            response = await self.client.post(
+                f"{self.base_url}/files/move_v2",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to move item: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to move item: {str(e)}"
+            )
+
+    async def copy_item(
+        self,
+        from_path: str,
+        to_path: str,
+        access_token: str = None,
+        autorename: bool = True
+    ) -> Dict[str, Any]:
+        """Copy a file or folder"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            payload = {
+                "from_path": from_path,
+                "to_path": to_path,
+                "autorename": autorename
+            }
+            
+            response = await self.client.post(
+                f"{self.base_url}/files/copy_v2",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to copy item: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to copy item: {str(e)}"
+            )
+
+    async def create_shared_link(
+        self,
+        path: str,
+        access_token: str = None,
+        settings: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Create a shared link for a file or folder"""
+        try:
+            token = access_token or self.access_token
+            if not token:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            headers = self._get_headers(token)
+            payload = {"path": path}
+            if settings:
+                payload["settings"] = settings
+            
+            response = await self.client.post(
+                f"{self.base_url}/sharing/create_shared_link_with_settings",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to create shared link: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to create shared link: {str(e)}"
+            )
+
     async def get_account_info(self, access_token: str = None) -> Dict[str, Any]:
         """Get current account information"""
         try:

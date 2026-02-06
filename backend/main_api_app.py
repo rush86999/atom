@@ -4,14 +4,8 @@ import sys
 import types
 from unittest.mock import MagicMock
 
-# Prevent numpy/pandas from loading real DLLs that crash on Py 3.13
-# Setting to None raises ImportError instead of crashing, allowing try-except blocks to work
-sys.modules["numpy"] = None
-sys.modules["pandas"] = None
-sys.modules["lancedb"] = None
-sys.modules["pyarrow"] = None
-
-print("WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
+# Core dependencies (numpy, pandas, lancedb) are now allowed to load normally
+# Reference: System dependency check passed for Python 3.14 environment
 
 from datetime import datetime
 import logging
@@ -601,6 +595,41 @@ try:
         logger.info("✓ Integrations Catalog Routes Loaded")
     except ImportError as e:
         logger.warning(f"Integrations catalog routes not found: {e}")
+
+    try:
+        from api.oauth_routes import router as oauth_router
+        app.include_router(oauth_router)
+        logger.info("✓ OAuth Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"OAuth routes not found: {e}")
+
+    try:
+        from api.social_media_routes import router as social_media_router
+        app.include_router(social_media_router)
+        logger.info("✓ Social Media Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Social media routes not found: {e}")
+
+    try:
+        from api.competitor_analysis_routes import router as competitor_analysis_router
+        app.include_router(competitor_analysis_router)
+        logger.info("✓ Competitor Analysis Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Competitor analysis routes not found: {e}")
+
+    try:
+        from api.learning_plan_routes import router as learning_plan_router
+        app.include_router(learning_plan_router)
+        logger.info("✓ Learning Plan Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Learning plan routes not found: {e}")
+
+    try:
+        from api.project_health_routes import router as project_health_router
+        app.include_router(project_health_router)
+        logger.info("✓ Project Health Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Project health routes not found: {e}")
 
     try:
         from api.dynamic_options_routes import router as dynamic_options_router

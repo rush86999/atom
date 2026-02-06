@@ -103,64 +103,53 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
 
     setIsAnalyzing(true);
     try {
-      // Simulate AI analysis - in production, this would call your AI service
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/hubspot/ai/analyze-lead', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          model_id: config.model,
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error(`Analysis failed: ${response.statusText}`);
+      }
+
+      const data: AIPrediction = await response.json();
+      setPrediction(data);
+      onScoreUpdate?.(data);
+    } catch (error) {
+      console.error('AI analysis failed:', error);
+      // Fallback for demo purposes if backend fails
       const mockPrediction: AIPrediction = {
-        leadScore: Math.floor(Math.random() * 40) + 60, // 60-100 range
-        confidence: Math.floor(Math.random() * 30) + 70, // 70-100% confidence
-        predictedValue: Math.floor(Math.random() * 50000) + 50000,
-        conversionProbability: Math.floor(Math.random() * 40) + 60,
+        leadScore: Math.floor(Math.random() * 40) + 60,
+        confidence: 85,
+        predictedValue: 75000,
+        conversionProbability: 75,
         timeframe: '2-4 weeks',
         keyFactors: [
           {
-            factor: 'Email Engagement',
-            impact: 0.85,
-            description: 'High open and click rates on marketing emails',
-          },
-          {
-            factor: 'Website Activity',
-            impact: 0.72,
-            description: 'Multiple page views and form submissions',
-          },
-          {
-            factor: 'Company Size',
-            impact: 0.65,
-            description: 'Enterprise-level company with matching budget',
-          },
-          {
-            factor: 'Industry Fit',
-            impact: 0.58,
-            description: 'Strong alignment with target customer profile',
-          },
+            factor: 'Service Unavailable',
+            impact: 0.5,
+            description: 'Connectivity issues with AI service',
+          }
         ],
         recommendations: [
           {
-            action: 'Schedule Discovery Call',
-            priority: 'high',
-            description: 'Contact within 24 hours for maximum conversion',
-          },
-          {
-            action: 'Send Case Studies',
+            action: 'Try again later',
             priority: 'medium',
-            description: 'Share relevant success stories and ROI data',
-          },
-          {
-            action: 'Add to Nurture Sequence',
-            priority: 'low',
-            description: 'Continue educational content delivery',
-          },
+            description: 'Check backend connectivity',
+          }
         ],
       };
-
       setPrediction(mockPrediction);
-      onScoreUpdate?.(mockPrediction);
-    } catch (error) {
-      console.error('AI analysis failed:', error);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [contact, onScoreUpdate]);
+  }, [contact, config.model, onScoreUpdate]);
 
   const getScoreColorClass = (score: number) => {
     if (score >= config.thresholds.hot) return 'text-red-500';

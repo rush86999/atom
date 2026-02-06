@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from integrations.auth_handler_dropbox import dropbox_auth_handler
+from integrations.dropbox_service import dropbox_service
 
 logger = logging.getLogger(__name__)
 
@@ -171,15 +172,20 @@ async def get_dropbox_user():
 async def list_files(request: FileListRequest):
     """List files and folders with pagination"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        entries = await dropbox_service.list_folder(
+            path="" if request.path == "/" else request.path,
+            access_token=token,
+            recursive=request.recursive,
+            limit=request.limit
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "list_files",
-            "data": {"entries": [], "cursor": None, "has_more": False},
+            "data": {"entries": entries, "cursor": None, "has_more": False},
             "path": request.path,
-            "count": 0,
+            "count": len(entries),
         }
     except Exception as e:
         logger.error(f"Error listing files: {e}")
@@ -190,23 +196,23 @@ async def list_files(request: FileListRequest):
 async def upload_file(request: FileUploadRequest):
     """Upload file to Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        import base64
+        file_bytes = base64.b64decode(request.file_content)
+        
+        path = f"{request.path.rstrip('/')}/{request.file_name}"
+        result = await dropbox_service.upload_file(
+            path=path,
+            file_content=file_bytes,
+            access_token=token,
+            autorename=request.autorename
+        )
+        
         return {
             "success": True,
             "service": "dropbox",
             "operation": "upload_file",
-            "data": {
-                "id": "mock_file_id",
-                "name": request.file_name,
-                "path_lower": f"{request.path}/{request.file_name}",
-                "path_display": f"{request.path}/{request.file_name}",
-                "client_modified": datetime.now().isoformat(),
-                "server_modified": datetime.now().isoformat(),
-                "rev": "mock_rev",
-                "size": len(request.file_content),
-                "is_downloadable": True,
-            },
+            "data": result,
             "message": "File uploaded successfully",
         }
     except Exception as e:
@@ -218,17 +224,21 @@ async def upload_file(request: FileUploadRequest):
 async def download_file(request: FileDownloadRequest):
     """Download file from Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        content = await dropbox_service.download_file(
+            path=request.path,
+            access_token=token
+        )
+        
+        import base64
         return {
             "success": True,
             "service": "dropbox",
             "operation": "download_file",
             "data": {
                 "file_name": request.path.split("/")[-1],
-                "content_bytes": "mock_base64_content",
+                "content_bytes": base64.b64encode(content).decode("utf-8"),
                 "mime_type": "application/octet-stream",
-                "rev": request.rev or "mock_rev",
             },
         }
     except Exception as e:
@@ -242,15 +252,20 @@ async def download_file(request: FileDownloadRequest):
 async def search_files(request: FileSearchRequest):
     """Search files in Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        results = await dropbox_service.search(
+            query=request.query,
+            access_token=token,
+            path="" if request.path == "/" else request.path,
+            max_results=request.max_results
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "search_files",
-            "data": {"matches": [], "more": False, "start": 0},
+            "data": {"matches": results, "more": False, "start": 0},
             "query": request.query,
-            "count": 0,
+            "count": len(results),
         }
     except Exception as e:
         logger.error(f"Error searching files: {e}")
@@ -262,20 +277,16 @@ async def search_files(request: FileSearchRequest):
 async def create_folder(request: FolderCreateRequest):
     """Create folder in Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.create_folder(
+            path=request.path,
+            access_token=token
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "create_folder",
-            "data": {
-                "id": "mock_folder_id",
-                "name": request.path.split("/")[-1],
-                "path_lower": request.path,
-                "path_display": request.path,
-                "shared_folder_id": None,
-                "sharing_info": None,
-            },
+            "data": result,
             "message": "Folder created successfully",
         }
     except Exception as e:
@@ -289,15 +300,22 @@ async def create_folder(request: FolderCreateRequest):
 async def list_folders(request: FileListRequest):
     """List folders with pagination"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        entries = await dropbox_service.list_folder(
+            path="" if request.path == "/" else request.path,
+            access_token=token,
+            recursive=request.recursive,
+            limit=request.limit
+        )
+        # Filter for folders only
+        folders = [e for e in entries if e.get(".tag") == "folder"]
         return {
             "success": True,
             "service": "dropbox",
             "operation": "list_folders",
-            "data": {"entries": [], "cursor": None, "has_more": False},
+            "data": {"entries": folders, "cursor": None, "has_more": False},
             "path": request.path,
-            "count": 0,
+            "count": len(folders),
         }
     except Exception as e:
         logger.error(f"Error listing folders: {e}")
@@ -309,20 +327,16 @@ async def list_folders(request: FileListRequest):
 async def delete_item(request: ItemDeleteRequest):
     """Delete file or folder from Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.delete_item(
+            path=request.path,
+            access_token=token
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "delete_item",
-            "data": {
-                "metadata": {
-                    "id": "mock_item_id",
-                    "name": request.path.split("/")[-1],
-                    "path_lower": request.path,
-                    "path_display": request.path,
-                }
-            },
+            "data": result,
             "message": "Item deleted successfully",
         }
     except Exception as e:
@@ -334,20 +348,18 @@ async def delete_item(request: ItemDeleteRequest):
 async def move_item(request: ItemMoveRequest):
     """Move file or folder in Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.move_item(
+            from_path=request.from_path,
+            to_path=request.to_path,
+            access_token=token,
+            autorename=request.autorename
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "move_item",
-            "data": {
-                "metadata": {
-                    "id": "mock_item_id",
-                    "name": request.to_path.split("/")[-1],
-                    "path_lower": request.to_path,
-                    "path_display": request.to_path,
-                }
-            },
+            "data": result,
             "message": "Item moved successfully",
         }
     except Exception as e:
@@ -359,20 +371,18 @@ async def move_item(request: ItemMoveRequest):
 async def copy_item(request: ItemCopyRequest):
     """Copy file or folder in Dropbox"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.copy_item(
+            from_path=request.from_path,
+            to_path=request.to_path,
+            access_token=token,
+            autorename=request.autorename
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "copy_item",
-            "data": {
-                "metadata": {
-                    "id": "mock_item_id",
-                    "name": request.to_path.split("/")[-1],
-                    "path_lower": request.to_path,
-                    "path_display": request.to_path,
-                }
-            },
+            "data": result,
             "message": "Item copied successfully",
         }
     except Exception as e:
@@ -385,25 +395,17 @@ async def copy_item(request: ItemCopyRequest):
 async def create_shared_link(request: SharedLinkCreateRequest):
     """Create shared link for file or folder"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.create_shared_link(
+            path=request.path,
+            access_token=token,
+            settings=request.settings
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "create_shared_link",
-            "data": {
-                "url": "https://www.dropbox.com/s/mock_link/mock_file?dl=0",
-                "name": request.path.split("/")[-1],
-                "path_lower": request.path,
-                "link_permissions": {
-                    "can_revoke": True,
-                    "resolved_visibility": {".tag": "public"},
-                    "revoke_failure_reason": None,
-                },
-                "preview_type": "file",
-                "client_modified": datetime.now().isoformat(),
-                "server_modified": datetime.now().isoformat(),
-            },
+            "data": result,
             "message": "Shared link created successfully",
         }
     except Exception as e:
@@ -418,29 +420,13 @@ async def create_shared_link(request: SharedLinkCreateRequest):
 async def get_user_info(user_id: str = Query(..., description="User ID")):
     """Get Dropbox user information"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.get_account_info(access_token=token)
         return {
             "success": True,
             "service": "dropbox",
             "operation": "get_user_info",
-            "data": {
-                "account_id": "mock_account_id",
-                "name": {
-                    "given_name": "Mock",
-                    "surname": "User",
-                    "familiar_name": "Mock",
-                    "display_name": "Mock User",
-                    "abbreviated_name": "MU",
-                },
-                "email": "mock@example.com",
-                "email_verified": True,
-                "profile_photo_url": None,
-                "disabled": False,
-                "country": "US",
-                "locale": "en",
-                "referral_link": "https://db.tt/mock_referral",
-            },
+            "data": result,
         }
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
@@ -453,19 +439,13 @@ async def get_user_info(user_id: str = Query(..., description="User ID")):
 async def get_space_usage(user_id: str = Query(..., description="User ID")):
     """Get Dropbox space usage information"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.get_space_usage(access_token=token)
         return {
             "success": True,
             "service": "dropbox",
             "operation": "get_space_usage",
-            "data": {
-                "used": 1073741824,  # 1 GB
-                "allocation": {
-                    ".tag": "individual",
-                    "allocated": 21474836480,  # 20 GB
-                },
-            },
+            "data": result,
         }
     except Exception as e:
         logger.error(f"Error getting space usage: {e}")
@@ -483,24 +463,16 @@ async def get_file_metadata(
 ):
     """Get detailed file metadata"""
     try:
-        # This would call the Dropbox service
-        # For now, return mock response
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.get_metadata(
+            path=path,
+            access_token=token
+        )
         return {
             "success": True,
             "service": "dropbox",
             "operation": "get_file_metadata",
-            "data": {
-                "id": "mock_file_id",
-                "name": path.split("/")[-1],
-                "path_lower": path,
-                "path_display": path,
-                "client_modified": datetime.now().isoformat(),
-                "server_modified": datetime.now().isoformat(),
-                "rev": "mock_rev",
-                "size": 1024,
-                "is_downloadable": True,
-                "content_hash": "mock_hash",
-            },
+            "data": result,
         }
     except Exception as e:
         logger.error(f"Error getting file metadata: {e}")
