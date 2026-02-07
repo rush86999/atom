@@ -1,0 +1,108 @@
+# Coverage Configuration for Atom Testing Framework
+# Ensures comprehensive test coverage across all modules
+
+[run]
+# Source directories to measure coverage
+source =
+    core
+    api
+    tools
+    integrations
+
+# Omit specific files from coverage
+omit =
+    # Test files
+    */tests/*
+    */test_*.py
+    # __init__ files
+    */__init__.py
+    # Migration files
+    */alembic/versions/*
+    # Configuration files
+    */conftest.py
+    # Mock/stub files
+    */mock_*.py
+    # Development scripts
+    debug_*.py
+    investigate_*.py
+    verify_*.py
+    # Generated files
+    */.generated/*
+    # Third-party integrations (optional)
+    */integrations/*/_vendor/*
+
+# Branch coverage
+branch = True
+
+# Partial coverage (for decorated functions)
+partial_branches =
+    pragma: no cover
+    if NotImplementedError:
+    if TYPE_CHECKING:
+
+# Precision
+precision = 2
+
+# Data file
+data_file = .coverage
+
+# Parallel mode
+parallel = True
+
+[report]
+# Precision for percentages
+precision = 2
+
+# Exclude lines from coverage
+exclude_lines =
+    # Standard exclusions
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    # Debugging code
+    if DEBUG:
+    if logging.DEBUG:
+    # Development code
+    \.\.\.  # Ellipsis
+    pass
+
+# Fail under threshold
+fail_under = 80.0
+
+# Show missing lines
+show_missing = True
+
+# Skip empty files
+skip_empty = True
+
+# Sort report by
+sort = Cover
+
+[html]
+# HTML output directory
+directory = tests/coverage_reports/html
+
+# Title
+title = Atom Coverage Report
+
+[json]
+# JSON output file
+output = tests/coverage_reports/metrics/coverage.json
+
+# Pretty print
+pretty_print = True
+
+[xml]
+# XML output file (for CI/CD)
+output = coverage.xml
+
+[paths]
+# Source mapping (for combining coverage from different environments)
+source =
+    core/
+    */core
+    */site-packages/core
