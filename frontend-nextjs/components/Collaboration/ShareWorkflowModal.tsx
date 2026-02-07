@@ -413,7 +413,8 @@ export const ShareWorkflowModal: React.FC<ShareWorkflowModalProps> = ({
                   ))}
                 </div>
               )}
-            </TabsContent>
+            </div>
+          </TabsContent>
 
           {/* Email Invite Tab */}
           <TabsContent value="email" className="space-y-4 mt-4">
