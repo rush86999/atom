@@ -12,7 +12,7 @@ atheris>=2.2.0  # Coverage-guided fuzzing for Python
 mutmut>=2.4.0  # Mutation testing tool
 
 # Chaos Engineering
-chaos-toolkit>=0.23.0  # Chaos engineering framework
+# chaos-toolkit>=0.23.0  # NOTE: Package doesn't exist on PyPI, removed
 
 # Parallel Test Execution
 pytest-xdist>=3.5.0  # Parallel pytest execution
