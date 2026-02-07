@@ -220,21 +220,6 @@ function getMockDashboardData(): DashboardData {
   },
 };
 
-    unread: true,
-    priority: "normal",
-  },
-  {
-    id: "4",
-    platform: "discord",
-    from: "Development Community",
-    subject: "Weekly Tech Talk",
-    preview: "Join us this Thursday for a discussion on AI assistants",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    unread: false,
-    priority: "low",
-  },
-];
-
 // Function to fetch real calendar data from backend API
 async function fetchRealCalendarData(): Promise<CalendarEvent[]> {
   try {
