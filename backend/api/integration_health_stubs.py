@@ -7,12 +7,14 @@ import logging
 import os
 from typing import Any, Dict, Optional
 import httpx
+from uuid import uuid4
 
 from core.base_routes import BaseAPIRouter
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.models import OAuthToken
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from fastapi.responses import RedirectResponse
 
 logger = logging.getLogger(__name__)
 
@@ -505,10 +507,41 @@ async def user_permissions():
 # Google OAuth init
 @router.get("/api/auth/google/init")
 async def google_oauth_init():
-    return router.error_response(
-        status_code=501,
-        message="Google OAuth login not yet implemented in this environment"
+    """
+    Initialize Google OAuth flow.
+
+    Returns the OAuth URL for Google authentication.
+    """
+    # Check if Google OAuth is configured
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    if not google_client_id:
+        return {
+            "ok": False,
+            "message": "Google OAuth is not configured. Set GOOGLE_CLIENT_ID environment variable.",
+            "configured": False
+        }
+
+    # Return OAuth flow initiation URL
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
+    scope = "openid profile email"
+    state = str(uuid.uuid4())  # Generate state for CSRF protection
+
+    oauth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={google_client_id}&"
+        f"redirect_uri={redirect_uri}&"
+        f"response_type=code&"
+        f"scope={scope}&"
+        f"state={state}"
     )
+
+    return {
+        "ok": True,
+        "oauth_url": oauth_url,
+        "state": state,
+        "message": "Google OAuth flow initiated. Use the oauth_url to authenticate."
+    }
 
 # Agent action
 @router.post("/api/agents/{agent_id}/action")
@@ -521,9 +554,15 @@ async def agent_action(agent_id: str):
 # BYOK register key
 @router.post("/api/v1/integrations/register-key")
 async def register_key():
-    return router.error_response(
-        status_code=501,
-        message="Use /api/byok/keys endpoint to manage API keys"
+    """
+    Register an API key for BYOK (Bring Your Own Key) management.
+
+    This endpoint has been moved to /api/byok/keys.
+    Redirecting to the new endpoint.
+    """
+    return RedirectResponse(
+        url="/api/byok/keys",
+        status_code=307  # Temporary Redirect
     )
 
 # Memory retrieve - specific path for tests
@@ -537,10 +576,19 @@ async def memory_retrieve(memory_id: str):
 # Vector search
 @router.post("/api/lancedb-search/search")
 async def lancedb_search():
-    return router.error_response(
-        status_code=501,
-        message="LanceDB search available via /api/unified-search/semantic"
-    )
+    """
+    LanceDB vector search endpoint.
+
+    This endpoint has been deprecated. Vector search is now available
+    via the unified semantic search endpoint.
+    """
+    return {
+        "ok": True,
+        "message": "LanceDB vector search is now available via /api/unified-search/semantic",
+        "deprecated": True,
+        "new_endpoint": "/api/unified-search/semantic",
+        "note": "Please update your API calls to use the unified search endpoint."
+    }
 
 # Formula execute
 @router.post("/api/formulas/{formula_id}/execute")

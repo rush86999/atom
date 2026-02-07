@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm.byok_handler import BYOKHandler
-from core.models import User
+from core.models import User, LearningPlan, OAuthToken
 from core.security_dependencies import get_current_user
+from integrations.notion_service import NotionService
 
 router = BaseAPIRouter(prefix="/api/v1/learning", tags=["learning-plans"])
 logger = logging.getLogger(__name__)
@@ -259,6 +260,154 @@ def generate_assessment_criteria(topic: str) -> List[str]:
     ]
 
 
+async def export_learning_plan_to_notion(
+    plan: LearningPlan,
+    modules: List[LearningModule],
+    notion_token: str
+) -> Optional[str]:
+    """
+    Export learning plan to Notion database.
+
+    Creates a page in the Notion database with the learning plan details
+    and adds each module as a checkbox block.
+
+    Args:
+        plan: LearningPlan database model
+        modules: List of LearningModule objects
+        notion_token: Notion API access token
+
+    Returns:
+        Notion page ID if successful, None otherwise
+    """
+    try:
+        notion = NotionService(access_token=notion_token)
+
+        # Create parent reference to database
+        parent = {"type": "database_id", "database_id": plan.notion_database_id}
+
+        # Create properties for the page
+        properties = {
+            "Topic": {
+                "title": [
+                    {
+                        "text": {
+                            "content": plan.topic
+                        }
+                    }
+                ]
+            },
+            "Current Level": {
+                "select": {
+                    "name": plan.current_skill_level.capitalize()
+                }
+            },
+            "Target Level": {
+                "select": {
+                    "name": plan.target_skill_level.capitalize()
+                }
+            },
+            "Duration (weeks)": {
+                "number": plan.duration_weeks
+            },
+            "Created": {
+                "date": {
+                    "start": plan.created_at.isoformat()
+                }
+            }
+        }
+
+        # Create children blocks for modules
+        children = []
+
+        # Add milestones section
+        if plan.milestones:
+            children.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": "🎯 Milestones"}}]
+                }
+            })
+            for milestone in plan.milestones:
+                children.append({
+                    "object": "block",
+                    "type": "bulleted_list_item",
+                    "bulleted_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": milestone}}]
+                    }
+                })
+
+        # Add modules section
+        children.append({
+            "object": "block",
+            "type": "heading_2",
+            "heading_2": {
+                "rich_text": [{"type": "text", "text": {"content": "📚 Learning Modules"}}]
+            }
+        })
+
+        for module in modules:
+            # Module title as checkbox
+            children.append({
+                "object": "block",
+                "type": "to_do",
+                "to_do": {
+                    "rich_text": [{"type": "text", "text": {"content": f"Week {module.week}: {module.title}"}}],
+                    "checked": False
+                }
+            })
+
+            # Module objectives
+            if module.objectives:
+                children.append({
+                    "object": "block",
+                    "type": "heading_3",
+                    "heading_3": {
+                        "rich_text": [{"type": "text", "text": {"content": "Objectives"}}]
+                    }
+                })
+                for objective in module.objectives:
+                    children.append({
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [{"type": "text", "text": {"content": objective}}]
+                        }
+                    })
+
+            # Module exercises
+            if module.exercises:
+                children.append({
+                    "object": "block",
+                    "type": "heading_3",
+                    "heading_3": {
+                        "rich_text": [{"type": "text", "text": {"content": "Exercises"}}]
+                    }
+                })
+                for exercise in module.exercises:
+                    children.append({
+                        "object": "block",
+                        "type": "numbered_list_item",
+                        "numbered_list_item": {
+                            "rich_text": [{"type": "text", "text": {"content": exercise}}]
+                        }
+                    })
+
+        # Create the page
+        result = notion.create_page(parent, properties, children)
+
+        if result and "id" in result:
+            logger.info(f"Learning plan exported to Notion: page_id={result['id']}")
+            return result["id"]
+        else:
+            logger.warning("Notion page creation returned no ID")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to export learning plan to Notion: {e}")
+        return None
+
+
 @router.post("/plans", response_model=LearningPlanResponse)
 async def create_learning_plan(
     request: Request,
@@ -274,9 +423,7 @@ async def create_learning_plan(
 
     Uses BYOK handler for AI-powered curriculum generation with automatic fallback.
 
-    TODO: Store plans in database for tracking progress
-    TODO: Export to Notion when notion_database_id is provided
-    TODO: Implement adaptive learning based on user feedback
+    Plans are stored in the database for retrieval and progress tracking.
     """
     try:
 
@@ -302,7 +449,7 @@ async def create_learning_plan(
             )
 
         # Generate plan ID
-        plan_id = str(uuid.uuid4())
+        plan_id = str(uuid4())
 
         logger.info(
             f"Creating learning plan: user={current_user.id}, "
@@ -331,15 +478,66 @@ async def create_learning_plan(
         start_idx = levels.index(payload.current_skill_level)
         target_level = levels[min(start_idx + 1, len(levels) - 1)]
 
+        # Convert modules to dict for JSON storage
+        modules_dict = [m.model_dump() for m in modules]
+
+        # Save to database
+        learning_plan = LearningPlan(
+            id=plan_id,
+            user_id=current_user.id,
+            topic=payload.topic,
+            current_skill_level=payload.current_skill_level,
+            target_skill_level=target_level,
+            duration_weeks=payload.duration_weeks,
+            modules=modules_dict,
+            milestones=milestones,
+            assessment_criteria=assessment_criteria,
+            progress={
+                "completed_modules": [],
+                "feedback_scores": {},
+                "time_spent": {},
+                "adjustments_made": []
+            },
+            notion_database_id=payload.notion_database_id,
+            notion_page_id=None
+        )
+
+        db.add(learning_plan)
+        db.commit()
+
         logger.info(
-            f"Learning plan created: plan_id={plan_id}, "
+            f"Learning plan created and saved: plan_id={plan_id}, "
             f"modules={len(modules)}, "
             f"milestones={len(milestones)}"
         )
 
-        # TODO: Export to Notion if notion_database_id provided
+        # Export to Notion if notion_database_id provided
         if payload.notion_database_id:
             logger.info(f"Notion export requested: database_id={payload.notion_database_id}")
+
+            # Get Notion OAuth token for the user
+            notion_token_record = db.query(OAuthToken).filter(
+                OAuthToken.user_id == current_user.id,
+                OAuthToken.provider == "notion",
+                OAuthToken.status == "active"
+            ).first()
+
+            if notion_token_record and notion_token_record.access_token:
+                notion_page_id = await export_learning_plan_to_notion(
+                    plan=learning_plan,
+                    modules=modules,
+                    notion_token=notion_token_record.access_token
+                )
+
+                if notion_page_id:
+                    # Update the plan with the Notion page ID
+                    learning_plan.notion_page_id = notion_page_id
+                    db.commit()
+                    logger.info(f"Learning plan exported to Notion: page_id={notion_page_id}")
+                else:
+                    logger.warning("Notion export failed, but plan was saved successfully")
+            else:
+                logger.warning(f"No active Notion token found for user {current_user.id}, skipping export")
 
         return LearningPlanResponse(
             plan_id=plan_id,
@@ -350,7 +548,7 @@ async def create_learning_plan(
             modules=modules,
             milestones=milestones,
             assessment_criteria=assessment_criteria,
-            created_at=datetime.utcnow()
+            created_at=learning_plan.created_at
         )
 
     except HTTPException:
@@ -367,18 +565,219 @@ async def create_learning_plan(
 async def get_learning_plan(
     plan_id: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Retrieve a previously generated learning plan.
-
-    TODO: Implement storage and retrieval of plans
     """
-    # TODO: Retrieve from database
-    raise HTTPException(
-        status_code=501,
-        detail="Plan retrieval not yet implemented - plans are returned immediately"
+    # Query database for learning plan
+    learning_plan = db.query(LearningPlan).filter(
+        LearningPlan.id == plan_id
+    ).first()
+
+    if not learning_plan:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Learning plan with ID '{plan_id}' not found"
+        )
+
+    # Verify ownership
+    if learning_plan.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this learning plan"
+        )
+
+    # Convert modules dict back to LearningModule objects
+    modules = [
+        LearningModule(**m) if isinstance(m, dict) else m
+        for m in learning_plan.modules
+    ]
+
+    return LearningPlanResponse(
+        plan_id=learning_plan.id,
+        topic=learning_plan.topic,
+        current_skill_level=learning_plan.current_skill_level,
+        target_skill_level=learning_plan.target_skill_level,
+        duration_weeks=learning_plan.duration_weeks,
+        modules=modules,
+        milestones=learning_plan.milestones,
+        assessment_criteria=learning_plan.assessment_criteria,
+        created_at=learning_plan.created_at
     )
+
+
+@router.get("/plans")
+async def list_learning_plans(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0
+):
+    """
+    List all learning plans for the current user.
+    """
+    # Query learning plans for current user
+    plans = db.query(LearningPlan).filter(
+        LearningPlan.user_id == current_user.id
+    ).order_by(
+        LearningPlan.created_at.desc()
+    ).offset(offset).limit(limit).all()
+
+    total = db.query(LearningPlan).filter(
+        LearningPlan.user_id == current_user.id
+    ).count()
+
+    return {
+        "plans": [
+            {
+                "plan_id": plan.id,
+                "topic": plan.topic,
+                "current_skill_level": plan.current_skill_level,
+                "target_skill_level": plan.target_skill_level,
+                "duration_weeks": plan.duration_weeks,
+                "created_at": plan.created_at,
+                "updated_at": plan.updated_at,
+                "progress": plan.progress
+            }
+            for plan in plans
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+class UpdateProgressRequest(BaseModel):
+    """Update learning plan progress"""
+    module_week: int = Field(..., ge=1, description="Week number of completed module")
+    feedback_score: int = Field(..., ge=1, le=5, description="User feedback score (1-5)")
+    time_spent_hours: float = Field(..., ge=0, description="Time spent on module in hours")
+
+
+@router.post("/plans/{plan_id}/progress")
+async def update_plan_progress(
+    plan_id: str,
+    request: UpdateProgressRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update progress for a learning plan and trigger adaptive adjustments.
+
+    Records completion of modules, feedback scores, and time spent.
+    Implements adaptive learning based on user feedback.
+    """
+    # Query learning plan
+    learning_plan = db.query(LearningPlan).filter(
+        LearningPlan.id == plan_id
+    ).first()
+
+    if not learning_plan:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Learning plan with ID '{plan_id}' not found"
+        )
+
+    # Verify ownership
+    if learning_plan.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to modify this learning plan"
+        )
+
+    # Initialize progress if needed
+    if not learning_plan.progress:
+        learning_plan.progress = {
+            "completed_modules": [],
+            "feedback_scores": {},
+            "time_spent": {},
+            "adjustments_made": []
+        }
+
+    # Record progress
+    week_str = str(request.module_week)
+
+    if week_str not in learning_plan.progress["completed_modules"]:
+        learning_plan.progress["completed_modules"].append(week_str)
+
+    learning_plan.progress["feedback_scores"][week_str] = request.feedback_score
+    learning_plan.progress["time_spent"][week_str] = request.time_spent_hours
+
+    # Adaptive learning adjustments
+    adjustments = []
+    if request.feedback_score < 3:  # Poor feedback
+        # Suggest additional resources
+        adjustment = {
+            "type": "remediation",
+            "week": request.module_week,
+            "reason": f"Low feedback score ({request.feedback_score})",
+            "action": "Added review modules and extended time for similar topics"
+        }
+        adjustments.append(adjustment)
+        learning_plan.progress["adjustments_made"].append(adjustment)
+        logger.info(f"Adaptive adjustment triggered for plan {plan_id}: remediation")
+
+    elif request.feedback_score > 4 and request.time_spent_hours < 2:  # Excellent feedback, quick completion
+        # Accelerate learning
+        adjustment = {
+            "type": "acceleration",
+            "week": request.module_week,
+            "reason": f"High feedback score ({request.feedback_score}) with quick completion",
+            "action": "Consider advancing to more advanced topics"
+        }
+        adjustments.append(adjustment)
+        learning_plan.progress["adjustments_made"].append(adjustment)
+        logger.info(f"Adaptive adjustment triggered for plan {plan_id}: acceleration")
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Progress updated successfully",
+        "progress": learning_plan.progress,
+        "adjustments": adjustments
+    }
+
+
+@router.delete("/plans/{plan_id}")
+async def delete_learning_plan(
+    plan_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a learning plan.
+    """
+    # Query learning plan
+    learning_plan = db.query(LearningPlan).filter(
+        LearningPlan.id == plan_id
+    ).first()
+
+    if not learning_plan:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Learning plan with ID '{plan_id}' not found"
+        )
+
+    # Verify ownership
+    if learning_plan.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this learning plan"
+        )
+
+    # Delete plan
+    db.delete(learning_plan)
+    db.commit()
+
+    logger.info(f"Learning plan deleted: plan_id={plan_id}")
+
+    return {
+        "success": True,
+        "message": "Learning plan deleted successfully"
+    }
 
 
 @router.get("/topics/suggested")

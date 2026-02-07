@@ -4428,3 +4428,211 @@ class DebugSession(Base):
 
     def __repr__(self):
         return f"<DebugSession(id={self.id}, name={self.session_name}, active={self.active})>"
+
+
+# ============================================================================
+# Learning and Analysis Models
+# ============================================================================
+
+class LearningPlan(Base):
+    """
+    AI-Generated Personalized Learning Plans
+
+    Stores structured learning paths with modules, resources, exercises,
+    milestones, and assessment criteria. Supports progress tracking and
+    adaptive learning based on user feedback.
+    """
+    __tablename__ = "learning_plans"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Plan details
+    topic = Column(String, nullable=False)
+    current_skill_level = Column(String, nullable=False)  # beginner, intermediate, advanced
+    target_skill_level = Column(String, nullable=False)
+    duration_weeks = Column(Integer, nullable=False)
+
+    # Learning content
+    modules = Column(JSON, nullable=False)  # List of LearningModule objects
+    milestones = Column(JSON, nullable=False)  # List of milestone strings
+    assessment_criteria = Column(JSON, nullable=False)  # List of criteria
+
+    # Progress tracking
+    progress = Column(JSON, default=dict)  # {completed_modules: [], feedback_scores: {}, time_spent: {}, adjustments_made: []}
+
+    # Notion integration
+    notion_database_id = Column(String, nullable=True)
+    notion_page_id = Column(String, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="learning_plans")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_learning_plans_user_created', 'user_id', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<LearningPlan(id={self.id}, topic={self.topic}, user_id={self.user_id})>"
+
+
+class CompetitorAnalysis(Base):
+    """
+    AI-Powered Competitor Analysis Results
+
+    Stores comprehensive competitor analysis with caching support.
+    Includes insights, comparison matrix, and recommendations.
+    """
+    __tablename__ = "competitor_analyses"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Analysis parameters
+    competitors = Column(JSON, nullable=False)  # List of competitor names/URLs
+    analysis_depth = Column(String, nullable=False)  # basic, standard, comprehensive
+    focus_areas = Column(JSON, nullable=False)  # List of focus areas
+
+    # Analysis results
+    insights = Column(JSON, nullable=False)  # CompetitorInsight per competitor
+    comparison_matrix = Column(JSON, nullable=False)  # Cross-competitor comparison
+    recommendations = Column(JSON, nullable=False)  # Strategic recommendations
+
+    # Notion integration
+    notion_database_id = Column(String, nullable=True)
+    notion_page_id = Column(String, nullable=True)
+
+    # Caching
+    status = Column(String, default="complete")  # complete, cached, expired
+    cache_expiry = Column(DateTime(timezone=True), nullable=True, index=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User", backref="competitor_analyses")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_competitor_analyses_user_created', 'user_id', 'created_at'),
+        Index('ix_competitor_analyses_cache_expiry', 'cache_expiry'),
+    )
+
+    def __repr__(self):
+        return f"<CompetitorAnalysis(id={self.id}, competitors={self.competitors}, user_id={self.user_id})>"
+
+
+class ProjectHealthHistory(Base):
+    """
+    Project Health Check History
+
+    Stores snapshots of project health metrics over time.
+    Enables trend analysis and alerting.
+    """
+    __tablename__ = "project_health_history"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Check identification
+    check_id = Column(String, nullable=False, index=True)
+
+    # Overall results
+    overall_score = Column(Float, nullable=False)
+    overall_status = Column(String, nullable=False)  # excellent, good, warning, critical
+
+    # Individual metrics
+    metrics = Column(JSON, nullable=False)  # {metric_name: HealthMetric}
+
+    # Time range analyzed
+    time_range_days = Column(Integer, nullable=False)
+
+    # Timestamp
+    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User", backref="project_health_history")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_project_health_history_user_checked', 'user_id', 'checked_at'),
+        Index('ix_project_health_history_check_id', 'check_id'),
+    )
+
+    def __repr__(self):
+        return f"<ProjectHealthHistory(id={self.id}, check_id={self.check_id}, score={self.overall_score})>"
+
+
+class CustomerChurnPrediction(Base):
+    """
+    Customer Churn Risk Predictions
+
+    Stores AI-generated churn risk predictions with risk factors
+    and recommended actions.
+    """
+    __tablename__ = "customer_churn_predictions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+
+    # Customer info
+    customer_id = Column(String, nullable=False)
+    customer_name = Column(String, nullable=False)
+
+    # Prediction results
+    churn_probability = Column(Float, nullable=False)
+    risk_factors = Column(JSON, nullable=False)  # List of risk factors
+    mrr_at_risk = Column(Float, nullable=False)
+    recommended_action = Column(Text, nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_churn_predictions_workspace_created', 'workspace_id', 'created_at'),
+        Index('ix_churn_predictions_probability', 'churn_probability'),
+    )
+
+    def __repr__(self):
+        return f"<CustomerChurnPrediction(id={self.id}, customer={self.customer_name}, probability={self.churn_probability})>"
+
+
+class ARDelayPrediction(Base):
+    """
+    Accounts Receivable Delay Predictions
+
+    Stores predictions for late invoice payments based on
+    client payment history.
+    """
+    __tablename__ = "ar_delay_predictions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+
+    # Invoice info
+    invoice_id = Column(String, nullable=False)
+    client_name = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=False)
+
+    # Prediction results
+    likelihood_late = Column(Float, nullable=False)
+    reason = Column(Text, nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_ar_predictions_workspace_created', 'workspace_id', 'created_at'),
+        Index('ix_ar_predictions_due_date', 'due_date'),
+    )
+
+    def __repr__(self):
+        return f"<ARDelayPrediction(id={self.id}, invoice={self.invoice_id}, likelihood={self.likelihood_late})>"
