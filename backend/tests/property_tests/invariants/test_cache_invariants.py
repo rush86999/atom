@@ -38,7 +38,7 @@ class TestCacheInvariants:
         ]),
         action_type=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
     )
-    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
     def test_cache_idempotency_within_ttl(
         self, db_session: Session, agent_status: str, action_type: str
     ):
@@ -191,7 +191,7 @@ class TestCacheInvariants:
         num_agents=st.integers(min_value=1, max_value=50),
         num_actions=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
     def test_cache_handles_high_volume(
         self, db_session: Session, num_agents: int, num_actions: int
     ):

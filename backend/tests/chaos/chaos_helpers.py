@@ -20,6 +20,11 @@ from typing import Callable, Any, List, Dict
 from contextlib import contextmanager
 from unittest.mock import patch, MagicMock
 
+try:
+    import requests
+except ImportError:
+    requests = None
+
 
 class FailureSimulator:
     """Simulates various types of failures for chaos testing."""
