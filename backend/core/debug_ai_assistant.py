@@ -26,6 +26,7 @@ Example:
 
 import asyncio
 import re
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import uuid
@@ -82,31 +83,25 @@ class DebugAIAssistant:
         self.consistency_gen = ConsistencyInsightGenerator(db_session)
         self.performance_gen = PerformanceInsightGenerator(db_session)
 
-        # Intent patterns
+        # Intent patterns (regex pattern -> intent)
         self.intent_patterns = {
             # Component health queries
-            r"health|status|how (is|are).*(?:agent|workflow|browser|system)",
-            "component_health",
+            r"health|status|how (is|are).*(?:agent|workflow|browser|system)": "component_health",
 
             # Failure queries
-            r"why .*(?:fail|failing|error|not working|broken)",
-            "failure_analysis",
+            r"why .*(?:fail|failing|error|not working|broken)": "failure_analysis",
 
             # Performance queries
-            r"slow|performance|latency|response time|bottleneck",
-            "performance_analysis",
+            r"slow|performance|latency|response time|bottleneck": "performance_analysis",
 
             # Consistency queries
-            r"consistency|data.*sync|replication|propagation",
-            "consistency_check",
+            r"consistency|data.*sync|replication|propagation": "consistency_check",
 
             # Error queries
-            r"error.*pattern|recurring.*error|frequent.*error",
-            "error_patterns",
+            r"error.*pattern|recurring.*error|frequent.*error": "error_patterns",
 
             # General explanation
-            r"what.*happened|explain|debug",
-            "general_explanation",
+            r"what.*happened|explain|debug": "general_explanation",
         }
 
     async def ask(
@@ -354,9 +349,17 @@ class DebugAIAssistant:
                 .all()
             )
 
+            # Get most common error safely
+            most_common_error = common_errors.most_common(1)
+            if most_common_error:
+                error_msg, error_count = most_common_error[0]
+                most_common_str = f"{error_msg} ({error_count} occurrences)"
+            else:
+                most_common_str = "No common errors"
+
             return {
                 "answer": f"{component_type}/{component_id} has experienced {len(errors)} error(s) in the last hour. "
-                f"Most common: {common_errors.most_common(1)[0]} ({common_errors.most_common(1)[1]} occurrences).",
+                f"Most common: {most_common_str}.",
                 "confidence": 0.85,
                 "evidence": {
                     "component_type": component_type,

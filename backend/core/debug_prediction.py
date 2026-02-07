@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, case
 
 from core.models import (
     DebugEvent,
@@ -91,7 +91,7 @@ class FailurePredictor:
                     func.max(DebugEvent.timestamp).label("end_time"),
                     func.count(DebugEvent.id).label("event_count"),
                     func.sum(
-                        func.case(
+                        case(
                             (DebugEvent.level.in_(["ERROR", "CRITICAL"]), 1),
                             else_=0
                         )
@@ -120,7 +120,7 @@ class FailurePredictor:
             failed_ops = [op for op in operations if op.error_count > 0]
 
             total_ops = len(operations)
-            success_rate = len(success_ops) / total_ops if total_ops > 0 else 0
+            success_rate = len(successful_ops) / total_ops if total_ops > 0 else 0
 
             # Calculate base failure probability
             failure_prob = 1.0 - success_rate
