@@ -24,11 +24,11 @@ openai>=1.0.0,<2.0.0
 transformers>=4.30.0,<5.0.0
 torch>=2.0.0,<3.0.0
 sentence-transformers>=2.2.0,<3.0.0
-langchain>=0.0.300,<1.0.0
-chromadb>=0.4.0,<1.0.0
-oagi>=0.1.0 # OpenAGI Lux SDK
+# REMOVED: langchain>=0.0.300,<1.0.0  # Not used in codebase
+# REMOVED: chromadb>=0.4.0,<1.0.0  # Not used in codebase
+# REMOVED: oagi>=0.1.0  # Not used in codebase
 anthropic>=0.3.0
-pyautogui>=0.9.50
+# REMOVED: pyautogui>=0.9.50  # Not used in codebase
 opencv-python-headless>=4.8.0
 Pillow>=10.0.0
 
@@ -56,7 +56,7 @@ fpdf2>=2.7.0
 python-docx>=0.8.11,<1.0.0
 beautifulsoup4>=4.12.0,<5.0.0
 lxml>=4.9.0,<6.0.0
-pillow>=10.0.0,<11.0.0
+# REMOVED: pillow>=10.0.0,<11.0.0  # Duplicate of Pillow above
 
 # Service Integrations
 # Email Services
