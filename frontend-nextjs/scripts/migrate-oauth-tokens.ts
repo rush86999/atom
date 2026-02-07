@@ -20,7 +20,7 @@
  */
 
 import { Pool, PoolClient } from 'pg';
-import { encryptToken, getEncryptionService, TokenEncryptionService } from '../src/lib/tokenEncryption';
+import { encryptToken, getEncryptionService, TokenEncryptionService } from '@lib/tokenEncryption';
 
 interface TokenRow {
   id: string;
