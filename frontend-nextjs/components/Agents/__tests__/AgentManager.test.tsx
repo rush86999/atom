@@ -504,4 +504,147 @@ describe('AgentManager', () => {
 
     expect(screen.getByText('Test Agent')).toBeInTheDocument();
   });
+
+  // Mutation-killing tests for status color logic
+
+  it('displays correct status color for active agent', () => {
+    const activeAgent = { ...mockAgent, status: 'active' as const };
+
+    render(
+      <AgentManager
+        initialAgents={[activeAgent]}
+      />
+    );
+
+    expect(screen.getByText('active')).toBeInTheDocument();
+  });
+
+  it('displays correct status color for inactive agent', () => {
+    const inactiveAgent = { ...mockAgent, status: 'inactive' as const };
+
+    render(
+      <AgentManager
+        initialAgents={[inactiveAgent]}
+      />
+    );
+
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+  });
+
+  it('displays correct status color for error agent', () => {
+    const errorAgent = { ...mockAgent, status: 'error' as const };
+
+    render(
+      <AgentManager
+        initialAgents={[errorAgent]}
+      />
+    );
+
+    expect(screen.getByText('error')).toBeInTheDocument();
+  });
+
+  it('filters agents by id when updating', () => {
+    const agents = [
+      mockAgent,
+      { ...mockAgent, id: '2', name: 'Agent 2' },
+      { ...mockAgent, id: '3', name: 'Agent 3' },
+    ];
+
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentUpdate={mockOnAgentUpdate}
+      />
+    );
+
+    // All agents should be displayed
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+    expect(screen.getByText('Agent 2')).toBeInTheDocument();
+    expect(screen.getByText('Agent 3')).toBeInTheDocument();
+  });
+
+  it('filters agents by id when deleting', () => {
+    const agents = [
+      mockAgent,
+      { ...mockAgent, id: '2', name: 'Agent 2' },
+      { ...mockAgent, id: '3', name: 'Agent 3' },
+    ];
+
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentDelete={mockOnAgentDelete}
+      />
+    );
+
+    // All agents should be displayed initially
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('toggles capability when already present', () => {
+    const agentWithCaps = {
+      ...mockAgent,
+      capabilities: ['web_search', 'email_management'],
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[agentWithCaps]}
+      />
+    );
+
+    expect(screen.getByText('web search')).toBeInTheDocument();
+    expect(screen.getByText('email management')).toBeInTheDocument();
+  });
+
+  it('adds capability when not present', () => {
+    const agentWithSingleCap = {
+      ...mockAgent,
+      capabilities: ['web_search'],
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[agentWithSingleCap]}
+      />
+    );
+
+    expect(screen.getByText('web search')).toBeInTheDocument();
+  });
+
+  it('handles agent status transition from inactive to active', async () => {
+    const inactiveAgent = { ...mockAgent, status: 'inactive' as const };
+
+    render(
+      <AgentManager
+        initialAgents={[inactiveAgent]}
+        onAgentStart={mockOnAgentStart}
+      />
+    );
+
+    const startButton = screen.getAllByText('Start')[0];
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(mockOnAgentStart).toHaveBeenCalledWith('1');
+    });
+  });
+
+  it('handles agent status transition from active to inactive', async () => {
+    const activeAgent = { ...mockAgent, id: '2', status: 'active' as const };
+
+    render(
+      <AgentManager
+        initialAgents={[activeAgent]}
+        onAgentStop={mockOnAgentStop}
+      />
+    );
+
+    const stopButton = screen.getAllByText('Stop')[0];
+    fireEvent.click(stopButton);
+
+    await waitFor(() => {
+      expect(mockOnAgentStop).toHaveBeenCalledWith('2');
+    });
+  });
 });

@@ -316,5 +316,55 @@ describe('Password Validator - Traditional Unit Tests', () => {
       const result = validatePassword('!@#$%^&*()_+ABCabc123');
       expect(result.requirements.hasSpecialChar).toBe(true);
     });
+
+    // Mutation-killing tests for boundary conditions
+
+    it('should accept password with exactly 12 characters', () => {
+      const result = validatePassword('Abc123!xyz01');
+      expect(result.requirements.minLength).toBe(true);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject password with exactly 11 characters', () => {
+      const result = validatePassword('Abc123!xyz0');
+      expect(result.requirements.minLength).toBe(false);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect common password "password" in uppercase', () => {
+      const result = validatePassword('PASSWORD');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect common password in mixed case', () => {
+      const result = validatePassword('PaSsWoRd');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect common password with title case', () => {
+      const result = validatePassword('Password');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect "12345678" in different cases (digits unchanged)', () => {
+      const result = validatePassword('12345678');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect "QWERTY" in uppercase', () => {
+      const result = validatePassword('QWERTY');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should detect "QwErTy" in mixed case', () => {
+      const result = validatePassword('QwErTy');
+      expect(result.feedback.some(f => f.includes('too common'))).toBe(true);
+      expect(result.isValid).toBe(false);
+    });
   });
 });
