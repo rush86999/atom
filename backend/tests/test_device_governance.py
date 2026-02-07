@@ -111,7 +111,7 @@ class TestDeviceGovernanceIntegration:
         mock_db.add = Mock()
         mock_db.commit = Mock()
 
-        # Mock governance check to pass
+        # Mock governance check to pass and device to be online
         with patch('tools.device_tool._check_device_governance') as mock_gov:
             mock_gov.return_value = {
                 "allowed": True,
@@ -119,15 +119,17 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": True
             }
 
-            result = await device_camera_snap(
-                db=mock_db,
-                user_id=str(uuid.uuid4()),
-                device_node_id="test-device-123",
-                agent_id=intern_agent.id,
-                resolution="1920x1080"
-            )
+            # Mock the WebSocket device check
+            with patch('api.device_websocket.is_device_online', return_value=True):
+                result = await device_camera_snap(
+                    db=mock_db,
+                    user_id=str(uuid.uuid4()),
+                    device_node_id="test-device-123",
+                    agent_id=intern_agent.id,
+                    resolution="1920x1080"
+                )
 
-            assert result["success"] is True
+                assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_camera_snap_student_blocked(self, mock_db, student_agent, mock_device_node):
@@ -142,15 +144,16 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": False
             }
 
-            result = await device_camera_snap(
-                db=mock_db,
-                user_id=str(uuid.uuid4()),
-                device_node_id="test-device-123",
-                agent_id=student_agent.id
-            )
+            with patch('api.device_websocket.is_device_online', return_value=True):
+                result = await device_camera_snap(
+                    db=mock_db,
+                    user_id=str(uuid.uuid4()),
+                    device_node_id="test-device-123",
+                    agent_id=student_agent.id
+                )
 
-            assert result["success"] is False
-            assert result["governance_blocked"] is True
+                assert result["success"] is False
+                assert result["governance_blocked"] is True
 
     @pytest.mark.asyncio
     async def test_screen_record_supervised_allowed(self, mock_db, supervised_agent, mock_device_node):
@@ -167,14 +170,15 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": True
             }
 
-            result = await device_screen_record_start(
-                db=mock_db,
-                user_id=str(uuid.uuid4()),
-                device_node_id="test-device-123",
-                agent_id=supervised_agent.id
-            )
+            with patch('api.device_websocket.is_device_online', return_value=True):
+                result = await device_screen_record_start(
+                    db=mock_db,
+                    user_id=str(uuid.uuid4()),
+                    device_node_id="test-device-123",
+                    agent_id=supervised_agent.id
+                )
 
-            assert result["success"] is True
+                assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_screen_record_intern_blocked(self, mock_db, intern_agent, mock_device_node):
@@ -214,15 +218,16 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": True
             }
 
-            result = await device_execute_command(
-                db=mock_db,
-                user_id=str(uuid.uuid4()),
-                device_node_id="test-device-123",
-                command="ls",
-                agent_id=autonomous_agent.id
-            )
+            with patch('api.device_websocket.is_device_online', return_value=True):
+                result = await device_execute_command(
+                    db=mock_db,
+                    user_id=str(uuid.uuid4()),
+                    device_node_id="test-device-123",
+                    command="ls",
+                    agent_id=autonomous_agent.id
+                )
 
-            assert result["success"] is True
+                assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_execute_command_supervised_blocked(self, mock_db, supervised_agent, mock_device_node):
@@ -237,16 +242,17 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": False
             }
 
-            result = await device_execute_command(
-                db=mock_db,
-                user_id=str(uuid.uuid4()),
-                device_node_id="test-device-123",
-                command="ls",
-                agent_id=supervised_agent.id
-            )
+            with patch('api.device_websocket.is_device_online', return_value=True):
+                result = await device_execute_command(
+                    db=mock_db,
+                    user_id=str(uuid.uuid4()),
+                    device_node_id="test-device-123",
+                    command="ls",
+                    agent_id=supervised_agent.id
+                )
 
-            assert result["success"] is False
-            assert result["governance_blocked"] is True
+                assert result["success"] is False
+                assert result["governance_blocked"] is True
 
 
 # ============================================================================
@@ -454,23 +460,24 @@ class TestDeviceFeatureFlags:
                     "governance_check_passed": False
                 }
 
-                # Reload the module to pick up the env var
-                import importlib
+                with patch('api.device_websocket.is_device_online', return_value=True):
+                    # Reload the module to pick up the env var
+                    import importlib
 
-                import tools.device_tool
-                importlib.reload(tools.device_tool)
+                    import tools.device_tool
+                    importlib.reload(tools.device_tool)
 
-                # With bypass, action should succeed despite governance check
-                result = await tools.device_tool.device_camera_snap(
-                    db=mock_db,
-                    user_id=str(uuid.uuid4()),
-                    device_node_id="test-device-123",
-                    agent_id=intern_agent.id
-                )
+                    # With bypass, action should succeed despite governance check
+                    result = await tools.device_tool.device_camera_snap(
+                        db=mock_db,
+                        user_id=str(uuid.uuid4()),
+                        device_node_id="test-device-123",
+                        agent_id=intern_agent.id
+                    )
 
-                # With bypass, it should still work (fail-open for availability)
-                # Note: This tests the fail-open behavior when governance fails
-                assert result["success"] is True or "governance" in result.get("error", "").lower()
+                    # With bypass, it should still work (fail-open for availability)
+                    # Note: This tests the fail-open behavior when governance fails
+                    assert result["success"] is True or "governance" in result.get("error", "").lower()
 
         finally:
             if old_bypass is None:
