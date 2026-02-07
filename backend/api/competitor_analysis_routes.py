@@ -5,7 +5,7 @@ Provides AI-powered competitor analysis using web scraping and LLM integration.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import uuid4
 
@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm.byok_handler import BYOKHandler
-from core.models import User
+from core.models import User, CompetitorAnalysis, OAuthToken
 from core.security_dependencies import get_current_user
+from integrations.notion_service import NotionService
 
 router = BaseAPIRouter(prefix="/api/v1/analysis", tags=["competitor-analysis"])
 logger = logging.getLogger(__name__)
@@ -296,6 +297,123 @@ def generate_recommendations(insights: dict[str, CompetitorInsight], comparison:
     return recommendations
 
 
+async def export_competitor_analysis_to_notion(
+    analysis: CompetitorAnalysis,
+    notion_token: str
+) -> Optional[str]:
+    """
+    Export competitor analysis to Notion database.
+
+    Creates a page in the Notion database with the competitor analysis summary.
+
+    Args:
+        analysis: CompetitorAnalysis database model
+        notion_token: Notion API access token
+
+    Returns:
+        Notion page ID if successful, None otherwise
+    """
+    try:
+        notion = NotionService(access_token=notion_token)
+
+        # Create parent reference to database
+        parent = {"type": "database_id", "database_id": analysis.notion_database_id}
+
+        # Create properties for the page
+        competitors_str = ", ".join(analysis.competitors)
+
+        properties = {
+            "Competitors": {
+                "title": [
+                    {
+                        "text": {
+                            "content": f"Competitor Analysis: {competitors_str}"
+                        }
+                    }
+                ]
+            },
+            "Analysis Depth": {
+                "select": {
+                    "name": analysis.analysis_depth.capitalize()
+                }
+            },
+            "Status": {
+                "select": {
+                    "name": analysis.status.capitalize()
+                }
+            },
+            "Created": {
+                "date": {
+                    "start": analysis.created_at.isoformat()
+                }
+            }
+        }
+
+        # Create children blocks
+        children = []
+
+        # Add comparison matrix section
+        if analysis.comparison_matrix:
+            children.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": "📊 Comparison Matrix"}}]
+                }
+            })
+            for category, values in analysis.comparison_matrix.items():
+                children.append({
+                    "object": "block",
+                    "type": "heading_3",
+                    "heading_3": {
+                        "rich_text": [{"type": "text", "text": {"content": category.capitalize()}}]
+                    }
+                })
+                for comp, value in values.items():
+                    children.append({
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": f"{comp}: "}},
+                                {"type": "text", "text": {"content": str(value)}, "bold": True}
+                            ]
+                        }
+                    })
+
+        # Add recommendations section
+        if analysis.recommendations:
+            children.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": "💡 Recommendations"}}]
+                }
+            })
+            for i, rec in enumerate(analysis.recommendations, 1):
+                children.append({
+                    "object": "block",
+                    "type": "numbered_list_item",
+                    "numbered_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": rec}}]
+                    }
+                })
+
+        # Create the page
+        result = notion.create_page(parent, properties, children)
+
+        if result and "id" in result:
+            logger.info(f"Competitor analysis exported to Notion: page_id={result['id']}")
+            return result["id"]
+        else:
+            logger.warning("Notion page creation returned no ID")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to export competitor analysis to Notion: {e}")
+        return None
+
+
 @router.post("/competitors", response_model=CompetitorAnalysisResponse)
 async def analyze_competitors(
     request: Request,
@@ -318,8 +436,7 @@ async def analyze_competitors(
 
     Uses BYOK handler for cost-optimized LLM integration with automatic fallback.
 
-    TODO: Cache results to avoid repeated analysis
-    TODO: Export to Notion when notion_database_id is provided
+    Results are cached for 7 days to avoid repeated analysis.
     """
     try:
 
@@ -344,8 +461,33 @@ async def analyze_competitors(
                 detail=f"Invalid analysis depth. Must be one of: {', '.join(valid_depths)}"
             )
 
+        # Check for recent cached analysis (within 7 days)
+        cache_expiry = datetime.utcnow() - timedelta(days=7)
+        cached_analysis = db.query(CompetitorAnalysis).filter(
+            CompetitorAnalysis.user_id == current_user.id,
+            CompetitorAnalysis.competitors == payload.competitors,  # JSON comparison
+            CompetitorAnalysis.analysis_depth == payload.analysis_depth,
+            CompetitorAnalysis.created_at >= cache_expiry
+        ).first()
+
+        if cached_analysis:
+            logger.info(f"Returning cached analysis: {cached_analysis.id}")
+            # Convert insights dict back to CompetitorInsight objects
+            insights = {
+                k: CompetitorInsight(**v) if isinstance(v, dict) else v
+                for k, v in cached_analysis.insights.items()
+            }
+            return CompetitorAnalysisResponse(
+                analysis_id=cached_analysis.id,
+                status="cached",
+                insights=insights,
+                comparison_matrix=cached_analysis.comparison_matrix,
+                recommendations=cached_analysis.recommendations,
+                created_at=cached_analysis.created_at
+            )
+
         # Generate analysis ID
-        analysis_id = str(uuid.uuid4())
+        analysis_id = str(uuid4())
 
         logger.info(
             f"Starting competitor analysis: user={current_user.id}, "
@@ -384,6 +526,28 @@ async def analyze_competitors(
         # Generate recommendations
         recommendations = generate_recommendations(insights, comparison_matrix)
 
+        # Convert insights to dict for JSON storage
+        insights_dict = {k: v.model_dump() if hasattr(v, 'model_dump') else v.__dict__ for k, v in insights.items()}
+
+        # Save to database
+        competitor_analysis = CompetitorAnalysis(
+            id=analysis_id,
+            user_id=current_user.id,
+            competitors=payload.competitors,
+            analysis_depth=payload.analysis_depth,
+            focus_areas=payload.focus_areas,
+            insights=insights_dict,
+            comparison_matrix=comparison_matrix,
+            recommendations=recommendations,
+            notion_database_id=payload.notion_database_id,
+            notion_page_id=None,
+            status="complete",
+            cache_expiry=datetime.utcnow() + timedelta(days=7)
+        )
+
+        db.add(competitor_analysis)
+        db.commit()
+
         # Log successful analysis
         logger.info(
             f"Competitor analysis complete: analysis_id={analysis_id}, "
@@ -391,13 +555,34 @@ async def analyze_competitors(
             f"recommendations={len(recommendations)}"
         )
 
-        # TODO: Export to Notion if notion_database_id provided
+        # Export to Notion if notion_database_id provided
         if payload.notion_database_id:
             logger.info(
                 f"Notion export requested: database_id={payload.notion_database_id}"
             )
-            # Implement Notion export here
-            # Would use core/communication/adapters/notion.py or similar
+
+            # Get Notion OAuth token for the user
+            notion_token_record = db.query(OAuthToken).filter(
+                OAuthToken.user_id == current_user.id,
+                OAuthToken.provider == "notion",
+                OAuthToken.status == "active"
+            ).first()
+
+            if notion_token_record and notion_token_record.access_token:
+                notion_page_id = await export_competitor_analysis_to_notion(
+                    analysis=competitor_analysis,
+                    notion_token=notion_token_record.access_token
+                )
+
+                if notion_page_id:
+                    # Update the analysis with the Notion page ID
+                    competitor_analysis.notion_page_id = notion_page_id
+                    db.commit()
+                    logger.info(f"Competitor analysis exported to Notion: page_id={notion_page_id}")
+                else:
+                    logger.warning("Notion export failed, but analysis was saved successfully")
+            else:
+                logger.warning(f"No active Notion token found for user {current_user.id}, skipping export")
 
         return CompetitorAnalysisResponse(
             analysis_id=analysis_id,
@@ -405,7 +590,7 @@ async def analyze_competitors(
             insights=insights,
             comparison_matrix=comparison_matrix,
             recommendations=recommendations,
-            created_at=datetime.utcnow()
+            created_at=competitor_analysis.created_at
         )
 
     except HTTPException:
@@ -422,18 +607,127 @@ async def analyze_competitors(
 async def get_analysis_result(
     analysis_id: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Retrieve a previously generated competitor analysis.
-
-    TODO: Implement caching/storage of analysis results
     """
-    # TODO: Retrieve from database/cache
-    raise HTTPException(
-        status_code=501,
-        detail="Analysis retrieval not yet implemented - results are returned immediately"
+    # Query database for analysis
+    analysis = db.query(CompetitorAnalysis).filter(
+        CompetitorAnalysis.id == analysis_id
+    ).first()
+
+    if not analysis:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Competitor analysis with ID '{analysis_id}' not found"
+        )
+
+    # Verify ownership
+    if analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this analysis"
+        )
+
+    # Check if cache has expired
+    if analysis.cache_expiry and analysis.cache_expiry < datetime.utcnow():
+        analysis.status = "expired"
+        db.commit()
+
+    # Convert insights dict back to CompetitorInsight objects
+    insights = {
+        k: CompetitorInsight(**v) if isinstance(v, dict) else v
+        for k, v in analysis.insights.items()
+    }
+
+    return CompetitorAnalysisResponse(
+        analysis_id=analysis.id,
+        status=analysis.status,
+        insights=insights,
+        comparison_matrix=analysis.comparison_matrix,
+        recommendations=analysis.recommendations,
+        created_at=analysis.created_at
     )
+
+
+@router.get("/competitors")
+async def list_analyses(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0
+):
+    """
+    List all competitor analyses for the current user.
+    """
+    # Query analyses for current user
+    analyses = db.query(CompetitorAnalysis).filter(
+        CompetitorAnalysis.user_id == current_user.id
+    ).order_by(
+        CompetitorAnalysis.created_at.desc()
+    ).offset(offset).limit(limit).all()
+
+    total = db.query(CompetitorAnalysis).filter(
+        CompetitorAnalysis.user_id == current_user.id
+    ).count()
+
+    return {
+        "analyses": [
+            {
+                "analysis_id": analysis.id,
+                "competitors": analysis.competitors,
+                "analysis_depth": analysis.analysis_depth,
+                "status": analysis.status,
+                "created_at": analysis.created_at,
+                "cache_expiry": analysis.cache_expiry
+            }
+            for analysis in analyses
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+
+@router.delete("/competitors/{analysis_id}")
+async def delete_analysis(
+    analysis_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a competitor analysis.
+    """
+    # Query analysis
+    analysis = db.query(CompetitorAnalysis).filter(
+        CompetitorAnalysis.id == analysis_id
+    ).first()
+
+    if not analysis:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Competitor analysis with ID '{analysis_id}' not found"
+        )
+
+    # Verify ownership
+    if analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this analysis"
+        )
+
+    # Delete analysis
+    db.delete(analysis)
+    db.commit()
+
+    logger.info(f"Competitor analysis deleted: analysis_id={analysis_id}")
+
+    return {
+        "success": True,
+        "message": "Competitor analysis deleted successfully"
+    }
 
 
 @router.get("/competitors/templates")
