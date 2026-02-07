@@ -22,7 +22,7 @@ jobs:
           - interfaces
           - episodes
           - workflows
-          - agents
+          - multi_agent
 
     steps:
       - name: Checkout code

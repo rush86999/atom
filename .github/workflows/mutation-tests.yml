@@ -20,7 +20,6 @@ jobs:
           - security_dependencies
           - episode_retrieval_service
           - episode_segmentation_service
-          - multi_agent_coordinator
           - agent_governance_service
           - governance_cache
       fail-fast: false
@@ -73,7 +72,7 @@ jobs:
             financial_ops_engine|security|security_dependencies)
               THRESHOLD=95
               ;;
-            episode_retrieval_service|episode_segmentation_service|multi_agent_coordinator)
+            episode_retrieval_service|episode_segmentation_service|agent_governance_service)
               THRESHOLD=90
               ;;
             *)

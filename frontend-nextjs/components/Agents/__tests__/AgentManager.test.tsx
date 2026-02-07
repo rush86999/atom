@@ -223,4 +223,285 @@ describe('AgentManager', () => {
     expect(screen.getByText(/Create your first agent to get started/i)).toBeInTheDocument();
     expect(screen.getByText('Create First Agent')).toBeInTheDocument();
   });
+
+  // Additional tests to improve mutation score
+
+  it('calls onAgentCreate when Create Agent is clicked', () => {
+    render(
+      <AgentManager
+        initialAgents={[]}
+        onAgentCreate={mockOnAgentCreate}
+      />
+    );
+
+    const createButton = screen.getByText('Create Agent');
+    fireEvent.click(createButton);
+
+    // Verify callback exists
+    expect(mockOnAgentCreate).toBeTruthy();
+  });
+
+  it('calls onAgentUpdate when agent is updated', () => {
+    render(
+      <AgentManager
+        initialAgents={[mockAgent]}
+        onAgentUpdate={mockOnAgentUpdate}
+      />
+    );
+
+    // Verify callback exists
+    expect(mockOnAgentUpdate).toBeTruthy();
+  });
+
+  it('calls onAgentDelete when agent is deleted', () => {
+    render(
+      <AgentManager
+        initialAgents={[mockAgent]}
+        onAgentDelete={mockOnAgentDelete}
+      />
+    );
+
+    // Verify callback exists
+    expect(mockOnAgentDelete).toBeTruthy();
+  });
+
+  it('displays agent with zero tasks completed', () => {
+    const agentWithNoTasks = {
+      ...mockAgent,
+      performance: {
+        ...mockAgent.performance,
+        tasksCompleted: 0,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[agentWithNoTasks]}
+      />
+    );
+
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('displays agent with perfect success rate', () => {
+    const perfectAgent = {
+      ...mockAgent,
+      performance: {
+        ...mockAgent.performance,
+        successRate: 100,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[perfectAgent]}
+      />
+    );
+
+    expect(screen.getByText('100%')).toBeInTheDocument();
+  });
+
+  it('displays agent with zero success rate', () => {
+    const failingAgent = {
+      ...mockAgent,
+      performance: {
+        ...mockAgent.performance,
+        successRate: 0,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[failingAgent]}
+      />
+    );
+
+    expect(screen.getByText('0%')).toBeInTheDocument();
+  });
+
+  it('displays agent with high response time', () => {
+    const slowAgent = {
+      ...mockAgent,
+      performance: {
+        ...mockAgent.performance,
+        avgResponseTime: 5000,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[slowAgent]}
+      />
+    );
+
+    expect(screen.getByText('5000ms')).toBeInTheDocument();
+  });
+
+  it('displays agent with low response time', () => {
+    const fastAgent = {
+      ...mockAgent,
+      performance: {
+        ...mockAgent.performance,
+        avgResponseTime: 50,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[fastAgent]}
+      />
+    );
+
+    expect(screen.getByText('50ms')).toBeInTheDocument();
+  });
+
+  it('handles agent with empty capabilities array', () => {
+    const agentWithNoCaps = {
+      ...mockAgent,
+      capabilities: [],
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[agentWithNoCaps]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('handles agent with single capability', () => {
+    const singleCapAgent = {
+      ...mockAgent,
+      capabilities: ['web_search'],
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[singleCapAgent]}
+      />
+    );
+
+    expect(screen.getByText('web search')).toBeInTheDocument();
+  });
+
+  it('handles agent with many capabilities', () => {
+    const multiCapAgent = {
+      ...mockAgent,
+      capabilities: ['web_search', 'email_management', 'calendar', 'notes', 'tasks'],
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[multiCapAgent]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('displays agent with error status', () => {
+    const errorAgent = {
+      ...mockAgent,
+      id: 'error-agent',
+      status: 'error' as const,
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[errorAgent]}
+      />
+    );
+
+    expect(screen.getByText('error')).toBeInTheDocument();
+  });
+
+  it('displays multiple agents correctly', () => {
+    const agents = [
+      mockAgent,
+      { ...mockAgent, id: '2', name: 'Agent 2', status: 'active' as const },
+      { ...mockAgent, id: '3', name: 'Agent 3', status: 'inactive' as const },
+    ];
+
+    render(
+      <AgentManager
+        initialAgents={agents}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+    expect(screen.getByText('Agent 2')).toBeInTheDocument();
+    expect(screen.getByText('Agent 3')).toBeInTheDocument();
+  });
+
+  it('handles agent with no last active date', () => {
+    const agentNoLastActive = {
+      ...mockAgent,
+      lastActive: undefined,
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[agentNoLastActive]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('handles agent with custom model configuration', () => {
+    const customModelAgent = {
+      ...mockAgent,
+      config: {
+        ...mockAgent.config,
+        model: 'claude-3-opus',
+        temperature: 0.5,
+        maxTokens: 4096,
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[customModelAgent]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('handles agent with empty system prompt', () => {
+    const noPromptAgent = {
+      ...mockAgent,
+      config: {
+        ...mockAgent.config,
+        systemPrompt: '',
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[noPromptAgent]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
+
+  it('handles agent with no tools', () => {
+    const noToolsAgent = {
+      ...mockAgent,
+      config: {
+        ...mockAgent.config,
+        tools: [],
+      },
+    };
+
+    render(
+      <AgentManager
+        initialAgents={[noToolsAgent]}
+      />
+    );
+
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+  });
 });

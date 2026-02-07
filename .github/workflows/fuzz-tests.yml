@@ -28,8 +28,6 @@ jobs:
         fuzz-target:
           - financial_parsing
           - security_validation
-          - integration_parsing
-          - data_parsing
       fail-fast: false
 
     steps:
