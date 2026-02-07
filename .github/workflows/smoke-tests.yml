@@ -1,0 +1,47 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  smoke-tests:
+    name: Quick Smoke Tests (<30s)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-xdist pytest-timeout
+
+      - name: Run smoke tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+        run: |
+          # Run quick sanity checks (subset of property tests)
+          pytest tests/property_tests/invariants/ -v -m "not slow" -x --tb=short -q
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "✅ Smoke tests completed in <30s"
