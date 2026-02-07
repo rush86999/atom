@@ -6,7 +6,7 @@
 
 # Fuzzy Testing
 atheris>=2.2.0  # Coverage-guided fuzzing for Python
-python-fuzz>=0.1.0  # Structure-aware fuzzing
+# python-fuzz>=0.1.0  # NOTE: Package doesn't exist on PyPI, removed
 
 # Mutation Testing
 mutmut>=2.4.0  # Mutation testing tool
