@@ -868,7 +868,7 @@ async fn stop_watching_folder(app: AppHandle, path: String) -> notify::Result<()
 
 #[tauri::command]
 async fn camera_snap(
-    app: AppHandle,
+    _app: AppHandle,
     camera_id: Option<String>,
     resolution: Option<String>,
     save_path: Option<String>,
@@ -1032,7 +1032,7 @@ async fn execute_shell_command(
 
     let mut cmd = Command::new(&command);
 
-    if let Some(dir) = working_directory {
+    if let Some(ref dir) = working_directory.as_ref() {
         cmd.current_dir(dir);
     }
 
