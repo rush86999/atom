@@ -902,7 +902,7 @@ struct ScreenRecordingState {
 
 #[tauri::command]
 async fn screen_record_start(
-    app: AppHandle,
+    _app: AppHandle,
     session_id: String,
     duration_seconds: Option<u32>,
     audio_enabled: Option<bool>,
@@ -981,12 +981,15 @@ async fn send_notification(
     icon: Option<String>,
     sound: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    // Send system notification
+    // Send system notification using Tauri v2 API
     use tauri_plugin_notification::NotificationExt;
 
-    let mut notification = app.notification()
-        .title(&title)
-        .body(&body);
+    let mut notification = tauri_plugin_notification::Notification::new(
+        &app.config().app_identifier.clone().unwrap_or_default()
+    );
+
+    notification = notification.title(&title);
+    notification = notification.body(&body);
 
     if let Some(icon_path) = icon {
         notification = notification.icon(icon_path);
@@ -994,7 +997,7 @@ async fn send_notification(
 
     // TODO: Add sound support
 
-    notification.show().map_err(|e| e.to_string())?;
+    notification.show(&app).map_err(|e: Box<dyn std::error::Error>| e.to_string())?;
 
     Ok(json!({
         "success": true,
@@ -1028,7 +1031,8 @@ async fn execute_shell_command(
     }
 
     // Enforce timeout
-    let timeout = std::time::Duration::from_secs(timeout_seconds.unwrap_or(30));
+    // TODO: Implement actual timeout enforcement using tokio::time::timeout
+    let _timeout = std::time::Duration::from_secs(timeout_seconds.unwrap_or(30));
 
     let mut cmd = Command::new(&command);
 
