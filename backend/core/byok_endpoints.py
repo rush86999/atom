@@ -514,6 +514,11 @@ class BYOKManager:
             "status": "active" if provider.is_active and has_keys else "inactive",
         }
 
+    def is_configured(self, workspace_id: str, provider_id: str) -> bool:
+        """Check if a provider has an API key configured for a workspace"""
+        # workspace_id is maintained for API compatibility but not used in single-tenant mode
+        return bool(self.get_api_key(provider_id))
+
 
 # Global BYOK Manager instance
 _byok_manager = None
