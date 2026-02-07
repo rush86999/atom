@@ -18,8 +18,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
+from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
 from core.database import get_db
 from core.models import (
+    MenuBarAudit,
     User,
     DeviceNode,
     AgentRegistry,
@@ -170,6 +173,7 @@ def get_device_by_token(device_id: str, db: Session) -> Optional[DeviceNode]:
 @router.post("/auth/login", response_model=MenuBarLoginResponse)
 async def menubar_login(
     request: MenuBarLoginRequest,
+    x_platform: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -177,11 +181,28 @@ async def menubar_login(
 
     Creates or updates DeviceNode entry for the menu bar app.
     Returns access token for subsequent requests.
+
+    All login attempts are logged to MenuBarAudit.
     """
     try:
+        # Create audit entry for login attempt
+        audit = MenuBarAudit(
+            user_id=None,  # Will set if successful
+            device_id=None,  # Will set if successful
+            action="login",
+            endpoint="/api/menubar/auth/login",
+            request_params={"email": request.email},
+            platform=request.platform or x_platform,
+        )
+
         # Verify user credentials
         user = db.query(User).filter(User.email == request.email).first()
         if not user or not verify_password(request.password, user.password_hash):
+            audit.success = False
+            audit.error_message = "Invalid email or password"
+            db.add(audit)
+            db.commit()
+
             return MenuBarLoginResponse(
                 success=False,
                 error="Invalid email or password"
@@ -229,6 +250,14 @@ async def menubar_login(
 
         logger.info(f"Menu bar login successful: {user.email}, device: {device_id}")
 
+        # Update audit with success
+        audit.user_id = str(user.id)
+        audit.device_id = device_id
+        audit.success = True
+        audit.response_summary = {"device_created": device is not None}
+        db.add(audit)
+        db.commit()
+
         return MenuBarLoginResponse(
             success=True,
             access_token=access_token,
@@ -242,7 +271,25 @@ async def menubar_login(
         )
 
     except Exception as e:
-        logger.error(f"Menu bar login error: {e}")
+        logger.error(f"Menu bar login error: {e}", exc_info=True)
+
+        # Create audit entry for error
+        try:
+            error_audit = MenuBarAudit(
+                user_id=None,
+                device_id=None,
+                action="login",
+                endpoint="/api/menubar/auth/login",
+                request_params={"email": request.email},
+                success=False,
+                error_message=str(e),
+                platform=request.platform or x_platform,
+            )
+            db.add(error_audit)
+            db.commit()
+        except Exception:
+            pass  # Don't fail audit if we're already in error state
+
         return MenuBarLoginResponse(
             success=False,
             error=str(e)
@@ -418,6 +465,7 @@ async def get_recent_items(
 async def quick_chat(
     request: QuickChatRequest,
     x_device_id: Optional[str] = Header(None),
+    x_platform: Optional[str] = Header(None),
     current_user: User = Depends(get_current_menubar_user),
     db: Session = Depends(get_db)
 ):
@@ -426,8 +474,27 @@ async def quick_chat(
 
     Forwards the message to the agent execution service.
     Returns the agent's response.
+
+    Governance:
+    - All agent-triggered actions logged to MenuBarAudit
+    - Agent maturity validated before execution
     """
+    agent_id = None
+    agent_execution_id = None
+    agent_maturity = None
+    governance_check_passed = None
+
     try:
+        # Create audit entry for the request
+        audit = MenuBarAudit(
+            user_id=str(current_user.id),
+            device_id=x_device_id,
+            action="quick_chat",
+            endpoint="/api/menubar/quick/chat",
+            request_params={"message": request.message[:200]},  # Truncate for audit
+            platform=x_platform,
+        )
+
         # Select agent
         agent_id = request.agent_id
         if not agent_id:
@@ -445,10 +512,50 @@ async def quick_chat(
                 if agent:
                     agent_id = str(agent.id)
                 else:
+                    audit.success = False
+                    audit.error_message = "No agents available"
+                    db.add(audit)
+                    db.commit()
+
                     return QuickChatResponse(
                         success=False,
                         error="No agents available"
                     )
+
+        # Resolve agent and check governance
+        resolver = AgentContextResolver(db)
+        agent, context = await resolver.resolve_agent_for_request(
+            user_id=str(current_user.id),
+            requested_agent_id=agent_id,
+            action_type="quick_chat"
+        )
+
+        if agent:
+            agent_id = str(agent.id)
+            agent_maturity = agent.status
+            audit.agent_id = agent_id
+
+            # Check governance
+            governance = AgentGovernanceService(db)
+            governance_check = governance.can_perform_action(
+                agent_id=agent_id,
+                action_type="quick_chat"
+            )
+
+            governance_check_passed = governance_check.get("allowed", True)
+            audit.governance_check_passed = governance_check_passed
+
+            if not governance_check_passed:
+                audit.success = False
+                audit.error_message = "Governance check failed"
+                db.add(audit)
+                db.commit()
+
+                return QuickChatResponse(
+                    success=False,
+                    error="Agent not authorized for quick chat",
+                    agent_id=agent_id,
+                )
 
         # Update device last_command_at
         if x_device_id:
@@ -471,11 +578,23 @@ async def quick_chat(
         )
 
         if not result.get("success"):
+            audit.success = False
+            audit.error_message = result.get("error", "Unknown error")
+            audit.agent_execution_id = result.get("execution_id")
+            db.add(audit)
+            db.commit()
+
             return QuickChatResponse(
                 success=False,
                 error=result.get("error", "Unknown error"),
                 agent_id=agent_id,
             )
+
+        audit.success = True
+        audit.agent_execution_id = result.get("execution_id")
+        audit.response_summary = {"response_length": len(result.get("response", ""))}
+        db.add(audit)
+        db.commit()
 
         return QuickChatResponse(
             success=True,
@@ -486,7 +605,29 @@ async def quick_chat(
         )
 
     except Exception as e:
-        logger.error(f"Quick chat error: {e}")
+        logger.error(f"Quick chat error: {e}", exc_info=True)
+
+        # Create audit entry for error
+        try:
+            error_audit = MenuBarAudit(
+                user_id=str(current_user.id),
+                device_id=x_device_id,
+                agent_id=agent_id,
+                agent_execution_id=agent_execution_id,
+                action="quick_chat",
+                endpoint="/api/menubar/quick/chat",
+                request_params={"message": request.message[:200] if request else ""},
+                success=False,
+                error_message=str(e),
+                platform=x_platform,
+                agent_maturity=agent_maturity,
+                governance_check_passed=governance_check_passed
+            )
+            db.add(error_audit)
+            db.commit()
+        except Exception:
+            pass  # Don't fail audit if we're already in error state
+
         return QuickChatResponse(
             success=False,
             error=str(e)

@@ -190,25 +190,14 @@ class Microsoft365Service:
             "Content-Type": "application/json"
         }
 
-        # ============================================================================
-        # DEVELOPMENT MOCK BYPASS - FOR TESTING ONLY
-        # This allows testing OAuth flow and validation without real Microsoft credentials.
-        # NEVER active in production (ATOM_ENV=production bypasses this block)
-        # ============================================================================
-        import os
-        if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
-             logger.info(f"MOCK BYPASS: {method} {url}")
-             if "joinedTeams" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "messages" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "calendarView" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "me" == url.split("/")[-1]: # Profile
-                 return {"status": "success", "data": {
-                     "id": "mock_user", "displayName": "Mock User", "mail": "mock@example.com", "userPrincipalName": "mock@example.com"
-                 }}
-             return {"status": "success", "data": {"id": "mock_id_123"}}
+        # Validate token is not a mock/test token
+        if token == "fake_token" or not token or not token.startswith("eyJ"):
+            logger.error(f"Invalid Microsoft OAuth token provided")
+            return {
+                "status": "error",
+                "code": 401,
+                "message": "Invalid Microsoft OAuth token. Please authenticate with Microsoft."
+            }
 
         async with aiohttp.ClientSession() as session:
             async with session.request(method, url, headers=headers, json=json_data) as response:

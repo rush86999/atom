@@ -15,7 +15,7 @@ Refactored to use standardized decorators and service factory.
 
 from typing import Any, Dict, List, Optional
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
@@ -89,6 +89,10 @@ class ExecuteCommandRequest(BaseModel):
     agent_id: Optional[str] = None
 
 
+# ============================================================================
+# Response Models
+# ============================================================================
+
 class DeviceInfoResponse(BaseModel):
     id: str
     device_id: str
@@ -98,6 +102,74 @@ class DeviceInfoResponse(BaseModel):
     platform: Optional[str]
     capabilities: List[str]
     last_seen: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CameraSnapResponse(BaseModel):
+    """Response for camera snap operation"""
+    success: bool
+    file_path: Optional[str] = None
+    device_node_id: str
+    camera_id: Optional[str] = None
+    resolution: Optional[str] = None
+    message: Optional[str] = None
+
+
+class ScreenRecordStartResponse(BaseModel):
+    """Response for starting screen recording"""
+    success: bool
+    session_id: str
+    device_node_id: str
+    duration_seconds: Optional[int] = None
+    audio_enabled: bool = False
+    resolution: Optional[str] = None
+    output_format: str = "mp4"
+    message: Optional[str] = None
+
+
+class ScreenRecordStopResponse(BaseModel):
+    """Response for stopping screen recording"""
+    success: bool
+    session_id: str
+    file_path: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    message: Optional[str] = None
+
+
+class GetLocationResponse(BaseModel):
+    """Response for getting device location"""
+    success: bool
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    accuracy: Optional[str] = None
+    device_node_id: str
+    message: Optional[str] = None
+
+
+class SendNotificationResponse(BaseModel):
+    """Response for sending notification"""
+    success: bool
+    device_node_id: str
+    title: str
+    message: Optional[str] = None
+
+
+class ExecuteCommandResponse(BaseModel):
+    """Response for executing command"""
+    success: bool
+    device_node_id: str
+    command: str
+    exit_code: Optional[int] = None
+    stdout: Optional[str] = None
+    stderr: Optional[str] = None
+    message: Optional[str] = None
+
+
+class DeviceListResponse(BaseModel):
+    """Response for listing devices"""
+    devices: List[DeviceInfoResponse]
+    total: int
 
 
 # ============================================================================
@@ -140,7 +212,7 @@ async def resolve_agent_for_request(
 # API Endpoints
 # ============================================================================
 
-@router.post("/camera/snap", response_model=Dict[str, Any])
+@router.post("/camera/snap", response_model=CameraSnapResponse)
 async def camera_snap(
     request: CameraSnapRequest,
     current_user: User = Depends(get_current_user),
@@ -157,7 +229,7 @@ async def camera_snap(
         db: Database session
 
     Returns:
-        Dict with success status and file path
+        CameraSnapResponse with success status and file path
     """
     try:
         # Resolve agent
@@ -181,7 +253,14 @@ async def camera_snap(
                 raise router.permission_denied_error("camera_snap", "Device", details={"error": result.get("error")})
             raise router.error_response("CAMERA_SNAP_FAILED", result.get("error", "Camera snap failed"), status_code=400)
 
-        return router.success_response(data=result, message="Camera snapshot captured successfully")
+        return CameraSnapResponse(
+            success=True,
+            file_path=result.get("file_path"),
+            device_node_id=request.device_node_id,
+            camera_id=request.camera_id,
+            resolution=request.resolution,
+            message="Camera snapshot captured successfully"
+        )
 
     except Exception as e:
         logger.error(f"Camera snap error: {e}")
@@ -190,7 +269,7 @@ async def camera_snap(
         raise router.internal_error(f"Camera snap error: {str(e)}")
 
 
-@router.post("/screen/record/start", response_model=Dict[str, Any])
+@router.post("/screen/record/start", response_model=ScreenRecordStartResponse)
 async def screen_record_start(
     request: ScreenRecordStartRequest,
     current_user: User = Depends(get_current_user),
@@ -241,7 +320,7 @@ async def screen_record_start(
         raise router.internal_error(f"Screen record start error: {str(e)}")
 
 
-@router.post("/screen/record/stop", response_model=Dict[str, Any])
+@router.post("/screen/record/stop", response_model=ScreenRecordStopResponse)
 async def screen_record_stop(
     request: ScreenRecordStopRequest,
     current_user: User = Depends(get_current_user),
@@ -278,7 +357,7 @@ async def screen_record_stop(
         raise router.internal_error(f"Screen record stop error: {str(e)}")
 
 
-@router.post("/location", response_model=Dict[str, Any])
+@router.post("/location", response_model=ScreenRecordStopResponse)
 async def get_location(
     request: GetLocationRequest,
     current_user: User = Depends(get_current_user),
@@ -326,7 +405,7 @@ async def get_location(
         raise router.internal_error(f"Get location error: {str(e)}")
 
 
-@router.post("/notification", response_model=Dict[str, Any])
+@router.post("/notification", response_model=ScreenRecordStopResponse)
 async def send_notification(
     request: SendNotificationRequest,
     current_user: User = Depends(get_current_user),
@@ -377,7 +456,7 @@ async def send_notification(
         raise router.internal_error(f"Send notification error: {str(e)}")
 
 
-@router.post("/execute", response_model=Dict[str, Any])
+@router.post("/execute", response_model=ScreenRecordStopResponse)
 async def execute_command(
     request: ExecuteCommandRequest,
     current_user: User = Depends(get_current_user),

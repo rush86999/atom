@@ -9,7 +9,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, Optional
 from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -18,6 +18,10 @@ from core.database import get_db
 from core.models import User
 
 router = BaseAPIRouter(prefix="/api/reconciliation", tags=["Reconciliation"])
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
 
 class ReconciliationEntryRequest(BaseModel):
     id: str = Field(..., description="Entry ID")
@@ -28,7 +32,27 @@ class ReconciliationEntryRequest(BaseModel):
     agent_id: Optional[str] = Field(None, description="Agent ID if agent-initiated")
 
 
-@router.post("/bank-entries")
+class ReconciliationEntryResponse(BaseModel):
+    """Response for adding reconciliation entries"""
+    status: str = Field(..., description="Operation status")
+    id: str = Field(..., description="Entry ID")
+    message: Optional[str] = Field(None, description="Optional message")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BankEntryResponse(BaseModel):
+    """Response for bank entry operations"""
+    id: str
+    source: str
+    date: str
+    amount: float
+    description: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.post("/bank-entries", response_model=ReconciliationEntryResponse)
 async def add_bank_entry(
     request: ReconciliationEntryRequest,
     db: Session = Depends(get_db),
@@ -79,7 +103,11 @@ async def add_bank_entry(
         )
         reconciliation_engine.add_bank_entry(entry)
 
-        return {"status": "added", "id": request.id}
+        return ReconciliationEntryResponse(
+            status="added",
+            id=request.id,
+            message="Bank entry added successfully"
+        )
 
     except Exception as e:
         if e.__class__.__name__ == 'HTTPException':
@@ -88,7 +116,7 @@ async def add_bank_entry(
         raise router.internal_error(message="Failed to add bank entry", details={"error": str(e)})
 
 
-@router.post("/ledger-entries")
+@router.post("/ledger-entries", response_model=ReconciliationEntryResponse)
 async def add_ledger_entry(
     request: ReconciliationEntryRequest,
     db: Session = Depends(get_db),
@@ -139,7 +167,11 @@ async def add_ledger_entry(
         )
         reconciliation_engine.add_ledger_entry(entry)
 
-        return {"status": "added", "id": request.id}
+        return ReconciliationEntryResponse(
+            status="added",
+            id=request.id,
+            message="Ledger entry added successfully"
+        )
 
     except Exception as e:
         if e.__class__.__name__ == 'HTTPException':

@@ -6,7 +6,6 @@ Supports Twitter (X), LinkedIn, Facebook, and other platforms.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import uuid4
@@ -15,9 +14,12 @@ from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import OAuthToken, User
+from core.models import OAuthToken, SocialMediaAudit, User
+from core.security_dependencies import get_current_user
 
 router = BaseAPIRouter(prefix="/api/v1/social", tags=["social-media"])
 logger = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ class SocialPostRequest(BaseModel):
     scheduled_for: Optional[datetime] = Field(None, description="Schedule post for future time")
     media_urls: Optional[List[str]] = Field(default=[], description="Images/videos to attach")
     link_url: Optional[str] = Field(None, description="Link to include in post")
+    agent_id: Optional[str] = Field(None, description="Agent ID requesting the post")
 
     model_config = ConfigDict(extra="allow")
 
@@ -91,61 +94,6 @@ class PlatformConfig:
             return False, str(e)
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """
-    Get current user from session or JWT.
-    """
-    # Method 1: Try JWT token from Authorization header
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        try:
-            from core.enterprise_auth_service import EnterpriseAuthService
-            auth_service = EnterpriseAuthService()
-            token = auth_header.split(" ")[1]
-            claims = auth_service.verify_token(token)
-            if claims:
-                user_id = claims.get('user_id')
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    return user
-        except Exception as e:
-            logger.debug(f"JWT auth failed: {e}")
-
-    # Method 2: Try X-User-ID header (from NextAuth session)
-    user_id = request.headers.get("X-User-ID")
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            return user
-
-    # Method 3: Try X-User-Email header (alternative from session)
-    user_email = request.headers.get("X-User-Email")
-    if user_email:
-        user = db.query(User).filter(User.email == user_email).first()
-        if user:
-            return user
-
-    # Method 4: Create temp user for development (if in dev mode)
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        temp_id = request.headers.get("X-User-ID") or "dev_user"
-        user = db.query(User).filter(User.id == temp_id).first()
-        if not user:
-            user = User(
-                id=temp_id,
-                email=f"dev_{temp_id}@example.com",
-                first_name="Dev",
-                last_name="User"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return user
-
-    raise HTTPException(
-        status_code=401,
-        detail="Unauthorized: Valid authentication required"
-    )
-
 
 def rate_limit_check(user_id: str, db: Session) -> bool:
     """
@@ -173,7 +121,11 @@ async def post_to_twitter(
     text: str,
     access_token: str,
     media_urls: List[str] = None,
-    link_url: str = None
+    link_url: str = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    db: Session = None
 ) -> dict:
     """
     Post to Twitter/X API.
@@ -251,7 +203,11 @@ async def post_to_linkedin(
     text: str,
     access_token: str,
     media_urls: List[str] = None,
-    link_url: str = None
+    link_url: str = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    db: Session = None
 ) -> dict:
     """
     Post to LinkedIn API.
@@ -366,7 +322,11 @@ async def post_to_facebook(
     text: str,
     access_token: str,
     media_urls: List[str] = None,
-    link_url: str = None
+    link_url: str = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    db: Session = None
 ) -> dict:
     """
     Post to Facebook API.
@@ -441,6 +401,7 @@ PLATFORM_POSTERS = {
 async def create_social_post(
     request: Request,
     payload: SocialPostRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -453,33 +414,82 @@ async def create_social_post(
     - 10 posts per hour per user (across all platforms)
     - Content length validation per platform
 
-    TODO: Implement scheduled posting (requires background task queue)
+    Governance:
+    - SUPERVISED+ maturity required for social media posting
+    - All actions are logged to SocialMediaAudit
+    - Agent attribution tracked if agent_id provided
     """
+    agent_id = None
+    agent_execution_id = None
+    agent_maturity = None
+    governance_check_passed = True
+    required_approval = False
+    approval_granted = None
+
     try:
-        # Get current user
-        current_user = get_current_user(request, db)
+
+        # Resolve agent if provided
+        if payload.agent_id:
+            resolver = AgentContextResolver(db)
+            agent, context = await resolver.resolve_agent_for_request(
+                user_id=str(current_user.id),
+                requested_agent_id=payload.agent_id,
+                action_type="social_media_post"
+            )
+
+            if agent:
+                agent_id = str(agent.id)
+                agent_maturity = agent.status
+
+                # Check governance
+                governance = AgentGovernanceService(db)
+                governance_check = governance.can_perform_action(
+                    agent_id=agent_id,
+                    action_type="social_media_post"
+                )
+
+                governance_check_passed = governance_check.get("allowed", False)
+                required_approval = governance_check.get("requires_human_approval", False)
+
+                if not governance_check_passed:
+                    # Create audit entry for failed governance check
+                    audit = SocialMediaAudit(
+                        user_id=str(current_user.id),
+                        agent_id=agent_id,
+                        agent_execution_id=agent_execution_id,
+                        platform="multiple",
+                        action_type="post",
+                        content=payload.text,
+                        media_urls=payload.media_urls,
+                        link_url=payload.link_url,
+                        success=False,
+                        error_message="Governance check failed",
+                        agent_maturity=agent_maturity,
+                        governance_check_passed=False,
+                        required_approval=required_approval,
+                        approval_granted=False,
+                        request_id=str(uuid.uuid4())
+                    )
+                    db.add(audit)
+                    db.commit()
+
+                    raise router.permission_denied_error("social media", "post")
 
         # Validate platforms
         if not payload.platforms:
-            raise HTTPException(
-                status_code=400,
-                detail="At least one platform must be specified"
-            )
+            raise router.validation_error("platforms", "At least one platform must be specified")
 
         # Validate content for each platform
         for platform in payload.platforms:
             valid, error_msg = PlatformConfig.validate_content(platform, payload.text)
             if not valid:
-                raise HTTPException(
-                    status_code=400,
-                    detail=error_msg
-                )
+                raise router.validation_error("content", error_msg)
 
         # Check rate limits
         if not rate_limit_check(current_user.id, db):
-            raise HTTPException(
+            raise router.error_response(
                 status_code=429,
-                detail="Rate limit exceeded: Maximum 10 posts per hour"
+                message="Rate limit exceeded: Maximum 10 posts per hour"
             )
 
         # Handle scheduled posts
@@ -501,12 +511,13 @@ async def create_social_post(
 
             # Check if task queue is available
             if job_id is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Task queue is not available. Scheduled posts are currently disabled."
+                raise router.internal_error(
+                    message="Task queue is not available",
+                    details={"scheduled_posts_disabled": True}
                 )
 
             # Create history record
+            from core.models import SocialPostHistory
             history = SocialPostHistory(
                 user_id=current_user.id,
                 content=payload.text,
@@ -552,6 +563,27 @@ async def create_social_post(
                         "success": False,
                         "error": f"No active {config['name']} account connected. Please connect your account first."
                     }
+
+                    # Create audit entry for missing OAuth token
+                    audit = SocialMediaAudit(
+                        user_id=str(current_user.id),
+                        agent_id=agent_id,
+                        agent_execution_id=agent_execution_id,
+                        platform=platform,
+                        action_type="post",
+                        content=payload.text,
+                        media_urls=payload.media_urls,
+                        link_url=payload.link_url,
+                        success=False,
+                        error_message=f"No active {config['name']} account connected",
+                        agent_maturity=agent_maturity or "NONE",
+                        governance_check_passed=governance_check_passed,
+                        required_approval=required_approval,
+                        approval_granted=approval_granted
+                    )
+                    db.add(audit)
+                    db.commit()
+
                     continue
 
                 # Post to platform
@@ -567,10 +599,35 @@ async def create_social_post(
                     text=payload.text,
                     access_token=oauth_token.access_token,
                     media_urls=payload.media_urls,
-                    link_url=payload.link_url
+                    link_url=payload.link_url,
+                    agent_id=agent_id,
+                    agent_execution_id=agent_execution_id,
+                    user_id=str(current_user.id),
+                    db=db
                 )
 
                 platform_results[platform] = result
+
+                # Create audit entry
+                audit = SocialMediaAudit(
+                    user_id=str(current_user.id),
+                    agent_id=agent_id,
+                    agent_execution_id=agent_execution_id,
+                    platform=platform,
+                    action_type="post",
+                    post_id=result.get("post_id"),
+                    content=payload.text,
+                    media_urls=payload.media_urls,
+                    link_url=payload.link_url,
+                    success=result.get("success", False),
+                    error_message=result.get("error"),
+                    platform_response=result,
+                    agent_maturity=agent_maturity or "NONE",
+                    governance_check_passed=governance_check_passed,
+                    required_approval=required_approval,
+                    approval_granted=approval_granted
+                )
+                db.add(audit)
 
                 if result.get("success"):
                     successful_posts += 1
@@ -589,16 +646,15 @@ async def create_social_post(
                     "error": str(e)
                 }
 
-        # Commit any token updates
+        # Commit any token updates and audit entries
         db.commit()
 
         # Generate post ID
         post_id = str(uuid.uuid4())
 
-        # Log post to history (if we had a SocialPostHistory model)
-        # For now, just log
         logger.info(
             f"Social post created: user={current_user.id}, "
+            f"agent={agent_id}, "
             f"post_id={post_id}, "
             f"platforms={payload.platforms}, "
             f"successful={successful_posts}/{len(payload.platforms)}"
@@ -618,9 +674,9 @@ async def create_social_post(
         raise
     except Exception as e:
         logger.error(f"Social post creation failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create social post: {str(e)}"
+        raise router.internal_error(
+            message="Failed to create social post",
+            details={"error": str(e)}
         )
 
 
@@ -638,13 +694,13 @@ async def list_platforms():
 @router.get("/connected-accounts")
 async def list_connected_accounts(
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     List connected social media accounts for the current user.
     """
     try:
-        current_user = get_current_user(request, db)
 
         # Get all OAuth tokens that correspond to social platforms
         social_providers = set()
@@ -693,13 +749,13 @@ async def list_connected_accounts(
 @router.get("/rate-limit")
 async def get_rate_limit_status(
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Check rate limit status for the current user.
     """
     try:
-        current_user = get_current_user(request, db)
 
         # Count posts in last hour
         from core.models import SocialPostHistory
