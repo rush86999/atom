@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,6 +18,8 @@ from sqlalchemy.orm import Session, sessionmaker
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import Base
+# Import main app for TestClient
+from main_api_app import app
 from core.models import (
     AgentRegistry, AgentStatus, AgentExecution, AgentFeedback,
     Episode, EpisodeSegment, EpisodeAccessLog,
@@ -108,3 +111,26 @@ def test_agents(db_session: Session):
         agents.append(agent)
 
     return agents
+
+
+@pytest.fixture(scope="function")
+def client(db_session: Session):
+    """
+    Create a FastAPI TestClient for testing API endpoints.
+    """
+    from core.dependency import get_db
+
+    # Override the database dependency
+    def _get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # Clean up
+    app.dependency_overrides.clear()
