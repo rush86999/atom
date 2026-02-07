@@ -89,13 +89,13 @@ class DebugAIAssistant:
             r"health|status|how (is|are).*(?:agent|workflow|browser|system)": "component_health",
 
             # Failure queries
-            r"why .*(?:fail|failing|error|not working|broken)": "failure_analysis",
+            r"why .*(?:fail|failing|error|not working|broken)|what.*causing.*(?:fail|break|error)": "failure_analysis",
 
             # Performance queries
             r"slow|performance|latency|response time|bottleneck": "performance_analysis",
 
             # Consistency queries
-            r"consistency|data.*sync|replication|propagation": "consistency_check",
+            r"consistency|data.*(?:sync|consistent)|replication|propagation": "consistency_check",
 
             # Error queries
             r"error.*pattern|recurring.*error|frequent.*error": "error_patterns",

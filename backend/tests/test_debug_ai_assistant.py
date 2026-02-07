@@ -139,7 +139,7 @@ class TestDebugAIAssistant:
         """Test failure query with error data."""
         now = datetime.utcnow()
 
-        # Create error events
+        # Create error events (more recent than 1 hour ago)
         for i in range(10):
             event = DebugEvent(
                 id=f"error-{i}",
@@ -149,7 +149,7 @@ class TestDebugAIAssistant:
                 correlation_id=f"op-{i}",
                 level="ERROR",
                 message="Connection timeout" if i < 7 else "Other error",
-                timestamp=now - timedelta(hours=1)
+                timestamp=now - timedelta(minutes=30)  # 30 minutes ago, well within 1 hour
             )
             db.add(event)
 
@@ -163,7 +163,7 @@ class TestDebugAIAssistant:
         assert result["confidence"] > 0.7
         assert "error" in result["answer"].lower()
         assert result["evidence"]["error_count"] == 10
-        assert "Connection timeout" in result["evidence"]["common_errors"]
+        assert "Connection timeout" in str(result["evidence"]["common_errors"])
 
     @pytest.mark.asyncio
     async def test_handle_failure_question_no_errors(self, db, assistant):
