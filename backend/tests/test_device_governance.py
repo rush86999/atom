@@ -119,8 +119,17 @@ class TestDeviceGovernanceIntegration:
                 "governance_check_passed": True
             }
 
-            # Mock the WebSocket device check
-            with patch('api.device_websocket.is_device_online', return_value=True):
+            # Mock the entire WebSocket device communication chain
+            with patch('api.device_websocket.get_device_connection_manager') as mock_get_manager:
+                mock_manager = Mock()
+                mock_manager.is_device_connected.return_value = True
+                mock_get_manager.return_value = mock_manager
+
+            with patch('api.device_websocket.send_device_command', new_callable=AsyncMock(return_value={
+                "success": True,
+                "data": {"file_path": "/tmp/camera_snap_test.jpg"},
+                "device_node_id": "test-device-123"
+            })):
                 result = await device_camera_snap(
                     db=mock_db,
                     user_id=str(uuid.uuid4()),
