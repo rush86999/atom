@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from core.models import DeviceAudit, DeviceNode, DeviceSession
 from core.service_factory import ServiceFactory
 from core.structured_logger import get_logger
+from core.feature_flags import FeatureFlags
 
 logger = get_logger(__name__)
 
