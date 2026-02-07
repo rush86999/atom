@@ -39,7 +39,7 @@ jobs:
           ATOM_MOCK_DATABASE: true
         run: |
           # Run quick sanity checks (subset of property tests)
-          pytest tests/property_tests/invariants/ -v -m "not slow" -x --tb=short -q
+          pytest tests/property_tests/invariants/ -v -m "not slow" -x --tb=short -q --no-cov
 
       - name: Test summary
         if: always()
