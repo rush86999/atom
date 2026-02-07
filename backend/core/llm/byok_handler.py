@@ -127,7 +127,7 @@ class BYOKHandler:
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
             if self.byok_manager.is_configured(self.workspace_id, provider_id):
-                api_key = self.byok_manager.get_api_key(self.workspace_id, provider_id)
+                api_key = self.byok_manager.get_api_key(provider_id)
                 try:
                     self.clients[provider_id] = OpenAI(
                         api_key=api_key,
