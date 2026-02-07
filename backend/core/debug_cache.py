@@ -270,7 +270,7 @@ class DebugInsightCache:
         if severity:
             query_parts.append(severity)
 
-        query_hash = hash ":".join(query_parts)
+        query_hash = hash(":".join(query_parts))
         return self.get(f"query:{query_hash}")
 
     def set_insights_by_query(
@@ -301,7 +301,7 @@ class DebugInsightCache:
         if severity:
             query_parts.append(severity)
 
-        query_hash = hash ":".join(query_parts)
+        query_hash = hash(":".join(query_parts))
         self.set(f"query:{query_hash}", insights)
 
     def get_component_state(

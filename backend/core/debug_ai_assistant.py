@@ -28,7 +28,7 @@ import asyncio
 import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from uuid import uuid
+import uuid
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -157,7 +157,7 @@ class DebugAIAssistant:
                 "related_insights": [],
             }
 
-    async def _detect_intent(self, question: str) -> str:
+    def _detect_intent(self, question: str) -> str:
         """Detect user intent from question."""
         question_lower = question.lower()
 
@@ -611,10 +611,15 @@ class DebugAIAssistant:
             # General system overview
             system_health = await self.monitor.get_system_health("last_1h")
 
+            # Build status message
+            if system_health['error_rate'] < 0.1:
+                status_msg = "No critical issues"
+            else:
+                status_msg = f"Error rate is {system_health['error_rate']*100:.1f}%"
+
             return {
                 "answer": f"System is {system_health['status']} with a health score of "
-                f"{system_health['overall_health_score']}/100. "
-                f"{'No critical issues' if system_health['error_rate'] < 0.1 else f'Error rate is {system_health['error_rate']*100:.1f}%'}",
+                f"{system_health['overall_health_score']}/100. {status_msg}",
                 "confidence": 0.75,
                 "evidence": system_health,
                 "suggestions": self._get_system_recommendations(system_health),
