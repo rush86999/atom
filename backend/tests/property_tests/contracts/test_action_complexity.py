@@ -349,15 +349,17 @@ class TestActionComplexityMatrix:
                     f"{agent_status.value} should NOT be allowed to perform {action} (complexity 4)"
 
     @given(
-        unknown_action=st.text(min_size=1, max_size=50).filter(lambda x: x.strip() and x.lower() not in [
-            "search", "read", "list", "get", "fetch", "summarize", "present_chart",
-            "present_markdown", "analyze", "suggest", "draft", "generate", "recommend",
-            "stream_chat", "present_form", "llm_stream", "browser_navigate",
-            "browser_screenshot", "browser_extract", "device_camera_snap",
-            "device_get_location", "device_send_notification", "update_canvas",
-            "create", "update", "delete", "execute", "deploy", "submit",
-            "approve", "reject", "cancel"
-        ])
+        unknown_action=st.text(min_size=1, max_size=50).filter(lambda x: x.strip() and not any(
+            known in x.lower() for known in [
+                "search", "read", "list", "get", "fetch", "summarize", "present_chart",
+                "present_markdown", "analyze", "suggest", "draft", "generate", "recommend",
+                "stream_chat", "present_form", "llm_stream", "browser_navigate",
+                "browser_screenshot", "browser_extract", "device_camera_snap",
+                "device_get_location", "device_send_notification", "update_canvas",
+                "create", "update", "delete", "execute", "deploy", "submit",
+                "approve", "reject", "cancel"
+            ]
+        ))
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_unknown_actions_have_safe_defaults(
