@@ -175,7 +175,8 @@ class AgentGovernanceService:
         if not agent:
             return
 
-        current = agent.confidence_score or 0.5
+        # Use 0.5 only if confidence_score is None, not if it's 0.0
+        current = agent.confidence_score if agent.confidence_score is not None else 0.5
         
         # Define multipliers
         boost = 0.05 if impact_level == "high" else 0.01
