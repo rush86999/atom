@@ -11,8 +11,6 @@
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
-| [missing_credentials_guide.md](missing_credentials_guide.md) | Configure 117+ integrations | - |
-| [developer_handover.md](developer_handover.md) | Architecture overview & status | - |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
 
 ---
@@ -89,7 +87,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [REACT_NATIVE_ARCHITECTURE.md](../mobile/docs/REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
+| [REACT_NATIVE_ARCHITECTURE.md](REACT_NATIVE_ARCHITECTURE.md) | React Native architecture | Feb 1, 2026 |
 | [MOBILE_QUICK_START.md](MOBILE_QUICK_START.md) | Mobile development quick start | Feb 1, 2026 |
 | [MOBILE_DEPLOYMENT.md](MOBILE_DEPLOYMENT.md) | Mobile deployment guide | Feb 1, 2026 |
 | [MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md](MOBILE_SCREENS_IMPLEMENTATION_COMPLETE.md) | Mobile screens implementation | Feb 5, 2026 |

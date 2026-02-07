@@ -197,7 +197,7 @@ npm run android
 
 - Read [Mobile Deployment Guide](./MOBILE_DEPLOYMENT.md)
 - Check [Architecture Overview](./REACT_NATIVE_ARCHITECTURE.md)
-- Review [API Documentation](../backend/README.md)
+- Review [API Documentation](../backend/docs/API_STANDARDS.md)
 
 ## Support
 
