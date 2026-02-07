@@ -62,3 +62,36 @@ global.console = {
   // warn: jest.fn(),
   // error: jest.fn(),
 };
+
+// Mock custom useToast hook
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+    dismiss: jest.fn(),
+    toasts: [],
+  }),
+  ToastProvider: ({ children }: { children: any }) => children,
+}));
+
+// Mock AgentAudioControlContext
+jest.mock('@/contexts/AgentAudioControlContext', () => ({
+  AgentAudioControlProvider: ({ children }: { children: any }) => children,
+  useAgentAudioControl: () => ({
+    isRecording: false,
+    startRecording: jest.fn(),
+    stopRecording: jest.fn(),
+    isProcessing: false,
+  }),
+}));
+
+// Mock WakeWordContext
+jest.mock('@/contexts/WakeWordContext', () => ({
+  WakeWordProvider: ({ children }: { children: any }) => children,
+  useWakeWord: () => ({
+    isListening: false,
+    startListening: jest.fn(),
+    stopListening: jest.fn(),
+    wakeWord: 'hey atom',
+  }),
+}));
+
