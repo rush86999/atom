@@ -12,6 +12,7 @@ from core.oauth_handler import (
     DROPBOX_OAUTH_CONFIG,
     GITHUB_OAUTH_CONFIG,
     GOOGLE_OAUTH_CONFIG,
+    LINKEDIN_OAUTH_CONFIG,
     MICROSOFT_OAUTH_CONFIG,
     NOTION_OAUTH_CONFIG,
     SALESFORCE_OAUTH_CONFIG,
@@ -103,10 +104,85 @@ async def google_callback_legacy():
     """Legacy endpoint for Google OAuth callback"""
     return {"status": "redirect", "message": "Use /api/auth/google/callback"}
 
+# LinkedIn OAuth Routes
+@router.get("/linkedin/initiate")
+async def linkedin_oauth_initiate():
+    """Initiate LinkedIn OAuth flow"""
+    try:
+        handler = OAuthHandler(LINKEDIN_OAUTH_CONFIG)
+        auth_url = handler.get_authorization_url(state="linkedin_oauth")
+        return RedirectResponse(url=auth_url)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"LinkedIn OAuth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/linkedin/callback")
+async def linkedin_oauth_callback_get(code: str = Query(...), state: str = Query(None)):
+    """Handle LinkedIn OAuth callback (GET from OAuth provider)"""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(LINKEDIN_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("linkedin", tokens)
+
+        logger.info("LinkedIn OAuth successful - tokens received and stored")
+        logger.debug(f"Access token: {tokens.get('access_token', '')[:20]}...")
+
+        # Redirect to frontend success page
+        return RedirectResponse(url="http://localhost:3000/oauth/success?provider=linkedin")
+
+    except HTTPException as e:
+        logger.error(f"LinkedIn OAuth callback failed: {e.detail}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={e.detail}")
+    except Exception as e:
+        logger.error(f"LinkedIn OAuth callback error: {e}")
+        return RedirectResponse(url=f"http://localhost:3000/oauth/error?error={str(e)}")
+
+
+@router.post("/linkedin/callback")
+async def linkedin_oauth_callback(request: Request):
+    """Handle LinkedIn OAuth callback (POST)"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is required")
+
+        handler = OAuthHandler(LINKEDIN_OAUTH_CONFIG)
+        tokens = await handler.exchange_code_for_tokens(code)
+
+        # Store tokens securely
+        token_storage.save_token("linkedin", tokens)
+
+        logger.info("LinkedIn OAuth successful - tokens received and stored")
+        return {"status": "success", "provider": "linkedin", "tokens": tokens}
+
+    except HTTPException as e:
+        logger.error(f"LinkedIn OAuth callback failed: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"LinkedIn OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Legacy OAuth callback endpoints for compatibility
+@router.get("/callback/google")
+async def google_callback_legacy():
+    """Legacy endpoint for Google OAuth callback"""
+    return {"status": "redirect", "message": "Use /api/auth/google/callback"}
+
 @router.get("/callback/linkedin")
-async def linkedin_callback():
-    """LinkedIn OAuth callback placeholder"""
-    return {"status": "not_implemented", "message": "LinkedIn OAuth not yet implemented"}
+async def linkedin_callback_legacy():
+    """Legacy endpoint for LinkedIn OAuth callback"""
+    return {"status": "redirect", "message": "Use /api/auth/linkedin/callback"}
 
 # Microsoft OAuth Routes
 @router.get("/microsoft/initiate")

@@ -1,153 +1,225 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
+// Backend API URL - configurable via environment variable
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8000";
+
 interface CalendarEvent {
   id: string;
   title: string;
-  start: Date;
-  end: Date;
+  start: string;  // ISO string
+  end: string;    // ISO string
   description?: string;
   location?: string;
-  attendees?: string[];
-  status: "confirmed" | "tentative" | "cancelled";
+  status: string;
 }
 
 interface Task {
   id: string;
   title: string;
   description?: string;
-  dueDate: Date;
+  due_date?: string;  // ISO string
   priority: "high" | "medium" | "low";
-  status: "todo" | "in-progress" | "completed";
-  project?: string;
-  tags?: string[];
+  status: string;
+  created_at: string;  // ISO string
+  updated_at: string;  // ISO string
 }
 
 interface Message {
   id: string;
-  platform: "email" | "slack" | "teams" | "discord";
-  from: string;
+  platform: string;
+  from_user?: string;
   subject: string;
   preview: string;
-  timestamp: Date;
+  timestamp: string;  // ISO string
   unread: boolean;
   priority: "high" | "normal" | "low";
+}
+
+interface DashboardStats {
+  upcoming_events: number;
+  overdue_tasks: number;
+  unread_messages: number;
+  completed_tasks: number;
+  active_workflows: number;
+  total_agents: number;
 }
 
 interface DashboardData {
   calendar: CalendarEvent[];
   tasks: Task[];
   messages: Message[];
-  stats: {
-    upcomingEvents: number;
-    overdueTasks: number;
-    unreadMessages: number;
-    completedTasks: number;
-  };
+  stats: DashboardStats;
 }
 
-// Mock data for demonstration - in production, this would fetch from actual services
-const mockCalendarData: CalendarEvent[] = [
-  {
-    id: "1",
-    title: "Team Standup Meeting",
-    start: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-    end: new Date(Date.now() + 3 * 60 * 60 * 1000),
-    description: "Daily team synchronization",
-    location: "Conference Room A",
-    attendees: ["team@example.com", "manager@example.com"],
-    status: "confirmed",
-  },
-  {
-    id: "2",
-    title: "Client Presentation",
-    start: new Date(Date.now() + 5 * 60 * 60 * 1000),
-    end: new Date(Date.now() + 6 * 60 * 60 * 1000),
-    description: "Quarterly review with client",
-    location: "Client Office",
-    status: "tentative",
-  },
-  {
-    id: "3",
-    title: "Lunch with Sarah",
-    start: new Date(Date.now() + 7 * 60 * 60 * 1000),
-    end: new Date(Date.now() + 8 * 60 * 60 * 1000),
-    location: "Downtown Cafe",
-    status: "confirmed",
-  },
-];
+interface DashboardApiResponse {
+  success: boolean;
+  data: {
+    calendar: CalendarEvent[];
+    tasks: Task[];
+    messages: Message[];
+  };
+  stats: DashboardStats;
+  timestamp: string;
+}
 
-const mockTasksData: Task[] = [
-  {
-    id: "1",
-    title: "Complete project proposal",
-    description: "Finish the client project proposal document",
-    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-    priority: "high",
-    status: "in-progress",
-    project: "Client Project",
-    tags: ["documentation", "client"],
-  },
-  {
-    id: "2",
-    title: "Review team code submissions",
-    description: "Code review for pull requests",
-    dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago (overdue)
-    priority: "medium",
-    status: "todo",
-    project: "Development",
-    tags: ["code-review", "team"],
-  },
-  {
-    id: "3",
-    title: "Prepare monthly report",
-    description: "Compile metrics and performance data",
-    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-    priority: "medium",
-    status: "todo",
-    project: "Reporting",
-    tags: ["reporting", "metrics"],
-  },
-  {
-    id: "4",
-    title: "Schedule team training",
-    description: "Organize React.js training session",
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-    priority: "low",
-    status: "completed",
-    project: "Team Development",
-    tags: ["training", "react"],
-  },
-];
+/**
+ * Dashboard API Endpoint
+ * Fetches real data from the backend dashboard API
+ */
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    // Extract query parameters
+    const { user_id, limit } = req.query;
 
-const mockMessagesData: Message[] = [
-  {
-    id: "1",
-    platform: "email",
-    from: "client@example.com",
-    subject: "Project Update Request",
-    preview:
-      "Hi, could you please provide an update on the current project status?",
-    timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-    unread: true,
-    priority: "high",
+    // Build query params for backend API
+    const params = new URLSearchParams();
+    if (user_id) params.append("user_id", user_id as string);
+    if (limit) params.append("limit", limit as string);
+
+    // Fetch from backend dashboard API
+    const response = await fetch(`${BACKEND_API_URL}/api/dashboard/data?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        // Add authentication header if needed
+        // "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend API returned ${response.status}: ${response.statusText}`);
+    }
+
+    const data: DashboardApiResponse = await response.json();
+
+    if (!data.success) {
+      throw new Error("Backend API returned unsuccessful response");
+    }
+
+    // Transform backend data to match frontend interface
+    const dashboardData: DashboardData = {
+      calendar: data.data.calendar.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        description: event.description,
+        location: event.location,
+        status: event.status,
+      })),
+      tasks: data.data.tasks.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        due_date: task.due_date,
+        priority: task.priority,
+        status: task.status,
+        created_at: task.created_at,
+        updated_at: task.updated_at,
+      })),
+      messages: data.data.messages.map((msg: any) => ({
+        id: msg.id,
+        platform: msg.platform,
+        from_user: msg.from_user,
+        subject: msg.subject,
+        preview: msg.preview,
+        timestamp: msg.timestamp,
+        unread: msg.unread,
+        priority: msg.priority,
+      })),
+      stats: data.stats,
+    };
+
+    // Return the transformed data
+    res.status(200).json(dashboardData);
+
+  } catch (error) {
+    console.error("Dashboard API error:", error);
+
+    // Return error response
+    res.status(500).json({
+      error: "Failed to fetch dashboard data",
+      message: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+/**
+ * Legacy function to get mock data for fallback/testing
+ * This is kept for development purposes when backend is not available
+ */
+function getMockDashboardData(): DashboardData {
+  const now = new Date();
+
+  return {
+    calendar: [
+    {
+      id: "mock-1",
+      title: "Team Standup Meeting",
+      start: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+      end: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+      description: "Daily team synchronization",
+      location: "Conference Room A",
+      status: "confirmed",
+    },
+    {
+      id: "mock-2",
+      title: "Client Presentation",
+      start: new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString(),
+      end: new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(),
+      description: "Quarterly review with client",
+      location: "Client Office",
+      status: "tentative",
+    },
+  ],
+  tasks: [
+    {
+      id: "mock-1",
+      title: "Complete project proposal",
+      description: "Finish the client project proposal document",
+      due_date: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      priority: "high",
+      status: "in-progress",
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+    {
+      id: "mock-2",
+      title: "Review team code submissions",
+      description: "Code review for pull requests",
+      due_date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      priority: "medium",
+      status: "todo",
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+  ],
+  messages: [
+    {
+      id: "mock-1",
+      platform: "email",
+      from_user: "client@example.com",
+      subject: "Project Update Request",
+      preview: "Hi, could you please provide an update on the current project status?",
+      timestamp: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
+      unread: true,
+      priority: "high",
+    },
+  ],
+  stats: {
+    upcoming_events: 2,
+    overdue_tasks: 1,
+    unread_messages: 1,
+    completed_tasks: 0,
+    active_workflows: 0,
+    total_agents: 0,
   },
-  {
-    id: "2",
-    platform: "slack",
-    from: "John Smith",
-    subject: "Meeting Notes",
-    preview: "Here are the notes from yesterday's meeting...",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    unread: false,
-    priority: "normal",
-  },
-  {
-    id: "3",
-    platform: "teams",
-    from: "HR Department",
-    subject: "Benefits Enrollment Reminder",
-    preview: "Reminder: Benefits enrollment closes this Friday",
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+};
+
     unread: true,
     priority: "normal",
   },

@@ -974,7 +974,269 @@ class SlackEnhancedService:
                 'error': str(e),
                 'messages': []
             }
-    
+
+    async def add_reaction(self, workspace_id: str, channel_id: str,
+                          timestamp: str, reaction: str) -> Dict[str, Any]:
+        """Add reaction to a message"""
+        try:
+            # Check rate limit
+            if not await self.rate_limiter.check_limit(workspace_id, 'reactions.add'):
+                raise SlackApiError("Rate limit exceeded for reactions.add")
+
+            client = self._get_client(workspace_id)
+            if not client:
+                raise SlackApiError("Failed to create Slack client")
+
+            # Remove colons if present (e.g., ":thumbsup:" -> "thumbsup")
+            reaction = reaction.strip(':')
+
+            response = await client.reactions_add(
+                channel=channel_id,
+                timestamp=timestamp,
+                name=reaction
+            )
+
+            if response['ok']:
+                return {
+                    'ok': True,
+                    'message': 'Reaction added successfully',
+                    'reaction': reaction,
+                    'channel': channel_id,
+                    'timestamp': timestamp
+                }
+            else:
+                raise SlackApiError(f"Failed to add reaction: {response.get('error')}")
+
+        except SlackApiError as e:
+            logger.error(f"Error adding reaction: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error adding reaction: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+    async def send_dm(self, workspace_id: str, user_id: str,
+                     text: str, blocks: List[Dict] = None,
+                     unfurl_links: bool = True, unfurl_media: bool = True) -> Dict[str, Any]:
+        """Send direct message to user"""
+        try:
+            # Check rate limit
+            if not await self.rate_limiter.check_limit(workspace_id, 'chat.postMessage'):
+                raise SlackApiError("Rate limit exceeded for chat.postMessage")
+
+            client = self._get_client(workspace_id)
+            if not client:
+                raise SlackApiError("Failed to create Slack client")
+
+            # Open DM channel with user
+            im_response = await client.conversations_open(users=[user_id])
+
+            if not im_response['ok']:
+                raise SlackApiError(f"Failed to open DM: {im_response.get('error')}")
+
+            channel_id = im_response['channel']['id']
+
+            # Send message
+            message_params = {
+                'channel': channel_id,
+                'text': text,
+                'unfurl_links': unfurl_links,
+                'unfurl_media': unfurl_media
+            }
+
+            if blocks:
+                message_params['blocks'] = blocks
+
+            response = await client.chat_postMessage(**message_params)
+
+            if response['ok']:
+                return {
+                    'ok': True,
+                    'message': 'DM sent successfully',
+                    'channel': channel_id,
+                    'user_id': user_id,
+                    'timestamp': response['message']['ts'],
+                    'message_id': response['message']['ts']
+                }
+            else:
+                raise SlackApiError(f"Failed to send DM: {response.get('error')}")
+
+        except SlackApiError as e:
+            logger.error(f"Error sending DM: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error sending DM: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+    async def create_channel(self, workspace_id: str, name: str,
+                            is_private: bool = False,
+                            description: str = None) -> Dict[str, Any]:
+        """Create a new channel"""
+        try:
+            # Check rate limit
+            if not await self.rate_limiter.check_limit(workspace_id, 'conversations.create'):
+                raise SlackApiError("Rate limit exceeded for conversations.create")
+
+            client = self._get_client(workspace_id)
+            if not client:
+                raise SlackApiError("Failed to create Slack client")
+
+            create_params = {
+                'name': name,
+                'is_private': is_private
+            }
+
+            response = await client.conversations_create(**create_params)
+
+            if response['ok']:
+                channel = response['channel']
+
+                # Set topic/description if provided
+                if description:
+                    await client.conversations_setTopic(
+                        channel=channel['id'],
+                        topic=description
+                    )
+
+                return {
+                    'ok': True,
+                    'message': 'Channel created successfully',
+                    'channel_id': channel['id'],
+                    'channel_name': channel['name'],
+                    'is_private': channel.get('is_private', False),
+                    'created': channel.get('created')
+                }
+            else:
+                raise SlackApiError(f"Failed to create channel: {response.get('error')}")
+
+        except SlackApiError as e:
+            logger.error(f"Error creating channel: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error creating channel: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+    async def invite_to_channel(self, workspace_id: str, channel_id: str,
+                                user_ids: List[str]) -> Dict[str, Any]:
+        """Invite users to a channel"""
+        try:
+            client = self._get_client(workspace_id)
+            if not client:
+                raise SlackApiError("Failed to create Slack client")
+
+            invited_users = []
+            failed_users = []
+
+            for user_id in user_ids:
+                try:
+                    # Check rate limit for each invite
+                    if not await self.rate_limiter.check_limit(workspace_id, 'conversations.invite'):
+                        await asyncio.sleep(1)  # Brief pause if rate limited
+
+                    response = await client.conversations_invite(
+                        channel=channel_id,
+                        users=[user_id]
+                    )
+
+                    if response['ok']:
+                        invited_users.append(user_id)
+                    else:
+                        failed_users.append({
+                            'user_id': user_id,
+                            'error': response.get('error')
+                        })
+
+                except SlackApiError as e:
+                    failed_users.append({
+                        'user_id': user_id,
+                        'error': str(e)
+                    })
+
+            return {
+                'ok': len(invited_users) > 0,
+                'message': f'Invited {len(invited_users)} of {len(user_ids)} users',
+                'invited_users': invited_users,
+                'failed_users': failed_users,
+                'channel_id': channel_id
+            }
+
+        except SlackApiError as e:
+            logger.error(f"Error inviting users: {e}")
+            return {
+                'ok': False,
+                'error': str(e),
+                'invited_users': invited_users,
+                'failed_users': failed_users
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error inviting users: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+    async def pin_message(self, workspace_id: str, channel_id: str,
+                         timestamp: str) -> Dict[str, Any]:
+        """Pin a message to a channel"""
+        try:
+            # Check rate limit
+            if not await self.rate_limiter.check_limit(workspace_id, 'pins.add'):
+                raise SlackApiError("Rate limit exceeded for pins.add")
+
+            client = self._get_client(workspace_id)
+            if not client:
+                raise SlackApiError("Failed to create Slack client")
+
+            response = await client.pins_add(
+                channel=channel_id,
+                timestamp=timestamp
+            )
+
+            if response['ok']:
+                return {
+                    'ok': True,
+                    'message': 'Message pinned successfully',
+                    'channel': channel_id,
+                    'timestamp': timestamp
+                }
+            else:
+                raise SlackApiError(f"Failed to pin message: {response.get('error')}")
+
+        except SlackApiError as e:
+            logger.error(f"Error pinning message: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error pinning message: {e}")
+            return {
+                'ok': False,
+                'error': str(e)
+            }
+
     async def verify_webhook_signature(self, body: bytes, timestamp: str, signature: str) -> bool:
         """Verify Slack webhook signature"""
         try:

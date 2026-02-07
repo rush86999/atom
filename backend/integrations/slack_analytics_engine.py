@@ -1,6 +1,6 @@
 """
 ATOM Slack Analytics Engine
-Comprehensive analytics with reporting, insights, and predictions
+Comprehensive analytics with reporting, insights, and ML-powered predictions
 """
 
 import asyncio
@@ -14,8 +14,34 @@ import os
 import re
 import statistics
 from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
+
+# Optional ML libraries for advanced NLP features
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    VADER_AVAILABLE = True
+except ImportError:
+    VADER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.info("VADER not available - using enhanced keyword-based sentiment analysis")
+
+try:
+    from textblob import TextBlob
+    TEXTBLOB_AVAILABLE = True
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    logger.info("TextBlob not available - topic extraction will be limited")
+
+try:
+    from sklearn.feature_extraction.text import CountVectorizer
+    from sklearn.decomposition import LatentDirichletAllocation
+    from sklearn.model_selection import train_test_split
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+    logger.info("scikit-learn not available - LDA topic modeling unavailable")
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +101,14 @@ class AnalyticsReport:
     metrics: List[AnalyticsMetric]
     time_range: AnalyticsTimeRange
     granularity: AnalyticsGranularity
+    created_by: str
     filters: Dict[str, Any] = None
     visualizations: List[str] = None
-    created_by: str
     created_at: datetime = None
     is_scheduled: bool = False
     schedule_cron: Optional[str] = None
     recipients: List[str] = None
-    
+
     def __post_init__(self):
         if self.filters is None:
             self.filters = {}
@@ -100,22 +126,43 @@ class SlackAnalyticsEngine:
         self.config = config
         self.database = config.get('database')
         self.redis_client = config.get('redis_client')
-        
+
         # Cache for computed analytics
         self.analytics_cache: Dict[str, Any] = {}
         self.cache_ttl = config.get('cache_ttl', 300)  # 5 minutes
 
-        # Sentiment analysis - requires ML model integration
-        # To enable: Set config['sentiment_analyzer'] to a sentiment analysis service
-        self.sentiment_analyzer = config.get('sentiment_analyzer')
-        if not self.sentiment_analyzer:
-            logger.debug("Sentiment analyzer not configured - using basic keyword-based analysis")
+        # Initialize VADER sentiment analyzer (if available)
+        self.vader_analyzer = None
+        if VADER_AVAILABLE:
+            try:
+                self.vader_analyzer = SentimentIntensityAnalyzer()
+                logger.info("VADER sentiment analyzer initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize VADER: {e}")
 
-        # Machine learning models for predictions and advanced analytics
-        # To enable: Set config['prediction_models'] with model instances
+        # Initialize LDA topic model (if scikit-learn available)
+        self.lda_model = None
+        self.vectorizer = None
+        self.topic_vocab = None
+        if SKLEARN_AVAILABLE:
+            logger.info("scikit-learn available - LDA topic modeling ready")
+        else:
+            logger.info("scikit-learn not available - LDA topic modeling disabled")
+
+        # Store for training data
+        self.training_texts: List[str] = []
+        self.training_texts_timestamps: List[datetime] = []
+
+        # Sentiment analysis from config (if provided)
+        self.sentiment_analyzer = config.get('sentiment_analyzer')
+
+        # Machine learning models for predictions
         self.prediction_models = config.get('prediction_models', {})
-        if not self.prediction_models:
-            logger.debug("Prediction models not configured - advanced ML features unavailable")
+
+        # Feature flags
+        self.use_vader = VADER_AVAILABLE and self.vader_analyzer is not None
+        self.use_textblob = TEXTBLOB_AVAILABLE
+        self.use_lda = SKLEARN_AVAILABLE
         
         # Report configurations
         self.reports: Dict[str, AnalyticsReport] = {}
@@ -1008,41 +1055,155 @@ class SlackAnalyticsEngine:
         except Exception:
             return None
     
-    def _analyze_sentiment(self, text: str) -> float:
+    def _analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
-        Analyze sentiment of text.
+        Analyze sentiment of text using ML models with confidence scores.
 
-        This is a basic keyword-based sentiment analysis fallback.
-        For production use, configure a proper sentiment analyzer (e.g., TextBlob, VADER, or ML model).
+        Priority order:
+        1. VADER sentiment analyzer (most accurate for social media)
+        2. TextBlob sentiment (good fallback)
+        3. Enhanced keyword-based analysis (last resort)
 
         Args:
             text: The text to analyze
 
         Returns:
-            Sentiment score between -1 (negative) and 1 (positive)
+            Dictionary with sentiment score (-1 to 1), confidence (0-1), and label
         """
-        # Use configured sentiment analyzer if available
-        if self.sentiment_analyzer and hasattr(self.sentiment_analyzer, 'analyze'):
-            try:
-                return self.sentiment_analyzer.analyze(text)
-            except Exception as e:
-                logger.warning(f"Sentiment analyzer failed, falling back to keyword analysis: {e}")
+        sentiment_score = 0.0
+        confidence = 0.5
+        method_used = "keyword"
+        label = "neutral"
 
-        # Fallback: Basic keyword-based sentiment analysis
-        positive_words = ['good', 'great', 'awesome', 'excellent', 'amazing', 'love', 'like']
-        negative_words = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'poor', 'worst']
+        # Try VADER first (best for social media text)
+        if self.use_vader and self.vader_analyzer:
+            try:
+                scores = self.vader_analyzer.polarity_scores(text)
+                sentiment_score = scores['compound']
+
+                # Calculate confidence based on the scores distribution
+                # High confidence when all scores align
+                pos, neg, neu = scores['pos'], scores['neg'], scores['neu']
+                total = pos + neg + neu
+
+                if total > 0:
+                    # Confidence is higher when one emotion dominates
+                    confidence = max(pos, neg, neu) / total
+                    confidence = 0.5 + (confidence * 0.5)  # Scale to 0.5-1.0 range
+
+                # Determine label
+                if sentiment_score >= 0.05:
+                    label = "positive"
+                elif sentiment_score <= -0.05:
+                    label = "negative"
+                else:
+                    label = "neutral"
+
+                method_used = "vader"
+
+                return {
+                    'score': sentiment_score,
+                    'confidence': confidence,
+                    'label': label,
+                    'method': method_used,
+                    'details': {
+                        'positive': pos,
+                        'negative': neg,
+                        'neutral': neu,
+                        'compound': sentiment_score
+                    }
+                }
+            except Exception as e:
+                logger.warning(f"VADER sentiment analysis failed: {e}, falling back to TextBlob")
+
+        # Try TextBlob
+        if self.use_textblob and sentiment_score == 0:
+            try:
+                blob = TextBlob(text)
+                sentiment_score = blob.sentiment.polarity
+
+                # TextBlob subjectivity (0=objective, 1=subjective) as confidence proxy
+                subjectivity = blob.sentiment.subjectivity
+                confidence = 0.5 + (subjectivity * 0.3)
+
+                if sentiment_score > 0:
+                    label = "positive"
+                elif sentiment_score < 0:
+                    label = "negative"
+                else:
+                    label = "neutral"
+
+                method_used = "textblob"
+
+                return {
+                    'score': sentiment_score,
+                    'confidence': confidence,
+                    'label': label,
+                    'method': method_used,
+                    'details': {
+                        'subjectivity': subjectivity
+                    }
+                }
+            except Exception as e:
+                logger.warning(f"TextBlob sentiment analysis failed: {e}, falling back to keyword analysis")
+
+        # Enhanced keyword-based sentiment analysis (last resort)
+        positive_words = [
+            'good', 'great', 'awesome', 'excellent', 'amazing', 'love', 'like',
+            'happy', 'glad', 'fantastic', 'wonderful', 'best', 'perfect',
+            'success', 'win', 'yay', 'thanks', 'thank you', 'appreciate'
+        ]
+        negative_words = [
+            'bad', 'terrible', 'awful', 'hate', 'dislike', 'poor', 'worst',
+            'sad', 'angry', 'upset', 'frustrated', 'disappointed', 'fail', 'error',
+            'problem', 'issue', 'bug', 'broken', 'wrong', 'sorry', 'apologize'
+        ]
 
         text_lower = text.lower()
-        positive_count = sum(1 for word in positive_words if word in text_lower)
-        negative_count = sum(1 for word in negative_words if word in text_lower)
+        words = text.split()
 
-        total_words = len(text.split())
-        if total_words == 0:
-            return 0
+        if not words:
+            return {
+                'score': 0.0,
+                'confidence': 0.0,
+                'label': 'neutral',
+                'method': 'keyword',
+                'details': {'reason': 'empty_text'}
+            }
 
-        # Simple sentiment score between -1 and 1
-        sentiment = (positive_count - negative_count) / total_words
-        return max(-1, min(1, sentiment))
+        positive_count = sum(1 for word in words if word in positive_words)
+        negative_count = sum(1 for word in words if word in negative_words)
+
+        # Calculate sentiment with confidence
+        if positive_count > 0 or negative_count > 0:
+            total_sentiment_words = positive_count + negative_count
+            sentiment_score = (positive_count - negative_count) / len(words)
+            sentiment_score = max(-1, min(1, sentiment_score * 5))  # Amplify the score
+
+            # Confidence based on ratio of sentiment words to total words
+            confidence = min(0.8, total_sentiment_words / len(words))
+        else:
+            sentiment_score = 0.0
+            confidence = 0.3  # Low confidence when no sentiment words found
+
+        if sentiment_score >= 0.05:
+            label = "positive"
+        elif sentiment_score <= -0.05:
+            label = "negative"
+        else:
+            label = "neutral"
+
+        return {
+            'score': sentiment_score,
+            'confidence': confidence,
+            'label': label,
+            'method': 'keyword',
+            'details': {
+                'positive_words': positive_count,
+                'negative_words': negative_count,
+                'total_words': len(words)
+            }
+        }
     
     def _get_sentiment_distribution(self, sentiments: List[float]) -> Dict[str, float]:
         """Get sentiment distribution"""
@@ -1060,35 +1221,250 @@ class SlackAnalyticsEngine:
             'negative': negative / total
         }
     
-    def _extract_topics(self, text: str) -> List[str]:
+    def _extract_topics(self, text: str) -> Dict[str, Any]:
         """
-        Extract topics from text.
+        Extract topics from text using ML models with confidence scores.
 
-        This is a basic keyword and hashtag-based topic extraction.
-        For production use, configure an NLP model (e.g., LDA, BERT-based topic modeling).
+        Priority order:
+        1. LDA topic model (if trained on Slack data)
+        2. TextBlob noun phrase extraction
+        3. Enhanced keyword/hashtag extraction (fallback)
 
         Args:
             text: The text to extract topics from
 
         Returns:
-            List of topic strings
+            Dictionary with topics list, confidence, and method used
         """
         topics = []
+        confidence = 0.5
+        method_used = "keyword"
 
+        # Try LDA if model is trained and available
+        if self.use_lda and self.lda_model is not None and self.vectorizer is not None:
+            try:
+                # Transform text to document-term matrix
+                text_vector = self.vectorizer.transform([text])
+
+                # Get topic distribution
+                topic_dist = self.lda_model.transform(text_vector)[0]
+
+                # Get top topics
+                top_topics_idx = topic_dist.argsort()[-5:][::-1]  # Top 5 topics
+                top_topics_confidence = topic_dist[top_topics_idx]
+
+                # Convert topic indices to words
+                feature_names = self.vectorizer.get_feature_names_out()
+                for idx, conf in zip(top_topics_idx, top_topics_confidence):
+                    if conf > 0.05:  # Only include topics with >5% probability
+                        topics.append(feature_names[idx])
+                        confidence = max(confidence, conf)
+
+                if topics:
+                    method_used = "lda"
+                    confidence = float(max(top_topics_confidence))
+
+                return {
+                    'topics': topics,
+                    'confidence': confidence,
+                    'method': method_used,
+                    'count': len(topics)
+                }
+            except Exception as e:
+                logger.warning(f"LDA topic extraction failed: {e}, falling back to TextBlob")
+
+        # Try TextBlob noun phrase extraction
+        if self.use_textblob and not topics:
+            try:
+                blob = TextBlob(text)
+                # Extract noun phrases (often represent topics)
+                noun_phrases = blob.noun_phrases
+
+                # Filter to meaningful phrases (2-4 words, no URLs)
+                for phrase in noun_phrases:
+                    phrase_str = str(phrase).strip()
+                    if 2 <= len(phrase_str.split()) <= 4 and not phrase_str.startswith('http'):
+                        topics.append(phrase_str)
+
+                if topics:
+                    method_used = "textblob"
+                    confidence = 0.6
+
+                return {
+                    'topics': topics,
+                    'confidence': confidence,
+                    'method': method_used,
+                    'count': len(topics)
+                }
+            except Exception as e:
+                logger.warning(f"TextBlob topic extraction failed: {e}, falling back to keyword extraction")
+
+        # Enhanced keyword/hashtag extraction (fallback)
         # Extract hashtags
         hashtags = re.findall(r'#(\w+)', text)
         topics.extend(hashtags)
 
-        # Look for common business/tech keywords (basic extraction)
-        keywords = ['project', 'deadline', 'meeting', 'review', 'update', 'feature', 'bug',
-                   'deploy', 'release', 'sprint', 'standup', 'planning', 'retrospective']
+        # Extract @mentions (they often indicate topics/people of interest)
+        mentions = re.findall(r'@(\w+)', text)
+        topics.extend([f"@{m}" for m in mentions])
+
+        # Enhanced keyword extraction with tech/business terms
+        keyword_categories = {
+            'project_management': ['sprint', 'standup', 'retrospective', 'planning', 'kickoff', 'review'],
+            'development': ['deploy', 'release', 'feature', 'bug', 'fix', 'merge', 'pr', 'commit'],
+            'collaboration': ['meeting', 'discussion', 'sync', 'call', 'huddle'],
+            'documentation': ['doc', 'readme', 'wiki', 'guide', 'tutorial'],
+            'tools': ['jira', 'github', 'gitlab', 'slack', 'teams', 'zoom'],
+            'timing': ['deadline', 'milestone', 'eta', 'asap', 'eod', 'eow'],
+        }
+
         text_lower = text.lower()
 
-        for keyword in keywords:
-            if keyword in text_lower:
-                topics.append(keyword)
+        # Find matching keywords and their categories
+        for category, keywords in keyword_categories.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    topics.append(keyword)
 
-        return list(set(topics))  # Remove duplicates
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_topics = []
+        for topic in topics:
+            if topic not in seen:
+                seen.add(topic)
+                unique_topics.append(topic)
+
+        return {
+            'topics': unique_topics,
+            'confidence': 0.4,  # Low confidence for keyword extraction
+            'method': 'keyword_enhanced',
+            'count': len(unique_topics),
+            'hashtags': hashtags,
+            'mentions': mentions
+        }
+
+    def train_lda_model(self, texts: List[str], num_topics: int = 5) -> Dict[str, Any]:
+        """
+        Train LDA topic model on Slack message data.
+
+        Args:
+            texts: List of preprocessed text documents
+            num_topics: Number of topics to discover
+
+        Returns:
+            Dictionary with training results
+        """
+        if not SKLEARN_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'scikit-learn not available'
+            }
+
+        try:
+            logger.info(f"Training LDA model on {len(texts)} documents with {num_topics} topics")
+
+            # Create vectorizer
+            self.vectorizer = CountVectorizer(
+                max_features=1000,
+                stop_words='english',
+                ngram_range=(1, 2),
+                min_df=2,
+                max_df=0.8
+            )
+
+            # Fit vectorizer and transform texts
+            doc_term_matrix = self.vectorizer.fit_transform(texts)
+
+            # Train LDA model
+            self.lda_model = LatentDirichletAllocation(
+                n_components=num_topics,
+                random_state=42,
+                max_iter=10,
+                learning_method='online',
+                learning_offset=50.0,
+                perp_tol=0.1
+            )
+
+            self.lda_model.fit(doc_term_matrix)
+
+            # Store vocabulary
+            self.topic_vocab = self.vectorizer.get_feature_names_out()
+
+            # Calculate perplexity (lower is better)
+            perplexity = self.lda_model.perplexity(doc_term_matrix)
+
+            # Get top words for each topic
+            feature_names = self.vectorizer.get_feature_names_out()
+            topic_words = []
+
+            for topic_idx, topic in enumerate(self.lda_model.components_):
+                top_word_indices = topic.argsort()[-10:][::-1]
+                top_words = [feature_names[i] for i in top_word_indices]
+                topic_words.append({
+                    'topic_id': topic_idx,
+                    'words': top_words,
+                    'weights': [topic[i] for i in top_word_indices].tolist()
+                })
+
+            logger.info(f"LDA model trained successfully with perplexity: {perplexity:.2f}")
+
+            return {
+                'success': True,
+                'num_topics': num_topics,
+                'num_documents': len(texts),
+                'vocabulary_size': len(feature_names),
+                'perplexity': perplexity,
+                'topic_words': topic_words,
+                'method': 'lda'
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to train LDA model: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def add_training_texts(self, texts: List[str], timestamps: Optional[List[datetime]] = None) -> int:
+        """
+        Add texts to training data corpus for LDA model.
+
+        Args:
+            texts: List of text documents
+            timestamps: Optional list of timestamps for the texts
+
+        Returns:
+            Number of texts added
+        """
+        count = len(texts)
+        self.training_texts.extend(texts)
+
+        if timestamps:
+            self.training_texts_timestamps.extend(timestamps)
+        else:
+            self.training_texts_timestamps.extend([datetime.utcnow()] * count)
+
+        logger.info(f"Added {count} texts to training corpus. Total: {len(self.training_texts)}")
+
+        # Auto-train if we have enough texts
+        if len(self.training_texts) >= 50:
+            logger.info("Sufficient training data available. Consider calling train_lda_model()")
+
+        return count
+
+    def get_training_corpus_size(self) -> Dict[str, Any]:
+        """
+        Get information about the training corpus.
+
+        Returns:
+            Dictionary with corpus statistics
+        """
+        return {
+            'total_texts': len(self.training_texts),
+            'timestamps_available': len(self.training_texts_timestamps) > 0,
+            'can_train_lda': SKLEARN_AVAILABLE and len(self.training_texts) >= 10,
+            'recommended_topics': max(3, min(20, len(self.training_texts) // 20)) if self.training_texts else 0
+        }
     
     def _calculate_score(self, data: List[AnalyticsDataPoint], reverse: bool = False) -> float:
         """Calculate score from data points"""

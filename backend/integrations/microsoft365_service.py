@@ -91,19 +91,32 @@ class Microsoft365Service:
             return {"status": "error", "message": f"Authentication failed: {str(e)}"}
 
     async def get_user_profile(self, access_token: str) -> Dict[str, Any]:
-        """Get Microsoft 365 user profile."""
+        """Get Microsoft 365 user profile from Microsoft Graph API."""
         try:
-            # Mock implementation
-            mock_profile = {
-                "id": "user123",
-                "displayName": "John Doe",
-                "mail": "john.doe@example.com",
-                "userPrincipalName": "john.doe@example.com",
-                "jobTitle": "Software Engineer",
-                "officeLocation": "Seattle",
+            # Use Microsoft Graph API to get user profile
+            url = f"{self.base_url}/me"
+            response = await self._make_graph_request("GET", url, access_token)
+
+            if response.get("status") == "error":
+                return response
+
+            # Transform Graph API response to expected format
+            profile_data = response.get("data", {})
+            transformed_profile = {
+                "id": profile_data.get("id"),
+                "displayName": profile_data.get("displayName"),
+                "mail": profile_data.get("mail") or profile_data.get("userPrincipalName"),
+                "userPrincipalName": profile_data.get("userPrincipalName"),
+                "jobTitle": profile_data.get("jobTitle"),
+                "officeLocation": profile_data.get("officeLocation"),
+                "businessPhones": profile_data.get("businessPhones", []),
+                "mobilePhone": profile_data.get("mobilePhone"),
+                "preferredLanguage": profile_data.get("preferredLanguage"),
             }
 
-            return {"status": "success", "data": mock_profile}
+            logger.info(f"Successfully retrieved profile for user: {transformed_profile.get('userPrincipalName')}")
+            return {"status": "success", "data": transformed_profile}
+
         except Exception as e:
             logger.error(f"Microsoft 365 get user profile failed: {e}")
             return {

@@ -6,8 +6,21 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
-from PIL import Image
-import PyPDF2
+
+# Optional PIL import for image processing
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    Image = None
+    PIL_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("PIL (Pillow) not available - image processing features will be limited")
+
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
 
 # Optional numpy import
 try:

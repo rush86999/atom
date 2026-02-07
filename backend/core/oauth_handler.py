@@ -264,3 +264,13 @@ DROPBOX_OAUTH_CONFIG = OAuthConfig(
     token_url="https://api.dropboxapi.com/oauth2/token",
     scopes=["files.metadata.write", "files.content.write", "files.content.read"]
 )
+
+LINKEDIN_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="LINKEDIN_CLIENT_ID",
+    client_secret_env="LINKEDIN_CLIENT_SECRET",
+    redirect_uri_env="LINKEDIN_REDIRECT_URI",
+    auth_url="https://www.linkedin.com/oauth/v2/authorization",
+    token_url="https://www.linkedin.com/oauth/v2/accessToken",
+    scopes=["r_liteprofile", "r_emailaddress", "w_member_social"]
+)
+

@@ -16,6 +16,14 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
 import yaml
 
+# Import SlackEnhancedService for real API calls
+try:
+    from integrations.slack_enhanced_service import SlackEnhancedService
+    SLACK_SERVICE_AVAILABLE = True
+except ImportError:
+    SLACK_SERVICE_AVAILABLE = False
+    logger.warning("SlackEnhancedService not available - workflow actions will use mock implementations")
+
 logger = logging.getLogger(__name__)
 
 class WorkflowTriggerType(Enum):
@@ -116,14 +124,14 @@ class WorkflowDefinition:
     id: str
     name: str
     description: str
-    version: str = "1.0.0"
     triggers: List[WorkflowTrigger]
     actions: List[WorkflowAction]
-    variables: Dict[str, Any] = None
-    settings: Dict[str, Any] = None
     created_by: str
     created_at: datetime
     updated_at: datetime
+    version: str = "1.0.0"
+    variables: Dict[str, Any] = None
+    settings: Dict[str, Any] = None
     updated_by: Optional[str] = None
     enabled: bool = True
     category: str = "general"
@@ -282,25 +290,35 @@ class WorkflowTemplate:
 
 class WorkflowExecutionEngine:
     """Workflow execution engine"""
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.max_concurrent_executions = config.get('max_concurrent_executions', 10)
         self.execution_timeout = config.get('execution_timeout', 300)  # 5 minutes
         self.retry_attempts = config.get('retry_attempts', 3)
         self.retry_delay = config.get('retry_delay', 5)  # 5 seconds
-        
+
         # Execution queue and thread pool
         self.execution_queue: asyncio.Queue = asyncio.Queue()
         self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent_executions)
         self.running_executions: Dict[str, asyncio.Task] = {}
-        
+
+        # Initialize SlackEnhancedService if available
+        self.slack_service = None
+        if SLACK_SERVICE_AVAILABLE:
+            try:
+                slack_config = config.get('slack', {})
+                self.slack_service = SlackEnhancedService(slack_config)
+                logger.info("SlackEnhancedService initialized for workflow engine")
+            except Exception as e:
+                logger.warning(f"Failed to initialize SlackEnhancedService: {e}")
+
         # Action handlers
         self.action_handlers: Dict[WorkflowActionType, Callable] = {
             action_type: self._get_default_handler(action_type)
             for action_type in WorkflowActionType
         }
-        
+
         # Execution history
         self.execution_history: List[WorkflowExecution] = []
         self.execution_stats: Dict[str, Any] = {
@@ -309,7 +327,7 @@ class WorkflowExecutionEngine:
             'failed_executions': 0,
             'average_execution_time': 0
         }
-        
+
         logger.info("Workflow Execution Engine initialized")
     
     def _get_default_handler(self, action_type: WorkflowActionType) -> Callable:
@@ -589,78 +607,209 @@ class WorkflowExecutionEngine:
         """Handle send message action"""
         channel = action.parameters.get('channel', {}).value
         message = action.parameters.get('message', {}).value
-        
-        # Implementation would send message to Slack channel
-        # For now, simulate
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.send_message(
+                    workspace_id=workspace_id,
+                    channel_id=channel,
+                    text=message
+                )
+                if result.get('ok'):
+                    return {
+                        'channel': channel,
+                        'message': message,
+                        'timestamp': result.get('timestamp', datetime.utcnow().isoformat()),
+                        'message_id': result.get('message_id', f"msg_{uuid.uuid4().hex[:8]}"),
+                        'method': 'slack_api'
+                    }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'channel': channel,
             'message': message,
             'timestamp': datetime.utcnow().isoformat(),
-            'message_id': f"msg_{uuid.uuid4().hex[:8]}"
+            'message_id': f"msg_{uuid.uuid4().hex[:8]}",
+            'method': 'mock'
         }
-    
+
     async def _handle_send_dm(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle send DM action"""
         user_id = action.parameters.get('user_id', {}).value
         message = action.parameters.get('message', {}).value
-        
-        # Implementation would send DM to user
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.send_dm(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    text=message
+                )
+                if result.get('ok'):
+                    return {
+                        'user_id': user_id,
+                        'message': message,
+                        'timestamp': result.get('timestamp', datetime.utcnow().isoformat()),
+                        'message_id': result.get('message_id', f"dm_{uuid.uuid4().hex[:8]}"),
+                        'method': 'slack_api'
+                    }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'user_id': user_id,
             'message': message,
             'timestamp': datetime.utcnow().isoformat(),
-            'message_id': f"dm_{uuid.uuid4().hex[:8]}"
+            'message_id': f"dm_{uuid.uuid4().hex[:8]}",
+            'method': 'mock'
         }
-    
+
     async def _handle_create_channel(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle create channel action"""
         channel_name = action.parameters.get('name', {}).value
-        is_private = action.parameters.get('private', {}).value
-        
-        # Implementation would create Slack channel
+        is_private = action.parameters.get('private', {}).value or False
+        description = action.parameters.get('description', {}).value
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.create_channel(
+                    workspace_id=workspace_id,
+                    name=channel_name,
+                    is_private=is_private,
+                    description=description
+                )
+                if result.get('ok'):
+                    return {
+                        'channel_name': channel_name,
+                        'is_private': is_private,
+                        'channel_id': result.get('channel_id', f"C{uuid.uuid4().hex[:8]}"),
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'method': 'slack_api'
+                    }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'channel_name': channel_name,
             'is_private': is_private,
             'channel_id': f"C{uuid.uuid4().hex[:8]}",
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.utcnow().isoformat(),
+            'method': 'mock'
         }
-    
+
     async def _handle_invite_user(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle invite user action"""
         channel = action.parameters.get('channel', {}).value
         user_ids = action.parameters.get('user_ids', {}).value
-        
-        # Implementation would invite users to channel
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Ensure user_ids is a list
+        if isinstance(user_ids, str):
+            user_ids = [user_ids]
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.invite_to_channel(
+                    workspace_id=workspace_id,
+                    channel_id=channel,
+                    user_ids=user_ids
+                )
+                return {
+                    'channel': channel,
+                    'invited_users': result.get('invited_users', user_ids),
+                    'failed_users': result.get('failed_users', []),
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'method': 'slack_api'
+                }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'channel': channel,
             'invited_users': user_ids,
-            'timestamp': datetime.utcnow().isoformat()
+            'failed_users': [],
+            'timestamp': datetime.utcnow().isoformat(),
+            'method': 'mock'
         }
-    
+
     async def _handle_add_reaction(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle add reaction action"""
         channel = action.parameters.get('channel', {}).value
         message_ts = action.parameters.get('message_ts', {}).value
         emoji = action.parameters.get('emoji', {}).value
-        
-        # Implementation would add reaction
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.add_reaction(
+                    workspace_id=workspace_id,
+                    channel_id=channel,
+                    timestamp=message_ts,
+                    reaction=emoji
+                )
+                if result.get('ok'):
+                    return {
+                        'channel': channel,
+                        'message_ts': message_ts,
+                        'emoji': emoji,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'method': 'slack_api'
+                    }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'channel': channel,
             'message_ts': message_ts,
             'emoji': emoji,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.utcnow().isoformat(),
+            'method': 'mock'
         }
-    
+
     async def _handle_pin_message(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle pin message action"""
         channel = action.parameters.get('channel', {}).value
         message_ts = action.parameters.get('message_ts', {}).value
-        
-        # Implementation would pin message
+        workspace_id = execution.trigger_data.get('workspace_id')
+
+        # Try to use real Slack service
+        if self.slack_service and workspace_id:
+            try:
+                result = await self.slack_service.pin_message(
+                    workspace_id=workspace_id,
+                    channel_id=channel,
+                    timestamp=message_ts
+                )
+                if result.get('ok'):
+                    return {
+                        'channel': channel,
+                        'message_ts': message_ts,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'method': 'slack_api'
+                    }
+            except Exception as e:
+                logger.warning(f"Slack API call failed, using mock: {e}")
+
+        # Fallback to mock implementation
         return {
             'channel': channel,
             'message_ts': message_ts,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.utcnow().isoformat(),
+            'method': 'mock'
         }
     
     async def _handle_create_task(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:

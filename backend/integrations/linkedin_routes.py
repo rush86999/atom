@@ -63,26 +63,83 @@ async def handle_oauth_callback(auth_request: LinkedInAuthRequest):
 async def get_profile(access_token: str):
     """Get LinkedIn user profile"""
     if not LINKEDIN_AVAILABLE:
-        return {"name": "Mock User", "id": "mock_id"}
-    
+        raise HTTPException(
+            status_code=501,
+            detail="LinkedIn service not available. Please install required dependencies."
+        )
+
+    # Validate access token
+    if not access_token or access_token == "mock" or access_token == "fake_token":
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid LinkedIn access token. Please authenticate with LinkedIn."
+        )
+
     try:
         service = get_linkedin_service()
         profile = await service.get_profile(access_token)
-        return profile
+
+        # Transform response to match expected format
+        return {
+            "id": profile.get("id"),
+            "name": f"{profile.get('localizedFirstName', '')} {profile.get('localizedLastName', '')}".strip(),
+            "firstName": profile.get("localizedFirstName"),
+            "lastName": profile.get("localizedLastName"),
+            "profilePicture": profile.get("profilePicture", {}).get("displayImage~", {}).get("elements", [{}])[0].get("identifiers", [{}])[0].get("identifier") if profile.get("profilePicture") else None,
+            "headline": profile.get("headline", {}).get("default") if profile.get("headline") else None,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to get LinkedIn profile: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/share")
 async def share_update(access_token: str, text: str, visibility: str = "PUBLIC"):
     """Share an update on LinkedIn"""
     if not LINKEDIN_AVAILABLE:
-        return {"ok": True, "message": "Update shared (mock)"}
-    
+        raise HTTPException(
+            status_code=501,
+            detail="LinkedIn service not available. Please install required dependencies."
+        )
+
+    # Validate access token
+    if not access_token or access_token == "mock" or access_token == "fake_token":
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid LinkedIn access token. Please authenticate with LinkedIn."
+        )
+
+    # Validate text content
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Post content cannot be empty"
+        )
+
+    # Validate visibility
+    valid_visibilities = ["PUBLIC", "CONNECTIONS", "CONTAINER"]
+    if visibility.upper() not in valid_visibilities:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid visibility. Must be one of: {', '.join(valid_visibilities)}"
+        )
+
     try:
         service = get_linkedin_service()
-        result = await service.share_update(text, access_token, visibility)
-        return result
+        result = await service.share_update(text, access_token, visibility.upper())
+
+        return {
+            "ok": True,
+            "id": result.get("id"),
+            "message": "Update shared successfully on LinkedIn",
+            "postUrn": result.get("id"),
+            "status": "published"
+        }
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to share LinkedIn update: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/status")

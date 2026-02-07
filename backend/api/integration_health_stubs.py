@@ -1,13 +1,18 @@
 """
 Integration Health Check Endpoints
-Provides actual health verification for integrations by checking configuration and optional connectivity.
+Provides actual health verification for integrations by checking configuration, OAuth tokens, and optional connectivity.
 """
 from datetime import datetime
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+import httpx
 
 from core.base_routes import BaseAPIRouter
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core.models import OAuthToken
+from fastapi import Depends
 
 logger = logging.getLogger(__name__)
 
@@ -79,149 +84,296 @@ def check_integration_config(integration: str) -> Dict[str, Any]:
     }
 
 
-def health_response(service: str, config_status: Dict[str, Any], is_mock: bool = False) -> Dict[str, Any]:
-    """Generate a standard health response with actual configuration status"""
-    return {
+def check_oauth_tokens(integration: str, db: Session) -> Dict[str, Any]:
+    """Check if OAuth tokens exist in database for the integration"""
+    try:
+        # Map integration name to provider name in database
+        provider_map = {
+            "google-drive": "google",
+            "zoom": "zoom",
+            "notion": "notion",
+            "trello": "trello",
+            "github": "github",
+            "salesforce": "salesforce",
+            "dropbox": "dropbox",
+            "slack": "slack",
+        }
+
+        provider = provider_map.get(integration, integration)
+
+        # Check for OAuth tokens in database
+        tokens = db.query(OAuthToken).filter(OAuthToken.provider == provider).all()
+
+        has_tokens = len(tokens) > 0
+        token_count = len(tokens)
+
+        # Check if any tokens are not expired
+        valid_tokens = [t for t in tokens if t.expires_at is None or t.expires_at > datetime.utcnow()]
+        has_valid_tokens = len(valid_tokens) > 0
+
+        return {
+            "has_tokens": has_tokens,
+            "token_count": token_count,
+            "has_valid_tokens": has_valid_tokens,
+            "valid_token_count": len(valid_tokens)
+        }
+    except Exception as e:
+        logger.error(f"Error checking OAuth tokens for {integration}: {e}")
+        return {
+            "has_tokens": False,
+            "token_count": 0,
+            "has_valid_tokens": False,
+            "valid_token_count": 0,
+            "error": str(e)
+        }
+
+
+async def test_api_connectivity(integration: str, config_status: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Test actual API connectivity for the integration.
+    Returns reachability status without using actual tokens (just checks if API is up).
+    """
+    # API endpoints for health checks (public endpoints that don't require auth)
+    api_endpoints = {
+        "zoom": "https://api.zoom.us/v2",
+        "notion": "https://api.notion.com/v1",
+        "trello": "https://api.trello.com/1",
+        "stripe": "https://api.stripe.com/v1",
+        "quickbooks": "https://sandbox-quickbooks.api.intuit.com/v3",  # Sandbox endpoint
+        "github": "https://api.github.com",
+        "salesforce": "https://login.salesforce.com",  # Auth endpoint
+        "google-drive": "https://www.googleapis.com/drive/v3",
+        "dropbox": "https://api.dropboxapi.com/2",
+        "slack": "https://slack.com/api",
+    }
+
+    api_url = api_endpoints.get(integration)
+    if not api_url:
+        return {
+            "reachable": None,
+            "status": "unknown",
+            "message": "No API endpoint configured for connectivity test"
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Try a simple GET request to the API base
+            # Most APIs will return 401/403 for unauthorized requests, which means the API is up
+            response = await client.get(api_url, follow_redirects=True)
+
+            # 401, 403, or 4xx responses mean API is reachable but requires auth
+            # 200-299 means API is reachable and endpoint is public
+            # 5xx means API is having issues
+            if response.status_code >= 200 and response.status_code < 500:
+                return {
+                    "reachable": True,
+                    "status_code": response.status_code,
+                    "status": "reachable",
+                    "message": f"{integration} API is reachable (HTTP {response.status_code})"
+                }
+            else:
+                return {
+                    "reachable": False,
+                    "status_code": response.status_code,
+                    "status": "error",
+                    "message": f"{integration} API returned error status (HTTP {response.status_code})"
+                }
+    except httpx.TimeoutException:
+        return {
+            "reachable": False,
+            "status": "timeout",
+            "message": f"{integration} API request timed out"
+        }
+    except httpx.ConnectError:
+        return {
+            "reachable": False,
+            "status": "unreachable",
+            "message": f"{integration} API is unreachable (network error)"
+        }
+    except Exception as e:
+        return {
+            "reachable": False,
+            "status": "error",
+            "message": f"Error connecting to {integration} API: {str(e)}"
+        }
+
+
+def health_response(
+    service: str,
+    config_status: Dict[str, Any],
+    token_status: Optional[Dict[str, Any]] = None,
+    api_status: Optional[Dict[str, Any]] = None,
+    is_mock: bool = False
+) -> Dict[str, Any]:
+    """Generate a standard health response with comprehensive status"""
+    # Determine overall health
+    is_configured = config_status.get("configured", False)
+    has_valid_tokens = token_status.get("has_valid_tokens", False) if token_status else False
+    is_reachable = api_status.get("reachable", False) if api_status else None
+
+    # Health status hierarchy
+    if not is_configured:
+        overall_status = "unconfigured"
+    elif not has_valid_tokens and token_status and token_status.get("has_tokens", False):
+        overall_status = "expired_tokens"
+    elif not has_valid_tokens and token_status and not token_status.get("has_tokens", False):
+        overall_status = "no_tokens"
+    elif is_reachable is False:
+        overall_status = "api_unreachable"
+    elif is_reachable is True:
+        overall_status = "healthy"
+    else:
+        overall_status = "configured"  # Configured but API not tested
+
+    response = {
         "ok": True,
-        "status": "healthy" if config_status["configured"] else "unconfigured",
+        "status": overall_status,
         "service": service,
         "timestamp": datetime.utcnow().isoformat(),
         "is_mock": is_mock,
-        "configured": config_status["configured"],
+        "configured": is_configured,
         "has_credentials": config_status.get("has_credentials", False),
         "missing_env_vars": config_status.get("missing_env_vars", []),
-        "message": f'{config_status["service_name"]} integration {"configured" if config_status["configured"] else "not configured"}'
+        "service_name": config_status.get("service_name", service),
     }
+
+    # Add token status if available
+    if token_status:
+        response.update({
+            "tokens": token_status
+        })
+
+    # Add API status if available
+    if api_status:
+        response.update({
+            "api": api_status
+        })
+
+    # Generate message
+    message_parts = []
+    if is_configured:
+        message_parts.append(f"{config_status.get('service_name', service)} configured")
+        if token_status:
+            if has_valid_tokens:
+                message_parts.append(f"valid OAuth tokens ({token_status.get('valid_token_count', 0)} active)")
+            else:
+                message_parts.append("no valid OAuth tokens")
+        if api_status:
+            if is_reachable:
+                message_parts.append("API reachable")
+            elif is_reachable is False:
+                message_parts.append(f"API {api_status.get('status', 'unreachable')}")
+    else:
+        message_parts.append(f"{config_status.get('service_name', service)} not configured")
+
+    response["message"] = ". ".join(message_parts) + "."
+
+    return response
 
 
 # Zoom
 @router.get("/api/zoom/health")
-async def zoom_health():
-    """Check Zoom integration health"""
+async def zoom_health(db: Session = Depends(get_db)):
+    """Check Zoom integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("zoom")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Zoom integration not configured. Please add ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET, and ZOOM_ACCOUNT_ID to .env"
-        )
-    return health_response("zoom", config_status, is_mock=False)
+
+    # Check OAuth tokens in database
+    token_status = check_oauth_tokens("zoom", db)
+
+    # Test API connectivity
+    api_status = await test_api_connectivity("zoom", config_status)
+
+    return health_response("zoom", config_status, token_status, api_status)
 
 
 # Notion
 @router.get("/api/notion/health")
-async def notion_health():
-    """Check Notion integration health"""
+async def notion_health(db: Session = Depends(get_db)):
+    """Check Notion integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("notion")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Notion integration not configured. Please add NOTION_CLIENT_ID and NOTION_CLIENT_SECRET to .env"
-        )
-    return health_response("notion", config_status, is_mock=False)
+    token_status = check_oauth_tokens("notion", db)
+    api_status = await test_api_connectivity("notion", config_status)
+    return health_response("notion", config_status, token_status, api_status)
 
 
 # Trello
 @router.get("/api/trello/health")
-async def trello_health():
-    """Check Trello integration health"""
+async def trello_health(db: Session = Depends(get_db)):
+    """Check Trello integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("trello")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Trello integration not configured. Please add TRELLO_API_KEY and TRELLO_API_SECRET to .env"
-        )
-    return health_response("trello", config_status, is_mock=False)
+    token_status = check_oauth_tokens("trello", db)
+    api_status = await test_api_connectivity("trello", config_status)
+    return health_response("trello", config_status, token_status, api_status)
 
 
 # Stripe
 @router.get("/api/stripe/health")
-async def stripe_health():
-    """Check Stripe integration health"""
+async def stripe_health(db: Session = Depends(get_db)):
+    """Check Stripe integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("stripe")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Stripe integration not configured. Please add STRIPE_API_KEY and STRIPE_SECRET_KEY to .env"
-        )
-    return health_response("stripe", config_status, is_mock=False)
+    token_status = check_oauth_tokens("stripe", db)
+    api_status = await test_api_connectivity("stripe", config_status)
+    return health_response("stripe", config_status, token_status, api_status)
 
 
 # QuickBooks
 @router.get("/api/quickbooks/health")
-async def quickbooks_health():
-    """Check QuickBooks integration health"""
+async def quickbooks_health(db: Session = Depends(get_db)):
+    """Check QuickBooks integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("quickbooks")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="QuickBooks integration not configured. Please add QUICKBOOKS_CLIENT_ID and QUICKBOOKS_CLIENT_SECRET to .env"
-        )
-    return health_response("quickbooks", config_status, is_mock=False)
+    token_status = check_oauth_tokens("quickbooks", db)
+    api_status = await test_api_connectivity("quickbooks", config_status)
+    return health_response("quickbooks", config_status, token_status, api_status)
 
 
 # GitHub
 @router.get("/api/github/health")
-async def github_health():
-    """Check GitHub integration health"""
+async def github_health(db: Session = Depends(get_db)):
+    """Check GitHub integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("github")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="GitHub integration not configured. Please add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to .env"
-        )
-    return health_response("github", config_status, is_mock=False)
+    token_status = check_oauth_tokens("github", db)
+    api_status = await test_api_connectivity("github", config_status)
+    return health_response("github", config_status, token_status, api_status)
 
 
 # Salesforce
 @router.get("/api/salesforce/health")
-async def salesforce_health():
-    """Check Salesforce integration health"""
+async def salesforce_health(db: Session = Depends(get_db)):
+    """Check Salesforce integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("salesforce")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Salesforce integration not configured. Please add SALESFORCE_CLIENT_ID and SALESFORCE_CLIENT_SECRET to .env"
-        )
-    return health_response("salesforce", config_status, is_mock=False)
+    token_status = check_oauth_tokens("salesforce", db)
+    api_status = await test_api_connectivity("salesforce", config_status)
+    return health_response("salesforce", config_status, token_status, api_status)
 
 
 # Google Drive
 @router.get("/api/google-drive/health")
-async def google_drive_health():
-    """Check Google Drive integration health"""
+async def google_drive_health(db: Session = Depends(get_db)):
+    """Check Google Drive integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("google-drive")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Google Drive integration not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env"
-        )
-    return health_response("google-drive", config_status, is_mock=False)
+    token_status = check_oauth_tokens("google-drive", db)
+    api_status = await test_api_connectivity("google-drive", config_status)
+    return health_response("google-drive", config_status, token_status, api_status)
 
 
 # Dropbox
 @router.get("/api/dropbox/health")
-async def dropbox_health():
-    """Check Dropbox integration health"""
+async def dropbox_health(db: Session = Depends(get_db)):
+    """Check Dropbox integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("dropbox")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Dropbox integration not configured. Please add DROPBOX_CLIENT_ID and DROPBOX_CLIENT_SECRET to .env"
-        )
-    return health_response("dropbox", config_status, is_mock=False)
+    token_status = check_oauth_tokens("dropbox", db)
+    api_status = await test_api_connectivity("dropbox", config_status)
+    return health_response("dropbox", config_status, token_status, api_status)
 
 
 # Slack
 @router.get("/api/slack/health")
-async def slack_health():
-    """Check Slack integration health"""
+async def slack_health(db: Session = Depends(get_db)):
+    """Check Slack integration health with config, tokens, and API connectivity"""
     config_status = check_integration_config("slack")
-    if not config_status["configured"]:
-        return router.error_response(
-            status_code=401,
-            message="Slack integration not configured. Please add SLACK_CLIENT_ID and SLACK_CLIENT_SECRET to .env"
-        )
-    return health_response("slack", config_status, is_mock=False)
+    token_status = check_oauth_tokens("slack", db)
+    api_status = await test_api_connectivity("slack", config_status)
+    return health_response("slack", config_status, token_status, api_status)
 
 # GitHub repos
 @router.get("/api/github/repos")
