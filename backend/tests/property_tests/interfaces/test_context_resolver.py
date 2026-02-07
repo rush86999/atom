@@ -18,7 +18,7 @@ import asyncio
 import uuid
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ class TestAgentContextResolverContracts:
     @given(
         requested_agent_id=st.sampled_from([None, "invalid_agent_id", ""])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_resolve_agent_always_returns_agent_or_none(
         self, db_session: Session, requested_agent_id: str
     ):
@@ -79,7 +79,7 @@ class TestAgentContextResolverContracts:
         use_explicit_agent=st.booleans(),
         use_session_agent=st.booleans()
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_resolve_agent_fallback_chain(
         self, db_session: Session, use_explicit_agent: bool, use_session_agent: bool
     ):
@@ -191,7 +191,7 @@ class TestAgentContextResolverContracts:
         ]),
         action_type=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
     )
-    @settings(max_examples=150)
+    @settings(max_examples=150, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_validate_agent_for_action_returns_dict(
         self, db_session: Session, agent_status: str, action_type: str
     ):
@@ -233,7 +233,7 @@ class TestAgentContextResolverContracts:
         valid_session=st.booleans(),
         valid_agent=st.booleans()
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_set_session_agent_returns_bool(
         self, db_session: Session, valid_session: bool, valid_agent: bool
     ):

@@ -15,7 +15,7 @@ Protection: tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md
 """
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -35,7 +35,7 @@ class TestConfidenceInvariants:
         ),
         num_updates=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_bounds_preserved_after_multiple_updates(
         self, db_session: Session, initial_confidence: float, num_updates: int
     ):
@@ -80,7 +80,7 @@ class TestConfidenceInvariants:
         ),
         num_negative_updates=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=150)
+    @settings(max_examples=150, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_negative_feedback_decreases_confidence(
         self, db_session: Session, initial_confidence: float, num_negative_updates: int
     ):
@@ -125,7 +125,7 @@ class TestConfidenceInvariants:
         ),
         num_positive_updates=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=150)
+    @settings(max_examples=150, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_positive_feedback_increases_confidence(
         self, db_session: Session, initial_confidence: float, num_positive_updates: int
     ):
@@ -169,7 +169,7 @@ class TestConfidenceInvariants:
             allow_infinity=False
         )
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_transition_thresholds(
         self, db_session: Session, initial_confidence: float
     ):

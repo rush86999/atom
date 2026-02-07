@@ -15,7 +15,7 @@ Protection: tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md
 """
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -349,9 +349,17 @@ class TestActionComplexityMatrix:
                     f"{agent_status.value} should NOT be allowed to perform {action} (complexity 4)"
 
     @given(
-        unknown_action=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
+        unknown_action=st.text(min_size=1, max_size=50).filter(lambda x: x.strip() and x.lower() not in [
+            "search", "read", "list", "get", "fetch", "summarize", "present_chart",
+            "present_markdown", "analyze", "suggest", "draft", "generate", "recommend",
+            "stream_chat", "present_form", "llm_stream", "browser_navigate",
+            "browser_screenshot", "browser_extract", "device_camera_snap",
+            "device_get_location", "device_send_notification", "update_canvas",
+            "create", "update", "delete", "execute", "deploy", "submit",
+            "approve", "reject", "cancel"
+        ])
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_unknown_actions_have_safe_defaults(
         self, db_session: Session, unknown_action: str
     ):
