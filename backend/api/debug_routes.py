@@ -16,6 +16,7 @@ from core.database import get_db
 from core.debug_collector import get_debug_collector, init_debug_collector
 from core.debug_insight_engine import DebugInsightEngine
 from core.debug_query import DebugQuery
+from core.debug_ai_assistant import DebugAIAssistant
 from core.debug_storage import HybridDebugStorage
 from core.models import (
     DebugEvent,
@@ -28,6 +29,7 @@ from core.models import (
 from core.security_dependencies import get_current_user
 from redis import Redis
 from core.config import get_config
+from sqlalchemy import and_
 
 
 logger = logging.getLogger(__name__)
@@ -120,6 +122,7 @@ class ComponentHealthRequest(BaseModel):
 class NaturalLanguageQueryRequest(BaseModel):
     """Request for natural language query."""
     question: str = Field(..., description="Natural language question")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context (user_id, component_id, etc.)")
 
 
 # ============================================================================
@@ -666,6 +669,169 @@ async def get_error_patterns(
     )
 
 
+@router.get("/analytics/system-health")
+async def get_system_health_analytics(
+    time_range: str = "last_1h",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get system-wide health metrics."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_monitor import DebugMonitor
+
+    monitor = DebugMonitor(db)
+    health = await monitor.get_system_health(time_range)
+
+    return router.success_response(data=health, message="System health retrieved")
+
+
+@router.get("/analytics/active-operations")
+async def get_active_operations(
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get currently active operations."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"operations": [], "enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_monitor import DebugMonitor
+
+    monitor = DebugMonitor(db)
+    operations = await monitor.get_active_operations(limit=limit)
+
+    return router.success_response(
+        data={
+            "operations": operations,
+            "count": len(operations),
+        },
+        message=f"Found {len(operations)} active operations"
+    )
+
+
+@router.get("/analytics/throughput")
+async def get_throughput_analytics(
+    time_range: str = "last_1h",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get throughput metrics."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_monitor import DebugMonitor
+
+    monitor = DebugMonitor(db)
+    throughput = await monitor.get_throughput_metrics(time_range)
+
+    return router.success_response(data=throughput, message="Throughput metrics retrieved")
+
+
+@router.get("/analytics/insights-summary")
+async def get_insights_summary(
+    time_range: str = "last_24h",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get insights summary by type and severity."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_monitor import DebugMonitor
+
+    monitor = DebugMonitor(db)
+    summary = await monitor.get_insight_summary(time_range)
+
+    return router.success_response(data=summary, message="Insights summary retrieved")
+
+
+@router.post("/analytics/performance")
+async def get_performance_analytics(
+    request: ComponentHealthRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get performance analytics for a component."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_insights.performance import PerformanceInsightGenerator
+
+    perf_gen = PerformanceInsightGenerator(db)
+    insight = await perf_gen.analyze_component_latency(
+        component_type=request.component_type,
+        component_id=request.component_id,
+        time_range=request.time_range,
+    )
+
+    if not insight:
+        return router.success_response(
+            data={"insight": None},
+            message="No performance data available"
+        )
+
+    return router.success_response(
+        data={
+            "insight": {
+                "id": insight.id,
+                "type": insight.insight_type,
+                "severity": insight.severity,
+                "title": insight.title,
+                "summary": insight.summary,
+                "description": insight.description,
+                "evidence": insight.evidence,
+                "confidence_score": insight.confidence_score,
+                "suggestions": insight.suggestions,
+            }
+        },
+        message="Performance analytics retrieved"
+    )
+
+
+@router.get("/analytics/error-rate")
+async def get_error_rate_analytics(
+    time_range: str = "last_1h",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get error rate by component."""
+    if not DEBUG_SYSTEM_ENABLED:
+        return router.success_response(
+            data={"enabled": False},
+            message="Debug system is disabled"
+        )
+
+    from core.debug_monitor import DebugMonitor
+
+    monitor = DebugMonitor(db)
+    error_rates = await monitor.get_error_rate_by_component(time_range)
+
+    return router.success_response(
+        data={
+            "error_rates": error_rates,
+            "time_range": time_range,
+        },
+        message=f"Error rates for {len(error_rates)} components"
+    )
+
+
 # ============================================================================
 # AI Query Endpoints
 # ============================================================================
@@ -676,15 +842,22 @@ async def natural_language_query(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Natural language query for debug information."""
+    """Natural language query for debug information with AI-powered analysis."""
     if not DEBUG_SYSTEM_ENABLED:
         return router.success_response(
             data={"enabled": False},
             message="Debug system is disabled"
         )
 
-    query = DebugQuery(db)
-    result = await query.ask(request.question)
+    assistant = DebugAIAssistant(
+        db_session=db,
+        enable_prediction=True,
+        enable_self_healing=False,
+    )
+    result = await assistant.ask(
+        question=request.question,
+        context=request.context,
+    )
 
     return router.success_response(data=result, message="Query processed")
 

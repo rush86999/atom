@@ -416,6 +416,331 @@ class ErrorGuidanceEngine:
         except Exception as e:
             logger.error(f"Failed to track resolution: {e}")
 
+    def get_historical_resolutions(
+        self,
+        error_type: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Get historical resolutions for an error type.
+
+        Args:
+            error_type: Error type category
+            limit: Maximum results to return
+
+        Returns:
+            List of historical resolution attempts with outcomes
+        """
+        try:
+            resolutions = self.db.query(OperationErrorResolution).filter(
+                OperationErrorResolution.error_type == error_type
+            ).order_by(
+                OperationErrorResolution.timestamp.desc()
+            ).limit(limit).all()
+
+            return [
+                {
+                    "resolution": r.resolution_attempted,
+                    "success": r.success,
+                    "agent_suggested": r.agent_suggested,
+                    "user_feedback": r.user_feedback,
+                    "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+                }
+                for r in resolutions
+            ]
+        except Exception as e:
+            logger.error(f"Failed to get historical resolutions: {e}")
+            return []
+
+    def get_resolution_success_rate(
+        self,
+        error_type: str,
+        resolution_name: str
+    ) -> Dict[str, Any]:
+        """
+        Get success rate statistics for a specific resolution.
+
+        Args:
+            error_type: Error type category
+            resolution_name: Resolution to analyze
+
+        Returns:
+            Success rate statistics
+        """
+        try:
+            resolutions = self.db.query(OperationErrorResolution).filter(
+                OperationErrorResolution.error_type == error_type,
+                OperationErrorResolution.resolution_attempted == resolution_name
+            ).all()
+
+            if not resolutions:
+                return {
+                    "resolution": resolution_name,
+                    "success_rate": 0.0,
+                    "total_attempts": 0,
+                    "successful_attempts": 0,
+                    "failed_attempts": 0,
+                }
+
+            successful = sum(1 for r in resolutions if r.success)
+            failed = len(resolutions) - successful
+            success_rate = successful / len(resolutions) if resolutions else 0
+
+            return {
+                "resolution": resolution_name,
+                "success_rate": round(success_rate * 100, 2),
+                "total_attempts": len(resolutions),
+                "successful_attempts": successful,
+                "failed_attempts": failed,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get resolution success rate: {e}")
+            return {
+                "resolution": resolution_name,
+                "success_rate": 0.0,
+                "error": str(e),
+            }
+
+    def get_resolution_statistics(
+        self,
+        error_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive resolution statistics.
+
+        Args:
+            error_type: Optional error type to filter by
+
+        Returns:
+            Resolution statistics by type and resolution
+        """
+        try:
+            query = self.db.query(OperationErrorResolution)
+            if error_type:
+                query = query.filter(OperationErrorResolution.error_type == error_type)
+
+            resolutions = query.all()
+
+            if not resolutions:
+                return {
+                    "total_resolutions": 0,
+                    "by_error_type": {},
+                    "overall_success_rate": 0.0,
+                }
+
+            # Group by error type and resolution
+            stats = {}
+            for r in resolutions:
+                key = f"{r.error_type}:{r.resolution_attempted}"
+                if key not in stats:
+                    stats[key] = {
+                        "error_type": r.error_type,
+                        "resolution": r.resolution_attempted,
+                        "total": 0,
+                        "successful": 0,
+                        "failed": 0,
+                    }
+
+                stats[key]["total"] += 1
+                if r.success:
+                    stats[key]["successful"] += 1
+                else:
+                    stats[key]["failed"] += 1
+
+            # Calculate success rates
+            for key in stats:
+                stats[key]["success_rate"] = round(
+                    (stats[key]["successful"] / stats[key]["total"] * 100)
+                    if stats[key]["total"] > 0 else 0,
+                    2
+                )
+
+            # Overall success rate
+            overall_successful = sum(1 for r in resolutions if r.success)
+            overall_success_rate = overall_successful / len(resolutions) if resolutions else 0
+
+            # Group by error type
+            by_error_type = {}
+            for r in resolutions:
+                if r.error_type not in by_error_type:
+                    by_error_type[r.error_type] = {
+                        "total": 0,
+                        "successful": 0,
+                        "resolutions": {},
+                    }
+                by_error_type[r.error_type]["total"] += 1
+                if r.success:
+                    by_error_type[r.error_type]["successful"] += 1
+
+            return {
+                "total_resolutions": len(resolutions),
+                "by_error_type": by_error_type,
+                "overall_success_rate": round(overall_success_rate * 100, 2),
+                "detailed_stats": list(stats.values()),
+            }
+        except Exception as e:
+            logger.error(f"Failed to get resolution statistics: {e}")
+            return {
+                "error": str(e),
+                "total_resolutions": 0,
+            }
+
+    def suggest_fixes_from_history(
+        self,
+        error_type: str,
+        error_message: str,
+        limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Suggest fixes based on historical successful resolutions.
+
+        Args:
+            error_type: Error type category
+            error_message: Error message for context
+            limit: Maximum suggestions to return
+
+        Returns:
+            List of suggested fixes with success rates
+        """
+        try:
+            # Get successful resolutions for this error type
+            successful_resolutions = self.db.query(OperationErrorResolution).filter(
+                OperationErrorResolution.error_type == error_type,
+                OperationErrorResolution.success == True
+            ).all()
+
+            if not successful_resolutions:
+                # Return default resolutions from template
+                if error_type in self.ERROR_RESOLUTIONS:
+                    return [
+                        {
+                            "resolution": r["title"],
+                            "description": r["description"],
+                            "agent_can_fix": r["agent_can_fix"],
+                            "success_rate": None,
+                            "source": "template",
+                        }
+                        for r in self.ERROR_RESOLUTIONS[error_type]["resolutions"][:limit]
+                    ]
+                return []
+
+            # Count success by resolution
+            resolution_counts = {}
+            for r in successful_resolutions:
+                resolution_counts[r.resolution_attempted] = \
+                    resolution_counts.get(r.resolution_attempted, 0) + 1
+
+            # Get total attempts for each resolution to calculate success rate
+            all_resolutions = self.db.query(OperationErrorResolution).filter(
+                OperationErrorResolution.error_type == error_type
+            ).all()
+
+            resolution_totals = {}
+            for r in all_resolutions:
+                resolution_totals[r.resolution_attempted] = \
+                    resolution_totals.get(r.resolution_attempted, 0) + 1
+
+            # Calculate success rates and sort
+            suggestions = []
+            for resolution, success_count in resolution_counts.items():
+                total_count = resolution_totals.get(resolution, 0)
+                success_rate = success_count / total_count if total_count > 0 else 0
+
+                # Get description from template if available
+                description = "Historically successful resolution"
+                agent_can_fix = True
+
+                if error_type in self.ERROR_RESOLUTIONS:
+                    for r in self.ERROR_RESOLUTIONS[error_type]["resolutions"]:
+                        if r["title"] == resolution:
+                            description = r["description"]
+                            agent_can_fix = r["agent_can_fix"]
+                            break
+
+                suggestions.append({
+                    "resolution": resolution,
+                    "description": description,
+                    "agent_can_fix": agent_can_fix,
+                    "success_rate": round(success_rate * 100, 2),
+                    "successful_attempts": success_count,
+                    "total_attempts": total_count,
+                    "source": "historical",
+                })
+
+            # Sort by success rate and count
+            suggestions.sort(
+                key=lambda x: (x["success_rate"], x["successful_attempts"]),
+                reverse=True
+            )
+
+            return suggestions[:limit]
+
+        except Exception as e:
+            logger.error(f"Failed to suggest fixes from history: {e}")
+            return []
+
+    async def get_error_fix_suggestions(
+        self,
+        error_code: Optional[str],
+        error_message: str,
+        include_historical: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive error fix suggestions from templates and history.
+
+        Args:
+            error_code: Optional error code
+            error_message: Error message
+            include_historical: Whether to include historical data
+
+        Returns:
+            Comprehensive fix suggestions
+        """
+        try:
+            # Categorize error
+            error_type = self.categorize_error(error_code, error_message)
+
+            # Get template resolutions
+            template = self.ERROR_RESOLUTIONS.get(
+                error_type,
+                {
+                    "title": "Operation Failed",
+                    "resolutions": [
+                        {
+                            "title": "Let Agent Try to Fix",
+                            "description": "I'll attempt to resolve this issue",
+                            "agent_can_fix": True,
+                            "steps": ["Analyze the error", "Attempt fix", "Retry operation"]
+                        }
+                    ]
+                }
+            )
+
+            # Get historical suggestions if enabled
+            historical_suggestions = []
+            if include_historical:
+                historical_suggestions = self.suggest_fixes_from_history(
+                    error_type, error_message
+                )
+
+            # Get resolution statistics
+            stats = self.get_resolution_statistics(error_type)
+
+            return {
+                "error_type": error_type,
+                "error_message": error_message,
+                "template_resolutions": template["resolutions"],
+                "historical_suggestions": historical_suggestions,
+                "statistics": stats,
+                "recommended_resolution": self.get_suggested_resolution(error_type),
+            }
+        except Exception as e:
+            logger.error(f"Failed to get error fix suggestions: {e}")
+            return {
+                "error": str(e),
+                "error_type": "unknown",
+            }
+
     def _explain_what_happened(self, error_type: str, error: Dict[str, Any]) -> str:
         """Generate plain English explanation of what happened."""
         explanations = {
