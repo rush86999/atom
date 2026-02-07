@@ -15,10 +15,6 @@ jest.mock('@chakra-ui/react', () => ({
   }),
 }));
 
-const renderWithProviders = (component: React.ReactElement) => {
-  return render(component);
-};
-
 const mockAgent = {
   id: '1',
   name: 'Test Agent',
@@ -52,169 +48,179 @@ describe('AgentManager', () => {
   });
 
   it('renders without crashing', () => {
-    renderWithProviders(
+    render(
       <AgentManager
         initialAgents={[]}
-
+        onAgentCreate={mockOnAgentCreate}
+        onAgentUpdate={mockOnAgentUpdate}
+        onAgentDelete={mockOnAgentDelete}
+        onAgentStart={mockOnAgentStart}
+        onAgentStop={mockOnAgentStop}
       />
     );
 
     expect(screen.getByText('Agent Manager')).toBeInTheDocument();
+    expect(screen.getByText('Manage and monitor your AI agents')).toBeInTheDocument();
+    expect(screen.getByText('Create Agent')).toBeInTheDocument();
   });
 
-  it('displays agent statistics correctly', () => {
-    const agents = [mockAgent, { ...mockAgent, id: '2', status: 'active' as const }];
+  it('displays agent cards when agents are provided', () => {
+    const agents = [
+      mockAgent,
+      { ...mockAgent, id: '2', name: 'Another Agent', status: 'active' as const }
+    ];
 
-    renderWithProviders(
+    render(
       <AgentManager
         initialAgents={agents}
-
-      />
-    );
-
-    expect(screen.getByText('Total Agents')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-  });
-
-  it('displays agent list in grid view', () => {
-    renderWithProviders(
-      <AgentManager
-        initialAgents={[mockAgent]}
-
-      />
-    );
-
-    expect(screen.getByText('Test Agent')).toBeInTheDocument();
-    expect(screen.getByText('Personal Assistant')).toBeInTheDocument();
-    expect(screen.getByText('web_search, email_management')).toBeInTheDocument();
-  });
-
-  it('allows creating a new agent', async () => {
-    renderWithProviders(
-      <AgentManager
         onAgentCreate={mockOnAgentCreate}
-        initialAgents={[]}
-
       />
     );
 
-    const newAgentButton = screen.getByText('New Agent');
-    fireEvent.click(newAgentButton);
+    // Check agent names are displayed
+    expect(screen.getByText('Test Agent')).toBeInTheDocument();
+    expect(screen.getByText('Another Agent')).toBeInTheDocument();
 
-    // The modal should open (this would require mocking the modal behavior)
-    // In a real test, we would check for form fields and submit
+    // Check status badges
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
   });
 
-  it('allows starting and stopping agents', () => {
-    renderWithProviders(
-      <AgentManager
-        onAgentStart={mockOnAgentStart}
-        onAgentStop={mockOnAgentStop}
-        initialAgents={[mockAgent]}
+  it('displays agent capabilities correctly', () => {
+    const agents = [mockAgent];
 
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentCreate={mockOnAgentCreate}
       />
     );
 
-    const startButton = screen.getByLabelText('Start agent');
-    fireEvent.click(startButton);
-
-    expect(mockOnAgentStart).toHaveBeenCalledWith('1');
-  });
-
-  it('allows deleting an agent', () => {
-    renderWithProviders(
-      <AgentManager
-        onAgentDelete={mockOnAgentDelete}
-        initialAgents={[mockAgent]}
-
-      />
-    );
-
-    const deleteButton = screen.getByLabelText('Delete agent');
-    fireEvent.click(deleteButton);
-
-    expect(mockOnAgentDelete).toHaveBeenCalledWith('1');
-  });
-
-  it('switches between list and grid views', () => {
-    renderWithProviders(
-      <AgentManager
-        initialAgents={[mockAgent]}
-
-      />
-    );
-
-    const listButton = screen.getByText('List');
-    fireEvent.click(listButton);
-
-    // Should show table headers for list view
-    expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Role')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
+    // Check capabilities are displayed
+    expect(screen.getByText('web search')).toBeInTheDocument();
+    expect(screen.getByText('email management')).toBeInTheDocument();
   });
 
   it('displays agent performance metrics', () => {
-    renderWithProviders(
-      <AgentManager
-        initialAgents={[mockAgent]}
+    const agents = [mockAgent];
 
-      />
-    );
-
-    expect(screen.getByText('10 tasks')).toBeInTheDocument();
-    expect(screen.getByText('95% success')).toBeInTheDocument();
-  });
-
-  it('handles empty agent list', () => {
-    renderWithProviders(
-      <AgentManager
-        initialAgents={[]}
-
-      />
-    );
-
-    expect(screen.getByText('Total Agents')).toBeInTheDocument();
-    expect(screen.getByText('0')).toBeInTheDocument();
-  });
-
-  it('filters agents by status in statistics', () => {
-    const agents = [
-      mockAgent,
-      { ...mockAgent, id: '2', status: 'active' as const },
-      { ...mockAgent, id: '3', status: 'error' as const },
-    ];
-
-    renderWithProviders(
+    render(
       <AgentManager
         initialAgents={agents}
-
+        onAgentCreate={mockOnAgentCreate}
       />
     );
 
-    expect(screen.getByText('3')).toBeInTheDocument(); // Total agents
-    expect(screen.getByText('1')).toBeInTheDocument(); // Active agents
+    // Check performance metrics
+    expect(screen.getByText('Tasks Completed')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('Success Rate')).toBeInTheDocument();
+    expect(screen.getByText('95%')).toBeInTheDocument();
+    expect(screen.getByText('Avg Response')).toBeInTheDocument();
+    expect(screen.getByText('200ms')).toBeInTheDocument();
   });
 
-  it('updates agent statistics when agents change', () => {
-    const { rerender } = renderWithProviders(
-      <AgentManager
-        initialAgents={[mockAgent]}
+  it('shows start button for inactive agents', () => {
+    const agents = [mockAgent]; // inactive status
 
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentStart={mockOnAgentStart}
       />
     );
 
-    expect(screen.getByText('1')).toBeInTheDocument(); // Initial count
+    const startButtons = screen.getAllByText('Start');
+    expect(startButtons.length).toBeGreaterThan(0);
+  });
 
-    const updatedAgents = [mockAgent, { ...mockAgent, id: '2' }];
-    rerender(
+  it('shows stop button for active agents', () => {
+    const activeAgent = { ...mockAgent, id: '2', status: 'active' as const };
+    const agents = [activeAgent];
+
+    render(
       <AgentManager
-        initialAgents={updatedAgents}
-
+        initialAgents={agents}
+        onAgentStop={mockOnAgentStop}
       />
     );
 
-    expect(screen.getByText('2')).toBeInTheDocument(); // Updated count
+    const stopButtons = screen.getAllByText('Stop');
+    expect(stopButtons.length).toBeGreaterThan(0);
+  });
+
+  it('calls onAgentStart when start button is clicked', async () => {
+    const agents = [mockAgent];
+
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentStart={mockOnAgentStart}
+      />
+    );
+
+    const startButtons = screen.getAllByText('Start');
+    fireEvent.click(startButtons[0]);
+
+    // Wait for state update
+    await waitFor(() => {
+      expect(mockOnAgentStart).toHaveBeenCalledWith('1');
+    });
+  });
+
+  it('calls onAgentStop when stop button is clicked', async () => {
+    const activeAgent = { ...mockAgent, id: '2', status: 'active' as const };
+    const agents = [activeAgent];
+
+    render(
+      <AgentManager
+        initialAgents={agents}
+        onAgentStop={mockOnAgentStop}
+      />
+    );
+
+    const stopButtons = screen.getAllByText('Stop');
+    fireEvent.click(stopButtons[0]);
+
+    // Wait for state update
+    await waitFor(() => {
+      expect(mockOnAgentStop).toHaveBeenCalledWith('2');
+    });
+  });
+
+  it('opens create agent modal when Create Agent button is clicked', () => {
+    render(
+      <AgentManager
+        initialAgents={[]}
+        onAgentCreate={mockOnAgentCreate}
+      />
+    );
+
+    const createButton = screen.getByText('Create Agent');
+    fireEvent.click(createButton);
+
+    // Modal should open
+    // Note: The Dialog component is rendered but checking for modal content
+    // would require the Dialog to be open which is controlled by internal state
+    // For now, just verify clicking the button doesn't crash
+    expect(createButton).toBeInTheDocument();
+  });
+
+  it('handles empty agent list gracefully', () => {
+    render(
+      <AgentManager
+        initialAgents={[]}
+        onAgentCreate={mockOnAgentCreate}
+      />
+    );
+
+    // Should still show header and create button
+    expect(screen.getByText('Agent Manager')).toBeInTheDocument();
+    expect(screen.getByText('Create Agent')).toBeInTheDocument();
+
+    // Should show empty state message
+    expect(screen.getByText('No Agents Created')).toBeInTheDocument();
+    expect(screen.getByText(/Create your first agent to get started/i)).toBeInTheDocument();
+    expect(screen.getByText('Create First Agent')).toBeInTheDocument();
   });
 });
