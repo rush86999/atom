@@ -1120,24 +1120,32 @@ async fn screen_record_start(
     // Platform-specific ffmpeg commands
     #[cfg(target_os = "macos")]
     let ffmpeg_args = {
-        let mut args = vec![
-            "-f", "avfoundation",
-            "-framerate", "30",
-            "-video_size", &res,
-            "-i", "1", // Screen index (usually 1 for screen on macOS)
+        let mut args: Vec<String> = vec![
+            "-f".to_string(),
+            "avfoundation".to_string(),
+            "-framerate".to_string(),
+            "30".to_string(),
+            "-video_size".to_string(),
+            res.clone(),
+            "-i".to_string(),
+            "1".to_string(), // Screen index (usually 1 for screen on macOS)
         ];
 
         if audio {
-            args.extend(["-f", "avfoundation", "-i", ":0"]);
+            args.extend(["-f".to_string(), "avfoundation".to_string(), "-i".to_string(), ":0".to_string()]);
         }
 
         args.extend([
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            "-t", &duration.to_string(),
-            output_path.as_str(),
+            "-c:v".to_string(),
+            "libx264".to_string(),
+            "-preset".to_string(),
+            "ultrafast".to_string(),
+            "-crf".to_string(),
+            "22".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+            format!("-t{}", duration),
+            output_path.clone(),
         ]);
 
         args
@@ -1145,24 +1153,32 @@ async fn screen_record_start(
 
     #[cfg(target_os = "windows")]
     let ffmpeg_args = {
-        let mut args = vec![
-            "-f", "gdigrab",
-            "-framerate", "30",
-            "-video_size", &res,
-            "-i", "desktop",
+        let mut args: Vec<String> = vec![
+            "-f".to_string(),
+            "gdigrab".to_string(),
+            "-framerate".to_string(),
+            "30".to_string(),
+            "-video_size".to_string(),
+            res.clone(),
+            "-i".to_string(),
+            "desktop".to_string(),
         ];
 
         if audio {
-            args.extend(["-f", "dshow", "-i", "audio=virtual-audio-capturer"]);
+            args.extend(["-f".to_string(), "dshow".to_string(), "-i".to_string(), "audio=virtual-audio-capturer".to_string()]);
         }
 
         args.extend([
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            "-t", &duration.to_string(),
-            output_path.as_str(),
+            "-c:v".to_string(),
+            "libx264".to_string(),
+            "-preset".to_string(),
+            "ultrafast".to_string(),
+            "-crf".to_string(),
+            "22".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+            format!("-t{}", duration),
+            output_path.clone(),
         ]);
 
         args
