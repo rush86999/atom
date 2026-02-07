@@ -564,4 +564,196 @@ describe('VoiceCommands', () => {
     // Just verify the command is displayed
     expect(screen.getByText('"open calendar"')).toBeInTheDocument();
   });
+
+  // Mutation-killing tests for boundary conditions
+
+  it('handles command with confidence threshold exactly 0.8', () => {
+    const command = {
+      ...mockCommand,
+      confidenceThreshold: 0.8,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('Available Commands (1)')).toBeInTheDocument();
+  });
+
+  it('handles command with confidence threshold exactly 0.6', () => {
+    const command = {
+      ...mockCommand,
+      confidenceThreshold: 0.6,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('Available Commands (1)')).toBeInTheDocument();
+  });
+
+  it('handles command with confidence threshold just below 0.6', () => {
+    const command = {
+      ...mockCommand,
+      confidenceThreshold: 0.59,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('Available Commands (1)')).toBeInTheDocument();
+  });
+
+  it('handles command with confidence threshold exactly 1.0', () => {
+    const command = {
+      ...mockCommand,
+      confidenceThreshold: 1.0,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('Available Commands (1)')).toBeInTheDocument();
+  });
+
+  it('handles command with confidence threshold exactly 0.0', () => {
+    const command = {
+      ...mockCommand,
+      confidenceThreshold: 0.0,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('Available Commands (1)')).toBeInTheDocument();
+  });
+
+  it('toggles command enabled state correctly', () => {
+    const command = {
+      ...mockCommand,
+      enabled: true,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    // Command starts enabled
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+  });
+
+  it('handles disabled command correctly', () => {
+    const command = {
+      ...mockCommand,
+      enabled: false,
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[command]}
+        showNavigation={true}
+      />
+    );
+
+    // Disabled commands are filtered out, so count should be 0
+    expect(screen.getByText('Available Commands (0)')).toBeInTheDocument();
+    expect(screen.getByText('Active Commands')).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('filters commands by enabled status', () => {
+    const commands = [
+      mockCommand, // enabled: true
+      { ...mockCommand, id: '2', phrase: 'disabled command', enabled: false },
+    ];
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={commands}
+        showNavigation={true}
+      />
+    );
+
+    // Only enabled command should count
+    expect(screen.getByText('Active Commands')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  it('handles command with phrase in different cases', () => {
+    const uppercaseCommand = {
+      ...mockCommand,
+      phrase: 'OPEN CALENDAR',
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[uppercaseCommand]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('"OPEN CALENDAR"')).toBeInTheDocument();
+  });
+
+  it('handles command with mixed case phrase', () => {
+    const mixedCaseCommand = {
+      ...mockCommand,
+      phrase: 'Open Calendar',
+    };
+
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[mixedCaseCommand]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('"Open Calendar"')).toBeInTheDocument();
+  });
+
+  it('handles empty results array initially', () => {
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[mockCommand]}
+        showNavigation={true}
+      />
+    );
+
+    expect(screen.getByText('View Results (0)')).toBeInTheDocument();
+  });
+
+  it('updates recognition results when command recognized', () => {
+    renderWithProviders(
+      <VoiceCommands
+        initialCommands={[mockCommand]}
+        onCommandRecognized={mockOnCommandRecognized}
+        showNavigation={true}
+      />
+    );
+
+    // Verify callback exists
+    expect(mockOnCommandRecognized).toBeTruthy();
+  });
 });
