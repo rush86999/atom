@@ -1137,7 +1137,7 @@ async fn screen_record_start(
             "-crf", "22",
             "-pix_fmt", "yuv420p",
             "-t", &duration.to_string(),
-            &output_path,
+            output_path.as_str(),
         ]);
 
         args
@@ -1162,7 +1162,7 @@ async fn screen_record_start(
             "-crf", "22",
             "-pix_fmt", "yuv420p",
             "-t", &duration.to_string(),
-            &output_path,
+            output_path.as_str(),
         ]);
 
         args
@@ -1171,11 +1171,12 @@ async fn screen_record_start(
     #[cfg(target_os = "linux")]
     let ffmpeg_args = {
         let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string());
+        let display_arg = format!("{}+0,0", display);
         let mut args = vec![
             "-f", "x11grab",
             "-framerate", "30",
             "-video_size", &res,
-            "-i", &format!("{}+0,0", display),
+            "-i", &display_arg,
         ];
 
         if audio {
@@ -1188,7 +1189,7 @@ async fn screen_record_start(
             "-crf", "22",
             "-pix_fmt", "yuv420p",
             "-t", &duration.to_string(),
-            &output_path,
+            output_path.as_str(),
         ]);
 
         args
@@ -1513,12 +1514,12 @@ async fn send_notification(
         .body(&body);
 
     // Add icon if provided
-    if let Some(icon_path) = icon {
+    if let Some(icon_path) = icon.as_ref() {
         notification = notification.icon(icon_path);
     }
 
     // Add sound if specified
-    if sound.unwrap_or_default() != "none" {
+    if sound.as_ref().map(|s| s.as_str()).unwrap_or_default() != "none" {
         notification = notification.sound("default");
     }
 
