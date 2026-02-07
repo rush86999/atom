@@ -1092,10 +1092,14 @@ async fn screen_record_start(
     use tokio::process::Command as TokioCommand;
 
     let timestamp = chrono::Utc::now().to_rfc3339().replace(":", "");
+
+    // Resolve output_format once to avoid move errors
+    let format_str = output_format.as_ref().map(|s| s.as_str()).unwrap_or("mp4");
+
     let output_path = if cfg!(target_os = "windows") {
-        format!("{}\\recording_{}.{}", std::env::var("TEMP").unwrap_or_else(|_| ".".to_string()), session_id, output_format.unwrap_or_else(|| "mp4".to_string()))
+        format!("{}\\recording_{}.{}", std::env::var("TEMP").unwrap_or_else(|_| ".".to_string()), session_id, format_str)
     } else {
-        format!("/tmp/recording_{}.{}", session_id, output_format.unwrap_or_else(|| "mp4".to_string()))
+        format!("/tmp/recording_{}.{}", session_id, format_str)
     };
 
     let res = resolution.unwrap_or_else(|| "1920x1080".to_string());
@@ -1410,12 +1414,12 @@ async fn get_location(
     {
         // Try GeoClue2 first, fallback to IP-based geolocation
         // Check if geoclue is available
-        let geoclue_check = Command::new("which")
+        let geoclue_available = Command::new("which")
             .arg("geoiplookup")
-            .or_else(|_| Command::new("which").arg("geoiplookup6"))
-            .output();
+            .output()
+            .is_ok() || Command::new("which").arg("geoiplookup6").output().is_ok();
 
-        if geoclue_check.is_ok() {
+        if geoclue_available {
             // GeoClue available
             let result = Command::new("geoiplookup")
                 .output();
@@ -1503,7 +1507,7 @@ async fn send_notification(
     use tauri_plugin_notification::NotificationExt;
 
     // Build the notification
-    let notification = app.notification()
+    let mut notification = app.notification()
         .builder()
         .title(&title)
         .body(&body);
@@ -1654,7 +1658,8 @@ fn main() {
         ])
         .manage(Mutex::new(SatelliteState { child: None }))
         .manage(Mutex::new(ScreenRecordingState {
-            recordings: HashMap::new()
+            recordings: HashMap::new(),
+            processes: HashMap::new(),
         }))
         .setup(|app| {
             println!("🚀 ATOM Desktop Agent Starting...");
