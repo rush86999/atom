@@ -95,7 +95,7 @@ class DebugAIAssistant:
             r"slow|performance|latency|response time|bottleneck": "performance_analysis",
 
             # Consistency queries
-            r"consistency|data.*(?:sync|consistent)|replication|propagation": "consistency_check",
+            r"consistency|data.*(?:sync|consistent)|replication|propagation|sync": "consistency_check",
 
             # Error queries
             r"error.*pattern|recurring.*error|frequent.*error": "error_patterns",
