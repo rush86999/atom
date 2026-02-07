@@ -423,8 +423,7 @@ What is your next step?"""
                         agent_id=self.id,
                         action_type=tool_name,
                         params=args,
-                        reason=auth_check["reason"],
-                        workspace_id=self.workspace_id
+                        reason=auth_check["reason"]
                     )
 
                     logger.info(f"Action {tool_name} requires approval. Pausing agent...")

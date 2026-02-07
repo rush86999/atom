@@ -1138,9 +1138,9 @@ class CanvasAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     canvas_id = Column(String, nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)  # Session isolation (NEW)
     canvas_type = Column(String, default="generic", nullable=False, index=True)  # 'generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding' (NEW)
@@ -1486,10 +1486,10 @@ class DeviceAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
-    device_node_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_node_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=False, index=True)
     session_id = Column(String, nullable=True, index=True)
 
     # Action details
@@ -1528,9 +1528,9 @@ class BrowserAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     session_id = Column(String, ForeignKey("browser_sessions.session_id"), nullable=False, index=True)
 
     # Action details
@@ -1571,7 +1571,7 @@ class DeepLinkAudit(Base):
     workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
 
     # Deep link details
     resource_type = Column(String, nullable=False)  # 'agent', 'workflow', 'canvas', 'tool'
@@ -4171,7 +4171,7 @@ class MenuBarAudit(Base):
     agent = relationship("AgentRegistry", backref="menu_bar_audits")
     execution = relationship("AgentExecution", backref="menu_bar_audits")
     user = relationship("User", backref="menu_bar_audits")
-    device = relationship("DeviceNode", backref="audit_logs")
+    device = relationship("DeviceNode", backref="menu_bar_audit_logs")
 
     # Indexes
     __table_args__ = (
