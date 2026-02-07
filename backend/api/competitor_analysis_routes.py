@@ -5,7 +5,6 @@ Provides AI-powered competitor analysis using web scraping and LLM integration.
 """
 
 import logging
-import os
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
@@ -18,6 +17,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm.byok_handler import BYOKHandler
 from core.models import User
+from core.security_dependencies import get_current_user
 
 router = BaseAPIRouter(prefix="/api/v1/analysis", tags=["competitor-analysis"])
 logger = logging.getLogger(__name__)
@@ -60,60 +60,6 @@ class CompetitorAnalysisResponse(BaseModel):
     comparison_matrix: dict
     recommendations: List[str]
     created_at: datetime
-
-
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user from session or JWT."""
-    # Method 1: Try JWT token from Authorization header
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        try:
-            from core.enterprise_auth_service import EnterpriseAuthService
-            auth_service = EnterpriseAuthService()
-            token = auth_header.split(" ")[1]
-            claims = auth_service.verify_token(token)
-            if claims:
-                user_id = claims.get('user_id')
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    return user
-        except Exception as e:
-            logger.debug(f"JWT auth failed: {e}")
-
-    # Method 2: Try X-User-ID header
-    user_id = request.headers.get("X-User-ID")
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            return user
-
-    # Method 3: Try X-User-Email header
-    user_email = request.headers.get("X-User-Email")
-    if user_email:
-        user = db.query(User).filter(User.email == user_email).first()
-        if user:
-            return user
-
-    # Method 4: Create temp user for development
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        temp_id = request.headers.get("X-User-ID") or "dev_user"
-        user = db.query(User).filter(User.id == temp_id).first()
-        if not user:
-            user = User(
-                id=temp_id,
-                email=f"dev_{temp_id}@example.com",
-                first_name="Dev",
-                last_name="User"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return user
-
-    raise HTTPException(
-        status_code=401,
-        detail="Unauthorized: Valid authentication required"
-    )
 
 
 async def fetch_competitor_data(competitor: str, focus_areas: List[str]) -> dict:
@@ -354,6 +300,7 @@ def generate_recommendations(insights: dict[str, CompetitorInsight], comparison:
 async def analyze_competitors(
     request: Request,
     payload: CompetitorAnalysisRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -375,8 +322,6 @@ async def analyze_competitors(
     TODO: Export to Notion when notion_database_id is provided
     """
     try:
-        # Get current user
-        current_user = get_current_user(request, db)
 
         # Validate competitors list
         if not payload.competitors or len(payload.competitors) == 0:

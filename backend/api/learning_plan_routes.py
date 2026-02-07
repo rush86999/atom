@@ -5,7 +5,6 @@ Provides AI-generated personalized learning plans with progress tracking.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import uuid4
@@ -18,6 +17,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm.byok_handler import BYOKHandler
 from core.models import User
+from core.security_dependencies import get_current_user
 
 router = BaseAPIRouter(prefix="/api/v1/learning", tags=["learning-plans"])
 logger = logging.getLogger(__name__)
@@ -69,56 +69,6 @@ class LearningPlanResponse(BaseModel):
     milestones: List[str]
     assessment_criteria: List[str]
     created_at: datetime
-
-
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user from session or JWT."""
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        try:
-            from core.enterprise_auth_service import EnterpriseAuthService
-            auth_service = EnterpriseAuthService()
-            token = auth_header.split(" ")[1]
-            claims = auth_service.verify_token(token)
-            if claims:
-                user_id = claims.get('user_id')
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    return user
-        except Exception as e:
-            logger.debug(f"JWT auth failed: {e}")
-
-    user_id = request.headers.get("X-User-ID")
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            return user
-
-    user_email = request.headers.get("X-User-Email")
-    if user_email:
-        user = db.query(User).filter(User.email == user_email).first()
-        if user:
-            return user
-
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        temp_id = request.headers.get("X-User-ID") or "dev_user"
-        user = db.query(User).filter(User.id == temp_id).first()
-        if not user:
-            user = User(
-                id=temp_id,
-                email=f"dev_{temp_id}@example.com",
-                first_name="Dev",
-                last_name="User"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return user
-
-    raise HTTPException(
-        status_code=401,
-        detail="Unauthorized: Valid authentication required"
-    )
 
 
 async def generate_learning_modules(
@@ -313,6 +263,7 @@ def generate_assessment_criteria(topic: str) -> List[str]:
 async def create_learning_plan(
     request: Request,
     payload: LearningPlanRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -328,8 +279,6 @@ async def create_learning_plan(
     TODO: Implement adaptive learning based on user feedback
     """
     try:
-        # Get current user
-        current_user = get_current_user(request, db)
 
         # Validate inputs
         if not payload.topic or len(payload.topic.strip()) == 0:

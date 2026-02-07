@@ -1119,7 +1119,7 @@ class AgentExecution(Base):
     error_message = Column(Text, nullable=True)
 
     # Relationships
-    agent = relationship("AgentRegistry")
+    agent = relationship("AgentRegistry", backref="executions")
     # Note: workspace relationship removed - workspace_id is a string reference without FK constraint
 
     def __repr__(self):
@@ -1151,6 +1151,12 @@ class CanvasAudit(Base):
     governance_check_passed = Column(Boolean, nullable=True)
     episode_id = Column(String, ForeignKey("episodes.id"), nullable=True, index=True)  # NEW - Episode backlink
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="canvas_audits")
+    execution = relationship("AgentExecution", backref="canvas_audits")
+    user = relationship("User", backref="canvas_audits")
+    episode = relationship("Episode", backref="canvas_references")
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, action={self.action}, component_type={self.component_type})>"
@@ -1504,6 +1510,12 @@ class DeviceAudit(Base):
     # Timing
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
+    # Relationships
+    agent = relationship("AgentRegistry", backref="device_audits")
+    execution = relationship("AgentExecution", backref="device_audits")
+    user = relationship("User", backref="device_audits")
+    device = relationship("DeviceNode", backref="audit_logs")
+
 
 class BrowserAudit(Base):
     """
@@ -1540,6 +1552,9 @@ class BrowserAudit(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
+    agent = relationship("AgentRegistry", backref="browser_audits")
+    execution = relationship("AgentExecution", backref="browser_audits")
+    user = relationship("User", backref="browser_audits")
     session = relationship("BrowserSession", backref="actions")
 
 
@@ -1577,8 +1592,9 @@ class DeepLinkAudit(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
-    agent = relationship("AgentRegistry")
-    execution = relationship("AgentExecution")
+    agent = relationship("AgentRegistry", backref="deep_link_audits")
+    execution = relationship("AgentExecution", backref="deep_link_audits")
+    user = relationship("User", backref="deep_link_audits")
 
 
 class ABTest(Base):
@@ -3992,4 +4008,177 @@ class SecurityAuditLog(Base):
         Index("ix_security_audit_log_severity", "severity"),
         Index("ix_security_audit_log_user", "user_id", "timestamp"),
         Index("ix_security_audit_log_severity_timestamp", "severity", "timestamp"),
+    )
+
+
+class SocialMediaAudit(Base):
+    """
+    Social Media Audit Log
+
+    Tracks all social media operations for governance and compliance.
+    Ensures all posting actions are attributable and governable.
+    """
+    __tablename__ = "social_media_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Action details
+    platform = Column(String(50), nullable=False, index=True)  # twitter, linkedin, facebook
+    action_type = Column(String(50), nullable=False, index=True)  # post, schedule, delete
+    post_id = Column(String, nullable=True, index=True)  # Platform-specific post ID
+
+    # Content tracking
+    content = Column(Text, nullable=False)  # Post content
+    media_urls = Column(JSON, nullable=True)  # Attached media
+    link_url = Column(String, nullable=True)  # Attached link
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+    platform_response = Column(JSON, nullable=True)  # Full API response
+
+    # Maturity at time of action
+    agent_maturity = Column(String(50), nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    required_approval = Column(Boolean, nullable=False, default=False)
+    approval_granted = Column(Boolean, nullable=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="social_media_audits")
+    execution = relationship("AgentExecution", backref="social_media_audits")
+    user = relationship("User", backref="social_media_audits")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_social_media_audit_timestamp", "timestamp"),
+        Index("ix_social_media_audit_platform", "platform", "timestamp"),
+        Index("ix_social_media_audit_action", "action_type", "timestamp"),
+        Index("ix_social_media_audit_agent", "agent_id", "timestamp"),
+        Index("ix_social_media_audit_user", "user_id", "timestamp"),
+        Index("ix_social_media_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+class FinancialAudit(Base):
+    """
+    Financial Account Audit Log
+
+    Tracks all financial account operations for governance and compliance.
+    Ensures all financial actions are attributable and governable.
+    """
+    __tablename__ = "financial_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Action details
+    account_id = Column(String, ForeignKey("financial_accounts.id"), nullable=False, index=True)
+    action_type = Column(String(50), nullable=False, index=True)  # create, update, delete
+
+    # Change tracking
+    changes = Column(JSON, nullable=False, default=dict)  # {"field": {"old": "value", "new": "value"}}
+    old_values = Column(JSON, nullable=True)  # Full old state
+    new_values = Column(JSON, nullable=True)  # Full new state
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Maturity at time of action
+    agent_maturity = Column(String(50), nullable=False, index=True)
+    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    required_approval = Column(Boolean, nullable=False, default=False)
+    approval_granted = Column(Boolean, nullable=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="financial_audits")
+    execution = relationship("AgentExecution", backref="financial_audits")
+    user = relationship("User", backref="financial_audits")
+    account = relationship("FinancialAccount", backref="audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_financial_audit_timestamp", "timestamp"),
+        Index("ix_financial_audit_account", "account_id", "timestamp"),
+        Index("ix_financial_audit_action", "action_type", "timestamp"),
+        Index("ix_financial_audit_agent", "agent_id", "timestamp"),
+        Index("ix_financial_audit_user", "user_id", "timestamp"),
+        Index("ix_financial_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+class MenuBarAudit(Base):
+    """
+    Menu Bar Operations Audit Log
+
+    Tracks all menu bar companion app operations for governance and compliance.
+    Ensures all menu bar-triggered actions are attributable and governable.
+    """
+    __tablename__ = "menu_bar_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=True, index=True)
+
+    # Action details
+    action = Column(String(100), nullable=False, index=True)  # login, quick_chat, get_agents, etc.
+    endpoint = Column(String(200), nullable=False)
+
+    # Request/Response tracking
+    request_params = Column(JSON, nullable=True)  # Input parameters
+    response_summary = Column(JSON, nullable=True)  # Output summary
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Agent maturity at time of action (if agent involved)
+    agent_maturity = Column(String(50), nullable=True, index=True)
+    governance_check_passed = Column(Boolean, nullable=True, index=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    platform = Column(String(50), nullable=True)  # darwin, windows, linux
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="menu_bar_audits")
+    execution = relationship("AgentExecution", backref="menu_bar_audits")
+    user = relationship("User", backref="menu_bar_audits")
+    device = relationship("DeviceNode", backref="audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_menu_bar_audit_timestamp", "timestamp"),
+        Index("ix_menu_bar_audit_action", "action", "timestamp"),
+        Index("ix_menu_bar_audit_agent", "agent_id", "timestamp"),
+        Index("ix_menu_bar_audit_user", "user_id", "timestamp"),
+        Index("ix_menu_bar_audit_device", "device_id", "timestamp"),
+        Index("ix_menu_bar_audit_maturity", "agent_maturity", "governance_check_passed"),
     )

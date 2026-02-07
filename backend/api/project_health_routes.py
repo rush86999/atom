@@ -5,7 +5,6 @@ Provides project health metrics and monitoring.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import uuid4
@@ -17,6 +16,7 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
+from core.security_dependencies import get_current_user
 
 router = BaseAPIRouter(prefix="/api/v1/projects", tags=["project-health"])
 logger = logging.getLogger(__name__)
@@ -54,56 +54,6 @@ class ProjectHealthResponse(BaseModel):
     recommendations: List[str]
     checked_at: datetime
     time_range_days: int
-
-
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user from session or JWT."""
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        try:
-            from core.enterprise_auth_service import EnterpriseAuthService
-            auth_service = EnterpriseAuthService()
-            token = auth_header.split(" ")[1]
-            claims = auth_service.verify_token(token)
-            if claims:
-                user_id = claims.get('user_id')
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    return user
-        except Exception as e:
-            logger.debug(f"JWT auth failed: {e}")
-
-    user_id = request.headers.get("X-User-ID")
-    if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            return user
-
-    user_email = request.headers.get("X-User-Email")
-    if user_email:
-        user = db.query(User).filter(User.email == user_email).first()
-        if user:
-            return user
-
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        temp_id = request.headers.get("X-User-ID") or "dev_user"
-        user = db.query(User).filter(User.id == temp_id).first()
-        if not user:
-            user = User(
-                id=temp_id,
-                email=f"dev_{temp_id}@example.com",
-                first_name="Dev",
-                last_name="User"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return user
-
-    raise HTTPException(
-        status_code=401,
-        detail="Unauthorized: Valid authentication required"
-    )
 
 
 async def calculate_notion_health(
@@ -366,6 +316,7 @@ def calculate_overall_score(metrics: dict[str, HealthMetric]) -> tuple[float, st
 async def check_project_health(
     request: Request,
     payload: ProjectHealthRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -384,8 +335,6 @@ async def check_project_health(
     TODO: Add alerting thresholds
     """
     try:
-        # Get current user
-        current_user = get_current_user(request, db)
 
         # Generate check ID
         check_id = str(uuid.uuid4())

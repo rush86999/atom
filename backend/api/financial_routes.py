@@ -9,10 +9,12 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from core.agent_context_resolver import AgentContextResolver
+from core.agent_governance_service import AgentGovernanceService
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import FinancialAccount, NetWorthSnapshot, User
+from core.models import FinancialAccount, FinancialAudit, NetWorthSnapshot, User
 
 router = BaseAPIRouter(prefix="/api/financial", tags=["Financial"])
 
@@ -47,6 +49,7 @@ class CreateFinancialAccountRequest(BaseModel):
     name: Optional[str] = Field(None, description="Account nickname/name")
     balance: Decimal = Field(..., ge=0, description="Current balance")
     currency: str = Field(default="USD", description="Currency code (default: USD)")
+    agent_id: Optional[str] = Field(None, description="Agent ID requesting the creation")
 
 
 class UpdateFinancialAccountRequest(BaseModel):
@@ -56,6 +59,7 @@ class UpdateFinancialAccountRequest(BaseModel):
     name: Optional[str] = Field(None, description="Account nickname/name")
     balance: Optional[Decimal] = Field(None, ge=0, description="Current balance")
     currency: Optional[str] = Field(None, description="Currency code")
+    agent_id: Optional[str] = Field(None, description="Agent ID requesting the update")
 
 
 class FinancialAccountDetailResponse(BaseModel):
@@ -192,7 +196,63 @@ async def create_financial_account(
 
     Creates a new financial account for tracking assets, liabilities,
     or investment accounts.
+
+    Governance:
+    - SUPERVISED+ maturity required
+    - All actions logged to FinancialAudit
+    - Agent attribution tracked if agent_id provided
     """
+    agent_id = None
+    agent_execution_id = None
+    agent_maturity = None
+    governance_check_passed = True
+    required_approval = False
+    approval_granted = None
+
+    # Resolve agent if provided
+    if request.agent_id:
+        resolver = AgentContextResolver(db)
+        agent, context = await resolver.resolve_agent_for_request(
+            user_id=str(current_user.id),
+            requested_agent_id=request.agent_id,
+            action_type="create_financial_account"
+        )
+
+        if agent:
+            agent_id = str(agent.id)
+            agent_maturity = agent.status
+
+            # Check governance
+            governance = AgentGovernanceService(db)
+            governance_check = governance.can_perform_action(
+                agent_id=agent_id,
+                action_type="create_financial_account"
+            )
+
+            governance_check_passed = governance_check.get("allowed", False)
+            required_approval = governance_check.get("requires_human_approval", False)
+
+            if not governance_check_passed:
+                # Create audit entry for failed governance check
+                audit = FinancialAudit(
+                    user_id=str(current_user.id),
+                    agent_id=agent_id,
+                    agent_execution_id=agent_execution_id,
+                    account_id=None,  # Not created yet
+                    action_type="create",
+                    changes={"requested": request.dict()},
+                    success=False,
+                    error_message="Governance check failed",
+                    agent_maturity=agent_maturity,
+                    governance_check_passed=False,
+                    required_approval=required_approval,
+                    approval_granted=False
+                )
+                db.add(audit)
+                db.commit()
+
+                raise router.permission_denied_error("financial account", "create")
+
     account = FinancialAccount(
         user_id=current_user.id,
         account_type=request.account_type,
@@ -205,6 +265,24 @@ async def create_financial_account(
     db.add(account)
     db.commit()
     db.refresh(account)
+
+    # Create audit entry
+    audit = FinancialAudit(
+        user_id=str(current_user.id),
+        agent_id=agent_id,
+        agent_execution_id=agent_execution_id,
+        account_id=account.id,
+        action_type="create",
+        changes={"created": request.dict()},
+        new_values=request.dict(),
+        success=True,
+        agent_maturity=agent_maturity or "NONE",
+        governance_check_passed=governance_check_passed,
+        required_approval=required_approval,
+        approval_granted=approval_granted
+    )
+    db.add(audit)
+    db.commit()
 
     return FinancialAccountDetailResponse(
         id=account.id,
@@ -230,7 +308,63 @@ async def update_financial_account(
 
     Updates account information. Only provided fields are updated.
     Requires ownership of the account.
+
+    Governance:
+    - SUPERVISED+ maturity required
+    - All actions logged to FinancialAudit
+    - Agent attribution tracked if agent_id provided
     """
+    agent_id = None
+    agent_execution_id = None
+    agent_maturity = None
+    governance_check_passed = True
+    required_approval = False
+    approval_granted = None
+
+    # Resolve agent if provided
+    if request.agent_id:
+        resolver = AgentContextResolver(db)
+        agent, context = await resolver.resolve_agent_for_request(
+            user_id=str(current_user.id),
+            requested_agent_id=request.agent_id,
+            action_type="update_financial_account"
+        )
+
+        if agent:
+            agent_id = str(agent.id)
+            agent_maturity = agent.status
+
+            # Check governance
+            governance = AgentGovernanceService(db)
+            governance_check = governance.can_perform_action(
+                agent_id=agent_id,
+                action_type="update_financial_account"
+            )
+
+            governance_check_passed = governance_check.get("allowed", False)
+            required_approval = governance_check.get("requires_human_approval", False)
+
+            if not governance_check_passed:
+                # Create audit entry for failed governance check
+                audit = FinancialAudit(
+                    user_id=str(current_user.id),
+                    agent_id=agent_id,
+                    agent_execution_id=agent_execution_id,
+                    account_id=account_id,
+                    action_type="update",
+                    changes={"requested": request.dict(exclude_none=True)},
+                    success=False,
+                    error_message="Governance check failed",
+                    agent_maturity=agent_maturity,
+                    governance_check_passed=False,
+                    required_approval=required_approval,
+                    approval_granted=False
+                )
+                db.add(audit)
+                db.commit()
+
+                raise router.permission_denied_error("financial account", "update")
+
     account = db.query(FinancialAccount).filter(
         FinancialAccount.id == account_id,
         FinancialAccount.user_id == current_user.id
@@ -239,20 +373,54 @@ async def update_financial_account(
     if not account:
         raise router.not_found_error("Financial account", account_id)
 
+    # Track old values for audit
+    old_values = {
+        "account_type": account.account_type,
+        "provider": account.provider,
+        "name": account.name,
+        "balance": str(account.balance),
+        "currency": account.currency
+    }
+
     # Update only provided fields
+    changes = {}
     if request.account_type is not None:
+        changes["account_type"] = {"old": account.account_type, "new": request.account_type}
         account.account_type = request.account_type
     if request.provider is not None:
+        changes["provider"] = {"old": account.provider, "new": request.provider}
         account.provider = request.provider
     if request.name is not None:
+        changes["name"] = {"old": account.name, "new": request.name}
         account.name = request.name
     if request.balance is not None:
+        changes["balance"] = {"old": str(account.balance), "new": str(request.balance)}
         account.balance = float(request.balance)
     if request.currency is not None:
+        changes["currency"] = {"old": account.currency, "new": request.currency}
         account.currency = request.currency
 
     db.commit()
     db.refresh(account)
+
+    # Create audit entry
+    audit = FinancialAudit(
+        user_id=str(current_user.id),
+        agent_id=agent_id,
+        agent_execution_id=agent_execution_id,
+        account_id=account_id,
+        action_type="update",
+        changes=changes,
+        old_values=old_values,
+        new_values=request.dict(exclude_none=True),
+        success=True,
+        agent_maturity=agent_maturity or "NONE",
+        governance_check_passed=governance_check_passed,
+        required_approval=required_approval,
+        approval_granted=approval_granted
+    )
+    db.add(audit)
+    db.commit()
 
     return FinancialAccountDetailResponse(
         id=account.id,
@@ -269,6 +437,7 @@ async def update_financial_account(
 @router.delete("/accounts/{account_id}", response_model=DeleteFinancialAccountResponse)
 async def delete_financial_account(
     account_id: str,
+    agent_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -277,7 +446,62 @@ async def delete_financial_account(
 
     Permanently deletes a financial account and all associated data.
     Requires ownership of the account.
+
+    Governance:
+    - AUTONOMOUS maturity required for deletions
+    - All actions logged to FinancialAudit
+    - Agent attribution tracked if agent_id provided
     """
+    agent_execution_id = None
+    agent_maturity = None
+    governance_check_passed = True
+    required_approval = False
+    approval_granted = None
+
+    # Resolve agent if provided
+    if agent_id:
+        resolver = AgentContextResolver(db)
+        agent, context = await resolver.resolve_agent_for_request(
+            user_id=str(current_user.id),
+            requested_agent_id=agent_id,
+            action_type="delete_financial_account"
+        )
+
+        if agent:
+            agent_id = str(agent.id)
+            agent_maturity = agent.status
+
+            # Check governance - AUTONOMOUS required for deletion
+            governance = AgentGovernanceService(db)
+            governance_check = governance.can_perform_action(
+                agent_id=agent_id,
+                action_type="delete_financial_account"
+            )
+
+            governance_check_passed = governance_check.get("allowed", False)
+            required_approval = governance_check.get("requires_human_approval", False)
+
+            if not governance_check_passed:
+                # Create audit entry for failed governance check
+                audit = FinancialAudit(
+                    user_id=str(current_user.id),
+                    agent_id=agent_id,
+                    agent_execution_id=agent_execution_id,
+                    account_id=account_id,
+                    action_type="delete",
+                    changes={},
+                    success=False,
+                    error_message="Governance check failed - AUTONOMOUS maturity required for deletion",
+                    agent_maturity=agent_maturity,
+                    governance_check_passed=False,
+                    required_approval=required_approval,
+                    approval_granted=False
+                )
+                db.add(audit)
+                db.commit()
+
+                raise router.permission_denied_error("financial account", "delete")
+
     account = db.query(FinancialAccount).filter(
         FinancialAccount.id == account_id,
         FinancialAccount.user_id == current_user.id
@@ -286,7 +510,34 @@ async def delete_financial_account(
     if not account:
         raise router.not_found_error("Financial account", account_id)
 
+    # Store account info for audit before deletion
+    account_info = {
+        "account_type": account.account_type,
+        "provider": account.provider,
+        "name": account.name,
+        "balance": str(account.balance),
+        "currency": account.currency
+    }
+
     db.delete(account)
+    db.commit()
+
+    # Create audit entry
+    audit = FinancialAudit(
+        user_id=str(current_user.id),
+        agent_id=agent_id,
+        agent_execution_id=agent_execution_id,
+        account_id=account_id,
+        action_type="delete",
+        changes={"deleted": account_info},
+        old_values=account_info,
+        success=True,
+        agent_maturity=agent_maturity or "NONE",
+        governance_check_passed=governance_check_passed,
+        required_approval=required_approval,
+        approval_granted=approval_granted
+    )
+    db.add(audit)
     db.commit()
 
     return DeleteFinancialAccountResponse(message="Financial account deleted successfully")
