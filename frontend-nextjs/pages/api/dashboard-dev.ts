@@ -253,10 +253,12 @@ export default async function handler(
       tasks: taskData,
       messages: messageData,
       stats: {
-        upcomingEvents,
-        overdueTasks,
-        unreadMessages,
-        completedTasks,
+        upcoming_events: upcomingEvents,
+        overdue_tasks: overdueTasks,
+        unread_messages: unreadMessages,
+        completed_tasks: completedTasks,
+        active_workflows: 0,
+        total_agents: 0,
       },
     };
 
