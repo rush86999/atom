@@ -190,6 +190,7 @@
     "cross-env": "^10.1.0",
     "eslint": "8.15.0",
     "eslint-config-next": "12.1.6",
+    "fast-check": "^4.5.3",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
     "lodash": "^4.17.21",
