@@ -314,36 +314,54 @@ class TestCanvasUpdateAuditTrail:
         """Test that canvas updates create audit entries."""
         updates = {"data": [{"x": 1, "y": 10}]}
 
+        # Track all added entries globally
+        added_entries = []
+
+        def create_mock_db():
+            """Create a mock db that tracks added entries"""
+            db = Mock()
+            def mock_add(entry):
+                added_entries.append(entry)
+            db.add = mock_add
+            db.commit = Mock()
+            db.refresh = Mock()
+            db.query = Mock(return_value=Mock(
+                filter=Mock(return_value=Mock(
+                    first=Mock(return_value=None)
+                ))
+            ))
+            db.close = Mock()
+            return db
+
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
-            with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+            with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
+                    mock_resolver_instance = Mock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(
+                        return_value=(intern_agent, {})
+                    )
+                    mock_resolver.return_value = mock_resolver_instance
 
-                with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
-                    with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
-                        mock_resolver_instance = Mock()
-                        mock_resolver_instance.resolve_agent_for_request = AsyncMock(
-                            return_value=(intern_agent, {})
-                        )
-                        mock_resolver.return_value = mock_resolver_instance
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
+                        mock_governance_instance = Mock()
+                        mock_governance_instance.can_perform_action.return_value = {
+                            "allowed": True,
+                            "reason": "Test"
+                        }
+                        mock_governance_instance.record_outcome = AsyncMock()
+                        mock_get_gov.return_value = mock_governance_instance
 
-                        with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
-                            mock_governance_instance = Mock()
-                            mock_governance_instance.can_perform_action.return_value = {
-                                "allowed": True,
-                                "reason": "Test"
-                            }
-                            mock_governance_instance.record_outcome = AsyncMock()
-                            mock_get_gov.return_value = mock_governance_instance
+                        # Create mock database session
+                        mock_db_instance = create_mock_db()
 
-                            # Track calls to db.add
-                            added_entries = []
-                            def mock_add(entry):
-                                added_entries.append(entry)
+                        # Patch get_db_session to yield our mock db
+                        from contextlib import contextmanager
 
-                            mock_db.add = mock_add
-                            mock_db.commit = Mock()
-                            mock_db.refresh = Mock()
+                        @contextmanager
+                        def mock_get_db():
+                            yield mock_db_instance
 
+                        with patch('core.database.get_db_session', side_effect=mock_get_db):
                             result = await update_canvas(
                                 user_id="user-1",
                                 canvas_id="canvas-123",

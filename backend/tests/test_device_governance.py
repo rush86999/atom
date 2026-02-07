@@ -492,56 +492,32 @@ class TestDeviceFeatureFlags:
 
     @pytest.mark.asyncio
     async def test_governance_bypass_respected(self, mock_db, intern_agent, mock_device_node):
-        """Test that emergency governance bypass works."""
-        import os
-        old_bypass = os.getenv("EMERGENCY_GOVERNANCE_BYPASS")
-        os.environ["EMERGENCY_GOVERNANCE_BYPASS"] = "true"
+        """Test that governance bypass works when enforcement is disabled."""
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_device_node
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
 
-        try:
-            mock_db.query.return_value.filter.return_value.first.return_value = mock_device_node
-            mock_db.add = Mock()
-            mock_db.commit = Mock()
+        with patch('tools.device_tool.is_device_online', return_value=True):
+            async def mock_send_command(*args, **kwargs):
+                return {
+                    "success": True,
+                    "file_path": "/tmp/camera_snap_bypass.jpg",
+                    "device_node_id": "test-device-123"
+                }
+            with patch('tools.device_tool.send_device_command', side_effect=mock_send_command):
+                # Mock governance enforcement to be disabled (simulating bypass)
+                with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
+                    # Even without explicitly patching _check_device_governance,
+                    # it should return allowed=True when governance is disabled
+                    result = await device_camera_snap(
+                        db=mock_db,
+                        user_id=str(uuid.uuid4()),
+                        device_node_id="test-device-123",
+                        agent_id=intern_agent.id
+                    )
 
-            with patch('tools.device_tool.is_device_online', return_value=True):
-                async def mock_send_command(*args, **kwargs):
-                    return {
-                        "success": True,
-                        "file_path": "/tmp/camera_snap_bypass.jpg",
-                        "device_node_id": "test-device-123"
-                    }
-                with patch('tools.device_tool.send_device_command', side_effect=mock_send_command):
-                    # Reload the module to pick up the env var
-                    import importlib
-
-                    import tools.device_tool
-                    importlib.reload(tools.device_tool)
-
-                    # Even with governance check returning failure
-                    # After reload, we need to patch again
-                    with patch('tools.device_tool._check_device_governance') as mock_gov:
-                        mock_gov.return_value = {
-                            "allowed": False,
-                            "reason": "Would be blocked",
-                            "governance_check_passed": False
-                        }
-
-                        # With bypass, action should succeed despite governance check
-                        result = await tools.device_tool.device_camera_snap(
-                            db=mock_db,
-                            user_id=str(uuid.uuid4()),
-                            device_node_id="test-device-123",
-                            agent_id=intern_agent.id
-                        )
-
-                        # With bypass, it should still work (fail-open for availability)
-                        # Note: This tests the fail-open behavior when governance fails
-                        assert result["success"] is True or "governance" in result.get("error", "").lower()
-
-        finally:
-            if old_bypass is None:
-                os.environ.pop("EMERGENCY_GOVERNANCE_BYPASS", None)
-            else:
-                os.environ["EMERGENCY_GOVERNANCE_BYPASS"] = old_bypass
+                    # With bypass (governance disabled), action should succeed
+                    assert result["success"] is True
 
 
 if __name__ == "__main__":
