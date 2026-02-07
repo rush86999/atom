@@ -196,6 +196,15 @@ class AgentContextResolver:
                 logger.warning(f"Cannot set agent on non-existent session {session_id}")
                 return False
 
+            # Verify that the agent exists
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                logger.warning(f"Cannot set non-existent agent {agent_id} on session {session_id}")
+                return False
+
             # Update metadata
             metadata = session.metadata_json or {}
             metadata["agent_id"] = agent_id
@@ -210,7 +219,7 @@ class AgentContextResolver:
 
 
 
-    async def validate_agent_for_action(
+    def validate_agent_for_action(
         self,
         agent: AgentRegistry,
         action_type: str,
