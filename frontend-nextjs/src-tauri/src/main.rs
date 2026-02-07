@@ -984,20 +984,8 @@ async fn send_notification(
     // Send system notification using Tauri v2 API
     use tauri_plugin_notification::NotificationExt;
 
-    let mut notification = tauri_plugin_notification::Notification::new(
-        &app.config().app_identifier.clone().unwrap_or_default()
-    );
-
-    notification = notification.title(&title);
-    notification = notification.body(&body);
-
-    if let Some(icon_path) = icon {
-        notification = notification.icon(icon_path);
-    }
-
-    // TODO: Add sound support
-
-    notification.show(&app).map_err(|e: Box<dyn std::error::Error>| e.to_string())?;
+    // Use the simple notify method from the notification extension
+    app.notify(&title, &body).map_err(|e| e.to_string())?;
 
     Ok(json!({
         "success": true,
