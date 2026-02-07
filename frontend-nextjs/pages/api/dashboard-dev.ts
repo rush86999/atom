@@ -134,6 +134,7 @@ function getMockDashboardData(): DashboardData {
     total_agents: 0,
   },
 };
+}
 
 // Function to fetch real calendar data from backend API
 async function fetchRealCalendarData(): Promise<CalendarEvent[]> {
