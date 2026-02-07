@@ -63,94 +63,9 @@ interface DashboardApiResponse {
 }
 
 /**
- * Dashboard API Endpoint
- * Fetches real data from the backend dashboard API
- */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  try {
-    // Extract query parameters
-    const { user_id, limit } = req.query;
-
-    // Build query params for backend API
-    const params = new URLSearchParams();
-    if (user_id) params.append("user_id", user_id as string);
-    if (limit) params.append("limit", limit as string);
-
-    // Fetch from backend dashboard API
-    const response = await fetch(`${BACKEND_API_URL}/api/dashboard/data?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        // Add authentication header if needed
-        // "Authorization": `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Backend API returned ${response.status}: ${response.statusText}`);
-    }
-
-    const data: DashboardApiResponse = await response.json();
-
-    if (!data.success) {
-      throw new Error("Backend API returned unsuccessful response");
-    }
-
-    // Transform backend data to match frontend interface
-    const dashboardData: DashboardData = {
-      calendar: data.data.calendar.map((event: any) => ({
-        id: event.id,
-        title: event.title,
-        start: event.start,
-        end: event.end,
-        description: event.description,
-        location: event.location,
-        status: event.status,
-      })),
-      tasks: data.data.tasks.map((task: any) => ({
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        due_date: task.due_date,
-        priority: task.priority,
-        status: task.status,
-        created_at: task.created_at,
-        updated_at: task.updated_at,
-      })),
-      messages: data.data.messages.map((msg: any) => ({
-        id: msg.id,
-        platform: msg.platform,
-        from_user: msg.from_user,
-        subject: msg.subject,
-        preview: msg.preview,
-        timestamp: msg.timestamp,
-        unread: msg.unread,
-        priority: msg.priority,
-      })),
-      stats: data.stats,
-    };
-
-    // Return the transformed data
-    res.status(200).json(dashboardData);
-
-  } catch (error) {
-    console.error("Dashboard API error:", error);
-
-    // Return error response
-    res.status(500).json({
-      error: "Failed to fetch dashboard data",
-      message: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString(),
-    });
-  }
-}
-
-/**
- * Legacy function to get mock data for fallback/testing
- * This is kept for development purposes when backend is not available
+ * Dashboard API Endpoint (Development Version)
+ * Fetches real data from backend services with mock data fallbacks
+ * This version bypasses authentication for local development
  */
 function getMockDashboardData(): DashboardData {
   const now = new Date();
