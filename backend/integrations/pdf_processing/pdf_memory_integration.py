@@ -112,8 +112,23 @@ class PDFMemoryIntegration:
                     processing_method TEXT,
                     extracted_text TEXT,
                     created_at TEXT,
-                    source_uri TEXT
+                    source_uri TEXT,
+                    tags TEXT
                 )
+            """)
+
+            # Add tags column to existing tables (for migrations)
+            try:
+                cursor.execute("ALTER TABLE pdf_documents ADD COLUMN tags TEXT")
+                logger.info("Added tags column to existing pdf_documents table")
+            except sqlite3.OperationalError:
+                # Column already exists, which is fine
+                pass
+
+            # Create index on tags for better query performance
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_pdf_documents_tags
+                ON pdf_documents(tags)
             """)
 
             # FTS5 virtual table for full-text search
@@ -946,22 +961,214 @@ class PDFMemoryIntegration:
                     conn.close()
                     return {"success": False, "error": "Document not found"}
 
-                # SQLite doesn't have a tags column yet - would need migration
-                # For now, just return the cleaned tags
+                # Store tags as JSON string in SQLite
+                import json
+                tags_json = json.dumps(cleaned_tags)
+
+                cursor.execute(
+                    "UPDATE pdf_documents SET tags = ? WHERE doc_id = ? AND user_id = ?",
+                    (tags_json, doc_id, user_id),
+                )
+
+                conn.commit()
                 conn.close()
                 logger.info(
-                    f"SQLite tag storage not yet implemented for doc {doc_id}"
+                    f"Successfully updated {len(cleaned_tags)} tags for doc {doc_id}"
                 )
 
             return {
                 "success": True,
                 "doc_id": doc_id,
                 "tags": cleaned_tags,
-                "message": "Tags validated (storage pending schema update)",
+                "message": f"Successfully updated {len(cleaned_tags)} tags",
             }
 
         except Exception as e:
             logger.error(f"Failed to update document tags: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_document_tags(self, doc_id: str, user_id: str) -> Dict[str, Any]:
+        """
+        Retrieve tags for a specific document.
+
+        Args:
+            doc_id: Document ID
+            user_id: User ID for ownership verification
+
+        Returns:
+            Dictionary with success status and tags list
+        """
+        try:
+            if not self._simple_db_path:
+                return {"success": False, "error": "SQLite storage not available"}
+
+            import json
+            import sqlite3
+
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Get tags for document
+            cursor.execute(
+                "SELECT tags FROM pdf_documents WHERE doc_id = ? AND user_id = ?",
+                (doc_id, user_id),
+            )
+            result = cursor.fetchone()
+            conn.close()
+
+            if not result:
+                return {"success": False, "error": "Document not found"}
+
+            tags_json = result[0]
+            tags = json.loads(tags_json) if tags_json else []
+
+            return {
+                "success": True,
+                "doc_id": doc_id,
+                "tags": tags,
+                "count": len(tags),
+            }
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse tags JSON for doc {doc_id}: {e}")
+            return {"success": False, "error": f"Invalid tags format: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Failed to get document tags: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def delete_document_tags(
+        self, doc_id: str, user_id: str, tags_to_delete: list
+    ) -> Dict[str, Any]:
+        """
+        Delete specific tags from a document.
+
+        Args:
+            doc_id: Document ID
+            user_id: User ID for ownership verification
+            tags_to_delete: List of tag names to remove
+
+        Returns:
+            Dictionary with success status and remaining tags
+        """
+        try:
+            if not self._simple_db_path:
+                return {"success": False, "error": "SQLite storage not available"}
+
+            import json
+            import sqlite3
+
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Get current tags
+            cursor.execute(
+                "SELECT tags FROM pdf_documents WHERE doc_id = ? AND user_id = ?",
+                (doc_id, user_id),
+            )
+            result = cursor.fetchone()
+
+            if not result:
+                conn.close()
+                return {"success": False, "error": "Document not found"}
+
+            # Parse and filter tags
+            current_tags = json.loads(result[0]) if result[0] else []
+            remaining_tags = [t for t in current_tags if t not in tags_to_delete]
+
+            # Update with remaining tags
+            tags_json = json.dumps(remaining_tags)
+            cursor.execute(
+                "UPDATE pdf_documents SET tags = ? WHERE doc_id = ? AND user_id = ?",
+                (tags_json, doc_id, user_id),
+            )
+
+            conn.commit()
+            conn.close()
+
+            deleted_count = len(current_tags) - len(remaining_tags)
+            logger.info(
+                f"Deleted {deleted_count} tags from doc {doc_id}, {len(remaining_tags)} remaining"
+            )
+
+            return {
+                "success": True,
+                "doc_id": doc_id,
+                "deleted_tags": tags_to_delete,
+                "deleted_count": deleted_count,
+                "remaining_tags": remaining_tags,
+                "message": f"Successfully deleted {deleted_count} tags",
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to delete document tags: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def search_by_tags(
+        self, user_id: str, tags: list, match_all: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Search for documents by tags.
+
+        Args:
+            user_id: User ID
+            tags: List of tags to search for
+            match_all: If True, requires all tags to match; if False, any tag match is sufficient
+
+        Returns:
+            Dictionary with matching documents
+        """
+        try:
+            if not self._simple_db_path:
+                return {"success": False, "error": "SQLite storage not available"}
+
+            import json
+            import sqlite3
+
+            conn = sqlite3.connect(self._simple_db_path)
+            cursor = conn.cursor()
+
+            # Get all documents for user with tags
+            cursor.execute(
+                "SELECT doc_id, filename, tags FROM pdf_documents WHERE user_id = ? AND tags IS NOT NULL",
+                (user_id,),
+            )
+            results = cursor.fetchall()
+            conn.close()
+
+            matching_docs = []
+            for doc_id, filename, tags_json in results:
+                try:
+                    doc_tags = json.loads(tags_json) if tags_json else []
+
+                    # Check if document matches search criteria
+                    if match_all:
+                        # All tags must be present
+                        matches = all(tag in doc_tags for tag in tags)
+                    else:
+                        # Any tag match is sufficient
+                        matches = any(tag in doc_tags for tag in tags)
+
+                    if matches:
+                        matching_docs.append({
+                            "doc_id": doc_id,
+                            "filename": filename,
+                            "tags": doc_tags,
+                            "matched_tags": [t for t in tags if t in doc_tags],
+                        })
+                except json.JSONDecodeError:
+                    continue
+
+            return {
+                "success": True,
+                "user_id": user_id,
+                "search_tags": tags,
+                "match_all": match_all,
+                "count": len(matching_docs),
+                "documents": matching_docs,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to search by tags: {e}")
             return {"success": False, "error": str(e)}
 
     async def get_user_document_stats(self, user_id: str) -> Dict[str, Any]:

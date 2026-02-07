@@ -13,17 +13,31 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Literal, Optional, Union
-import anthropic
+
+# Optional imports for AI providers
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+    logger = logging.getLogger(__name__)
+    logger.warning("anthropic package not available, Anthropic provider features will be disabled")
+
+try:
+    import openai
+except ImportError:
+    openai = None
+    logger = logging.getLogger(__name__)
+    logger.warning("openai package not available, OpenAI-compatible provider features will be disabled")
+
 from fastapi import APIRouter, HTTPException
-import openai
 from pydantic import BaseModel, Field
 
 try:
     import instructor
 except ImportError:
     instructor = None
-    logger = logging.getLogger(__name__)
-    logger.warning("instructor package not available, some features may be limited")
+    _logger = logging.getLogger(__name__)
+    _logger.warning("instructor package not available, some features may be limited")
 
 from dotenv import load_dotenv
 
@@ -489,6 +503,88 @@ class RealAIWorkflowService:
             )
         except Exception as e:
             return TaskBreakdown(intent="Error", entities=[], tasks=[str(e)], confidence=0.0)
+
+    async def analyze_text(self, prompt: str, complexity: int = 1, system_prompt: str = "", user_id: str = "default_user") -> str:
+        """
+        Analyze text using the configured AI provider with support for multiple providers.
+
+        Args:
+            prompt: The text prompt to analyze
+            complexity: Action complexity level (1-4) for governance checks
+            system_prompt: Optional system prompt to guide the AI
+            user_id: User ID for tracking and governance
+
+        Returns:
+            str: The AI-generated analysis/response
+        """
+        from core.governance_cache import get_governance_cache
+        from core.agent_governance_service import AgentGovernanceService
+        from sqlalchemy.orm import Session
+        from core.database import SessionLocal
+
+        # Governance check for complexity level
+        if complexity > 1:
+            try:
+                with SessionLocal() as db:
+                    governance_service = AgentGovernanceService()
+                    cache = get_governance_cache()
+
+                    # Check if operation is allowed for the complexity level
+                    # This is a simplified check - in production, you'd pass agent_id
+                    is_allowed = True  # Placeholder for actual governance check
+
+                    if not is_allowed:
+                        logger.warning(f"Governance check failed for complexity {complexity}")
+                        return "Governance policy restriction: Operation not allowed at current complexity level."
+            except Exception as e:
+                logger.error(f"Governance check failed, allowing with warning: {e}")
+
+        # Select optimal provider based on complexity
+        if complexity <= 2:
+            provider = self._byok.get_optimal_provider(task_type="simple", min_reasoning_level=2) or "openai"
+        elif complexity == 3:
+            provider = self._byok.get_optimal_provider(task_type="moderate", min_reasoning_level=3) or "anthropic"
+        else:
+            provider = self._byok.get_optimal_provider(task_type="complex", min_reasoning_level=4) or "openai"
+
+        client = self.get_client(provider)
+        if not client:
+            # Fallback to any available provider
+            active_keys = await self.get_active_provider_keys()
+            if active_keys:
+                provider = active_keys[0]
+                client = self.get_client(provider)
+
+        if not client:
+            logger.error("No active AI provider found for analyze_text")
+            return "Error: No AI provider available"
+
+        model_name = self._byok.providers[provider].model or "gpt-4o"
+
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+
+            if provider == "anthropic":
+                response = await client.messages.create(
+                    model=model_name,
+                    messages=messages,
+                    max_tokens=4096
+                )
+                return response.content[0].text
+            else:  # OpenAI-compatible providers
+                response = await client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    max_tokens=4096
+                )
+                return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"AI analysis failed with provider {provider}: {e}")
+            return f"Error: AI analysis failed - {str(e)}"
 
 
 # Global Service

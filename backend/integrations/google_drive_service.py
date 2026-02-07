@@ -81,21 +81,14 @@ class GoogleDriveService:
     ) -> Dict[str, Any]:
         """List files from Google Drive."""
         try:
-            if not access_token or access_token == "mock":
-                # Fallback to mock data when no real token
-                logger.info("Using mock data - no access token provided")
-                mock_files = [
-                    {
-                        "id": "mock_file1",
-                        "name": "Project Document.docx (MOCK)",
-                        "mimeType": "application/vnd.google-apps.document",
-                        "webViewLink": "https://drive.google.com/file/d/file1/view",
-                        "createdTime": "2024-01-15T10:00:00Z",
-                        "modifiedTime": "2024-01-20T14:30:00Z",
-                        "size": 1024000,
-                    }
-                ]
-                return {"status": "success", "data": {"files": mock_files, "nextPageToken": None}, "mode": "mock"}
+            # Validate access token
+            if not access_token or access_token == "mock" or access_token == "fake_token":
+                logger.error("Invalid or mock access token provided")
+                return {
+                    "status": "error",
+                    "code": 401,
+                    "message": "Invalid Google OAuth token. Please authenticate with Google Drive."
+                }
 
             # Real Google Drive API call
             import httpx
@@ -116,13 +109,29 @@ class GoogleDriveService:
                     params=params,
                     timeout=30.0
                 )
+
+                if response.status_code == 401:
+                    logger.error("Google Drive authentication failed (401)")
+                    return {
+                        "status": "error",
+                        "code": 401,
+                        "message": "Authentication failed. Please re-authenticate with Google Drive."
+                    }
+
                 response.raise_for_status()
                 data = response.json()
                 return {
                     "status": "success",
-                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")},
-                    "mode": "real"
+                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")}
                 }
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Google Drive API error: {e.response.status_code} - {e.response.text}")
+            return {
+                "status": "error",
+                "code": e.response.status_code,
+                "message": f"Google Drive API error: {e.response.text}"
+            }
         except Exception as e:
             logger.error(f"Google Drive list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -137,20 +146,14 @@ class GoogleDriveService:
     ) -> Dict[str, Any]:
         """Search files in Google Drive."""
         try:
-            if not access_token or access_token == "mock":
-                # Fallback to mock data
-                mock_files = [
-                    {
-                        "id": "mock_file3",
-                        "name": f"Search Result for {query}.docx (MOCK)",
-                        "mimeType": "application/vnd.google-apps.document",
-                        "webViewLink": "https://drive.google.com/file/d/file3/view",
-                        "createdTime": "2024-01-10T08:00:00Z",
-                        "modifiedTime": "2024-01-12T11:20:00Z",
-                        "size": 2048000,
-                    }
-                ]
-                return {"status": "success", "data": {"files": mock_files, "nextPageToken": None}, "mode": "mock"}
+            # Validate access token
+            if not access_token or access_token == "mock" or access_token == "fake_token":
+                logger.error("Invalid or mock access token provided for search")
+                return {
+                    "status": "error",
+                    "code": 401,
+                    "message": "Invalid Google OAuth token. Please authenticate with Google Drive."
+                }
 
             # Real Google Drive API search
             import httpx
@@ -170,13 +173,29 @@ class GoogleDriveService:
                     params=params,
                     timeout=30.0
                 )
+
+                if response.status_code == 401:
+                    logger.error("Google Drive authentication failed (401) for search")
+                    return {
+                        "status": "error",
+                        "code": 401,
+                        "message": "Authentication failed. Please re-authenticate with Google Drive."
+                    }
+
                 response.raise_for_status()
                 data = response.json()
                 return {
                     "status": "success",
-                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")},
-                    "mode": "real"
+                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")}
                 }
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Google Drive search API error: {e.response.status_code} - {e.response.text}")
+            return {
+                "status": "error",
+                "code": e.response.status_code,
+                "message": f"Google Drive API error: {e.response.text}"
+            }
         except Exception as e:
             logger.error(f"Google Drive search failed: {e}")
             return {"status": "error", "message": f"Search failed: {str(e)}"}

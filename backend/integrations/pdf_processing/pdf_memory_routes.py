@@ -405,6 +405,151 @@ async def update_document_tags(
         raise HTTPException(status_code=500, detail=f"Tag update failed: {str(e)}")
 
 
+@router.get("/documents/{doc_id}/tags")
+async def get_document_tags(
+    doc_id: str,
+    user_id: str,
+    service: PDFMemoryIntegration = Depends(get_pdf_memory_service),
+):
+    """
+    Get tags for a PDF document.
+
+    Query Parameters:
+    - user_id: User ID for authentication/authorization
+    - doc_id: Document ID to get tags for
+    """
+    try:
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+
+        if not doc_id:
+            raise HTTPException(status_code=400, detail="doc_id is required")
+
+        result = await service.get_document_tags(doc_id=doc_id, user_id=user_id)
+
+        if not result.get("success"):
+            error_msg = result.get("error", "")
+            if "not found" in error_msg.lower():
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
+        return {
+            "success": True,
+            "doc_id": doc_id,
+            "tags": result["tags"],
+            "count": result["count"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get tags failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Get tags failed: {str(e)}")
+
+
+@router.delete("/documents/{doc_id}/tags")
+async def delete_document_tags(
+    doc_id: str,
+    user_id: str,
+    tags: List[str],
+    service: PDFMemoryIntegration = Depends(get_pdf_memory_service),
+):
+    """
+    Delete specific tags from a PDF document.
+
+    Query Parameters:
+    - user_id: User ID for authentication/authorization
+    - doc_id: Document ID to delete tags from
+
+    Request Body:
+    - tags: List of tag strings to delete
+    """
+    try:
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+
+        if not doc_id:
+            raise HTTPException(status_code=400, detail="doc_id is required")
+
+        if not isinstance(tags, list) or len(tags) == 0:
+            raise HTTPException(status_code=400, detail="tags must be a non-empty list")
+
+        result = await service.delete_document_tags(
+            doc_id=doc_id, user_id=user_id, tags_to_delete=tags
+        )
+
+        if not result.get("success"):
+            error_msg = result.get("error", "")
+            if "not found" in error_msg.lower():
+                raise HTTPException(status_code=404, detail=error_msg)
+            else:
+                raise HTTPException(status_code=500, detail=error_msg)
+
+        return {
+            "success": True,
+            "doc_id": doc_id,
+            "deleted_tags": result["deleted_tags"],
+            "deleted_count": result["deleted_count"],
+            "remaining_tags": result["remaining_tags"],
+            "message": result.get("message", "Tags deleted successfully"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete tags failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Delete tags failed: {str(e)}")
+
+
+@router.get("/users/{user_id}/documents/search")
+async def search_documents_by_tags(
+    user_id: str,
+    tags: str = Query(..., description="Comma-separated list of tags to search for"),
+    match_all: bool = Query(False, description="If true, requires all tags to match"),
+    service: PDFMemoryIntegration = Depends(get_pdf_memory_service),
+):
+    """
+    Search for documents by tags.
+
+    Query Parameters:
+    - user_id: User ID for authentication/authorization
+    - tags: Comma-separated list of tags to search for
+    - match_all: If true, requires all tags to match; if false, any tag match is sufficient
+    """
+    try:
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+
+        # Parse tags from comma-separated string
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+
+        if not tag_list:
+            raise HTTPException(status_code=400, detail="At least one tag is required")
+
+        result = await service.search_by_tags(
+            user_id=user_id, tags=tag_list, match_all=match_all
+        )
+
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Search failed"))
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "search_tags": tag_list,
+            "match_all": match_all,
+            "count": result["count"],
+            "documents": result["documents"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Search by tags failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
 @router.get("/health")
 async def health_check(service: PDFMemoryIntegration = Depends(get_pdf_memory_service)):
     """Health check endpoint for PDF memory service."""

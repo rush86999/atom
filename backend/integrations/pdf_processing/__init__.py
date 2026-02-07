@@ -14,14 +14,23 @@ Features:
 
 from .pdf_memory_integration import PDFMemoryIntegration
 from .pdf_memory_routes import router as pdf_memory_router
-from .pdf_ocr_routes import router as pdf_ocr_router
-from .pdf_ocr_service import PDFOCRService
+
+# Optional OCR router (requires PIL/Pillow)
+try:
+    from .pdf_ocr_routes import router as pdf_ocr_router
+    from .pdf_ocr_service import PDFOCRService
+    OCR_AVAILABLE = True
+except ImportError:
+    pdf_ocr_router = None
+    PDFOCRService = None
+    OCR_AVAILABLE = False
 
 __all__ = [
     "PDFOCRService",
     "PDFMemoryIntegration",
     "pdf_ocr_router",
     "pdf_memory_router",
+    "OCR_AVAILABLE",
 ]
 
 __version__ = "1.0.0"
