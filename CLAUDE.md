@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: February 3, 2026
+**Last Updated**: February 6, 2026
 
 ---
 
@@ -50,11 +50,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 **Key**: STUDENT agents learn through guided training scenarios before gaining autonomy.
 
 ### Action Complexity
-
-- **1 (LOW)**: Presentations, read-only → STUDENT+
-- **2 (MODERATE)**: Streaming, moderate actions → INTERN+
-- **3 (HIGH)**: State changes, submissions → SUPERVISED+
-- **4 (CRITICAL)**: Deletions, payments → AUTONOMOUS only
+- **1 (LOW)**: Presentations → STUDENT+ | **2 (MODERATE)**: Streaming → INTERN+ | **3 (HIGH)**: State changes → SUPERVISED+ | **4 (CRITICAL)**: Deletions → AUTONOMOUS only
 
 ---
 
@@ -161,6 +157,13 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ---
 
 ## Recent Major Changes
+
+### Documentation Fixes (Feb 6, 2026) ✨ NEW
+- **Created**: CONTRIBUTING.md with comprehensive contribution guidelines
+- **Fixed**: 5 broken links across docs/INDEX.md, MOBILE_QUICK_START.md, and MULTI_INTEGRATION_WORKFLOW_ENGINE.md
+- **Impact**: All documentation navigation now functional
+- **Files Modified**: 4 files, 1 file created
+- **See**: CONTRIBUTING.md for contribution guidelines
 
 ### Incomplete Implementation Fixes (Feb 5, 2026) ✨ NEW
 - **Backend**: Fixed workflow engine Slack and Asana action implementations
@@ -289,6 +292,99 @@ with SessionLocal() as db:
 
 ---
 
+## Coding Standards & Best Practices
+
+### Python Standards
+- **Version**: Python 3.11+
+- **Style**: PEP 8 compliant
+- **Naming**:
+  - Classes: `PascalCase` (e.g., `AgentGovernanceService`)
+  - Functions: `snake_case` (e.g., `submit_feedback`)
+  - Constants: `UPPER_SNAKE_CASE` (e.g., `DATABASE_URL`)
+- **Type Hints**: Required for all function signatures
+- **Docstrings**: Google-style with Args/Returns sections
+
+### Error Handling Patterns
+```python
+# Standardized error handling
+try:
+    # Database operations
+    with SessionLocal() as db:
+        agent = db.query(AgentRegistry).filter(...).first()
+        db.add(agent)
+        db.commit()
+except Exception as e:
+    logger.error(f"Operation failed: {e}")
+    raise api_error(
+        ErrorCode.DATABASE_ERROR,
+        "Database operation failed",
+        {"error": str(e)}
+    )
+```
+
+### Database Session Patterns
+1. **Context Manager** (Service Layer):
+   ```python
+   with get_db_session() as db:
+       # Auto-commits on success, auto-rolls back on exception
+       agent = db.query(Agent).filter(Agent.id == agent_id).first()
+   ```
+
+2. **Dependency Injection** (API Routes):
+   ```python
+   @app.get("/agents/{agent_id}")
+   def get_agent(agent_id: str, db: Session = Depends(get_db)):
+       return db.query(Agent).filter(Agent.id == agent_id).first()
+   ```
+
+### API Response Standards
+```python
+# Success Response
+{
+    "success": True,
+    "data": {...},
+    "message": "Operation successful",
+    "timestamp": "2026-02-06T10:30:00.000Z"
+}
+
+# Error Response
+{
+    "success": False,
+    "error_code": "AGENT_NOT_FOUND",
+    "message": "Agent with ID 'abc123' not found",
+    "details": {"agent_id": "abc123"}
+}
+```
+
+### Testing Patterns
+- Test files: `backend/tests/test_*.py`
+- Test naming: `test_specific_behavior()`
+- Always clean up test data in `finally` blocks
+- Use mocks for external services (AsyncMock, MagicMock)
+
+### Import Order
+```python
+# 1. Standard library
+import os
+from datetime import datetime
+
+# 2. Third-party
+from fastapi import FastAPI
+from sqlalchemy.orm import Session
+
+# 3. Local imports
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry
+```
+
+### Performance Patterns
+- Use `GovernanceCache` for frequently accessed data (<1ms lookups)
+- Async/await for I/O operations
+- Connection pooling for databases
+- Stream LLM responses via WebSocket
+
+---
+
 ## Testing
 
 ```bash
@@ -397,11 +493,6 @@ alembic history                        # View history
 # Development
 python -m uvicorn main:app --reload --port 8000
 
-# Testing
-pytest tests/ -v
-pytest tests/test_governance_streaming.py -v
-pytest tests/test_browser_automation.py -v
-
 # Playwright
 playwright install chromium
 
@@ -425,15 +516,7 @@ grep "governance" logs/atom.log | tail -100
 
 ## Summary
 
-Atom is a sophisticated AI-powered automation platform with:
-- Multi-agent system with comprehensive governance
-- Real-time streaming with <1ms governance overhead
-- Canvas presentations with full audit trails
-- Browser automation (CDP via Playwright)
-- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution)
-- Sub-millisecond operations, production-ready
-
-**Key Takeaway**: Always think about **agent attribution** and **governance** when working with any AI feature in Atom.
+Atom is an AI-powered automation platform with multi-agent governance, episodic memory, and real-time guidance. **Key**: Always think about **agent attribution** and **governance** when working with any AI feature.
 
 ---
 
