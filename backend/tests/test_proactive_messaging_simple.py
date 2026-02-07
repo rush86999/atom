@@ -8,12 +8,6 @@ Run with: python -m pytest tests/test_proactive_messaging_simple.py -v
 import sys
 import os
 
-# Prevent numpy/pandas from loading real DLLs that crash on Py 3.13
-sys.modules["numpy"] = None
-sys.modules["pandas"] = None
-sys.modules["lancedb"] = None
-sys.modules["pyarrow"] = None
-
 import pytest
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
@@ -31,6 +25,29 @@ from core.proactive_messaging_service import ProactiveMessagingService
 TEST_DATABASE_URL = "sqlite:///./test_proactive_simple.db"
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def mock_heavy_dependencies():
+    """
+    Mock numpy/pandas/lancedb/pyarrow to prevent DLL loading issues on Python 3.13.
+
+    This fixture runs automatically for all tests in this file to prevent
+    loading heavy data science libraries that may have DLL compatibility issues.
+    """
+    original_modules = {}
+    for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
+        original_modules[mod] = sys.modules.get(mod)
+        sys.modules[mod] = None
+
+    yield
+
+    # Restore original modules after test
+    for mod, original in original_modules.items():
+        if original is None:
+            sys.modules.pop(mod, None)
+        else:
+            sys.modules[mod] = original
 
 
 @pytest.fixture
