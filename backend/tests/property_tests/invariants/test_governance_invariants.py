@@ -17,7 +17,7 @@ Protection: tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md
 from decimal import Decimal
 
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import given, settings, HealthCheck, assume
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -84,7 +84,7 @@ class TestGovernanceInvariants:
             allow_infinity=False
         )
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_score_never_exceeds_bounds(
         self, db_session: Session, confidence_score: float
     ):
@@ -121,7 +121,7 @@ class TestGovernanceInvariants:
         positive=st.booleans(),
         impact_level=st.sampled_from(["high", "low"])
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_update_preserves_bounds(
         self, db_session: Session, initial_confidence: float, positive: bool, impact_level: str
     ):
@@ -162,7 +162,7 @@ class TestGovernanceInvariants:
         ]),
         action_type=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_governance_never_crashes(
         self, db_session: Session, agent_status: str, action_type: str
     ):
@@ -212,7 +212,7 @@ class TestGovernanceInvariants:
             AgentStatus.AUTONOMOUS.value,
         ])
     )
-    @settings(max_examples=50)  # Only 16 combinations possible
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])  # Only 16 combinations possible
     def test_maturity_hierarchy_is_consistent(
         self, db_session: Session, status1: str, status2: str
     ):

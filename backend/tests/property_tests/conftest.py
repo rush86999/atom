@@ -17,7 +17,16 @@ from sqlalchemy.orm import Session, sessionmaker
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import Base
-from core.models import AgentRegistry, AgentStatus
+from core.models import (
+    AgentRegistry, AgentStatus, AgentExecution, AgentFeedback,
+    Episode, EpisodeSegment, EpisodeAccessLog,
+    AgentProposal, ProposalStatus, ProposalType,
+    SupervisionSession, SupervisionStatus,
+    BlockedTriggerContext,
+    TrainingSession,
+    TriggerSource,
+    User
+)
 
 
 @pytest.fixture(scope="function")

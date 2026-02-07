@@ -15,7 +15,7 @@ Protection: tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md
 """
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -103,7 +103,7 @@ class TestMaturityInvariants:
             AgentStatus.AUTONOMOUS.value,
         ])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_student_cannot_perform_critical_actions(
         self, db_session: Session, agent_status: str
     ):
@@ -147,7 +147,7 @@ class TestMaturityInvariants:
             AgentStatus.AUTONOMOUS.value,
         ])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_student_can_perform_low_complexity_actions(
         self, db_session: Session, agent_status: str
     ):
@@ -190,7 +190,7 @@ class TestMaturityInvariants:
             allow_infinity=False
         )
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_maturity_status_matches_confidence_score(
         self, db_session: Session, confidence_score: float
     ):

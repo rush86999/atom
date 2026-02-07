@@ -17,7 +17,7 @@ Protection: tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md
 import uuid
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ class TestAgentGovernanceServiceContracts:
         module_path=st.text(min_size=1, max_size=200).filter(lambda x: x.strip()),
         class_name=st.text(min_size=1, max_size=100).filter(lambda x: x.strip())
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_register_agent_returns_valid_agent_registry(
         self, db_session: Session, name: str, category: str, module_path: str, class_name: str
     ):
@@ -88,7 +88,7 @@ class TestAgentGovernanceServiceContracts:
         ]),
         action_type=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
     )
-    @settings(max_examples=150)
+    @settings(max_examples=150, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_can_perform_action_returns_standardized_dict(
         self, db_session: Session, agent_status: str, action_type: str
     ):
@@ -167,7 +167,7 @@ class TestAgentGovernanceServiceContracts:
             AgentStatus.AUTONOMOUS.value,
         ])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_get_agent_capabilities_returns_valid_structure(
         self, db_session: Session, agent_status: str
     ):
@@ -256,7 +256,7 @@ class TestAgentGovernanceServiceContracts:
             AgentStatus.AUTONOMOUS.value,
         ])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_list_agents_returns_valid_list(
         self, db_session: Session, agent_status: str
     ):
