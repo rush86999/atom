@@ -28,7 +28,8 @@ from core.models import (
     BlockedTriggerContext,
     TrainingSession,
     TriggerSource,
-    User
+    User,
+    WorkflowExecution
 )
 
 
