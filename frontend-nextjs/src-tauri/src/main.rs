@@ -1176,7 +1176,7 @@ async fn screen_record_start(
             "-f", "x11grab",
             "-framerate", "30",
             "-video_size", &res,
-            "-i", &display_arg,
+            "-i", display_arg.as_str(),
         ];
 
         if audio {
