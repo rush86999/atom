@@ -1,0 +1,32 @@
+# Property-Based Testing & Fuzzy Testing Dependencies
+# For Phase 0: Foundation Setup
+
+# Property-Based Testing (already in requirements.txt)
+# hypothesis>=6.92.0,<7.0.0
+
+# Fuzzy Testing
+atheris>=2.2.0  # Coverage-guided fuzzing for Python
+python-fuzz>=0.1.0  # Structure-aware fuzzing
+
+# Mutation Testing
+mutmut>=2.4.0  # Mutation testing tool
+
+# Chaos Engineering
+chaos-toolkit>=0.23.0  # Chaos engineering framework
+
+# Parallel Test Execution
+pytest-xdist>=3.5.0  # Parallel pytest execution
+
+# Coverage & Quality
+pytest-cov>=4.1.0  # Coverage reporting (already in requirements.txt)
+coverage[toml]>=7.0.0  # Enhanced coverage with TOML support
+
+# Performance Testing
+pytest-benchmark>=4.0.0  # Benchmarking tests
+locust>=2.15.0  # Load testing
+
+# Additional Testing Utilities
+pytest-mock>=3.12.0  # Mocking utilities (already in requirements.txt)
+pytest-timeout>=2.2.0  # Test timeout enforcement
+pytest-randomly>=3.15.0  # Randomize test execution order
+freezegun>=1.4.0  # Time freezing for tests
