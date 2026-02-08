@@ -4,9 +4,9 @@ START FRONTEND & TEST OAUTH - Final Phase
 Complete the integration and test OAuth flows
 """
 
+from datetime import datetime
 import subprocess
 import time
-from datetime import datetime
 
 
 def start_frontend_and_test_oauth():

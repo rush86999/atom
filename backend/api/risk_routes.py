@@ -1,14 +1,15 @@
 import os
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 from core.risk_prevention import customer_protection, early_warning, fraud_detection
 
-router = APIRouter(prefix="/api/risk", tags=["Risk & Security"])
+router = BaseAPIRouter(prefix="/api/risk", tags=["Risk & Security"])
 
 MOCK_MODE = os.getenv("FINANCIAL_FORENSICS_MOCK", "false").lower() == "true"
 

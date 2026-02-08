@@ -3,10 +3,10 @@ Condition Evaluator - Phase 36
 Evaluates conditional expressions for workflow branching.
 """
 
-import logging
-import re
 from dataclasses import dataclass
 from enum import Enum
+import logging
+import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)

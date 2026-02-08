@@ -1,12 +1,13 @@
-import unittest
-from unittest.mock import patch, MagicMock
 import os
 import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Add backend to path
 sys.path.append(os.getcwd())
 
 from ai.nlp_engine import NaturalLanguageEngine
+
 
 class TestLLMPriority(unittest.TestCase):
     

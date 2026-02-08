@@ -12,15 +12,16 @@ Endpoints:
 
 import logging
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, Query
+from fastapi import Depends, Query
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.feedback_analytics import FeedbackAnalytics
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/feedback/analytics", tags=["feedback-analytics"])
 
 
 @router.get("/")
@@ -66,14 +67,17 @@ async def get_feedback_analytics_dashboard(
     # Get trends
     trends = analytics.get_feedback_trends(days=days)
 
-    return {
-        "period_days": days,
-        "summary": stats,
-        "top_performing_agents": top_agents,
-        "most_corrected_agents": most_corrected,
-        "feedback_by_type": breakdown,
-        "trends": trends
-    }
+    return router.success_response(
+        data={
+            "period_days": days,
+            "summary": stats,
+            "top_performing_agents": top_agents,
+            "most_corrected_agents": most_corrected,
+            "feedback_by_type": breakdown,
+            "trends": trends
+        },
+        message="Feedback analytics dashboard retrieved successfully"
+    )
 
 
 @router.get("/agent/{agent_id}")
@@ -114,12 +118,15 @@ async def get_agent_feedback_dashboard(
     # Get learning signals
     signals = learning.get_learning_signals(agent_id=agent_id, days=days)
 
-    return {
-        "agent_id": agent_id,
-        "period_days": days,
-        "feedback_summary": summary,
-        "learning_signals": signals
-    }
+    return router.success_response(
+        data={
+            "agent_id": agent_id,
+            "period_days": days,
+            "feedback_summary": summary,
+            "learning_signals": signals
+        },
+        message="Agent feedback dashboard retrieved successfully"
+    )
 
 
 @router.get("/trends")
@@ -145,7 +152,10 @@ async def get_feedback_trends_endpoint(
     analytics = FeedbackAnalytics(db)
     trends = analytics.get_feedback_trends(days=days)
 
-    return {
-        "period_days": days,
-        "trends": trends
-    }
+    return router.success_response(
+        data={
+            "period_days": days,
+            "trends": trends
+        },
+        message="Feedback trends retrieved successfully"
+    )

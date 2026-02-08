@@ -1,15 +1,16 @@
 """Spreadsheet Canvas API Routes"""
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_sheets_service import SpreadsheetCanvasService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/canvas/sheets", tags=["canvas_sheets"])
+router = BaseAPIRouter(prefix="/api/canvas/sheets", tags=["canvas_sheets"])
 
 
 class CreateSpreadsheetRequest(BaseModel):
@@ -51,7 +52,11 @@ async def create_spreadsheet(request: CreateSpreadsheetRequest, db: Session = De
         formulas=request.formulas
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="SPREADSHEET_CREATE_FAILED",
+            message=result.get("error", "Failed to create spreadsheet canvas"),
+            status_code=400
+        )
     return result
 
 
@@ -68,7 +73,11 @@ async def update_cell(canvas_id: str, request: UpdateCellRequest, db: Session = 
         formula=request.formula
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="CELL_UPDATE_FAILED",
+            message=result.get("error", "Failed to update cell"),
+            status_code=400
+        )
     return result
 
 
@@ -84,7 +93,11 @@ async def add_chart(canvas_id: str, request: AddChartRequest, db: Session = Depe
         title=request.title
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise router.error_response(
+            error_code="CHART_ADD_FAILED",
+            message=result.get("error", "Failed to add chart"),
+            status_code=400
+        )
     return result
 
 
@@ -101,6 +114,6 @@ async def get_spreadsheet(canvas_id: str, db: Session = Depends(get_db)):
     ).order_by(desc(CanvasAudit.created_at)).first()
 
     if not audit:
-        raise HTTPException(status_code=404, detail="Spreadsheet not found")
+        raise router.not_found_error("Spreadsheet Canvas", canvas_id)
 
     return audit.audit_metadata

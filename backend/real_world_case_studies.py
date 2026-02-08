@@ -5,12 +5,12 @@ Creates detailed business impact scenarios with measurable metrics
 """
 
 import asyncio
+from dataclasses import dataclass, field
 import datetime
 import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

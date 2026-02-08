@@ -1,8 +1,8 @@
 import logging
 from typing import Dict, Optional
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
+import httpx
 
 from core.auth import get_current_user
 from core.connection_service import connection_service
@@ -93,8 +93,8 @@ async def universal_callback(
 
         # 5. Record experience in World Model for Agent Memory
         try:
-            import uuid
             from datetime import datetime
+            import uuid
 
             from core.agent_world_model import AgentExperience, WorldModelService
             

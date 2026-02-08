@@ -4,12 +4,12 @@ Enhanced with LLM-powered intent parsing via BYOK
 Pattern-based fallback for reliability
 """
 
+from dataclasses import dataclass
+from enum import Enum
 import json
 import logging
 import os
 import re
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -32,7 +32,7 @@ except ImportError:
 
 # OpenAI for LLM parsing
 try:
-    from openai import OpenAI
+    from OpenAI import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -175,7 +175,7 @@ class NaturalLanguageEngine:
 
     def _llm_parse_command(self, command: str) -> Optional[CommandIntent]:
         """Parse command using LLM for high-quality intent extraction"""
-        
+
         if not self._is_llm_available():
             return None
 
@@ -190,7 +190,9 @@ class NaturalLanguageEngine:
         - DELETE: Removing items
         - SCHEDULE: Calendar events, meetings
         - ANALYZE: Data analysis, insights, reports
+        - REPORT: Generating reports, statistics
         - NOTIFY: Sending messages
+        - TRIGGER: Running workflows, starting processes
         - BUSINESS_HEALTH: Strategy, priorities, simulation
         
         Return JSON format:
@@ -675,7 +677,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     for command in test_commands:
-        print(f"\nCommand: '{command}'")
+        print(f"\\nCommand: '{command}'")
         intent = nlp_engine.parse_command(command)
         response = nlp_engine.generate_response(intent)
 

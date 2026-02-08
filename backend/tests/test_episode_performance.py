@@ -183,7 +183,6 @@ class TestEpisodeSegmentationPerformance:
         assert "Discussing tax calculations" in title
 
 
-@pytest.mark.benchmark
 class TestEpisodeScalability:
     """Scalability tests for episode system"""
 

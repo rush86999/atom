@@ -5,14 +5,14 @@ REST API for managing business facts with JIT citations.
 Supports document upload, fact extraction, and CRUD operations.
 """
 
+from datetime import datetime
 import logging
 import os
 import tempfile
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.agent_world_model import BusinessFact, WorldModelService
@@ -35,9 +35,8 @@ class FactResponse(BaseModel):
     domain: str
     verification_status: str
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FactCreateRequest(BaseModel):
@@ -109,7 +108,7 @@ async def get_fact(
     
     fact = await wm.get_fact_by_id(fact_id)
     if not fact:
-        raise HTTPException(status_code=404, detail="Fact not found")
+        raise router.not_found_error("Business fact", fact_id)
     
     return FactResponse(
         id=fact.id,
@@ -148,7 +147,7 @@ async def create_fact(
     
     success = await wm.record_business_fact(fact)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to create fact")
+        raise router.internal_error(message="Failed to create fact")
     
     return FactResponse(
         id=fact.id,
@@ -176,7 +175,7 @@ async def update_fact(
     
     existing = await wm.get_fact_by_id(fact_id)
     if not existing:
-        raise HTTPException(status_code=404, detail="Fact not found")
+        raise router.not_found_error("Business fact", fact_id)
     
     # Update verification status if provided
     if request.verification_status:
@@ -223,7 +222,7 @@ async def delete_fact(
     
     success = await wm.delete_fact(fact_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Fact not found or already deleted")
+        raise router.not_found_error("Business fact", fact_id)
     
     return {"status": "deleted", "id": fact_id}
 
@@ -244,9 +243,9 @@ async def upload_and_extract(
     allowed_extensions = ['.pdf', '.docx', '.doc', '.txt', '.png', '.tiff', '.tif', '.jpeg', '.jpg']
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Unsupported file type: {ext}. Allowed: {', '.join(allowed_extensions)}"
+        raise router.validation_error(
+            field="file",
+            message=f"Unsupported file type: {ext}. Allowed: {', '.join(allowed_extensions)}"
         )
     
     # Save to temp file for extraction
@@ -322,7 +321,7 @@ async def upload_and_extract(
         
     except Exception as e:
         logger.error(f"Failed to extract facts from {file.filename}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Failed to extract facts", details={"error": str(e)})
     
     finally:
         # Cleanup temp file
@@ -347,7 +346,7 @@ async def verify_citation(
     
     fact = await wm.get_fact_by_id(fact_id)
     if not fact:
-        raise HTTPException(status_code=404, detail="Fact not found")
+        raise router.not_found_error("Business fact", fact_id)
     
     from core.storage import get_storage_service
     storage = get_storage_service()

@@ -25,21 +25,23 @@ Governance Integration:
 - Command Execution: AUTONOMOUS only (security critical)
 - Full audit trail via device_audit table
 - Agent execution tracking for all device sessions
+
+Refactored to use standardized decorators and service factory.
 """
 
 import asyncio
-import json
-import logging
-import uuid
 from datetime import datetime
+import json
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
-from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
-from core.models import AgentExecution, DeviceAudit, DeviceNode, DeviceSession, User
+from core.models import DeviceAudit, DeviceNode, DeviceSession
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
+from core.feature_flags import FeatureFlags
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Import WebSocket communication
 try:
@@ -52,16 +54,11 @@ try:
     logger.info("Device WebSocket module loaded - real device communication enabled")
 except ImportError as e:
     WEBSOCKET_AVAILABLE = False
-    logger.warning(f"Device WebSocket module not available: {e}")
+    logger.warning("Device WebSocket module not available", error=str(e))
     logger.warning("Device functions will fail with connection error")
 
-# Feature flags
-import os
-
-DEVICE_GOVERNANCE_ENABLED = os.getenv("DEVICE_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
-
 # Security settings
+import os
 DEVICE_COMMAND_WHITELIST = os.getenv(
     "DEVICE_COMMAND_WHITELIST",
     "ls,pwd,cat,grep,head,tail,echo,find,ps,top"
@@ -254,7 +251,7 @@ async def _check_device_governance(
     Returns:
         Governance check result with 'allowed' boolean
     """
-    if not DEVICE_GOVERNANCE_ENABLED or EMERGENCY_GOVERNANCE_BYPASS:
+    if not FeatureFlags.should_enforce_governance('device'):
         return {
             "allowed": True,
             "reason": "Device governance disabled or emergency bypass active",
@@ -262,7 +259,7 @@ async def _check_device_governance(
         }
 
     try:
-        governance = AgentGovernanceService(db)
+        governance = ServiceFactory.get_governance_service(db)
         check = governance.can_perform_action(agent_id, action_type)
 
         return {

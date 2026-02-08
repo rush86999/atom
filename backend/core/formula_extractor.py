@@ -4,8 +4,8 @@ Extracts formulas from Excel spreadsheets and stores them in Atom's memory.
 """
 
 import logging
-import re
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)

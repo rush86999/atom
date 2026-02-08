@@ -9,11 +9,11 @@ Usage:
     python demo_github_integration.py
 """
 
+from datetime import datetime
 import json
 import logging
 import os
 import sys
-from datetime import datetime
 from typing import Dict, List, Optional
 
 # Add parent directory to path to import the service

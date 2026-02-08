@@ -2,8 +2,8 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
-import httpx
 from fastapi import HTTPException
+import httpx
 
 logger = logging.getLogger(__name__)
 

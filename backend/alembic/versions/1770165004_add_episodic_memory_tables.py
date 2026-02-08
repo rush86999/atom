@@ -6,8 +6,8 @@ Create Date: 2026-02-03
 
 """
 from typing import Sequence, Union
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 
 revision: str = '1770165004'
 down_revision: Union[str, Sequence[str], None] = 'fa4f5aab967b'

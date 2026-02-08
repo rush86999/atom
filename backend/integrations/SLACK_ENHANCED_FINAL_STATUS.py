@@ -3,8 +3,8 @@ ATOM Enhanced Slack Integration - Final Status & Documentation
 Complete implementation status with deployment guide and next steps
 """
 
-import json
 from datetime import datetime
+import json
 from typing import Any, Dict, List
 
 # Enhanced Slack Integration Status Report

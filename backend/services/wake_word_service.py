@@ -12,9 +12,9 @@ except ImportError:
     openwakeword = None
     Model = None
 import logging
-import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
+import uvicorn
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

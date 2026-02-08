@@ -5,10 +5,10 @@ Integrates canvas recording playback and review with agent governance and learni
 Analyzes recordings to update agent confidence, provide feedback, and drive learning.
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService

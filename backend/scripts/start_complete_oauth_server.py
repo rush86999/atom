@@ -7,9 +7,9 @@ import logging
 import os
 import secrets
 import sys
+from threading import Thread
 import time
 import urllib.parse
-from threading import Thread
 from flask import Blueprint, Flask, jsonify, request
 
 # Set up logging

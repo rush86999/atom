@@ -1,15 +1,16 @@
-import uuid
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+import uuid
+from fastapi import Depends, Query
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentRegistry, Artifact, ArtifactVersion, User
 from core.security_dependencies import get_current_user
 
-router = APIRouter(prefix="/api/artifacts", tags=["artifacts"])
+router = BaseAPIRouter(prefix="/api/artifacts", tags=["artifacts"])
 
 class ArtifactBase(BaseModel):
     name: str
@@ -36,8 +37,7 @@ class ArtifactResponse(ArtifactBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/", response_model=List[ArtifactResponse])
 async def list_artifacts(
@@ -90,7 +90,7 @@ async def update_artifact(
 ):
     artifact = db.query(Artifact).filter(Artifact.id == update_data.id).first()
     if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise router.not_found_error("Artifact", update_data.id)
         
     # 1. Create version record from current state
     version = ArtifactVersion(

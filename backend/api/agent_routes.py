@@ -2,15 +2,16 @@
 import asyncio
 import datetime
 import logging
-import uuid
 from typing import Any, Dict, List, Optional
+import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
+from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal, get_db, get_db_session
 from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enterprise_security
 from core.models import (
@@ -29,7 +30,7 @@ from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 
 # --- Data Models ---
 class AgentRunRequest(BaseModel):
@@ -99,37 +100,50 @@ async def run_agent(
     """Trigger an agent execution in the background"""
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        raise router.not_found_error("Agent", agent_id)
         
     # Check if agent is deprecated or paused
     if agent.status in [AgentStatus.DEPRECATED.value, AgentStatus.PAUSED.value]:
-        raise HTTPException(status_code=400, detail=f"Agent is {agent.status}")
-    
-    if agent.status == "running": 
-         raise HTTPException(status_code=409, detail="Agent is already running")
+        raise router.error_response(
+            error_code="AGENT_INVALID_STATE",
+            message=f"Agent is {agent.status}",
+            status_code=400
+        )
+
+    if agent.status == "running":
+        raise router.conflict_error(
+            message="Agent is already running",
+            details={"agent_id": agent_id, "current_status": agent.status}
+        )
 
     # Check if we should run synchronously (for testing)
     is_sync = run_req.parameters.get("sync", False)
     
     if is_sync:
         # Run immediately and return result
-        # Note: calling execute_agent_task directly might have session issues if it creates its own session 
+        # Note: calling execute_agent_task directly might have session issues if it creates its own session
         # but execute_agent_task creates a SessionLocal(), so it is fine.
         # We need to capture the return value from execute_agent_task (which currently returns nothing/void, just logs/notifies).
         # We need to refactor execute_agent_task to return result if needed.
-        # Let's import it or call the logic directly. 
+        # Let's import it or call the logic directly.
         # Actually, let's just instantiate GenericAgent here if it's a generic agent to get the Result object?
         # Or better, refactor execute_agent_task to return the result.
-        
+
         # Refactoring execute_agent_task is best.
         result = await execute_agent_task(agent_id, run_req.parameters)
-        return {"status": "completed", "agent_id": agent_id, "result": result}
+        return router.success_response(
+            data={"agent_id": agent_id, "result": result},
+            message="Agent execution completed"
+        )
 
     # Run in background
     # We pass agent_id only, task will re-fetch to ensure fresh state/object access
     background_tasks.add_task(execute_agent_task, agent_id, run_req.parameters)
-    
-    return {"status": "started", "agent_id": agent_id}
+
+    return router.success_response(
+        data={"agent_id": agent_id},
+        message="Agent execution started"
+    )
 
 @router.post("/{agent_id}/feedback")
 async def submit_agent_feedback(
@@ -147,12 +161,14 @@ async def submit_agent_feedback(
         user_correction=feedback.user_correction,
         input_context=feedback.input_context
     )
-    return {
-        "status": "success", 
-        "feedback_id": result.id, 
-        "adjudication": result.status,
-        "reasoning": result.ai_reasoning
-    }
+    return router.success_response(
+        data={
+            "feedback_id": result.id,
+            "adjudication": result.status,
+            "reasoning": result.ai_reasoning
+        },
+        message="Feedback submitted successfully"
+    )
 
 @router.post("/{agent_id}/promote")
 async def promote_agent(
@@ -163,7 +179,10 @@ async def promote_agent(
     """Promote agent to Autonomous mode"""
     service = AgentGovernanceService(db)
     agent = service.promote_to_autonomous(agent_id, user)
-    return {"status": "success", "agent_status": agent.status}
+    return router.success_response(
+        data={"agent_status": agent.status},
+        message=f"Agent {agent_id} promoted to autonomous successfully"
+    )
 
 @router.get("/approvals/pending", response_model=List[Dict[str, Any]])
 async def list_pending_approvals(
@@ -191,7 +210,7 @@ async def decide_hitl_action(
     """Approve or Reject a paused agent action"""
     action = db.query(HITLAction).filter(HITLAction.id == action_id).first()
     if not action:
-        raise HTTPException(status_code=404, detail="Action not found")
+        raise router.not_found_error("HITLAction", action_id)
     
     if req.decision.lower() == "approved":
         action.status = HITLActionStatus.APPROVED.value
@@ -211,7 +230,10 @@ async def decide_hitl_action(
         "decision": action.status
     })
     
-    return {"status": "success", "decision": action.status}
+    return router.success_response(
+        data={"decision": action.status, "action_id": action_id},
+        message=f"Action {action_id} {action.status} successfully"
+    )
 
 async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
     """Background task to run the agent logic"""
@@ -379,7 +401,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             import sys
             import traceback
             error_msg = f"Agent execution FAILED: {str(e)}\n{traceback.format_exc()}"
-            print(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}", file=sys.stderr)
+            logger.critical(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}")
             logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
 
             # Urgent Notification (Phase 34 requirement)
@@ -435,8 +457,11 @@ async def execute_atom(
         user=user,
         workspace_id=workspace_id
     )
-    
-    return result
+
+    return router.success_response(
+        data=result,
+        message="Atom meta-agent executed successfully"
+    )
 
 
 @router.post("/spawn")
@@ -456,13 +481,15 @@ async def spawn_agent(
         persist=req.persist
     )
     
-    return {
-        "status": "success",
-        "agent_id": agent.id,
-        "agent_name": agent.name,
-        "category": agent.category,
-        "persisted": req.persist
-    }
+    return router.success_response(
+        data={
+            "agent_id": agent.id,
+            "agent_name": agent.name,
+            "category": agent.category,
+            "persisted": req.persist
+        },
+        message=f"Agent {agent.name} spawned successfully"
+    )
 
 
 @router.post("/atom/trigger")
@@ -484,8 +511,10 @@ async def trigger_atom_with_data(
         workspace_id="default"
     )
     
-    return result
-    return result
+    return router.success_response(
+        data=result,
+        message="Atom triggered with data event successfully"
+    )
 
 class CustomAgentRequest(BaseModel):
     name: str
@@ -522,7 +551,10 @@ async def create_custom_agent(
         scheduler = AgentScheduler.get_instance()
         scheduler.schedule_agent(registry_entry.id, req.schedule_config)
         
-    return {"status": "success", "agent_id": registry_entry.id}
+    return router.success_response(
+        data={"agent_id": registry_entry.id},
+        message=f"Custom agent {req.name} created successfully"
+    )
 
 @router.put("/{agent_id}")
 async def update_agent(
@@ -534,7 +566,7 @@ async def update_agent(
     """Update an agent's config or schedule"""
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        raise router.not_found_error("Agent", agent_id)
         
     # Update fields
     agent.name = req.name
@@ -553,7 +585,10 @@ async def update_agent(
     if req.schedule_config and req.schedule_config.get("active"):
         scheduler.schedule_agent(agent.id, req.schedule_config)
     
-    return {"status": "updated", "agent_id": agent.id}
+    return router.success_response(
+        data={"agent_id": agent.id},
+        message=f"Agent {agent.name} updated successfully"
+    )
 
 @router.post("/{agent_id}/stop")
 async def stop_agent(
@@ -562,14 +597,33 @@ async def stop_agent(
     db: Session = Depends(get_db)
 ):
     """
-    Attempt to stop a running agent.
-    Note: Async task cancellation is varying in reliability depending on the runner.
-    For this implementation, we will mark the status in DB (if we tracked runs there) 
-    or potentially signal the scheduler/meta-agent.
+    Stop a running agent by cancelling its active tasks.
+    Uses the AgentTaskRegistry to cancel all running tasks for the agent.
     """
-    # For MVP, we'll log the request. In a full system, we'd look up the running task ID 
-    # (stored in memory or Redis) and cancel the asyncio Task.
+    from core.agent_task_registry import agent_task_registry
+
     logger.info(f"Stop request received for agent {agent_id} by user {user.id}")
-    
-    # Placeholder: if we had a task registry, we'd cancel it here.
-    return {"status": "stop_requested", "message": "Signal sent to stop agent (Best Effort)."}
+
+    # Try to cancel tasks via registry
+    cancelled_count = await agent_task_registry.cancel_agent_tasks(agent_id)
+
+    if cancelled_count > 0:
+        # Successfully cancelled tasks
+        return router.success_response(
+            data={
+                "agent_id": agent_id,
+                "cancelled_tasks": cancelled_count
+            },
+            message=f"Successfully stopped {cancelled_count} running task(s)"
+        )
+    else:
+        # No tasks in registry - agent might not be running or already stopped
+        # Check if agent exists
+        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise router.not_found_error("Agent", agent_id)
+
+        return router.success_response(
+            data={"agent_id": agent_id, "cancelled_tasks": 0},
+            message="No running tasks found for this agent"
+        )

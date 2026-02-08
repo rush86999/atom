@@ -1,6 +1,6 @@
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from accounting.ledger import DoubleEntryEngine, EventSourcedLedger
 from accounting.models import Account, AccountType, Bill, BillStatus, Document, Entity, EntityType

@@ -6,16 +6,16 @@ Builds complex multi-step workflows with conditional logic, parallel processing,
 
 import ast
 import asyncio
+from dataclasses import dataclass, field
 import datetime
+from enum import Enum
 import json
 import logging
 import os
 import re
 import time
-import uuid
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
+import uuid
 import aiohttp
 from fastapi import HTTPException
 
@@ -1793,7 +1793,8 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     content_list = ast.literal_eval(list_match.group(0))
                     if isinstance(content_list, list):
                         data_to_format = content_list
-                except:
+                except (ValueError, SyntaxError) as e:
+                    logger.debug(f"Failed to parse content as list: {e}")
                     pass
             
             if not data_to_format:
@@ -1982,7 +1983,8 @@ Return your response as a JSON object with this format:
                         # Check if this entity is a person/owner (heuristic)
                         if any(role in str(entity).lower() for role in ["manager", "stakeholder", "lead", "owner"]):
                             missing_context.append(entity)
-                except:
+                except (ImportError, AttributeError, Exception) as e:
+                    logger.debug(f"Failed to query knowledge graph for entity {entity}: {e}")
                     pass
 
             if missing_context:
@@ -2215,7 +2217,8 @@ Return your response as a JSON object with this format:
         # Convert to seconds
         try:
             duration_val = float(duration)
-        except:
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid duration value '{duration}': {e}")
             duration_val = 0
             
         if unit == "days":

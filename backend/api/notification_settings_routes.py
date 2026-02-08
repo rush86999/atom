@@ -5,12 +5,13 @@ Allows users to configure workflow notification preferences.
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/notifications", tags=["Notification Settings"])
 
 class NotificationSettingsRequest(BaseModel):
     enabled: bool = True
@@ -28,15 +29,18 @@ class NotificationSettingsRequest(BaseModel):
 async def get_notification_settings(workflow_id: str):
     """Get notification settings for a workflow"""
     from core.workflow_notifier import get_notification_settings
-    
+
     settings = get_notification_settings(workflow_id)
-    return settings.to_dict()
+    return router.success_response(
+        data=settings.to_dict(),
+        message="Notification settings retrieved successfully"
+    )
 
 @router.put("/{workflow_id}")
 async def update_notification_settings(workflow_id: str, request: NotificationSettingsRequest):
     """Update notification settings for a workflow"""
     from core.workflow_notifier import NotificationSettings, set_notification_settings
-    
+
     settings = NotificationSettings(
         enabled=request.enabled,
         notify_on_success=request.notify_on_success,
@@ -49,25 +53,27 @@ async def update_notification_settings(workflow_id: str, request: NotificationSe
         custom_success_message=request.custom_success_message,
         custom_failure_message=request.custom_failure_message
     )
-    
+
     set_notification_settings(workflow_id, settings)
-    
-    return {
-        "status": "success",
-        "message": f"Notification settings updated for workflow {workflow_id}",
-        "settings": settings.to_dict()
-    }
+
+    return router.success_response(
+        data={"settings": settings.to_dict()},
+        message=f"Notification settings updated for workflow {workflow_id}"
+    )
 
 @router.post("/{workflow_id}/test")
 async def test_notification(workflow_id: str):
     """Send a test notification for a workflow"""
     from core.workflow_notifier import get_notification_settings, notifier
-    
+
     settings = get_notification_settings(workflow_id)
-    
+
     if not settings.enabled:
-        return {"status": "skipped", "message": "Notifications disabled for this workflow"}
-    
+        return router.success_response(
+            data={"status": "skipped"},
+            message="Notifications disabled for this workflow"
+        )
+
     try:
         await notifier.notify_completion(
             workflow_id=workflow_id,
@@ -76,9 +82,12 @@ async def test_notification(workflow_id: str):
             results={"test_step": {"status": "success"}},
             settings=settings
         )
-        
-        return {"status": "success", "message": "Test notification sent"}
-        
+
+        return router.success_response(
+            data={"status": "success"},
+            message="Test notification sent"
+        )
+
     except Exception as e:
         logger.error(f"Test notification failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

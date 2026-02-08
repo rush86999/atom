@@ -8,6 +8,7 @@ The Episodic Memory system provides AI agents with the ability to remember, retr
 
 - [Architecture](#architecture)
 - [Data Models](#data-models)
+- [Episode Canvas & Feedback Integration](#episode-canvas--feedback-integration-)
 - [Core Services](#core-services)
 - [API Endpoints](#api-endpoints)
 - [Graduation Framework](#graduation-framework)
@@ -148,6 +149,73 @@ class EpisodeAccessLog(Base):
     results_count: int
     access_duration_ms: int
 ```
+
+### Episode Canvas & Feedback Integration ✨ NEW
+
+Episodes now include lightweight references to canvas presentations and user feedback for enriched agent reasoning.
+
+**Architecture Pattern**: Metadata-Only Linkage
+- Episodes store ID arrays (`canvas_ids`, `feedback_ids`)
+- Full records fetched on demand during retrieval
+- Storage overhead: ~100 bytes per episode
+
+**Episode Model Additions**:
+```python
+class Episode(Base):
+    # ... existing fields ...
+
+    # Canvas linkage (NEW - Feb 2026)
+    canvas_ids = List[str]              # CanvasAudit IDs
+    canvas_action_count = int           # Total canvas actions
+
+    # Feedback linkage (NEW - Feb 2026)
+    feedback_ids = List[str]            # AgentFeedback IDs
+    aggregate_feedback_score = float    # -1.0 to 1.0
+```
+
+**Backlinks**:
+```python
+class CanvasAudit(Base):
+    episode_id = str  # Backlink to episode
+
+class AgentFeedback(Base):
+    episode_id = str  # Backlink to episode
+```
+
+**Features**:
+1. **Canvas-Aware Episodes**: Track all canvas interactions (present, submit, close, update, execute)
+2. **Feedback-Linked Episodes**: Aggregate user feedback scores for retrieval weighting
+3. **Enriched Sequential Retrieval**: Episodes include `canvas_context` and `feedback_context` by default
+4. **Canvas Type Filtering**: Retrieve episodes by canvas type (sheets, charts, forms)
+5. **Feedback-Weighted Retrieval**: Positive feedback +0.2 boost, negative -0.3 penalty
+
+**Example Enriched Episode**:
+```python
+episode = {
+    "id": "ep_123",
+    "canvas_ids": ["canvas_abc", "canvas_def"],
+    "feedback_ids": ["feedback_xyz"],
+    "canvas_context": [
+        {
+            "canvas_type": "sheets",
+            "component_type": "table",
+            "action": "present",
+            "created_at": "2026-02-04T10:00:00Z"
+        }
+    ],
+    "feedback_context": [
+        {
+            "feedback_type": "thumbs_up",
+            "rating": 5,
+            "created_at": "2026-02-04T10:05:00Z"
+        }
+    ]
+}
+```
+
+**Agent Decision-Making**: Agents **ALWAYS** fetch canvas/feedback context during episode recall, not just for canvas-specific tasks.
+
+**See Also**: [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](./CANVAS_FEEDBACK_EPISODIC_MEMORY.md) for complete documentation.
 
 ---
 

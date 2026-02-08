@@ -5,18 +5,18 @@ Advanced AI model for desktop automation and computer control
 
 import asyncio
 import base64
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 import io
 import json
 import logging
 import os
 import platform
 import subprocess
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
-import anthropic
 from PIL import Image, ImageGrab
+import anthropic
 
 try:
     import pyautogui
@@ -431,10 +431,14 @@ IMPORTANT:
                          # Fallback for some apps or if full path needed
                          subprocess.run(['open', app_name], check=False)
                 elif platform.system() == "Windows":
-                    subprocess.run(['start', app_name], shell=True)
+                    os.startfile("calc")
                 else:
-                    subprocess.run([app_name])
-                return True
+                    try:
+                        os.startfile(app_name)
+                        return True
+                    except Exception as e:
+                        logger.error(f"Failed to open app {app_name}: {e}")
+                        return False
 
             elif action.action_type == ComputerActionType.WAIT:
                 duration = action.parameters.get('duration', 1.0)

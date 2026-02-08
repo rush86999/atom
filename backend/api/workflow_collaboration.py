@@ -3,13 +3,14 @@ Collaboration API Endpoints
 REST API for workflow collaboration features
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.collaboration_service import CollaborationService
 from core.database import get_db
 from core.models import (
@@ -22,7 +23,7 @@ from core.models import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/collaboration", tags=["collaboration"])
+router = BaseAPIRouter(prefix="/api/collaboration", tags=["collaboration"])
 
 # WebSocket connections manager
 class ConnectionManager:
@@ -186,7 +187,10 @@ async def create_collaboration_session(
 
     except Exception as e:
         logger.error(f"Error creating collaboration session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to create collaboration session",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/sessions/{session_id}")
@@ -205,7 +209,7 @@ async def get_collaboration_session(
         ).first()
 
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise router.not_found_error("CollaborationSession", session_id)
 
         return {
             "session_id": session.session_id,
@@ -228,11 +232,12 @@ async def get_collaboration_session(
             ]
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to get collaboration session",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/sessions/{session_id}/leave")
@@ -250,7 +255,10 @@ async def leave_collaboration_session(
 
     except Exception as e:
         logger.error(f"Error leaving session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to leave collaboration session",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/sessions/{session_id}/heartbeat")
@@ -282,7 +290,10 @@ async def update_heartbeat(
 
     except Exception as e:
         logger.error(f"Error updating heartbeat: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to update participant heartbeat",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/locks/acquire")
@@ -308,9 +319,9 @@ async def acquire_edit_lock(
         )
 
         if not lock:
-            raise HTTPException(
-                status_code=409,
-                detail="Resource is already locked by another user"
+            raise router.conflict_error(
+                message="Resource is already locked by another user",
+                conflicting_resource=f"{request.resource_type}:{request.resource_id}"
             )
 
         # Broadcast lock event to session
@@ -330,11 +341,12 @@ async def acquire_edit_lock(
             "expires_at": lock.expires_at.isoformat() if lock.expires_at else None
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error acquiring lock: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to acquire edit lock",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/locks/release")
@@ -357,7 +369,7 @@ async def release_edit_lock(
         )
 
         if not success:
-            raise HTTPException(status_code=404, detail="Lock not found")
+            raise router.not_found_error("EditLock", f"{resource_type}:{resource_id}")
 
         # Broadcast unlock event to session
         await manager.broadcast_to_session(session_id, {
@@ -369,11 +381,12 @@ async def release_edit_lock(
 
         return {"message": "Lock released successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error releasing lock: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to release edit lock",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/locks/{workflow_id}")
@@ -403,7 +416,10 @@ async def get_active_locks(
 
     except Exception as e:
         logger.error(f"Error getting locks: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve active locks",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/shares")
@@ -429,7 +445,10 @@ async def create_workflow_share(
 
     except Exception as e:
         logger.error(f"Error creating share: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to create workflow share",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/shares/{share_id}")
@@ -443,16 +462,17 @@ async def get_workflow_share(
         share = service.get_workflow_share(share_id)
 
         if not share:
-            raise HTTPException(status_code=404, detail="Share not found or expired")
+            raise router.not_found_error("WorkflowShare", share_id)
 
         # Increment use count is handled in get_workflow_share
         return share
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting share: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve workflow share",
+            details={"error": str(e)}
+        )
 
 
 @router.delete("/shares/{share_id}")
@@ -467,15 +487,20 @@ async def revoke_workflow_share(
         success = service.revoke_workflow_share(share_id, user_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Share not found or permission denied")
+            raise router.not_found_error(
+                "WorkflowShare",
+                share_id,
+                details={"reason": "Share not found or permission denied"}
+            )
 
         return {"message": "Share revoked successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error revoking share: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to revoke workflow share",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/comments")
@@ -515,7 +540,10 @@ async def add_comment(
 
     except Exception as e:
         logger.error(f"Error adding comment: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to add comment",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/comments/{workflow_id}")
@@ -558,7 +586,10 @@ async def get_workflow_comments(
 
     except Exception as e:
         logger.error(f"Error getting comments: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve workflow comments",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/comments/{comment_id}/resolve")
@@ -573,15 +604,16 @@ async def resolve_comment(
         success = service.resolve_comment(comment_id, user_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Comment not found")
+            raise router.not_found_error("Comment", comment_id)
 
         return {"message": "Comment resolved successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error resolving comment: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to resolve comment",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/audit/{workflow_id}")
@@ -614,7 +646,10 @@ async def get_audit_log(
 
     except Exception as e:
         logger.error(f"Error getting audit log: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve audit log",
+            details={"error": str(e)}
+        )
 
 
 # WebSocket Endpoint

@@ -17,9 +17,10 @@ export interface AgentInfo {
 interface AgentCardProps {
     agent: AgentInfo;
     onRun: (id: string) => void;
+    onStop: (id: string) => void;
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -50,16 +51,26 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun }) => {
                     {agent.last_run ? `Last run: ${new Date(agent.last_run).toLocaleString()}` : 'Never run'}
                 </div>
             </CardContent>
-            <CardFooter>
-                <Button
-                    className="w-full"
-                    variant={agent.status === "running" ? "secondary" : "default"}
-                    disabled={agent.status === "running"}
-                    onClick={() => onRun(agent.id)}
-                >
-                    <Play className="w-4 h-4 mr-2" />
-                    {agent.status === "running" ? "Running..." : "Run Agent"}
-                </Button>
+            <CardFooter className="flex gap-2">
+                {agent.status === "running" ? (
+                    <Button
+                        className="w-full"
+                        variant="destructive"
+                        onClick={() => onStop(agent.id)}
+                    >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Stop Agent
+                    </Button>
+                ) : (
+                    <Button
+                        className="w-full"
+                        variant="default"
+                        onClick={() => onRun(agent.id)}
+                    >
+                        <Play className="w-4 h-4 mr-2" />
+                        Run Agent
+                    </Button>
+                )}
             </CardFooter>
         </Card>
     );

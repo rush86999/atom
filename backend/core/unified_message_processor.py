@@ -4,11 +4,11 @@ Normalizes and processes messages from all communication platforms (Slack, Teams
 with unified schema, deduplication, and cross-platform threading.
 """
 
-import hashlib
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import hashlib
+import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)

@@ -14,15 +14,14 @@ Feature Flags:
     LOG_FORMAT: json or text (default: text)
 """
 
-import logging
-import os
-import sys
-import uuid
 from contextvars import ContextVar
 from datetime import datetime
+import logging
+import os
 from pathlib import Path
+import sys
 from typing import Any, Dict, Optional
-
+import uuid
 
 # ============================================================================
 # Context Variables for Request Tracking

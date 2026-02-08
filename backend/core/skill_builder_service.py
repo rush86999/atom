@@ -2,8 +2,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import yaml
 from pydantic import BaseModel
+import yaml
 
 logger = logging.getLogger(__name__)
 

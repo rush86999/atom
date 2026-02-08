@@ -4,11 +4,11 @@ START NEXT STEPS ACTIVATION
 Begin actual integration and startup sequence
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def start_next_steps_activation():

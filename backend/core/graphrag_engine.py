@@ -4,14 +4,14 @@ Stateless Graph Traversal using Recursive CTEs.
 Replaces previous in-memory implementation.
 """
 
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import logging
 import os
 import re
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
+import uuid
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 

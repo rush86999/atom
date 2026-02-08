@@ -1,10 +1,10 @@
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 import hashlib
 import json
 import logging
 import os
 import secrets
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
@@ -549,32 +549,56 @@ async def byok_health_check():
     }
 
 @router.get("/api/ai/keys", response_model=Dict[str, Any])
-async def get_api_keys():
+async def get_api_keys(byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Get all configured API keys (masked)"""
+    keys = []
+    for key_id, key_obj in byok_manager.api_keys.items():
+        # Mask the key (we only have the encrypted version here, but we can just show it's configured)
+        keys.append({
+            "provider": key_obj.provider_id,
+            "key_name": key_obj.key_name,
+            "status": "active" if key_obj.is_active else "inactive",
+            "created_at": key_obj.created_at.isoformat() if key_obj.created_at else None,
+            "last_used": key_obj.last_used.isoformat() if key_obj.last_used else None,
+            "masked_key": f"****...{key_obj.key_hash[:4]}" if key_obj.key_hash else "****"
+        })
+    
     return {
-        "keys": [
-            {"provider": "openai", "masked_key": "sk-...1234", "status": "active"},
-            {"provider": "anthropic", "masked_key": "sk-...5678", "status": "active"},
-            {"provider": "deepseek", "masked_key": "ds-...9012", "status": "active"}
-        ],
-        "count": 3
+        "keys": keys,
+        "count": len(keys)
     }
 
 @router.post("/api/ai/keys", response_model=Dict[str, Any])
-async def add_api_key(key_data: Dict[str, str]):
+async def add_api_key(key_data: Dict[str, str], byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Add a new API key"""
     provider = key_data.get("provider")
     key = key_data.get("key")
+    key_name = key_data.get("key_name", "default")
+    environment = key_data.get("environment", "production")
     
     if not provider or not key:
         raise HTTPException(status_code=400, detail="Provider and key are required")
         
-    return {
-        "status": "success",
-        "message": f"API key for {provider} added successfully",
-        "provider": provider,
-        "masked_key": f"{key[:4]}...{key[-4:]}"
-    }
+    try:
+        key_id = byok_manager.store_api_key(
+            provider_id=provider,
+            api_key=key,
+            key_name=key_name,
+            environment=environment
+        )
+        
+        return {
+            "status": "success",
+            "message": f"API key for {provider} added successfully",
+            "provider": provider,
+            "key_id": key_id,
+            "masked_key": f"{key[:4]}...{key[-4:]}"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to add API key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/ai/providers")
 async def get_ai_providers(byok_manager: BYOKManager = Depends(get_byok_manager)):

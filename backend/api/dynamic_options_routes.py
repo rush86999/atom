@@ -1,12 +1,13 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.models import User
 
-router = APIRouter(prefix="/api/v1/integrations", tags=["Integrations"])
+router = BaseAPIRouter(prefix="/api/v1/integrations", tags=["Integrations"])
 logger = logging.getLogger(__name__)
 
 class DynamicOptionsRequest(BaseModel):
@@ -43,10 +44,13 @@ async def get_dynamic_options(
             )
         except Exception as e:
             logger.error(f"Failed to get connection credentials: {e}", exc_info=True)
-            return {
-                "options": [],
-                "placeholder": "Failed to retrieve credentials"
-            }
+            return router.success_response(
+                data={
+                    "options": [],
+                    "placeholder": "Failed to retrieve credentials"
+                },
+                message="Failed to retrieve credentials"
+            )
 
     # Try to fetch real options from Node engine
     try:
@@ -64,10 +68,13 @@ async def get_dynamic_options(
         # If we got valid options, return them
         if result.get("options"):
             logger.info(f"Successfully fetched {len(result['options'])} options for {request.pieceId}.{request.propertyName}")
-            return {
-                "options": result["options"],
-                "placeholder": result.get("placeholder")
-            }
+            return router.success_response(
+                data={
+                    "options": result["options"],
+                    "placeholder": result.get("placeholder")
+                },
+                message=f"Successfully fetched {len(result['options'])} options"
+            )
 
         # Log error if present but continue to fallback
         if result.get("error"):
@@ -82,7 +89,10 @@ async def get_dynamic_options(
     # Note: Removed mock data as requested in the plan
     logger.warning(f"No options available for {request.pieceId}.{request.propertyName}")
 
-    return {
-        "options": [],
-        "placeholder": f"Connect to {request.pieceId} to view {request.propertyName} options"
-    }
+    return router.success_response(
+        data={
+            "options": [],
+            "placeholder": f"Connect to {request.pieceId} to view {request.propertyName} options"
+        },
+        message="No options available"
+    )

@@ -5,8 +5,8 @@ Extends Atom Meta Agent with training and proposal capabilities.
 Generates training scenarios, reviews INTERN proposals, and conducts training sessions.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 

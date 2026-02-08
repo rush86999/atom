@@ -1,10 +1,10 @@
 import asyncio
+from datetime import datetime, timezone
 import json
 import logging
 import os
-import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+import uuid
 
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
@@ -423,8 +423,7 @@ What is your next step?"""
                         agent_id=self.id,
                         action_type=tool_name,
                         params=args,
-                        reason=auth_check["reason"],
-                        workspace_id=self.workspace_id
+                        reason=auth_check["reason"]
                     )
 
                     logger.info(f"Action {tool_name} requires approval. Pausing agent...")

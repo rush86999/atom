@@ -11,15 +11,30 @@ Perfect for:
 - Progress tracking as agents mature and gain confidence
 - Complex goals requiring coordinated agent actions
 """
-import logging
-import uuid
 from datetime import datetime
+from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.models import CanvasAudit
 
 logger = logging.getLogger(__name__)
+
+
+class CanvasTaskStatus(str, Enum):
+    """Standard status values for canvas tasks"""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+    # Legacy support
+    TODO = "pending"  # Alias for backward compatibility
+    DONE = "completed"  # Alias for backward compatibility
+    IN_PROGRESS_ALT = "in_progress"  # Standard
 
 
 class WorkflowTask:
@@ -28,7 +43,7 @@ class WorkflowTask:
         self,
         task_id: str,
         title: str,
-        status: str = "todo",  # todo, in_progress, done
+        status: str = CanvasTaskStatus.PENDING,  # Use enum with proper default
         assignee: Optional[str] = None,
         due_date: Optional[datetime] = None,
         tags: List[str] = None,
@@ -36,7 +51,17 @@ class WorkflowTask:
     ):
         self.task_id = task_id
         self.title = title
-        self.status = status
+        # Normalize status to enum value
+        if isinstance(status, str):
+            # Map legacy values to standard values
+            status_map = {
+                "todo": CanvasTaskStatus.PENDING,
+                "done": CanvasTaskStatus.COMPLETED,
+                "in_progress": CanvasTaskStatus.IN_PROGRESS,
+            }
+            self.status = status_map.get(status.lower(), status)
+        else:
+            self.status = status
         self.assignee = assignee
         self.due_date = due_date
         self.tags = tags or []
@@ -122,9 +147,9 @@ class OrchestrationCanvasService:
                 title="Customer Onboarding",
                 agent_id="student-agent-1",
                 tasks=[
-                    {"title": "Send welcome email", "status": "todo", "assignee": "student-agent-1"},
-                    {"title": "Schedule training call", "status": "todo", "assignee": "student-agent-1"},
-                    {"title": "Meta-agent review", "status": "todo", "assignee": "atom-meta-agent"}
+                    {"title": "Send welcome email", "status": "pending", "assignee": "student-agent-1"},
+                    {"title": "Schedule training call", "status": "pending", "assignee": "student-agent-1"},
+                    {"title": "Meta-agent review", "status": "pending", "assignee": "atom-meta-agent"}
                 ]
             )
         """
@@ -137,7 +162,7 @@ class OrchestrationCanvasService:
                 task = WorkflowTask(
                     task_id=str(uuid.uuid4()),
                     title=task_data.get("title", ""),
-                    status=task_data.get("status", "todo"),
+                    status=task_data.get("status", CanvasTaskStatus.PENDING),
                     assignee=task_data.get("assignee"),
                     tags=task_data.get("tags", []),
                     integrations=task_data.get("integrations", [])
@@ -364,7 +389,7 @@ class OrchestrationCanvasService:
         canvas_id: str,
         user_id: str,
         title: str,
-        status: str = "todo",
+        status: str = CanvasTaskStatus.PENDING,
         assignee: Optional[str] = None,
         integrations: List[str] = None
     ) -> Dict[str, Any]:

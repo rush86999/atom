@@ -4,11 +4,11 @@ PRODUCTION DEPLOYMENT EXECUTION - FINAL NEXT STEPS
 Execute actual production deployment of ATOM application
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def execute_production_deployment():

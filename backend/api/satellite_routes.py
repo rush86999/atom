@@ -1,14 +1,15 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from core.auth import generate_satellite_key, get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db, get_db_session
 from core.models import Workspace
 from core.satellite_service import satellite_service
 from core.security import verify_api_key_ws
 
-router = APIRouter(tags=["Satellite"])
+router = BaseAPIRouter(tags=["Satellite"])
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,8 @@ async def websocket_satellite_endpoint(websocket: WebSocket):
         try:
             await websocket.close(code=1011)
         except Exception as e:
-            pass
+            logger.debug(f"Failed to close WebSocket: {e}")
+            # Connection already closed - not critical
 
 @router.get("/api/satellite/key")
 async def get_satellite_key(
@@ -66,16 +68,19 @@ async def get_satellite_key(
     # Single-tenant: just get the first workspace
     workspace = db.query(Workspace).first()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    
+        raise router.not_found_error("Workspace")
+
     # Auto-generate if missing
     if not workspace.satellite_api_key:
         workspace.satellite_api_key = generate_satellite_key()
         db.add(workspace)
         db.commit()
         db.refresh(workspace)
-        
-    return {"api_key": workspace.satellite_api_key}
+
+    return router.success_response(
+        data={"api_key": workspace.satellite_api_key},
+        message="Satellite API key retrieved"
+    )
 
 @router.post("/api/satellite/rotate")
 async def rotate_satellite_key(
@@ -85,11 +90,14 @@ async def rotate_satellite_key(
     """Regenerate the Satellite API key."""
     workspace = db.query(Workspace).first()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    
+        raise router.not_found_error("Workspace")
+
     workspace.satellite_api_key = generate_satellite_key()
     db.add(workspace)
     db.commit()
     db.refresh(workspace)
-    
-    return {"success": True, "api_key": workspace.satellite_api_key}
+
+    return router.success_response(
+        data={"api_key": workspace.satellite_api_key},
+        message="Satellite API key rotated successfully"
+    )

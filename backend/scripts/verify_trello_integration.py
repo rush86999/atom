@@ -8,8 +8,8 @@ by testing all major components without requiring a full backend server.
 
 import logging
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Configure logging
 logging.basicConfig(

@@ -5,23 +5,23 @@ Complete Teams integration with advanced features and unified architecture
 
 import asyncio
 import base64
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
 import os
 import time
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
-import httpx
-import jwt
-import msal
 from azure.graph import GraphServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.teams import TeamsClient
 from cryptography.fernet import Fernet
+import httpx
+import jwt
+import msal
 
 # Configure logging
 logger = logging.getLogger(__name__)

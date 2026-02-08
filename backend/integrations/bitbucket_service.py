@@ -9,9 +9,9 @@ This service provides integration with Bitbucket API for:
 """
 
 import base64
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 import requests
 

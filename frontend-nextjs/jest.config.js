@@ -21,7 +21,10 @@ module.exports = {
     "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got))"
   ],
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/src/$1",
+    "^@/(.*)$": "<rootDir>/$1",
+    "^@pages/(.*)$": "<rootDir>/pages/$1",
+    "^@layouts/(.*)$": "<rootDir>/layouts/$1",
+    "^@components/(.*)$": "<rootDir>/components/$1",
     "^@lib/(.*)$": "<rootDir>/lib/$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
   },

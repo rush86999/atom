@@ -91,19 +91,32 @@ class Microsoft365Service:
             return {"status": "error", "message": f"Authentication failed: {str(e)}"}
 
     async def get_user_profile(self, access_token: str) -> Dict[str, Any]:
-        """Get Microsoft 365 user profile."""
+        """Get Microsoft 365 user profile from Microsoft Graph API."""
         try:
-            # Mock implementation
-            mock_profile = {
-                "id": "user123",
-                "displayName": "John Doe",
-                "mail": "john.doe@example.com",
-                "userPrincipalName": "john.doe@example.com",
-                "jobTitle": "Software Engineer",
-                "officeLocation": "Seattle",
+            # Use Microsoft Graph API to get user profile
+            url = f"{self.base_url}/me"
+            response = await self._make_graph_request("GET", url, access_token)
+
+            if response.get("status") == "error":
+                return response
+
+            # Transform Graph API response to expected format
+            profile_data = response.get("data", {})
+            transformed_profile = {
+                "id": profile_data.get("id"),
+                "displayName": profile_data.get("displayName"),
+                "mail": profile_data.get("mail") or profile_data.get("userPrincipalName"),
+                "userPrincipalName": profile_data.get("userPrincipalName"),
+                "jobTitle": profile_data.get("jobTitle"),
+                "officeLocation": profile_data.get("officeLocation"),
+                "businessPhones": profile_data.get("businessPhones", []),
+                "mobilePhone": profile_data.get("mobilePhone"),
+                "preferredLanguage": profile_data.get("preferredLanguage"),
             }
 
-            return {"status": "success", "data": mock_profile}
+            logger.info(f"Successfully retrieved profile for user: {transformed_profile.get('userPrincipalName')}")
+            return {"status": "success", "data": transformed_profile}
+
         except Exception as e:
             logger.error(f"Microsoft 365 get user profile failed: {e}")
             return {
@@ -190,25 +203,14 @@ class Microsoft365Service:
             "Content-Type": "application/json"
         }
 
-        # ============================================================================
-        # DEVELOPMENT MOCK BYPASS - FOR TESTING ONLY
-        # This allows testing OAuth flow and validation without real Microsoft credentials.
-        # NEVER active in production (ATOM_ENV=production bypasses this block)
-        # ============================================================================
-        import os
-        if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
-             logger.info(f"MOCK BYPASS: {method} {url}")
-             if "joinedTeams" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "messages" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "calendarView" in url:
-                 return {"status": "success", "data": {"value": []}}
-             if "me" == url.split("/")[-1]: # Profile
-                 return {"status": "success", "data": {
-                     "id": "mock_user", "displayName": "Mock User", "mail": "mock@example.com", "userPrincipalName": "mock@example.com"
-                 }}
-             return {"status": "success", "data": {"id": "mock_id_123"}}
+        # Validate token is not a mock/test token
+        if token == "fake_token" or not token or not token.startswith("eyJ"):
+            logger.error(f"Invalid Microsoft OAuth token provided")
+            return {
+                "status": "error",
+                "code": 401,
+                "message": "Invalid Microsoft OAuth token. Please authenticate with Microsoft."
+            }
 
         async with aiohttp.ClientSession() as session:
             async with session.request(method, url, headers=headers, json=json_data) as response:
@@ -316,8 +318,13 @@ class Microsoft365Service:
                 # Try to find by path if ID not provided
                 path = params.get("path")
                 if path:
-                    # Logic to get ID from path would go here, omitting for brevity
-                    pass
+                    # Logic to get ID from path
+                    # For now, return an error indicating this feature is not yet implemented
+                    logger.warning(f"Excel path resolution not implemented for path: {path}")
+                    return {
+                        "status": "error",
+                        "message": "Excel path resolution not yet implemented. Please provide item_id directly."
+                    }
                 else:
                      return {"status": "error", "message": "Excel action requires item_id or path"}
 

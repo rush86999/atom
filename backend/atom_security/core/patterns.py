@@ -1,8 +1,8 @@
-import re
 from pathlib import Path
+import re
 from typing import Dict, List, Optional, Pattern
-import yaml
 from atom_security.core.models import SecurityRule, Severity
+import yaml
 
 
 class RuleLoader:

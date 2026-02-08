@@ -1,16 +1,17 @@
 import json
-import uuid
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentFeedback, User, UserRole
 
-router = APIRouter(prefix="/api/reasoning", tags=["reasoning"])
+router = BaseAPIRouter(prefix="/api/reasoning", tags=["reasoning"])
 
 
 class ReasoningStepFeedback(BaseModel):
@@ -59,8 +60,11 @@ async def submit_step_feedback(
             user_correction=user_correction,
             input_context=input_context
         )
-        
-        return {"status": "success", "id": db_feedback.id, "message": "Feedback submitted and processed by governance engine"}
-        
+
+        return router.success_response(
+            data={"id": db_feedback.id},
+            message="Feedback submitted and processed by governance engine"
+        )
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

@@ -1,9 +1,9 @@
 import asyncio
+from enum import Enum
 import json
 import logging
 import os
 import re
-from enum import Enum
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 # Try imports
@@ -127,7 +127,7 @@ class BYOKHandler:
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
             if self.byok_manager.is_configured(self.workspace_id, provider_id):
-                api_key = self.byok_manager.get_api_key(self.workspace_id, provider_id)
+                api_key = self.byok_manager.get_api_key(provider_id)
                 try:
                     self.clients[provider_id] = OpenAI(
                         api_key=api_key,
@@ -927,7 +927,8 @@ class BYOKHandler:
                     output_tokens = 500
                     estimated_cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
             except Exception as e:
-                pass
+                logger.warning(f"Cost estimation failed for model {model}: {e}")
+                estimated_cost = None
             
             return {
                 "complexity": complexity.value,
@@ -1158,3 +1159,21 @@ class BYOKHandler:
 
             # If streaming fails, yield error message
             yield f"\n\n[Streaming error: {str(e)}]"
+
+    def _is_trial_restricted(self) -> bool:
+        """
+        Check if the workspace has trial restrictions.
+        Returns False for now (can be enhanced later).
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import Workspace
+
+            with get_db_session() as db:
+                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
+                if workspace and hasattr(workspace, 'trial_ended') and workspace.trial_ended:
+                    return True
+                return False
+        except Exception as e:
+            logger.debug(f"Could not check trial restriction: {e}")
+            return False

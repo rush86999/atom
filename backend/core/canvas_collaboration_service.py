@@ -8,11 +8,11 @@ Manages collaboration between multiple agents on shared canvases with:
 - Real-time coordination
 """
 
-import logging
-import uuid
 from datetime import datetime, timedelta
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func as sql_func

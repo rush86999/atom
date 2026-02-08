@@ -4,13 +4,13 @@ Seamless AI integration within unified communication ecosystem with cross-platfo
 """
 
 import asyncio
-import json
-import logging
-import os
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import json
+import logging
+import os
 from typing import Any, Dict, List, Optional, Union
 import aiohttp
 import httpx
@@ -1221,11 +1221,50 @@ class CrossPlatformAIManager:
             return []
 
     async def _index_communication(self, comm: Dict[str, Any]):
-        """Index a communication document"""
+        """Index a communication document with embedding generation"""
         try:
-            # Generate embedding and add to search index
-            # Implementation depends on search service
-            pass
+            from core.embedding_service import EmbeddingService, LanceDBHandler
+
+            # Prepare content for embedding
+            content_parts = [
+                comm.get('subject', ''),
+                comm.get('body', ''),
+                comm.get('sender', ''),
+                comm.get('summary', '')
+            ]
+            content = ' '.join([p for p in content_parts if p])
+
+            if not content or len(content.strip()) < 10:
+                logger.debug(f"Skipping communication {comm.get('id')} - insufficient content for embedding")
+                return
+
+            # Generate embedding
+            embedding_service = EmbeddingService()
+            embedding = await embedding_service.generate_embedding(content)
+
+            # Store in LanceDB
+            vector_db = LanceDBHandler()
+            await vector_db.upsert(
+                table_name="communications",
+                data=[{
+                    "id": comm.get('id'),
+                    "vector": embedding,
+                    "subject": comm.get('subject', ''),
+                    "body": comm.get('body', ''),
+                    "sender": comm.get('sender', ''),
+                    "timestamp": comm.get('timestamp', datetime.now(timezone.utc).isoformat()),
+                    "platform": comm.get('platform', 'unknown'),
+                    "communication_type": comm.get('type', 'email')
+                }]
+            )
+
+            logger.info(
+                f"Indexed communication {comm.get('id')} with embedding dimension {len(embedding)}"
+            )
+
+        except ImportError as e:
+            logger.warning(f"Embedding dependencies not available: {e}")
+            logger.debug(f"Communication indexing requested: comm_id={comm.get('id')}")
         except Exception as e:
             logger.error(f"Error indexing communication: {e}")
 

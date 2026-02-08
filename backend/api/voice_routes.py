@@ -1,15 +1,17 @@
 """
 Voice Routes - API endpoints for voice transcription and TTS
 """
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/voice", tags=["Voice"])
 
 # Pydantic Models
 class TranscriptionRequest(BaseModel):
@@ -65,7 +67,7 @@ async def transcribe_audio(
         )
     except Exception as e:
         logger.error(f"Transcription failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Transcription failed", details={"error": str(e)})
 
 @router.post("/tts", response_model=TTSResponse)
 async def text_to_speech(request: TTSRequest):
@@ -79,7 +81,7 @@ async def text_to_speech(request: TTSRequest):
         )
     except Exception as e:
         logger.error(f"TTS failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="TTS failed", details={"error": str(e)})
 
 @router.get("/languages")
 async def list_supported_languages():

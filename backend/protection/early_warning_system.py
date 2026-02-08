@@ -1,6 +1,6 @@
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List
 from accounting.models import Invoice, InvoiceStatus
 from sales.models import Deal, DealStage

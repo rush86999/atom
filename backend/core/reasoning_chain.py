@@ -3,12 +3,12 @@ Reasoning Chain - Track and visualize AI decision-making steps
 Enhanced with feedback capabilities for agent learning.
 """
 
-import logging
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 
 logger = logging.getLogger(__name__)
 

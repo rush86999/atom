@@ -5,10 +5,10 @@ Provides consistent error responses and exception handling across all API endpoi
 Integrates with core/exceptions.py AtomException hierarchy.
 """
 
-import logging
-import traceback
 from datetime import datetime
 from enum import Enum
+import logging
+import traceback
 from typing import Any, Dict, Optional, Union
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -535,7 +535,7 @@ HTTP_STATUS_MAP: Dict[ErrorCode, int] = {
 # Result Pattern for Operations
 # ============================================================================
 
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 T = TypeVar('T')
 

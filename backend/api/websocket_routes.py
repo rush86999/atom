@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect
 
+from core.base_routes import BaseAPIRouter
 from core.notification_manager import notification_manager
 
-router = APIRouter()
+router = BaseAPIRouter(tags=["WebSockets"])
 logger = logging.getLogger(__name__)
 
 @router.websocket("/ws/{workspace_id}")

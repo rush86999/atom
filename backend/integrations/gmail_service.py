@@ -4,13 +4,13 @@ Provides comprehensive Gmail integration functionality
 """
 
 import base64
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional, Union
 import requests
 

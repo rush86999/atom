@@ -14,13 +14,14 @@ Endpoints:
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 
+from core.base_routes import BaseAPIRouter
 from tools.registry import ToolRegistry, get_tool_registry
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/tools", tags=["tools"])
+router = BaseAPIRouter(prefix="/api/tools", tags=["tools"])
 
 
 @router.get("")
@@ -53,15 +54,14 @@ async def list_tools(
             if metadata:
                 tools.append(metadata.to_dict())
 
-        return {
-            "success": True,
-            "count": len(tools),
-            "tools": tools
-        }
+        return router.success_response(
+            data={"tools": tools, "count": len(tools)},
+            message=f"Retrieved {len(tools)} tools"
+        )
 
     except Exception as e:
         logger.error(f"Error listing tools: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/{name}")
@@ -82,18 +82,16 @@ async def get_tool(
         metadata = registry.get(name)
 
         if not metadata:
-            raise HTTPException(status_code=404, detail=f"Tool '{name}' not found")
+            raise router.not_found_error("Tool", name)
 
-        return {
-            "success": True,
-            "tool": metadata.to_dict()
-        }
+        return router.success_response(
+            data={"tool": metadata.to_dict()},
+            message=f"Tool '{name}' retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting tool {name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/category/{category}")
@@ -114,12 +112,10 @@ async def list_tools_by_category(
         tool_names = registry.list_by_category(category)
 
         if not tool_names:
-            return {
-                "success": True,
-                "count": 0,
-                "category": category,
-                "tools": []
-            }
+            return router.success_response(
+                data={"category": category, "tools": [], "count": 0},
+                message=f"No tools found in category '{category}'"
+            )
 
         tools = []
         for name in tool_names:
@@ -127,16 +123,14 @@ async def list_tools_by_category(
             if metadata:
                 tools.append(metadata.to_dict())
 
-        return {
-            "success": True,
-            "count": len(tools),
-            "category": category,
-            "tools": tools
-        }
+        return router.success_response(
+            data={"category": category, "tools": tools, "count": len(tools)},
+            message=f"Retrieved {len(tools)} tools from category '{category}'"
+        )
 
     except Exception as e:
         logger.error(f"Error listing tools by category {category}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/search")
@@ -155,24 +149,24 @@ async def search_tools(
     """
     try:
         if not query or len(query.strip()) < 2:
-            raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+            raise router.validation_error(
+                field="query",
+                message="Query must be at least 2 characters",
+                details={"provided_length": len(query) if query else 0}
+            )
 
         results = registry.search(query)
 
         tools = [metadata.to_dict() for metadata in results]
 
-        return {
-            "success": True,
-            "count": len(tools),
-            "query": query,
-            "tools": tools
-        }
+        return router.success_response(
+            data={"tools": tools, "count": len(tools), "query": query},
+            message=f"Found {len(tools)} tools matching '{query}'"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error searching tools: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/stats")
@@ -189,14 +183,14 @@ async def get_tool_stats(
     try:
         stats = registry.get_stats()
 
-        return {
-            "success": True,
-            "stats": stats
-        }
+        return router.success_response(
+            data={"stats": stats},
+            message="Tool registry statistics retrieved"
+        )
 
     except Exception as e:
         logger.error(f"Error getting tool stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/categories")
@@ -223,12 +217,11 @@ async def list_categories(
         # Sort by count descending
         categories.sort(key=lambda x: x["count"], reverse=True)
 
-        return {
-            "success": True,
-            "count": len(categories),
-            "categories": categories
-        }
+        return router.success_response(
+            data={"categories": categories, "count": len(categories)},
+            message=f"Retrieved {len(categories)} categories"
+        )
 
     except Exception as e:
         logger.error(f"Error listing categories: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))

@@ -1,10 +1,11 @@
 import logging
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, status
 from sales.models import Lead
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.marketing_analytics import PlainEnglishReporter
 from core.marketing_manager import AIMarketingManager
@@ -12,7 +13,7 @@ from core.models import User
 from core.reputation_service import ReputationManager
 from integrations.ai_enhanced_service import ai_enhanced_service
 
-router = APIRouter(prefix="/api/marketing", tags=["Marketing"])
+router = BaseAPIRouter(prefix="/api/marketing", tags=["Marketing"])
 logger = logging.getLogger(__name__)
 
 # Initialize managers (ideally these would be injected or handled via a startup event)
@@ -91,10 +92,7 @@ async def get_marketing_summary(
         }
     except Exception as e:
         logger.error(f"Error fetching marketing summary: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching marketing summary: {str(e)}"
-        )
+        raise router.internal_error(message="Error fetching marketing summary", details={"error": str(e)})
 
 
 @router.post("/leads/{lead_id}/score")
@@ -108,10 +106,7 @@ async def score_lead(
     """
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
     if not lead:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lead not found"
-        )
+        raise router.not_found_error("Lead", lead_id)
         
     # Get interaction history (Simplified)
     history = [f"Lead source: {lead.source}"]

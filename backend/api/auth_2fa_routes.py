@@ -1,18 +1,19 @@
 import logging
 from typing import List, Optional
-import pyotp
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from pydantic import BaseModel
+import pyotp
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AuditEventType, SecurityLevel, ThreatLevel, User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth/2fa", tags=["Authentication-2FA"])
+router = BaseAPIRouter(prefix="/api/auth/2fa", tags=["Authentication-2FA"])
 
 class TwoFactorSetupResponse(BaseModel):
     secret: str
@@ -33,7 +34,7 @@ async def get_2fa_status(current_user: User = Depends(get_current_user)):
 async def setup_2fa(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Generate a new 2FA secret and provisioning URL"""
     if current_user.two_factor_enabled:
-        raise HTTPException(status_code=400, detail="2FA is already enabled")
+        raise router.conflict_error("2FA is already enabled")
     
     secret = pyotp.random_base32()
     issuer_name = "Atom AI (Upstream)"
@@ -59,10 +60,10 @@ async def enable_2fa(
 ):
     """Verify code and enable 2FA"""
     if current_user.two_factor_enabled:
-        raise HTTPException(status_code=400, detail="2FA is already enabled")
-    
+        raise router.conflict_error("2FA is already enabled")
+
     if not current_user.two_factor_secret:
-        raise HTTPException(status_code=400, detail="2FA setup not initiated")
+        raise router.validation_error("two_factor_secret", "2FA setup not initiated")
     
     totp = pyotp.TOTP(current_user.two_factor_secret)
     if totp.verify(verify_data.code):
@@ -80,10 +81,13 @@ async def enable_2fa(
             security_level=SecurityLevel.HIGH.value,
             request=request
         )
-        
-        return {"success": True, "message": "2FA enabled successfully", "backup_codes": current_user.two_factor_backup_codes}
+
+        return router.success_response(
+            data={"backup_codes": current_user.two_factor_backup_codes},
+            message="2FA enabled successfully"
+        )
     else:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+        raise router.validation_error("code", "Invalid verification code")
 
 @router.post("/disable")
 async def disable_2fa(
@@ -94,7 +98,7 @@ async def disable_2fa(
 ):
     """Disable 2FA after verifying a code"""
     if not current_user.two_factor_enabled:
-        raise HTTPException(status_code=400, detail="2FA is not enabled")
+        raise router.validation_error("two_factor_enabled", "2FA is not enabled")
     
     totp = pyotp.TOTP(current_user.two_factor_secret)
     if totp.verify(verify_data.code):
@@ -113,7 +117,7 @@ async def disable_2fa(
             security_level=SecurityLevel.HIGH.value,
             request=request
         )
-        
-        return {"success": True, "message": "2FA disabled successfully"}
+
+        return router.success_response(message="2FA disabled successfully")
     else:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+        raise router.validation_error("code", "Invalid verification code")

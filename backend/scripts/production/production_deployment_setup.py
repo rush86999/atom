@@ -12,15 +12,15 @@ This script implements:
 - Deployment automation
 """
 
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import logging
 import os
-import sys
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+import sys
 from typing import Any, Dict, List, Optional
+import uuid
 import yaml
 
 # Add backend directory to Python path

@@ -550,7 +550,7 @@ console.log('Current Metrics:', currentMetrics);
 
 ## 🤝 Contributing
 
-We welcome contributions to the Multi-Integration Workflow Orchestration Engine! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions to the Multi-Integration Workflow Orchestration Engine! Please see our [Contributing Guide](../../CONTRIBUTING.md) for details.
 
 ### Development Setup
 

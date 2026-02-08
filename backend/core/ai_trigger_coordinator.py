@@ -5,9 +5,9 @@ This is distinct from user-defined workflow triggers - it's AI-driven.
 """
 
 import asyncio
-import logging
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)

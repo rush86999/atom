@@ -4,9 +4,18 @@ import accounting.models  # Ensure Entity is registered for relationships
 
 # Import Deal for relationship resolution
 from sales.models import Deal
-from sqlalchemy import JSON, Boolean, Column, DateTime
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 

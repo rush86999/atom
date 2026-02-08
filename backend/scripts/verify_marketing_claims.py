@@ -3,10 +3,10 @@
 ATOM OAuth Marketing Claims Verification & Production Readiness Audit
 """
 
+from datetime import datetime
 import json
 import os
 import sys
-from datetime import datetime
 import requests
 
 

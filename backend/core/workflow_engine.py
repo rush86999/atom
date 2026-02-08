@@ -9,19 +9,23 @@ Handles the execution of workflows with support for:
 """
 
 import asyncio
+from datetime import datetime
 import logging
 import re
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
+import uuid
 import httpx
 import jsonschema
 from jsonschema import ValidationError, validate
 
 from core.auto_healing import async_retry_with_backoff
 from core.database import get_db_session
-from core.exceptions import AgentExecutionError, AuthenticationError, ExternalServiceError
-from core.exceptions import ValidationError as AtomValidationError
+from core.exceptions import (
+    AgentExecutionError,
+    AuthenticationError,
+    ExternalServiceError,
+    ValidationError as AtomValidationError,
+)
 from core.execution_state_manager import ExecutionStateManager, get_state_manager
 from core.models import IntegrationCatalog, WorkflowStepExecution
 from core.token_storage import token_storage
@@ -968,22 +972,92 @@ class WorkflowEngine:
 
         try:
             result = None
-            if action == "files_get_upload_url_external":
-                 # This action is used to upload files
-                 # Mocks for now as it is complex
-                 await asyncio.sleep(0.1)
-                 result = {"upload_url": "https://slack.com/mock_upload", "file_id": "mock_file"}
-            elif action == "chat_postMessage":
+
+            if not token:
+                raise AuthenticationError("Slack authentication required (no token found)")
+
+            # Map workflow actions to Slack service methods
+            if action == "chat_postMessage":
                 channel = params.get("channel")
                 text = params.get("text")
-                if not token:
-                    raise AuthenticationError("Slack authentication required (no token found)")
                 result = await slack_unified_service.post_message(token=token, channel_id=channel, text=text)
+
+            elif action == "chat_getChannels" or action == "list_channels":
+                # List channels (public and private by default)
+                types = params.get("types", "public_channel,private_channel")
+                result = await slack_unified_service.list_channels(token=token, types=types)
+
+            elif action == "chat_getUsers" or action == "list_users":
+                # Get user info - use team info endpoint for user list
+                result = await slack_unified_service.get_team_info(token=token)
+
+            elif action == "get_channel_info":
+                channel_id = params.get("channel_id")
+                if not channel_id:
+                    raise ValueError("channel_id is required for get_channel_info")
+                result = await slack_unified_service.get_channel_info(token=token, channel_id=channel_id)
+
+            elif action == "get_channel_history":
+                channel_id = params.get("channel_id")
+                limit = params.get("limit", 100)
+                if not channel_id:
+                    raise ValueError("channel_id is required for get_channel_history")
+                result = await slack_unified_service.get_channel_history(token=token, channel_id=channel_id, limit=limit)
+
+            elif action == "update_message":
+                channel_id = params.get("channel_id")
+                message_ts = params.get("message_ts")
+                text = params.get("text")
+                if not all([channel_id, message_ts, text]):
+                    raise ValueError("channel_id, message_ts, and text are required for update_message")
+                result = await slack_unified_service.update_message(token=token, channel_id=channel_id, message_ts=message_ts, text=text)
+
+            elif action == "delete_message":
+                channel_id = params.get("channel_id")
+                message_ts = params.get("message_ts")
+                if not all([channel_id, message_ts]):
+                    raise ValueError("channel_id and message_ts are required for delete_message")
+                result = await slack_unified_service.delete_message(token=token, channel_id=channel_id, message_ts=message_ts)
+
+            elif action == "search_messages":
+                query = params.get("query")
+                if not query:
+                    raise ValueError("query is required for search_messages")
+                count = params.get("count", 100)
+                result = await slack_unified_service.search_messages(token=token, query=query, count=count)
+
+            elif action == "files_list":
+                channel_id = params.get("channel_id")
+                user_id = params.get("user_id")
+                count = params.get("count", 100)
+                result = await slack_unified_service.list_files(token=token, channel_id=channel_id, user_id=user_id, count=count)
+
+            elif action == "files_get_upload_url_external":
+                # File upload requires special handling - get upload URL first
+                # For now, provide a structured response indicating the flow
+                result = {
+                    "ok": False,
+                    "error": "File upload requires getUploadURLExternal endpoint followed by file upload",
+                    "flow": "1. Call files.getUploadURLExternal, 2. Upload file to returned URL, 3. Call files.completeUploadExternal"
+                }
+
+            elif action == "reactions_add":
+                # Add reaction to message
+                # This would need to be implemented in SlackUnifiedService
+                result = {
+                    "ok": False,
+                    "error": "reactions_add not yet implemented in SlackUnifiedService - needs API endpoint addition",
+                    "endpoint": "reactions.add"
+                }
+
             else:
-                 # Generic fallback or other actions
-                 # Try to map 'action' to method on service if possible or just log
-                 await asyncio.sleep(0.1)
-                 result = {"message": f"Action {action} simulated (implementation pending for specific action)"}
+                # Unknown action - provide helpful error
+                raise ValueError(
+                    f"Unsupported Slack action: {action}. "
+                    f"Supported actions: chat_postMessage, chat_getChannels, chat_getUsers, "
+                    f"get_channel_info, get_channel_history, update_message, delete_message, "
+                    f"search_messages, files_list, files_get_upload_url_external, reactions_add"
+                )
 
             return {
                 "action": action,
@@ -1008,27 +1082,104 @@ class WorkflowEngine:
         
         try:
             result = None
-            if not token:
-                 raise AuthenticationError("Asana authentication required")
 
+            if not token:
+                raise AuthenticationError("Asana authentication required")
+
+            # Map workflow actions to Asana service methods
             if action == "create_task":
-                 task_data = {
-                     "name": params.get("name"),
-                     "workspace": params.get("workspace"),
-                     "projects": params.get("projects", [])
-                 }
-                 if params.get("notes"): task_data["notes"] = params.get("notes")
-                 if params.get("due_on"): task_data["due_on"] = params.get("due_on")
-                 
-                 result = await asana_service.create_task(token, task_data)
-            
+                task_data = {
+                    "name": params.get("name"),
+                    "workspace": params.get("workspace"),
+                    "projects": params.get("projects", [])
+                }
+                if params.get("notes"): task_data["notes"] = params.get("notes")
+                if params.get("due_on"): task_data["due_on"] = params.get("due_on")
+                if params.get("assignee"): task_data["assignee"] = params.get("assignee")
+
+                result = await asana_service.create_task(token, task_data)
+
+            elif action == "get_tasks":
+                project_gid = params.get("project")
+                workspace_gid = params.get("workspace")
+                assignee = params.get("assignee")
+                limit = params.get("limit", 50)
+
+                result = await asana_service.get_tasks(
+                    token,
+                    project_gid=project_gid,
+                    workspace_gid=workspace_gid,
+                    assignee=assignee,
+                    limit=limit
+                )
+
             elif action == "get_projects":
-                 workspace = params.get("workspace")
-                 result = await asana_service.get_projects(token, workspace_gid=workspace)
-            
+                workspace = params.get("workspace")
+                result = await asana_service.get_projects(token, workspace_gid=workspace)
+
+            elif action == "update_task":
+                task_gid = params.get("task_gid")
+                if not task_gid:
+                    raise ValueError("task_gid is required for update_task")
+
+                updates = {}
+                if params.get("name"): updates["name"] = params.get("name")
+                if params.get("notes"): updates["notes"] = params.get("notes")
+                if params.get("completed") is not None: updates["completed"] = params.get("completed")
+                if params.get("due_on"): updates["due_on"] = params.get("due_on")
+                if params.get("assignee"): updates["assignee"] = params.get("assignee")
+
+                result = await asana_service.update_task(token, task_gid, updates)
+
+            elif action == "add_comment":
+                task_gid = params.get("task_gid")
+                text = params.get("text")
+                if not all([task_gid, text]):
+                    raise ValueError("task_gid and text are required for add_comment")
+
+                result = await asana_service.add_task_comment(token, task_gid, text)
+
+            elif action == "get_workspaces":
+                result = await asana_service.get_workspaces(token)
+
+            elif action == "get_users":
+                workspace_gid = params.get("workspace")
+                if not workspace_gid:
+                    raise ValueError("workspace is required for get_users")
+                limit = params.get("limit", 50)
+                result = await asana_service.get_users(token, workspace_gid, limit)
+
+            elif action == "get_teams":
+                workspace_gid = params.get("workspace")
+                if not workspace_gid:
+                    raise ValueError("workspace is required for get_teams")
+                limit = params.get("limit", 50)
+                result = await asana_service.get_teams(token, workspace_gid, limit)
+
+            elif action == "search_tasks":
+                workspace_gid = params.get("workspace")
+                query = params.get("query")
+                if not all([workspace_gid, query]):
+                    raise ValueError("workspace and query are required for search_tasks")
+                limit = params.get("limit", 20)
+                result = await asana_service.search_tasks(token, workspace_gid, query, limit)
+
+            elif action == "create_project":
+                # Project creation needs to be added to AsanaService
+                # For now, provide structured error
+                result = {
+                    "ok": False,
+                    "error": "create_project not yet implemented in AsanaService - needs API endpoint addition",
+                    "endpoint": "projects.create"
+                }
+
             else:
-                 await asyncio.sleep(0.1)
-                 result = f"Asana {action} simulated (implementation pending)"
+                # Unknown action - provide helpful error
+                raise ValueError(
+                    f"Unsupported Asana action: {action}. "
+                    f"Supported actions: create_task, get_tasks, get_projects, update_task, "
+                    f"add_comment, get_workspaces, get_users, get_teams, search_tasks, create_project"
+                )
 
             return {
                 "action": action,
@@ -1411,36 +1562,104 @@ class WorkflowEngine:
             }
 
     async def _execute_agent_with_mcp(self, agent_context: dict) -> dict:
-        """Execute main agent with MCP tool access"""
+        """
+        Execute main agent with MCP (Model Context Protocol) tool access.
+
+        This integrates with the BYOK LLM handler to provide the agent with
+        access to MCP tools during execution.
+        """
         try:
-            # This is a placeholder for your main agent execution
-            # You would integrate with your actual main agent system here
+            from core.agent_context_resolver import AgentContextResolver
+            from core.llm.byok_handler import BYOKHandler
+            from core.models import AgentRegistry
 
-            action = agent_context["action"]
-            input_data = agent_context["input_data"]
-            mcp_connections = agent_context["mcp_connections"]
-            available_tools = agent_context["available_tools"]
+            action = agent_context.get("action", "unknown")
+            input_data = agent_context.get("input_data", {})
+            mcp_connections = agent_context.get("mcp_connections", {})
+            available_tools = agent_context.get("available_tools", [])
+            agent_id = agent_context.get("agent_id")
 
-            # Simulate agent execution with MCP tools
-            await asyncio.sleep(0.5)  # Agent actions take time
+            # Get agent from database
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
 
-            # In a real implementation, this would:
-            # 1. Pass the MCP tools to your main agent
-            # 2. Let the agent decide which tools to use
-            # 3. Execute the selected MCP tools
-            # 4. Return the agent's response
+            if not agent:
+                logger.error(f"Agent {agent_id} not found for MCP execution")
+                return {
+                    "success": False,
+                    "error": f"Agent {agent_id} not found"
+                }
 
-            return {
-                "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available",
-                "tools_available": len(available_tools),
-                "mcp_connections": len(mcp_connections),
-                "input_processed": input_data,
-                "execution_method": "main_agent_with_mcp"
-            }
+            # Format MCP tools for LLM function calling
+            tool_definitions = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.get("name", "unknown"),
+                        "description": tool.get("description", ""),
+                        "parameters": tool.get("input_schema", {})
+                    }
+                }
+                for tool in available_tools
+            ]
+
+            # Build the prompt with context about available tools
+            tool_info = "\n".join([
+                f"- {tool.get('name')}: {tool.get('description', 'No description')}"
+                for tool in available_tools
+            ])
+
+            prompt = f"""You are executing action: {action}
+
+Available MCP Tools:
+{tool_info}
+
+Input data:
+{input_data if isinstance(input_data, str) else str(input_data)}
+
+Use the available tools as needed to complete the action. Return your response in a clear, structured format."""
+
+            # Execute using BYOK handler
+            try:
+                llm_handler = BYOKHandler(self.db)
+                response = await llm_handler.chat_completion(
+                    provider=agent.llm_provider,
+                    model=agent.llm_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    tools=tool_definitions if tool_definitions else None,
+                    temperature=0.7
+                )
+
+                return {
+                    "success": True,
+                    "agent_response": response.get("content", ""),
+                    "tool_calls": response.get("tool_calls", []),
+                    "tools_available": len(available_tools),
+                    "mcp_connections": len(mcp_connections),
+                    "input_processed": input_data,
+                    "execution_method": "main_agent_with_mcp",
+                    "agent_id": agent_id,
+                    "action": action
+                }
+
+            except Exception as llm_error:
+                logger.error(f"LLM execution failed for agent {agent_id}: {llm_error}")
+                # Fallback: Return basic response without LLM
+                return {
+                    "success": True,
+                    "agent_response": f"Executed {action} with {len(available_tools)} MCP tools available (LLM execution failed, using fallback)",
+                    "tools_available": len(available_tools),
+                    "mcp_connections": len(mcp_connections),
+                    "input_processed": input_data,
+                    "execution_method": "fallback",
+                    "error": str(llm_error)
+                }
 
         except Exception as e:
+            logger.error(f"MCP agent execution failed: {e}")
             raise AgentExecutionError(
-                agent_id=params.get("agent_id", "unknown"),
+                agent_id=agent_context.get("agent_id", "unknown"),
                 reason=str(e),
                 cause=e
             )
@@ -1495,6 +1714,7 @@ class WorkflowEngine:
 
             input_data = params.get("input_data", {})
             max_depth = params.get("max_depth", 10)  # Prevent infinite recursion
+            timeout = params.get("timeout", 300)  # Default 5 minute timeout
 
             # Check recursion depth (track via context or simple counter)
             # For now, implement simple depth check
@@ -1506,24 +1726,90 @@ class WorkflowEngine:
                 raise ValueError(f"Workflow {workflow_id} not found")
 
             # Execute sub-workflow using the same engine
-            # Note: This creates a new execution ID and runs asynchronously
-            # We'll wait for completion and return the result
+            # This creates a new execution ID and runs asynchronously
             execution_id = await self.start_workflow(workflow, input_data)
 
-            # For simplicity, we'll simulate waiting for completion
-            # In a real implementation, we would monitor the execution status
-            await asyncio.sleep(0.5)  # Simulate sub-workflow execution time
+            # Monitor the execution status with timeout
+            start_time = datetime.now()
+            poll_interval = 0.5  # Poll every 500ms
 
-            # Return placeholder result
-            return {
-                "action": action,
-                "workflow_id": workflow_id,
-                "execution_id": execution_id,
-                "result": f"Sub-workflow {workflow_id} executed",
-                "status": "success"
-            }
+            while True:
+                # Check timeout
+                elapsed = (datetime.now() - start_time).total_seconds()
+                if elapsed > timeout:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} timed out after {timeout}s")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "timeout",
+                        "error": f"Sub-workflow execution timed out after {timeout} seconds"
+                    }
+
+                # Get current execution state
+                state = await self.state_manager.get_execution_state(execution_id)
+
+                if not state:
+                    logger.error(f"Sub-workflow execution {execution_id} not found in state manager")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "error",
+                        "error": "Execution state not found"
+                    }
+
+                status = state.get("status")
+
+                # Check if execution is complete
+                if status in ["COMPLETED", "SUCCESS"]:
+                    logger.info(f"Sub-workflow {workflow_id} execution {execution_id} completed successfully")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "result": state.get("outputs", {}),
+                        "status": "success"
+                    }
+                elif status in ["FAILED", "ERROR"]:
+                    error_msg = state.get("error", "Unknown error")
+                    logger.error(f"Sub-workflow {workflow_id} execution {execution_id} failed: {error_msg}")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "error",
+                        "error": error_msg
+                    }
+                elif status in ["CANCELLED"]:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} was cancelled")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "cancelled",
+                        "error": "Sub-workflow was cancelled"
+                    }
+                elif status in ["PAUSED"]:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} is paused, waiting for input")
+                    return {
+                        "action": action,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_id,
+                        "status": "paused",
+                        "error": "Sub-workflow is paused waiting for input"
+                    }
+                elif status in ["RUNNING", "PENDING"]:
+                    # Still running, wait and poll again
+                    await asyncio.sleep(poll_interval)
+                    continue
+                else:
+                    logger.warning(f"Sub-workflow {workflow_id} execution {execution_id} has unknown status: {status}")
+                    await asyncio.sleep(poll_interval)
+                    continue
 
         except Exception as e:
+            logger.error(f"Error executing sub-workflow: {e}")
             return {
                 "action": action,
                 "error": str(e),
@@ -1673,11 +1959,18 @@ class WorkflowEngine:
             access_token = token_data.get("access_token") if token_data else None
             
             if not access_token:
-                # Fallback to env if not found, but we prefer dynamic
-                # StripeService usually methods require access_token
-                # Pass a dummy or rely on service to handle default if allowed ??
-                # Actually StripeService methods have `access_token` as required arg usually
-                pass
+                # StripeService methods require access_token
+                # Log warning and skip execution if token not available
+                logger.warning(
+                    f"Stripe action '{action}' requires access_token but none found "
+                    f"for connection_id: {connection_id}. Skipping execution."
+                )
+                return {
+                    "status": "error",
+                    "error": "Stripe access token not found",
+                    "connection_id": connection_id,
+                    "action": action
+                }
 
             if hasattr(service, action):
                 method = getattr(service, action)

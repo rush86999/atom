@@ -3,12 +3,12 @@
 Honest Truth Verification - What Actually Works
 """
 
+from datetime import datetime
 import json
 import os
 import secrets
 import time
 import urllib.parse
-from datetime import datetime
 import requests
 
 

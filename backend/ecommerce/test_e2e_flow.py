@@ -1,10 +1,10 @@
 import asyncio
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
 import httpx
 
 # Add the current directory to sys.path
@@ -79,7 +79,6 @@ async def verify_e2e_shopify_flow():
 
         # Mocking Request is hard, let's just use httpx if backend is running 
         # OR call the logic directly if we want a unit-test style.
-
         # For simplicity and reliability in this environment, let's trigger the logic 
         # by manually calling the parts that the webhook would call.
         

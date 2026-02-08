@@ -4,8 +4,8 @@ Analytics Dashboard Test Script
 Run this to verify the analytics dashboard is working correctly.
 """
 
-import sys
 from pathlib import Path
+import sys
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))

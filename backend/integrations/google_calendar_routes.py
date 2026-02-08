@@ -1,9 +1,9 @@
-import logging
 from datetime import datetime
+import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
-from core.oauth_handler import OAuthHandler, GOOGLE_OAUTH_CONFIG
+from core.oauth_handler import GOOGLE_OAUTH_CONFIG, OAuthHandler
 from core.token_storage import token_storage
 from integrations.google_calendar_service import google_calendar_service
 

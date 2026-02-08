@@ -9,10 +9,10 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Dict, List, Tuple
 import aiohttp
 

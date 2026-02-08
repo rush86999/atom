@@ -7,18 +7,19 @@ integration health, and system metrics.
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.health_monitoring_service import HealthMonitoringService, get_health_monitoring_service
 from core.models import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/health", tags=["Health Monitoring"])
+router = BaseAPIRouter(prefix="/api/health", tags=["Health Monitoring"])
 
 
 # Request/Response Models
@@ -102,21 +103,17 @@ async def get_agent_health(
         health = await health_service.get_agent_health(agent_id)
 
         if "error" in health and health["status"] == "error":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=health.get("error", "Agent not found")
+            raise router.not_found_error(
+                "Agent",
+                agent_id,
+                details={"error": health.get("error", "Agent not found")}
             )
 
         return AgentHealthResponse(**health)
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get agent health: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get agent health: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to get agent health: {str(e)}")
 
 
 @router.get("/integrations", response_model=list[IntegrationHealthResponse])
@@ -142,10 +139,7 @@ async def get_integrations_health(
 
     except Exception as e:
         logger.error(f"Failed to get integrations health: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get integrations health: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to get integrations health: {str(e)}")
 
 
 @router.get("/system", response_model=SystemMetricsResponse)
@@ -172,10 +166,7 @@ async def get_system_metrics(
 
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get system metrics: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to get system metrics: {str(e)}")
 
 
 @router.get("/alerts", response_model=list[AlertResponse])
@@ -209,10 +200,7 @@ async def get_alerts(
 
     except Exception as e:
         logger.error(f"Failed to get alerts: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get alerts: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to get alerts: {str(e)}")
 
 
 @router.post("/alerts/{alert_id}/acknowledge")
@@ -237,21 +225,13 @@ async def acknowledge_alert(
         success = await health_service.acknowledge_alert(alert_id, user.id)
 
         if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Alert {alert_id} not found"
-            )
+            raise router.not_found_error("Alert", alert_id)
 
-        return {"success": True, "message": "Alert acknowledged"}
+        return router.success_response(message="Alert acknowledged")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to acknowledge alert: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to acknowledge alert: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to acknowledge alert: {str(e)}")
 
 
 @router.get("/history/{health_type}")
@@ -293,13 +273,13 @@ async def get_health_history(
 
     except Exception as e:
         logger.error(f"Failed to get health history: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get health history: {str(e)}"
-        )
+        raise router.internal_error(message=f"Failed to get health history: {str(e)}")
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "health_monitoring"}
+    return router.success_response(
+        data={"status": "healthy", "service": "health_monitoring"},
+        message="Health monitoring service is healthy"
+    )

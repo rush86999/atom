@@ -95,11 +95,11 @@ class TestCanvasUpdateGovernance:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = governance_check
                         mock_governance_instance.record_outcome = AsyncMock()
-                        mock_governance.return_value = mock_governance_instance
+                        mock_get_gov.return_value = mock_governance_instance
 
                         result = await update_canvas(
                             user_id="user-1",
@@ -145,14 +145,14 @@ class TestCanvasUpdateGovernance:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                         # Block STUDENT agent
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": False,
                             "reason": "Agent Test Student Agent (STUDENT) lacks maturity for update_canvas. Required: INTERN"
                         }
-                        mock_governance.return_value = mock_governance_instance
+                        mock_get_gov.return_value = mock_governance_instance
 
                         result = await update_canvas(
                             user_id="user-1",
@@ -169,7 +169,7 @@ class TestCanvasUpdateGovernance:
         """Test canvas update without agent (governance disabled)."""
         updates = {"title": "New Title"}
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -198,7 +198,7 @@ class TestCanvasUpdateFunctionality:
             ]
         }
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -215,7 +215,7 @@ class TestCanvasUpdateFunctionality:
         """Test updating canvas title."""
         updates = {"title": "Updated: Q4 Sales Report"}
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -235,7 +235,7 @@ class TestCanvasUpdateFunctionality:
             "color": "#FF5733"
         }
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -251,7 +251,7 @@ class TestCanvasUpdateFunctionality:
         """Test canvas update with session ID for isolation."""
         updates = {"data": [{"x": 1, "y": 5}]}
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -278,7 +278,7 @@ class TestCanvasUpdateErrorHandling:
         with patch('tools.canvas_tool.ws_manager') as mock_ws_manager:
             mock_ws_manager.broadcast = AsyncMock(side_effect=Exception("WebSocket error"))
 
-            with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+            with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
                 result = await update_canvas(
                     user_id="user-1",
                     canvas_id="canvas-123",
@@ -293,7 +293,7 @@ class TestCanvasUpdateErrorHandling:
         """Test behavior with empty updates dictionary."""
         updates = {}
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await update_canvas(
                     user_id="user-1",
@@ -314,10 +314,27 @@ class TestCanvasUpdateAuditTrail:
         """Test that canvas updates create audit entries."""
         updates = {"data": [{"x": 1, "y": 10}]}
 
-        with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
-            with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+        # Track all added entries globally
+        added_entries = []
 
+        def create_mock_db():
+            """Create a mock db that tracks added entries"""
+            db = Mock()
+            def mock_add(entry):
+                added_entries.append(entry)
+            db.add = mock_add
+            db.commit = Mock()
+            db.refresh = Mock()
+            db.query = Mock(return_value=Mock(
+                filter=Mock(return_value=Mock(
+                    first=Mock(return_value=None)
+                ))
+            ))
+            db.close = Mock()
+            return db
+
+        with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
+            with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
                     mock_resolver_instance.resolve_agent_for_request = AsyncMock(
@@ -325,32 +342,36 @@ class TestCanvasUpdateAuditTrail:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": True,
                             "reason": "Test"
                         }
                         mock_governance_instance.record_outcome = AsyncMock()
-                        mock_governance.return_value = mock_governance_instance
+                        mock_get_gov.return_value = mock_governance_instance
 
-                        # Track calls to db.add
-                        added_entries = []
-                        def mock_add(entry):
-                            added_entries.append(entry)
+                        # Create mock database session
+                        mock_db_instance = create_mock_db()
 
-                        mock_db.add = mock_add
+                        # Patch get_db_session to yield our mock db
+                        from contextlib import contextmanager
 
-                        result = await update_canvas(
-                            user_id="user-1",
-                            canvas_id="canvas-123",
-                            updates=updates,
-                            agent_id=intern_agent.id
-                        )
+                        @contextmanager
+                        def mock_get_db():
+                            yield mock_db_instance
 
-                        # Verify AgentExecution was created
-                        execution_entries = [e for e in added_entries if isinstance(e, AgentExecution)]
-                        assert len(execution_entries) > 0
+                        with patch('core.database.get_db_session', side_effect=mock_get_db):
+                            result = await update_canvas(
+                                user_id="user-1",
+                                canvas_id="canvas-123",
+                                updates=updates,
+                                agent_id=intern_agent.id
+                            )
+
+                            # Verify AgentExecution was created
+                            execution_entries = [e for e in added_entries if isinstance(e, AgentExecution)]
+                            assert len(execution_entries) > 0
 
     @pytest.mark.asyncio
     async def test_update_canvas_includes_metadata(self, intern_agent, mock_db, mock_ws_manager):
@@ -371,14 +392,14 @@ class TestCanvasUpdateAuditTrail:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": True,
                             "reason": "Test"
                         }
                         mock_governance_instance.record_outcome = AsyncMock()
-                        mock_governance.return_value = mock_governance_instance
+                        mock_get_gov.return_value = mock_governance_instance
 
                         result = await update_canvas(
                             user_id="user-1",

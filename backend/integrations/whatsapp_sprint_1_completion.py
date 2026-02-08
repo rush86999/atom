@@ -3,9 +3,9 @@ WhatsApp Development - Next Steps Implementation
 Complete Sprint 1 goals and prepare for Sprint 2
 """
 
+from datetime import datetime, timedelta
 import json
 import os
-from datetime import datetime, timedelta
 
 
 def create_sprint_1_completion_tasks():

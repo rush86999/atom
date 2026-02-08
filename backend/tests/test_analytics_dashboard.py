@@ -8,7 +8,7 @@ import pytest
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import analytics_dashboard
+from scripts.dev import analytics_dashboard
 
 
 class TestBasic:

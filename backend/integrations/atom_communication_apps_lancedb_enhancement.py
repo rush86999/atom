@@ -3,9 +3,9 @@ Communication Apps - LanceDB Ingestion Enhancement
 Update all existing communication apps with LanceDB ingestion option
 """
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from integrations.atom_communication_ingestion_pipeline import (

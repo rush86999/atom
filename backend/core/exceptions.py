@@ -743,7 +743,7 @@ def handle_exception(
 
     for exc_type, atom_exc_type in exception_mapping.items():
         if isinstance(exc, exc_type):
-            return atom_exception(
+            return atom_exc_type(
                 message=str(exc) or default_message,
                 cause=exc
             )

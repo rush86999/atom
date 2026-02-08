@@ -8,8 +8,8 @@ sys.path.append(os.getcwd())
 
 import accounting.models
 
-import core.models
 from core.database import Base, engine
+import core.models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

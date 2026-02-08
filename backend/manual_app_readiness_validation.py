@@ -4,9 +4,9 @@ Simplified App Readiness Manual Validation
 Comprehensive assessment of implemented features
 """
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

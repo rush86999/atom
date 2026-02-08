@@ -6,8 +6,8 @@ Provides monitoring, intervention, and outcome tracking.
 """
 
 import asyncio
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -380,6 +380,57 @@ class SupervisionService:
 
         self.db.commit()
 
+        # NEW: Create episode from supervision session (non-blocking)
+        try:
+            from core.episode_segmentation_service import EpisodeSegmentationService
+
+            # Get associated execution
+            execution = self.db.query(AgentExecution).filter(
+                AgentExecution.agent_id == session.agent_id,
+                AgentExecution.started_at >= session.started_at
+            ).order_by(AgentExecution.started_at.desc()).first()
+
+            if execution:
+                # Create episode asynchronously (non-blocking)
+                import asyncio
+                episode_service = EpisodeSegmentationService(self.db)
+                asyncio.create_task(
+                    episode_service.create_supervision_episode(
+                        supervision_session=session,
+                        agent_execution=execution,
+                        db=self.db
+                    )
+                )
+
+                logger.info(
+                    f"Initiated supervision episode creation for session {session_id}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to initiate supervision episode creation: {e}")
+
+        # NEW: Trigger two-way learning (non-blocking)
+        try:
+            from core.feedback_service import FeedbackService
+            from core.supervisor_learning_service import SupervisorLearningService
+
+            feedback_service = FeedbackService(self.db)
+            learning_service = SupervisorLearningService(self.db)
+
+            # Auto-create supervisor rating from the session
+            asyncio.create_task(
+                self._process_supervision_feedback(
+                    session=session,
+                    feedback_service=feedback_service,
+                    learning_service=learning_service
+                )
+            )
+
+            logger.info(
+                f"Initiated two-way learning for session {session_id}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to initiate two-way learning: {e}")
+
         return SupervisionOutcome(
             session_id=session_id,
             success=supervisor_rating >= 3,
@@ -468,3 +519,217 @@ class SupervisionService:
         boost = max(0.0, rating_boost - intervention_penalty)
 
         return round(boost, 3)
+
+    # ========================================================================
+    # Autonomous Supervisor Integration
+    # ========================================================================
+
+    async def start_supervision_with_fallback(
+        self,
+        agent_id: str,
+        trigger_context: Dict[str, Any],
+        workspace_id: str,
+        user_id: str
+    ) -> SupervisionSession:
+        """
+        Start supervision with autonomous fallback.
+
+        Tries to use human supervisor first, falls back to autonomous agent
+        if human is unavailable.
+
+        Args:
+            agent_id: SUPERVISED agent to execute
+            trigger_context: Execution context
+            workspace_id: Workspace ID
+            user_id: User who owns the agent
+
+        Returns:
+            SupervisionSession with appropriate supervisor
+        """
+        from core.user_activity_service import UserActivityService
+        from core.autonomous_supervisor_service import AutonomousSupervisorService
+
+        # Check if user is available
+        user_activity_service = UserActivityService(self.db)
+        user_state = await user_activity_service.get_user_state(user_id)
+
+        supervisor_id = user_id
+        supervisor_type = "user"
+
+        # If user unavailable, try to find autonomous supervisor
+        if user_state not in ["online", "away"]:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if agent:
+                autonomous_service = AutonomousSupervisorService(self.db)
+                autonomous_supervisor = await autonomous_service.find_autonomous_supervisor(
+                    intern_agent=agent
+                )
+
+                if autonomous_supervisor:
+                    supervisor_id = autonomous_supervisor.id
+                    supervisor_type = "autonomous_agent"
+                    logger.info(
+                        f"Using autonomous supervisor {autonomous_supervisor.id} "
+                        f"for agent {agent_id} (user unavailable)"
+                    )
+                else:
+                    logger.warning(
+                        f"No autonomous supervisor found for {agent_id}, "
+                        f"queuing execution"
+                    )
+                    # Queue the execution for later
+                    from core.supervised_queue_service import SupervisedQueueService
+                    queue_service = SupervisedQueueService(self.db)
+                    await queue_service.enqueue_execution(
+                        agent_id=agent_id,
+                        user_id=user_id,
+                        trigger_type=trigger_context.get("trigger_type", "automated"),
+                        execution_context=trigger_context
+                    )
+                    raise ValueError("User unavailable and no autonomous supervisor - execution queued")
+
+        # Create supervision session
+        session = SupervisionSession(
+            agent_id=agent_id,
+            agent_name=agent.name if agent else "Unknown",
+            workspace_id=workspace_id,
+            trigger_context=trigger_context,
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id=supervisor_id
+        )
+
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
+
+        logger.info(
+            f"Started supervision session {session.id} with {supervisor_type} supervisor"
+        )
+
+        return session
+
+    async def monitor_with_autonomous_fallback(
+        self,
+        session: SupervisionSession
+    ):
+        """
+        Monitor execution with autonomous supervisor.
+
+        Args:
+            session: Supervision session to monitor
+        """
+        from core.autonomous_supervisor_service import AutonomousSupervisorService
+
+        # Check supervisor type
+        is_autonomous = session.supervisor_id != session.trigger_context.get("user_id")
+
+        if is_autonomous:
+            # Use autonomous monitoring
+            autonomous_service = AutonomousSupervisorService(self.db)
+
+            # Get supervisor agent
+            supervisor = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == session.supervisor_id
+            ).first()
+
+            if not supervisor:
+                logger.error(f"Autonomous supervisor not found: {session.supervisor_id}")
+                return
+
+            # Get execution ID
+            execution = self.db.query(AgentExecution).filter(
+                AgentExecution.agent_id == session.agent_id,
+                AgentExecution.started_at >= session.started_at
+            ).order_by(AgentExecution.started_at.desc()).first()
+
+            if not execution:
+                logger.warning(f"No execution found for session {session.id}")
+                return
+
+            # Monitor with autonomous supervisor
+            async for event in autonomous_service.monitor_execution(
+                execution_id=execution.id,
+                supervisor=supervisor
+            ):
+                # Log events
+                logger.info(
+                    f"Autonomous supervision event: {event.event_type} "
+                    f"(session: {session.id})"
+                )
+
+                # Handle concern detection
+                if event.event_type == "concern_detected":
+                    # Could implement autonomous intervention here
+                    pass
+        else:
+            # Use existing human monitoring
+            pass  # Already handled by existing monitor_agent_execution method
+
+    async def _process_supervision_feedback(
+        self,
+        session: SupervisionSession,
+        feedback_service: 'FeedbackService',
+        learning_service: 'SupervisorLearningService'
+    ):
+        """
+        Process supervision feedback for two-way learning.
+
+        Creates supervisor rating and triggers learning updates.
+        """
+        try:
+            # Create supervisor rating from session data
+            # Use a system user ID for auto-generated ratings
+            rater_id = f"system_{session.supervisor_id}"
+
+            await feedback_service.rate_supervisor(
+                supervision_session_id=session.id,
+                rater_id=rater_id,
+                rating=session.supervisor_rating or 3,
+                rating_category="session_outcome",
+                reason=session.supervisor_feedback,
+                agent_id=session.agent_id,
+            )
+
+            # Process feedback for learning
+            await learning_service.process_feedback_for_learning(
+                supervisor_id=session.supervisor_id,
+                feedback_type="rating",
+                feedback_data={
+                    "rating": session.supervisor_rating or 3,
+                    "session_id": session.id,
+                }
+            )
+
+            # Track intervention outcomes if any interventions occurred
+            if session.intervention_count > 0:
+                from core.supervisor_performance_service import SupervisorPerformanceService
+                perf_service = SupervisorPerformanceService(self.db)
+
+                for intervention in session.interventions:
+                    await perf_service.track_intervention_outcome(
+                        supervision_session_id=session.id,
+                        intervention_type=intervention.get("type", "unknown"),
+                        intervention_timestamp=datetime.fromisoformat(intervention.get("timestamp")),
+                        outcome="success" if session.supervisor_rating >= 4 else "partial",
+                        was_effective=session.supervisor_rating >= 3,
+                    )
+
+                    # Process for learning
+                    await learning_service.process_feedback_for_learning(
+                        supervisor_id=session.supervisor_id,
+                        feedback_type="intervention_outcome",
+                        feedback_data={
+                            "outcome": "success" if session.supervisor_rating >= 4 else "partial",
+                            "was_effective": session.supervisor_rating >= 3,
+                            "intervention_type": intervention.get("type", "unknown"),
+                        }
+                    )
+
+            logger.info(
+                f"Completed two-way learning processing for session {session.id}"
+            )
+        except Exception as e:
+            logger.error(f"Error processing supervision feedback: {e}")

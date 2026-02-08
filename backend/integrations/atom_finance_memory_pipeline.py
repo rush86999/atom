@@ -4,10 +4,10 @@ Background ingestion for Stripe and Xero data into LanceDB for AI/RAG.
 """
 
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.websockets import manager

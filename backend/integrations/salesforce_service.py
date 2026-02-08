@@ -1,6 +1,6 @@
+from datetime import datetime, timezone
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from simple_salesforce import Salesforce, SalesforceAuthenticationFailed
 
@@ -327,9 +327,16 @@ class SalesforceService:
     Salesforce Service Class
     Wraps standalone functions for object-oriented access and health check compliance.
     """
-    
-    def __init__(self):
-        pass
+
+    def __init__(self, cache_enabled: bool = True):
+        """
+        Initialize Salesforce service.
+
+        Args:
+            cache_enabled: Whether to enable caching for API responses
+        """
+        self.cache_enabled = cache_enabled
+        self._cache = {}
 
     async def get_client(self, user_id: str, db_conn_pool) -> Optional[Salesforce]:
         return await get_salesforce_client(user_id, db_conn_pool)

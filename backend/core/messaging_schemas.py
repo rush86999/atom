@@ -1,7 +1,7 @@
 import datetime
-import uuid
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, validator
+import uuid
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskRequest(BaseModel):
@@ -13,7 +13,8 @@ class TaskRequest(BaseModel):
     priority: Literal['low', 'medium', 'high', 'critical'] = 'medium'
     timestamp: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
 
-    @validator('user_id')
+    @field_validator('user_id')
+    @classmethod
     def user_id_must_be_present(cls, v):
         if not v or not v.strip():
             raise ValueError('user_id must not be empty')

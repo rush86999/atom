@@ -1,6 +1,6 @@
 
-import logging
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, List
 from ecommerce.models import EcommerceCustomer, EcommerceOrder
 from sales.models import Deal, DealStage, Lead, LeadStatus

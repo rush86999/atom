@@ -22,6 +22,26 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 **Key Difference**: Unlike SaaS alternatives, Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
+> **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison with other open-source AI automation platforms.
+
+---
+
+## Atom vs OpenClaw: Quick Comparison
+
+| Aspect | Atom | OpenClaw |
+|--------|------|----------|
+| **Best For** | Business automation, multi-agent workflows, enterprise governance | Personal productivity, messaging-based workflows |
+| **Agent Model** | Multi-agent system with specialty agents | Single-agent runtime |
+| **Governance** | ✅ 4-tier maturity (Student → Autonomous) with audit trails | ❌ No maturity levels |
+| **Memory** | ✅ Episodic memory with graduation validation | ✅ Persistent Markdown files |
+| **Integrations** | 46+ business (CRM, support, dev tools) | 50+ personal (smart home, media, messaging) |
+| **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
+| **Real-Time Visibility** | ✅ Canvas, operation tracking, error resolution | ❌ No operation visibility |
+| **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
+| **Primary Focus** | Business process automation with safety guardrails | Personal assistant with rapid experimentation |
+
+[Full Comparison →](docs/ATOM_VS_OPENCLAW.md)
+
 ---
 
 ## Key Features
@@ -55,6 +75,8 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 - **Capability Recall**: Agents remember your connected services
 - **Unified Index**: Search emails, docs, tickets, and Slack instantly
 - **Knowledge Graph**: Understands relationships, not just keywords
+- **Episodic Memory**: Agents learn from past experiences with automatic segmentation
+- **Graduation Validation**: Promote agents only when they demonstrate reliable performance
 - **Privacy First**: API keys and PII automatically encrypted
 
 ### 🛡️ Agent Governance System
@@ -67,8 +89,11 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ### 🔌 Deep Integrations
 - **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
-- **Multi-platform bridge**: 12+ platforms (Slack, WhatsApp, Discord, Teams, etc.)
+- **9 fully implemented messaging platforms**: Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Facebook Messenger, LINE
+- Proactive messaging, scheduled messages, and condition monitoring
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
+
+[Platform Guide →](docs/MESSAGING_PLATFORMS.md) | [Messaging Features →](docs/MESSAGING_GUIDE.md)
 
 ### 🛠️ Dynamic Skills
 - Agents build new tools on-the-fly
@@ -119,6 +144,7 @@ Access at: **http://localhost:3000**
 ✅ 46+ pre-built integrations
 ✅ Multi-platform communication bridge (12+ platforms)
 ✅ Agent governance and maturity system
+✅ Episodic memory and graduation framework
 ✅ Memory and knowledge graph
 ✅ Voice interface
 ✅ Docker deployment
@@ -127,7 +153,16 @@ Access at: **http://localhost:3000**
 
 ## Recent Features (February 2026)
 
-### Student Agent Training System ✨ NEW
+### Episodic Memory & Graduation Framework ✨ NEW
+- **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
+- **Hybrid storage architecture**: PostgreSQL (hot data) + LanceDB (cold archives) for efficient scaling
+- **Four retrieval modes**: Temporal (time-based), Semantic (vector search), Sequential (full episodes), Contextual (hybrid)
+- **Graduation validation**: Assess agent readiness using episodic memory before maturity promotions
+- **Constitutional compliance**: Track intervention rates and validate against governance rules
+- **Use cases**: MedScribe (clinical documentation), Brennan.ca (pricing validation), workflow optimization
+- [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
+
+### Student Agent Training System
 - **Maturity-based routing**: Prevents STUDENT agents from automated triggers
 - **AI training proposals**: Personalized learning with duration estimation
 - **Real-time supervision**: Monitor SUPERVISED agents with intervention controls
@@ -153,11 +188,14 @@ Access at: **http://localhost:3000**
 ## Documentation
 
 - [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
+- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Experience-based learning system
+- [Agent Graduation Guide](docs/AGENT_GRADUATION_GUIDE.md) - Promotion validation framework
 - [Student Agent Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity-based routing system
 - [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system details
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
 - [Recording System](docs/CANVAS_RECORDING_IMPLEMENTATION.md) - Recording and playback
 - [Review Integration](docs/RECORDING_REVIEW_INTEGRATION.md) - Governance & learning
+- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
 
 ---
 
@@ -169,8 +207,10 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Support
 
-- **Documentation**: `docs/` directory
-- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
+- **Documentation**: See [docs/INDEX.md](docs/INDEX.md) for complete documentation index
+- **Developer Guide**: See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and deployment
+- **Implementation History**: See [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) for recent changes
+- **Issues**: [GitHub Issues](https://github.com/rush8699/atom/issues)
 - **License**: AGPL v3 - See [LICENSE.md](LICENSE.md)
 
 ---

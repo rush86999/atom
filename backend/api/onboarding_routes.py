@@ -1,13 +1,14 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/onboarding", tags=["Onboarding"])
 
 class OnboardingUpdate(BaseModel):
     step: Optional[str] = None
@@ -24,18 +25,20 @@ async def update_onboarding_status(
     """
     if update_data.step is not None:
         current_user.onboarding_step = update_data.step
-    
+
     if update_data.completed is not None:
         current_user.onboarding_completed = update_data.completed
-        
+
     db.commit()
     db.refresh(current_user)
-    
-    return {
-        "status": "success",
-        "onboarding_step": current_user.onboarding_step,
-        "onboarding_completed": current_user.onboarding_completed
-    }
+
+    return router.success_response(
+        data={
+            "onboarding_step": current_user.onboarding_step,
+            "onboarding_completed": current_user.onboarding_completed
+        },
+        message="Onboarding status updated successfully"
+    )
 
 @router.get("/status")
 async def get_onboarding_status(
@@ -44,7 +47,9 @@ async def get_onboarding_status(
     """
     Get the authenticated user's current onboarding status.
     """
-    return {
-        "onboarding_step": current_user.onboarding_step,
-        "onboarding_completed": current_user.onboarding_completed
-    }
+    return router.success_response(
+        data={
+            "onboarding_step": current_user.onboarding_step,
+            "onboarding_completed": current_user.onboarding_completed
+        }
+    )

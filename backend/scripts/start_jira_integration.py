@@ -5,10 +5,10 @@ Starts the backend server with proper Jira OAuth configuration
 """
 
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 
 def load_env_variables():

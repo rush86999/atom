@@ -3,9 +3,9 @@ Secrets Redaction Module for Atom Memory
 Ensures sensitive data (API keys, passwords, tokens, PII) is never stored in memory.
 """
 
+from dataclasses import dataclass
 import logging
 import re
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)

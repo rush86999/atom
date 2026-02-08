@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime, timedelta, timezone
+import logging
 from typing import Any, Dict, List
 from ecommerce.models import EcommerceOrder
 from marketing.models import AdSpendEntry, AttributionEvent, MarketingChannel

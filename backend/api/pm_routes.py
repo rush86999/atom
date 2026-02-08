@@ -1,14 +1,14 @@
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from service_delivery.models import Milestone, Project, ProjectTask
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.pm_engine import pm_engine
 from core.pm_orchestrator import pm_orchestrator
 
-router = APIRouter(prefix="/pm", tags=["Project Management"])
+router = BaseAPIRouter(prefix="/pm", tags=["Project Management"])
 
 class ProjectLaunchRequest(BaseModel):
     prompt: str
@@ -27,8 +27,14 @@ async def launch_project(request: ProjectLaunchRequest):
         contract_id=request.contract_id
     )
     if result["status"] == "failed":
-        raise HTTPException(status_code=500, detail=result["error"])
-    return result
+        raise router.internal_error(
+            message="Failed to launch project",
+            details={"error": result.get("error", "Unknown error")}
+        )
+    return router.success_response(
+        data=result,
+        message="Project launched successfully"
+    )
 
 @router.post("/projects/{project_id}/sync")
 async def sync_project_status(project_id: str, user_id: str, db: Session = Depends(get_db)):
@@ -37,8 +43,15 @@ async def sync_project_status(project_id: str, user_id: str, db: Session = Depen
     """
     result = await pm_engine.infer_project_status(project_id, user_id)
     if result["status"] == "error":
-        raise HTTPException(status_code=404, detail=result["message"])
-    return result
+        raise router.not_found_error(
+            resource="Project",
+            resource_id=project_id,
+            details={"message": result.get("message", "Project not found")}
+        )
+    return router.success_response(
+        data=result,
+        message="Project status synced successfully"
+    )
 
 @router.get("/projects/{project_id}/risks")
 async def get_project_risks(project_id: str, user_id: str, db: Session = Depends(get_db)):
@@ -47,8 +60,15 @@ async def get_project_risks(project_id: str, user_id: str, db: Session = Depends
     """
     result = await pm_engine.analyze_project_risks(project_id, user_id)
     if result["status"] == "error":
-        raise HTTPException(status_code=404, detail=result["message"])
-    return result
+        raise router.not_found_error(
+            resource="Project",
+            resource_id=project_id,
+            details={"message": result.get("message", "Project not found")}
+        )
+    return router.success_response(
+        data=result,
+        message="Project risks retrieved successfully"
+    )
 
 @router.get("/projects/{project_id}/details")
 async def get_project_details(project_id: str, db: Session = Depends(get_db)):
@@ -57,10 +77,10 @@ async def get_project_details(project_id: str, db: Session = Depends(get_db)):
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
+        raise router.not_found_error("Project", project_id)
+
     milestones = db.query(Milestone).filter(Milestone.project_id == project_id).all()
-    
+
     milestone_list = []
     for ms in milestones:
         tasks = db.query(ProjectTask).filter(ProjectTask.milestone_id == ms.id).all()
@@ -78,16 +98,19 @@ async def get_project_details(project_id: str, db: Session = Depends(get_db)):
                 } for t in tasks
             ]
         })
-    
-    return {
-        "id": project.id,
-        "name": project.name,
-        "description": project.description,
-        "status": project.status,
-        "risk_level": project.risk_level,
-        "budget_amount": project.budget_amount,
-        "milestones": milestone_list
-    }
+
+    return router.success_response(
+        data={
+            "id": project.id,
+            "name": project.name,
+            "description": project.description,
+            "status": project.status,
+            "risk_level": project.risk_level,
+            "budget_amount": project.budget_amount,
+            "milestones": milestone_list
+        },
+        message="Project details retrieved successfully"
+    )
 
 @router.post("/provision/{deal_id}")
 async def provision_project(deal_id: str, external_platform: Optional[str] = None, user_id: str = "default"):
@@ -96,5 +119,12 @@ async def provision_project(deal_id: str, external_platform: Optional[str] = Non
     """
     result = await pm_orchestrator.provision_from_deal(deal_id, user_id, "default", external_platform)
     if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result
+        raise router.error_response(
+            error_code="PROVISION_FAILED",
+            message=result.get("message", "Failed to provision project"),
+            status_code=400
+        )
+    return router.success_response(
+        data=result,
+        message="Project provisioned successfully"
+    )

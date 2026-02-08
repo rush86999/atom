@@ -1,14 +1,15 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import Depends, Request
 from service_delivery.models import Milestone, MilestoneStatus
 from sqlalchemy.orm import Session
 
-from core.api_governance import require_governance, ActionComplexity
+from core.api_governance import ActionComplexity, require_governance
+from core.base_routes import BaseAPIRouter
 from core.billing_orchestrator import billing_orchestrator
 from core.database import get_db
 
-router = APIRouter(prefix="/billing", tags=["Billing & Invoicing"])
+router = BaseAPIRouter(prefix="/billing", tags=["Billing & Invoicing"])
 logger = logging.getLogger(__name__)
 
 @router.post("/milestone/{milestone_id}")
@@ -32,10 +33,17 @@ async def bill_milestone(
     """
     result = await billing_orchestrator.process_milestone_completion(milestone_id, "default")
     if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
+        raise router.error_response(
+            error_code="BILLING_FAILED",
+            message=result.get("message", "Failed to process milestone billing"),
+            status_code=400
+        )
 
     logger.info(f"Milestone billed: {milestone_id}")
-    return result
+    return router.success_response(
+        data=result,
+        message="Milestone billed successfully"
+    )
 
 @router.get("/unbilled-milestones")
 async def get_unbilled_milestones(db: Session = Depends(get_db)):

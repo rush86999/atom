@@ -2,19 +2,19 @@
 # For more information, see: https://github.com/dscripka/openWakeWord
 import collections
 import os
+from pathlib import Path
 import tarfile
 import zipfile
-from pathlib import Path
 import datasets
 import librosa
 import numpy as np
+from numpy.lib.format import open_memmap
 import openwakeword
 import openwakeword.data
 import openwakeword.metrics
 import openwakeword.utils
 import scipy
 import torch
-from numpy.lib.format import open_memmap
 from torch import nn
 from tqdm import tqdm
 

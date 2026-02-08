@@ -310,3 +310,143 @@ For high-throughput scenarios, consider:
 - Connection pooling optimizations
 - Read replicas for read-heavy workloads
 """
+
+
+# ============================================================================
+# Async Database Support (Experimental)
+# ============================================================================
+
+"""
+ASYNC DATABASE SESSION PATTERN
+
+For async/await code, use the async session factory:
+
+    from core.database import get_async_db_session
+
+    async with get_async_db_session() as db:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        # Auto-commits on success, auto-rollback on exception
+
+Benefits:
+- Full async/await support
+- Non-blocking database operations
+- Better performance for I/O-bound workloads
+- Compatible with async FastAPI endpoints
+"""
+
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    # Create async database URL
+    # SQLite: sqlite:///./dev.db -> sqlite+aiosqlite:///./dev.db
+    # PostgreSQL: postgresql://... -> postgresql+asyncpg://...
+    async_db_url = DATABASE_URL
+
+    if "sqlite:///" in async_db_url:
+        async_db_url = async_db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    elif "postgresql://" in async_db_url:
+        async_db_url = async_db_url.replace("postgresql://", "postgresql+asyncpg://")
+    elif "postgres://" in async_db_url:
+        async_db_url = async_db_url.replace("postgres://", "postgresql+asyncpg://")
+
+    # Create async engine
+    async_engine_kwargs = {
+        "echo": os.getenv("SQL_ECHO", "false").lower() == "true",
+    }
+
+    # Add pool configuration for async engine
+    if pool_size:
+        async_engine_kwargs.update({
+            "pool_size": pool_size,
+            "max_overflow": max_overflow,
+        })
+
+    async_engine = create_async_engine(async_db_url, **async_engine_kwargs)
+
+    # Create async session factory
+    AsyncSessionLocal = async_sessionmaker(
+        async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False
+    )
+
+    ASYNC_DB_AVAILABLE = True
+    logger.info("Async database support enabled")
+
+except ImportError as e:
+    ASYNC_DB_AVAILABLE = False
+    logger.warning(f"Async database support unavailable: {e}")
+    logger.warning("Install aiosqlite for SQLite async support: pip install aiosqlite")
+    logger.warning("Install asyncpg for PostgreSQL async support: pip install asyncpg")
+
+    async_engine = None
+    AsyncSessionLocal = None
+
+
+async def get_async_db():
+    """
+    Async dependency injection pattern for API routes.
+
+    Usage in async FastAPI endpoints:
+        @app.get("/users/{user_id}")
+        async def get_user(user_id: str, db: AsyncSession = Depends(get_async_db)):
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            return user
+    """
+    if not ASYNC_DB_AVAILABLE:
+        raise RuntimeError("Async database support not available. Install aiosqlite or asyncpg.")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+def get_async_db_session():
+    """
+    Async context manager pattern for service layer.
+
+    This is the RECOMMENDED pattern for async service layer code.
+
+    Usage:
+        from core.database import get_async_db_session
+        from sqlalchemy import select
+
+        async with get_async_db_session() as db:
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            user.name = "Updated"
+            await db.commit()  # Optional - auto-commits on success
+        # Session automatically closed after context
+
+    Benefits:
+    - Automatic cleanup with async context manager
+    - Clear scope for database operations
+    - Prevents connection leaks
+    - Non-blocking database operations
+    """
+    if not ASYNC_DB_AVAILABLE:
+        raise RuntimeError("Async database support not available. Install aiosqlite or asyncpg.")
+
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _async_session_context():
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    return _async_session_context()

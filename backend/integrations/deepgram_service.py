@@ -3,12 +3,12 @@ Deepgram Service for ATOM Platform
 Provides comprehensive Deepgram speech recognition and AI audio processing integration functionality
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
-import httpx
 from fastapi import HTTPException
+import httpx
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ Standalone OAuth Server - Ultra Simple
 """
 
 import os
-import time
 from threading import Thread
+import time
 from flask import Flask, jsonify, request
 
 # Load GitHub credentials

@@ -3,10 +3,10 @@ Configuration Management for ATOM Platform
 Centralized configuration with environment variables and defaults
 """
 
+from dataclasses import asdict, dataclass
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -128,17 +128,38 @@ class SecurityConfig:
     jwt_expiration: int = 86400  # 24 hours
     cors_origins: list = None
     encryption_key: str = None
-    
+    allow_dev_temp_users: bool = False
+
     def __post_init__(self):
+        environment = os.getenv('ENVIRONMENT', 'development')
+
+        # Check if using default secret key
+        if environment == 'production' and self.secret_key == "atom-secret-key-change-in-production":
+            logger.error("🚨 CRITICAL: Using default SECRET_KEY in production!")
+            self._log_security_event("default_secret_key", "critical", {"environment": environment})
+
+        # For development, generate secure random key if not set
+        elif environment == 'development' and not os.getenv('SECRET_KEY'):
+            import secrets
+            self.secret_key = secrets.token_urlsafe(32)
+            logger.warning(f"⚠️ Generated temporary SECRET_KEY for development: {self.secret_key[:8]}...")
+
         self.secret_key = os.getenv('SECRET_KEY', self.secret_key)
         if os.getenv('JWT_EXPIRATION'):
             self.jwt_expiration = int(os.getenv('JWT_EXPIRATION'))
         if os.getenv('ENCRYPTION_KEY'):
             self.encryption_key = os.getenv('ENCRYPTION_KEY')
-        
+
+        self.allow_dev_temp_users = os.getenv('ALLOW_DEV_TEMP_USERS', 'false').lower() == 'true'
+
         if self.cors_origins is None:
             cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:1420')
             self.cors_origins = [origin.strip() for origin in cors_origins.split(',')]
+
+    def _log_security_event(self, event_type: str, severity: str, details: dict):
+        """Log security events for audit trail"""
+        logger.info(f"Security Audit: {event_type} - {severity} - {details}")
+        # Note: Would also write to SecurityAuditLog table when implemented
 
 @dataclass
 class APIConfig:
@@ -373,6 +394,32 @@ class ATOMConfig:
     def is_development(self) -> bool:
         """Check if running in development"""
         return os.getenv('ENVIRONMENT', 'development') == 'development'
+
+    def validate(self) -> Dict[str, Any]:
+        """Validate configuration and return any issues"""
+        issues = []
+
+        # Check database config
+        if not self.database.url:
+            issues.append("Database URL is required")
+
+        # Check security config
+        if not self.security.secret_key or self.security.secret_key == "atom-secret-key-change-in-production":
+            if os.getenv('ENVIRONMENT', 'development') == 'production':
+                issues.append("Secret key must be set in production")
+
+        # Check integration tokens
+        if os.getenv('ENVIRONMENT', 'development') == 'production':
+            # Check critical integrations
+            if not self.integrations.google_client_id:
+                issues.append("Google client ID is recommended for full functionality")
+            if not self.integrations.microsoft_client_id:
+                issues.append("Microsoft client ID is recommended for full functionality")
+
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues
+        }
 
 # Global configuration instance
 config = ATOMConfig.from_env()

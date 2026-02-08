@@ -4,12 +4,12 @@ Integrates Discord seamlessly into ATOM's unified communication ecosystem
 """
 
 import asyncio
-import json
-import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import json
+import logging
+import os
 from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
@@ -26,10 +26,17 @@ try:
         DiscordUser,
         discord_enhanced_service,
     )
+
+    from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
     discord_enhanced_service = None
     discord_analytics_engine = None
+    DiscordGuild = None  # Define as None if import fails
+    DiscordChannel = None
+    DiscordMessage = None
+    DiscordUser = None
+    UnifiedWorkspace = None
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +50,22 @@ class AtomDiscordIntegration:
         self.atom_search = config.get('atom_search_service')
         self.atom_workflow = config.get('atom_workflow_service')
         self.atom_ingestion = config.get('atom_ingestion_pipeline')
-        
+        self.db = config.get('database')
+
         # Discord services
         self.discord_service = discord_enhanced_service
         self.discord_analytics = discord_analytics_engine
-        
+
+        # Workspace synchronization service
+        self.workspace_sync = None
+        if self.db:
+            try:
+                from integrations.workspace_sync_service import WorkspaceSyncService
+                self.workspace_sync = WorkspaceSyncService(self.db)
+                logger.info("Workspace sync service initialized for Discord integration")
+            except ImportError as e:
+                logger.warning(f"Workspace sync service not available: {e}")
+
         # Integration state
         self.is_initialized = False
         self.active_guilds: List[DiscordGuild] = []
@@ -785,18 +803,233 @@ class AtomDiscordIntegration:
     async def _update_workspace_cross_platform(self, event_data: Dict[str, Any], platform: str):
         """Update workspace information across platforms"""
         try:
-            # This would update unified workspace information
-            pass
+            if not self.workspace_sync:
+                logger.debug("Workspace sync service not available, skipping cross-platform update")
+                return
+
+            # Extract workspace information from event
+            guild_id = event_data.get('guild_id', '')
+            guild_name = event_data.get('guild_name', 'Unknown Guild')
+            event_type = event_data.get('type', '')
+
+            logger.info(
+                f"Processing cross-platform workspace update: "
+                f"platform={platform}, event_type={event_type}, guild={guild_name}"
+            )
+
+            # Determine change type based on event
+            if event_type in ['GUILD_UPDATE', 'GUILD_NAME_UPDATE']:
+                change_type = 'name_change'
+            elif event_type == 'GUILD_MEMBER_ADD':
+                change_type = 'member_add'
+            elif event_type == 'GUILD_MEMBER_REMOVE':
+                change_type = 'member_remove'
+            elif event_type == 'GUILD_ROLE_UPDATE':
+                change_type = 'member_role_change'
+            elif event_type == 'GUILD_CHANNEL_CREATE':
+                change_type = 'channel_add'
+            elif event_type == 'GUILD_CHANNEL_DELETE':
+                change_type = 'channel_remove'
+            else:
+                change_type = 'settings_change'  # Default
+
+            # Get or create unified workspace
+            unified_workspace = await self._get_or_create_unified_workspace(
+                guild_id=guild_id,
+                guild_name=guild_name
+            )
+
+            if not unified_workspace:
+                logger.warning(f"Could not get or create unified workspace for guild {guild_id}")
+                return
+
+            # Propagate changes to other platforms
+            await self.workspace_sync.propagate_change(
+                workspace_id=unified_workspace.id,
+                source_platform='discord',
+                change_type=change_type,
+                change_data={
+                    'guild_name': guild_name,
+                    'guild_id': guild_id,
+                    'event_type': event_type,
+                    'event_data': event_data
+                }
+            )
+
+            logger.info(
+                f"Successfully propagated workspace change for {guild_name} "
+                f"(unified workspace ID: {unified_workspace.id})"
+            )
+
         except Exception as e:
             logger.error(f"Error updating workspace cross-platform: {e}")
-    
+
+    async def _get_or_create_unified_workspace(
+        self,
+        guild_id: str,
+        guild_name: str
+    ):
+        """
+        Get or create a unified workspace for a Discord guild.
+
+        Args:
+            guild_id: Discord guild ID
+            guild_name: Discord guild name
+
+        Returns:
+            UnifiedWorkspace object or None
+        """
+        try:
+            from sqlalchemy import or_
+
+            # Search for existing unified workspace with this Discord guild
+            existing = self.db.query(UnifiedWorkspace).filter(
+                UnifiedWorkspace.discord_guild_id == guild_id
+            ).first()
+
+            if existing:
+                logger.debug(f"Found existing unified workspace {existing.id} for guild {guild_id}")
+                return existing
+
+            # Create new unified workspace
+            # Use a default user_id - in production this would come from authentication
+            user_id = "system"
+
+            unified_workspace = self.workspace_sync.create_unified_workspace(
+                user_id=user_id,
+                name=guild_name,
+                description=f"Unified workspace for Discord guild: {guild_name}",
+                discord_guild_id=guild_id,
+                sync_config={
+                    'auto_sync': True,
+                    'sync_members': True,
+                    'sync_settings': True,
+                    'sync_channels': True
+                }
+            )
+
+            logger.info(f"Created unified workspace {unified_workspace.id} for Discord guild {guild_id}")
+            return unified_workspace
+
+        except Exception as e:
+            logger.error(f"Error getting or creating unified workspace: {e}")
+            return None
+
     async def _update_voice_state_cross_platform(self, event_data: Dict[str, Any], platform: str):
         """Update voice state information across platforms"""
         try:
-            # This would update voice state in unified workspace
-            pass
+            if not self.workspace_sync:
+                logger.debug("Workspace sync service not available, skipping voice state update")
+                return
+
+            # Extract voice state information from event
+            user_id = event_data.get('user_id', '')
+            guild_id = event_data.get('guild_id', '')
+            channel_id = event_data.get('channel_id', '')
+            state = event_data.get('state', 'unknown')  # joined, left, muted, etc.
+
+            logger.info(
+                f"Processing cross-platform voice state update: "
+                f"platform={platform}, user={user_id}, state={state}, guild={guild_id}"
+            )
+
+            # Get unified workspace for this guild
+            unified_workspace = self.db.query(UnifiedWorkspace).filter(
+                UnifiedWorkspace.discord_guild_id == guild_id
+            ).first()
+
+            if not unified_workspace:
+                logger.debug(f"No unified workspace found for guild {guild_id}")
+                return
+
+            # Store voice state in workspace metadata
+            if not unified_workspace.voice_states:
+                unified_workspace.voice_states = {}
+
+            voice_state_key = f"{user_id}_{platform}"
+            unified_workspace.voice_states[voice_state_key] = {
+                'user_id': user_id,
+                'platform': platform,
+                'channel_id': channel_id,
+                'state': state,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+
+            # Check for conflicts (user in voice on multiple platforms)
+            await self._check_voice_state_conflicts(
+                unified_workspace=unified_workspace,
+                user_id=user_id,
+                platform=platform,
+                state=state
+            )
+
+            unified_workspace.updated_at = datetime.utcnow()
+            self.db.commit()
+
+            logger.info(
+                f"Updated voice state for user {user_id} in workspace {unified_workspace.id}"
+            )
+
         except Exception as e:
             logger.error(f"Error updating voice state cross-platform: {e}")
+
+    async def _check_voice_state_conflicts(
+        self,
+        unified_workspace,
+        user_id: str,
+        platform: str,
+        state: str
+    ):
+        """
+        Check if user is in voice on multiple platforms and log conflicts.
+
+        Args:
+            unified_workspace: UnifiedWorkspace object
+            user_id: User ID
+            platform: Platform name
+            state: Voice state
+        """
+        try:
+            # Only check for active voice states
+            if state not in ['joined', 'unmuted']:
+                return
+
+            # Check all voice states for this user across platforms
+            conflicts = []
+            for voice_state_key, voice_state_data in unified_workspace.voice_states.items():
+                if voice_state_key.startswith(f"{user_id}_"):
+                    other_platform = voice_state_data.get('platform')
+                    other_state = voice_state_data.get('state')
+
+                    # Skip self and inactive states
+                    if other_platform == platform or other_state not in ['joined', 'unmuted']:
+                        continue
+
+                    # Found conflict
+                    conflicts.append({
+                        'platform': other_platform,
+                        'channel_id': voice_state_data.get('channel_id'),
+                        'timestamp': voice_state_data.get('timestamp')
+                    })
+
+            if conflicts:
+                logger.warning(
+                    f"Voice state conflict detected for user {user_id}: "
+                    f"user is active on {platform} and {[c['platform'] for c in conflicts]}"
+                )
+
+                # Store conflict in workspace metadata for notification
+                if 'voice_conflicts' not in unified_workspace.metadata:
+                    unified_workspace.metadata['voice_conflicts'] = []
+
+                unified_workspace.metadata['voice_conflicts'].append({
+                    'user_id': user_id,
+                    'platforms': [platform] + [c['platform'] for c in conflicts],
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+
+        except Exception as e:
+            logger.error(f"Error checking voice state conflicts: {e}")
     
     # Background workers
     async def _discord_message_ingestion_worker(self):

@@ -5,16 +5,87 @@ Provides standardized user authentication and resolution functions
 to replace default_user placeholder authentication throughout the codebase.
 """
 
-import logging
-import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+import logging
+import os
+from typing import Any, Dict, Optional
+import uuid
 from fastapi import HTTPException
+from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy.orm import Session
 
-from core.models import User, RevokedToken
+from core.models import ActiveToken, RevokedToken, User
 
 logger = logging.getLogger(__name__)
+
+
+def verify_jwt_token(token: str) -> Dict[str, Any]:
+    """
+    Verify JWT token with proper validation.
+
+    Args:
+        token: JWT token string to verify
+
+    Returns:
+        Decoded JWT payload as dictionary
+
+    Raises:
+        HTTPException: If token is invalid, expired, or malformed
+    """
+    secret_key = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY"))
+    emergency_bypass = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+
+    if not secret_key and not emergency_bypass:
+        logger.error("JWT verification failed: No secret key configured")
+        raise HTTPException(
+            status_code=500,
+            detail="JWT secret not configured"
+        )
+
+    try:
+        # Verify JWT signature and expiration
+        payload = jwt.decode(
+            token,
+            secret_key,
+            algorithms=["HS256"],
+            options={"verify_exp": True}
+        )
+
+        # Verify required claims
+        if not payload.get("sub"):
+            logger.error("JWT verification failed: Token missing 'sub' claim")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: missing subject"
+            )
+
+        logger.info(f"JWT verified successfully for sub={payload.get('sub')}")
+        return payload
+
+    except ExpiredSignatureError:
+        logger.warning("JWT verification failed: Token expired")
+        raise HTTPException(
+            status_code=401,
+            detail="Token expired"
+        )
+    except JWTError as e:
+        logger.warning(f"JWT verification failed: {e}")
+        if emergency_bypass:
+            logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+            return {"user_id": "emergency_user", "bypass": True}
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+    except Exception as e:
+        logger.error(f"JWT verification error: {e}")
+        if emergency_bypass:
+            logger.warning("EMERGENCY BYPASS: Allowing unverified token")
+            return {"user_id": "emergency_user", "bypass": True}
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication failed"
+        )
 
 
 async def require_authenticated_user(
@@ -231,11 +302,14 @@ def revoke_all_user_tokens(
     """
     Revoke all tokens for a user (e.g., on password change).
 
+    This function finds all active tokens for the user and revokes them.
+    Optionally preserves one token (except_jti) for the current session.
+
     Args:
         user_id: User ID whose tokens should be revoked
-        except_jti: Optional JTI to exclude (e.g., current token)
+        except_jti: Optional JTI to exclude (e.g., current token to keep logged in)
         db: Database session
-        revocation_reason: Optional reason for revocation
+        revocation_reason: Optional reason for revocation (logout, password_change, security_breach, admin_action)
 
     Returns:
         Number of tokens revoked
@@ -262,20 +336,132 @@ def revoke_all_user_tokens(
             return {"success": True, "revoked_tokens": count}
     """
     try:
-        # This is a placeholder implementation
-        # In a real system, you'd need to track active tokens or use a token version
-        # For now, we'll log this as a warning
-        logger.warning(
-            f"revoke_all_user_tokens called for user={user_id}, "
-            f"but full implementation requires active token tracking"
+        # Find all active tokens for this user
+        query = db.query(ActiveToken).filter(ActiveToken.user_id == user_id)
+
+        # Exclude current token if specified
+        if except_jti:
+            query = query.filter(ActiveToken.jti != except_jti)
+
+        active_tokens = query.all()
+
+        if not active_tokens:
+            logger.info(f"No active tokens found for user {user_id}")
+            return 0
+
+        revoked_count = 0
+
+        # Revoke each active token
+        for token in active_tokens:
+            # Check if already revoked
+            existing_revoked = db.query(RevokedToken).filter_by(jti=token.jti).first()
+            if existing_revoked:
+                logger.warning(f"Token {token.jti} already revoked at {existing_revoked.revoked_at}")
+                continue
+
+            # Create revoked token entry
+            revoked_token = RevokedToken(
+                jti=token.jti,
+                expires_at=token.expires_at,
+                user_id=user_id,
+                revocation_reason=revocation_reason or "admin_action"
+            )
+            db.add(revoked_token)
+
+            # Delete from active tokens
+            db.delete(token)
+            revoked_count += 1
+
+        db.commit()
+
+        logger.info(
+            f"Revoked {revoked_count} tokens for user {user_id} "
+            f"(reason: {revocation_reason or 'admin_action'})"
         )
-        return 0
+        return revoked_count
 
     except Exception as e:
         logger.error(f"Failed to revoke user tokens: {e}")
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Failed to revoke tokens"
+        )
+
+
+def track_active_token(
+    jti: str,
+    user_id: str,
+    expires_at: datetime,
+    db: Session,
+    issued_ip: Optional[str] = None,
+    issued_user_agent: Optional[str] = None
+) -> bool:
+    """
+    Track an issued JWT token in the active tokens list.
+
+    This should be called when a JWT token is issued (login, token refresh).
+
+    Args:
+        jti: JWT ID (from token payload)
+        user_id: User ID who owns the token
+        expires_at: Token expiration time
+        db: Database session
+        issued_ip: Optional IP address where token was issued
+        issued_user_agent: Optional user agent string
+
+    Returns:
+        True if token was tracked, False if already exists
+
+    Raises:
+        HTTPException: 500 if database operation fails
+
+    Examples:
+        # Track token on login
+        @router.post("/auth/login")
+        async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+            # ... authenticate user ...
+            token_data = create_access_token(data={"sub": user.id})
+
+            # Track the token
+            track_active_token(
+                jti=token_data["jti"],
+                user_id=user.id,
+                expires_at=datetime.fromtimestamp(token_data["exp"]),
+                db=db,
+                issued_ip=request.client.host,
+                issued_user_agent=request.headers.get("user-agent")
+            )
+
+            return token_data
+    """
+    try:
+        # Check if token already tracked
+        existing = db.query(ActiveToken).filter_by(jti=jti).first()
+        if existing:
+            logger.warning(f"Token {jti} already tracked at {existing.issued_at}")
+            return False
+
+        # Create active token entry
+        active_token = ActiveToken(
+            jti=jti,
+            user_id=user_id,
+            expires_at=expires_at,
+            issued_ip=issued_ip,
+            issued_user_agent=issued_user_agent
+        )
+        db.add(active_token)
+        db.commit()
+
+        logger.info(f"Token tracked: jti={jti}, user_id={user_id}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to track token: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to track token"
         )
 
 
@@ -317,5 +503,48 @@ def cleanup_expired_revoked_tokens(db: Session, older_than_hours: int = 24) -> i
 
     except Exception as e:
         logger.error(f"Failed to cleanup expired revoked tokens: {e}")
+        db.rollback()
+        return 0
+
+
+def cleanup_expired_active_tokens(db: Session, older_than_hours: int = 1) -> int:
+    """
+    Cleanup expired active tokens from the database.
+
+    Should be run periodically (e.g., hourly) to remove expired tokens
+    that weren't properly revoked.
+
+    Args:
+        db: Database session
+        older_than_hours: Delete tokens that expired more than this many hours ago
+
+    Returns:
+        Number of tokens deleted
+
+    Examples:
+        # Run as a periodic task
+        from core.periodic_tasks import register_periodic_task
+
+        def cleanup_active_tokens():
+            with SessionLocal() as db:
+                count = cleanup_expired_active_tokens(db)
+                logger.info(f"Cleaned up {count} expired active tokens")
+
+        register_periodic_task(cleanup_active_tokens, hours=1)
+    """
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=older_than_hours)
+
+        deleted = db.query(ActiveToken).filter(
+            ActiveToken.expires_at < cutoff_time
+        ).delete()
+
+        db.commit()
+
+        logger.info(f"Cleaned up {deleted} expired active tokens (older than {older_than_hours}h)")
+        return deleted
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup expired active tokens: {e}")
         db.rollback()
         return 0

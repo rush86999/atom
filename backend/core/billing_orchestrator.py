@@ -1,7 +1,7 @@
-import logging
-import uuid
 from datetime import datetime, timedelta
+import logging
 from typing import Any, Dict, Optional
+import uuid
 from accounting.models import Entity, EntityType, Invoice, InvoiceStatus
 from sales.models import Deal
 from service_delivery.models import Contract, ContractType, Milestone, MilestoneStatus, Project

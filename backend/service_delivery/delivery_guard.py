@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime, timezone
+import logging
 from typing import Any, Dict, List
 from accounting.models import Entity, Invoice, InvoiceStatus
 from service_delivery.models import Contract, Project, ProjectStatus

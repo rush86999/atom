@@ -11,19 +11,20 @@ Endpoints:
 - GET /api/feedback/batch/pending - Get pending feedback awaiting adjudication
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentFeedback, User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/feedback/batch", tags=["Feedback Batch"])
 
 
 # ============================================================================
@@ -100,7 +101,10 @@ async def batch_approve_feedback(
         HTTPException: If validation fails
     """
     if not request.feedback_ids:
-        raise HTTPException(status_code=400, detail="No feedback IDs provided")
+        raise router.validation_error(
+            field="feedback_ids",
+            message="No feedback IDs provided"
+        )
 
     processed = 0
     failed = 0
@@ -138,12 +142,15 @@ async def batch_approve_feedback(
         f"user={request.user_id}"
     )
 
-    return BatchOperationResponse(
-        success=True,
-        processed=processed,
-        failed=failed,
-        failed_ids=failed_ids,
-        message=f"Processed {processed} feedback entries"
+    return router.success_response(
+        data=BatchOperationResponse(
+            success=True,
+            processed=processed,
+            failed=failed,
+            failed_ids=failed_ids,
+            message=f"Processed {processed} feedback entries"
+        ),
+        message=f"Batch approve completed: {processed} processed"
     )
 
 
@@ -169,7 +176,10 @@ async def batch_reject_feedback(
         HTTPException: If validation fails
     """
     if not request.feedback_ids:
-        raise HTTPException(status_code=400, detail="No feedback IDs provided")
+        raise router.validation_error(
+            field="feedback_ids",
+            message="No feedback IDs provided"
+        )
 
     processed = 0
     failed = 0
@@ -239,13 +249,17 @@ async def batch_update_feedback_status(
     valid_statuses = ["approved", "rejected", "pending", "expired"]
 
     if request.new_status not in valid_statuses:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Must be one of {valid_statuses}"
+        raise router.validation_error(
+            field="new_status",
+            message=f"Invalid status. Must be one of {valid_statuses}",
+            details={"provided": request.new_status, "valid_options": valid_statuses}
         )
 
     if not request.feedback_ids:
-        raise HTTPException(status_code=400, detail="No feedback IDs provided")
+        raise router.validation_error(
+            field="feedback_ids",
+            message="No feedback IDs provided"
+        )
 
     processed = 0
     failed = 0
@@ -358,9 +372,12 @@ async def get_pending_feedback(
             created_at=feedback.created_at
         ))
 
-    return PendingFeedbackResponse(
-        total=total,
-        items=items
+    return router.success_response(
+        data=PendingFeedbackResponse(
+            total=total,
+            items=items
+        ),
+        message=f"Retrieved {len(items)} pending feedback items"
     )
 
 
@@ -429,9 +446,12 @@ async def get_batch_operation_stats(
     # Sort by pending count
     pending_by_agent.sort(key=lambda x: x["pending_count"], reverse=True)
 
-    return {
-        "status_counts": status_counts,
-        "type_counts": type_counts,
-        "pending_by_agent": pending_by_agent[:20],  # Top 20
-        "total_pending": status_counts.get("pending", 0)
-    }
+    return router.success_response(
+        data={
+            "status_counts": status_counts,
+            "type_counts": type_counts,
+            "pending_by_agent": pending_by_agent[:20],  # Top 20
+            "total_pending": status_counts.get("pending", 0)
+        },
+        message="Batch operation statistics retrieved"
+    )

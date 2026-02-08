@@ -4,10 +4,10 @@ Coding Workspace Canvas Service
 Backend service for coding canvas with code editor,
 diff views, repo browser, and PR reviews.
 """
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.models import CanvasAudit

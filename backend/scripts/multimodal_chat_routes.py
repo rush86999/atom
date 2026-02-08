@@ -1,8 +1,8 @@
+from datetime import datetime
 import logging
 import os
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -118,8 +118,8 @@ def analyze_image_file(file_path: str) -> Dict[str, Any]:
     """Analyze image file and extract information"""
     try:
         # In production, integrate with image analysis service (OpenCV, PIL, etc.)
-        import PIL.Image
         from PIL import ExifTags, Image
+        import PIL.Image
 
         with Image.open(file_path) as img:
             width, height = img.size

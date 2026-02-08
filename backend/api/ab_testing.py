@@ -14,19 +14,20 @@ Endpoints:
 - GET /api/ab-tests - List all tests
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.ab_testing_service import ABTestingService
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/ab-tests", tags=["A/B Testing"])
 
 
 # ========================================================================
@@ -111,9 +112,13 @@ async def create_test(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="AB_TEST_ERROR",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(data=result)
 
 
 @router.post("/{test_id}/start")
@@ -134,9 +139,13 @@ async def start_test(
     result = service.start_test(test_id)
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="AB_TEST_ERROR",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(data=result)
 
 
 @router.post("/{test_id}/complete")
@@ -161,9 +170,13 @@ async def complete_test(
     result = service.complete_test(test_id)
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="AB_TEST_ERROR",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(data=result)
 
 
 # ========================================================================
@@ -201,9 +214,13 @@ async def assign_variant(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="AB_TEST_ERROR",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(data=result)
 
 
 @router.post("/{test_id}/record")
@@ -236,9 +253,13 @@ async def record_metric(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.error_response(
+            error_code="AB_TEST_ERROR",
+            message=result["error"],
+            status_code=400
+        )
 
-    return result
+    return router.success_response(data=result)
 
 
 # ========================================================================
@@ -266,9 +287,9 @@ async def get_test_results(
     result = service.get_test_results(test_id)
 
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
+        raise router.not_found_error("ABTest", test_id, details={"error": result["error"]})
 
-    return result
+    return router.success_response(data=result)
 
 
 @router.get("")

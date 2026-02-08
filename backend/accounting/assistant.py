@@ -1,11 +1,10 @@
+from datetime import datetime, timedelta
 import json
 import logging
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from sqlalchemy import func
-
 from accounting.ledger import EventSourcedLedger
 from accounting.models import Account, AccountType, EntryType, JournalEntry, Transaction
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from integrations.ai_enhanced_service import (

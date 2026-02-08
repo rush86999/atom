@@ -3,8 +3,8 @@ Plaid Integration Routes for ATOM Platform
 Uses the real plaid_service.py for all banking operations
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

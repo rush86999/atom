@@ -110,6 +110,95 @@ for episode in result["episodes"]:
     print(f"{episode['title']} (relevance: {episode.get('relevance_score', 0)})")
 ```
 
+## Canvas & Feedback Integration ✨ NEW
+
+Episodes now include canvas presentations and user feedback for enriched agent reasoning.
+
+### Enriched Sequential Retrieval
+
+When retrieving full episodes, canvas and feedback context are included by default:
+
+```python
+# Retrieve episode with canvas and feedback context
+result = await service.retrieve_sequential(
+    episode_id="ep_123",
+    agent_id="agent_456",
+    include_canvas=True,  # Default: True
+    include_feedback=True  # Default: True
+)
+
+# Access enriched context
+print(f"Canvas presentations: {len(result['canvas_context'])}")
+print(f"User feedback: {len(result['feedback_context'])}")
+
+for canvas in result['canvas_context']:
+    print(f"  - {canvas['canvas_type']}: {canvas['action']}")
+
+for feedback in result['feedback_context']:
+    print(f"  - {feedback['feedback_type']}: {feedback.get('rating', 'N/A')}")
+```
+
+### Canvas Type Filtering
+
+Find episodes where you presented specific canvas types:
+
+```python
+# Find episodes with spreadsheet presentations
+result = await service.retrieve_by_canvas_type(
+    agent_id="agent_456",
+    canvas_type="sheets",
+    action="present",
+    time_range="30d"
+)
+
+for episode in result["episodes"]:
+    print(f"{episode['title']}: {episode['canvas_action_count']} canvas actions")
+```
+
+### Feedback-Weighted Retrieval
+
+Episodes with positive feedback are automatically boosted in relevance:
+
+```python
+# Contextual retrieval applies feedback weighting
+result = await service.retrieve_contextual(
+    agent_id="agent_456",
+    current_task="Analyze sales data"
+)
+
+# Episodes with positive feedback get +0.2 boost
+# Episodes with negative feedback get -0.3 penalty
+for episode in result["episodes"]:
+    score = episode.get('relevance_score', 0)
+    feedback = episode.get('aggregate_feedback_score', 0)
+    print(f"{episode['title']}: relevance={score:.2f}, feedback={feedback:.2f}")
+```
+
+### Agent Decision-Making
+
+Agents automatically use canvas and feedback context when recalling episodes:
+
+```python
+from core.agent_world_model import WorldModelService
+
+service = WorldModelService()
+result = await service.recall_experiences(
+    agent=agent,
+    current_task_description="Show me sales data"
+)
+
+# Episodes include canvas_context and feedback_context
+for episode in result["episodes"]:
+    canvas_context = episode.get("canvas_context", [])
+
+    # Agent reasoning: "User liked charts, didn't like sheets"
+    for canvas in canvas_context:
+        if canvas["action"] == "close":
+            print(f"User didn't like {canvas['canvas_type']}")
+```
+
+**Complete Documentation**: See [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](./CANVAS_FEEDBACK_EPISODIC_MEMORY.md) for full details.
+
 ## Agent Graduation
 
 ### Check Readiness

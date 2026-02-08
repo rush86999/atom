@@ -1,10 +1,10 @@
-import json
-import logging
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from typing import Any, Dict, List, Optional, Set
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -136,9 +136,10 @@ class DataIntelligenceEngine:
         import os
         
         mock_mode = os.getenv("MOCK_MODE_ENABLED", "false").lower() == "true"
+        ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
         
         # Check if mock mode is explicitly enabled for development
-        if mock_mode:
+        if mock_mode and ENVIRONMENT == "development":
             return self._mock_platform_connector(platform)
         
         # Try to get real data from integration services
@@ -1032,7 +1033,11 @@ class DataIntelligenceEngine:
                 if isinstance(updated_at, str):
                     try:
                         updated_at = datetime.fromisoformat(updated_at)
-                    except:
+                    except (AttributeError, TypeError, ValueError) as e:
+                        logger.debug(f"Skipping invalid datetime format: {e}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Unexpected error processing datetime: {e}", exc_info=True)
                         continue
                 
                 # For this demo, we'll just check if there are 0 tasks linked

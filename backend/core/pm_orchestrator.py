@@ -1,7 +1,7 @@
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sales.models import Deal
 from service_delivery.models import Contract, ContractType, Project, ProjectStatus
 from sqlalchemy.orm import Session

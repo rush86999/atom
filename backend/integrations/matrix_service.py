@@ -3,9 +3,9 @@ Matrix Service for ATOM Platform
 Simple Matrix client implementation for sending messages
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, Optional
 import httpx
 

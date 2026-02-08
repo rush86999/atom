@@ -3,18 +3,18 @@ Enterprise Authentication Service
 Production-ready authentication with bcrypt, JWT, SAML SSO, and RBAC.
 """
 
-import hashlib
-import logging
-import os
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import hashlib
+import logging
+import os
 from typing import Any, Dict, List, Optional
+import uuid
 import bcrypt
-import jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+import jwt
 from sqlalchemy.orm import Session
 
 # Import UserRole from models to avoid duplication
@@ -469,8 +469,8 @@ class EnterpriseAuthService:
             SAML_ASSERTION_CONSUMER_SERVICE: ACS URL
         """
         try:
-            import re
             from base64 import b64decode
+            import re
             from urllib.parse import unquote
             from xml.etree import ElementTree as ET
 

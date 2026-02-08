@@ -4,13 +4,13 @@ Separates: Perception (LLM) → Planning (State Machine) → Execution (Idempote
 """
 
 import asyncio
-import json
-import logging
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from typing import Any, Callable, Dict, List, Optional
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -145,14 +145,96 @@ class PerceptionLayer:
             raise
     
     async def _analyze_with_llm(self, input_data: Dict[str, Any]) -> PerceptionResult:
-        """Placeholder for LLM analysis"""
-        # In production, this calls the AI service
+        """Analyze input using multi-provider LLM via BYOKHandler"""
+        try:
+            # Import BYOKHandler for actual LLM integration
+            from core.llm.byok_handler import BYOKHandler
+
+            handler = BYOKHandler()
+
+            # Build analysis prompt from input data
+            prompt = self._build_analysis_prompt(input_data)
+
+            # Generate response using cost-optimized provider
+            response = await handler.generate_response(
+                prompt=prompt,
+                system_instruction="You are an AI perception analyzer. Analyze inputs and extract intent, entities, confidence, reasoning, and suggested actions. Respond in JSON format.",
+                temperature=0.3,  # Lower temperature for more structured output
+                task_type="analysis",
+                prefer_cost=True
+            )
+
+            # Parse response into PerceptionResult
+            return self._parse_llm_response(response, input_data)
+
+        except Exception as e:
+            logger.error(f"LLM analysis failed: {e}")
+            # Fallback to basic analysis on error
+            return self._fallback_analysis(input_data)
+
+    def _build_analysis_prompt(self, input_data: Dict[str, Any]) -> str:
+        """Build structured prompt for LLM analysis"""
+        input_json = json.dumps(input_data, indent=2)
+        return f"""Analyze the following input data and extract:
+
+1. **intent**: What is the user trying to accomplish? (single phrase)
+2. **entities**: What are the key entities mentioned? (as dict)
+3. **confidence**: How confident are you in this analysis? (0.0 to 1.0)
+4. **reasoning**: Brief explanation of your analysis
+5. **suggested_actions**: List of 2-4 specific actions to take
+
+Input data:
+{input_json}
+
+Respond in JSON format:
+{{
+    "intent": "...",
+    "entities": {{...}},
+    "confidence": 0.0-1.0,
+    "reasoning": "...",
+    "suggested_actions": ["...", "..."]
+}}
+"""
+
+    def _parse_llm_response(self, response: str, original_input: Dict[str, Any]) -> PerceptionResult:
+        """Parse LLM response into PerceptionResult"""
+        try:
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+
+            if json_match:
+                parsed = json.loads(json_match.group())
+                return PerceptionResult(
+                    intent=parsed.get("intent", "unknown"),
+                    entities=parsed.get("entities", original_input),
+                    confidence=float(parsed.get("confidence", 0.7)),
+                    reasoning=parsed.get("reasoning", "LLM analysis completed"),
+                    suggested_actions=parsed.get("suggested_actions", ["process"])
+                )
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Failed to parse LLM response as JSON: {e}")
+
+        # Fallback to structured response
         return PerceptionResult(
-            intent="process_transaction",
+            intent="process_input",
+            entities=original_input,
+            confidence=0.7,
+            reasoning=f"LLM analysis completed: {response[:200]}",
+            suggested_actions=["process", "validate"]
+        )
+
+    def _fallback_analysis(self, input_data: Dict[str, Any]) -> PerceptionResult:
+        """Fallback analysis when LLM fails"""
+        # Extract basic intent from input keys
+        input_type = list(input_data.keys())[0] if input_data else "unknown"
+
+        return PerceptionResult(
+            intent=f"process_{input_type}",
             entities=input_data,
-            confidence=0.85,
-            reasoning="Analyzed input structure and content",
-            suggested_actions=["categorize", "post"]
+            confidence=0.5,  # Lower confidence for fallback
+            reasoning="Fallback analysis due to LLM error",
+            suggested_actions=["process"]
         )
 
 # ==================== PLANNING LAYER (State Machine) ====================
