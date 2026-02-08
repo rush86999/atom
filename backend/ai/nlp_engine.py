@@ -181,7 +181,70 @@ class NaturalLanguageEngine:
 
         prompt = f"""Analyze this natural language command and extract the user's intent.
         
-        # ... (rest of method unchanged, but wait, replace works on chunk)
+        Command: "{command}"
+        
+        Available Intents:
+        - SEARCH: Finding information, listing items
+        - CREATE: Creating new items (tasks, leads, contacts)
+        - UPDATE: Modifying existing items
+        - DELETE: Removing items
+        - SCHEDULE: Calendar events, meetings
+        - ANALYZE: Data analysis, insights, reports
+        - NOTIFY: Sending messages
+        - BUSINESS_HEALTH: Strategy, priorities, simulation
+        
+        Return JSON format:
+        {{
+            "intent": "INTENT_NAME",
+            "platforms": ["list", "of", "platforms"],
+            "entities": ["extracted", "entities"],
+            "parameters": {{"key": "value"}},
+            "confidence": 0.0-1.0
+        }}
+        """
+        
+        try:
+            response = self._llm_client.chat.completions.create(
+                model=NLU_LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a precise NLU engine. Output only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            
+            # Map string intent to Enum
+            intent_str = data.get("intent", "UNKNOWN").upper()
+            try:
+                command_type = CommandType[intent_str]
+            except KeyError:
+                command_type = CommandType.UNKNOWN
+                
+            # Map platforms
+            platforms = []
+            for p in data.get("platforms", []):
+                try:
+                    platforms.append(PlatformType(p.lower())) 
+                except ValueError:
+                    pass
+                    
+            return CommandIntent(
+                command_type=command_type,
+                platforms=platforms,
+                entities=data.get("entities", []),
+                parameters=data.get("parameters", {}),
+                confidence=float(data.get("confidence", 0.0)),
+                raw_command=command,
+                llm_parsed=True
+            )
+            
+        except Exception as e:
+            logger.warning(f"LLM Intent Parsing failed: {e}")
+            return None
 
     def query_llm(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1000) -> Optional[str]:
         """

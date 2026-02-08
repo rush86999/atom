@@ -17,6 +17,8 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
 import httpx
+from core.cache import cache
+
 
 # import pandas as pd
 # import numpy as np
@@ -293,30 +295,67 @@ class AIEnhancedService:
         self.http_sessions: Dict[str, aiohttp.ClientSession] = {}
         
         # Performance tracking
-        self.performance_metrics = {
+        # Performance data keys prefix
+        self.metrics_prefix = "atom:ai:metrics"
+        
+        # Initialize in-memory fallback
+        self._init_memory_metrics()
+        
+    def _init_memory_metrics(self):
+        """Initialize in-memory metrics structure"""
+        self._memory_metrics = {
             'total_requests': 0,
             'successful_requests': 0,
             'failed_requests': 0,
-            'average_response_time': 0,
+            'average_response_time': 0.0,
             'token_usage': {
                 'total_tokens': 0,
                 'input_tokens': 0,
                 'output_tokens': 0
             },
-            'service_usage': {
-                'openai': 0,
-                'anthropic': 0,
-                'google': 0,
-                'deepseek': 0,
-                'groq': 0,
-                'mistral': 0,
-                'perplexity': 0,
-                'cohere': 0,
-                'moonshot': 0,
-                'glm': 0,
-                'lux': 0
-            }
+            'service_usage': defaultdict(int)
         }
+
+    async def _increment_metric(self, metric: str, amount: int = 1, subkey: str = None):
+        """Increment a metric in Redis or memory"""
+        try:
+            if cache.client:
+                key = f"{self.metrics_prefix}:{metric}"
+                if subkey:
+                    cache.client.hincrby(key, subkey, amount)
+                else:
+                    cache.client.incrby(key, amount)
+            else:
+                # Fallback to memory
+                if subkey:
+                    if metric == 'service_usage':
+                        self._memory_metrics['service_usage'][subkey] += amount
+                    elif metric == 'token_usage':
+                        self._memory_metrics['token_usage'][subkey] += amount
+                else:
+                    if metric in self._memory_metrics:
+                        self._memory_metrics[metric] += amount
+        except Exception as e:
+            logger.warning(f"Failed to increment metric {metric}: {e}")
+
+    async def _update_avg_metric(self, metric: str, value: float):
+        """Update an average metric (specifically for response time)"""
+        # Note: True moving average in Redis is hard without storing count+sum.
+        # We will store total_time and calculate avg on read.
+        try:
+            if cache.client:
+                # Store sum
+                sum_key = f"{self.metrics_prefix}:{metric}_sum"
+                cache.client.incrbyfloat(sum_key, value)
+            else:
+                # Memory moving average
+                current_avg = self._memory_metrics.get(metric, 0)
+                count = self._memory_metrics.get('total_requests', 1)
+                new_avg = ((current_avg * (count - 1)) + value) / max(count, 1)
+                self._memory_metrics[metric] = new_avg
+        except Exception as e:
+            logger.warning(f"Failed to update metric {metric}: {e}")
+
         
         # AI model configurations
         self.model_configs = {
@@ -515,7 +554,7 @@ class AIEnhancedService:
             start_time = time.time()
             
             # Update performance metrics
-            self.performance_metrics['total_requests'] += 1
+            await self._increment_metric('total_requests')
             
             # Get model configuration
             model_config = self.model_configs.get(request.model_type)
@@ -559,23 +598,24 @@ class AIEnhancedService:
             
             # Update performance metrics
             if response and response.confidence > 0.5:
-                self.performance_metrics['successful_requests'] += 1
+                await self._increment_metric('successful_requests')
             else:
-                self.performance_metrics['failed_requests'] += 1
+                await self._increment_metric('failed_requests')
             
-            self.performance_metrics['average_response_time'] = (
-                (self.performance_metrics['average_response_time'] * (self.performance_metrics['total_requests'] - 1) + processing_time)
-                / self.performance_metrics['total_requests']
-            )
+            await self._update_avg_metric('average_response_time', processing_time)
             
             # Update token usage
             if response and response.token_usage:
-                self.performance_metrics['token_usage']['total_tokens'] += sum(response.token_usage.values())
-                self.performance_metrics['token_usage']['input_tokens'] += response.token_usage.get('input', 0)
-                self.performance_metrics['token_usage']['output_tokens'] += response.token_usage.get('output', 0)
+                total = sum(response.token_usage.values())
+                inp = response.token_usage.get('input', 0)
+                out = response.token_usage.get('output', 0)
+                
+                await self._increment_metric('token_usage', total, 'total_tokens')
+                await self._increment_metric('token_usage', inp, 'input_tokens')
+                await self._increment_metric('token_usage', out, 'output_tokens')
             
             # Update service usage
-            self.performance_metrics['service_usage'][service_type.value] += 1
+            await self._increment_metric('service_usage', 1, service_type.value)
             
             return response if response else AIResponse(
                 request_id=request.request_id,
@@ -2070,15 +2110,51 @@ class AIEnhancedService:
         }
     
     async def get_performance_metrics(self) -> Dict[str, Any]:
-        """Get AI service performance metrics"""
+        """Get AI service performance metrics from Redis or memory"""
+        if cache.client:
+            try:
+                # Fetch from Redis
+                total = int(cache.client.get(f"{self.metrics_prefix}:total_requests") or 0)
+                success = int(cache.client.get(f"{self.metrics_prefix}:successful_requests") or 0)
+                failed = int(cache.client.get(f"{self.metrics_prefix}:failed_requests") or 0)
+                
+                # Avg Response Time
+                total_time = float(cache.client.get(f"{self.metrics_prefix}:average_response_time_sum") or 0.0)
+                avg_time = total_time / total if total > 0 else 0.0
+                
+                # Token Usage
+                token_usage = {
+                    'total_tokens': int(cache.client.hget(f"{self.metrics_prefix}:token_usage", "total_tokens") or 0),
+                    'input_tokens': int(cache.client.hget(f"{self.metrics_prefix}:token_usage", "input_tokens") or 0),
+                    'output_tokens': int(cache.client.hget(f"{self.metrics_prefix}:token_usage", "output_tokens") or 0)
+                }
+                
+                # Service Usage
+                service_usage_raw = cache.client.hgetall(f"{self.metrics_prefix}:service_usage") or {}
+                service_usage = {k: int(v) for k, v in service_usage_raw.items()}
+                
+                return {
+                    "total_requests": total,
+                    "successful_requests": success,
+                    "failed_requests": failed,
+                    "success_rate": (success / max(total, 1)) * 100,
+                    "average_response_time": avg_time,
+                    "token_usage": token_usage,
+                    "service_usage": service_usage
+                }
+            except Exception as e:
+                logger.error(f"Error fetching metrics from Redis: {e}")
+                # Fallthrough to memory return
+        
+        # Memory Fallback
         return {
-            "total_requests": self.performance_metrics['total_requests'],
-            "successful_requests": self.performance_metrics['successful_requests'],
-            "failed_requests": self.performance_metrics['failed_requests'],
-            "success_rate": (self.performance_metrics['successful_requests'] / max(self.performance_metrics['total_requests'], 1)) * 100,
-            "average_response_time": self.performance_metrics['average_response_time'],
-            "token_usage": self.performance_metrics['token_usage'],
-            "service_usage": self.performance_metrics['service_usage']
+            "total_requests": self._memory_metrics['total_requests'],
+            "successful_requests": self._memory_metrics['successful_requests'],
+            "failed_requests": self._memory_metrics['failed_requests'],
+            "success_rate": (self._memory_metrics['successful_requests'] / max(self._memory_metrics['total_requests'], 1)) * 100,
+            "average_response_time": self._memory_metrics['average_response_time'],
+            "token_usage": self._memory_metrics['token_usage'],
+            "service_usage": dict(self._memory_metrics['service_usage'])
         }
     
     async def close(self):

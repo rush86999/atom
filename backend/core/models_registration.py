@@ -12,6 +12,8 @@ import core.models
 from core.database import Base
 
 # Add other model modules as they are created
+import saas.models
+import ecommerce.models
 
 # 3. Export Base for convenience
 __all__ = ["Base"]

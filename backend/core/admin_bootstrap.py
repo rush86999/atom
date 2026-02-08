@@ -23,6 +23,7 @@ def ensure_admin_user():
             logger.info(f"BOOTSTRAP: User {email} found. resetting password...")
             user.password_hash = get_password_hash(password)
             user.status = UserStatus.ACTIVE
+            user.role = "workspace_admin"  # Ensure role is set
             db.commit()
             logger.info(f"BOOTSTRAP: Password for {email} reset to '{password}'")
         else:
@@ -33,6 +34,7 @@ def ensure_admin_user():
                 password_hash=get_password_hash(password),
                 first_name="Admin",
                 last_name="User",
+                role="workspace_admin", # Explicitly set role
                 status=UserStatus.ACTIVE
             )
             db.add(new_user)
