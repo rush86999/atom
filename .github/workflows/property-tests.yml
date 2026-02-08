@@ -17,12 +17,12 @@ jobs:
       matrix:
         test-group:
           - invariants
+          - contracts
+          - models
           - interfaces
-          # contracts - TODO: Fix collection errors
-          # models - TODO: Fix collection errors in test_model_invariants.py
-          # workflows - TODO: Fix import errors (classes imported from wrong modules in test file)
-          # episodes - TODO: Fix collection errors (test_episode_retrieval_invariants.py, test_episode_segmentation_invariants.py)
-          # multi_agent - TODO: Fix collection errors (test_agent_coordination_invariants.py)
+          - episodes
+          # workflows - TODO: Requires complete rewrite to match async WorkflowEngine API
+          # multi_agent - TODO: Requires MultiAgentCoordinator implementation
 
     steps:
       - name: Checkout code

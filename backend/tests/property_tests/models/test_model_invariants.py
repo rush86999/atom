@@ -27,9 +27,9 @@ from typing import List, Dict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from core.models import (
-    User, Workspace, Team, TeamMember,
+    User, Workspace, Team,
     ChatSession, ChatMessage,
-    AgentRegistry, AgentExecution, AgentFeedback, AgentCapability,
+    AgentRegistry, AgentExecution, AgentFeedback,
     Episode, EpisodeSegment, EpisodeAccessLog,
     WorkflowExecution, WorkflowStepExecution,
     CanvasAudit, CanvasCollaborationSession,

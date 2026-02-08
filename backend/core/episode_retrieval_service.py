@@ -27,6 +27,23 @@ from core.models import (
 logger = logging.getLogger(__name__)
 
 
+# Data classes for property testing support
+class RetrievalMode(str, Enum):
+    """Episode retrieval modes"""
+    TEMPORAL = "temporal"
+    SEMANTIC = "semantic"
+    SEQUENTIAL = "sequential"
+    CONTEXTUAL = "contextual"
+
+
+class RetrievalResult(NamedTuple):
+    """Result of episode retrieval"""
+    episodes: List[Episode]
+    total_count: int
+    retrieval_mode: str
+    query_time_ms: float
+
+
 class EpisodeRetrievalService:
     """Multi-mode episode retrieval with governance"""
 
