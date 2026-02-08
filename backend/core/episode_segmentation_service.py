@@ -28,6 +28,7 @@ from core.models import (
     ChatSession,
     Episode,
     EpisodeSegment,
+    SupervisionSession,
     User,
 )
 
@@ -668,3 +669,348 @@ Topics: {', '.join(episode.topics)}
         except Exception as e:
             logger.error(f"Failed to calculate feedback score: {e}")
             return None
+
+    # ========================================================================
+    # Supervision Episode Creation
+    # ========================================================================
+
+    async def create_supervision_episode(
+        self,
+        supervision_session: SupervisionSession,
+        agent_execution: AgentExecution,
+        db: Session
+    ) -> Optional[Episode]:
+        """
+        Create episode from completed supervision session.
+
+        Captures:
+        - Agent actions and decisions
+        - Human interventions and guidance
+        - Supervisor ratings and feedback
+        - Confidence boost impact
+
+        Args:
+            supervision_session: Completed supervision session
+            agent_execution: Associated agent execution
+            db: Database session
+
+        Returns:
+            Created Episode object or None
+        """
+        try:
+            # Extract intervention types
+            intervention_types = []
+            if supervision_session.interventions:
+                for intervention in supervision_session.interventions:
+                    intervention_type = intervention.get("type", "unknown")
+                    if intervention_type not in intervention_types:
+                        intervention_types.append(intervention_type)
+
+            # Format agent actions
+            agent_actions_content = self._format_agent_actions(
+                supervision_session.interventions,
+                agent_execution
+            )
+
+            # Format interventions
+            interventions_content = self._format_interventions(
+                supervision_session.interventions
+            )
+
+            # Format supervision outcome
+            outcome_content = self._format_supervision_outcome(supervision_session)
+
+            # Create episode
+            episode = Episode(
+                id=str(uuid.uuid4()),
+                title=f"Supervision Session: {supervision_session.agent_name}",
+                description=f"Supervised execution session with {supervision_session.intervention_count} interventions",
+                summary=f"{supervision_session.agent_name} under supervision - Rating: {supervision_session.supervisor_rating}/5",
+                agent_id=supervision_session.agent_id,
+                user_id=supervision_session.supervisor_id,
+                workspace_id=supervision_session.workspace_id or "default",
+
+                # Link to execution
+                execution_ids=[agent_execution.id] if agent_execution else [],
+
+                # Supervision metadata (NEW)
+                supervisor_id=supervision_session.supervisor_id,
+                supervisor_rating=supervision_session.supervisor_rating,
+                supervision_feedback=supervision_session.supervisor_feedback,
+                intervention_count=supervision_session.intervention_count,
+                intervention_types=intervention_types,
+
+                # Timing
+                started_at=supervision_session.started_at,
+                ended_at=supervision_session.completed_at,
+                duration_seconds=supervision_session.duration_seconds,
+                status="completed",
+
+                # Content
+                topics=self._extract_supervision_topics(supervision_session, agent_execution),
+                entities=self._extract_supervision_entities(supervision_session, agent_execution),
+                importance_score=self._calculate_supervision_importance(supervision_session),
+
+                # Graduation fields
+                maturity_at_time=AgentStatus.SUPERVISED.value,
+                human_intervention_count=supervision_session.intervention_count,
+                human_edits=[],
+                constitutional_score=None,  # Calculated separately
+                world_model_state=self._get_world_model_version()
+            )
+
+            db.add(episode)
+            db.commit()
+            db.refresh(episode)
+
+            # Create segments
+            segment_order = 0
+
+            # Agent actions segment
+            if agent_actions_content:
+                actions_segment = EpisodeSegment(
+                    id=str(uuid.uuid4()),
+                    episode_id=episode.id,
+                    segment_type="execution",
+                    sequence_order=segment_order,
+                    content=agent_actions_content,
+                    content_summary=f"Agent execution with {supervision_session.intervention_count} interventions",
+                    source_type="supervision_session",
+                    source_id=supervision_session.id
+                )
+                db.add(actions_segment)
+                segment_order += 1
+
+            # Interventions segment
+            if interventions_content:
+                interventions_segment = EpisodeSegment(
+                    id=str(uuid.uuid4()),
+                    episode_id=episode.id,
+                    segment_type="intervention",
+                    sequence_order=segment_order,
+                    content=interventions_content,
+                    content_summary=f"{supervision_session.intervention_count} supervisor interventions: {', '.join(intervention_types)}",
+                    source_type="supervision_session",
+                    source_id=supervision_session.id
+                )
+                db.add(interventions_segment)
+                segment_order += 1
+
+            # Outcome segment
+            if outcome_content:
+                outcome_segment = EpisodeSegment(
+                    id=str(uuid.uuid4()),
+                    episode_id=episode.id,
+                    segment_type="reflection",
+                    sequence_order=segment_order,
+                    content=outcome_content,
+                    content_summary=f"Session rated {supervision_session.supervisor_rating}/5 by supervisor",
+                    source_type="supervision_session",
+                    source_id=supervision_session.id
+                )
+                db.add(outcome_segment)
+
+            db.commit()
+
+            # Archive to LanceDB
+            await self._archive_supervision_episode_to_lancedb(episode)
+
+            logger.info(
+                f"Created supervision episode {episode.id} from session {supervision_session.id}"
+            )
+
+            return episode
+
+        except Exception as e:
+            logger.error(f"Failed to create supervision episode: {e}")
+            db.rollback()
+            return None
+
+    def _format_agent_actions(
+        self,
+        interventions: List[Dict[str, Any]],
+        execution: AgentExecution
+    ) -> str:
+        """Format agent actions during supervision"""
+        parts = []
+
+        if execution:
+            parts.append(f"Task: {execution.task_description or 'Unknown task'}")
+            parts.append(f"Status: {execution.status}")
+
+            if execution.input_summary:
+                parts.append(f"Input: {execution.input_summary}")
+
+            if execution.output_summary:
+                parts.append(f"Output: {execution.output_summary}")
+
+        if interventions:
+            parts.append(f"\nActions during supervision:")
+            parts.append(f"Total interventions: {len(interventions)}")
+
+        return "\n".join(parts) if parts else "No agent actions recorded"
+
+    def _format_interventions(self, interventions: List[Dict[str, Any]]) -> str:
+        """Format supervisor interventions"""
+        if not interventions:
+            return "No interventions"
+
+        parts = []
+        for i, intervention in enumerate(interventions, 1):
+            timestamp = intervention.get("timestamp", "Unknown time")
+            int_type = intervention.get("type", "unknown")
+            guidance = intervention.get("guidance", "")
+
+            parts.append(f"{i}. [{int_type}] at {timestamp}")
+            if guidance:
+                parts.append(f"   Guidance: {guidance}")
+
+        return "\n".join(parts)
+
+    def _format_supervision_outcome(self, session: SupervisionSession) -> str:
+        """Format supervision session outcome"""
+        parts = []
+
+        parts.append(f"Session completed: {session.completed_at or 'Unknown'}")
+        parts.append(f"Duration: {session.duration_seconds}s" if session.duration_seconds else "Duration: Unknown")
+        parts.append(f"Supervisor Rating: {session.supervisor_rating}/5")
+
+        if session.supervisor_feedback:
+            parts.append(f"Feedback: {session.supervisor_feedback}")
+
+        if session.confidence_boost:
+            parts.append(f"Confidence Boost: +{session.confidence_boost:.3f}")
+
+        return "\n".join(parts)
+
+    def _extract_supervision_topics(
+        self,
+        session: SupervisionSession,
+        execution: AgentExecution
+    ) -> List[str]:
+        """Extract topics from supervision session"""
+        topics = set()
+
+        # Extract from agent name
+        if session.agent_name:
+            words = session.agent_name.lower().split()
+            topics.update([w for w in words if len(w) > 4])
+
+        # Extract from execution
+        if execution:
+            if execution.task_description:
+                words = execution.task_description.lower().split()
+                topics.update([w for w in words if len(w) > 4][:3])
+
+        # Add intervention types as topics
+        if session.interventions:
+            for intervention in session.interventions:
+                int_type = intervention.get("type", "")
+                if int_type and int_type != "unknown":
+                    topics.add(f"intervention_{int_type}")
+
+        return list(topics)[:5]
+
+    def _extract_supervision_entities(
+        self,
+        session: SupervisionSession,
+        execution: AgentExecution
+    ) -> List[str]:
+        """Extract entities from supervision session"""
+        entities = set()
+
+        # Add session ID as entity
+        entities.add(f"session:{session.id}")
+
+        # Add agent ID as entity
+        entities.add(f"agent:{session.agent_id}")
+
+        # Add supervisor ID as entity
+        if session.supervisor_id:
+            entities.add(f"supervisor:{session.supervisor_id}")
+
+        return list(entities)
+
+    def _calculate_supervision_importance(self, session: SupervisionSession) -> float:
+        """
+        Calculate episode importance score based on supervision quality.
+
+        Higher importance for:
+        - High supervisor ratings (4-5 stars)
+        - Low intervention count
+        - Positive feedback
+
+        Returns:
+            Importance score (0.0 to 1.0)
+        """
+        # Base score
+        score = 0.5
+
+        # Rating boost: 5 stars = +0.3, 1 star = -0.2
+        if session.supervisor_rating:
+            rating_boost = (session.supervisor_rating - 3) * 0.15
+            score += rating_boost
+
+        # Intervention penalty: fewer interventions = higher score
+        if session.intervention_count == 0:
+            score += 0.2  # Perfect execution
+        elif session.intervention_count <= 2:
+            score += 0.1  # Minimal intervention
+        elif session.intervention_count > 5:
+            score -= 0.1  # Many interventions
+
+        # Clamp to [0, 1]
+        return max(0.0, min(1.0, score))
+
+    async def _archive_supervision_episode_to_lancedb(self, episode: Episode):
+        """Archive supervision episode to LanceDB for semantic search"""
+        if not self.lancedb.db:
+            logger.warning("LanceDB not available, skipping archival")
+            return
+
+        try:
+            # Combine episode content for embedding
+            content = f"""
+Title: {episode.title}
+Description: {episode.description}
+Summary: {episode.summary}
+Supervisor Rating: {episode.supervisor_rating}/5
+Interventions: {episode.intervention_count}
+Topics: {', '.join(episode.topics)}
+            """.strip()
+
+            metadata = {
+                "episode_id": episode.id,
+                "agent_id": episode.agent_id,
+                "user_id": episode.user_id,
+                "workspace_id": episode.workspace_id,
+                "status": episode.status,
+                "topics": episode.topics,
+                "maturity_at_time": episode.maturity_at_time,
+                "human_intervention_count": episode.human_intervention_count,
+                "constitutional_score": episode.constitutional_score,
+                "supervisor_rating": episode.supervisor_rating,
+                "intervention_count": episode.intervention_count,
+                "intervention_types": episode.intervention_types,
+                "type": "supervision_episode"
+            }
+
+            # Create episodes table if it doesn't exist
+            table_name = "episodes"
+            if table_name not in self.lancedb.db.table_names():
+                self.lancedb.create_table(table_name)
+
+            # Add to LanceDB
+            self.lancedb.add_document(
+                table_name=table_name,
+                text=content,
+                source=f"supervision_episode:{episode.id}",
+                metadata=metadata,
+                user_id=episode.user_id or "system",
+                extract_knowledge=False
+            )
+
+            logger.info(f"Archived supervision episode {episode.id} to LanceDB")
+
+        except Exception as e:
+            logger.error(f"Failed to archive supervision episode to LanceDB: {e}")

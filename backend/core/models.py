@@ -3110,6 +3110,274 @@ class SupervisionSession(Base):
     )
 
 
+# ============================================================================
+# TWO-WAY LEARNING SYSTEM: Supervisor Performance & Feedback
+# ============================================================================
+
+class SupervisorRating(Base):
+    """
+    5-star ratings for supervisors on supervision sessions.
+
+    Agents and other supervisors can rate supervisor performance.
+    Enables supervisor learning and improvement.
+    """
+    __tablename__ = "supervisor_ratings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    rater_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)  # Who rated
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)  # Optional agent context
+
+    # Rating (1-5 stars)
+    rating = Column(Integer, nullable=False)  # 1-5 scale
+    rating_category = Column(String, nullable=True)  # "intervention_quality", "guidance_clarity", "outcome_quality"
+
+    # Context
+    reason = Column(Text, nullable=True)  # Optional explanation for rating
+    was_helpful = Column(Boolean, default=True)  # Did this supervision help the agent?
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="ratings")
+    supervisor = relationship("User", foreign_keys=[supervisor_id], backref="received_ratings")
+    rater = relationship("User", foreign_keys=[rater_id], backref="given_ratings")
+    agent = relationship("AgentRegistry", backref="supervisor_ratings")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_ratings_session', 'supervision_session_id'),
+        Index('ix_supervisor_ratings_supervisor', 'supervisor_id'),
+        Index('ix_supervisor_ratings_rater', 'rater_id'),
+        Index('ix_supervisor_ratings_created', 'created_at'),
+    )
+
+
+class SupervisorComment(Base):
+    """
+    Threaded comments on supervision sessions.
+
+    Enables rich discussion and learning from supervision experiences.
+    Supports hierarchical comment threads for organized discussions.
+    """
+    __tablename__ = "supervisor_comments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    parent_comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)  # For threading
+
+    # Content
+    content = Column(Text, nullable=False)
+    content_type = Column(String, default="text")  # "text", "code", "suggestion"
+
+    # Metadata
+    comment_type = Column(String, nullable=True)  # "guidance", "question", "observation", "resolution"
+    intervention_reference = Column(JSON, nullable=True)  # Reference to specific intervention
+
+    # Threading support
+    thread_path = Column(String, nullable=True)  # e.g., "root.parent.child" for efficient querying
+    depth = Column(Integer, default=0)  # Thread depth (0 for root comments)
+
+    # Engagement
+    reply_count = Column(Integer, default=0)  # Number of direct replies
+    upvote_count = Column(Integer, default=0)  # Sum of upvotes
+    downvote_count = Column(Integer, default=0)  # Sum of downvotes
+
+    # Status
+    is_edited = Column(Boolean, default=False)
+    is_resolved = Column(Boolean, default=False)  # For questions/issues
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # Soft delete
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="comments")
+    author = relationship("User", backref="supervisor_comments")
+    parent_comment = relationship("SupervisorComment", remote_side=[id], backref="replies")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_comments_session', 'supervision_session_id'),
+        Index('ix_supervisor_comments_author', 'author_id'),
+        Index('ix_supervisor_comments_parent', 'parent_comment_id'),
+        Index('ix_supervisor_comments_thread', 'thread_path'),
+        Index('ix_supervisor_comments_created', 'created_at'),
+    )
+
+
+class FeedbackVote(Base):
+    """
+    Thumbs up/down votes for supervision sessions and comments.
+
+    Enables quick feedback on supervision quality and comment helpfulness.
+    """
+    __tablename__ = "feedback_votes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=True, index=True)
+    comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Vote (thumbs up/down)
+    vote_type = Column(String, nullable=False)  # "up", "down"
+
+    # Context
+    vote_reason = Column(String, nullable=True)  # Optional: "helpful", "incorrect", "unclear"
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="votes")
+    comment = relationship("SupervisorComment", backref="votes")
+    user = relationship("User", backref="feedback_votes")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_feedback_votes_session', 'supervision_session_id'),
+        Index('ix_feedback_votes_comment', 'comment_id'),
+        Index('ix_feedback_votes_user', 'user_id'),
+        Index('ix_feedback_votes_created', 'created_at'),
+
+        # Ensure one vote per user per target
+        Index('ix_feedback_votes_unique_session', 'supervision_session_id', 'user_id', unique=True),
+        Index('ix_feedback_votes_unique_comment', 'comment_id', 'user_id', unique=True),
+    )
+
+
+class SupervisorPerformance(Base):
+    """
+    Aggregated performance metrics for supervisors.
+
+    Tracks supervisor effectiveness over time to enable learning and
+    identify areas for improvement.
+    """
+    __tablename__ = "supervisor_performance"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Supervisor
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Overall Metrics
+    total_sessions_supervised = Column(Integer, default=0)
+    total_interventions = Column(Integer, default=0)
+
+    # Rating Metrics (from ratings received)
+    average_rating = Column(Float, default=0.0)  # 1-5 scale
+    total_ratings = Column(Integer, default=0)
+
+    # 5-star distribution
+    rating_1_count = Column(Integer, default=0)
+    rating_2_count = Column(Integer, default=0)
+    rating_3_count = Column(Integer, default=0)
+    rating_4_count = Column(Integer, default=0)
+    rating_5_count = Column(Integer, default=0)
+
+    # Intervention Success Metrics
+    successful_interventions = Column(Integer, default=0)  # Interventions that led to success
+    failed_interventions = Column(Integer, default=0)  # Interventions that didn't help
+
+    # Agent Improvement Metrics
+    agents_promoted = Column(Integer, default=0)  # Agents that graduated under this supervisor
+    agent_confidence_boosted = Column(Float, default=0.0)  # Total confidence increase given
+
+    # Feedback Metrics
+    total_comments_given = Column(Integer, default=0)
+    total_upvotes_received = Column(Integer, default=0)
+    total_downvotes_received = Column(Integer, default=0)
+
+    # Supervisor Confidence (self-assessment and community-rated)
+    confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
+    competence_level = Column(String, default="novice")  # "novice", "intermediate", "advanced", "expert"
+
+    # Learning & Trend
+    learning_rate = Column(Float, default=0.0)  # How fast supervisor is improving
+    performance_trend = Column(String, default="stable")  # "improving", "stable", "declining"
+
+    # Timestamps
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervisor = relationship("User", backref="performance_metrics")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_performance_supervisor', 'supervisor_id'),
+        Index('ix_supervisor_performance_rating', 'average_rating'),
+        Index('ix_supervisor_performance_confidence', 'confidence_score'),
+    )
+
+
+class InterventionOutcome(Base):
+    """
+    Tracks outcomes of supervisor interventions for learning.
+
+    Links interventions to agent behavior changes and success metrics.
+    """
+    __tablename__ = "intervention_outcomes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Intervention Details
+    intervention_type = Column(String, nullable=False)  # "pause", "correct", "terminate"
+    intervention_timestamp = Column(DateTime(timezone=True), nullable=False)
+
+    # Outcome
+    outcome = Column(String, nullable=False)  # "success", "partial", "failure"
+    agent_behavior_change = Column(String, nullable=True)  # "improved", "unchanged", "degraded"
+    task_completion = Column(String, nullable=True)  # "completed", "abandoned", "failed"
+
+    # Time to Recovery
+    seconds_to_recovery = Column(Integer, nullable=True)  # How long until agent was back on track
+
+    # Assessment
+    was_necessary = Column(Boolean, default=True)  # Was this intervention needed?
+    was_effective = Column(Boolean, default=True)  # Did it help?
+    would_recommend = Column(Boolean, nullable=True)  # Would supervisor do this again?
+
+    # Learning
+    lesson_learned = Column(Text, nullable=True)  # What the supervisor learned
+    confidence_change = Column(Float, default=0.0)  # Supervisor confidence change (-1.0 to 1.0)
+
+    # Timestamps
+    assessed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="intervention_outcomes")
+    supervisor = relationship("User", backref="intervention_assessments")
+    agent = relationship("AgentRegistry", backref="intervention_outcomes")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_intervention_outcomes_session', 'supervision_session_id'),
+        Index('ix_intervention_outcomes_supervisor', 'supervisor_id'),
+        Index('ix_intervention_outcomes_agent', 'agent_id'),
+        Index('ix_intervention_outcomes_type', 'intervention_type'),
+        Index('ix_intervention_outcomes_outcome', 'outcome'),
+        Index('ix_intervention_outcomes_assessed', 'assessed_at'),
+    )
+
+
 class TrainingSession(Base):
     """
     Human-in-the-loop training sessions for STUDENT agents.
@@ -3358,6 +3626,18 @@ class Episode(Base):
     feedback_ids = Column(JSON, default=list)  # List of AgentFeedback IDs
     aggregate_feedback_score = Column(Float, nullable=True)  # -1.0 to 1.0 aggregate score
 
+    # Supervision linkage (NEW - Feb 2026)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    supervisor_rating = Column(Integer, nullable=True)  # 1-5 scale
+    supervision_feedback = Column(Text, nullable=True)
+    intervention_count = Column(Integer, default=0)
+    intervention_types = Column(JSON, nullable=True)  # ["pause", "correct", "terminate"]
+
+    # Proposal linkage (NEW - Feb 2026)
+    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True, index=True)
+    proposal_outcome = Column(String, nullable=True)  # "approved", "rejected", "modified"
+    rejection_reason = Column(Text, nullable=True)
+
     # Boundaries
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -3393,6 +3673,8 @@ class Episode(Base):
     segments = relationship("EpisodeSegment", backref="episode", cascade="all, delete-orphan")
     access_logs = relationship("EpisodeAccessLog", backref="episode", cascade="all, delete-orphan")
     consolidated_episodes = relationship("Episode", remote_side=[id], backref="consolidated_children")
+    supervisor = relationship("User", foreign_keys=[supervisor_id], backref="supervised_episodes")
+    proposal = relationship("AgentProposal", foreign_keys=[proposal_id], backref="episodes")
 
     # Indexes
     __table_args__ = (
@@ -3405,6 +3687,9 @@ class Episode(Base):
         Index('ix_episodes_maturity', 'maturity_at_time'),
         Index('ix_episodes_importance', 'importance_score'),
         Index('ix_episodes_agent_canvas', 'agent_id', 'canvas_action_count'),  # NEW - Canvas queries
+        Index('ix_episodes_supervisor_id', 'supervisor_id'),  # NEW - Supervision queries
+        Index('ix_episodes_supervisor_rating', 'supervisor_rating'),  # NEW - Quality filtering
+        Index('ix_episodes_proposal_id', 'proposal_id'),  # NEW - Proposal linkage
     )
 
 
