@@ -728,3 +728,172 @@ Please review and approve or reject this proposal.
         except Exception as e:
             logger.error(f"Agent action failed: {e}")
             raise
+
+    # ========================================================================
+    # Autonomous Supervisor Integration
+    # ========================================================================
+
+    async def review_with_autonomous_supervisor(
+        self,
+        proposal: AgentProposal
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Review proposal with autonomous supervisor fallback.
+
+        When human supervisor is unavailable, tries to find autonomous agent
+        to review and approve/reject proposal.
+
+        Args:
+            proposal: Proposal to review
+
+        Returns:
+            Dict with supervisor type and review result, or None if no supervisor available
+        """
+        from core.autonomous_supervisor_service import AutonomousSupervisorService
+        from core.user_activity_service import UserActivityService
+
+        # First, try to find human supervisor
+        user_activity_service = UserActivityService(self.db)
+        available_supervisors = await user_activity_service.get_available_supervisors(
+            category=proposal.agent_id
+        )
+
+        if available_supervisors:
+            return {
+                "supervisor_type": "human",
+                "supervisor_id": available_supervisors[0]["user_id"],
+                "available": True
+            }
+
+        # No human available, try autonomous supervisor
+        autonomous_service = AutonomousSupervisorService(self.db)
+
+        # Get the intern agent
+        intern_agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == proposal.agent_id
+        ).first()
+
+        if not intern_agent:
+            logger.error(f"Agent not found: {proposal.agent_id}")
+            return None
+
+        # Find autonomous supervisor
+        supervisor = await autonomous_service.find_autonomous_supervisor(
+            intern_agent=intern_agent
+        )
+
+        if not supervisor:
+            logger.warning(f"No autonomous supervisor found for {proposal.agent_id}")
+            return None
+
+        # Perform review
+        review = await autonomous_service.review_proposal(
+            proposal=proposal,
+            supervisor=supervisor
+        )
+
+        return {
+            "supervisor_type": "autonomous",
+            "supervisor_id": supervisor.id,
+            "supervisor_name": supervisor.name,
+            "review": {
+                "approved": review.approved,
+                "confidence_score": review.confidence_score,
+                "risk_level": review.risk_level,
+                "reasoning": review.reasoning,
+                "suggested_modifications": review.suggested_modifications
+            }
+        }
+
+    async def autonomous_approve_or_reject(
+        self,
+        proposal_id: str
+    ) -> Dict[str, Any]:
+        """
+        Attempt autonomous approval/rejection of proposal.
+
+        Args:
+            proposal_id: Proposal to process
+
+        Returns:
+            Dict with approval result
+        """
+        proposal = self.db.query(AgentProposal).filter(
+            AgentProposal.id == proposal_id
+        ).first()
+
+        if not proposal:
+            raise ValueError(f"Proposal not found: {proposal_id}")
+
+        # Get autonomous supervisor review
+        review_result = await self.review_with_autonomous_supervisor(proposal)
+
+        if not review_result:
+            return {
+                "success": False,
+                "message": "No supervisor available (human or autonomous)"
+            }
+
+        # If human supervisor available, wait for human approval
+        if review_result["supervisor_type"] == "human":
+            return {
+                "success": False,
+                "message": "Human supervisor available, awaiting manual approval",
+                "supervisor_type": "human",
+                "supervisor_id": review_result["supervisor_id"]
+            }
+
+        # Autonomous supervisor available
+        from core.autonomous_supervisor_service import AutonomousSupervisorService, ProposalReview
+
+        review_data = review_result["review"]
+        review = ProposalReview(
+            approved=review_data["approved"],
+            confidence_score=review_data["confidence_score"],
+            risk_level=review_data["risk_level"],
+            reasoning=review_data["reasoning"],
+            suggested_modifications=review_data.get("suggested_modifications", [])
+        )
+
+        autonomous_service = AutonomousSupervisorService(self.db)
+
+        if review.approved:
+            # Approve and execute
+            success = await autonomous_service.approve_proposal(
+                proposal_id=proposal_id,
+                supervisor_id=review_result["supervisor_id"],
+                review=review
+            )
+
+            if success:
+                return {
+                    "success": True,
+                    "message": "Proposal approved and executed by autonomous supervisor",
+                    "supervisor_type": "autonomous",
+                    "supervisor_id": review_result["supervisor_id"],
+                    "review": review_data
+                }
+        else:
+            # Reject proposal
+            proposal.status = ProposalStatus.REJECTED.value
+            proposal.approved_by = review_result["supervisor_id"]
+            proposal.approved_at = datetime.now()
+            proposal.execution_result = {
+                "autonomous_rejection": True,
+                "supervisor_id": review_result["supervisor_id"],
+                "review": review_data
+            }
+            self.db.commit()
+
+            return {
+                "success": False,
+                "message": "Proposal rejected by autonomous supervisor",
+                "supervisor_type": "autonomous",
+                "supervisor_id": review_result["supervisor_id"],
+                "review": review_data
+            }
+
+        return {
+            "success": False,
+            "message": "Failed to process autonomous approval"
+        }

@@ -236,6 +236,7 @@ class User(Base):
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
+    activity = relationship("UserActivity", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, email={self.email}, role={self.role})>"
@@ -4636,3 +4637,119 @@ class ARDelayPrediction(Base):
 
     def __repr__(self):
         return f"<ARDelayPrediction(id={self.id}, invoice={self.invoice_id}, likelihood={self.likelihood_late})>"
+
+
+# ============================================================================
+# Multi-Level Agent Supervision System Models
+# ============================================================================
+
+class UserState(str, enum.Enum):
+    """User activity state for supervision routing"""
+    online = "online"
+    away = "away"
+    offline = "offline"
+
+
+class QueueStatus(str, enum.Enum):
+    """Status for supervised execution queue"""
+    pending = "pending"
+    executing = "executing"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class UserActivity(Base):
+    """
+    Track user activity state for supervision availability.
+
+    Records user's current state (online/away/offline) to determine
+    if they can supervise INTERN and SUPERVISED agents.
+    """
+    __tablename__ = "user_activities"
+
+    id = Column(String, primary_key=True, default=lambda: f"ua_{str(uuid.uuid4())}")
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True, unique=True)
+    state = Column(SQLEnum(UserState), nullable=False, default=UserState.offline, index=True)
+    last_activity_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    manual_override = Column(Boolean, default=False)
+    manual_override_expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="activity")
+    sessions = relationship("UserActivitySession", back_populates="activity", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_user_activity_state_updated', 'state', 'updated_at'),
+    )
+
+
+class UserActivitySession(Base):
+    """
+    User sessions for activity tracking.
+
+    Each web/desktop session sends heartbeats to track user activity.
+    A user is considered online if ANY session is active.
+    """
+    __tablename__ = "user_activity_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: f"us_{str(uuid.uuid4())}")
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    activity_id = Column(String, ForeignKey("user_activities.id"), nullable=False, index=True)
+    session_type = Column(String, nullable=False)  # "web" or "desktop"
+    session_token = Column(String, nullable=False, unique=True, index=True)
+    last_heartbeat = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    terminated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="activity_sessions")
+    activity = relationship("UserActivity", back_populates="sessions")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_user_activity_session_heartbeat', 'last_heartbeat'),
+    )
+
+
+class SupervisedExecutionQueue(Base):
+    """
+    Queue for SUPERVISED agent executions when users are unavailable.
+
+    When a SUPERVISED agent triggers but the user is offline, the execution
+    is queued and auto-executed when the user returns online.
+    """
+    __tablename__ = "supervised_execution_queue"
+
+    id = Column(String, primary_key=True, default=lambda: f"queue_{str(uuid.uuid4())}")
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    trigger_type = Column(String, nullable=False)  # "automated" or "manual"
+    execution_context = Column(JSON, nullable=False)  # Serialized execution context
+    status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending, index=True)
+    supervisor_type = Column(String, nullable=False)  # "user" or "autonomous_agent"
+    priority = Column(Integer, default=0, index=True)  # Higher priority = executed first
+    max_attempts = Column(Integer, default=3)
+    attempt_count = Column(Integer, default=0)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="queued_executions")
+    user = relationship("User", backref="queued_executions")
+    execution = relationship("AgentExecution", backref="queue_entry")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervised_queue_user_status', 'user_id', 'status'),
+        Index('ix_supervised_queue_priority_created', 'priority', 'created_at'),
+        Index('ix_supervised_queue_expires', 'expires_at'),
+    )
