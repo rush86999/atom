@@ -380,6 +380,57 @@ class SupervisionService:
 
         self.db.commit()
 
+        # NEW: Create episode from supervision session (non-blocking)
+        try:
+            from core.episode_segmentation_service import EpisodeSegmentationService
+
+            # Get associated execution
+            execution = self.db.query(AgentExecution).filter(
+                AgentExecution.agent_id == session.agent_id,
+                AgentExecution.started_at >= session.started_at
+            ).order_by(AgentExecution.started_at.desc()).first()
+
+            if execution:
+                # Create episode asynchronously (non-blocking)
+                import asyncio
+                episode_service = EpisodeSegmentationService(self.db)
+                asyncio.create_task(
+                    episode_service.create_supervision_episode(
+                        supervision_session=session,
+                        agent_execution=execution,
+                        db=self.db
+                    )
+                )
+
+                logger.info(
+                    f"Initiated supervision episode creation for session {session_id}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to initiate supervision episode creation: {e}")
+
+        # NEW: Trigger two-way learning (non-blocking)
+        try:
+            from core.feedback_service import FeedbackService
+            from core.supervisor_learning_service import SupervisorLearningService
+
+            feedback_service = FeedbackService(self.db)
+            learning_service = SupervisorLearningService(self.db)
+
+            # Auto-create supervisor rating from the session
+            asyncio.create_task(
+                self._process_supervision_feedback(
+                    session=session,
+                    feedback_service=feedback_service,
+                    learning_service=learning_service
+                )
+            )
+
+            logger.info(
+                f"Initiated two-way learning for session {session_id}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to initiate two-way learning: {e}")
+
         return SupervisionOutcome(
             session_id=session_id,
             success=supervisor_rating >= 3,
@@ -617,4 +668,68 @@ class SupervisionService:
             # Use existing human monitoring
             pass  # Already handled by existing monitor_agent_execution method
 
-        return round(boost, 3)
+    async def _process_supervision_feedback(
+        self,
+        session: SupervisionSession,
+        feedback_service: 'FeedbackService',
+        learning_service: 'SupervisorLearningService'
+    ):
+        """
+        Process supervision feedback for two-way learning.
+
+        Creates supervisor rating and triggers learning updates.
+        """
+        try:
+            # Create supervisor rating from session data
+            # Use a system user ID for auto-generated ratings
+            rater_id = f"system_{session.supervisor_id}"
+
+            await feedback_service.rate_supervisor(
+                supervision_session_id=session.id,
+                rater_id=rater_id,
+                rating=session.supervisor_rating or 3,
+                rating_category="session_outcome",
+                reason=session.supervisor_feedback,
+                agent_id=session.agent_id,
+            )
+
+            # Process feedback for learning
+            await learning_service.process_feedback_for_learning(
+                supervisor_id=session.supervisor_id,
+                feedback_type="rating",
+                feedback_data={
+                    "rating": session.supervisor_rating or 3,
+                    "session_id": session.id,
+                }
+            )
+
+            # Track intervention outcomes if any interventions occurred
+            if session.intervention_count > 0:
+                from core.supervisor_performance_service import SupervisorPerformanceService
+                perf_service = SupervisorPerformanceService(self.db)
+
+                for intervention in session.interventions:
+                    await perf_service.track_intervention_outcome(
+                        supervision_session_id=session.id,
+                        intervention_type=intervention.get("type", "unknown"),
+                        intervention_timestamp=datetime.fromisoformat(intervention.get("timestamp")),
+                        outcome="success" if session.supervisor_rating >= 4 else "partial",
+                        was_effective=session.supervisor_rating >= 3,
+                    )
+
+                    # Process for learning
+                    await learning_service.process_feedback_for_learning(
+                        supervisor_id=session.supervisor_id,
+                        feedback_type="intervention_outcome",
+                        feedback_data={
+                            "outcome": "success" if session.supervisor_rating >= 4 else "partial",
+                            "was_effective": session.supervisor_rating >= 3,
+                            "intervention_type": intervention.get("type", "unknown"),
+                        }
+                    )
+
+            logger.info(
+                f"Completed two-way learning processing for session {session.id}"
+            )
+        except Exception as e:
+            logger.error(f"Error processing supervision feedback: {e}")

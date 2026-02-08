@@ -11,7 +11,13 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.lancedb_handler import get_lancedb_handler
-from core.models import AgentRegistry, AgentStatus, Episode, EpisodeSegment
+from core.models import (
+    AgentRegistry,
+    AgentStatus,
+    Episode,
+    EpisodeSegment,
+    SupervisionSession,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -398,3 +404,285 @@ class AgentGraduationService:
             },
             "recent_episodes": by_maturity.get(str(agent.status), [])[:10]
         }
+
+    # ========================================================================
+    # Supervision Metrics Integration
+    # ========================================================================
+
+    async def calculate_supervision_metrics(
+        self,
+        agent_id: str,
+        maturity_level: AgentStatus
+    ) -> Dict[str, Any]:
+        """
+        Calculate supervision-based metrics for graduation validation.
+
+        Returns:
+            {
+                "total_supervision_hours": float,
+                "intervention_rate": float,  # interventions per hour
+                "average_supervisor_rating": float,  # 1-5 scale
+                "successful_intervention_recovery_rate": float,
+                "recent_performance_trend": str,  # "improving", "stable", "declining"
+                "total_sessions": int,
+                "high_rating_sessions": int,  # 4-5 star sessions
+                "low_intervention_sessions": int  # 0-1 intervention sessions
+            }
+        """
+        # Get supervision sessions for this agent at maturity level
+        sessions = self.db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == agent_id,
+            SupervisionSession.status == "completed"
+        ).all()
+
+        if not sessions:
+            return {
+                "total_supervision_hours": 0,
+                "intervention_rate": 1.0,  # High penalty if no data
+                "average_supervisor_rating": 0.0,
+                "successful_intervention_recovery_rate": 0.0,
+                "recent_performance_trend": "unknown",
+                "total_sessions": 0,
+                "high_rating_sessions": 0,
+                "low_intervention_sessions": 0
+            }
+
+        # Calculate metrics
+        total_duration = sum(s.duration_seconds or 0 for s in sessions)
+        total_hours = total_duration / 3600 if total_duration > 0 else 0
+
+        total_interventions = sum(s.intervention_count or 0 for s in sessions)
+
+        # Intervention rate (interventions per hour)
+        intervention_rate = (total_interventions / total_hours) if total_hours > 0 else 1.0
+
+        # Average supervisor rating
+        ratings = [s.supervisor_rating for s in sessions if s.supervisor_rating is not None]
+        avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
+
+        # High-quality sessions (4-5 stars)
+        high_rating_sessions = sum(1 for r in ratings if r >= 4)
+
+        # Low intervention sessions (0-1 interventions)
+        low_intervention_sessions = sum(
+            1 for s in sessions
+            if (s.intervention_count or 0) <= 1
+        )
+
+        # Successful intervention recovery
+        # (Sessions where interventions led to successful completion)
+        successful_recovery = sum(
+            1 for s in sessions
+            if (s.intervention_count or 0) > 0 and (s.supervisor_rating or 0) >= 3
+        )
+        sessions_with_interventions = sum(1 for s in sessions if (s.intervention_count or 0) > 0)
+        recovery_rate = (
+            successful_recovery / sessions_with_interventions
+            if sessions_with_interventions > 0 else 1.0
+        )
+
+        # Performance trend (compare recent vs older sessions)
+        recent_performance_trend = self._calculate_performance_trend(sessions)
+
+        return {
+            "total_supervision_hours": round(total_hours, 2),
+            "intervention_rate": round(intervention_rate, 3),
+            "average_supervisor_rating": round(avg_rating, 2),
+            "successful_intervention_recovery_rate": round(recovery_rate, 3),
+            "recent_performance_trend": recent_performance_trend,
+            "total_sessions": len(sessions),
+            "high_rating_sessions": high_rating_sessions,
+            "low_intervention_sessions": low_intervention_sessions
+        }
+
+    def _calculate_performance_trend(self, sessions: List[SupervisionSession]) -> str:
+        """
+        Calculate recent performance trend from supervision sessions.
+
+        Compares the most recent 5 sessions to the previous 5 sessions.
+
+        Returns:
+            "improving", "stable", or "declining"
+        """
+        if len(sessions) < 10:
+            return "stable"
+
+        # Sort by start time
+        sorted_sessions = sorted(
+            sessions,
+            key=lambda s: s.started_at or datetime.min,
+            reverse=True
+        )
+
+        # Get recent and previous sessions
+        recent = sorted_sessions[:5]
+        previous = sorted_sessions[5:10]
+
+        # Calculate average ratings
+        recent_ratings = [s.supervisor_rating for s in recent if s.supervisor_rating]
+        previous_ratings = [s.supervisor_rating for s in previous if s.supervisor_rating]
+
+        if not recent_ratings or not previous_ratings:
+            return "stable"
+
+        recent_avg = sum(recent_ratings) / len(recent_ratings)
+        previous_avg = sum(previous_ratings) / len(previous_ratings)
+
+        # Calculate average intervention counts
+        recent_interventions = [s.intervention_count or 0 for s in recent]
+        previous_interventions = [s.intervention_count or 0 for s in previous]
+
+        recent_avg_int = sum(recent_interventions) / len(recent_interventions)
+        previous_avg_int = sum(previous_interventions) / len(previous_interventions)
+
+        # Determine trend
+        rating_diff = recent_avg - previous_avg
+        intervention_diff = previous_avg_int - recent_avg_int  # Lower is better
+
+        # Combined score
+        score = rating_diff * 0.6 + intervention_diff * 0.4
+
+        if score > 0.3:
+            return "improving"
+        elif score < -0.3:
+            return "declining"
+        else:
+            return "stable"
+
+    async def validate_graduation_with_supervision(
+        self,
+        agent_id: str,
+        target_maturity: AgentStatus
+    ) -> Dict[str, Any]:
+        """
+        Validate agent graduation using both episode and supervision data.
+
+        Combines:
+        - Episode count and quality
+        - Supervision intervention rate
+        - Supervisor ratings
+        - Constitutional compliance
+
+        Args:
+            agent_id: Agent to validate
+            target_maturity: Target maturity level
+
+        Returns:
+            {
+                "ready": bool,
+                "score": float (0-100),
+                "episode_metrics": dict,
+                "supervision_metrics": dict,
+                "recommendation": str,
+                "gaps": List[str]
+            }
+        """
+        # Get existing episode-based validation
+        episode_result = await self.calculate_readiness_score(
+            agent_id=agent_id,
+            target_maturity=target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity)
+        )
+
+        # Get supervision-based metrics
+        supervision_metrics = await self.calculate_supervision_metrics(
+            agent_id=agent_id,
+            maturity_level=target_maturity
+        )
+
+        # Get criteria for target maturity
+        criteria = self.CRITERIA.get(
+            target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity).upper(),
+            {}
+        )
+
+        # Check supervision-specific gaps
+        supervision_gaps = []
+
+        # High-quality session requirement
+        min_high_quality = max(1, int(criteria.get("min_episodes", 10) * 0.4))
+        if supervision_metrics["high_rating_sessions"] < min_high_quality:
+            supervision_gaps.append(
+                f"Need {min_high_quality - supervision_metrics['high_rating_sessions']} more high-rated sessions (4-5 stars)"
+            )
+
+        # Low intervention requirement
+        min_low_intervention = max(1, int(criteria.get("min_episodes", 10) * 0.3))
+        if supervision_metrics["low_intervention_sessions"] < min_low_intervention:
+            supervision_gaps.append(
+                f"Need {min_low_intervention - supervision_metrics['low_intervention_sessions']} more low-intervention sessions"
+            )
+
+        # Minimum average rating (3.5/5)
+        if supervision_metrics["average_supervisor_rating"] < 3.5:
+            supervision_gaps.append(
+                f"Average supervisor rating too low: {supervision_metrics['average_supervisor_rating']:.1f} < 3.5"
+            )
+
+        # Intervention rate threshold
+        max_intervention_rate = criteria.get("max_intervention_rate", 0.5) * 10  # Convert to per-hour
+        if supervision_metrics["intervention_rate"] > max_intervention_rate:
+            supervision_gaps.append(
+                f"Intervention rate too high: {supervision_metrics['intervention_rate']:.1f}/hr > {max_intervention_rate:.1f}/hr"
+            )
+
+        # Combined validation
+        all_gaps = episode_result.get("gaps", []) + supervision_gaps
+
+        ready = len(all_gaps) == 0 and episode_result.get("ready", False)
+
+        # Combined score (70% episode-based, 30% supervision-based)
+        combined_score = (
+            episode_result.get("score", 0) * 0.7 +
+            self._supervision_score(supervision_metrics, criteria) * 0.3
+        )
+
+        return {
+            "ready": ready,
+            "score": round(combined_score, 1),
+            "episode_metrics": episode_result,
+            "supervision_metrics": supervision_metrics,
+            "recommendation": self._generate_recommendation(
+                ready,
+                combined_score,
+                target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity)
+            ),
+            "gaps": all_gaps,
+            "target_maturity": target_maturity.value if hasattr(target_maturity, 'value') else str(target_maturity),
+            "current_maturity": episode_result.get("current_maturity", "UNKNOWN")
+        }
+
+    def _supervision_score(
+        self,
+        metrics: Dict[str, Any],
+        criteria: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate supervision-based score (0-100).
+
+        Factors:
+        - Average supervisor rating (40%)
+        - Intervention rate (30%)
+        - High-quality session percentage (20%)
+        - Performance trend (10%)
+        """
+        # Rating score (40%) - target: 4.0/5.0
+        rating_score = min(metrics["average_supervisor_rating"] / 4.0, 1.0) * 40
+
+        # Intervention score (30%) - lower is better
+        max_interventions = criteria.get("max_intervention_rate", 0.5) * 10
+        intervention_score = (
+            (1 - min(metrics["intervention_rate"] / max(max_interventions, 1), 1.0)) * 30
+        )
+
+        # High-quality session score (20%) - target: 60% of sessions
+        if metrics["total_sessions"] > 0:
+            high_quality_pct = metrics["high_rating_sessions"] / metrics["total_sessions"]
+            high_quality_score = min(high_quality_pct / 0.6, 1.0) * 20
+        else:
+            high_quality_score = 0
+
+        # Trend score (10%)
+        trend_scores = {"improving": 10, "stable": 5, "declining": 0, "unknown": 0}
+        trend_score = trend_scores.get(metrics["recent_performance_trend"], 0)
+
+        return rating_score + intervention_score + high_quality_score + trend_score

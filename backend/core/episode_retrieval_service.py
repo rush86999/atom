@@ -22,6 +22,7 @@ from core.models import (
     Episode,
     EpisodeAccessLog,
     EpisodeSegment,
+    SupervisionSession,
 )
 
 logger = logging.getLogger(__name__)
@@ -524,3 +525,258 @@ class EpisodeRetrievalService:
             "time_range": time_range,
             "governance_check": governance_check
         }
+
+    # ========================================================================
+    # Supervision Context Retrieval
+    # ========================================================================
+
+    async def retrieve_with_supervision_context(
+        self,
+        agent_id: str,
+        retrieval_mode: RetrievalMode = RetrievalMode.SEQUENTIAL,
+        limit: int = 10,
+        supervision_outcome_filter: Optional[str] = None,
+        min_rating: Optional[int] = None,
+        max_interventions: Optional[int] = None,
+        time_range: str = "30d"
+    ) -> Dict[str, Any]:
+        """
+        Retrieve episodes enriched with supervision context.
+
+        Args:
+            agent_id: Agent ID
+            retrieval_mode: Retrieval mode (temporal, semantic, sequential, contextual)
+            limit: Max results
+            supervision_outcome_filter: Filter by supervision quality
+                - "high_rated": supervisor_rating >= 4
+                - "low_intervention": intervention_count <= 1
+                - "recent_improvement": positive rating trend
+            min_rating: Minimum supervisor rating (1-5)
+            max_interventions: Maximum intervention count
+            time_range: Time range for temporal filter (1d, 7d, 30d, 90d)
+
+        Returns:
+            {
+                "episodes": List[Episode] with supervision_context,
+                "count": int,
+                "supervision_filters_applied": List[str]
+            }
+        """
+        # Governance check
+        governance_check = self.governance.can_perform_action(
+            agent_id=agent_id,
+            action_type="read_memory"
+        )
+
+        if not governance_check.get("allowed", True):
+            return {
+                "episodes": [],
+                "error": governance_check.get("reason", "Governance check failed"),
+                "governance_check": governance_check
+            }
+
+        # Get base episodes using specified retrieval mode
+        if retrieval_mode == RetrievalMode.TEMPORAL:
+            base_result = await self.retrieve_temporal(
+                agent_id=agent_id,
+                time_range=time_range,
+                limit=limit * 2  # Fetch more for filtering
+            )
+            episodes_data = base_result.get("episodes", [])
+
+        elif retrieval_mode == RetrievalMode.SEMANTIC:
+            # For semantic, we need a query - use agent name as default
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            query = agent.name if agent else "agent execution"
+            base_result = await self.retrieve_semantic(
+                agent_id=agent_id,
+                query=query,
+                limit=limit * 2
+            )
+            episodes_data = base_result.get("episodes", [])
+
+        elif retrieval_mode == RetrievalMode.CONTEXTUAL:
+            base_result = await self.retrieve_contextual(
+                agent_id=agent_id,
+                current_task="supervised execution",
+                limit=limit * 2
+            )
+            episodes_data = base_result.get("episodes", [])
+
+        else:  # SEQUENTIAL
+            # For sequential, get recent episodes
+            base_result = await self.retrieve_temporal(
+                agent_id=agent_id,
+                time_range=time_range,
+                limit=limit * 2
+            )
+            episodes_data = base_result.get("episodes", [])
+
+        # Convert dicts back to Episode objects for filtering
+        episode_ids = [e["id"] for e in episodes_data]
+        episodes = self.db.query(Episode).filter(
+            Episode.id.in_(episode_ids),
+            Episode.agent_id == agent_id
+        ).all()
+
+        # Apply supervision filters
+        filters_applied = []
+        filtered_episodes = []
+
+        for episode in episodes:
+            # Apply outcome filter
+            if supervision_outcome_filter:
+                if supervision_outcome_filter == "high_rated":
+                    if episode.supervisor_rating is None or episode.supervisor_rating < 4:
+                        continue
+                    filters_applied.append("high_rated")
+
+                elif supervision_outcome_filter == "low_intervention":
+                    if (episode.intervention_count or 0) > 1:
+                        continue
+                    filters_applied.append("low_intervention")
+
+                elif supervision_outcome_filter == "recent_improvement":
+                    # Skip individual filtering - will apply at batch level
+                    pass
+
+            # Apply rating filter
+            if min_rating is not None:
+                if episode.supervisor_rating is None or episode.supervisor_rating < min_rating:
+                    continue
+                filters_applied.append(f"min_rating_{min_rating}")
+
+            # Apply intervention filter
+            if max_interventions is not None:
+                if (episode.intervention_count or 0) > max_interventions:
+                    continue
+                filters_applied.append(f"max_interventions_{max_interventions}")
+
+            filtered_episodes.append(episode)
+
+        # Apply improvement trend filter (batch operation)
+        if supervision_outcome_filter == "recent_improvement":
+            filtered_episodes = self._filter_improvement_trend(filtered_episodes)
+            filters_applied.append("recent_improvement")
+
+        # Limit results
+        filtered_episodes = filtered_episodes[:limit]
+
+        # Enrich episodes with supervision metadata
+        enriched_results = []
+        for episode in filtered_episodes:
+            episode_dict = self._serialize_episode(episode)
+            episode_dict["supervision_context"] = self._create_supervision_context(episode)
+            enriched_results.append(episode_dict)
+
+        # Log access
+        for episode in filtered_episodes:
+            await self._log_access(
+                episode.id, "supervision_context", governance_check, agent_id, len(filtered_episodes)
+            )
+
+        return {
+            "episodes": enriched_results,
+            "count": len(enriched_results),
+            "supervision_filters_applied": list(set(filters_applied)),
+            "retrieval_mode": retrieval_mode.value,
+            "governance_check": governance_check
+        }
+
+    def _create_supervision_context(self, episode: Episode) -> Dict[str, Any]:
+        """Create supervision context dictionary for episode"""
+        return {
+            "has_supervision": episode.supervisor_id is not None,
+            "supervisor_id": episode.supervisor_id,
+            "supervisor_rating": episode.supervisor_rating,
+            "intervention_count": episode.intervention_count or 0,
+            "intervention_types": episode.intervention_types or [],
+            "feedback_summary": self._summarize_feedback(episode.supervision_feedback),
+            "outcome_quality": self._assess_outcome_quality(episode)
+        }
+
+    def _summarize_feedback(self, feedback: Optional[str]) -> Optional[str]:
+        """Summarize feedback text for display"""
+        if not feedback:
+            return None
+
+        # Truncate to 100 chars
+        if len(feedback) > 100:
+            return feedback[:97] + "..."
+        return feedback
+
+    def _assess_outcome_quality(self, episode: Episode) -> str:
+        """
+        Assess overall outcome quality based on supervision data.
+
+        Returns:
+            "excellent", "good", "fair", or "poor"
+        """
+        if episode.supervisor_rating is None:
+            return "unknown"
+
+        # Excellent: 5 stars, 0-1 interventions
+        if episode.supervisor_rating >= 5 and (episode.intervention_count or 0) <= 1:
+            return "excellent"
+
+        # Good: 4-5 stars, 0-2 interventions
+        if episode.supervisor_rating >= 4 and (episode.intervention_count or 0) <= 2:
+            return "good"
+
+        # Fair: 3-4 stars
+        if episode.supervisor_rating >= 3:
+            return "fair"
+
+        # Poor: < 3 stars
+        return "poor"
+
+    def _filter_improvement_trend(self, episodes: List[Episode]) -> List[Episode]:
+        """
+        Filter episodes showing positive performance trend.
+
+        Compares the most recent episodes to earlier ones to identify
+        agents that are improving over time.
+
+        Args:
+            episodes: List of episodes to filter
+
+        Returns:
+            Episodes showing improvement trend
+        """
+        if len(episodes) < 5:
+            return episodes  # Not enough data for trend analysis
+
+        # Sort by start time
+        sorted_episodes = sorted(
+            episodes,
+            key=lambda e: e.started_at or datetime.min,
+            reverse=True
+        )
+
+        # Calculate recent vs earlier average ratings
+        recent = sorted_episodes[:len(sorted_episodes) // 2]
+        earlier = sorted_episodes[len(sorted_episodes) // 2:]
+
+        recent_ratings = [
+            e.supervisor_rating for e in recent
+            if e.supervisor_rating is not None
+        ]
+        earlier_ratings = [
+            e.supervisor_rating for e in earlier
+            if e.supervisor_rating is not None
+        ]
+
+        if not recent_ratings or not earlier_ratings:
+            return episodes  # Can't determine trend
+
+        recent_avg = sum(recent_ratings) / len(recent_ratings)
+        earlier_avg = sum(earlier_ratings) / len(earlier_ratings)
+
+        # Include episodes if recent performance is better
+        if recent_avg >= earlier_avg:
+            return sorted_episodes
+
+        return []
