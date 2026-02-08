@@ -11,8 +11,8 @@ This is a foundational framework for constitutional AI compliance:
 - Compliance scoring with detailed violation tracking
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -386,6 +386,199 @@ class ConstitutionalValidator:
         score = max(0.0, 1.0 - (total_penalty / max_penalty))
 
         return score
+
+    def validate_with_knowledge_graph(
+        self,
+        agent_id: str,
+        action: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Validate agent action against Knowledge Graph rules when available.
+
+        This method attempts to use a Knowledge Graph service for more sophisticated
+        rule validation, falling back to pattern-based validation if unavailable.
+
+        Args:
+            agent_id: ID of the agent performing the action
+            action: Action dictionary to validate
+            context: Optional context for the validation
+
+        Returns:
+            {
+                "compliant": bool,
+                "violations": List[Dict],
+                "total_rules_checked": int,
+                "validation_method": "knowledge_graph" | "fallback"
+            }
+        """
+        # Try to use Knowledge Graph service if available
+        try:
+            from core.knowledge_graph_service import KnowledgeGraphService
+
+            kg_service = KnowledgeGraphService(self.db)
+
+            # Get applicable constitutional rules for this agent and action
+            rules = kg_service.get_applicable_rules(
+                agent_id=agent_id,
+                action_type=action.get("action_type", "unknown"),
+                context=context or {}
+            )
+
+            if rules:
+                # Check each rule for violations using KG
+                violations = []
+                for rule in rules:
+                    if not self._passes_kg_rule(rule, action, context or {}):
+                        violations.append({
+                            "rule_id": rule.get("id", "unknown"),
+                            "rule_name": rule.get("name", "Unknown Rule"),
+                            "reason": rule.get("description", ""),
+                            "severity": rule.get("severity", "medium"),
+                            "category": rule.get("category", "general")
+                        })
+
+                return {
+                    "compliant": len(violations) == 0,
+                    "violations": violations,
+                    "total_rules_checked": len(rules),
+                    "validation_method": "knowledge_graph"
+                }
+
+        except ImportError:
+            logger.warning("Knowledge Graph service not available, using fallback validation")
+        except Exception as e:
+            logger.warning(f"Knowledge Graph validation failed, using fallback: {e}")
+
+        # Fallback: Use pattern-based validation (existing implementation)
+        return self._fallback_validation(action, context or {})
+
+    def _passes_kg_rule(
+        self,
+        rule: Dict[str, Any],
+        action: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> bool:
+        """
+        Check if an action passes a specific Knowledge Graph rule.
+
+        Args:
+            rule: Rule dictionary from Knowledge Graph
+            action: Action to validate
+            context: Execution context
+
+        Returns:
+            True if action passes the rule, False otherwise
+        """
+        # Extract rule conditions
+        conditions = rule.get("conditions", {})
+        action_type = action.get("action_type", "")
+
+        # Check action type restrictions
+        if "allowed_actions" in rule:
+            if action_type not in rule["allowed_actions"]:
+                return False
+
+        # Check forbidden actions
+        if "forbidden_actions" in rule:
+            if action_type in rule["forbidden_actions"]:
+                return False
+
+        # Check domain-specific conditions
+        if "domain_conditions" in rule:
+            domain_rules = rule["domain_conditions"]
+            # Check if action violates domain-specific constraints
+            for domain, constraints in domain_rules.items():
+                if context.get("domain") == domain:
+                    if not self._check_domain_constraints(action, constraints):
+                        return False
+
+        # Check required permissions
+        if "required_permissions" in rule:
+            user_permissions = context.get("permissions", [])
+            required = rule["required_permissions"]
+            if not all(perm in user_permissions for perm in required):
+                return False
+
+        return True
+
+    def _check_domain_constraints(
+        self,
+        action: Dict[str, Any],
+        constraints: Dict[str, Any]
+    ) -> bool:
+        """
+        Check if action satisfies domain-specific constraints.
+
+        Args:
+            action: Action to check
+            constraints: Domain constraints
+
+        Returns:
+            True if constraints are satisfied
+        """
+        # Check data constraints (e.g., PII, HIPAA)
+        if "data_restrictions" in constraints:
+            restricted_data = constraints["data_restrictions"]
+            action_data = str(action.get("content", {}))
+
+            for restricted_type in restricted_data:
+                if restricted_type == "pii":
+                    # Simple pattern check for PII
+                    pii_patterns = ["ssn", "social_security", "credit_card", "bank_account"]
+                    if any(pattern in action_data.lower() for pattern in pii_patterns):
+                        return False
+
+                elif restricted_type == "phi":
+                    # HIPAA Protected Health Information
+                    phi_patterns = ["medical_record", "patient_id", "diagnosis", "treatment"]
+                    if any(pattern in action_data.lower() for pattern in phi_patterns):
+                        # Check if proper authorization exists
+                        if not action.get("authorized", False):
+                            return False
+
+        # Check amount constraints for financial actions
+        if "max_amount" in constraints and action.get("action_type") == "payment":
+            amount = action.get("content", {}).get("amount", 0)
+            if amount > constraints["max_amount"]:
+                return False
+
+        # Check approval requirements
+        if "requires_approval" in constraints:
+            if constraints["requires_approval"] and not action.get("approved", False):
+                return False
+
+        return True
+
+    def _fallback_validation(
+        self,
+        action: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Fallback validation using pattern matching when KG is unavailable.
+
+        Args:
+            action: Action to validate
+            context: Execution context
+
+        Returns:
+            Validation result dictionary
+        """
+        violations = []
+
+        # Check against built-in constitutional rules
+        for rule_id, rule in self.CONSTITUTIONAL_RULES.items():
+            violation = self._check_rule_violation(action, rule_id, rule)
+            if violation:
+                violations.append(violation)
+
+        return {
+            "compliant": len([v for v in violations if v["severity"] == ViolationSeverity.CRITICAL]) == 0,
+            "violations": violations,
+            "total_rules_checked": len(self.CONSTITUTIONAL_RULES),
+            "validation_method": "fallback"
+        }
 
 
 # Singleton instance helper

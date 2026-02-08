@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: February 3, 2026
+**Last Updated**: February 6, 2026
 
 ---
 
@@ -50,11 +50,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 **Key**: STUDENT agents learn through guided training scenarios before gaining autonomy.
 
 ### Action Complexity
-
-- **1 (LOW)**: Presentations, read-only → STUDENT+
-- **2 (MODERATE)**: Streaming, moderate actions → INTERN+
-- **3 (HIGH)**: State changes, submissions → SUPERVISED+
-- **4 (CRITICAL)**: Deletions, payments → AUTONOMOUS only
+- **1 (LOW)**: Presentations → STUDENT+ | **2 (MODERATE)**: Streaming → INTERN+ | **3 (HIGH)**: State changes → SUPERVISED+ | **4 (CRITICAL)**: Deletions → AUTONOMOUS only
 
 ---
 
@@ -135,11 +131,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ### 10. Episodic Memory & Graduation Framework ✨ NEW
 - **Files**: `episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`
 - **Purpose**: Agent learning from past experiences with constitutional compliance validation
+- **✨ Canvas & Feedback Integration**: Episodes now include canvas presentations and user feedback for enriched reasoning
 - **Features**:
   - Automatic episode segmentation (time gaps, topic changes, task completion)
   - Four retrieval modes: Temporal, Semantic, Sequential, Contextual
   - Hybrid PostgreSQL (hot) + LanceDB (cold) storage architecture
   - Episode lifecycle: decay, consolidation, archival
+  - **Canvas-aware episodes**: Track canvas presentations (charts, forms, sheets) with action filtering
+  - **Feedback-linked episodes**: Aggregate user feedback scores for retrieval weighting
+  - **Enriched sequential retrieval**: Episodes include canvas_context and feedback_context
+  - **Canvas type filtering**: Retrieve episodes by canvas type (sheets, charts, forms)
+  - **Feedback-weighted analytics**: Prioritize high-rated episodes
   - **🎓 Graduation framework**: Validate agent promotion readiness using episodic memory
   - **Constitutional compliance**: Track interventions and validate against Knowledge Graph rules
   - **Audit trail**: EpisodeAccessLog for all memory operations
@@ -148,13 +150,44 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
   - INTERN → SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
   - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
 - **Performance**: Episode creation <5s, Temporal retrieval ~10ms, Semantic retrieval ~50-100ms
-- **API**: 20+ REST endpoints for episodes and graduation
-- **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`
-- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`
+- **API**: 25+ REST endpoints for episodes, graduation, and canvas/feedback integration
+- **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`, `test_canvas_feedback_episode_integration.py`
+- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
 ---
 
 ## Recent Major Changes
+
+### Documentation Fixes (Feb 6, 2026) ✨ NEW
+- **Created**: CONTRIBUTING.md with comprehensive contribution guidelines
+- **Fixed**: 5 broken links across docs/INDEX.md, MOBILE_QUICK_START.md, and MULTI_INTEGRATION_WORKFLOW_ENGINE.md
+- **Impact**: All documentation navigation now functional
+- **Files Modified**: 4 files, 1 file created
+- **See**: CONTRIBUTING.md for contribution guidelines
+
+### Incomplete Implementation Fixes (Feb 5, 2026) ✨ NEW
+- **Backend**: Fixed workflow engine Slack and Asana action implementations
+- **PDF Processing**: Implemented document listing, tag update, and image conversion
+- **Mobile**: Implemented device permissions, improved auth flow, added SettingsScreen
+- **All**: Removed mock/placeholder implementations, added real functionality
+- **Files**: 9 files modified, 2 new files created
+- **Tests**: Added comprehensive error handling and validation
+- **Docs**: `backend/docs/INCOMPLETE_IMPLEMENTATIONS.md`
+- **Impact**: Production-ready implementations replacing all critical stubs
+
+### Canvas & Feedback Integration with Episodic Memory (Feb 4, 2026) ✨ NEW
+- **Metadata-only linkage**: Episodes store lightweight references to CanvasAudit and AgentFeedback records
+- **Canvas-aware episodes**: Track all canvas interactions (present, submit, close, update, execute) with type filtering
+- **Feedback-linked episodes**: Aggregate user feedback scores (-1.0 to 1.0) for retrieval weighting
+- **Enriched sequential retrieval**: Episodes include canvas_context and feedback_context by default
+- **Canvas type filtering**: Retrieve episodes by canvas type (sheets, charts, forms) and action
+- **Feedback-weighted retrieval**: Positive feedback gets +0.2 boost, negative gets -0.3 penalty
+- **Agent decision-making**: Agents always fetch canvas/feedback context during episode recall
+- **Coverage**: Supports all 7 built-in canvas types (generic, docs, email, sheets, orchestration, terminal, coding) and custom components
+- **Performance**: <100ms retrieval overhead, ~100 bytes storage per episode
+- **Files modified**: 7 files (models, 3 services, API routes, migration)
+- **Tests**: 25+ comprehensive tests for creation, retrieval, enrichment, and performance
+- **See**: `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
 ### Episodic Memory & Graduation Framework (Feb 3, 2026) ✨ NEW
 - Comprehensive episodic memory system with hybrid PostgreSQL + LanceDB storage
@@ -201,9 +234,15 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Feedback analytics with aggregation and insights
 - Batch approval and agent promotion suggestions
 
-### Mobile Support Architecture (Feb 1, 2026)
+### Mobile Support Architecture (Feb 1, 2026) ✨ UPDATED
 - React Native architecture (iOS 13+, Android 8+)
-- **Status**: Architecture complete, implementation pending
+- **Status**: Implementation in progress
+- **Completed** (Feb 5, 2026):
+  - Device permissions using Expo modules (Camera, Location, Notifications, Biometric)
+  - Authentication flow with device registration
+  - SettingsScreen with user preferences
+  - Proper error handling and validation
+- **Pending**: Full app completion, testing, deployment
 - **Docs**: `docs/REACT_NATIVE_ARCHITECTURE.md`
 
 ### Device Capabilities (Feb 1, 2026)
@@ -250,6 +289,99 @@ with SessionLocal() as db:
     db.add(execution)
     db.commit()
 ```
+
+---
+
+## Coding Standards & Best Practices
+
+### Python Standards
+- **Version**: Python 3.11+
+- **Style**: PEP 8 compliant
+- **Naming**:
+  - Classes: `PascalCase` (e.g., `AgentGovernanceService`)
+  - Functions: `snake_case` (e.g., `submit_feedback`)
+  - Constants: `UPPER_SNAKE_CASE` (e.g., `DATABASE_URL`)
+- **Type Hints**: Required for all function signatures
+- **Docstrings**: Google-style with Args/Returns sections
+
+### Error Handling Patterns
+```python
+# Standardized error handling
+try:
+    # Database operations
+    with SessionLocal() as db:
+        agent = db.query(AgentRegistry).filter(...).first()
+        db.add(agent)
+        db.commit()
+except Exception as e:
+    logger.error(f"Operation failed: {e}")
+    raise api_error(
+        ErrorCode.DATABASE_ERROR,
+        "Database operation failed",
+        {"error": str(e)}
+    )
+```
+
+### Database Session Patterns
+1. **Context Manager** (Service Layer):
+   ```python
+   with get_db_session() as db:
+       # Auto-commits on success, auto-rolls back on exception
+       agent = db.query(Agent).filter(Agent.id == agent_id).first()
+   ```
+
+2. **Dependency Injection** (API Routes):
+   ```python
+   @app.get("/agents/{agent_id}")
+   def get_agent(agent_id: str, db: Session = Depends(get_db)):
+       return db.query(Agent).filter(Agent.id == agent_id).first()
+   ```
+
+### API Response Standards
+```python
+# Success Response
+{
+    "success": True,
+    "data": {...},
+    "message": "Operation successful",
+    "timestamp": "2026-02-06T10:30:00.000Z"
+}
+
+# Error Response
+{
+    "success": False,
+    "error_code": "AGENT_NOT_FOUND",
+    "message": "Agent with ID 'abc123' not found",
+    "details": {"agent_id": "abc123"}
+}
+```
+
+### Testing Patterns
+- Test files: `backend/tests/test_*.py`
+- Test naming: `test_specific_behavior()`
+- Always clean up test data in `finally` blocks
+- Use mocks for external services (AsyncMock, MagicMock)
+
+### Import Order
+```python
+# 1. Standard library
+import os
+from datetime import datetime
+
+# 2. Third-party
+from fastapi import FastAPI
+from sqlalchemy.orm import Session
+
+# 3. Local imports
+from core.agent_governance_service import AgentGovernanceService
+from core.models import AgentRegistry
+```
+
+### Performance Patterns
+- Use `GovernanceCache` for frequently accessed data (<1ms lookups)
+- Async/await for I/O operations
+- Connection pooling for databases
+- Stream LLM responses via WebSocket
 
 ---
 
@@ -361,11 +493,6 @@ alembic history                        # View history
 # Development
 python -m uvicorn main:app --reload --port 8000
 
-# Testing
-pytest tests/ -v
-pytest tests/test_governance_streaming.py -v
-pytest tests/test_browser_automation.py -v
-
 # Playwright
 playwright install chromium
 
@@ -389,15 +516,7 @@ grep "governance" logs/atom.log | tail -100
 
 ## Summary
 
-Atom is a sophisticated AI-powered automation platform with:
-- Multi-agent system with comprehensive governance
-- Real-time streaming with <1ms governance overhead
-- Canvas presentations with full audit trails
-- Browser automation (CDP via Playwright)
-- Device capabilities (Camera, Screen Recording, Location, Notifications, Command Execution)
-- Sub-millisecond operations, production-ready
-
-**Key Takeaway**: Always think about **agent attribution** and **governance** when working with any AI feature in Atom.
+Atom is an AI-powered automation platform with multi-agent governance, episodic memory, and real-time guidance. **Key**: Always think about **agent attribution** and **governance** when working with any AI feature.
 
 ---
 

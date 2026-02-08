@@ -9,10 +9,10 @@ Usage:
     python deploy_production_simple.py
 """
 
+from datetime import datetime
 import json
 import os
 import secrets
-from datetime import datetime
 
 
 def create_oauth_config():

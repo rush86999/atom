@@ -3,9 +3,9 @@ Workflow Analytics API Endpoints
 REST API for workflow analytics, monitoring, and dashboard data
 """
 
+from datetime import datetime, timedelta
 import json
 import logging
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -228,17 +228,88 @@ async def get_workflow_metrics(workflow_id: str,
                               step_id: Optional[str] = None):
     """Get specific metrics for a workflow"""
     try:
-        # This would require implementing a method in the analytics engine
-        # For now, return a placeholder response
+        from core.database import get_db_session
+        from core.models import AgentExecution
+        from datetime import datetime, timedelta
+
+        db = get_db_session()
+
+        # Calculate time window
+        time_delta_map = {
+            "1h": timedelta(hours=1),
+            "24h": timedelta(hours=24),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30)
+        }
+        time_delta = time_delta_map.get(time_window, timedelta(hours=24))
+        cutoff_time = datetime.now() - time_delta
+
+        # Query executions for this workflow
+        executions = db.query(AgentExecution).filter(
+            AgentExecution.metadata_json['workflow_id'].astext == workflow_id,
+            AgentExecution.created_at >= cutoff_time
+        ).all()
+
+        # Calculate metrics
+        total_runs = len(executions)
+        successful_runs = sum(1 for e in executions if e.status == 'completed')
+        failed_runs = sum(1 for e in executions if e.status == 'failed')
+        cancelled_runs = sum(1 for e in executions if e.status == 'cancelled')
+
+        # Calculate durations
+        durations = []
+        for exec in executions:
+            if exec.completed_at and exec.created_at:
+                duration = (exec.completed_at - exec.created_at).total_seconds()
+                durations.append(duration)
+
+        avg_duration = sum(durations) / len(durations) if durations else 0
+        min_duration = min(durations) if durations else 0
+        max_duration = max(durations) if durations else 0
+
+        # Calculate success rate
+        success_rate = successful_runs / total_runs if total_runs > 0 else 0
+
+        # Build metrics response
+        metrics_data = {
+            "workflow_id": workflow_id,
+            "time_window": time_window,
+            "step_id": step_id,
+            "summary": {
+                "total_runs": total_runs,
+                "successful_runs": successful_runs,
+                "failed_runs": failed_runs,
+                "cancelled_runs": cancelled_runs,
+                "success_rate": round(success_rate, 4)
+            },
+            "performance": {
+                "avg_duration_seconds": round(avg_duration, 2),
+                "min_duration_seconds": round(min_duration, 2),
+                "max_duration_seconds": round(max_duration, 2),
+                "total_duration_seconds": round(sum(durations), 2) if durations else 0
+            },
+            "timestamps": {
+                "first_run": executions[0].created_at.isoformat() if executions else None,
+                "last_run": executions[-1].created_at.isoformat() if executions else None
+            }
+        }
+
+        # Add specific requested metrics
+        if metric_names:
+            filtered_metrics = {}
+            for name in metric_names:
+                if name in metrics_data['summary']:
+                    filtered_metrics[name] = metrics_data['summary'][name]
+                elif name in metrics_data['performance']:
+                    filtered_metrics[name] = metrics_data['performance'][name]
+            if filtered_metrics:
+                metrics_data['requested_metrics'] = filtered_metrics
+
+        db.close()
+
         return {
             "status": "success",
-            "metrics": {
-                "workflow_id": workflow_id,
-                "time_window": time_window,
-                "step_id": step_id,
-                "metric_names": metric_names,
-                "data": {}  # Would contain actual metric data
-            }
+            "metrics": metrics_data
         }
 
     except Exception as e:

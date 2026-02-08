@@ -4,12 +4,12 @@ Central memory system for all communication data with LanceDB vector storage
 """
 
 import asyncio
-import json
-import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import json
+import logging
+import os
 from typing import Any, Dict, List, Optional, Union
 import httpx
 
@@ -1164,8 +1164,8 @@ class CommunicationIngestionPipeline:
         """Fetch new email messages via IMAP"""
         try:
             import email
-            import imaplib
             from email.header import decode_header
+            import imaplib
 
             imap_server = os.getenv("IMAP_SERVER")
             imap_user = os.getenv("IMAP_USER")
@@ -1189,8 +1189,8 @@ class CommunicationIngestionPipeline:
         """Synchronous IMAP fetching - runs in executor"""
         try:
             import email
-            import imaplib
             from email.header import decode_header
+            import imaplib
 
             # Connect to IMAP server
             mail = imaplib.IMAP4_SSL(imap_server)

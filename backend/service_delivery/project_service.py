@@ -1,6 +1,6 @@
 import datetime
-import logging
 from datetime import timezone
+import logging
 from typing import Dict, Optional
 from accounting.credit_risk_engine import CreditRiskEngine
 from sales.models import Deal, DealStage

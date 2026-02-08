@@ -4,11 +4,11 @@ START NEXT STEPS RIGHT NOW
 Begin actual server startup sequence
 """
 
+from datetime import datetime
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 
 
 def start_next_steps_right_now():

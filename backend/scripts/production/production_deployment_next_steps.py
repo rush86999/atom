@@ -4,11 +4,11 @@ PRODUCTION DEPLOYMENT - NEXT STEPS
 Deploy ATOM application from development to production
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def start_production_deployment():

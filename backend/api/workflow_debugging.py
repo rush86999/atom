@@ -9,13 +9,14 @@ RESTful API endpoints for workflow debugging functionality including:
 - Execution trace viewing
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import Depends, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 from core.workflow_debugger import WorkflowDebugger
@@ -23,7 +24,7 @@ from core.workflow_debugger import WorkflowDebugger
 logger = logging.getLogger(__name__)
 
 # Initialize router
-router = APIRouter(prefix="/api/workflows", tags=["workflow-debugging"])
+router = BaseAPIRouter(prefix="/api/workflows", tags=["workflow-debugging"])
 
 # Request/Response Models
 
@@ -102,7 +103,10 @@ async def create_debug_session(
 
     except Exception as e:
         logger.error(f"Error creating debug session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to create debug session",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}/debug/sessions")
@@ -134,7 +138,10 @@ async def get_debug_sessions(
 
     except Exception as e:
         logger.error(f"Error getting debug sessions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve debug sessions",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/debug/sessions/{session_id}/pause")
@@ -148,15 +155,16 @@ async def pause_debug_session(
         success = debugger.pause_debug_session(session_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Debug session not found")
+            raise router.not_found_error("DebugSession", session_id)
 
         return {"message": "Debug session paused", "session_id": session_id}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error pausing debug session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to pause debug session",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/debug/sessions/{session_id}/resume")
@@ -170,15 +178,16 @@ async def resume_debug_session(
         success = debugger.resume_debug_session(session_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Debug session not found")
+            raise router.not_found_error("DebugSession", session_id)
 
         return {"message": "Debug session resumed", "session_id": session_id}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error resuming debug session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to resume debug session",
+            details={"error": str(e)}
+        )
 
 
 @router.post("/debug/sessions/{session_id}/complete")
@@ -192,15 +201,16 @@ async def complete_debug_session(
         success = debugger.complete_debug_session(session_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Debug session not found")
+            raise router.not_found_error("DebugSession", session_id)
 
         return {"message": "Debug session completed", "session_id": session_id}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error completing debug session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to complete debug session",
+            details={"error": str(e)}
+        )
 
 
 # ==================== Breakpoint Endpoints ====================
@@ -244,7 +254,10 @@ async def add_breakpoint(
 
     except Exception as e:
         logger.error(f"Error adding breakpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to add breakpoint",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{workflow_id}/debug/breakpoints")
@@ -281,7 +294,10 @@ async def get_breakpoints(
 
     except Exception as e:
         logger.error(f"Error getting breakpoints: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve breakpoints",
+            details={"error": str(e)}
+        )
 
 
 @router.delete("/debug/breakpoints/{breakpoint_id}")
@@ -296,15 +312,16 @@ async def remove_breakpoint(
         success = debugger.remove_breakpoint(breakpoint_id, user_id)
 
         if not success:
-            raise HTTPException(status_code=404, detail="Breakpoint not found")
+            raise router.not_found_error("Breakpoint", breakpoint_id)
 
         return {"message": "Breakpoint removed", "breakpoint_id": breakpoint_id}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error removing breakpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to remove breakpoint",
+            details={"error": str(e)}
+        )
 
 
 @router.put("/debug/breakpoints/{breakpoint_id}/toggle")
@@ -319,7 +336,7 @@ async def toggle_breakpoint(
         new_state = debugger.toggle_breakpoint(breakpoint_id, user_id)
 
         if new_state is None:
-            raise HTTPException(status_code=404, detail="Breakpoint not found")
+            raise router.not_found_error("Breakpoint", breakpoint_id)
 
         return {
             "message": "Breakpoint toggled",
@@ -327,11 +344,12 @@ async def toggle_breakpoint(
             "is_disabled": not new_state,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error toggling breakpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to toggle breakpoint",
+            details={"error": str(e)}
+        )
 
 
 # ==================== Step Execution Endpoints ====================
@@ -356,18 +374,23 @@ async def step_execution(
         elif request.action == "pause":
             result = debugger.pause_execution(request.session_id)
         else:
-            raise HTTPException(status_code=400, detail=f"Invalid action: {request.action}")
+            raise router.validation_error(
+                field="action",
+                message=f"Invalid action: {request.action}",
+                details={"provided_action": request.action}
+            )
 
         if not result:
-            raise HTTPException(status_code=404, detail="Debug session not found")
+            raise router.not_found_error("DebugSession", request.session_id)
 
         return result
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error controlling step execution: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to control step execution",
+            details={"error": str(e)}
+        )
 
 
 # ==================== Execution Trace Endpoints ====================
@@ -405,7 +428,10 @@ async def create_trace(
 
     except Exception as e:
         logger.error(f"Error creating trace: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to create execution trace",
+            details={"error": str(e)}
+        )
 
 
 @router.put("/debug/traces/{trace_id}/complete")
@@ -425,15 +451,16 @@ async def complete_trace(
         )
 
         if not success:
-            raise HTTPException(status_code=404, detail="Trace not found")
+            raise router.not_found_error("ExecutionTrace", trace_id)
 
         return {"message": "Trace completed", "trace_id": trace_id}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error completing trace: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to complete execution trace",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/executions/{execution_id}/traces")
@@ -471,7 +498,10 @@ async def get_execution_traces(
 
     except Exception as e:
         logger.error(f"Error getting execution traces: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve execution traces",
+            details={"error": str(e)}
+        )
 
 
 # ==================== Variable Inspection Endpoints ====================
@@ -507,7 +537,10 @@ async def get_session_variables(
 
     except Exception as e:
         logger.error(f"Error getting session variables: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve session variables",
+            details={"error": str(e)}
+        )
 
 
 @router.get("/debug/traces/{trace_id}/variables")
@@ -538,7 +571,10 @@ async def get_trace_variables(
 
     except Exception as e:
         logger.error(f"Error getting trace variables: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(
+            message="Failed to retrieve trace variables",
+            details={"error": str(e)}
+        )
 
 
 # Export router

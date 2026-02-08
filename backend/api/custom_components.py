@@ -21,16 +21,17 @@ Endpoints:
 
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.custom_components_service import ComponentSecurityError, CustomComponentsService
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = BaseAPIRouter(prefix="/api/components", tags=["Custom Components"])
 
 
 # ============================================================================
@@ -142,12 +143,22 @@ async def create_component(
         )
 
         if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
+            raise router.validation_error(
+                field="component",
+                message=result.get("error", "Operation failed")
+            )
 
-        return result
+        return router.success_response(
+            data=result,
+            message="Operation completed successfully"
+        )
 
     except ComponentSecurityError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise router.permission_denied_error(
+            action="component_operation",
+            resource="CustomComponent",
+            details={"reason": str(e)}
+        )
 
 
 @router.get("")
@@ -180,7 +191,10 @@ async def list_components(
         limit=limit
     )
 
-    return result
+    return router.success_response(
+        data=result.get("components", result),
+        message=f"Retrieved {len(result.get('components', []))} components"
+    )
 
 
 @router.get("/{component_id}")
@@ -211,9 +225,16 @@ async def get_component(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
+        raise router.not_found_error(
+            resource="Component",
+            resource_id=component_id if 'component_id' in locals() else slug,
+            details={"error": result.get("error")}
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Component retrieved successfully"
+    )
 
 
 @router.get("/by-slug/{slug}")
@@ -243,9 +264,16 @@ async def get_component_by_slug(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
+        raise router.not_found_error(
+            resource="Component",
+            resource_id=component_id if 'component_id' in locals() else slug,
+            details={"error": result.get("error")}
+        )
 
-    return result
+    return router.success_response(
+        data=result,
+        message="Component retrieved successfully"
+    )
 
 
 @router.put("/{component_id}")
@@ -293,12 +321,22 @@ async def update_component(
         )
 
         if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
+            raise router.validation_error(
+                field="component",
+                message=result.get("error", "Operation failed")
+            )
 
-        return result
+        return router.success_response(
+            data=result,
+            message="Operation completed successfully"
+        )
 
     except ComponentSecurityError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise router.permission_denied_error(
+            action="component_operation",
+            resource="CustomComponent",
+            details={"reason": str(e)}
+        )
 
 
 @router.delete("/{component_id}")
@@ -328,7 +366,10 @@ async def delete_component(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -365,7 +406,10 @@ async def get_component_versions(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -403,7 +447,10 @@ async def rollback_component(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -458,7 +505,10 @@ async def record_component_usage(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result
 
@@ -491,6 +541,9 @@ async def get_component_stats(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        raise router.validation_error(
+            field="component",
+            message=result["error"]
+        )
 
     return result

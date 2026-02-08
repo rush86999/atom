@@ -4,11 +4,11 @@ INTEGRATE ALL COMPONENTS - Connect Frontend + Backend + OAuth
 Real integration script to make everything work together
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def integrate_all_components():

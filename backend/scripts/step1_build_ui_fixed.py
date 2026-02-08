@@ -4,9 +4,9 @@ STEP 1: Build User Interface Components - Fixed
 Create all 6 documented UI components with correct syntax
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def create_ui_components():

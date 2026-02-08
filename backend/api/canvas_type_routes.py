@@ -6,14 +6,14 @@ including validation, metadata lookup, and governance requirements.
 """
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.base_routes import BaseAPIRouter
 from core.canvas_type_registry import CanvasType, MaturityLevel, canvas_type_registry
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/canvas/types", tags=["canvas_types"])
+router = BaseAPIRouter(prefix="/api/canvas/types", tags=["canvas_types"])
 
 
 # Response Models
@@ -74,7 +74,7 @@ async def list_canvas_types():
         )
     except Exception as e:
         logger.error(f"Failed to list canvas types: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{canvas_type}", response_model=CanvasTypeInfo)
@@ -92,18 +92,16 @@ async def get_canvas_type(canvas_type: str):
         canvas_info = canvas_type_registry.get_canvas_info(canvas_type)
 
         if not canvas_info:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found. "
-                       f"Available types: {list(canvas_type_registry.get_all_types().keys())}"
+            raise router.not_found_error(
+                "Canvas Type",
+                canvas_type,
+                details={"available_types": list(canvas_type_registry.get_all_types().keys())}
             )
 
         return CanvasTypeInfo(**canvas_info)
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get canvas type {canvas_type}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{canvas_type}/components")
@@ -119,10 +117,7 @@ async def get_canvas_components(canvas_type: str):
     """
     try:
         if not canvas_type_registry.validate_canvas_type(canvas_type):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found"
-            )
+            raise router.not_found_error("Canvas Type", canvas_type)
 
         components = canvas_type_registry.get_components_for_type(canvas_type)
 
@@ -131,11 +126,9 @@ async def get_canvas_components(canvas_type: str):
             "components": components,
             "total": len(components)
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get components for {canvas_type}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{canvas_type}/layouts")
@@ -151,10 +144,7 @@ async def get_canvas_layouts(canvas_type: str):
     """
     try:
         if not canvas_type_registry.validate_canvas_type(canvas_type):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found"
-            )
+            raise router.not_found_error("Canvas Type", canvas_type)
 
         layouts = canvas_type_registry.get_layouts_for_type(canvas_type)
 
@@ -167,7 +157,7 @@ async def get_canvas_layouts(canvas_type: str):
         raise
     except Exception as e:
         logger.error(f"Failed to get layouts for {canvas_type}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/validate", response_model=CanvasTypeValidationResponse)
@@ -260,7 +250,7 @@ async def validate_canvas_type(request: CanvasTypeValidationRequest):
         )
     except Exception as e:
         logger.error(f"Failed to validate canvas type: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{canvas_type}/permissions/{maturity_level}")
@@ -278,28 +268,22 @@ async def get_canvas_permissions(canvas_type: str, maturity_level: str):
     try:
         # Validate canvas type
         if not canvas_type_registry.validate_canvas_type(canvas_type):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found"
-            )
+            raise router.not_found_error("Canvas Type", canvas_type)
 
         # Validate maturity level
         try:
             MaturityLevel(maturity_level)
         except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid maturity level: {maturity_level}. "
-                       f"Must be one of: [student, intern, supervised, autonomous]"
+            raise router.validation_error(
+                field="maturity_level",
+                message=f"Invalid maturity level: {maturity_level}",
+                details={"valid_levels": ["student", "intern", "supervised", "autonomous"]}
             )
 
         # Get metadata
         metadata = canvas_type_registry.get_type(canvas_type)
         if not metadata:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found"
-            )
+            raise router.not_found_error("Canvas Type", canvas_type)
 
         # Get permissions for this maturity level
         permissions = metadata.permissions.get(maturity_level, [])
@@ -311,11 +295,9 @@ async def get_canvas_permissions(canvas_type: str, maturity_level: str):
             "min_maturity": metadata.min_maturity.value,
             "sufficient_maturity": maturity_level >= metadata.min_maturity.value
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get permissions for {canvas_type} at {maturity_level}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{canvas_type}/examples")
@@ -333,18 +315,13 @@ async def get_canvas_examples(canvas_type: str):
         canvas_info = canvas_type_registry.get_canvas_info(canvas_type)
 
         if not canvas_info:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Canvas type '{canvas_type}' not found"
-            )
+            raise router.not_found_error("Canvas Type", canvas_type)
 
         return {
             "canvas_type": canvas_type,
             "display_name": canvas_info["display_name"],
             "examples": canvas_info["examples"]
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get examples for {canvas_type}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

@@ -7,8 +7,8 @@ across web app and desktop app, including settings and dead code detection.
 
 import json
 import os
-import sys
 from pathlib import Path
+import sys
 from typing import Dict, List, Set, Tuple
 
 

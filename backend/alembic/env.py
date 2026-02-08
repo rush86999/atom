@@ -12,8 +12,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Add backend to path to allow imports
 sys.path.append(str(Path(__file__).parent.parent))

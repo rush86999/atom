@@ -1,12 +1,13 @@
 import logging
 from typing import Any, Dict, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from integrations.mcp_service import mcp_service
 
-router = APIRouter(prefix="/api/sales", tags=["sales"])
+router = BaseAPIRouter(prefix="/api/sales", tags=["sales"])
 logger = logging.getLogger(__name__)
 
 @router.get("/pipeline")
@@ -45,7 +46,7 @@ async def get_sales_pipeline(
             
     except Exception as e:
         logger.error(f"Error fetching sales pipeline: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message="Error fetching sales pipeline", details={"error": str(e)})
 
 
 @router.get("/dashboard/summary")

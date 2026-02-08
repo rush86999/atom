@@ -14,18 +14,19 @@ Features:
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.canvas_recording_service import CanvasRecordingService, get_canvas_recording_service
 from core.database import get_db
 from core.models import CanvasRecording, User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/canvas/recording", tags=["canvas-recording"])
+router = BaseAPIRouter(prefix="/api/canvas/recording", tags=["canvas-recording"])
 
 
 # Request/Response Models
@@ -125,9 +126,8 @@ async def start_recording(
 
     except Exception as e:
         logger.error(f"Failed to start recording: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start recording: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to start recording: {str(e)}"
         )
 
 
@@ -160,13 +160,14 @@ async def record_event(
             event_data=request.event_data
         )
 
-        return {"success": True, "message": "Event recorded"}
+        return router.success_response(
+            message="Event recorded successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to record event: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to record event: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to record event: {str(e)}"
         )
 
 
@@ -194,13 +195,14 @@ async def stop_recording(
             summary=request.summary
         )
 
-        return {"success": True, "message": "Recording stopped"}
+        return router.success_response(
+            message="Recording stopped successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to stop recording: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to stop recording: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to stop recording: {str(e)}"
         )
 
 
@@ -221,27 +223,27 @@ async def get_recording(
         recording = await recording_service.get_recording(recording_id)
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {recording_id} not found"
+            raise router.not_found_error(
+                resource="Recording",
+                resource_id=recording_id
             )
 
         # Verify user owns this recording
         if recording["user_id"] != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have access to this recording"
+            raise router.permission_denied_error(
+                action="get_recording",
+                resource="Recording",
+                details={"recording_id": recording_id}
             )
 
         return RecordingResponse(**recording)
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if isinstance(e, Exception) and "not found" in str(e).lower():
+            raise
         logger.error(f"Failed to get recording: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get recording: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to get recording: {str(e)}"
         )
 
 
@@ -272,13 +274,16 @@ async def list_recordings(
             offset=offset
         )
 
-        return [RecordingResponse(**r) for r in recordings]
+        return router.success_list_response(
+            items=[RecordingResponse(**r).dict() for r in recordings],
+            total=len(recordings),
+            message=f"Retrieved {len(recordings)} recordings"
+        )
 
     except Exception as e:
         logger.error(f"Failed to list recordings: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list recordings: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to list recordings: {str(e)}"
         )
 
 
@@ -304,9 +309,9 @@ async def flag_recording(
         ).first()
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {recording_id} not found"
+            raise router.not_found_error(
+                resource="Recording",
+                resource_id=recording_id
             )
 
         recording_service = get_canvas_recording_service(db)
@@ -317,15 +322,16 @@ async def flag_recording(
             flagged_by=user.id
         )
 
-        return {"success": True, "message": "Recording flagged for review"}
+        return router.success_response(
+            message="Recording flagged for review successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if isinstance(e, Exception) and "not found" in str(e).lower():
+            raise
         logger.error(f"Failed to flag recording: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to flag recording: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to flag recording: {str(e)}"
         )
 
 
@@ -347,39 +353,45 @@ async def get_recording_replay(
         recording = await recording_service.get_recording(recording_id)
 
         if not recording:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recording {recording_id} not found"
+            raise router.not_found_error(
+                resource="Recording",
+                resource_id=recording_id
             )
 
         # Verify user owns this recording
         if recording["user_id"] != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have access to this recording"
+            raise router.permission_denied_error(
+                action="get_recording_replay",
+                resource="Recording",
+                details={"recording_id": recording_id}
             )
 
         # Return replay-optimized format
-        return {
-            "recording_id": recording_id,
-            "agent_id": recording["agent_id"],
-            "started_at": recording["started_at"],
-            "duration_seconds": recording["duration_seconds"],
-            "events": recording["events"],  # Already in chronological order
-            "recording_metadata": recording["recording_metadata"]
-        }
+        return router.success_response(
+            data={
+                "recording_id": recording_id,
+                "agent_id": recording["agent_id"],
+                "started_at": recording["started_at"],
+                "duration_seconds": recording["duration_seconds"],
+                "events": recording["events"],  # Already in chronological order
+                "recording_metadata": recording["recording_metadata"]
+            },
+            message="Recording replay data retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if isinstance(e, Exception) and "not found" in str(e).lower():
+            raise
         logger.error(f"Failed to get recording replay: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get recording replay: {str(e)}"
+        raise router.internal_error(
+            message=f"Failed to get recording replay: {str(e)}"
         )
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "canvas_recording"}
+    return router.success_response(
+        data={"status": "healthy", "service": "canvas_recording"},
+        message="Canvas recording service is healthy"
+    )

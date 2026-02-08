@@ -7,11 +7,11 @@ based on agent maturity levels (STUDENT, INTERN, SUPERVISED, AUTONOMOUS).
 Performance target: <5ms routing decision latency using GovernanceCache.
 """
 
-import logging
-import uuid
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, Literal, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.governance_cache import get_async_governance_cache
@@ -425,16 +425,63 @@ Please review and approve or reject this proposal.
         Route SUPERVISED agent to execution with supervision.
 
         SUPERVISED agents can execute but require real-time monitoring.
+        If user is unavailable, execution is queued for later.
         """
-        return TriggerDecision(
-            routing_decision=RoutingDecision.SUPERVISION,
-            execute=True,  # Allowed to execute, but under supervision
-            agent_id=agent_id,
-            agent_maturity=AgentStatus.SUPERVISED.value,
-            confidence_score=confidence_score,
-            trigger_source=trigger_source,
-            reason=f"SUPERVISED agent will execute with real-time monitoring."
-        )
+        from core.user_activity_service import UserActivityService
+        from core.supervised_queue_service import SupervisedQueueService
+
+        # Get agent to find user_id
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        if not agent:
+            return TriggerDecision(
+                routing_decision=RoutingDecision.SUPERVISION,
+                execute=False,
+                agent_id=agent_id,
+                agent_maturity=AgentStatus.SUPERVISED.value,
+                confidence_score=confidence_score,
+                trigger_source=trigger_source,
+                reason=f"Agent not found: {agent_id}"
+            )
+
+        # Check if user is available for supervision
+        user_activity_service = UserActivityService(self.db)
+        user_state = await user_activity_service.get_user_state(agent.user_id)
+
+        if user_activity_service.should_supervise(
+            type('obj', (object,), {'state': user_state})()
+        ):
+            # User available: Execute with supervision
+            return TriggerDecision(
+                routing_decision=RoutingDecision.SUPERVISION,
+                execute=True,
+                agent_id=agent_id,
+                agent_maturity=AgentStatus.SUPERVISED.value,
+                confidence_score=confidence_score,
+                trigger_source=trigger_source,
+                reason=f"SUPERVISED agent will execute with real-time monitoring (user available)"
+            )
+        else:
+            # User unavailable: Queue for later execution
+            queue_service = SupervisedQueueService(self.db)
+            await queue_service.enqueue_execution(
+                agent_id=agent_id,
+                user_id=agent.user_id,
+                trigger_type=trigger_source.value,
+                execution_context=trigger_context
+            )
+
+            return TriggerDecision(
+                routing_decision=RoutingDecision.SUPERVISION,
+                execute=False,
+                agent_id=agent_id,
+                agent_maturity=AgentStatus.SUPERVISED.value,
+                confidence_score=confidence_score,
+                trigger_source=trigger_source,
+                reason=f"SUPERVISED agent queued for later execution (user unavailable)"
+            )
 
     async def _allow_execution(
         self,

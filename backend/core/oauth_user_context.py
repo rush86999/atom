@@ -3,8 +3,8 @@ OAuth User Context Manager
 Provides user-scoped OAuth token management with automatic refresh
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)

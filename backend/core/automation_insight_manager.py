@@ -1,8 +1,8 @@
+from datetime import datetime, timedelta
 import json
 import logging
-import sqlite3
-from datetime import datetime, timedelta
 from pathlib import Path
+import sqlite3
 from typing import Any, Dict, List, Optional
 
 from core.workflow_analytics_engine import get_analytics_engine
@@ -80,11 +80,50 @@ class AutomationInsightManager:
     def get_underutilization_insights(self) -> List[Dict[str, Any]]:
         """
         Find workflows that are rarely triggered despite being active.
+
+        Returns:
+            List of underutilized workflows with usage statistics
         """
-        # This would require comparing 'all active workflows' with 'recent executions'
-        # For now, we'll look at workflows with 0 executions in the last 14 days
-        # assuming we have a list of all workflow IDs somehow.
-        pass
+        try:
+            from core.database import get_db_session
+            from core.models import WorkflowExecution
+
+            with get_db_session() as db:
+                # Get workflows from the last 14 days
+                from datetime import datetime, timedelta
+                cutoff_date = datetime.now() - timedelta(days=14)
+
+                # Find workflows with low execution counts
+                # This is a simplified implementation
+                recent_executions = db.query(
+                    WorkflowExecution.workflow_id,
+                    db.func.count(WorkflowExecution.id).label('execution_count')
+                ).filter(
+                    WorkflowExecution.created_at >= cutoff_date
+                ).group_by(
+                    WorkflowExecution.workflow_id
+                ).all()
+
+                # Convert to dict for easier lookup
+                execution_counts = {row.workflow_id: row.execution_count for row in recent_executions}
+
+                # Find underutilized workflows (0-2 executions in 14 days)
+                underutilized = []
+                for workflow_id, count in execution_counts.items():
+                    if count <= 2:
+                        underutilized.append({
+                            "workflow_id": workflow_id,
+                            "executions_last_14_days": count,
+                            "status": "UNDERUTILIZED",
+                            "recommendation": "Consider reviewing if this workflow is still needed"
+                        })
+
+                logger.info(f"Found {len(underutilized)} underutilized workflows")
+                return underutilized
+
+        except Exception as e:
+            logger.error(f"Failed to get underutilization insights: {e}")
+            return []
 
     def generate_all_insights(self, user_id: str) -> Dict[str, Any]:
         """Generate a comprehensive report of automation health for the user"""

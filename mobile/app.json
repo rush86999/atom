@@ -1,0 +1,112 @@
+{
+  "expo": {
+    "name": "Atom AI Automation",
+    "slug": "atom-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "atom",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.atomplatform.ai",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Atom needs camera access to capture images for agent analysis.",
+        "NSLocationWhenInUseUsageDescription": "Atom needs location access to provide location-aware automation.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Atom needs location access for background automation features.",
+        "NSPhotoLibraryUsageDescription": "Atom needs photo library access to select images for analysis.",
+        "NSFaceIDUsageDescription": "Atom uses Face ID for secure authentication.",
+        "NSMicrophoneUsageDescription": "Atom needs microphone access for voice commands."
+      },
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "com.atomplatform.ai"
+        },
+        "usesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developerveloperassociated-domains": [
+          {
+            "applinks": ["https://atom-platform.com"]
+          }
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.atomplatform.ai",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "POST_NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-location",
+      "expo-camera",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      },
+      "apiBaseURL": "https://api.atom-platform.com",
+      "websocketURL": "wss://api.atom-platform.com",
+      "environment": "production"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id-here"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

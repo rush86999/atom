@@ -3,11 +3,11 @@ Unified Ingestion Pipeline for ATOM Memory
 Consolidates data from all integrations into LanceDB vector storage.
 """
 
-import json
-import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from typing import Any, Dict, List, Optional
 
 # Import LanceDB handlers

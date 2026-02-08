@@ -3,19 +3,20 @@ Enterprise Authentication API Endpoints
 FastAPI-based REST API for user registration, login, and session management.
 """
 
-import logging
 from datetime import datetime, timezone
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+router = BaseAPIRouter(prefix="/api/auth", tags=["authentication"])
 
 # OAuth2 scheme for token-based auth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token/login")
@@ -78,9 +79,9 @@ async def register_user(
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == user_data.email).first()
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="User with this email already exists"
+            raise router.conflict_error(
+                message="User with this email already exists",
+                conflicting_resource=user_data.email
             )
 
         # Hash password
@@ -103,19 +104,21 @@ async def register_user(
 
         logger.info(f"User registered: {user.email}")
 
-        return {
-            "message": "User registered successfully",
-            "user_id": user.id,
-            "email": user.email
-        }
+        return router.success_response(
+            data={
+                "user_id": user.id,
+                "email": user.email
+            },
+            message="User registered successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Registration error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to register user"
+        raise router.internal_error(
+            message="Failed to register user",
+            details={"error": str(e)}
         )
 
 
@@ -141,9 +144,8 @@ async def login_user(
         )
 
         if not user_creds:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password"
+            raise router.unauthorized_error(
+                message="Invalid username or password"
             )
 
         # Update last login
@@ -183,13 +185,13 @@ async def login_user(
             security_level=user_creds['security_level']
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Login error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login failed"
+        raise router.internal_error(
+            message="Login failed",
+            details={"error": str(e)}
         )
 
 
@@ -212,20 +214,22 @@ async def refresh_token(
         # Verify refresh token
         claims = auth_service.verify_token(refresh_token)
         if not claims or claims.get('type') != 'refresh':
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired refresh token"
+            raise router.unauthorized_error(
+                message="Invalid or expired refresh token"
             )
 
         user_id = claims.get('user_id')
 
         # Check user still exists and is active
         user = db.query(User).filter(User.id == user_id).first()
-        if not user or user.status != "active":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found or inactive"
-            )
+    except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
+        logger.error(f"Token refresh error: {e}")
+        raise router.unauthorized_error(
+            message="Invalid refresh token",
+            details={"error": str(e)}
+        )
 
         # Get user credentials for token creation
         user_creds = auth_service.verify_credentials(db, user.email, "")  # No password needed for refresh
@@ -269,10 +273,12 @@ async def refresh_token(
     except HTTPException:
         raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Token refresh error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+        raise router.unauthorized_error(
+            message="Invalid refresh token",
+            details={"error": str(e)}
         )
 
 
@@ -293,9 +299,8 @@ async def get_current_user(
         # Verify token and get claims
         claims = auth_service.verify_token(current_user)
         if not claims:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
+            raise router.unauthorized_error(
+                message="Invalid token"
             )
 
         user_id = claims.get('user_id')
@@ -303,29 +308,32 @@ async def get_current_user(
         # Get full user info
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+            raise router.not_found_error(
+                resource="User",
+                resource_id=user_id
             )
 
-        return {
-            "user_id": user.id,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "role": user.role,
-            "status": user.status,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "last_login": user.last_login.isoformat() if user.last_login else None
-        }
+        return router.success_response(
+            data={
+                "user_id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "status": user.status,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "last_login": user.last_login.isoformat() if user.last_login else None
+            },
+            message="User info retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Get current user error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get user info"
+        raise router.internal_error(
+            message="Failed to get user info",
+            details={"error": str(e)}
         )
 
 
@@ -347,9 +355,8 @@ async def change_password(
         # Verify current user
         claims = auth_service.verify_token(current_user)
         if not claims:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
+            raise router.unauthorized_error(
+                message="Invalid token"
             )
 
         user_id = claims.get('user_id')
@@ -357,16 +364,15 @@ async def change_password(
         # Get user
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+            raise router.not_found_error(
+                resource="User",
+                resource_id=user_id
             )
 
         # Verify old password
         if not auth_service.verify_password(data.old_password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Current password is incorrect"
+            raise router.unauthorized_error(
+                message="Current password is incorrect"
             )
 
         # Hash new password
@@ -377,15 +383,17 @@ async def change_password(
 
         logger.info(f"Password changed for user: {user.email}")
 
-        return {"message": "Password changed successfully"}
+        return router.success_response(
+            message="Password changed successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Change password error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to change password"
+        raise router.internal_error(
+            message="Failed to change password",
+            details={"error": str(e)}
         )
 
 
@@ -398,9 +406,8 @@ async def get_current_user_dependency(token: str = Depends(oauth2_scheme)) -> Di
     claims = auth_service.verify_token(token)
 
     if not claims:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+        raise router.unauthorized_error(
+            message="Invalid token"
         )
 
     return claims
@@ -415,9 +422,10 @@ def require_role(required_roles: List[str]):
 
             # Check if user has any of the required roles
             if not any(role in user_roles for role in required_roles):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Insufficient permissions. Required roles: {required_roles}"
+                raise router.permission_denied_error(
+                    action="access_resource",
+                    resource="protected_endpoint",
+                    details={"required_roles": required_roles, "user_roles": user_roles}
                 )
 
             return await func(current_user)
@@ -437,9 +445,10 @@ def require_permission(permission: str):
 
             # Check for specific permission
             if permission not in user_permissions:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Missing permission: {permission}"
+                raise router.permission_denied_error(
+                    action=f"require_permission_{permission}",
+                    resource="protected_endpoint",
+                    details={"required_permission": permission}
                 )
 
             return await func(current_user)

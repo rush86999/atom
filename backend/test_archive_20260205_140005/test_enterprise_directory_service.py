@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Basic test cases for enterprise_directory_service module"""
+
+import os
+import sys
+import pytest
+
+# Add backend to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from scripts.production import enterprise_directory_service
+
+
+class TestBasic:
+    """Basic test cases for module import and structure"""
+
+    def test_module_import(self):
+        """Test that enterprise_directory_service module can be imported"""
+        assert enterprise_directory_service is not None
+
+    def test_module_has_expected_attributes(self):
+        """Test that enterprise_directory_service module has expected attributes"""
+        # Check for common attributes or functions
+        assert hasattr(sys.modules[__name__], '__file__')

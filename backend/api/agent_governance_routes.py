@@ -4,21 +4,23 @@ Exposes endpoints for frontend to query and interact with agent governance.
 Used by AgentWorkflowGenerator.tsx to check maturity levels and approval requirements.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
-
-from core.database import get_db_session
+from core.base_routes import BaseAPIRouter
+from core.database import get_db, get_db_session
 
 # Import newly created intervention service
 from core.intervention_service import intervention_service
 from core.models import User, UserRole
 
-router = APIRouter(prefix="/api/agent-governance", tags=["Agent Governance"])
+logger = logging.getLogger(__name__)
+
+router = BaseAPIRouter(prefix="/api/agent-governance", tags=["Agent Governance"])
 
 
 # ==================== Request/Response Models ====================
@@ -237,7 +239,7 @@ async def list_agents_with_maturity(
     
     except Exception as e:
         logger.error(f"Failed to list agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/agents/{agent_id}", response_model=AgentMaturityResponse)
@@ -249,7 +251,7 @@ async def get_agent_maturity(agent_id: str):
     try:
         # In production, query AgentRegistry from database
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         data = MOCK_AGENTS[agent_id]
         score = data["confidence_score"]
@@ -267,11 +269,9 @@ async def get_agent_maturity(agent_id: str):
             description=data.get("description")
         )
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get agent {agent_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/check-deployment", response_model=WorkflowApprovalResponse)
@@ -284,7 +284,7 @@ async def check_workflow_deployment(request: WorkflowApprovalRequest):
         agent_id = request.agent_id
         
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         data = MOCK_AGENTS[agent_id]
         score = data["confidence_score"]
@@ -315,11 +315,9 @@ async def check_workflow_deployment(request: WorkflowApprovalRequest):
                 approver_role_required=approver_role
             )
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to check deployment: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/submit-for-approval")
@@ -332,7 +330,7 @@ async def submit_workflow_for_approval(request: WorkflowApprovalRequest):
         agent_id = request.agent_id
         
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         data = MOCK_AGENTS[agent_id]
         score = data["confidence_score"]
@@ -347,24 +345,23 @@ async def submit_workflow_for_approval(request: WorkflowApprovalRequest):
         # 3. Store the pending workflow
         
         logger.info(f"Workflow submitted for approval: {approval_id} by agent {agent_id}")
-        
-        return {
-            "success": True,
-            "approval_id": approval_id,
-            "workflow_name": request.workflow_name,
-            "agent_id": agent_id,
-            "agent_name": data["name"],
-            "maturity_level": maturity,
-            "status": "pending",
-            "message": "Workflow submitted for approval. You will be notified when reviewed.",
-            "estimated_review_time": "24 hours"
-        }
+
+        return router.success_response(
+            data={
+                "approval_id": approval_id,
+                "workflow_name": request.workflow_name,
+                "agent_id": agent_id,
+                "agent_name": data["name"],
+                "maturity_level": maturity,
+                "status": "pending",
+                "estimated_review_time": "24 hours"
+            },
+            message="Workflow submitted for approval. You will be notified when reviewed."
+        )
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to submit for approval: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/feedback")
@@ -377,24 +374,21 @@ async def submit_agent_feedback(request: AgentFeedbackRequest):
         agent_id = request.agent_id
         
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         # In production, this would call AgentGovernanceService.submit_feedback()
         # which triggers AI adjudication and updates confidence scores
         
         logger.info(f"Feedback submitted for agent {agent_id}")
-        
-        return {
-            "success": True,
-            "message": "Thank you for your feedback. It will be reviewed and may affect the agent's maturity level.",
-            "agent_id": agent_id
-        }
+
+        return router.success_response(
+            data={"agent_id": agent_id},
+            message="Thank you for your feedback. It will be reviewed and may affect the agent's maturity level."
+        )
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to submit feedback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/pending-approvals")
@@ -417,47 +411,56 @@ async def list_pending_approvals(
     
     except Exception as e:
         logger.error(f"Failed to list pending approvals: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/approve/{approval_id}")
 async def approve_workflow(
     approval_id: str,
-    approver_id: str = Query(..., description="ID of the approving user")
+    approver_id: str = Query(..., description="ID of the approving user"),
+    db: Session = Depends(get_db)
 ):
     """
     Approve a pending workflow.
     """
     try:
         # RBAC Check
-        with get_db_session() as db:
-            user = db.query(User).filter(User.id == approver_id).first()
-            if not user:
-                raise HTTPException(status_code=404, detail="Approver user not found")
-            
-            # Require at least Team Lead
-            allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
-            if user.role not in allowed_roles:
-                raise HTTPException(status_code=403, detail="Insufficient permissions. Approval requires Team Lead or Admin role.")
+        user = db.query(User).filter(User.id == approver_id).first()
+        if not user:
+            raise router.not_found_error("User", approver_id)
+
+        # Require at least Team Lead
+        allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
+        if user.role not in allowed_roles:
+            raise router.permission_denied_error(
+                action="approve_workflow",
+                resource="Workflow Approval",
+                details={"required_role": "TEAM_LEAD or ADMIN", "user_role": user.role}
+            )
 
         # Use intervention service
         result = await intervention_service.approve_intervention(approval_id, approver_id)
-        
+
         if not result.get("success"):
-             raise HTTPException(status_code=400, detail=result.get("message"))
-        
-        return {
-            "success": True,
-            "approval_id": approval_id,
-            "status": "approved",
-            "approved_by": approver_id,
-            "approved_at": datetime.utcnow().isoformat(),
-            "message": "Action approved successfully"
-        }
-    
+             raise router.error_response(
+                 error_code="APPROVAL_FAILED",
+                 message=result.get("message", "Failed to approve workflow"),
+                 status_code=400
+             )
+
+        return router.success_response(
+            data={
+                "approval_id": approval_id,
+                "status": "approved",
+                "approved_by": approver_id,
+                "approved_at": datetime.utcnow().isoformat()
+            },
+            message="Action approved successfully"
+        )
+
     except Exception as e:
         logger.error(f"Failed to approve workflow: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/reject/{approval_id}")
@@ -472,23 +475,28 @@ async def reject_workflow(
     try:
         # Use intervention service
         result = await intervention_service.reject_intervention(approval_id, approver_id, reason)
-        
+
         if not result.get("success"):
-             raise HTTPException(status_code=400, detail=result.get("message"))
-             
-        return {
-            "success": True,
-            "approval_id": approval_id,
-            "status": "rejected",
-            "rejected_by": approver_id,
-            "rejected_at": datetime.utcnow().isoformat(),
-            "reason": reason,
-            "message": "Action rejected"
-        }
-    
+             raise router.error_response(
+                 error_code="REJECTION_FAILED",
+                 message=result.get("message", "Failed to reject workflow"),
+                 status_code=400
+             )
+
+        return router.success_response(
+            data={
+                "approval_id": approval_id,
+                "status": "rejected",
+                "rejected_by": approver_id,
+                "rejected_at": datetime.utcnow().isoformat(),
+                "reason": reason
+            },
+            message="Action rejected"
+        )
+
     except Exception as e:
         logger.error(f"Failed to reject workflow: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 # ==================== SKILL LEVEL ENFORCEMENT ENDPOINTS ====================
@@ -508,7 +516,7 @@ async def get_agent_capabilities(agent_id: str):
     """
     try:
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         data = MOCK_AGENTS[agent_id]
         score = data["confidence_score"]
@@ -547,11 +555,9 @@ async def get_agent_capabilities(agent_id: str):
             "total_restricted": len(restricted)
         }
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get capabilities: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/enforce-action")
@@ -641,7 +647,7 @@ async def enforce_action(request: ActionEnforceRequest):
     
     except Exception as e:
         logger.error(f"Failed to enforce action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/generate-workflow")
@@ -655,7 +661,7 @@ async def generate_workflow_from_description(
     """
     try:
         if agent_id not in MOCK_AGENTS:
-            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+            raise router.not_found_error("Agent", agent_id)
         
         data = MOCK_AGENTS[agent_id]
         score = data["confidence_score"]
@@ -686,22 +692,21 @@ async def generate_workflow_from_description(
         # Check if direct deployment is allowed
         can_deploy = can_deploy_directly(maturity, score)
         
-        return {
-            "success": True,
-            "workflow": workflow,
-            "agent": {
-                "id": agent_id,
-                "name": data["name"],
-                "maturity": maturity,
-                "confidence": score
+        return router.success_response(
+            data={
+                "workflow": workflow,
+                "agent": {
+                    "id": agent_id,
+                    "name": data["name"],
+                    "maturity": maturity,
+                    "confidence": score
+                },
+                "can_deploy_directly": can_deploy,
+                "requires_approval": not can_deploy
             },
-            "can_deploy_directly": can_deploy,
-            "requires_approval": not can_deploy,
-            "message": f"Workflow generated by {data['name']}. {'Ready to deploy.' if can_deploy else 'Requires approval.'}"
-        }
+            message=f"Workflow generated by {data['name']}. {'Ready to deploy.' if can_deploy else 'Requires approval.'}"
+        )
     
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to generate workflow: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

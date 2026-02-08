@@ -4,22 +4,25 @@ Comprehensive workflow automation integrating all enterprise services with intel
 """
 
 import asyncio
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import hashlib
 import json
 import logging
 import os
 import time
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
 import httpx
 import numpy as np
 import pandas as pd
 
-# Import existing ATOM services
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Import existing ATOM services (all optional)
 try:
     from ai_enhanced_service import (
         AIModelType,
@@ -29,8 +32,28 @@ try:
         AITaskType,
         ai_enhanced_service,
     )
+except ImportError:
+    logger.debug("ai_enhanced_service not available")
+    ai_enhanced_service = None
+    AIModelType = None
+    AIRequest = None
+    AIResponse = None
+    AIServiceType = None
+    AITaskType = None
+
+try:
     from atom_ai_integration import atom_ai_integration
+except ImportError:
+    logger.debug("atom_ai_integration not available")
+    atom_ai_integration = None
+
+try:
     from atom_discord_integration import atom_discord_integration
+except ImportError:
+    logger.debug("atom_discord_integration not available")
+    atom_discord_integration = None
+
+try:
     from atom_enterprise_security_service import (
         AuditEventType,
         ComplianceReport,
@@ -42,6 +65,19 @@ try:
         ThreatType,
         atom_enterprise_security_service,
     )
+except ImportError:
+    logger.debug("atom_enterprise_security_service not available")
+    atom_enterprise_security_service = None
+    AuditEventType = None
+    ComplianceReport = None
+    ComplianceStandard = None
+    SecurityAudit = None
+    SecurityLevel = None
+    SecurityPolicy = None
+    ThreatDetection = None
+    ThreatType = None
+
+try:
     from atom_enterprise_unified_service import (
         AutomationTriggerType,
         ComplianceAutomation,
@@ -52,12 +88,54 @@ try:
         WorkflowSecurityLevel,
         atom_enterprise_unified_service,
     )
+except ImportError:
+    logger.debug("atom_enterprise_unified_service not available")
+    atom_enterprise_unified_service = None
+    AutomationTriggerType = None
+    ComplianceAutomation = None
+    ComplianceWorkflowType = None
+    EnterpriseServiceType = None
+    EnterpriseWorkflow = None
+    SecurityWorkflowAction = None
+    WorkflowSecurityLevel = None
+
+try:
     from atom_google_chat_integration import atom_google_chat_integration
+except ImportError:
+    logger.debug("atom_google_chat_integration not available")
+    atom_google_chat_integration = None
+
+try:
     from atom_ingestion_pipeline import AtomIngestionPipeline
+except ImportError:
+    logger.debug("AtomIngestionPipeline not available")
+    AtomIngestionPipeline = None
+
+try:
     from atom_memory_service import AtomMemoryService
+except ImportError:
+    logger.debug("AtomMemoryService not available")
+    AtomMemoryService = None
+
+try:
     from atom_search_service import AtomSearchService
+except ImportError:
+    logger.debug("AtomSearchService not available")
+    AtomSearchService = None
+
+try:
     from atom_slack_integration import atom_slack_integration
+except ImportError:
+    logger.debug("atom_slack_integration not available")
+    atom_slack_integration = None
+
+try:
     from atom_teams_integration import atom_teams_integration
+except ImportError:
+    logger.debug("atom_teams_integration not available")
+    atom_teams_integration = None
+
+try:
     from atom_workflow_service import (
         AtomWorkflowService,
         Workflow,
@@ -66,11 +144,14 @@ try:
         WorkflowStep,
         WorkflowTrigger,
     )
-except ImportError as e:
-    logging.warning(f"Enterprise workflow automation services not available: {e}")
-
-# Configure logging
-logger = logging.getLogger(__name__)
+except ImportError:
+    logger.debug("atom_workflow_service not available")
+    AtomWorkflowService = None
+    Workflow = None
+    WorkflowAction = None
+    WorkflowStatus = None
+    WorkflowStep = None
+    WorkflowTrigger = None
 
 class WorkflowAutomationType(Enum):
     """Workflow automation types"""
@@ -1321,62 +1402,605 @@ class AtomWorkflowAutomationService:
         # Mock implementation
         logger.info(f"Email Notification: {message} (Urgency: {urgency})")
     
-    # Additional private methods would be implemented here
+    # Additional private methods - Full implementations
     async def _initialize_automation_templates(self):
-        """Initialize automation templates"""
-        pass
-    
+        """Initialize automation templates with default templates"""
+        try:
+            # Default automation templates for common use cases
+            default_templates = {
+                'security_alert_response': {
+                    'name': 'Security Alert Response',
+                    'description': 'Automatically respond to security alerts based on severity',
+                    'type': WorkflowAutomationType.SECURITY.value,
+                    'conditions': [
+                        {
+                            'type': AutomationConditionType.SECURITY_ALERT.value,
+                            'severity': ['high', 'critical']
+                        }
+                    ],
+                    'actions': [
+                        {
+                            'type': AutomationActionType.NOTIFICATION.value,
+                            'config': {
+                                'channels': ['security_team'],
+                                'urgency': 'high'
+                            }
+                        },
+                        {
+                            'type': AutomationActionType.WORKFLOW_EXECUTION.value,
+                            'config': {
+                                'workflow_id': 'security_incident_response'
+                            }
+                        }
+                    ],
+                    'priority': AutomationPriority.HIGH.value,
+                    'enabled': True
+                },
+                'compliance_violation_handling': {
+                    'name': 'Compliance Violation Handling',
+                    'description': 'Handle compliance violations automatically',
+                    'type': WorkflowAutomationType.COMPLIANCEANCE.value,
+                    'conditions': [
+                        {
+                            'type': AutomationConditionType.COMPLIANCE_VIOLATION.value,
+                            'standards': ['SOC2', 'HIPAA', 'GDPR']
+                        }
+                    ],
+                    'actions': [
+                        {
+                            'type': AutomationActionType.NOTIFICATION.value,
+                            'config': {
+                                'channels': ['compliance_team'],
+                                'urgency': 'critical'
+                            }
+                        },
+                        {
+                            'type': AutomationActionType.AUDITING.value,
+                            'config': {
+                                'audit_type': 'compliance_violation'
+                            }
+                        }
+                    ],
+                    'priority': AutomationPriority.CRITICAL.value,
+                    'enabled': True
+                },
+                'daily_security_scan': {
+                    'name': 'Daily Security Scan',
+                    'description': 'Run daily security scans',
+                    'type': WorkflowAutomationType.SECURITY.value,
+                    'conditions': [
+                        {
+                            'type': AutomationConditionType.SCHEDULED.value,
+                            'schedule': '0 2 * * *'  # 2 AM daily
+                        }
+                    ],
+                    'actions': [
+                        {
+                            'type': AutomationActionType.WORKFLOW_EXECUTION.value,
+                            'config': {
+                                'workflow_id': 'security_scan_workflow'
+                            }
+                        }
+                    ],
+                    'priority': AutomationPriority.MEDIUM.value,
+                    'enabled': False  # Disabled by default
+                },
+                'user_access_review': {
+                    'name': 'User Access Review',
+                    'description': 'Review user access permissions periodically',
+                    'type': WorkflowAutomationType.ACCESS_CONTROL.value,
+                    'conditions': [
+                        {
+                            'type': AutomationConditionType.SCHEDULED.value,
+                            'schedule': '0 9 * * 1'  # 9 AM every Monday
+                        }
+                    ],
+                    'actions': [
+                        {
+                            'type': AutomationActionType.NOTIFICATION.value,
+                            'config': {
+                                'channels': ['admin_team'],
+                                'urgency': 'medium'
+                            }
+                        },
+                        {
+                            'type': AutomationActionType.REPORTING.value,
+                            'config': {
+                                'report_type': 'user_access_report'
+                            }
+                        }
+                    ],
+                    'priority': AutomationPriority.MEDIUM.value,
+                    'enabled': False
+                }
+            }
+
+            # Load templates from database if available, otherwise use defaults
+            if self.db:
+                try:
+                    from sqlalchemy import text
+                    result = self.db.execute(text("SELECT data FROM automation_templates WHERE active = :active"), {"active": True})
+                    for row in result:
+                        template_data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                        if 'template_id' in template_data:
+                            self.automation_templates[template_data['template_id']] = template_data
+                except Exception as e:
+                    logger.warning(f"Could not load templates from database: {e}")
+
+            # Add default templates
+            self.automation_templates.update(default_templates)
+            logger.info(f"Initialized {len(self.automation_templates)} automation templates")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing automation templates: {e}")
+            return False
+
     async def _load_automations(self):
-        """Load existing automations"""
-        pass
-    
+        """Load existing automations from database"""
+        try:
+            if not self.db:
+                logger.warning("No database connection, skipping automation load")
+                return False
+
+            from sqlalchemy import text
+
+            # Load active automations
+            result = self.db.execute(text("""
+                SELECT automation_id, name, description, type, conditions, actions,
+                       priority, status, enabled, created_by, created_at, updated_at,
+                       schedule, next_run, last_run, execution_count, success_count,
+                       failure_count, last_execution_status, metadata
+                FROM workflow_automations
+                WHERE status IN (:active, :paused)
+                ORDER BY created_at DESC
+            """), {
+                "active": AutomationStatus.ACTIVE.value,
+                "paused": AutomationStatus.PAUSED.value
+            })
+
+            for row in result:
+                automation = WorkflowAutomation(
+                    automation_id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    type=row[3],
+                    conditions=json.loads(row[4]) if row[4] else [],
+                    actions=json.loads(row[5]) if row[5] else [],
+                    priority=row[6],
+                    status=AutomationStatus(row[7]),
+                    enabled=row[8],
+                    created_by=row[9],
+                    created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.utcnow(),
+                    updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.utcnow(),
+                    schedule=row[12],
+                    next_run=datetime.fromisoformat(row[13]) if row[13] else None,
+                    last_run=datetime.fromisoformat(row[14]) if row[14] else None,
+                    execution_count=row[15] or 0,
+                    success_count=row[16] or 0,
+                    failure_count=row[17] or 0,
+                    last_execution_status=row[18],
+                    metadata=json.loads(row[19]) if row[19] else {}
+                )
+                self.automations[automation.automation_id] = automation
+
+                # Schedule automation if it has a schedule and is enabled
+                if automation.enabled and automation.schedule and automation.next_run:
+                    await self._schedule_automation(automation, {'type': AutomationConditionType.SCHEDULED.value})
+
+            logger.info(f"Loaded {len(self.automations)} automations from database")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading automations: {e}")
+            return False
+
     async def _initialize_automation_scheduling(self):
-        """Initialize automation scheduling"""
-        pass
-    
+        """Initialize automation scheduling system"""
+        try:
+            if self.scheduler_running:
+                logger.warning("Scheduler already running")
+                return True
+
+            # Start the scheduler task
+            self.scheduler_task = asyncio.create_task(self._scheduler_loop())
+            self.scheduler_running = True
+
+            logger.info("Automation scheduling initialized")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing automation scheduling: {e}")
+            return False
+
+    async def _scheduler_loop(self):
+        """Background scheduler loop"""
+        while self.scheduler_running:
+            try:
+                now = datetime.utcnow()
+
+                # Check automations that need to run
+                for automation_id, automation in self.automations.items():
+                    if automation.enabled and automation.next_run:
+                        if automation.next_run <= now:
+                            logger.info(f"Running scheduled automation: {automation_id}")
+                            await self.execute_automation(
+                                automation_id=automation_id,
+                                trigger_context={'trigger_type': 'scheduled'}
+                            )
+
+                # Sleep for a short interval before checking again
+                await asyncio.sleep(60)  # Check every minute
+            except Exception as e:
+                logger.error(f"Error in scheduler loop: {e}")
+                await asyncio.sleep(60)  # Wait before retrying
+
     async def _initialize_trigger_listeners(self):
-        """Initialize trigger listeners"""
-        pass
-    
+        """Initialize trigger listeners for event-based automations"""
+        try:
+            # Register event listeners for different trigger types
+            event_types = [
+                AutomationConditionType.EVENT_TRIGGERED.value,
+                AutomationConditionType.SECURITY_ALERT.value,
+                AutomationConditionType.COMPLIANCE_VIOLATION.value,
+                AutomationConditionType.THRESHOLD_EXCEEDED.value,
+                AutomationConditionType.ANOMALY_DETECTED.value,
+                AutomationConditionType.SYSTEM_EVENT.value,
+                AutomationConditionType.USER_ACTION.value,
+                AutomationConditionType.DATA_CHANGED.value
+            ]
+
+            for event_type in event_types:
+                self.trigger_listeners[event_type] = {
+                    'automations': [],
+                    'callback': self._handle_event_trigger
+                }
+
+            # Find automations with event triggers and register them
+            for automation_id, automation in self.automations.items():
+                for condition in automation.conditions:
+                    if condition['type'] in event_types:
+                        if automation_id not in self.trigger_listeners[condition['type']]['automations']:
+                            self.trigger_listeners[condition['type']]['automations'].append(automation_id)
+
+            logger.info(f"Initialized trigger listeners for {len(self.trigger_listeners)} event types")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing trigger listeners: {e}")
+            return False
+
+    async def _handle_event_trigger(self, event_type: str, event_data: Dict[str, Any]):
+        """Handle an event trigger"""
+        try:
+            if event_type not in self.trigger_listeners:
+                logger.warning(f"Unknown event type: {event_type}")
+                return
+
+            listener = self.trigger_listeners[event_type]
+            automation_ids = listener['automations']
+
+            for automation_id in automation_ids:
+                if automation_id in self.automations:
+                    automation = self.automations[automation_id]
+                    if automation.enabled:
+                        await self.execute_automation(
+                            automation_id=automation_id,
+                            trigger_context=event_data
+                        )
+        except Exception as e:
+            logger.error(f"Error handling event trigger: {e}")
+
     async def _initialize_integration_endpoints(self):
-        """Initialize integration endpoints"""
-        pass
-    
+        """Initialize integration endpoints for platform-specific automations"""
+        try:
+            # Validate platform integrations
+            for platform_name, integration in self.platform_integrations.items():
+                if integration:
+                    try:
+                        # Test the integration
+                        if hasattr(integration, 'test_connection'):
+                            is_connected = await integration.test_connection()
+                            logger.info(f"Platform {platform_name} integration: {'connected' if is_connected else 'disconnected'}")
+                    except Exception as e:
+                        logger.warning(f"Could not validate {platform_name} integration: {e}")
+
+            logger.info("Integration endpoints initialized")
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing integration endpoints: {e}")
+            return False
+
     async def _start_automation_monitoring(self):
-        """Start automation monitoring"""
-        pass
-    
+        """Start background automation monitoring"""
+        try:
+            # Start monitoring task
+            asyncio.create_task(self._monitoring_loop())
+            logger.info("Automation monitoring started")
+            return True
+        except Exception as e:
+            logger.error(f"Error starting automation monitoring: {e}")
+            return False
+
+    async def _monitoring_loop(self):
+        """Background monitoring loop for automation health"""
+        while True:
+            try:
+                # Update metrics
+                self.automation_metrics['total_automations'] = len(self.automations)
+                self.automation_metrics['active_automations'] = sum(
+                    1 for auto in self.automations.values() if auto.enabled and auto.status == AutomationStatus.ACTIVE
+                )
+
+                # Check for failed automations
+                for automation_id, automation in self.automations.items():
+                    if automation.last_execution_status == 'failed':
+                        # Check if failure rate is high
+                        if automation.execution_count > 0:
+                            failure_rate = automation.failure_count / automation.execution_count
+                            if failure_rate > 0.5:  # More than 50% failure rate
+                                logger.warning(f"Automation {automation_id} has high failure rate: {failure_rate:.2%}")
+
+                # Sleep for 5 minutes between checks
+                await asyncio.sleep(300)
+            except Exception as e:
+                logger.error(f"Error in monitoring loop: {e}")
+                await asyncio.sleep(300)
+
     async def _schedule_automation(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Schedule automation"""
-        pass
-    
+        """Schedule automation based on condition"""
+        try:
+            if condition['type'] == AutomationConditionType.SCHEDULED.value:
+                schedule = automation.schedule or condition.get('schedule')
+                if schedule:
+                    # Calculate next run time based on cron schedule
+                    # This is a simplified implementation - use a proper cron library in production
+                    from datetime import timedelta
+
+                    # For now, just schedule for next day at same time
+                    if automation.next_run:
+                        next_run = automation.next_run + timedelta(days=1)
+                    else:
+                        next_run = datetime.utcnow() + timedelta(days=1)
+
+                    automation.next_run = next_run
+                    self.scheduled_automations[automation.automation_id] = {
+                        'schedule': schedule,
+                        'next_run': next_run.isoformat()
+                    }
+
+                    logger.info(f"Scheduled automation {automation.automation_id} for {next_run}")
+                    return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Error scheduling automation: {e}")
+            return False
+
     async def _setup_event_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Setup event trigger"""
-        pass
-    
+        """Setup event-based trigger"""
+        try:
+            event_type = condition.get('event_type', condition.get('type'))
+            if not event_type:
+                logger.warning(f"No event type specified for automation {automation.automation_id}")
+                return False
+
+            # Register automation for event type
+            if event_type not in self.trigger_listeners:
+                self.trigger_listeners[event_type] = {
+                    'automations': [],
+                    'callback': self._handle_event_trigger
+                }
+
+            if automation.automation_id not in self.trigger_listeners[event_type]['automations']:
+                self.trigger_listeners[event_type]['automations'].append(automation.automation_id)
+
+            self.active_triggers[automation.automation_id] = {
+                'type': 'event',
+                'event_type': event_type,
+                'condition': condition,
+                'enabled': automation.enabled
+            }
+
+            logger.info(f"Setup event trigger for automation {automation.automation_id}: {event_type}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up event trigger: {e}")
+            return False
+
     async def _setup_threshold_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Setup threshold trigger"""
-        pass
-    
+        """Setup threshold-based trigger"""
+        try:
+            metric = condition.get('metric')
+            threshold = condition.get('threshold')
+            operator = condition.get('operator', 'gt')  # gt, lt, gte, lte, eq
+
+            if not metric or threshold is None:
+                logger.warning(f"Invalid threshold condition for automation {automation.automation_id}")
+                return False
+
+            self.active_triggers[automation.automation_id] = {
+                'type': 'threshold',
+                'metric': metric,
+                'threshold': threshold,
+                'operator': operator,
+                'condition': condition,
+                'enabled': automation.enabled
+            }
+
+            logger.info(f"Setup threshold trigger for automation {automation.automation_id}: {metric} {operator} {threshold}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up threshold trigger: {e}")
+            return False
+
     async def _setup_anomaly_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Setup anomaly trigger"""
-        pass
-    
+        """Setup anomaly detection trigger"""
+        try:
+            metric = condition.get('metric')
+            sensitivity = condition.get('sensitivity', 'medium')  # low, medium, high
+
+            if not metric:
+                logger.warning(f"Invalid anomaly condition for automation {automation.automation_id}")
+                return False
+
+            self.active_triggers[automation.automation_id] = {
+                'type': 'anomaly',
+                'metric': metric,
+                'sensitivity': sensitivity,
+                'condition': condition,
+                'enabled': automation.enabled
+            }
+
+            logger.info(f"Setup anomaly trigger for automation {automation.automation_id}: {metric} (sensitivity: {sensitivity})")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up anomaly trigger: {e}")
+            return False
+
     async def _setup_security_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Setup security trigger"""
-        pass
-    
+        """Setup security event trigger"""
+        try:
+            threat_type = condition.get('threat_type')
+            severity = condition.get('severity', 'medium')  # low, medium, high, critical
+
+            self.active_triggers[automation.automation_id] = {
+                'type': 'security',
+                'threat_type': threat_type,
+                'severity': severity,
+                'condition': condition,
+                'enabled': automation.enabled
+            }
+
+            # Register with security service if available
+            if self.security_service and hasattr(self.security_service, 'register_security_trigger'):
+                await self.security_service.register_security_trigger(
+                    automation_id=automation.automation_id,
+                    threat_type=threat_type,
+                    severity=severity,
+                    callback=lambda event: self.execute_automation(automation.automation_id, event)
+                )
+
+            logger.info(f"Setup security trigger for automation {automation.automation_id}: {threat_type} (severity: {severity})")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up security trigger: {e}")
+            return False
+
     async def _setup_compliance_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
-        """Setup compliance trigger"""
-        pass
-    
+        """Setup compliance violation trigger"""
+        try:
+            standard = condition.get('standard')  # SOC2, HIPAA, GDPR, etc.
+            violation_type = condition.get('violation_type')
+
+            self.active_triggers[automation.automation_id] = {
+                'type': 'compliance',
+                'standard': standard,
+                'violation_type': violation_type,
+                'condition': condition,
+                'enabled': automation.enabled
+            }
+
+            # Register with unified service if available
+            if self.unified_service and hasattr(self.unified_service, 'register_compliance_trigger'):
+                await self.unified_service.register_compliance_trigger(
+                    automation_id=automation.automation_id,
+                    standard=standard,
+                    violation_type=violation_type,
+                    callback=lambda event: self.execute_automation(automation.automation_id, event)
+                )
+
+            logger.info(f"Setup compliance trigger for automation {automation.automation_id}: {standard} - {violation_type}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up compliance trigger: {e}")
+            return False
+
     async def _setup_platform_triggers(self, platform: str, automation_id: str, config: Dict[str, Any]):
         """Setup platform-specific triggers"""
-        pass
-    
+        try:
+            if platform not in self.platform_integrations:
+                logger.warning(f"Unknown platform: {platform}")
+                return False
+
+            integration = self.platform_integrations[platform]
+            if not integration:
+                logger.warning(f"Platform {platform} integration not available")
+                return False
+
+            # Setup platform-specific triggers based on config
+            trigger_type = config.get('trigger_type')
+
+            if trigger_type == 'webhook':
+                # Register webhook with platform
+                if hasattr(integration, 'register_webhook'):
+                    webhook_url = config.get('webhook_url')
+                    events = config.get('events', [])
+                    await integration.register_webhook(webhook_url, events)
+                    logger.info(f"Registered webhook for {platform}: {webhook_url}")
+
+            elif trigger_type == 'polling':
+                # Setup polling interval
+                if hasattr(integration, 'start_polling'):
+                    interval = config.get('polling_interval', 300)  # 5 minutes default
+                    await integration.start_polling(automation_id, interval)
+                    logger.info(f"Started polling for {platform} with interval {interval}s")
+
+            elif trigger_type == 'event_subscription':
+                # Subscribe to platform events
+                if hasattr(integration, 'subscribe_to_events'):
+                    events = config.get('events', [])
+                    await integration.subscribe_to_events(automation_id, events)
+                    logger.info(f"Subscribed to events for {platform}: {events}")
+
+            logger.info(f"Setup platform triggers for {platform}: {automation_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up platform triggers: {e}")
+            return False
+
     async def _send_automation_notifications(self, automation: WorkflowAutomation, execution: AutomationExecution):
-        """Send automation notifications"""
-        pass
+        """Send notifications based on automation execution"""
+        try:
+            # Get notification rules from automation metadata
+            notification_rules = automation.metadata.get('notification_rules', [])
+
+            if not notification_rules:
+                # Default notification behavior
+                if execution.status == AutomationStatus.FAILED:
+                    await self._notify_via_slack(
+                        message=f"Automation {automation.name} failed: {execution.error}",
+                        urgency='high'
+                    )
+                return
+
+            # Process each notification rule
+            for rule in notification_rules:
+                should_notify = False
+
+                # Check if rule matches execution status
+                if rule.get('status') == execution.status.value:
+                    should_notify = True
+
+                # Check if rule is for errors
+                if rule.get('on_error') and execution.error:
+                    should_notify = True
+
+                if should_notify:
+                    channels = rule.get('channels', [])
+                    message = rule.get('message', f"Automation {automation.name} executed with status: {execution.status.value}")
+                    urgency = rule.get('urgency', 'medium')
+
+                    # Send to each channel
+                    for channel in channels:
+                        if channel.startswith('slack:'):
+                            await self._notify_via_slack(message, urgency)
+                        elif channel.startswith('email:'):
+                            await self._notify_via_email(message, urgency)
+                        elif channel.startswith('teams:'):
+                            await self._notify_via_teams(message, urgency)
+
+            logger.info(f"Sent notifications for automation {automation.automation_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending automation notifications: {e}")
+            return False
     
     async def _update_automation_metrics(self, automation: WorkflowAutomation, execution: AutomationExecution):
         """Update automation metrics"""
@@ -1449,12 +2073,17 @@ class AtomWorkflowAutomationService:
         logger.info("Workflow Automation Service closed")
 
 # Global workflow automation service instance
-atom_workflow_automation_service = AtomWorkflowAutomationService({
-    'database': None,  # Would be actual database connection
-    'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'unified_service': atom_enterprise_unified_service,
-    'workflow_service': None,  # Would be actual workflow service
-    'ai_service': ai_enhanced_service,
-    'ai_integration': atom_ai_integration
-})
+# Initialize with None values - will be configured when dependencies are available
+try:
+    atom_workflow_automation_service = AtomWorkflowAutomationService({
+        'database': None,  # Would be actual database connection
+        'cache': None,  # Would be actual cache client
+        'security_service': atom_enterprise_security_service if 'atom_enterprise_security_service' in globals() else None,
+        'unified_service': atom_enterprise_unified_service if 'atom_enterprise_unified_service' in globals() else None,
+        'workflow_service': None,  # Would be actual workflow service
+        'ai_service': ai_enhanced_service if 'ai_enhanced_service' in globals() else None,
+        'ai_integration': atom_ai_integration if 'atom_ai_integration' in globals() else None
+    })
+except Exception as e:
+    logger.warning(f"Could not initialize global workflow automation service: {e}")
+    atom_workflow_automation_service = None

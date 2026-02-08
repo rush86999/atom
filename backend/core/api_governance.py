@@ -15,9 +15,8 @@ Usage:
 """
 import functools
 import logging
-from typing import Callable, Optional, List
-
-from fastapi import Request, HTTPException, status
+from typing import Callable, List, Optional
+from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
@@ -207,8 +206,8 @@ def extract_agent_id(request: Request) -> Optional[str]:
             body = request._json
             if isinstance(body, dict) and 'agent_id' in body:
                 return body['agent_id']
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to extract agent_id from request body: {e}")
 
     return None
 

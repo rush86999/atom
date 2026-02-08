@@ -3,15 +3,16 @@ Tenant/Multi-tenancy API Routes
 Handles tenant context and subdomain-based routing
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import Depends, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import Tenant, User
 
-router = APIRouter(prefix="/api/tenants", tags=["Tenants"])
+router = BaseAPIRouter(prefix="/api/tenants", tags=["Tenants"])
 
 
 # Request/Response Models
@@ -23,8 +24,7 @@ class TenantResponse(BaseModel):
     plan_type: str
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TenantContextResponse(BaseModel):
@@ -51,10 +51,7 @@ async def get_tenant_by_subdomain(
     ).first()
 
     if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found"
-        )
+        raise router.not_found_error("Tenant", details={"subdomain": subdomain})
 
     return TenantResponse(
         id=tenant.id,

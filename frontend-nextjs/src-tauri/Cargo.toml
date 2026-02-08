@@ -11,12 +11,12 @@ rust-version = "1.57"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.10", features = ["tray-icon", "image-png"] }
 reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
 open = "4.0"
 aes-gcm = "0.10.0"
@@ -30,9 +30,9 @@ url = "2.3"
 thiserror = "1.0"
 anyhow = "1.0"
 lazy_static = "1.4"
-tauri-plugin-shell = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-notification = "2"
+tauri-plugin-shell = "2.3"
+tauri-plugin-dialog = "2.3"
+tauri-plugin-notification = "2.3"
 
 notify = { version = "6", features = ["serde"] }
 

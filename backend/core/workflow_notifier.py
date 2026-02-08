@@ -4,11 +4,11 @@ Sends Slack/Email notifications on workflow completion/failure.
 Includes user-configurable notification settings.
 """
 
+from dataclasses import asdict, dataclass, field
+from enum import Enum
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -180,15 +180,26 @@ class WorkflowNotifier:
             logger.error(f"Failed to send Slack notification: {e}")
     
     async def _send_email(self, recipients: List[str], subject: str, body: str):
-        """Send email notification (placeholder - integrate with existing email service)"""
+        """Send email notification using SendGrid service"""
         try:
-            # In production, integrate with existing email service
-            logger.info(f"Would send email to {recipients}: {subject}")
-            # from integrations.email_service import send_email
-            # await send_email(to=recipients, subject=subject, body=body)
-            
+            from integrations.sendgrid_routes import sendgrid_service
+
+            # Send to each recipient
+            for recipient in recipients:
+                result = await sendgrid_service.send_email(
+                    to=recipient,
+                    subject=subject,
+                    content=body
+                )
+                logger.info(f"Email sent successfully to {recipient}: {result}")
+
+        except ImportError:
+            logger.warning("SendGrid service not available, using fallback")
+            logger.info(f"EMAIL (not sent): To: {recipients}, Subject: {subject}, Body: {body[:100]}...")
         except Exception as e:
             logger.error(f"Failed to send email notification: {e}")
+            # Fallback: Log the email for debugging
+            logger.info(f"EMAIL (not sent): To: {recipients}, Subject: {subject}, Body: {body[:100]}...")
 
 # Global notifier instance
 notifier = WorkflowNotifier()

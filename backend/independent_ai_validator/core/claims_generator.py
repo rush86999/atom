@@ -3,9 +3,9 @@
 Claims Generator - Automatically generate marketing claims from integration specifications
 """
 
+from dataclasses import dataclass
 import json
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

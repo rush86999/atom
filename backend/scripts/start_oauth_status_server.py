@@ -6,8 +6,8 @@ Updated Simple Backend with OAuth Status Endpoints
 import logging
 import os
 import sys
-import time
 from threading import Thread
+import time
 from flask import Flask, jsonify, request
 
 # Set up logging

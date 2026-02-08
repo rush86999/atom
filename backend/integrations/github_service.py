@@ -3,10 +3,10 @@ GitHub Service for ATOM Platform
 Provides comprehensive GitHub integration functionality
 """
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 import requests

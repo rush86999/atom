@@ -4,11 +4,11 @@ NEXT PHASE - PRODUCTION OPTIMIZATION
 Take the application from 75% to 95%+ ready for production deployment
 """
 
+from datetime import datetime
 import json
 import os
 import subprocess
 import time
-from datetime import datetime
 
 
 def start_production_optimization_phase():

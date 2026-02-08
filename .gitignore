@@ -737,6 +737,8 @@ test-results/
 
 # Temporary and debug files
 *.txt
+!requirements*.txt
+!backend/requirements*.txt
 atom_dev.db
 session_debug.json
 unresolved.txt

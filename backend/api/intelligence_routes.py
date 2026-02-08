@@ -1,11 +1,13 @@
 import logging
 from typing import Any, Dict, List, Optional
 from ai.data_intelligence import DataIntelligenceEngine, PlatformType
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/intelligence", tags=["Intelligence"])
+router = BaseAPIRouter(prefix="/api/intelligence", tags=["Intelligence"])
 engine = DataIntelligenceEngine()
 
 @router.get("/insights")
@@ -14,34 +16,41 @@ async def get_insights():
     Fetch cross-platform smart insights and anomalies.
     """
     try:
-        # For demo/mock purposes, ensure we have some data if registry is empty
-        if not engine.entity_registry:
-            logger.info("Initializing Intelligence Engine with mock data for /insights")
+        # Check environment to disable mock logic in production
+        import os
+        ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+        
+        # Only allow auto-seeding in development if explicitly desired,
+        # otherwise return empty results if no data is present.
+        if engine.entity_registry:
+            pass # Data exists, proceed to detect anomalies
+        elif ENVIRONMENT == "development" and not engine.entity_registry:
+            logger.info("Initializing Intelligence Engine with mock data for /insights (DEVELOPMENT ONLY)")
             platforms_to_seed = [
                 PlatformType.ASANA,
                 PlatformType.SALESFORCE,
                 PlatformType.HUBSPOT,
             ]
             for platform in platforms_to_seed:
-                # We can't await in a generator or similar easily if it's not async
-                # But here we are in an async function
                 data = await engine._get_platform_data(platform)
                 await engine.ingest_platform_data(platform, data)
-        
+
         anomalies = await engine.detect_anomalies()
-        
+
         # Sort critical first
         severity_map = {"critical": 0, "warning": 1, "info": 2}
         anomalies.sort(key=lambda x: severity_map.get(x.severity, 3))
-        
-        return {
-            "status": "success",
-            "count": len(anomalies),
-            "insights": anomalies
-        }
+
+        return router.success_response(
+            data={
+                "count": len(anomalies),
+                "insights": anomalies
+            },
+            message=f"Retrieved {len(anomalies)} insights"
+        )
     except Exception as e:
         logger.error(f"Error fetching insights: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.get("/entities")
 async def get_entities(type: Optional[str] = None, platform: Optional[str] = None):
@@ -55,7 +64,7 @@ async def get_entities(type: Optional[str] = None, platform: Optional[str] = Non
                 continue
             if platform and platform not in [p.value for p in entity.source_platforms]:
                 continue
-            
+
             # Map UnifiedEntity to a JSON-serializable format
             results.append({
                 "id": entity.entity_id,
@@ -66,11 +75,14 @@ async def get_entities(type: Optional[str] = None, platform: Optional[str] = Non
                 "value": entity.attributes.get("amount") or entity.attributes.get("value"),
                 "modified_at": entity.updated_at.isoformat()
             })
-        
-        return {"status": "success", "entities": results}
+
+        return router.success_response(
+            data={"entities": results},
+            message=f"Retrieved {len(results)} entities"
+        )
     except Exception as e:
         logger.error(f"Error fetching entities: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.post("/refresh")
 async def refresh_intelligence():
@@ -152,16 +164,17 @@ async def refresh_intelligence():
             except Exception as e:
                 logger.warning(f"Failed to sync {platform.value}: {e}")
                 continue
-                
-        return {
-            "status": "success", 
-            "message": f"Intelligence data refreshed across all categories",
-            "platforms_synced": synced_count,
-            "total_entities": len(engine.entity_registry)
-        }
+
+        return router.success_response(
+            data={
+                "platforms_synced": synced_count,
+                "total_entities": len(engine.entity_registry)
+            },
+            message=f"Intelligence data refreshed across all categories"
+        )
     except Exception as e:
         logger.error(f"Error refreshing intelligence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 @router.post("/execute")
 async def execute_insight_action(request: Dict[str, Any]):
@@ -178,26 +191,32 @@ async def execute_insight_action(request: Dict[str, Any]):
             orchestrator = get_orchestrator()
             workflow_id = payload.get("workflow_id")
             inputs = payload.get("inputs", {})
-            
+
             logger.info(f"Executing workflow action: {workflow_id}")
             result = await orchestrator.execute_workflow(workflow_id, inputs)
-            return {"status": "success", "result": result}
+            return router.success_response(
+                data={"result": result},
+                message="Workflow executed successfully"
+            )
 
         elif action_type == "tool":
             from integrations.mcp_service import mcp_service
             tool_name = payload.get("tool_name")
             arguments = payload.get("arguments", {})
-            
+
             logger.info(f"Executing tool action: {tool_name}")
             result = await mcp_service.execute_tool(
-                "local-tools", 
-                tool_name, 
-                arguments, 
+                "local-tools",
+                tool_name,
+                arguments,
                 {"user_id": user_id}
             )
-            return {"status": "success", "result": result}
+            return router.success_response(
+                data={"result": result},
+                message="Tool executed successfully"
+            )
 
-        raise HTTPException(status_code=400, detail=f"Unsupported action type: {action_type}")
+        raise router.validation_error("action_type", f"Unsupported action type: {action_type}")
     except Exception as e:
         logger.error(f"Error executing insight action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

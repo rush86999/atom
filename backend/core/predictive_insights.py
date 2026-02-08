@@ -3,12 +3,12 @@ Predictive Insights Engine
 Provides ML-style predictions for response times, optimal channels, and bottlenecks.
 """
 
-import logging
-import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import logging
+import statistics
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)

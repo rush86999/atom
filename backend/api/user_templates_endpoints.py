@@ -3,20 +3,21 @@ User Workflow Templates API
 Enhanced endpoints for user-created workflow templates with database persistence
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+import uuid
+from fastapi import Depends, Query, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import TemplateExecution, TemplateVersion, User, UserRole, WorkflowTemplate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/user/templates", tags=["user-templates"])
+router = BaseAPIRouter(prefix="/api/user/templates", tags=["user-templates"])
 
 
 # Request/Response Models
@@ -117,8 +118,7 @@ class TemplateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PublishTemplateRequest(BaseModel):
@@ -209,7 +209,7 @@ async def create_user_template(
     except Exception as e:
         logger.error(f"Error creating template: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("", response_model=List[TemplateResponse])
@@ -272,7 +272,7 @@ async def list_user_templates(
 
     except Exception as e:
         logger.error(f"Error listing templates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/stats", response_model=TemplateStatisticsResponse)
@@ -334,7 +334,7 @@ async def get_user_template_statistics(
 
     except Exception as e:
         logger.error(f"Error getting template statistics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -353,15 +353,13 @@ async def get_template(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         return template
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.put("/{template_id}", response_model=TemplateResponse)
@@ -383,13 +381,14 @@ async def update_template(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to update this template"
+            raise router.permission_denied_error(
+                action="update_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Update fields
@@ -429,12 +428,10 @@ async def update_template(
         logger.info(f"Updated template {template_id} to version {template.version}")
         return template
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error updating template {template_id}: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -454,13 +451,14 @@ async def delete_template(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to delete this template"
+            raise router.permission_denied_error(
+                action="delete_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Delete related records
@@ -479,12 +477,10 @@ async def delete_template(
         logger.info(f"Deleted template {template_id}")
         return None
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error deleting template {template_id}: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/{template_id}/publish", response_model=TemplateResponse)
@@ -505,13 +501,14 @@ async def publish_template(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Check ownership
         if template.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to publish this template"
+            raise router.permission_denied_error(
+                action="publish_template",
+                resource="WorkflowTemplate",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Update visibility
@@ -525,9 +522,10 @@ async def publish_template(
             # Check if user is an admin
             user = db.query(User).filter(User.id == user_id).first()
             if not user or user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only administrators can mark templates as featured"
+                raise router.permission_denied_error(
+                    action="feature_template",
+                    resource="Template",
+                    details={"template_id": template_id, "required_role": "SUPER_ADMIN or WORKSPACE_ADMIN"}
                 )
             template.is_featured = True
 
@@ -538,12 +536,10 @@ async def publish_template(
         logger.info(f"Published template {template_id} as {request.visibility}")
         return template
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error publishing template {template_id}: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/{template_id}/duplicate", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -565,13 +561,14 @@ async def duplicate_template(
         ).first()
 
         if not original:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Check if original is public or user owns it
         if not original.is_public and original.author_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to duplicate this template"
+            raise router.permission_denied_error(
+                action="duplicate_template",
+                resource="Template",
+                details={"template_id": template_id, "user_id": user_id}
             )
 
         # Create duplicate
@@ -608,12 +605,10 @@ async def duplicate_template(
         logger.info(f"Duplicated template {template_id} as {new_template_id} for user {user_id}")
         return duplicate
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error duplicating template {template_id}: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/{template_id}/versions", response_model=List[Dict[str, Any]])
@@ -633,7 +628,7 @@ async def get_template_versions(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Get versions
         versions = db.query(TemplateVersion).filter(
@@ -651,11 +646,9 @@ async def get_template_versions(
             for v in versions
         ]
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting versions for template {template_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/{template_id}/rate")
@@ -675,7 +668,7 @@ async def rate_template(
         ).first()
 
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+            raise router.not_found_error("Template", template_id)
 
         # Update rating
         template.rating_sum += rating
@@ -691,9 +684,7 @@ async def rate_template(
             "rating_count": template.rating_count
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error rating template {template_id}: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

@@ -1,7 +1,10 @@
+from datetime import datetime
+import logging
 import os
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Make psutil optional for system monitoring
 try:
@@ -11,13 +14,12 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from .auth import get_current_user, get_password_hash
 from .chat_process_manager import get_process_manager
 from .database import get_db
-from .database_manager import db_manager
 from .models import User
 
 # Initialize router
@@ -29,7 +31,8 @@ class UserCreate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None  # Optional for OAuth users
 
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         if '@' not in v or '.' not in v.split('@')[1]:
             raise ValueError('Invalid email format')
@@ -87,12 +90,28 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if user.password:
         password_hash = get_password_hash(user.password)
 
-    new_user = await db_manager.create_user(
+    # Use SQLAlchemy ORM directly instead of db_manager
+    new_user = User(
         email=user.email,
-        name=user.name,
-        password_hash=password_hash
+        first_name=user.name,
+        password_hash=password_hash,
+        status="active",
+        role="member"
     )
-    return {"user": new_user, "message": "User created successfully"}
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": user.name,
+            "first_name": new_user.first_name,
+            "last_name": new_user.last_name
+        },
+        "message": "User created successfully"
+    }
 
 
 @router.get("/users/me", response_model=UserProfile)
@@ -248,7 +267,7 @@ async def get_connected_services(current_user: User = Depends(get_current_user))
                     "message": "Service integrations unavailable"
                 }
     except Exception as e:
-        pass
+        logger.warning(f"Failed to fetch service integrations from microservice: {e}")
 
     # Fallback to basic service list
     services = ["github", "google", "slack", "outlook", "teams"]

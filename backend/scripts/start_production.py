@@ -7,10 +7,10 @@ BYOK functionality, and monitoring enabled.
 
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Dict, List, Optional
 
 # Configure logging

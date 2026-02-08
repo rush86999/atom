@@ -4,12 +4,12 @@ Enhanced chat interface with Slack integration, command handling, and context ma
 """
 
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import re
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 import httpx
 

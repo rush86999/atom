@@ -6,16 +6,17 @@ Provides WebSocket endpoints for real-time updates during workflow debugging.
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.websocket_manager import get_debugging_websocket_manager, get_websocket_manager
 from core.workflow_debugger import WorkflowDebugger
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/debug", tags=["websocket-debugging"])
+router = BaseAPIRouter(prefix="/api/debug", tags=["websocket-debugging"])
 
 
 @router.websocket("/streams/{stream_id}")
@@ -217,13 +218,19 @@ async def get_stream_info(stream_id: str):
     info = manager.get_stream_info(stream_id)
 
     if not info or info.get("connection_count", 0) == 0:
-        return {"stream_id": stream_id, "active": False, "connection_count": 0}
+        return router.success_response(
+            data={"stream_id": stream_id, "active": False, "connection_count": 0},
+            message="Stream is inactive"
+        )
 
-    return {
-        "stream_id": stream_id,
-        "active": True,
-        **info,
-    }
+    return router.success_response(
+        data={
+            "stream_id": stream_id,
+            "active": True,
+            **info,
+        },
+        message="Stream information retrieved"
+    )
 
 
 @router.get("/streams")
@@ -236,11 +243,14 @@ async def list_active_streams():
     manager = get_websocket_manager()
     streams = manager.get_all_streams()
 
-    return {
-        "active_streams": list(streams),
-        "total_count": len(streams),
-        "streams_info": [
-            manager.get_stream_info(stream_id)
-            for stream_id in streams
-        ],
-    }
+    return router.success_response(
+        data={
+            "active_streams": list(streams),
+            "total_count": len(streams),
+            "streams_info": [
+                manager.get_stream_info(stream_id)
+                for stream_id in streams
+            ],
+        },
+        message=f"Retrieved {len(streams)} active streams"
+    )

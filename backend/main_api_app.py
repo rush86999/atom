@@ -4,28 +4,20 @@ import sys
 import types
 from unittest.mock import MagicMock
 
-# Prevent numpy/pandas from loading real DLLs that crash on Py 3.13
-# Setting to None raises ImportError instead of crashing, allowing try-except blocks to work
-sys.modules["numpy"] = None
-sys.modules["pandas"] = None
-sys.modules["lancedb"] = None
-sys.modules["pyarrow"] = None
+# Core dependencies (numpy, pandas, lancedb) are now allowed to load normally
+# Reference: System dependency check passed for Python 3.14 environment
 
-print("WARNING: Numpy/Pandas/LanceDB disabled via sys.modules=None to prevent crash")
-
-import logging
-import threading
 from datetime import datetime
+import logging
 from pathlib import Path
-import uvicorn
+import threading
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+import uvicorn
 
-import core.models
-import core.models_registration  # Fixes circular relationship issues
 from core.circuit_breaker import circuit_breaker
 from core.database import SessionLocal, get_db
 
@@ -36,6 +28,8 @@ from core.lazy_integration_registry import (
     get_loaded_integrations,
     load_integration,
 )
+import core.models
+import core.models_registration  # Fixes circular relationship issues
 from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
@@ -70,6 +64,7 @@ DISABLE_DOCS = ENVIRONMENT == "production"
 
 # Import config
 from core.config import get_config
+
 config = get_config()
 
 # Override with config values
@@ -91,11 +86,31 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"Server will start on {config.server.host}:{config.server.port}")
     logger.info(f"Environment: {ENVIRONMENT}")
-    
-    # 0. Initialize Database (Critical for in-memory DB)
+
+    # 0. Validate Configuration (warnings only, don't block startup)
+    try:
+        import subprocess
+        import sys
+        logger.info("Validating configuration...")
+        result = subprocess.run(
+            [sys.executable, "scripts/validate_config.py"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent
+        )
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                logger.info(line)
+        if result.returncode != 0:
+            logger.warning(f"Configuration validation completed with issues (exit code: {result.returncode})")
+    except Exception as e:
+        logger.warning(f"Configuration validation failed: {e}")
+
+    # 1. Initialize Database (Critical for in-memory DB)
     try:
         from analytics.models import WorkflowExecutionLog  # Force registration
         from sqlalchemy import inspect
+
         from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
@@ -196,14 +211,14 @@ async def lifespan(app: FastAPI):
         from ai.workflow_scheduler import workflow_scheduler
         workflow_scheduler.shutdown()
         logger.info("✓ Workflow Scheduler stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Workflow scheduler shutdown error: {e}")
 
     try:
         redis_listener.stop()
         logger.info("✓ Redis Event Bridge stopped")
-    except:
-        pass
+    except Exception as e:
+        logger.debug(f"Redis listener shutdown error: {e}")
 
 
 # --- APP INITIALIZATION ---
@@ -241,7 +256,7 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 # Standardized error handling for all uncaught exceptions
 # ============================================================================
 try:
-    from core.error_handlers import global_exception_handler, atom_exception_handler
+    from core.error_handlers import atom_exception_handler, global_exception_handler
     from core.exceptions import AtomException
 
     # Register general exception handler (catches all)
@@ -468,6 +483,22 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load Episodic Memory routes: {e}")
 
+    # Security Routes (NEW)
+    try:
+        from api.security_routes import router as security_router
+        app.include_router(security_router)  # Prefix defined in router (/api/security)
+        logger.info("✓ Security Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Security routes: {e}")
+
+    # Task Monitoring Routes (NEW)
+    try:
+        from api.task_monitoring_routes import router as task_monitoring_router
+        app.include_router(task_monitoring_router)  # Prefix defined in router (/api/v1/tasks)
+        logger.info("✓ Task Monitoring Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Task Monitoring routes: {e}")
+
     try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
@@ -593,6 +624,41 @@ try:
         logger.info("✓ Integrations Catalog Routes Loaded")
     except ImportError as e:
         logger.warning(f"Integrations catalog routes not found: {e}")
+
+    try:
+        from api.oauth_routes import router as oauth_router
+        app.include_router(oauth_router)
+        logger.info("✓ OAuth Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"OAuth routes not found: {e}")
+
+    try:
+        from api.social_media_routes import router as social_media_router
+        app.include_router(social_media_router)
+        logger.info("✓ Social Media Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Social media routes not found: {e}")
+
+    try:
+        from api.competitor_analysis_routes import router as competitor_analysis_router
+        app.include_router(competitor_analysis_router)
+        logger.info("✓ Competitor Analysis Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Competitor analysis routes not found: {e}")
+
+    try:
+        from api.learning_plan_routes import router as learning_plan_router
+        app.include_router(learning_plan_router)
+        logger.info("✓ Learning Plan Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Learning plan routes not found: {e}")
+
+    try:
+        from api.project_health_routes import router as project_health_router
+        app.include_router(project_health_router)
+        logger.info("✓ Project Health Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Project health routes not found: {e}")
 
     try:
         from api.dynamic_options_routes import router as dynamic_options_router
@@ -740,6 +806,62 @@ try:
         logger.info("✓ Integration Health Stubs Loaded")
     except ImportError as e:
         logger.warning(f"Integration Health Stubs not found: {e}")
+
+    # 16. Messaging Routes (Proactive, Scheduled, Condition Monitoring)
+    try:
+        from api.messaging_routes import router as messaging_router
+        app.include_router(messaging_router, tags=["Messaging"])
+        logger.info("✓ Messaging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Messaging routes not found: {e}")
+
+    # 16.1. Scheduled Messaging Routes
+    try:
+        from api.scheduled_messaging_routes import router as scheduled_messaging_router
+        app.include_router(scheduled_messaging_router, tags=["Scheduled Messaging"])
+        logger.info("✓ Scheduled Messaging Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Scheduled messaging routes not found: {e}")
+
+    # 16.2. Condition Monitoring Routes
+    try:
+        from api.monitoring_routes import router as monitoring_router
+        app.include_router(monitoring_router, tags=["Condition Monitoring"])
+        logger.info("✓ Condition Monitoring Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Condition monitoring routes not found: {e}")
+
+    # 16.3. Google Chat Enhanced Routes (OAuth, Cards, Dialogs, Space Management)
+    try:
+        from api.google_chat_enhanced_routes import router as google_chat_enhanced_router
+        app.include_router(google_chat_enhanced_router, tags=["Google Chat Enhanced"])
+        logger.info("✓ Google Chat Enhanced Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Google Chat enhanced routes not found: {e}")
+
+    # 16.4. Signal Routes (Secure Messaging Platform)
+    try:
+        from api.signal_routes import router as signal_router
+        app.include_router(signal_router, tags=["Signal"])
+        logger.info("✓ Signal Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Signal routes not found: {e}")
+
+    # 16.5. Facebook Messenger Routes (1B+ Users)
+    try:
+        from api.messenger_routes import router as messenger_router
+        app.include_router(messenger_router, tags=["Facebook Messenger"])
+        logger.info("✓ Facebook Messenger Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Facebook Messenger routes not found: {e}")
+
+    # 16.6. LINE Routes (Asian Market)
+    try:
+        from api.line_routes import router as line_router
+        app.include_router(line_router, tags=["LINE"])
+        logger.info("✓ LINE Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"LINE routes not found: {e}")
 
     # 15.1 Canvas Routes (Canvas system for charts and forms)
     try:
@@ -1124,6 +1246,15 @@ try:
     logger.info("✓ Meeting Attendance Routes Loaded")
 except ImportError as e:
     logger.warning(f"Meeting routes not found: {e}")
+
+# MENU BAR COMPANION ROUTES
+# ============================================================================
+try:
+    from api.menubar_routes import router as menubar_router
+    app.include_router(menubar_router)
+    logger.info("✓ Menu Bar Companion Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Menu Bar routes not found: {e}")
 
 try:
     from api.financial_routes import router as financial_router

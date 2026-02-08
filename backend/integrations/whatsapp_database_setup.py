@@ -3,9 +3,9 @@ WhatsApp Database Setup
 Automated database initialization for WhatsApp Business integration
 """
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 import psycopg2
 import psycopg2.extras
 

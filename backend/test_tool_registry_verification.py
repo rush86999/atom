@@ -4,8 +4,8 @@ Tool Registry Verification Script
 Tests all aspects of the tool registry system.
 """
 
-import sys
 from pathlib import Path
+import sys
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))

@@ -1,8 +1,8 @@
 
 import asyncio
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))

@@ -4,9 +4,9 @@ NEXT STEPS DASHBOARD - Complete Real World Deployment
 Comprehensive view of all phases and progress
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def create_next_steps_dashboard():

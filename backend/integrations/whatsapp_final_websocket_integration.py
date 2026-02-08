@@ -3,9 +3,9 @@ WhatsApp WebSocket Final Integration
 Complete WebSocket routing and functionality
 """
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)

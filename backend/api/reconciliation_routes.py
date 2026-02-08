@@ -5,18 +5,23 @@ Provides endpoints for bank/ledger reconciliation and anomaly detection.
 All endpoints require authentication and appropriate governance.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import Depends, HTTPException, status
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 
-router = APIRouter(prefix="/api/reconciliation", tags=["Reconciliation"])
+router = BaseAPIRouter(prefix="/api/reconciliation", tags=["Reconciliation"])
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
 
 class ReconciliationEntryRequest(BaseModel):
     id: str = Field(..., description="Entry ID")
@@ -27,7 +32,27 @@ class ReconciliationEntryRequest(BaseModel):
     agent_id: Optional[str] = Field(None, description="Agent ID if agent-initiated")
 
 
-@router.post("/bank-entries")
+class ReconciliationEntryResponse(BaseModel):
+    """Response for adding reconciliation entries"""
+    status: str = Field(..., description="Operation status")
+    id: str = Field(..., description="Entry ID")
+    message: Optional[str] = Field(None, description="Optional message")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BankEntryResponse(BaseModel):
+    """Response for bank entry operations"""
+    id: str
+    source: str
+    date: str
+    amount: float
+    description: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.post("/bank-entries", response_model=ReconciliationEntryResponse)
 async def add_bank_entry(
     request: ReconciliationEntryRequest,
     db: Session = Depends(get_db),
@@ -61,9 +86,10 @@ async def add_bank_entry(
                 )
 
                 if not governance_check["allowed"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action="financial_data_modification",
+                        reason=governance_check['reason']
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -77,19 +103,20 @@ async def add_bank_entry(
         )
         reconciliation_engine.add_bank_entry(entry)
 
-        return {"status": "added", "id": request.id}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to add bank entry: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add bank entry: {str(e)}"
+        return ReconciliationEntryResponse(
+            status="added",
+            id=request.id,
+            message="Bank entry added successfully"
         )
 
+    except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
+        logger.error(f"Failed to add bank entry: {e}")
+        raise router.internal_error(message="Failed to add bank entry", details={"error": str(e)})
 
-@router.post("/ledger-entries")
+
+@router.post("/ledger-entries", response_model=ReconciliationEntryResponse)
 async def add_ledger_entry(
     request: ReconciliationEntryRequest,
     db: Session = Depends(get_db),
@@ -123,9 +150,10 @@ async def add_ledger_entry(
                 )
 
                 if not governance_check["allowed"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Agent not permitted to modify financial data: {governance_check['reason']}"
+                    raise router.governance_denied_error(
+                        agent_id=agent.id,
+                        action="financial_data_modification",
+                        reason=governance_check['reason']
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -139,16 +167,17 @@ async def add_ledger_entry(
         )
         reconciliation_engine.add_ledger_entry(entry)
 
-        return {"status": "added", "id": request.id}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to add ledger entry: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add ledger entry: {str(e)}"
+        return ReconciliationEntryResponse(
+            status="added",
+            id=request.id,
+            message="Ledger entry added successfully"
         )
+
+    except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
+        logger.error(f"Failed to add ledger entry: {e}")
+        raise router.internal_error(message="Failed to add ledger entry", details={"error": str(e)})
 
 
 @router.post("/reconcile")
@@ -167,10 +196,7 @@ async def run_reconciliation(
         return result
     except Exception as e:
         logger.error(f"Reconciliation failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Reconciliation failed: {str(e)}"
-        )
+        raise router.internal_error(message="Reconciliation failed", details={"error": str(e)})
 
 
 @router.get("/anomalies")
@@ -204,10 +230,7 @@ async def get_anomalies(
         }
     except Exception as e:
         logger.error(f"Failed to get anomalies: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get anomalies: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to get anomalies", details={"error": str(e)})
 
 
 @router.post("/detect-anomalies")
@@ -227,10 +250,7 @@ async def detect_anomalies(
         return {"detected": len(new_anomalies)}
     except Exception as e:
         logger.error(f"Anomaly detection failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Anomaly detection failed: {str(e)}"
-        )
+        raise router.internal_error(message="Anomaly detection failed", details={"error": str(e)})
 
 
 @router.post("/anomalies/{anomaly_id}/resolve")
@@ -251,7 +271,4 @@ async def resolve_anomaly(
         return {"status": "resolved", "id": anomaly_id}
     except Exception as e:
         logger.error(f"Failed to resolve anomaly: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to resolve anomaly: {str(e)}"
-        )
+        raise router.internal_error(message="Failed to resolve anomaly", details={"error": str(e)})

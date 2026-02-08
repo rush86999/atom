@@ -3,8 +3,8 @@ Enhanced Asana API Routes
 Complete Asana integration endpoints for the ATOM platform
 """
 
-import logging
 from datetime import datetime, timezone
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -42,6 +42,15 @@ class TaskUpdate(BaseModel):
 
 class CommentCreate(BaseModel):
     text: str = Field(..., description="Comment text")
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(..., description="Project name")
+    workspace: str = Field(..., description="Workspace GID")
+    notes: Optional[str] = Field(None, description="Project description/notes")
+    team: Optional[str] = Field(None, description="Team GID")
+    color: Optional[str] = Field(None, description="Project color (e.g., 'light-green', 'red')")
+    public: Optional[bool] = Field(True, description="Whether project is public")
 
 
 class SearchQuery(BaseModel):
@@ -195,6 +204,26 @@ async def create_task(
     if not result["ok"]:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+
+@router.post("/projects")
+async def create_project(
+    project_data: ProjectCreate, access_token: str = Depends(get_access_token)
+):
+    """Create a new project in Asana"""
+    result = await asana_service.create_project(
+        access_token=access_token,
+        workspace_gid=project_data.workspace,
+        name=project_data.name,
+        notes=project_data.notes,
+        team_gid=project_data.team,
+        color=project_data.color,
+        public=project_data.public,
+    )
+    if not result["ok"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
 
 
 @router.put("/tasks/{task_gid}")

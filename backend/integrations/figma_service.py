@@ -3,14 +3,14 @@ Figma Service for ATOM Platform
 Provides comprehensive Figma design collaboration integration functionality
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
-import httpx
 from fastapi import HTTPException
+import httpx
 
 logger = logging.getLogger(__name__)
 

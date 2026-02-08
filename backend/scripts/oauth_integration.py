@@ -1,7 +1,7 @@
 import os
 import secrets
-import urllib.parse
 from typing import Dict, Optional
+import urllib.parse
 import requests
 
 

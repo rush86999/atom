@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -7,6 +6,7 @@ import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 const AgentsDashboard = () => {
     const router = useRouter();
@@ -17,6 +17,47 @@ const AgentsDashboard = () => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // WebSocket Integration
+    const { isConnected, lastMessage, subscribe } = useWebSocket();
+
+    useEffect(() => {
+        if (isConnected) {
+            subscribe("workspace:default");
+        }
+    }, [isConnected, subscribe]);
+
+    useEffect(() => {
+        if (lastMessage) {
+            if (lastMessage.type === "agent_step_update") {
+                const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
+                if (agent_id === activeAgentId) {
+                    const stepText = step.thought || step.output || JSON.stringify(step.action);
+                    if (stepText) {
+                        let prefix = "";
+                        if (step.thought) prefix = "Thought: ";
+                        else if (step.action) prefix = "Action: ";
+                        else if (step.output) prefix = "Observation: ";
+
+                        setLogs(prev => [...prev, `${prefix}${stepText}`]);
+                        if (step.final_answer) {
+                            setLogs(prev => [...prev, `Final Answer: ${step.final_answer}`]);
+                        }
+                    }
+                }
+            } else if (lastMessage.type === "agent_status_change") {
+                const { agent_id, status, error } = lastMessage.data || lastMessage as any;
+                if (agent_id === activeAgentId) {
+                    setLogs(prev => [...prev, `Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`]);
+                    if (status === "success" || status === "failed") {
+                        // Optionally clear active agent after delay or keep for logs
+                    }
+                }
+                // Refresh list to update badges
+                fetchAgents();
+            }
+        }
+    }, [lastMessage, activeAgentId]);
 
     // Fetch Agents
     const fetchAgents = async () => {
@@ -64,58 +105,50 @@ const AgentsDashboard = () => {
 
     const handleRunAgent = async (id: string) => {
         setActiveAgentId(id);
-        setLogs([`Initializing agent: ${id}...`, "Connecting to reliable-messaging-service..."]);
+        setLogs([`Initializing agent: ${id}...`, "Connecting to real-time stream..."]);
 
         try {
             const res = await fetch(`http://127.0.0.1:8000/api/agents/${id}/run/`, {
-                credentials: 'include',
-                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
+                method: 'POST',
                 body: JSON.stringify({ parameters: {} })
             });
 
             if (res.ok) {
                 toast({ title: "Agent Started", description: `Agent ${id} is now running.` });
-
-                // Simulate streaming logs for demo
-                simulateLogs(id);
             } else {
                 const err = await res.json();
                 toast({ title: "Failed to start", description: err.detail, variant: "error" });
-                setLogs(prev => [...prev, `Error: ${err.detail}`]);
+                setLogs(prev => [...prev, `Error: ${err.detail || 'Unknown error'}`]);
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
         }
     };
 
-    // Simulation for MVP Visuals
-    const simulateLogs = (id: string) => {
-        let step = 0;
-        const mockLogs = [
-            "Loading configuration from LanceDB...",
-            "Analyzing latest market data...",
-            "Found 3 new competitor price references.",
-            "Verifying inventory counts for SKU-123...",
-            "Diffing wms_count (50) vs shopify_count (50)... MATCH",
-            "Diffing wms_count (8) vs shopify_count (10)... VARIANCE DETECTED",
-            "Generating alert payload...",
-            "Sending urgent notification to #operations...",
-            "Updating Business Intelligence Graph...",
-            "Task Completed Successfully."
-        ];
+    const handleStopAgent = async (id: string) => {
+        try {
+            const res = await fetch(`/api/agents/${id}/stop`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                },
+                method: 'POST'
+            });
 
-        const interval = setInterval(() => {
-            if (step >= mockLogs.length) {
-                clearInterval(interval);
-                return;
+            if (res.ok) {
+                toast({ title: "Agent Stopped", description: `Agent ${id} termination requested.` });
+                setLogs(prev => [...prev, "Termination requested by user..."]);
+                fetchAgents();
+            } else {
+                const err = await res.json();
+                toast({ title: "Failed to stop", description: err.detail, variant: "error" });
             }
-            setLogs(prev => [...prev, mockLogs[step]]);
-            step++;
-        }, 800);
+        } catch (e) {
+            toast({ title: "Error", description: "Network error", variant: "error" });
+        }
     };
 
     const activeAgentName = agents.find(a => a.id === activeAgentId)?.name || "Terminal";
@@ -131,7 +164,7 @@ const AgentsDashboard = () => {
 
                 {/* Header */}
                 <div className="flex flex-col space-y-2">
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <h1 className="text-3xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                         <LayoutDashboard className="w-8 h-8 text-blue-600" />
                         Agent Control Center
                     </h1>
@@ -142,7 +175,7 @@ const AgentsDashboard = () => {
 
                     {/* Agent Grid */}
                     <div className="lg:col-span-2 space-y-6">
-                        <h2 className="text-xl font-semibold">Available Agents</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Available Agents</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {isLoading && agents.length === 0 && (
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500">
@@ -167,6 +200,7 @@ const AgentsDashboard = () => {
                                     key={agent.id}
                                     agent={agent}
                                     onRun={handleRunAgent}
+                                    onStop={handleStopAgent}
                                 />
                             ))}
                         </div>
@@ -175,9 +209,9 @@ const AgentsDashboard = () => {
                     {/* Terminal Panel */}
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-semibold">Live Logs</h2>
-                            <Badge variant={activeAgentId ? "default" : "outline"}>
-                                {activeAgentId ? "Live Connection" : "Offline"}
+                            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Live Logs</h2>
+                            <Badge variant={isConnected ? "default" : "outline"} className={isConnected ? "bg-green-500" : ""}>
+                                {isConnected ? "Live Connection" : "Offline"}
                             </Badge>
                         </div>
                         <AgentTerminal
@@ -187,9 +221,9 @@ const AgentsDashboard = () => {
                         />
 
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mt-4">
-                            <h3 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-300">Urgent Alerts (Most Recent)</h3>
-                            <div className="text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100">
-                                [Slack Bot] Inventory variance detected for SKU-999 (-2 units).
+                            <h3 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-100">System Capability</h3>
+                            <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-100 dark:border-blue-800">
+                                WebSocket stream active. Real-time updates from GenericAgent ReAct loop.
                             </div>
                         </div>
                     </div>

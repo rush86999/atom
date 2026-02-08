@@ -3,9 +3,9 @@ ATOM External Contact Governance Engine
 Implements safety guardrails for agent-driven external communications.
 """
 
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -26,19 +26,52 @@ class ContactGovernance:
     def is_external_contact(self, platform: str, params: Dict[str, Any]) -> bool:
         """
         Heuristic to determine if a recipient is external to the workspace.
+        Uses workspace domains from database for proper email governance.
         """
         recipient_id = params.get("recipient_id", "")
-        
-        # Simple heuristics:
-        # 1. Email: Check if it's outside a 'known_internal_domains' list (placeholder logic)
+
+        # 1. Email: Check against workspace internal domains from database
         if "@" in recipient_id:
-            # In a real system, we'd fetch the workspace domains from DB
-            internal_domains = ["atom.ai", "workspace.local"]
             domain = recipient_id.split("@")[-1].lower()
-            return domain not in internal_domains
-            
+
+            # Fetch workspace domains from database
+            db = self.db or get_db_session()
+            try:
+                # Get workspace_id from params
+                workspace_id = params.get("workspace_id")
+                if not workspace_id and "agent_id" in params:
+                    # Try to get workspace from agent
+                    from core.models import AgentRegistry
+                    agent = db.query(AgentRegistry).filter(
+                        AgentRegistry.id == params["agent_id"]
+                    ).first()
+                    if agent:
+                        workspace_id = agent.workspace_id
+
+                if workspace_id:
+                    workspace = db.query(Workspace).filter(
+                        Workspace.id == workspace_id
+                    ).first()
+
+                    if workspace and workspace.metadata_json:
+                        # Get internal domains from workspace metadata
+                        internal_domains = workspace.metadata_json.get("internal_domains", [])
+                        if isinstance(internal_domains, list):
+                            # Normalize domains to lowercase
+                            internal_domains = [d.lower() for d in internal_domains]
+                            return domain not in internal_domains
+
+                # Fallback to environment variable or default
+                import os
+                default_domains = os.getenv("INTERNAL_EMAIL_DOMAINS", "atom.ai,workspace.local")
+                internal_domains = [d.strip().lower() for d in default_domains.split(",")]
+                return domain not in internal_domains
+
+            finally:
+                if not self.db:
+                    db.close()
+
         # 2. Phone (WhatsApp): External if not in a 'team_numbers' list
-        # For now, treat all messaging recipients as external unless explicitly marked internal
         if platform in ["whatsapp", "messenger", "slack"]:
             return params.get("is_internal") is not True
 

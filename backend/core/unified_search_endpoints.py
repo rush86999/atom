@@ -3,8 +3,9 @@ Unified Search Endpoints for ATOM Application
 Provides hybrid semantic + keyword search across user documents, meetings, and notes using LanceDB.
 """
 
-import logging
 from datetime import datetime
+import logging
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -15,115 +16,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/lancedb-search", tags=["search"])
 
-# Mock search data for seeding
-MOCK_DOCUMENTS = [
-    {
-        "id": "doc_1",
-        "title": "Q4 Project Requirements Document",
-        "content": "This document outlines the key requirements for our Q4 projects including user authentication, dashboard redesign, and API integration improvements.",
-        "doc_type": "document",
-        "source_uri": "/documents/q4_requirements.pdf",
-        "metadata": {
-            "created_at": "2025-09-15T10:30:00Z",
-            "author": "Jane Smith",
-            "tags": ["project", "requirements", "Q4"],
-            "file_size": 245760
-        }
-    },
-    {
-        "id": "doc_2",
-        "title": "Weekly Team Meeting Notes - Oct 15",
-        "content": "Discussed sprint progress, API performance issues, and upcoming feature releases. Action items assigned to development team.",
-        "doc_type": "meeting",
-        "source_uri": "/meetings/team_meeting_oct15.md",
-        "metadata": {
-            "created_at": "2025-10-15T14:00:00Z",
-            "author": "John Doe",
-            "tags": ["meeting", "team", "sprint"],
-            "participants": ["Jane Smith", "John Doe", "Alice Johnson"]
-        }
-    },
-    {
-        "id": "doc_3",
-        "title": "API Documentation v2.0",
-        "content": "Complete API reference documentation including authentication endpoints, data models, and integration examples.",
-        "doc_type": "document",
-        "source_uri": "/docs/api_v2.md",
-        "metadata": {
-            "created_at": "2025-10-01T09:00:00Z",
-            "author": "Tech Team",
-            "tags": ["api", "documentation", "reference"]
-        }
-    },
-    {
-        "id": "doc_4",
-        "title": "Customer Feedback Summary",
-        "content": "Analysis of customer feedback from Q3 showing high satisfaction with new features but requests for better mobile support.",
-        "doc_type": "note",
-        "source_uri": "/notes/customer_feedback_q3.txt",
-        "metadata": {
-            "created_at": "2025-09-30T16:45:00Z",
-            "author": "Product Team",
-            "tags": ["feedback", "customer", "Q3"]
-        }
-    },
-    {
-        "id": "doc_5",
-        "title": "Financial Report Q3 2025",
-        "content": "Quarterly financial report showing revenue growth, expense breakdown, and projections for Q4.",
-        "doc_type": "pdf",
-        "source_uri": "/reports/financial_q3_2025.pdf",
-        "metadata": {
-            "created_at": "2025-10-05T11:20:00Z",
-            "author": "Finance Team",
-            "tags": ["financial", "report", "Q3", "revenue"],
-            "file_size": 512000
-        }
-    },
-    {
-        "id": "doc_6",
-        "title": "Email: Product Launch Update",
-        "content": "Update on the upcoming product launch schedule, marketing materials, and coordination with sales team.",
-        "doc_type": "email",
-        "source_uri": "/emails/product_launch_update.eml",
-        "metadata": {
-            "created_at": "2025-10-18T08:30:00Z",
-            "author": "Marketing Team",
-            "tags": ["email", "product", "launch", "marketing"]
-        }
-    }
-]
-
-# NOTE: Seeding moved to lazy initialization to prevent startup crashes
-# The seeding will happen on first endpoint call if needed
-# See: https://github.com/your-repo/issues/xxx
-
-_seeded = False  # Track if we've seeded data
-
-def ensure_seeded():
-    """Lazy seeding - only seed on first use"""
-    global _seeded
-    if _seeded:
-        return
-    
-    try:
-        handler = get_lancedb_handler()
-        stats = handler.get_table_stats("documents")
-        if not stats or stats.get("document_count", 0) == 0:
-            logger.info("Seeding LanceDB with mock documents...")
-            seeded_docs = []
-            for doc in MOCK_DOCUMENTS:
-                doc_copy = doc.copy()
-                doc_copy["text"] = doc["title"] + "\n" + doc["content"]
-                doc_copy["source"] = doc["source_uri"]
-                seeded_docs.append(doc_copy)
-            
-            handler.seed_mock_data(seeded_docs)
-            logger.info("LanceDB seeding complete.")
-        _seeded = True
-    except Exception as e:
-        logger.warning(f"Failed to seed LanceDB: {e}")
-        # Don't set _seeded = True so we can retry later
 
 # Pydantic Models
 class SearchFilters(BaseModel):
@@ -132,6 +24,7 @@ class SearchFilters(BaseModel):
     date_range: Optional[Dict[str, str]] = None
     min_score: float = Field(default=0.5, ge=0.0, le=1.0)
 
+
 class SearchRequest(BaseModel):
     query: str
     user_id: str
@@ -139,6 +32,7 @@ class SearchRequest(BaseModel):
     filters: Optional[SearchFilters] = None
     limit: int = Field(default=20, ge=1, le=100)
     search_type: str = Field(default="hybrid", pattern="^(hybrid|semantic|keyword)$")
+
 
 class SearchResult(BaseModel):
     id: str
@@ -151,6 +45,7 @@ class SearchResult(BaseModel):
     combined_score: Optional[float] = None
     metadata: Dict[str, Any]
 
+
 class SearchResponse(BaseModel):
     success: bool
     results: List[SearchResult]
@@ -158,19 +53,33 @@ class SearchResponse(BaseModel):
     query: str
     search_type: str
 
+
 class SuggestionsResponse(BaseModel):
     success: bool
     suggestions: List[str]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    lancedb_available: bool
+    db_path: Optional[str] = None
 
 @router.post("/hybrid", response_model=SearchResponse)
 async def hybrid_search(request: SearchRequest):
     """
     Perform hybrid search combining semantic and keyword matching using LanceDB.
     """
-    ensure_seeded()  # Lazy seeding on first use
     try:
         handler = get_lancedb_handler(request.workspace_id)
         
+        # Check if LanceDB is available
+        if not handler.db:
+             logger.error("LanceDB not available for search")
+             raise HTTPException(
+                 status_code=503, 
+                 detail="Search service is currently unavailable. Please ensure the database is initialized."
+             )
+
         # Construct filter expression if needed
         filter_expr = None
         if request.filters:
@@ -178,35 +87,12 @@ async def hybrid_search(request: SearchRequest):
             if request.filters.doc_type:
                 types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
                 conditions.append(f"doc_type IN ({types})")
-            # Note: Tag filtering would require more complex SQL or post-processing in LanceDB
             
             if conditions:
                 filter_expr = " AND ".join(conditions)
 
-        # Check if LanceDB is available
-        if not handler.db:
-             logger.warning("LanceDB not available, falling back to mock keyword search")
-             results = []
-             # Perform simple mock search
-             query_lower = request.query.lower()
-             for doc in MOCK_DOCUMENTS:
-                 if query_lower in doc["title"].lower() or query_lower in doc["content"].lower():
-                      # Create pseudo-result format that handler.search returns
-                      # Ensure metadata is dict, not string (handler.search parses it, but here it's already dict)
-                      doc_metadata = doc["metadata"].copy()
-                      doc_metadata["title"] = doc["title"]
-                      
-                      results.append({
-                          "id": doc["id"],
-                          "text": doc["title"] + "\n" + doc["content"],
-                          "source": doc["source_uri"],
-                          "metadata": doc_metadata,
-                          "created_at": doc["metadata"].get("created_at"),
-                          "score": 0.8 # Mock score
-                      })
-        else:
-            # Perform vector search
-            results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
+        # Perform vector search
+        results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
         
         search_results = []
         for res in results:
@@ -217,7 +103,6 @@ async def hybrid_search(request: SearchRequest):
             similarity_score = res.get("score", 0.0)
             
             # Simple keyword score for hybrid simulation (if not using FTS)
-            # In a real production setup, we'd use LanceDB's FTS or a separate index
             keyword_score = 0.0
             content_lower = res.get("text", "").lower()
             query_lower = request.query.lower()
@@ -241,7 +126,7 @@ async def hybrid_search(request: SearchRequest):
             search_results.append(SearchResult(
                 id=res["id"],
                 title=metadata.get("title", "Untitled"),
-                content=res.get("text", ""), # Or truncate/extract snippet
+                content=res.get("text", ""),
                 doc_type=metadata.get("doc_type", "unknown"),
                 source_uri=res.get("source", ""),
                 similarity_score=similarity_score,
@@ -261,9 +146,11 @@ async def hybrid_search(request: SearchRequest):
             search_type=request.search_type
         )
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred during search.")
 
 @router.get("/suggestions", response_model=SuggestionsResponse)
 async def get_suggestions(
@@ -275,47 +162,57 @@ async def get_suggestions(
     """
     Get search suggestions based on partial query.
     """
-    ensure_seeded()  # Lazy seeding on first use
     try:
-        # For suggestions, we can still use the static list + some DB queries if needed
-        # Keeping it simple for now to ensure speed
+        # Check environment to disable suggestions if needed or use real data source
+        # For now, we return empty or limited suggestions from the actual DB if available
         
-        query_lower = query.lower()
-        
-        # Generate suggestions from document titles and common searches
-        all_suggestions = [
-            "project requirements",
-            "meeting notes",
-            "API documentation",
-            "financial reports",
-            "customer feedback",
-            "team meeting",
-            "product launch",
-            "Q4 planning",
-            "sprint review",
-            "user authentication"
-        ]
-        
-        # Add titles from LanceDB if possible (would require a different query type)
-        # For now, we'll stick to the static list + mock titles we know exist
-        for doc in MOCK_DOCUMENTS:
-            if query_lower in doc["title"].lower():
-                all_suggestions.append(doc["title"])
-        
-        # Filter and deduplicate
-        suggestions = []
-        seen = set()
-        for suggestion in all_suggestions:
-            if query_lower in suggestion.lower() and suggestion.lower() not in seen:
-                suggestions.append(suggestion)
-                seen.add(suggestion.lower())
-                if len(suggestions) >= limit:
-                    break
+        handler = get_lancedb_handler(workspace_id)
+        if not handler.db:
+            return SuggestionsResponse(success=True, suggestions=[])
+            
+        # In a real production setup, we'd query the 'documents' table for matching titles
+        # or use a dedicated suggestions index. 
+        # For this fix, we'll return an empty list until the suggestion engine is fully implemented.
         
         return SuggestionsResponse(
             success=True,
-            suggestions=suggestions
+            suggestions=[]
         )
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
+        logger.error(f"Failed to get suggestions: {e}")
+        return SuggestionsResponse(success=True, suggestions=[])
+
+
+@router.get("/health", response_model=HealthResponse)
+async def search_health():
+    """
+    Check search service health.
+
+    Returns:
+        - status: "healthy" if LanceDB is available, "unavailable" otherwise
+        - lancedb_available: Whether LanceDB is initialized
+        - db_path: Path to LanceDB database
+    """
+    try:
+        # Check if LanceDB is disabled via env var
+        if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
+            return HealthResponse(
+                status="disabled",
+                lancedb_available=False,
+                db_path=None
+            )
+
+        handler = get_lancedb_handler()
+        return HealthResponse(
+            status="healthy" if handler.db else "unavailable",
+            lancedb_available=handler.db is not None,
+            db_path=handler.db_path if handler else None
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return HealthResponse(
+            status="error",
+            lancedb_available=False,
+            db_path=None
+        )

@@ -3,9 +3,9 @@
 Final Honest Marketing Claims Verification
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def final_honest_assessment():

@@ -9,9 +9,10 @@ This script identifies and fixes bare except: clauses by:
 """
 
 import os
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
+
 
 def get_indentation(line):
     """Get leading whitespace from a line"""

@@ -4,20 +4,29 @@ Comprehensive analytics for Discord within unified communication ecosystem
 """
 
 import asyncio
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import json
 import logging
 import os
 import re
 import statistics
 import time
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 import httpx
 import numpy as np
 import pandas as pd
+
+# Optional openpyxl for Excel export
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils.dataframe import dataframe_to_rows
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -992,11 +1001,24 @@ class DiscordAnalyticsEngine:
                 }
             
             elif format.lower() == 'excel':
-                # Would use pandas to create Excel file
-                return {
-                    'ok': False,
-                    'error': 'Excel export not yet implemented'
-                }
+                if not OPENPYXL_AVAILABLE:
+                    return {
+                        'ok': False,
+                        'error': 'Excel export requires openpyxl package. Install with: pip install openpyxl'
+                    }
+                excel_data = self._convert_to_excel(data_points, metric, time_range)
+                if excel_data:
+                    return {
+                        'ok': True,
+                        'format': 'excel',
+                        'data': excel_data,
+                        'filename': f"discord_{metric.value}_{time_range.value}.xlsx"
+                    }
+                else:
+                    return {
+                        'ok': False,
+                        'error': 'Failed to create Excel file'
+                    }
             
             else:
                 return {'ok': False, 'error': f'Unsupported format: {format}'}
@@ -1010,10 +1032,10 @@ class DiscordAnalyticsEngine:
         try:
             if not data_points:
                 return ""
-            
+
             # CSV headers
             headers = ['timestamp', 'metric', 'value', 'dimensions', 'metadata']
-            
+
             # CSV rows
             rows = []
             for point in data_points:
@@ -1025,15 +1047,148 @@ class DiscordAnalyticsEngine:
                     json.dumps(point.metadata)
                 ]
                 rows.append(','.join(f'"{field}"' for field in row))
-            
+
             # Combine headers and rows
             csv_content = ','.join(headers) + '\n' + '\n'.join(rows)
-            
+
             return csv_content
-        
+
         except Exception as e:
             logger.error(f"Error converting to CSV: {e}")
             return ""
+
+    def _convert_to_excel(self, data_points: List[DiscordAnalyticsDataPoint],
+                         metric: DiscordAnalyticsMetric,
+                         time_range: DiscordAnalyticsTimeRange) -> Optional[bytes]:
+        """Convert data points to Excel format with multiple sheets"""
+        try:
+            if not data_points:
+                return None
+
+            # Create workbook
+            wb = Workbook()
+
+            # Remove default sheet
+            if 'Sheet' in wb.sheetnames:
+                wb.remove(wb['Sheet'])
+
+            # Define styles
+            header_font = Font(bold=True, size=11, color='FFFFFF')
+            header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+            header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell_alignment = Alignment(horizontal='left', vertical='center', wrap_text=False)
+            border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
+            # Sheet 1: Summary
+            summary_sheet = wb.create_sheet('Summary')
+            summary_sheet.column_dimensions['A'].width = 25
+            summary_sheet.column_dimensions['B'].width = 20
+
+            # Summary headers
+            summary_headers = ['Metric', 'Value']
+            for col, header in enumerate(summary_headers, 1):
+                cell = summary_sheet.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border
+
+            # Summary data
+            row_num = 2
+            summary_data = {
+                'Export Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'Metric': metric.value.replace('_', ' ').title(),
+                'Time Range': time_range.value.replace('_', ' ').title(),
+                'Total Data Points': len(data_points),
+            }
+
+            # Calculate statistics
+            values = [float(point.value) for point in data_points if isinstance(point.value, (int, float))]
+            if values:
+                summary_data['Average Value'] = round(statistics.mean(values), 2)
+                summary_data['Min Value'] = round(min(values), 2)
+                summary_data['Max Value'] = round(max(values), 2)
+                if len(values) > 1:
+                    summary_data['Std Deviation'] = round(statistics.stdev(values), 2)
+
+            for key, value in summary_data.items():
+                summary_sheet.cell(row=row_num, column=1, value=key).alignment = cell_alignment
+                summary_sheet.cell(row=row_num, column=2, value=value).alignment = cell_alignment
+                row_num += 1
+
+            # Sheet 2: Detailed Data
+            data_sheet = wb.create_sheet('Detailed Data')
+
+            # Data headers
+            data_headers = ['Timestamp', 'Metric', 'Value', 'Dimensions', 'Metadata']
+            for col, header in enumerate(data_headers, 1):
+                cell = data_sheet.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border
+
+            # Auto-adjust column widths
+            data_sheet.column_dimensions['A'].width = 25  # Timestamp
+            data_sheet.column_dimensions['B'].width = 20  # Metric
+            data_sheet.column_dimensions['C'].width = 15  # Value
+            data_sheet.column_dimensions['D'].width = 30  # Dimensions
+            data_sheet.column_dimensions['E'].width = 30  # Metadata
+
+            # Data rows
+            for row_idx, point in enumerate(data_points, 2):
+                data_sheet.cell(row=row_idx, column=1, value=point.timestamp.isoformat()).alignment = cell_alignment
+                data_sheet.cell(row=row_idx, column=2, value=point.metric.value).alignment = cell_alignment
+                data_sheet.cell(row=row_idx, column=3, value=str(point.value)).alignment = cell_alignment
+                data_sheet.cell(row=row_idx, column=4, value=json.dumps(point.dimensions, indent=2)).alignment = cell_alignment
+                data_sheet.cell(row=row_idx, column=5, value=json.dumps(point.metadata, indent=2)).alignment = cell_alignment
+
+            # Sheet 3: Metadata
+            metadata_sheet = wb.create_sheet('Metadata')
+            metadata_sheet.column_dimensions['A'].width = 20
+            metadata_sheet.column_dimensions['B'].width = 40
+
+            # Metadata headers
+            metadata_headers = ['Property', 'Description']
+            for col, header in enumerate(metadata_headers, 1):
+                cell = metadata_sheet.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border
+
+            # Metadata data
+            metadata_info = [
+                ('Engine', 'Discord Analytics Engine'),
+                ('Version', '4.0.0'),
+                ('Export Format', 'Excel (.xlsx)'),
+                ('Metric Type', metric.value),
+                ('Time Range', time_range.value),
+                ('Data Points', str(len(data_points))),
+                ('Export Timestamp', datetime.now().isoformat()),
+            ]
+
+            for row_idx, (key, value) in enumerate(metadata_info, 2):
+                metadata_sheet.cell(row=row_idx, column=1, value=key).alignment = cell_alignment
+                metadata_sheet.cell(row=row_idx, column=2, value=value).alignment = cell_alignment
+
+            # Set summary as active sheet
+            wb.active = 0
+
+            # Save to bytes
+            from io import BytesIO
+            output = BytesIO()
+            wb.save(output)
+            return output.getvalue()
+
+        except Exception as e:
+            logger.error(f"Error converting to Excel: {e}")
+            return None
     
     async def clear_cache(self):
         """Clear analytics cache"""

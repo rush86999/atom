@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 5.2.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "production": {
+      "ios": {
+        "autoIncrement": true,
+        "buildConfiguration": "Release",
+        "bundleIdentifier": "com.atomplatform.ai",
+        "enterpriseProvisioning": "universal"
+      },
+      "android": {
+        "autoIncrement": true,
+        "buildType": "apk",
+        "generateApk": true,
+        "keystorePath": "./atom-keystore.jks"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID",
+        "password": "@env:APPLE_APP_SPECIFIC_PASSWORD"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

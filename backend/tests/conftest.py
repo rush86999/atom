@@ -1,88 +1,50 @@
 """
-Pytest configuration and fixtures
+Root conftest.py for test suite configuration
+
+This file is loaded before any test modules and sets up necessary fixtures
+and configuration for the entire test suite.
 """
 
-import os
 import sys
-from unittest.mock import MagicMock, patch
+import os
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 # Add backend to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from main_api_app import app
-
-from core.database import Base, get_db
-
-# Test database
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-@pytest.fixture
-def db_session():
-    """Create a fresh database session for each test"""
-    # Drop all tables first to ensure clean state
-    Base.metadata.drop_all(bind=engine)
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        # Clean up after test
-        db.rollback()
-        Base.metadata.drop_all(bind=engine)
+# CRITICAL: This code runs when conftest.py is first imported by pytest.
+# It restores numpy/pandas/lancedb/pyarrow modules that may have been
+# set to None by previously imported test modules (like test_proactive_messaging_simple.py).
+#
+# This must happen at module level, not in a function, to ensure it runs
+# before test collection begins.
+for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
+    if mod in sys.modules and sys.modules[mod] is None:
+        sys.modules.pop(mod, None)
 
 
-@pytest.fixture
-def client(db_session):
-    """Create a test client with a database session"""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
+def pytest_configure(config):
+    """
+    Pytest hook called after command line options have been parsed
+    but before test collection begins.
+    """
+    pass
 
 
 @pytest.fixture(autouse=True)
-def mock_external_services():
-    """Mock external services to prevent real API calls"""
-    with patch('dotenv.load_dotenv'):
-        yield
+def ensure_numpy_available(request):
+    """
+    Auto-use fixture that ensures numpy/pandas/lancedb/pyarrow are available
+    before each test runs.
 
-
-@pytest.fixture(autouse=True, scope="session")
-def clean_test_databases():
-    """Clean up test databases before and after test session"""
-    # Clean up before tests
-    import os
-    db_files = [
-        "./test.db",
-        "./atom.db",
-        "./atom_dev.db",
-        "./analytics.db",
-    ]
-    for db_file in db_files:
-        if os.path.exists(db_file):
-            os.remove(db_file)
+    This is a safety net in case any test sets these to None.
+    """
+    # Restore modules before each test
+    for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
+        if mod in sys.modules and sys.modules[mod] is None:
+            sys.modules.pop(mod, None)
 
     yield
 
-    # Clean up after tests
-    for db_file in db_files:
-        if os.path.exists(db_file):
-            try:
-                os.remove(db_file)
-            except:
-                pass
+    # No cleanup needed

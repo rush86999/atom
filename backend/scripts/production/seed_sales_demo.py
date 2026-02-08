@@ -1,6 +1,6 @@
 import asyncio
-import logging
 from datetime import datetime, timedelta, timezone
+import logging
 from sales.models import CallTranscript, Deal, DealStage, Lead, LeadStatus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

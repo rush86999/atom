@@ -8,8 +8,8 @@ sys.path.append(os.getcwd())
 
 import accounting.models
 
-import core.models  # Crucial for workspace table
 from core.database import Base, engine
+import core.models  # Crucial for workspace table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

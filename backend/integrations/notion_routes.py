@@ -3,9 +3,9 @@ Notion Integration Routes
 Complete Notion OAuth integration with secure token storage
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 from pydantic import BaseModel

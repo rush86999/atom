@@ -5,12 +5,12 @@ Uses external LLM providers to validate marketing claims with real evidence
 """
 
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
-import sys
-from datetime import datetime
 from pathlib import Path
+import sys
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))

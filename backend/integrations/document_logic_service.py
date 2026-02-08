@@ -3,9 +3,9 @@ ATOM Document Logic Service
 Unified ingestion for Google Docs, Word, Excel, and PDF to extract business rules.
 """
 
-import logging
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
 
 try:

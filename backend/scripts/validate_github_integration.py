@@ -9,8 +9,8 @@ import json
 import os
 import sys
 from urllib.parse import urlencode
-import httpx
 from dotenv import load_dotenv
+import httpx
 
 # Load environment variables
 load_dotenv()

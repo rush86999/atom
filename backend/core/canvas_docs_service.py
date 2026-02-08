@@ -4,10 +4,10 @@ Documentation Canvas Service
 Backend service for documentation canvas with rich editing,
 version history, comments, and table of contents.
 """
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 

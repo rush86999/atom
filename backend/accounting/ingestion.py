@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
 from accounting.categorizer import AICategorizer
 from accounting.ledger import EventSourcedLedger

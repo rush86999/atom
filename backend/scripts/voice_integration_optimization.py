@@ -11,17 +11,17 @@ import audioop
 import logging
 import os
 import tempfile
-import wave
 from typing import Any, Dict, List, Optional, Tuple
+import wave
 
 # Import voice processing libraries
 try:
     import gtts
     import librosa
+    from pydub import AudioSegment
     import pyttsx3
     import soundfile as sf
     import speech_recognition as sr
-    from pydub import AudioSegment
 
     VOICE_PROCESSING_AVAILABLE = True
 except ImportError as e:

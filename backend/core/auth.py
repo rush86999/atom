@@ -1,9 +1,14 @@
+# -*- coding: utf-8 -*-
+from datetime import datetime, timedelta
 import os
 import secrets
-from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 import bcrypt
 from jose import JWTError, jwt
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+import base64
 
 BCRYPT_AVAILABLE = True
 
@@ -13,19 +18,19 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import User
+from core.models import User, MobileDevice
 
 # Configuration
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
 if not SECRET_KEY:
     if os.getenv("ENVIRONMENT") == "production" or os.getenv("NODE_ENV") == "production":
         raise ValueError("SECRET_KEY environment variable is required in production")
     else:
-        # Match NextAuth default secret for development
-        SECRET_KEY = "atom_secure_secret_2025_fixed_key"
-        logger.warning("⚠️ Using hardcoded secret key (matching NextAuth) for development.")
+        # Generate a secure random key for development
+        SECRET_KEY = secrets.token_urlsafe(32)
+        logger.warning("⚠️ Using auto-generated secret key for development. Set SECRET_KEY env var for persistence.")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
@@ -38,14 +43,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
         hashed_password = hashed_password.encode('utf-8')
-    
+
     # Truncate to 71 bytes as bcrypt has a 72-byte limit and includes a null terminator
     plain_password = plain_password[:71]
-    
+
     try:
         return bcrypt.checkpw(plain_password, hashed_password)
+    except ValueError as e:
+        logger.error(f"Invalid password format in verify_password: {e}")
+        return False
     except Exception as e:
-        logger.error(f"Error in verify_password: {e}")
+        logger.error(f"Unexpected error in verify_password: {e}")
         return False
 
 def get_password_hash(password: str) -> str:
@@ -158,3 +166,226 @@ def generate_satellite_key() -> str:
         str: A securely generated API key
     """
     return f"sk-{secrets.token_hex(24)}"
+
+
+# ============================================================================
+# Mobile Authentication Functions
+# ============================================================================
+
+def verify_mobile_token(token: str, db: Session) -> Optional[User]:
+    """
+    Verify mobile device token and return user.
+
+    This is an enhanced version that checks if the device is registered and active.
+
+    Args:
+        token: JWT access token from mobile app
+        db: Database session
+
+    Returns:
+        User if valid, None otherwise
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+
+        user = db.query(User).filter(User.id == user_id).first()
+        return user
+    except JWTError as e:
+        logger.warning(f"Mobile token verification failed: {e}")
+        return None
+
+
+def verify_biometric_signature(
+    signature: str,
+    public_key: str,
+    challenge: str
+) -> bool:
+    """
+    Verify biometric authentication signature from mobile device.
+
+    Args:
+        signature: Base64-encoded signature from device
+        public_key: Device's public key (stored during registration)
+        challenge: Challenge string that was signed
+
+    Returns:
+        True if signature is valid, False otherwise
+    """
+    try:
+        # Decode signature and public key
+        signature_bytes = base64.b64decode(signature)
+        public_key_bytes = base64.b64decode(public_key)
+        challenge_bytes = challenge.encode('utf-8')
+
+        # Load public key
+        from cryptography.hazmat.primitives.asymmetric import rsa, ec
+
+        # Try to load as EC key (P-256 commonly used for biometric)
+        try:
+            from cryptography.hazmat.primitives.serialization import load_pem_public_key
+            pub_key = load_pem_public_key(public_key_bytes, backend=default_backend())
+
+            # Verify signature
+            pub_key.verify(
+                signature_bytes,
+                challenge_bytes,
+                ec.ECDSA(hashes.SHA256())
+            )
+            return True
+        except Exception:
+            # Fallback: try RSA
+            from cryptography.hazmat.primitives.serialization import load_pem_public_key
+            pub_key = load_pem_public_key(public_key_bytes, backend=default_backend())
+
+            pub_key.verify(
+                signature_bytes,
+                challenge_bytes,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            return True
+
+    except Exception as e:
+        logger.error(f"Biometric signature verification failed: {e}")
+        return False
+
+
+def create_mobile_token(user: User, device_id: str, expires_delta: Optional[timedelta] = None) -> Dict[str, Any]:
+    """
+    Create mobile-specific access token with device information.
+
+    Args:
+        user: User object
+        device_id: Mobile device ID
+        expires_delta: Optional custom expiration time
+
+    Returns:
+        Dictionary with access_token, refresh_token, expires_at
+    """
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {
+        "sub": str(user.id),
+        "email": user.email,
+        "device_id": device_id,
+        "platform": "mobile",
+        "exp": expire
+    }
+
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    # Create refresh token (longer-lived)
+    refresh_expire = datetime.utcnow() + timedelta(days=30)
+    refresh_to_encode = {
+        "sub": str(user.id),
+        "type": "refresh",
+        "device_id": device_id,
+        "exp": refresh_expire
+    }
+    refresh_jwt = jwt.encode(refresh_to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    return {
+        "access_token": encoded_jwt,
+        "refresh_token": refresh_jwt,
+        "expires_at": expire.isoformat(),
+        "token_type": "bearer"
+    }
+
+
+def get_mobile_device(device_id: str, user_id: str, db: Session) -> Optional[MobileDevice]:
+    """
+    Get mobile device with validation.
+
+    Args:
+        device_id: Device ID
+        user_id: User ID
+        db: Database session
+
+    Returns:
+        MobileDevice if found and valid, None otherwise
+    """
+    device = db.query(MobileDevice).filter(
+        MobileDevice.id == device_id,
+        MobileDevice.user_id == user_id
+    ).first()
+
+    if device and device.status != "active":
+        logger.warning(f"Device {device_id} is not active (status: {device.status})")
+        return None
+
+    return device
+
+
+async def authenticate_mobile_user(
+    email: str,
+    password: str,
+    device_token: str,
+    platform: str,
+    db: Session
+) -> Optional[Dict[str, Any]]:
+    """
+    Authenticate mobile user and return tokens with device registration.
+
+    Args:
+        email: User email
+        password: User password
+        device_token: Push notification token
+        platform: Platform (ios, android)
+        db: Database session
+
+    Returns:
+        Dictionary with tokens and user data, or None if authentication fails
+    """
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        return None
+
+    if not verify_password(password, user.password_hash):
+        return None
+
+    # Register or update device
+    device = db.query(MobileDevice).filter(
+        MobileDevice.device_token == device_token
+    ).first()
+
+    if not device:
+        device = MobileDevice(
+            user_id=str(user.id),
+            device_token=device_token,
+            platform=platform,
+            status="active",
+            device_info={"registered_at": datetime.utcnow().isoformat()}
+        )
+        db.add(device)
+        db.commit()
+        db.refresh(device)
+    else:
+        # Update existing device
+        device.platform = platform
+        device.status = "active"
+        device.last_active = datetime.utcnow()
+        db.commit()
+
+    # Create tokens
+    tokens = create_mobile_token(user, device.id)
+
+    # Add user info
+    tokens["user"] = {
+        "id": str(user.id),
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role
+    }
+
+    return tokens

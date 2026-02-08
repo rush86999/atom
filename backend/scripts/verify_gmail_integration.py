@@ -8,8 +8,8 @@ and identifies what needs to be completed.
 
 import logging
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Configure logging
 logging.basicConfig(

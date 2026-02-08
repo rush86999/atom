@@ -4,9 +4,9 @@ Automatically refreshes OAuth tokens before they expire
 """
 
 import asyncio
+from datetime import datetime, timedelta
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import Dict, Optional
 from dotenv import load_dotenv
 

@@ -8,16 +8,17 @@ REST endpoints for agent guidance operations including:
 - Agent requests
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.agent_guidance_canvas_tool import get_agent_guidance_system
 from core.agent_request_manager import get_agent_request_manager
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.error_guidance_engine import get_error_guidance_engine
 from core.models import AgentOperationTracker, AgentRequestLog, User
@@ -26,7 +27,7 @@ from core.view_coordinator import get_view_coordinator
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/agent-guidance", tags=["agent-guidance"])
+router = BaseAPIRouter(prefix="/api/agent-guidance", tags=["agent-guidance"])
 
 
 # Request/Response Models
@@ -131,15 +132,14 @@ async def start_operation(
             metadata=request.metadata
         )
 
-        return {
-            "success": True,
-            "operation_id": operation_id,
-            "message": "Operation started"
-        }
+        return router.success_response(
+            data={"operation_id": operation_id},
+            message="Operation started"
+        )
 
     except Exception as e:
         logger.error(f"Failed to start operation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.put("/operation/{operation_id}/update")
@@ -177,14 +177,11 @@ async def update_operation(
                 next_steps=request.next_steps
             )
 
-        return {
-            "success": True,
-            "message": "Operation updated"
-        }
+        return router.success_response(message="Operation updated")
 
     except Exception as e:
         logger.error(f"Failed to update operation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/operation/{operation_id}/complete")
@@ -209,14 +206,11 @@ async def complete_operation(
             final_message=request.final_message
         )
 
-        return {
-            "success": True,
-            "message": f"Operation {request.status}"
-        }
+        return router.success_response(message=f"Operation {request.status}")
 
     except Exception as e:
         logger.error(f"Failed to complete operation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/operation/{operation_id}")
@@ -237,36 +231,35 @@ async def get_operation(
         ).first()
 
         if not operation:
-            raise HTTPException(status_code=404, detail="Operation not found")
+            raise router.not_found_error("Operation", operation_id)
 
-        return {
-            "success": True,
-            "operation": {
-                "operation_id": operation.operation_id,
-                "agent_id": operation.agent_id,
-                "operation_type": operation.operation_type,
-                "status": operation.status,
-                "current_step": operation.current_step,
-                "total_steps": operation.total_steps,
-                "current_step_index": operation.current_step_index,
-                "progress": operation.progress,
-                "context": {
-                    "what": operation.what_explanation,
-                    "why": operation.why_explanation,
-                    "next": operation.next_steps
-                },
-                "logs": operation.logs,
-                "metadata": operation.metadata,
-                "started_at": operation.started_at.isoformat() if operation.started_at else None,
-                "completed_at": operation.completed_at.isoformat() if operation.completed_at else None
+        return router.success_response(
+            data={
+                "operation": {
+                    "operation_id": operation.operation_id,
+                    "agent_id": operation.agent_id,
+                    "operation_type": operation.operation_type,
+                    "status": operation.status,
+                    "current_step": operation.current_step,
+                    "total_steps": operation.total_steps,
+                    "current_step_index": operation.current_step_index,
+                    "progress": operation.progress,
+                    "context": {
+                        "what": operation.what_explanation,
+                        "why": operation.why_explanation,
+                        "next": operation.next_steps
+                    },
+                    "logs": operation.logs,
+                    "metadata": operation.metadata,
+                    "started_at": operation.started_at.isoformat() if operation.started_at else None,
+                    "completed_at": operation.completed_at.isoformat() if operation.completed_at else None
+                }
             }
-        }
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get operation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 # View Orchestration Endpoints
@@ -286,7 +279,7 @@ async def switch_view(
 
         if request.view_type == "browser":
             if not request.url:
-                raise HTTPException(status_code=400, detail="URL required for browser view")
+                raise router.validation_error("url", "URL required for browser view")
 
             await view_coordinator.switch_to_browser_view(
                 user_id=current_user.id,
@@ -298,7 +291,7 @@ async def switch_view(
 
         elif request.view_type == "terminal":
             if not request.command:
-                raise HTTPException(status_code=400, detail="Command required for terminal view")
+                raise router.validation_error("command", "Command required for terminal view")
 
             await view_coordinator.switch_to_terminal_view(
                 user_id=current_user.id,
@@ -309,18 +302,13 @@ async def switch_view(
             )
 
         else:
-            raise HTTPException(status_code=400, detail=f"Unknown view type: {request.view_type}")
+            raise router.validation_error("view_type", f"Unknown view type: {request.view_type}")
 
-        return {
-            "success": True,
-            "message": f"Switched to {request.view_type} view"
-        }
+        return router.success_response(message=f"Switched to {request.view_type} view")
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to switch view: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/view/layout")
@@ -343,14 +331,11 @@ async def set_layout(
             session_id=request.session_id
         )
 
-        return {
-            "success": True,
-            "message": f"Layout set to {request.layout}"
-        }
+        return router.success_response(message=f"Layout set to {request.layout}")
 
     except Exception as e:
         logger.error(f"Failed to set layout: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 # Error Guidance Endpoints
@@ -375,14 +360,11 @@ async def present_error(
             agent_id=request.agent_id
         )
 
-        return {
-            "success": True,
-            "message": "Error presented with guidance"
-        }
+        return router.success_response(message="Error presented with guidance")
 
     except Exception as e:
         logger.error(f"Failed to present error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/error/track-resolution")
@@ -408,14 +390,11 @@ async def track_resolution(
             agent_suggested=request.agent_suggested
         )
 
-        return {
-            "success": True,
-            "message": "Resolution tracked"
-        }
+        return router.success_response(message="Resolution tracked")
 
     except Exception as e:
         logger.error(f"Failed to track resolution: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 # Agent Request Endpoints
@@ -443,15 +422,14 @@ async def create_permission_request(
             expires_in=request.expires_in
         )
 
-        return {
-            "success": True,
-            "request_id": request_id,
-            "message": "Permission request created"
-        }
+        return router.success_response(
+            data={"request_id": request_id},
+            message="Permission request created"
+        )
 
     except Exception as e:
         logger.error(f"Failed to create permission request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/request/decision")
@@ -480,15 +458,14 @@ async def create_decision_request(
             expires_in=request.expires_in
         )
 
-        return {
-            "success": True,
-            "request_id": request_id,
-            "message": "Decision request created"
-        }
+        return router.success_response(
+            data={"request_id": request_id},
+            message="Decision request created"
+        )
 
     except Exception as e:
         logger.error(f"Failed to create decision request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.post("/request/{request_id}/respond")
@@ -512,14 +489,11 @@ async def respond_to_request(
             response=request.response
         )
 
-        return {
-            "success": True,
-            "message": "Response recorded"
-        }
+        return router.success_response(message="Response recorded")
 
     except Exception as e:
         logger.error(f"Failed to respond to request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))
 
 
 @router.get("/request/{request_id}")
@@ -540,25 +514,24 @@ async def get_request(
         ).first()
 
         if not request_log:
-            raise HTTPException(status_code=404, detail="Request not found")
+            raise router.not_found_error("Request", request_id)
 
-        return {
-            "success": True,
-            "request": {
-                "request_id": request_log.request_id,
-                "agent_id": request_log.agent_id,
-                "request_type": request_log.request_type,
-                "request_data": request_log.request_data,
-                "user_response": request_log.user_response,
-                "created_at": request_log.created_at.isoformat(),
-                "responded_at": request_log.responded_at.isoformat() if request_log.responded_at else None,
-                "expires_at": request_log.expires_at.isoformat() if request_log.expires_at else None,
-                "revoked": request_log.revoked
+        return router.success_response(
+            data={
+                "request": {
+                    "request_id": request_log.request_id,
+                    "agent_id": request_log.agent_id,
+                    "request_type": request_log.request_type,
+                    "request_data": request_log.request_data,
+                    "user_response": request_log.user_response,
+                    "created_at": request_log.created_at.isoformat(),
+                    "responded_at": request_log.responded_at.isoformat() if request_log.responded_at else None,
+                    "expires_at": request_log.expires_at.isoformat() if request_log.expires_at else None,
+                    "revoked": request_log.revoked
+                }
             }
-        }
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(str(e))

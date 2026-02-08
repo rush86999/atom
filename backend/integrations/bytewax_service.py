@@ -1,15 +1,15 @@
 
-import json
-import logging
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
+import json
+import logging
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-
-# Bytewax imports
-import bytewax.operators as op
 from bytewax.connectors.stdio import StdOutSink
 from bytewax.dataflow import Dataflow
 from bytewax.inputs import DynamicSource, StatelessSourcePartition
+
+# Bytewax imports
+import bytewax.operators as op
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
 
 # Vectorization

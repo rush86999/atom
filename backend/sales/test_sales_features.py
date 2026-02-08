@@ -1,7 +1,7 @@
 import asyncio
+from datetime import datetime
 import os
 import sys
-from datetime import datetime
 from sqlalchemy.orm import Session
 
 # Add project root to path
@@ -12,9 +12,9 @@ from sales.intelligence import SalesIntelligence
 from sales.lead_manager import LeadManager
 from sales.models import CallTranscript, Deal, DealStage, FollowUpTask, Lead
 
-import core.models
 from core.automation_settings import get_automation_settings
 from core.database import SessionLocal, engine
+import core.models
 
 
 async def test_sales_flow():

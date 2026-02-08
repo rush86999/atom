@@ -4,17 +4,28 @@ import datetime
 import enum
 import hashlib
 import json
+from typing import Optional
 import uuid
-from sqlalchemy import JSON, Boolean, Column, DateTime
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Table, Text
+from cryptography.fernet import Fernet
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
-from cryptography.fernet import Fernet
 
 from core.data_visibility import DataVisibility
 from core.database import Base
-
 
 # ============================================================================
 # Token Encryption Helpers
@@ -225,6 +236,7 @@ class User(Base):
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
+    activity = relationship("UserActivity", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, email={self.email}, role={self.role})>"
@@ -444,16 +456,16 @@ class PasswordResetToken(Base):
     user = relationship("User", backref="sessions")
 
 class AgentJobStatus(str, enum.Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
 
 class HITLActionStatus(str, enum.Enum):
     """Status for Human-in-the-loop actions requiring user approval"""
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
     EXPIRED = "expired"
 
 class AgentJob(Base):
@@ -461,7 +473,7 @@ class AgentJob(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, nullable=False)
-    status = Column(String, default=AgentJobStatus.PENDING.value)
+    status = Column(SQLEnum(AgentJobStatus), default=AgentJobStatus.PENDING, nullable=False)
     start_time = Column(DateTime(timezone=True), server_default=func.now())
     end_time = Column(DateTime(timezone=True), nullable=True)
     logs = Column(Text, nullable=True) # JSON Logs
@@ -588,6 +600,7 @@ class AgentFeedback(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    episode_id = Column(String, ForeignKey("episodes.id"), nullable=True, index=True)  # NEW - Episode backlink
 
     # The Interaction
     input_context = Column(Text, nullable=True) # What triggered the agent
@@ -1107,7 +1120,7 @@ class AgentExecution(Base):
     error_message = Column(Text, nullable=True)
 
     # Relationships
-    agent = relationship("AgentRegistry")
+    agent = relationship("AgentRegistry", backref="executions")
     # Note: workspace relationship removed - workspace_id is a string reference without FK constraint
 
     def __repr__(self):
@@ -1126,9 +1139,9 @@ class CanvasAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     canvas_id = Column(String, nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)  # Session isolation (NEW)
     canvas_type = Column(String, default="generic", nullable=False, index=True)  # 'generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding' (NEW)
@@ -1137,7 +1150,14 @@ class CanvasAudit(Base):
     action = Column(String, nullable=False)  # 'present', 'close', 'submit', 'update'
     audit_metadata = Column(JSON, default={})  # Renamed from 'metadata' (reserved)
     governance_check_passed = Column(Boolean, nullable=True)
+    episode_id = Column(String, ForeignKey("episodes.id"), nullable=True, index=True)  # NEW - Episode backlink
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="canvas_audits")
+    execution = relationship("AgentExecution", backref="canvas_audits")
+    user = relationship("User", backref="canvas_audits")
+    episode = relationship("Episode", backref="canvas_references")
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, action={self.action}, component_type={self.component_type})>"
@@ -1408,6 +1428,12 @@ class DeviceNode(Base):
     # Metadata
     metadata_json = Column(JSON, default={})
 
+    # App type (desktop, mobile, menubar)
+    app_type = Column(String, default="desktop")
+
+    # Last command execution timestamp (for menu bar)
+    last_command_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -1461,10 +1487,10 @@ class DeviceAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
-    device_node_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_node_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=False, index=True)
     session_id = Column(String, nullable=True, index=True)
 
     # Action details
@@ -1485,6 +1511,12 @@ class DeviceAudit(Base):
     # Timing
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
+    # Relationships
+    agent = relationship("AgentRegistry", backref="device_audits")
+    execution = relationship("AgentExecution", backref="device_audits")
+    user = relationship("User", backref="device_audits")
+    device = relationship("DeviceNode", backref="audit_logs")
+
 
 class BrowserAudit(Base):
     """
@@ -1497,9 +1529,9 @@ class BrowserAudit(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, nullable=True, index=True)
-    agent_id = Column(String, nullable=True, index=True)
-    agent_execution_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     session_id = Column(String, ForeignKey("browser_sessions.session_id"), nullable=False, index=True)
 
     # Action details
@@ -1521,6 +1553,9 @@ class BrowserAudit(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
+    agent = relationship("AgentRegistry", backref="browser_audits")
+    execution = relationship("AgentExecution", backref="browser_audits")
+    user = relationship("User", backref="browser_audits")
     session = relationship("BrowserSession", backref="actions")
 
 
@@ -1537,7 +1572,7 @@ class DeepLinkAudit(Base):
     workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
 
     # Deep link details
     resource_type = Column(String, nullable=False)  # 'agent', 'workflow', 'canvas', 'tool'
@@ -1558,8 +1593,9 @@ class DeepLinkAudit(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
-    agent = relationship("AgentRegistry")
-    execution = relationship("AgentExecution")
+    agent = relationship("AgentRegistry", backref="deep_link_audits")
+    execution = relationship("AgentExecution", backref="deep_link_audits")
+    user = relationship("User", backref="deep_link_audits")
 
 
 class ABTest(Base):
@@ -2743,6 +2779,11 @@ class MobileDevice(Base):
     notification_enabled = Column(Boolean, default=True)
     notification_preferences = Column(JSON, default=dict)  # {agent_alerts, system_alerts, etc.}
 
+    # Biometric authentication support
+    biometric_public_key = Column(Text, nullable=True)  # Public key for signature verification
+    biometric_enabled = Column(Boolean, default=False)  # Whether biometric auth is enabled
+    last_biometric_auth = Column(DateTime(timezone=True), nullable=True)  # Last successful biometric auth
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_active = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -2757,6 +2798,8 @@ class MobileDevice(Base):
         Index('ix_mobile_devices_token', 'device_token'),
         Index('ix_mobile_devices_platform', 'platform'),
         Index('ix_mobile_devices_status', 'status'),
+        Index('ix_mobile_devices_user_status', 'user_id', 'status'),  # Composite index for faster lookups
+        Index('ix_mobile_devices_biometric_enabled', 'biometric_enabled'),
     )
 
 
@@ -2792,6 +2835,9 @@ class OfflineAction(Base):
         Index('ix_offline_actions_status', 'status'),
         Index('ix_offline_actions_priority', 'priority'),
         Index('ix_offline_actions_created', 'created_at'),
+        # Composite indexes for better performance
+        Index('ix_offline_actions_priority_status', 'priority', 'status'),
+        Index('ix_offline_actions_user_pending', 'user_id', 'status'),
     )
 
 
@@ -2818,6 +2864,10 @@ class SyncState(Base):
     # Sync configuration
     auto_sync_enabled = Column(Boolean, default=True)
     sync_interval_seconds = Column(Integer, default=300)  # 5 minutes default
+
+    # Conflict resolution
+    conflict_resolution = Column(String, default="last_write_wins")  # last_write_wins, manual, server_wins
+    last_conflict_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -3060,6 +3110,274 @@ class SupervisionSession(Base):
     )
 
 
+# ============================================================================
+# TWO-WAY LEARNING SYSTEM: Supervisor Performance & Feedback
+# ============================================================================
+
+class SupervisorRating(Base):
+    """
+    5-star ratings for supervisors on supervision sessions.
+
+    Agents and other supervisors can rate supervisor performance.
+    Enables supervisor learning and improvement.
+    """
+    __tablename__ = "supervisor_ratings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    rater_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)  # Who rated
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)  # Optional agent context
+
+    # Rating (1-5 stars)
+    rating = Column(Integer, nullable=False)  # 1-5 scale
+    rating_category = Column(String, nullable=True)  # "intervention_quality", "guidance_clarity", "outcome_quality"
+
+    # Context
+    reason = Column(Text, nullable=True)  # Optional explanation for rating
+    was_helpful = Column(Boolean, default=True)  # Did this supervision help the agent?
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="ratings")
+    supervisor = relationship("User", foreign_keys=[supervisor_id], backref="received_ratings")
+    rater = relationship("User", foreign_keys=[rater_id], backref="given_ratings")
+    agent = relationship("AgentRegistry", backref="supervisor_ratings")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_ratings_session', 'supervision_session_id'),
+        Index('ix_supervisor_ratings_supervisor', 'supervisor_id'),
+        Index('ix_supervisor_ratings_rater', 'rater_id'),
+        Index('ix_supervisor_ratings_created', 'created_at'),
+    )
+
+
+class SupervisorComment(Base):
+    """
+    Threaded comments on supervision sessions.
+
+    Enables rich discussion and learning from supervision experiences.
+    Supports hierarchical comment threads for organized discussions.
+    """
+    __tablename__ = "supervisor_comments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    parent_comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)  # For threading
+
+    # Content
+    content = Column(Text, nullable=False)
+    content_type = Column(String, default="text")  # "text", "code", "suggestion"
+
+    # Metadata
+    comment_type = Column(String, nullable=True)  # "guidance", "question", "observation", "resolution"
+    intervention_reference = Column(JSON, nullable=True)  # Reference to specific intervention
+
+    # Threading support
+    thread_path = Column(String, nullable=True)  # e.g., "root.parent.child" for efficient querying
+    depth = Column(Integer, default=0)  # Thread depth (0 for root comments)
+
+    # Engagement
+    reply_count = Column(Integer, default=0)  # Number of direct replies
+    upvote_count = Column(Integer, default=0)  # Sum of upvotes
+    downvote_count = Column(Integer, default=0)  # Sum of downvotes
+
+    # Status
+    is_edited = Column(Boolean, default=False)
+    is_resolved = Column(Boolean, default=False)  # For questions/issues
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # Soft delete
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="comments")
+    author = relationship("User", backref="supervisor_comments")
+    parent_comment = relationship("SupervisorComment", remote_side=[id], backref="replies")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_comments_session', 'supervision_session_id'),
+        Index('ix_supervisor_comments_author', 'author_id'),
+        Index('ix_supervisor_comments_parent', 'parent_comment_id'),
+        Index('ix_supervisor_comments_thread', 'thread_path'),
+        Index('ix_supervisor_comments_created', 'created_at'),
+    )
+
+
+class FeedbackVote(Base):
+    """
+    Thumbs up/down votes for supervision sessions and comments.
+
+    Enables quick feedback on supervision quality and comment helpfulness.
+    """
+    __tablename__ = "feedback_votes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=True, index=True)
+    comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Vote (thumbs up/down)
+    vote_type = Column(String, nullable=False)  # "up", "down"
+
+    # Context
+    vote_reason = Column(String, nullable=True)  # Optional: "helpful", "incorrect", "unclear"
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="votes")
+    comment = relationship("SupervisorComment", backref="votes")
+    user = relationship("User", backref="feedback_votes")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_feedback_votes_session', 'supervision_session_id'),
+        Index('ix_feedback_votes_comment', 'comment_id'),
+        Index('ix_feedback_votes_user', 'user_id'),
+        Index('ix_feedback_votes_created', 'created_at'),
+
+        # Ensure one vote per user per target
+        Index('ix_feedback_votes_unique_session', 'supervision_session_id', 'user_id', unique=True),
+        Index('ix_feedback_votes_unique_comment', 'comment_id', 'user_id', unique=True),
+    )
+
+
+class SupervisorPerformance(Base):
+    """
+    Aggregated performance metrics for supervisors.
+
+    Tracks supervisor effectiveness over time to enable learning and
+    identify areas for improvement.
+    """
+    __tablename__ = "supervisor_performance"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Supervisor
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+
+    # Overall Metrics
+    total_sessions_supervised = Column(Integer, default=0)
+    total_interventions = Column(Integer, default=0)
+
+    # Rating Metrics (from ratings received)
+    average_rating = Column(Float, default=0.0)  # 1-5 scale
+    total_ratings = Column(Integer, default=0)
+
+    # 5-star distribution
+    rating_1_count = Column(Integer, default=0)
+    rating_2_count = Column(Integer, default=0)
+    rating_3_count = Column(Integer, default=0)
+    rating_4_count = Column(Integer, default=0)
+    rating_5_count = Column(Integer, default=0)
+
+    # Intervention Success Metrics
+    successful_interventions = Column(Integer, default=0)  # Interventions that led to success
+    failed_interventions = Column(Integer, default=0)  # Interventions that didn't help
+
+    # Agent Improvement Metrics
+    agents_promoted = Column(Integer, default=0)  # Agents that graduated under this supervisor
+    agent_confidence_boosted = Column(Float, default=0.0)  # Total confidence increase given
+
+    # Feedback Metrics
+    total_comments_given = Column(Integer, default=0)
+    total_upvotes_received = Column(Integer, default=0)
+    total_downvotes_received = Column(Integer, default=0)
+
+    # Supervisor Confidence (self-assessment and community-rated)
+    confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
+    competence_level = Column(String, default="novice")  # "novice", "intermediate", "advanced", "expert"
+
+    # Learning & Trend
+    learning_rate = Column(Float, default=0.0)  # How fast supervisor is improving
+    performance_trend = Column(String, default="stable")  # "improving", "stable", "declining"
+
+    # Timestamps
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervisor = relationship("User", backref="performance_metrics")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervisor_performance_supervisor', 'supervisor_id'),
+        Index('ix_supervisor_performance_rating', 'average_rating'),
+        Index('ix_supervisor_performance_confidence', 'confidence_score'),
+    )
+
+
+class InterventionOutcome(Base):
+    """
+    Tracks outcomes of supervisor interventions for learning.
+
+    Links interventions to agent behavior changes and success metrics.
+    """
+    __tablename__ = "intervention_outcomes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Links
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Intervention Details
+    intervention_type = Column(String, nullable=False)  # "pause", "correct", "terminate"
+    intervention_timestamp = Column(DateTime(timezone=True), nullable=False)
+
+    # Outcome
+    outcome = Column(String, nullable=False)  # "success", "partial", "failure"
+    agent_behavior_change = Column(String, nullable=True)  # "improved", "unchanged", "degraded"
+    task_completion = Column(String, nullable=True)  # "completed", "abandoned", "failed"
+
+    # Time to Recovery
+    seconds_to_recovery = Column(Integer, nullable=True)  # How long until agent was back on track
+
+    # Assessment
+    was_necessary = Column(Boolean, default=True)  # Was this intervention needed?
+    was_effective = Column(Boolean, default=True)  # Did it help?
+    would_recommend = Column(Boolean, nullable=True)  # Would supervisor do this again?
+
+    # Learning
+    lesson_learned = Column(Text, nullable=True)  # What the supervisor learned
+    confidence_change = Column(Float, default=0.0)  # Supervisor confidence change (-1.0 to 1.0)
+
+    # Timestamps
+    assessed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    supervision_session = relationship("SupervisionSession", backref="intervention_outcomes")
+    supervisor = relationship("User", backref="intervention_assessments")
+    agent = relationship("AgentRegistry", backref="intervention_outcomes")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_intervention_outcomes_session', 'supervision_session_id'),
+        Index('ix_intervention_outcomes_supervisor', 'supervisor_id'),
+        Index('ix_intervention_outcomes_agent', 'agent_id'),
+        Index('ix_intervention_outcomes_type', 'intervention_type'),
+        Index('ix_intervention_outcomes_outcome', 'outcome'),
+        Index('ix_intervention_outcomes_assessed', 'assessed_at'),
+    )
+
+
 class TrainingSession(Base):
     """
     Human-in-the-loop training sessions for STUDENT agents.
@@ -3204,6 +3522,40 @@ class DashboardWidget(Base):
 # AUTHENTICATION AND SECURITY MODELS
 # ============================================================================
 
+class ActiveToken(Base):
+    """
+    Active JWT Token Tracker
+
+    Tracks issued JWT tokens for proper revocation management.
+    When a user logs in or receives a new token, it's tracked here.
+    This enables revocation of all user tokens (e.g., on password change).
+
+    Cleanup: Expired entries should be periodically removed via maintenance job.
+    """
+    __tablename__ = "active_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    jti = Column(String(255), unique=True, nullable=False, index=True)
+    issued_at = Column(DateTime, server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)  # For cleanup
+
+    # Track which user owns the token
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Optional: Track token context (IP, user agent)
+    issued_ip = Column(String(50), nullable=True)
+    issued_user_agent = Column(String(500), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+
+    # Indexes for efficient lookups and cleanup
+    __table_args__ = (
+        Index('ix_active_tokens_jti', 'jti'),
+        Index('ix_active_tokens_expires', 'expires_at'),
+        Index('ix_active_tokens_user', 'user_id', 'issued_at'),
+    )
+
 class RevokedToken(Base):
     """
     JWT Token Revocation Store
@@ -3266,6 +3618,26 @@ class Episode(Base):
     session_id = Column(String, nullable=True, index=True)  # Links to ChatSession
     execution_ids = Column(JSON, default=list)  # List of AgentExecution IDs
 
+    # Canvas linkage (NEW - Feb 2026)
+    canvas_ids = Column(JSON, default=list)  # List of CanvasAudit IDs
+    canvas_action_count = Column(Integer, default=0)  # Total canvas actions in episode
+
+    # Feedback linkage (NEW - Feb 2026)
+    feedback_ids = Column(JSON, default=list)  # List of AgentFeedback IDs
+    aggregate_feedback_score = Column(Float, nullable=True)  # -1.0 to 1.0 aggregate score
+
+    # Supervision linkage (NEW - Feb 2026)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    supervisor_rating = Column(Integer, nullable=True)  # 1-5 scale
+    supervision_feedback = Column(Text, nullable=True)
+    intervention_count = Column(Integer, default=0)
+    intervention_types = Column(JSON, nullable=True)  # ["pause", "correct", "terminate"]
+
+    # Proposal linkage (NEW - Feb 2026)
+    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True, index=True)
+    proposal_outcome = Column(String, nullable=True)  # "approved", "rejected", "modified"
+    rejection_reason = Column(Text, nullable=True)
+
     # Boundaries
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -3301,6 +3673,8 @@ class Episode(Base):
     segments = relationship("EpisodeSegment", backref="episode", cascade="all, delete-orphan")
     access_logs = relationship("EpisodeAccessLog", backref="episode", cascade="all, delete-orphan")
     consolidated_episodes = relationship("Episode", remote_side=[id], backref="consolidated_children")
+    supervisor = relationship("User", foreign_keys=[supervisor_id], backref="supervised_episodes")
+    proposal = relationship("AgentProposal", foreign_keys=[proposal_id], backref="episodes")
 
     # Indexes
     __table_args__ = (
@@ -3312,6 +3686,10 @@ class Episode(Base):
         Index('ix_episodes_started_at', 'started_at'),
         Index('ix_episodes_maturity', 'maturity_at_time'),
         Index('ix_episodes_importance', 'importance_score'),
+        Index('ix_episodes_agent_canvas', 'agent_id', 'canvas_action_count'),  # NEW - Canvas queries
+        Index('ix_episodes_supervisor_id', 'supervisor_id'),  # NEW - Supervision queries
+        Index('ix_episodes_supervisor_rating', 'supervisor_rating'),  # NEW - Quality filtering
+        Index('ix_episodes_proposal_id', 'proposal_id'),  # NEW - Proposal linkage
     )
 
 
@@ -3389,4 +3767,1274 @@ class EpisodeAccessLog(Base):
         Index('ix_episode_access_logs_episode', 'episode_id'),
         Index('ix_episode_access_logs_created_at', 'created_at'),
         Index('ix_episode_access_logs_access_type', 'access_type'),
+    )
+
+
+# ============================================================================
+# Messaging Feature Parity Models
+# ============================================================================
+
+class ProactiveMessageStatus(str, enum.Enum):
+    """Status for proactive messages"""
+    PENDING = "pending"
+    APPROVED = "approved"
+    SENT = "sent"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ProactiveMessage(Base):
+    """
+    Proactive messages initiated by agents (not responses).
+
+    Agents can initiate conversations based on business logic, alerts, or automation.
+    All proactive messages are governed by agent maturity levels:
+    - STUDENT: Blocked from proactive messaging
+    - INTERN: Requires human approval before sending
+    - SUPERVISED: Sent with real-time monitoring
+    - AUTONOMOUS: Full access with audit trail
+    """
+    __tablename__ = "proactive_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized for quick queries
+    agent_maturity_level = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+
+    # Message Details
+    platform = Column(String, nullable=False, index=True)  # slack, discord, whatsapp, etc.
+    recipient_id = Column(String, nullable=False, index=True)  # User ID, channel ID, phone number
+    content = Column(Text, nullable=False)
+
+    # Scheduling
+    scheduled_for = Column(DateTime(timezone=True), nullable=True, index=True)  # Send at specific time
+    send_now = Column(Boolean, default=False)  # If True, send immediately (if approved)
+
+    # Status & Approval
+    status = Column(String, default=ProactiveMessageStatus.PENDING.value, index=True)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Governance
+    governance_metadata = Column(JSON, default={})  # Governance check results, risk level, etc.
+
+    # Execution
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    platform_message_id = Column(String, nullable=True)  # ID returned by platform
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="proactive_messages")
+    approver = relationship("User", foreign_keys=[approved_by])
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_proactive_messages_agent_status', 'agent_id', 'status'),
+        Index('ix_proactive_messages_platform_status', 'platform', 'status'),
+        Index('ix_proactive_messages_scheduled', 'scheduled_for', 'status'),
+        Index('ix_proactive_messages_created', 'created_at'),
+    )
+
+
+class ScheduledMessageStatus(str, enum.Enum):
+    """Status for scheduled messages"""
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ScheduledMessage(Base):
+    """
+    Scheduled and recurring messages.
+
+    Supports one-time and recurring messages with cron expressions.
+    Messages can include templates with variable substitution.
+    """
+    __tablename__ = "scheduled_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized
+
+    # Schedule Details
+    platform = Column(String, nullable=False, index=True)
+    recipient_id = Column(String, nullable=False, index=True)
+
+    # Message Content (Template)
+    template = Column(Text, nullable=False)  # Can include variables like {{customer_name}}
+    template_variables = Column(JSON, default={})  # Variable definitions for substitution
+
+    # Schedule Configuration
+    schedule_type = Column(String, nullable=False, index=True)  # one_time, recurring
+    cron_expression = Column(String, nullable=True)  # For recurring: "0 9 * * *" (daily at 9am)
+    natural_language_schedule = Column(String, nullable=True)  # "every day at 9am"
+
+    # Execution Tracking
+    next_run = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_run = Column(DateTime(timezone=True), nullable=True)
+    run_count = Column(Integer, default=0, nullable=False)
+
+    # Recurring Settings
+    max_runs = Column(Integer, nullable=True)  # Limit number of executions (None = infinite)
+    end_date = Column(DateTime(timezone=True), nullable=True)  # Stop after this date
+
+    # Status
+    status = Column(String, default=ScheduledMessageStatus.ACTIVE.value, index=True)
+    timezone = Column(String, default="UTC")  # Timezone for schedule
+
+    # Governance
+    governance_metadata = Column(JSON, default={})
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="scheduled_messages")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_scheduled_messages_next_run', 'next_run', 'status'),
+        Index('ix_scheduled_messages_agent_status', 'agent_id', 'status'),
+        Index('ix_scheduled_messages_platform', 'platform', 'status'),
+        Index('ix_scheduled_messages_created', 'created_at'),
+    )
+
+
+class ConditionMonitorType(str, enum.Enum):
+    """Types of conditions to monitor"""
+    INBOX_VOLUME = "inbox_volume"
+    TASK_BACKLOG = "task_backlog"
+    API_METRICS = "api_metrics"
+    DATABASE_QUERY = "database_query"
+    COMPOSITE = "composite"
+
+
+class ConditionAlertStatus(str, enum.Enum):
+    """Status for condition alerts"""
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    ACKNOWLEDGED = "acknowledged"
+
+
+class ConditionMonitor(Base):
+    """
+    Real-time business condition monitors.
+
+    Monitors business conditions (inbox volume, task backlog, API metrics, etc.)
+    and sends alerts when thresholds are exceeded.
+    """
+    __tablename__ = "condition_monitors"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent Information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String, nullable=False)  # Denormalized
+
+    # Monitor Details
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Condition Configuration
+    condition_type = Column(String, nullable=False, index=True)  # inbox_volume, task_backlog, api_metrics, etc.
+    threshold_config = Column(JSON, nullable=False)  # Threshold configuration
+    # Examples:
+    # {"metric": "unread_count", "operator": ">", "value": 100}
+    # {"metric": "error_rate", "operator": ">", "value": 0.05, "window": "5m"}
+
+    # Composite Conditions (AND/OR logic)
+    composite_logic = Column(String, nullable=True)  # "AND", "OR"
+    composite_conditions = Column(JSON, nullable=True)  # List of sub-conditions
+
+    # Monitoring Schedule
+    check_interval_seconds = Column(Integer, default=300, nullable=False)  # Default: 5 minutes
+
+    # Alert Configuration
+    platforms = Column(JSON, nullable=False)  # [{"platform": "slack", "recipient_id": "C12345"}]
+    alert_template = Column(Text, nullable=True)  # Alert message template
+
+    # Throttling (prevent alert spam)
+    throttle_minutes = Column(Integer, default=60)  # Wait X minutes between alerts
+    last_alert_sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Status
+    status = Column(String, default="active", index=True)  # active, paused, disabled
+
+    # Governance
+    governance_metadata = Column(JSON, default={})
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="condition_monitors")
+    alerts = relationship("ConditionAlert", backref="monitor", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_condition_monitors_agent_status', 'agent_id', 'status'),
+        Index('ix_condition_monitors_type', 'condition_type', 'status'),
+        Index('ix_condition_monitors_created', 'created_at'),
+    )
+
+
+class ConditionAlert(Base):
+    """
+    Alert history for condition monitors.
+
+    Records every time a condition threshold is triggered.
+    """
+    __tablename__ = "condition_alerts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Monitor Reference
+    monitor_id = Column(String, ForeignKey("condition_monitors.id"), nullable=False, index=True)
+
+    # Condition Details
+    condition_value = Column(JSON, nullable=False)  # Actual value that triggered alert
+    threshold_value = Column(JSON, nullable=False)  # Threshold that was exceeded
+
+    # Alert Content
+    alert_message = Column(Text, nullable=False)
+    platforms_sent = Column(JSON, default=[])  # [{"platform": "slack", "status": "sent", "message_id": "..."}]
+
+    # Status
+    status = Column(String, default=ConditionAlertStatus.PENDING.value, index=True)
+
+    # Timestamps
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Error Handling
+    error_message = Column(Text, nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_condition_alerts_monitor', 'monitor_id', 'triggered_at'),
+        Index('ix_condition_alerts_status', 'status'),
+        Index('ix_condition_alerts_triggered', 'triggered_at'),
+    )
+
+
+class UnifiedWorkspace(Base):
+    """
+    Unified workspace model for cross-platform synchronization.
+
+    Supports synchronization across multiple communication platforms:
+    - Slack
+    - Discord
+    - Google Chat
+    - Microsoft Teams
+
+    Features:
+    - Platform-specific workspace IDs mapping
+    - Change detection and propagation
+    - Conflict resolution
+    - Member synchronization
+    """
+    __tablename__ = "unified_workspaces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Workspace identification
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Platform-specific IDs (nullable for partial sync)
+    slack_workspace_id = Column(String, nullable=True, index=True)
+    discord_guild_id = Column(String, nullable=True, index=True)
+    google_chat_space_id = Column(String, nullable=True, index=True)
+    teams_team_id = Column(String, nullable=True, index=True)
+
+    # Synchronization status
+    sync_status = Column(String, default="active", index=True)  # active, paused, error
+    last_sync_at = Column(DateTime(timezone=True), default=func.now())
+    last_sync_error = Column(Text, nullable=True)
+
+    # Statistics
+    platform_count = Column(Integer, default=0)  # Number of connected platforms
+    member_count = Column(Integer, default=0)  # Total members across all platforms
+
+    # Sync configuration
+    sync_config = Column(JSON, nullable=True)  # {"auto_sync": true, "conflict_resolution": "latest"}
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="unified_workspaces")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_unified_workspaces_user", "user_id"),
+        Index("ix_unified_workspaces_slack", "slack_workspace_id"),
+        Index("ix_unified_workspaces_discord", "discord_guild_id"),
+        Index("ix_unified_workspaces_google_chat", "google_chat_space_id"),
+        Index("ix_unified_workspaces_teams", "teams_team_id"),
+        Index("ix_unified_workspaces_sync_status", "sync_status"),
+    )
+
+    def add_platform(self, platform: str, platform_id: str):
+        """Add or update a platform mapping"""
+        if platform == "slack":
+            self.slack_workspace_id = platform_id
+        elif platform == "discord":
+            self.discord_guild_id = platform_id
+        elif platform == "google_chat":
+            self.google_chat_space_id = platform_id
+        elif platform == "teams":
+            self.teams_team_id = platform_id
+        else:
+            raise ValueError(f"Unknown platform: {platform}")
+
+        # Update platform count
+        self.platform_count = sum([
+            bool(self.slack_workspace_id),
+            bool(self.discord_guild_id),
+            bool(self.google_chat_space_id),
+            bool(self.teams_team_id)
+        ])
+
+    def get_platform_id(self, platform: str) -> Optional[str]:
+        """Get platform-specific ID"""
+        platform_map = {
+            "slack": self.slack_workspace_id,
+            "discord": self.discord_guild_id,
+            "google_chat": self.google_chat_space_id,
+            "teams": self.teams_team_id
+        }
+        return platform_map.get(platform)
+
+
+class WorkspaceSyncLog(Base):
+    """
+    Audit log for workspace synchronization events.
+
+    Tracks all sync operations across platforms for debugging and auditing.
+    """
+    __tablename__ = "workspace_sync_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Workspace reference
+    unified_workspace_id = Column(String, ForeignKey("unified_workspaces.id"), nullable=False, index=True)
+
+    # Sync operation details
+    operation = Column(String, nullable=False)  # create, update, delete, propagate
+    source_platform = Column(String, nullable=False)  # slack, discord, google_chat, teams
+    target_platforms = Column(JSON, nullable=False)  # ["discord", "teams"]
+
+    # Change details
+    change_type = Column(String, nullable=False)  # name_change, member_add, member_remove, etc.
+    change_data = Column(JSON, nullable=True)  # {"old_name": "...", "new_name": "..."}
+
+    # Status
+    status = Column(String, nullable=False)  # success, partial_failure, failure
+    error_message = Column(Text, nullable=True)
+
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+
+    # Relationships
+    unified_workspace = relationship("UnifiedWorkspace", backref="sync_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_workspace_sync_logs_workspace", "unified_workspace_id", "started_at"),
+        Index("ix_workspace_sync_logs_status", "status"),
+        Index("ix_workspace_sync_logs_operation", "operation"),
+    )
+
+
+
+class GovernanceAuditLog(Base):
+    """
+    Audit log for governance checks.
+
+    Tracks all governance decisions for compliance, debugging, and analytics.
+    """
+    __tablename__ = "governance_audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent information
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Action details
+    action_type = Column(String, nullable=False, index=True)  # accounting_transaction_create, etc.
+    resource_type = Column(String, nullable=True)  # transaction, message, canvas, etc.
+
+    # Governance decision
+    allowed = Column(Boolean, nullable=False, index=True)
+    agent_maturity = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    required_maturity = Column(String, nullable=False)  # Required maturity for this action
+    reason = Column(Text, nullable=True)  # Reason for denial (if not allowed)
+
+    # Context
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    request_id = Column(String, nullable=True, index=True)  # For tracing
+
+    # Timestamps
+    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="governance_audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_governance_audit_logs_agent", "agent_id", "checked_at"),
+        Index("ix_governance_audit_logs_action", "action_type", "checked_at"),
+        Index("ix_governance_audit_logs_allowed", "allowed", "checked_at"),
+        Index("ix_governance_audit_logs_maturity", "agent_maturity", "allowed"),
+    )
+
+
+class SocialPostHistory(Base):
+    """
+    Social Media Post History
+
+    Tracks all social media posts made through the platform.
+    Supports rate limiting and audit trail.
+    """
+    __tablename__ = "social_post_history"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Post content
+    content = Column(Text, nullable=False)
+    platforms = Column(JSON, nullable=False)  # ["twitter", "linkedin"]
+    media_urls = Column(JSON, nullable=True)  # List of image/video URLs
+    link_url = Column(String, nullable=True)  # Attached link
+
+    # Post results
+    platform_results = Column(JSON, nullable=True)  # Results from each platform
+    post_ids = Column(JSON, nullable=True)  # Platform-specific post IDs
+
+    # Scheduling
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Background task tracking
+    job_id = Column(String, nullable=True, index=True)  # RQ job ID for scheduled posts
+
+    # Status tracking
+    status = Column(String, default="pending", index=True)  # pending, posted, failed, scheduled, posting, partial, cancelled
+    error_message = Column(Text, nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="social_posts")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_social_post_history_user_created", "user_id", "created_at"),
+        Index("ix_social_post_history_status_created", "status", "created_at"),
+        Index("ix_social_post_history_scheduled", "scheduled_for"),
+        Index("ix_social_post_history_job_id", "job_id"),
+    )
+
+
+class SecurityAuditLog(Base):
+    """
+    Security Audit Log
+
+    Tracks security-related events for compliance and monitoring.
+    """
+    __tablename__ = "security_audit_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Event information
+    event_type = Column(String(100), nullable=False, index=True)  # webhook_signature_invalid, default_secret_key, etc.
+    severity = Column(String(20), nullable=False, index=True)  # critical, warning, info
+
+    # User context
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    # Event details
+    details = Column(JSON, nullable=False, default=dict)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="security_events")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_security_audit_log_timestamp", "timestamp"),
+        Index("ix_security_audit_log_event_type", "event_type"),
+        Index("ix_security_audit_log_severity", "severity"),
+        Index("ix_security_audit_log_user", "user_id", "timestamp"),
+        Index("ix_security_audit_log_severity_timestamp", "severity", "timestamp"),
+    )
+
+
+class SocialMediaAudit(Base):
+    """
+    Social Media Audit Log
+
+    Tracks all social media operations for governance and compliance.
+    Ensures all posting actions are attributable and governable.
+    """
+    __tablename__ = "social_media_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Action details
+    platform = Column(String(50), nullable=False, index=True)  # twitter, linkedin, facebook
+    action_type = Column(String(50), nullable=False, index=True)  # post, schedule, delete
+    post_id = Column(String, nullable=True, index=True)  # Platform-specific post ID
+
+    # Content tracking
+    content = Column(Text, nullable=False)  # Post content
+    media_urls = Column(JSON, nullable=True)  # Attached media
+    link_url = Column(String, nullable=True)  # Attached link
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+    platform_response = Column(JSON, nullable=True)  # Full API response
+
+    # Maturity at time of action
+    agent_maturity = Column(String(50), nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    required_approval = Column(Boolean, nullable=False, default=False)
+    approval_granted = Column(Boolean, nullable=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="social_media_audits")
+    execution = relationship("AgentExecution", backref="social_media_audits")
+    user = relationship("User", backref="social_media_audits")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_social_media_audit_timestamp", "timestamp"),
+        Index("ix_social_media_audit_platform", "platform", "timestamp"),
+        Index("ix_social_media_audit_action", "action_type", "timestamp"),
+        Index("ix_social_media_audit_agent", "agent_id", "timestamp"),
+        Index("ix_social_media_audit_user", "user_id", "timestamp"),
+        Index("ix_social_media_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+class FinancialAudit(Base):
+    """
+    Financial Account Audit Log
+
+    Tracks all financial account operations for governance and compliance.
+    Ensures all financial actions are attributable and governable.
+    """
+    __tablename__ = "financial_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Action details
+    account_id = Column(String, ForeignKey("financial_accounts.id"), nullable=False, index=True)
+    action_type = Column(String(50), nullable=False, index=True)  # create, update, delete
+
+    # Change tracking
+    changes = Column(JSON, nullable=False, default=dict)  # {"field": {"old": "value", "new": "value"}}
+    old_values = Column(JSON, nullable=True)  # Full old state
+    new_values = Column(JSON, nullable=True)  # Full new state
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Maturity at time of action
+    agent_maturity = Column(String(50), nullable=False, index=True)
+    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    required_approval = Column(Boolean, nullable=False, default=False)
+    approval_granted = Column(Boolean, nullable=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="financial_audits")
+    execution = relationship("AgentExecution", backref="financial_audits")
+    user = relationship("User", backref="financial_audits")
+    account = relationship("FinancialAccount", backref="audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_financial_audit_timestamp", "timestamp"),
+        Index("ix_financial_audit_account", "account_id", "timestamp"),
+        Index("ix_financial_audit_action", "action_type", "timestamp"),
+        Index("ix_financial_audit_agent", "agent_id", "timestamp"),
+        Index("ix_financial_audit_user", "user_id", "timestamp"),
+        Index("ix_financial_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+class MenuBarAudit(Base):
+    """
+    Menu Bar Operations Audit Log
+
+    Tracks all menu bar companion app operations for governance and compliance.
+    Ensures all menu bar-triggered actions are attributable and governable.
+    """
+    __tablename__ = "menu_bar_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=True, index=True)
+
+    # Action details
+    action = Column(String(100), nullable=False, index=True)  # login, quick_chat, get_agents, etc.
+    endpoint = Column(String(200), nullable=False)
+
+    # Request/Response tracking
+    request_params = Column(JSON, nullable=True)  # Input parameters
+    response_summary = Column(JSON, nullable=True)  # Output summary
+
+    # Results
+    success = Column(Boolean, nullable=False, default=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Agent maturity at time of action (if agent involved)
+    agent_maturity = Column(String(50), nullable=True, index=True)
+    governance_check_passed = Column(Boolean, nullable=True, index=True)
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    platform = Column(String(50), nullable=True)  # darwin, windows, linux
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="menu_bar_audits")
+    execution = relationship("AgentExecution", backref="menu_bar_audits")
+    user = relationship("User", backref="menu_bar_audits")
+    device = relationship("DeviceNode", backref="menu_bar_audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_menu_bar_audit_timestamp", "timestamp"),
+        Index("ix_menu_bar_audit_action", "action", "timestamp"),
+        Index("ix_menu_bar_audit_agent", "agent_id", "timestamp"),
+        Index("ix_menu_bar_audit_user", "user_id", "timestamp"),
+        Index("ix_menu_bar_audit_device", "device_id", "timestamp"),
+        Index("ix_menu_bar_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+# ============================================================================
+# AI Debug System Models
+# ============================================================================
+
+class DebugEventType(str, enum.Enum):
+    """Debug event types for categorization"""
+    LOG = "log"
+    STATE_SNAPSHOT = "state_snapshot"
+    METRIC = "metric"
+    ERROR = "error"
+    SYSTEM = "system"
+
+
+class DebugInsightType(str, enum.Enum):
+    """Types of insights generated by the debug system"""
+    CONSISTENCY = "consistency"  # Data consistency across components
+    FLOW = "flow"  # Execution flow and operations
+    PERFORMANCE = "performance"  # Performance bottlenecks
+    ERROR = "error"  # Error patterns and causality
+    ANOMALY = "anomaly"  # Unexpected behavior
+
+
+class DebugInsightSeverity(str, enum.Enum):
+    """Severity levels for debug insights"""
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+class DebugEvent(Base):
+    """
+    Raw Debug Events
+
+    Stores all debug events including logs, state snapshots, metrics, and errors.
+    Indexed for fast querying by component, correlation, and time.
+    """
+    __tablename__ = "debug_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Event categorization
+    event_type = Column(String(50), nullable=False, index=True)  # DebugEventType
+    component_type = Column(String(50), nullable=False, index=True)  # agent, browser, workflow, system
+    component_id = Column(String, nullable=True, index=True)  # Component identifier
+
+    # Correlation and linking
+    correlation_id = Column(String, nullable=False, index=True)  # Links related events
+    parent_event_id = Column(String, nullable=True, index=True)  # Event chain for tracing
+
+    # Log metadata
+    level = Column(String(20), nullable=True, index=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    message = Column(Text, nullable=True)
+
+    # Event data
+    data = Column(JSON, nullable=True)  # Full event data
+    event_metadata = Column(JSON, nullable=True)  # Tags, labels, additional context
+
+    # Timestamp
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    insights = relationship("DebugInsight", backref="event", foreign_keys="DebugInsight.source_event_id")
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        Index("ix_debug_event_timestamp", "timestamp"),
+        Index("ix_debug_event_component", "component_type", "component_id", "timestamp"),
+        Index("ix_debug_event_correlation", "correlation_id", "timestamp"),
+        Index("ix_debug_event_type_level", "event_type", "level", "timestamp"),
+        Index("ix_debug_event_parent", "parent_event_id"),
+    )
+
+    def __repr__(self):
+        return f"<DebugEvent(id={self.id}, type={self.event_type}, component={self.component_type}/{self.component_id})>"
+
+
+class DebugInsight(Base):
+    """
+    Abstracted Debug Insights
+
+    High-level insights generated from raw debug events.
+    Provides AI agents with abstracted understanding without processing raw logs.
+    """
+    __tablename__ = "debug_insights"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Insight categorization
+    insight_type = Column(String(50), nullable=False, index=True)  # DebugInsightType
+    severity = Column(String(20), nullable=False, index=True)  # DebugInsightSeverity
+
+    # Insight content
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)  # Human-readable explanation
+    summary = Column(String(500), nullable=False)  # One-line for AI consumption
+
+    # Evidence and confidence
+    evidence = Column(JSON, nullable=True)  # Event IDs and excerpts
+    confidence_score = Column(Float, nullable=False, default=0.0)  # 0-1
+
+    # Resolution suggestions
+    suggestions = Column(JSON, nullable=True)  # Resolution suggestions
+    resolved = Column(Boolean, nullable=False, default=False, index=True)
+    resolution_notes = Column(Text, nullable=True)
+
+    # Scope and impact
+    scope = Column(String(50), nullable=False, index=True)  # component, distributed, system
+    affected_components = Column(JSON, nullable=True)  # List of affected components
+
+    # Provenance
+    source_event_id = Column(String, ForeignKey("debug_events.id"), nullable=True)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Insight expiration
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_debug_insight_generated", "generated_at"),
+        Index("ix_debug_insight_type_severity", "insight_type", "severity", "generated_at"),
+        Index("ix_debug_insight_scope", "scope", "generated_at"),
+        Index("ix_debug_insight_resolved", "resolved", "generated_at"),
+        Index("ix_debug_insight_expires", "expires_at"),
+    )
+
+    def __repr__(self):
+        return f"<DebugInsight(id={self.id}, type={self.insight_type}, severity={self.severity}, title={self.title})>"
+
+
+class DebugStateSnapshot(Base):
+    """
+    Component State Snapshots
+
+    Captures state of distributed components at specific points in time.
+    Includes diff detection to identify state changes.
+    """
+    __tablename__ = "debug_state_snapshots"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Component identification
+    component_type = Column(String(50), nullable=False, index=True)
+    component_id = Column(String, nullable=False, index=True)
+
+    # Correlation
+    operation_id = Column(String, nullable=False, index=True)  # Operation correlation
+    checkpoint_name = Column(String(100), nullable=True)  # Optional label
+
+    # State data
+    state_data = Column(JSON, nullable=False)  # Full state capture
+    diff_from_previous = Column(JSON, nullable=True)  # Delta from previous snapshot
+    snapshot_type = Column(String(20), nullable=False)  # full, incremental, partial
+
+    # Timestamp
+    captured_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_debug_state_component", "component_type", "component_id", "captured_at"),
+        Index("ix_debug_state_operation", "operation_id", "captured_at"),
+        Index("ix_debug_state_checkpoint", "component_id", "checkpoint_name", "captured_at"),
+    )
+
+    def __repr__(self):
+        return f"<DebugStateSnapshot(id={self.id}, component={self.component_type}/{self.component_id}, type={self.snapshot_type})>"
+
+
+class DebugMetric(Base):
+    """
+    Time-Series Debug Metrics
+
+    Stores performance and operational metrics for monitoring and analytics.
+    Enables trend analysis and anomaly detection.
+    """
+    __tablename__ = "debug_metrics"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Metric identification
+    metric_name = Column(String(100), nullable=False, index=True)
+    component_type = Column(String(50), nullable=False, index=True)
+    component_id = Column(String, nullable=True, index=True)
+
+    # Metric value
+    value = Column(Float, nullable=False)
+    unit = Column(String(20), nullable=True)  # ms, count, percentage, etc.
+
+    # Dimensions for aggregation
+    dimensions = Column(JSON, nullable=True)  # Additional dimensions for filtering
+
+    # Timestamp
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_debug_metric_name_timestamp", "metric_name", "timestamp"),
+        Index("ix_debug_metric_component", "component_type", "component_id", "timestamp"),
+        Index("ix_debug_metric_dimensions", "metric_name", "timestamp"),
+    )
+
+    def __repr__(self):
+        return f"<DebugMetric(id={self.id}, name={self.metric_name}, value={self.value}, unit={self.unit})>"
+
+
+class DebugSession(Base):
+    """
+    Interactive Debug Sessions
+
+    Manages debugging sessions for interactive troubleshooting.
+    Tracks queries, insights, and resolutions.
+    """
+    __tablename__ = "debug_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Session context
+    session_name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Filters and scope
+    filters = Column(JSON, nullable=True)  # Applied filters
+    scope = Column(JSON, nullable=True)  # Component scope
+
+    # Session tracking
+    event_count = Column(Integer, nullable=False, default=0)
+    insight_count = Column(Integer, nullable=False, default=0)
+    query_count = Column(Integer, nullable=False, default=0)
+
+    # Status
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    resolved = Column(Boolean, nullable=False, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_debug_session_created", "created_at"),
+        Index("ix_debug_session_active", "active", "created_at"),
+        Index("ix_debug_session_resolved", "resolved", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<DebugSession(id={self.id}, name={self.session_name}, active={self.active})>"
+
+
+# ============================================================================
+# Learning and Analysis Models
+# ============================================================================
+
+class LearningPlan(Base):
+    """
+    AI-Generated Personalized Learning Plans
+
+    Stores structured learning paths with modules, resources, exercises,
+    milestones, and assessment criteria. Supports progress tracking and
+    adaptive learning based on user feedback.
+    """
+    __tablename__ = "learning_plans"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Plan details
+    topic = Column(String, nullable=False)
+    current_skill_level = Column(String, nullable=False)  # beginner, intermediate, advanced
+    target_skill_level = Column(String, nullable=False)
+    duration_weeks = Column(Integer, nullable=False)
+
+    # Learning content
+    modules = Column(JSON, nullable=False)  # List of LearningModule objects
+    milestones = Column(JSON, nullable=False)  # List of milestone strings
+    assessment_criteria = Column(JSON, nullable=False)  # List of criteria
+
+    # Progress tracking
+    progress = Column(JSON, default=dict)  # {completed_modules: [], feedback_scores: {}, time_spent: {}, adjustments_made: []}
+
+    # Notion integration
+    notion_database_id = Column(String, nullable=True)
+    notion_page_id = Column(String, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="learning_plans")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_learning_plans_user_created', 'user_id', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<LearningPlan(id={self.id}, topic={self.topic}, user_id={self.user_id})>"
+
+
+class CompetitorAnalysis(Base):
+    """
+    AI-Powered Competitor Analysis Results
+
+    Stores comprehensive competitor analysis with caching support.
+    Includes insights, comparison matrix, and recommendations.
+    """
+    __tablename__ = "competitor_analyses"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Analysis parameters
+    competitors = Column(JSON, nullable=False)  # List of competitor names/URLs
+    analysis_depth = Column(String, nullable=False)  # basic, standard, comprehensive
+    focus_areas = Column(JSON, nullable=False)  # List of focus areas
+
+    # Analysis results
+    insights = Column(JSON, nullable=False)  # CompetitorInsight per competitor
+    comparison_matrix = Column(JSON, nullable=False)  # Cross-competitor comparison
+    recommendations = Column(JSON, nullable=False)  # Strategic recommendations
+
+    # Notion integration
+    notion_database_id = Column(String, nullable=True)
+    notion_page_id = Column(String, nullable=True)
+
+    # Caching
+    status = Column(String, default="complete")  # complete, cached, expired
+    cache_expiry = Column(DateTime(timezone=True), nullable=True, index=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User", backref="competitor_analyses")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_competitor_analyses_user_created', 'user_id', 'created_at'),
+        Index('ix_competitor_analyses_cache_expiry', 'cache_expiry'),
+    )
+
+    def __repr__(self):
+        return f"<CompetitorAnalysis(id={self.id}, competitors={self.competitors}, user_id={self.user_id})>"
+
+
+class ProjectHealthHistory(Base):
+    """
+    Project Health Check History
+
+    Stores snapshots of project health metrics over time.
+    Enables trend analysis and alerting.
+    """
+    __tablename__ = "project_health_history"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Check identification
+    check_id = Column(String, nullable=False, index=True)
+
+    # Overall results
+    overall_score = Column(Float, nullable=False)
+    overall_status = Column(String, nullable=False)  # excellent, good, warning, critical
+
+    # Individual metrics
+    metrics = Column(JSON, nullable=False)  # {metric_name: HealthMetric}
+
+    # Time range analyzed
+    time_range_days = Column(Integer, nullable=False)
+
+    # Timestamp
+    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User", backref="project_health_history")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_project_health_history_user_checked', 'user_id', 'checked_at'),
+        Index('ix_project_health_history_check_id', 'check_id'),
+    )
+
+    def __repr__(self):
+        return f"<ProjectHealthHistory(id={self.id}, check_id={self.check_id}, score={self.overall_score})>"
+
+
+class CustomerChurnPrediction(Base):
+    """
+    Customer Churn Risk Predictions
+
+    Stores AI-generated churn risk predictions with risk factors
+    and recommended actions.
+    """
+    __tablename__ = "customer_churn_predictions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+
+    # Customer info
+    customer_id = Column(String, nullable=False)
+    customer_name = Column(String, nullable=False)
+
+    # Prediction results
+    churn_probability = Column(Float, nullable=False)
+    risk_factors = Column(JSON, nullable=False)  # List of risk factors
+    mrr_at_risk = Column(Float, nullable=False)
+    recommended_action = Column(Text, nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_churn_predictions_workspace_created', 'workspace_id', 'created_at'),
+        Index('ix_churn_predictions_probability', 'churn_probability'),
+    )
+
+    def __repr__(self):
+        return f"<CustomerChurnPrediction(id={self.id}, customer={self.customer_name}, probability={self.churn_probability})>"
+
+
+class ARDelayPrediction(Base):
+    """
+    Accounts Receivable Delay Predictions
+
+    Stores predictions for late invoice payments based on
+    client payment history.
+    """
+    __tablename__ = "ar_delay_predictions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=False, index=True)
+
+    # Invoice info
+    invoice_id = Column(String, nullable=False)
+    client_name = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=False)
+
+    # Prediction results
+    likelihood_late = Column(Float, nullable=False)
+    reason = Column(Text, nullable=True)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_ar_predictions_workspace_created', 'workspace_id', 'created_at'),
+        Index('ix_ar_predictions_due_date', 'due_date'),
+    )
+
+    def __repr__(self):
+        return f"<ARDelayPrediction(id={self.id}, invoice={self.invoice_id}, likelihood={self.likelihood_late})>"
+
+
+# ============================================================================
+# Multi-Level Agent Supervision System Models
+# ============================================================================
+
+class UserState(str, enum.Enum):
+    """User activity state for supervision routing"""
+    online = "online"
+    away = "away"
+    offline = "offline"
+
+
+class QueueStatus(str, enum.Enum):
+    """Status for supervised execution queue"""
+    pending = "pending"
+    executing = "executing"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class UserActivity(Base):
+    """
+    Track user activity state for supervision availability.
+
+    Records user's current state (online/away/offline) to determine
+    if they can supervise INTERN and SUPERVISED agents.
+    """
+    __tablename__ = "user_activities"
+
+    id = Column(String, primary_key=True, default=lambda: f"ua_{str(uuid.uuid4())}")
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True, unique=True)
+    state = Column(SQLEnum(UserState), nullable=False, default=UserState.offline, index=True)
+    last_activity_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    manual_override = Column(Boolean, default=False)
+    manual_override_expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="activity")
+    sessions = relationship("UserActivitySession", back_populates="activity", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_user_activity_state_updated', 'state', 'updated_at'),
+    )
+
+
+class UserActivitySession(Base):
+    """
+    User sessions for activity tracking.
+
+    Each web/desktop session sends heartbeats to track user activity.
+    A user is considered online if ANY session is active.
+    """
+    __tablename__ = "user_activity_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: f"us_{str(uuid.uuid4())}")
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    activity_id = Column(String, ForeignKey("user_activities.id"), nullable=False, index=True)
+    session_type = Column(String, nullable=False)  # "web" or "desktop"
+    session_token = Column(String, nullable=False, unique=True, index=True)
+    last_heartbeat = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    terminated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="activity_sessions")
+    activity = relationship("UserActivity", back_populates="sessions")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_user_activity_session_heartbeat', 'last_heartbeat'),
+    )
+
+
+class SupervisedExecutionQueue(Base):
+    """
+    Queue for SUPERVISED agent executions when users are unavailable.
+
+    When a SUPERVISED agent triggers but the user is offline, the execution
+    is queued and auto-executed when the user returns online.
+    """
+    __tablename__ = "supervised_execution_queue"
+
+    id = Column(String, primary_key=True, default=lambda: f"queue_{str(uuid.uuid4())}")
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    trigger_type = Column(String, nullable=False)  # "automated" or "manual"
+    execution_context = Column(JSON, nullable=False)  # Serialized execution context
+    status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending, index=True)
+    supervisor_type = Column(String, nullable=False)  # "user" or "autonomous_agent"
+    priority = Column(Integer, default=0, index=True)  # Higher priority = executed first
+    max_attempts = Column(Integer, default=3)
+    attempt_count = Column(Integer, default=0)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="queued_executions")
+    user = relationship("User", backref="queued_executions")
+    execution = relationship("AgentExecution", backref="queue_entry")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_supervised_queue_user_status', 'user_id', 'status'),
+        Index('ix_supervised_queue_priority_created', 'priority', 'created_at'),
+        Index('ix_supervised_queue_expires', 'expires_at'),
     )

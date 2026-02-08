@@ -5,8 +5,8 @@ Provides endpoints for message analytics, cross-platform correlation, and predic
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
 
+from core.base_routes import BaseAPIRouter
 from core.cross_platform_correlation import (
     CrossPlatformCorrelationEngine,
     get_cross_platform_correlation_engine,
@@ -18,7 +18,7 @@ from core.predictive_insights import (
     get_predictive_insights_engine,
 )
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+router = BaseAPIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
 @router.get("/summary")
@@ -78,7 +78,7 @@ async def get_analytics_summary(
         return summary
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating analytics: {str(e)}")
+        raise router.internal_error(message=f"Error generating analytics: {str(e)}")
 
 
 @router.get("/sentiment")
@@ -113,7 +113,7 @@ async def get_sentiment_analysis(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing sentiment: {str(e)}")
+        raise router.internal_error(message=f"Error analyzing sentiment: {str(e)}")
 
 
 @router.get("/response-times")
@@ -147,7 +147,7 @@ async def get_response_time_metrics(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error calculating response times: {str(e)}")
+        raise router.internal_error(message=f"Error calculating response times: {str(e)}")
 
 
 @router.get("/activity")
@@ -180,7 +180,7 @@ async def get_activity_metrics(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing activity: {str(e)}")
+        raise router.internal_error(message=f"Error analyzing activity: {str(e)}")
 
 
 @router.get("/cross-platform")
@@ -223,7 +223,7 @@ async def get_cross_platform_analytics(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing cross-platform: {str(e)}")
+        raise router.internal_error(message=f"Error analyzing cross-platform: {str(e)}")
 
 
 @router.post("/correlations")
@@ -261,7 +261,7 @@ async def analyze_cross_platform_correlations(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing correlations: {str(e)}")
+        raise router.internal_error(message=f"Error analyzing correlations: {str(e)}")
 
 
 @router.get("/correlations/{conversation_id}/timeline")
@@ -283,28 +283,29 @@ async def get_unified_timeline(
         timeline = correlation_engine.get_unified_timeline(conversation_id)
 
         if timeline is None:
-            raise HTTPException(status_code=404, detail="Conversation not found")
+            raise router.not_found_error("Conversation", conversation_id)
 
-        return {
-            "conversation_id": conversation_id,
-            "message_count": len(timeline),
-            "messages": [
-                {
-                    "id": m.get("id"),
-                    "platform": m.get("platform"),
-                    "content": m.get("content"),
-                    "sender": m.get("sender_name") or m.get("sender"),
-                    "timestamp": m.get("timestamp"),
-                    "source": m.get("_correlation_source")
-                }
-                for m in timeline
-            ]
-        }
+        return router.success_response(
+            data={
+                "conversation_id": conversation_id,
+                "message_count": len(timeline),
+                "messages": [
+                    {
+                        "id": m.get("id"),
+                        "platform": m.get("platform"),
+                        "content": m.get("content"),
+                        "sender": m.get("sender_name") or m.get("sender"),
+                        "timestamp": m.get("timestamp"),
+                        "source": m.get("_correlation_source")
+                    }
+                    for m in timeline
+                ]
+            },
+            message="Timeline retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting timeline: {str(e)}")
+        raise router.internal_error(message=f"Error getting timeline: {str(e)}")
 
 
 @router.get("/predictions/response-time")
@@ -345,9 +346,9 @@ async def predict_response_time(
         }
 
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid urgency level: {urgency}")
+        raise router.validation_error("urgency", f"Invalid urgency level: {urgency}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error predicting response time: {str(e)}")
+        raise router.internal_error(message=f"Error predicting response time: {str(e)}")
 
 
 @router.get("/recommendations/channel")
@@ -387,9 +388,9 @@ async def recommend_channel(
         }
 
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid urgency level: {urgency}")
+        raise router.validation_error("urgency", f"Invalid urgency level: {urgency}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating recommendation: {str(e)}")
+        raise router.internal_error(message=f"Error generating recommendation: {str(e)}")
 
 
 @router.get("/bottlenecks")
@@ -428,7 +429,7 @@ async def detect_bottlenecks(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error detecting bottlenecks: {str(e)}")
+        raise router.internal_error(message=f"Error detecting bottlenecks: {str(e)}")
 
 
 @router.get("/patterns/{user_id}")
@@ -450,21 +451,22 @@ async def get_user_patterns(
         pattern = insights_engine.get_user_pattern(user_id)
 
         if pattern is None:
-            raise HTTPException(status_code=404, detail="User patterns not found")
+            raise router.not_found_error("User patterns", user_id)
 
-        return {
-            "user_id": pattern.user_id,
-            "most_active_platform": pattern.most_active_platform,
-            "most_active_hours": pattern.most_active_hours,
-            "avg_response_time_minutes": pattern.avg_response_time / 60 if pattern.avg_response_time else None,
-            "response_probability_by_hour": pattern.response_probability_by_hour,
-            "preferred_message_types": pattern.preferred_message_types
-        }
+        return router.success_response(
+            data={
+                "user_id": pattern.user_id,
+                "most_active_platform": pattern.most_active_platform,
+                "most_active_hours": pattern.most_active_hours,
+                "avg_response_time_minutes": pattern.avg_response_time / 60 if pattern.avg_response_time else None,
+                "response_probability_by_hour": pattern.response_probability_by_hour,
+                "preferred_message_types": pattern.preferred_message_types
+            },
+            message="User patterns retrieved successfully"
+        )
 
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting patterns: {str(e)}")
+        raise router.internal_error(message=f"Error getting patterns: {str(e)}")
 
 
 @router.get("/overview")
@@ -502,4 +504,4 @@ async def get_analytics_overview() -> Dict[str, Any]:
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating overview: {str(e)}")
+        raise router.internal_error(message=f"Error generating overview: {str(e)}")

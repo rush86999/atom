@@ -1,13 +1,21 @@
-import json
-import logging
-import uuid
 from datetime import datetime
 from enum import Enum
+import json
+import logging
 from typing import Any, Dict, Optional
+import uuid
 from fastapi import Request
 from sqlalchemy.orm import Session
 
-from core.models import AuditEventType, AuditLog, CanvasAudit, BrowserAudit, DeviceAudit, SecurityLevel, ThreatLevel
+from core.models import (
+    AuditEventType,
+    AuditLog,
+    BrowserAudit,
+    CanvasAudit,
+    DeviceAudit,
+    SecurityLevel,
+    ThreatLevel,
+)
 
 logger = logging.getLogger(__name__)
 

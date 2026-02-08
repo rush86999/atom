@@ -1,10 +1,10 @@
+from datetime import datetime
 import json
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, List, Optional
-import httpx
 from fastapi import HTTPException
+import httpx
 
 from core.connection_service import connection_service
 from core.database import get_db_session

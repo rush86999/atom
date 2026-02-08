@@ -19,9 +19,9 @@ Security:
 import json
 import logging
 import re
-import uuid
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlparse
+import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -39,12 +39,33 @@ DEEPLINK_AUDIT_ENABLED = os.getenv("DEEPLINK_AUDIT_ENABLED", "true").lower() == 
 
 class DeepLinkParseException(Exception):
     """Raised when deep link URL cannot be parsed."""
-    pass
+
+    def __init__(self, message: str, url: str = "", details: dict = None):
+        super().__init__(message)
+        self.url = url
+        self.details = details or {}
+
+    def __str__(self):
+        if self.url:
+            return f"{super().__str__()} (URL: {self.url})"
+        return super().__str__()
 
 
 class DeepLinkSecurityException(Exception):
     """Raised when deep link fails security validation."""
-    pass
+
+    def __init__(self, message: str, url: str = "", security_issue: str = ""):
+        super().__init__(message)
+        self.url = url
+        self.security_issue = security_issue
+
+    def __str__(self):
+        base_msg = super().__str__()
+        if self.url:
+            base_msg += f" (URL: {self.url})"
+        if self.security_issue:
+            base_msg += f" (Issue: {self.security_issue})"
+        return base_msg
 
 
 class DeepLink:

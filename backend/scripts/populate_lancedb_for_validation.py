@@ -7,8 +7,8 @@ Ensures rich data exists for Docs, Meetings, and Tasks with proper embeddings.
 import asyncio
 import logging
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))

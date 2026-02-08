@@ -6,8 +6,8 @@ These are auxiliary methods that handle specific request types.
 """
 
 import logging
-import uuid
 from typing import Any, Dict, Optional
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,8 @@ class ChatOrchestratorHandlers:
     ) -> Dict[str, Any]:
         """Handle task management requests"""
         try:
-            import sys
             from pathlib import Path
+            import sys
             backend_root = Path(__file__).parent.parent.resolve()
             if str(backend_root) not in sys.path:
                 sys.path.insert(0, str(backend_root))
@@ -116,8 +116,8 @@ class ChatOrchestratorHandlers:
     ) -> Dict[str, Any]:
         """Handle finance requests"""
         try:
-            import sys
             from pathlib import Path
+            import sys
             backend_root = Path(__file__).parent.parent.resolve()
             if str(backend_root) not in sys.path:
                 sys.path.insert(0, str(backend_root))

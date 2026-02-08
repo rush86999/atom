@@ -4,13 +4,13 @@ Handles high-volume operations across integrations with performance optimization
 """
 
 import asyncio
-import json
-import logging
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import json
+import logging
 from pathlib import Path
+import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from .integration_data_mapper import BulkOperation, IntegrationDataMapper, get_data_mapper
@@ -292,30 +292,172 @@ class IntegrationBulkProcessor:
     # Integration-specific processors
 
     async def _process_asana_bulk(self, items: List[Dict], operation: BulkOperation) -> List[Dict]:
-        """Process Asana bulk operations"""
-        # Mock implementation - would integrate with actual Asana API
+        """
+        Process Asana bulk operations using actual Asana API.
+
+        This implementation integrates with the AsanaService to perform
+        bulk create, update, delete, and complete operations on Asana tasks.
+        """
+        import os
+
+        from integrations.asana_service import AsanaService
+
         results = []
 
+        # Get Asana access token from operation metadata or environment
+        access_token = operation.metadata.get("access_token") or os.getenv("ASANA_PAT")
+
+        if not access_token:
+            logger.error("Asana access token not found in operation metadata or environment")
+            for item in items:
+                results.append({
+                    "success": False,
+                    "item": item,
+                    "error": "Asana access token not configured"
+                })
+            return results
+
+        # Initialize Asana service
+        asana_service = AsanaService()
+
+        # Process each item
         for item in items:
             try:
-                # Simulate API call
-                await asyncio.sleep(0.1)
-
                 if operation.operation_type == "create":
                     # Create Asana task
-                    task_id = f"asana_task_{int(time.time() * 1000)}"
-                    results.append({
-                        "success": True,
-                        "item": item,
-                        "result": {"id": task_id, "created": True}
-                    })
+                    task_data = {
+                        "name": item.get("name", "Bulk Created Task"),
+                        "notes": item.get("notes", ""),
+                        "projects": item.get("projects", []),
+                        "assignee": item.get("assignee"),
+                        "due_on": item.get("due_on")
+                    }
+
+                    # Remove None values
+                    task_data = {k: v for k, v in task_data.items() if v is not None}
+
+                    result = await asana_service.create_task(access_token, task_data)
+
+                    if result.get("data"):
+                        task_gid = result["data"].get("gid")
+                        results.append({
+                            "success": True,
+                            "item": item,
+                            "result": {
+                                "id": task_gid,
+                                "created": True,
+                                "data": result["data"]
+                            }
+                        })
+                    else:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": result.get("errors", "Unknown error")
+                        })
+
                 elif operation.operation_type == "update":
-                    # Update Asana task
-                    results.append({
-                        "success": True,
-                        "item": item,
-                        "result": {"updated": True}
-                    })
+                    # Update existing task
+                    task_gid = item.get("task_id") or item.get("task_gid") or item.get("id")
+
+                    if not task_gid:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": "Missing task_id for update operation"
+                        })
+                        continue
+
+                    updates = item.get("updates", {})
+
+                    result = await asana_service.update_task(
+                        access_token,
+                        task_gid,
+                        updates
+                    )
+
+                    if result.get("data"):
+                        results.append({
+                            "success": True,
+                            "item": item,
+                            "result": {
+                                "id": task_gid,
+                                "updated": True,
+                                "data": result["data"]
+                            }
+                        })
+                    else:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": result.get("errors", "Unknown error")
+                        })
+
+                elif operation.operation_type == "delete":
+                    # Delete task
+                    task_gid = item.get("task_id") or item.get("task_gid") or item.get("id")
+
+                    if not task_gid:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": "Missing task_id for delete operation"
+                        })
+                        continue
+
+                    result = await asana_service.delete_task(access_token, task_gid)
+
+                    if result.get("data"):
+                        results.append({
+                            "success": True,
+                            "item": item,
+                            "result": {
+                                "id": task_gid,
+                                "deleted": True
+                            }
+                        })
+                    else:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": result.get("errors", "Unknown error")
+                        })
+
+                elif operation.operation_type == "complete":
+                    # Mark task as complete
+                    task_gid = item.get("task_id") or item.get("task_gid") or item.get("id")
+
+                    if not task_gid:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": "Missing task_id for complete operation"
+                        })
+                        continue
+
+                    result = await asana_service.complete_task(
+                        access_token,
+                        task_gid,
+                        completed_at=datetime.now().isoformat()
+                    )
+
+                    if result.get("data"):
+                        results.append({
+                            "success": True,
+                            "item": item,
+                            "result": {
+                                "id": task_gid,
+                                "completed": True,
+                                "data": result["data"]
+                            }
+                        })
+                    else:
+                        results.append({
+                            "success": False,
+                            "item": item,
+                            "error": result.get("errors", "Unknown error")
+                        })
+
                 else:
                     results.append({
                         "success": False,
@@ -323,7 +465,11 @@ class IntegrationBulkProcessor:
                         "error": f"Unsupported operation: {operation.operation_type}"
                     })
 
+                # Add small delay to avoid rate limiting
+                await asyncio.sleep(0.1)
+
             except Exception as e:
+                logger.error(f"Failed to process Asana item {item}: {e}")
                 results.append({
                     "success": False,
                     "item": item,

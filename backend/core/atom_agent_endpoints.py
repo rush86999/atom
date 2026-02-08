@@ -1,9 +1,9 @@
-import json
-import logging
-import uuid
 from dataclasses import asdict
 from datetime import datetime, timedelta
+import json
+import logging
 from typing import Any, Dict, List, Optional
+import uuid
 from advanced_workflow_orchestrator import get_orchestrator
 from ai.automation_engine import AutomationEngine
 from ai.workflow_scheduler import workflow_scheduler
@@ -16,6 +16,9 @@ from pydantic import BaseModel
 
 from core.chat_context_manager import get_chat_context_manager
 from core.chat_session_manager import get_chat_session_manager
+
+# Import Episode integration for auto-creation
+from core.episode_integration import trigger_episode_creation
 from core.knowledge_query_endpoints import get_knowledge_query_manager
 
 # Import chat history management
@@ -23,8 +26,7 @@ from core.lancedb_handler import get_chat_history_manager
 
 # Import System and Search services
 from core.system_status import SystemStatus
-from core.unified_search_endpoints import SearchRequest
-from core.unified_search_endpoints import hybrid_search as unified_hybrid_search
+from core.unified_search_endpoints import SearchRequest, hybrid_search as unified_hybrid_search
 
 # Import Task and Finance services
 from core.unified_task_endpoints import CreateTaskRequest, create_task, get_tasks
@@ -36,9 +38,6 @@ from integrations.gmail_service import GmailService
 # Import Calendar and Email services
 from integrations.google_calendar_service import GoogleCalendarService
 from integrations.quickbooks_routes import list_quickbooks_items
-
-# Import Episode integration for auto-creation
-from core.episode_integration import trigger_episode_creation
 
 # Initialize AI service
 ai_service = RealAIWorkflowService()

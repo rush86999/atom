@@ -4,9 +4,9 @@ FINAL ULTIMATE HONEST SUMMARY
 Complete transparent evaluation of what actually works vs marketing claims
 """
 
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 
 def create_final_ultimate_honest_summary():

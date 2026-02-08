@@ -19,15 +19,16 @@ lancedb>=0.5.3,<1.0.0
 redis>=4.5.0,<5.0.0
 
 # AI & Machine Learning
+fastembed>=0.2.0  # Fast, local embeddings (default: BAAI/bge-small-en-v1.5)
 openai>=1.0.0,<2.0.0
 transformers>=4.30.0,<5.0.0
 torch>=2.0.0,<3.0.0
 sentence-transformers>=2.2.0,<3.0.0
-langchain>=0.0.300,<1.0.0
-chromadb>=0.4.0,<1.0.0
-oagi>=0.1.0 # OpenAGI Lux SDK
+# REMOVED: langchain>=0.0.300,<1.0.0  # Not used in codebase
+# REMOVED: chromadb>=0.4.0,<1.0.0  # Not used in codebase
+# REMOVED: oagi>=0.1.0  # Not used in codebase
 anthropic>=0.3.0
-pyautogui>=0.9.50
+# REMOVED: pyautogui>=0.9.50  # Not used in codebase
 opencv-python-headless>=4.8.0
 Pillow>=10.0.0
 
@@ -43,6 +44,7 @@ python3-saml>=1.14.0  # SAML 2.0 SSO support
 # Data Processing & Utilities
 pandas>=1.5.0,<3.0.0
 numpy>=1.24.0,<2.0.0
+openpyxl>=3.1.0,<4.0.0
 python-dotenv>=1.0.0,<2.0.0
 click>=8.1.0,<9.0.0
 colorama>=0.4.6,<1.0.0
@@ -55,7 +57,7 @@ fpdf2>=2.7.0
 python-docx>=0.8.11,<1.0.0
 beautifulsoup4>=4.12.0,<5.0.0
 lxml>=4.9.0,<6.0.0
-pillow>=10.0.0,<11.0.0
+# REMOVED: pillow>=10.0.0,<11.0.0  # Duplicate of Pillow above
 
 # Service Integrations
 # Email Services
@@ -99,6 +101,9 @@ elevenlabs>=0.2.0,<1.0.0
 pytest>=7.4.0,<8.0.0
 pytest-asyncio>=0.21.0,<1.0.0
 pytest-cov>=4.1.0,<5.0.0
+
+# Property-based Testing
+hypothesis>=6.92.0,<7.0.0
 
 # Additional Utilities
 dateparser>=1.1.0,<2.0.0

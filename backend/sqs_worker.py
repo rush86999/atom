@@ -5,12 +5,12 @@ Replaces Celery for serverless AWS deployment
 """
 
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
 import signal
 import sys
-from datetime import datetime
 from typing import Any, Dict, Optional
 import boto3
 from botocore.exceptions import ClientError

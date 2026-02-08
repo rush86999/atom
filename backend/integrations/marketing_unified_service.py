@@ -3,9 +3,9 @@ ATOM Marketing Unified Service
 Unified interface for Google Ads and TikTok Ads.
 """
 
-import logging
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Optional
 
 try:

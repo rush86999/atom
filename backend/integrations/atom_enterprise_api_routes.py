@@ -4,11 +4,11 @@ Advanced enterprise-grade API endpoints with comprehensive automation integratio
 """
 
 import asyncio
+from datetime import datetime, timedelta, timezone
+from functools import wraps
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from functools import wraps
 from typing import Any, Dict, List, Optional, Union
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
@@ -79,14 +79,17 @@ except ImportError as e:
 # Create enterprise API blueprint
 enterprise_bp = Blueprint('enterprise_api', __name__, url_prefix='/api/enterprise')
 
+# Enterprise feature flag
+ENTERPRISE_ENABLED = os.getenv("ENTERPRISE_ENABLED", "true").lower() == "true"
+
 # Mock service for health check detection
 class AtomEnterpriseServiceMock:
     def __init__(self):
         self.enterprise_key = os.getenv("ENTERPRISE_KEY")
-        if not self.enterprise_key or self.enterprise_key == "mock_enterprise_key":
-            raise NotImplementedError(
-                "ENTERPRISE_KEY must be configured in environment variables"
-            )
+        if not ENTERPRISE_ENABLED:
+            logger.warning("Enterprise features are disabled via ENTERPRISE_ENABLED flag")
+        elif not self.enterprise_key or self.enterprise_key == "mock_enterprise_key":
+            logger.warning("ENTERPRISE_KEY not configured - enterprise features will be limited")
 
 
 # Enterprise configuration validation
@@ -309,7 +312,7 @@ async def enterprise_login():
 @jwt_required()
 @require_enterprise_role('automation_admin')
 @require_security_level(SecurityLevel.ENTERPRISE)
-def create_workflow_automation():
+async def create_workflow_automation():
     """Create workflow automation"""
     try:
         data = get_enterprise_request_data()

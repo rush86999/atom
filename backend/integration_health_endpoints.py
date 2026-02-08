@@ -260,8 +260,8 @@ def get_integration_health(service_name: str) -> IntegrationHealthStatus:
             "platform": service_name,
             "status": status
         }))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to broadcast platform status change: {e}")
 
     return IntegrationHealthStatus(
         service_name=service_name,

@@ -3,10 +3,10 @@ Dropbox Authentication Handler
 OAuth 2.0 authentication handler for Dropbox integration
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 import aiohttp

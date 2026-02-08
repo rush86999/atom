@@ -2,15 +2,16 @@
 AI Workflows Routes - Alias routes for /api/ai-workflows/* paths
 Provides compatibility with various API path conventions
 """
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
+from core.base_routes import BaseAPIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/ai-workflows", tags=["AI Workflows"])
+router = BaseAPIRouter(prefix="/api/ai-workflows", tags=["AI Workflows"])
 
 # Pydantic Models
 class NLUParseRequest(BaseModel):

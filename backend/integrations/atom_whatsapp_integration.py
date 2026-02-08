@@ -4,20 +4,27 @@ Advanced WhatsApp platform integration with enterprise features and automation
 """
 
 import asyncio
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 import hashlib
 import json
 import logging
 import os
 import time
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import aiohttp
 import httpx
-import numpy as np
-import pandas as pd
+
+# Handle numpy/pandas being disabled
+try:
+    import numpy as np
+    import pandas as pd
+except ImportError:
+    np = None
+    pd = None
+    logging.warning("NumPy/Pandas not available, some analytics features disabled")
 
 # Import existing ATOM services
 try:

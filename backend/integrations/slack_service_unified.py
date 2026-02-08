@@ -4,14 +4,14 @@ Complete Slack service with consistent error handling and rate limiting
 """
 
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 import httpx
 
@@ -405,13 +405,59 @@ class SlackUnifiedService:
                 'channel': channel_id,
                 'ts': message_ts
             }
-            
+
             result = await self.make_request('POST', 'chat.delete', data=data, token=token)
             return result
-            
+
         except Exception as e:
             raise SlackServiceError(f"Failed to delete message: {str(e)}")
-    
+
+    async def add_reaction(
+        self,
+        token: str,
+        channel_id: str,
+        timestamp: str,
+        reaction: str
+    ) -> Dict[str, Any]:
+        """
+        Add a reaction to a message.
+
+        Args:
+            token: Slack OAuth token
+            channel_id: Channel ID where the message was posted
+            timestamp: Message timestamp (ts field)
+            reaction: Reaction name (e.g., "thumbsup", "white_check_mark", "eyes")
+
+        Returns:
+            API response indicating success
+
+        Raises:
+            SlackServiceError: If adding reaction fails
+
+        Example:
+            await slack.add_reaction(
+                token="xoxb-...",
+                channel_id="C1234567890",
+                timestamp="1234567890.123456",
+                reaction="thumbsup"
+            )
+        """
+        try:
+            # Remove colons if present (e.g., ":thumbsup:" -> "thumbsup")
+            reaction_clean = reaction.strip(':')
+
+            data = {
+                'channel': channel_id,
+                'timestamp': timestamp,
+                'name': reaction_clean
+            }
+
+            result = await self.make_request('POST', 'reactions.add', data=data, token=token)
+            return result
+
+        except Exception as e:
+            raise SlackServiceError(f"Failed to add reaction: {str(e)}")
+
     async def search_messages(
         self,
         token: str,

@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
@@ -27,8 +27,7 @@ class MessageResponse(BaseModel):
     context_id: Optional[str]
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.post("/{team_id}/messages", response_model=MessageResponse)
 async def send_message(

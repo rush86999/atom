@@ -9,28 +9,24 @@ Now includes governance integration with:
 - Governance checks before presenting
 - Complete audit trail via canvas_audit table
 - Performance-optimized caching
+
+Refactored to use standardized decorators and service factory.
 """
 
-import logging
-import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
-from core.agent_governance_service import AgentGovernanceService
-from core.canvas_type_registry import CanvasType, canvas_type_registry
+from core.canvas_type_registry import canvas_type_registry
+from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, CanvasAudit
+from core.service_factory import ServiceFactory
+from core.structured_logger import get_logger
 from core.websockets import manager as ws_manager
 
-logger = logging.getLogger(__name__)
-
-
-# Feature flags
-import os
-
-CANVAS_GOVERNANCE_ENABLED = os.getenv("CANVAS_GOVERNANCE_ENABLED", "true").lower() == "true"
-EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+logger = get_logger(__name__)
 
 
 async def _create_canvas_audit(
@@ -123,10 +119,10 @@ async def present_chart(
 
     try:
         # Governance: Resolve agent and check permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
                 agent, resolution_context = await resolver.resolve_agent_for_request(
@@ -184,7 +180,7 @@ async def present_chart(
         )
 
         # Create audit entry
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -218,7 +214,7 @@ async def present_chart(
                         db.commit()
 
                         # Record outcome for confidence
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Presented {chart_type} to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
@@ -246,7 +242,7 @@ async def present_chart(
                         db.commit()
 
                         if agent:
-                            governance_service = AgentGovernanceService(db)
+                            governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
                 logger.error(f"Failed to record execution failure: {inner_e}")
@@ -278,10 +274,10 @@ async def present_status_panel(
 
     try:
         # Governance: Check agent permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
@@ -353,10 +349,10 @@ async def present_markdown(
 
     try:
         # Governance: Resolve agent and check permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
@@ -410,7 +406,7 @@ async def present_markdown(
         )
 
         # Create audit entry
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -436,7 +432,7 @@ async def present_markdown(
                         execution.completed_at = datetime.now()
                         db.commit()
 
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Presented markdown content to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
@@ -479,10 +475,10 @@ async def present_form(
 
     try:
         # Governance: Resolve agent and check permissions (INTERN+ required)
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
                     user_id=user_id,
@@ -536,7 +532,7 @@ async def present_form(
         )
 
         # Create audit entry
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -562,7 +558,7 @@ async def present_form(
                         execution.completed_at = datetime.now()
                         db.commit()
 
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Presented form to user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
@@ -625,10 +621,10 @@ async def update_canvas(
 
     try:
         # Governance: Resolve agent and check permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
                 agent, resolution_context = await resolver.resolve_agent_for_request(
@@ -683,7 +679,7 @@ async def update_canvas(
         )
 
         # Create audit entry
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -714,7 +710,7 @@ async def update_canvas(
                         db.commit()
 
                         # Record outcome for confidence
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(f"Updated canvas {canvas_id} for user {user_id}" + (f" (agent: {agent.name})" if agent else ""))
@@ -743,7 +739,7 @@ async def update_canvas(
                         db.commit()
 
                         if agent:
-                            governance_service = AgentGovernanceService(db)
+                            governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
                 logger.error(f"Failed to record execution failure: {inner_e}")
@@ -841,10 +837,10 @@ async def canvas_execute_javascript(
             }
 
         # Governance: Resolve agent and check permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
                 agent, resolution_context = await resolver.resolve_agent_for_request(
@@ -868,7 +864,8 @@ async def canvas_execute_javascript(
                         }
 
                     # Verify agent is AUTONOMOUS (double-check for security)
-                    if agent.status != "AUTONOMOUS":
+                    from core.models import AgentStatus
+                    if agent.status != AgentStatus.AUTONOMOUS.value:
                         logger.warning(f"JavaScript execution blocked: Agent {agent.name} is {agent.status}, not AUTONOMOUS")
                         return {
                             "success": False,
@@ -931,7 +928,7 @@ async def canvas_execute_javascript(
         )
 
         # Create audit entry with JavaScript content
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -964,7 +961,7 @@ async def canvas_execute_javascript(
                         db.commit()
 
                         # Record outcome for confidence
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(
@@ -996,7 +993,7 @@ async def canvas_execute_javascript(
                         db.commit()
 
                         if agent:
-                            governance_service = AgentGovernanceService(db)
+                            governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
                 logger.error(f"Failed to record execution failure: {inner_e}")
@@ -1091,10 +1088,10 @@ async def present_specialized_canvas(
             }
 
         # Governance: Resolve agent and check permissions
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
-                governance = AgentGovernanceService(db)
+                governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
                 agent, resolution_context = await resolver.resolve_agent_for_request(
@@ -1166,7 +1163,7 @@ async def present_specialized_canvas(
         )
 
         # Create audit entry
-        if CANVAS_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS:
+        if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 await _create_canvas_audit(
                     db=db,
@@ -1199,7 +1196,7 @@ async def present_specialized_canvas(
                         db.commit()
 
                         # Record outcome for confidence
-                        governance_service = AgentGovernanceService(db)
+                        governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
         logger.info(
@@ -1233,7 +1230,7 @@ async def present_specialized_canvas(
                         db.commit()
 
                         if agent:
-                            governance_service = AgentGovernanceService(db)
+                            governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
                 logger.error(f"Failed to record execution failure: {inner_e}")

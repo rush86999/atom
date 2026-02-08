@@ -41,8 +41,6 @@ class CacheManager:
         return self.redis_client
 
 class RedisCacheService(CacheManager):
-    pass
-
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
         try:

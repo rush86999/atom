@@ -4,8 +4,8 @@ Tests that database operations work correctly and data persists across sessions
 """
 
 import asyncio
-import sys
 from pathlib import Path
+import sys
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -27,9 +27,7 @@ from core.enterprise_user_management import (
     WorkspaceCreate,
     enterprise_user_mgmt,
 )
-from core.models import AuditLog as AuditLogModel
-from core.models import User as UserModel
-from core.models import Workspace as WorkspaceModel
+from core.models import AuditLog as AuditLogModel, User as UserModel, Workspace as WorkspaceModel
 
 
 async def test_database_persistence():

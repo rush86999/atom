@@ -3,12 +3,12 @@ Integration Dashboard API Routes
 Provides endpoints for monitoring and managing communication platform integrations.
 """
 
-import logging
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.base_routes import BaseAPIRouter
 from core.integration_dashboard import (
     IntegrationDashboard,
     IntegrationStatus,
@@ -17,7 +17,7 @@ from core.integration_dashboard import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/integrations/dashboard", tags=["integration-dashboard"])
+router = BaseAPIRouter(prefix="/api/integrations/dashboard", tags=["integration-dashboard"])
 
 
 # Request/Response Models
@@ -93,14 +93,14 @@ async def get_metrics(
     try:
         metrics = dashboard.get_metrics(integration)
 
-        return {
-            "success": True,
-            "metrics": metrics,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data=metrics,
+            message="Metrics retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/health", response_model=Dict[str, Any])
@@ -121,14 +121,14 @@ async def get_health(
     try:
         health = dashboard.get_health(integration)
 
-        return {
-            "success": True,
-            "health": health,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data=health,
+            message="Health status retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting health status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/status/overall", response_model=OverallStatusResponse)
@@ -147,7 +147,7 @@ async def get_overall_status() -> OverallStatusResponse:
         return OverallStatusResponse(**status)
     except Exception as e:
         logger.error(f"Error getting overall status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/alerts", response_model=List[AlertResponse])
@@ -175,7 +175,7 @@ async def get_alerts(
         return [AlertResponse(**alert) for alert in alerts]
     except Exception as e:
         logger.error(f"Error getting alerts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/alerts/count")
@@ -194,14 +194,17 @@ async def get_alerts_count() -> Dict[str, int]:
         critical_count = sum(1 for a in alerts if a["severity"] == "critical")
         warning_count = sum(1 for a in alerts if a["severity"] == "warning")
 
-        return {
-            "total": len(alerts),
-            "critical": critical_count,
-            "warning": warning_count
-        }
+        return router.success_response(
+            data={
+                "total": len(alerts),
+                "critical": critical_count,
+                "warning": warning_count
+            },
+            message="Alert counts retrieved successfully"
+        )
     except Exception as e:
         logger.error(f"Error getting alert counts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/statistics/summary")
@@ -217,13 +220,13 @@ async def get_statistics_summary() -> Dict[str, Any]:
     try:
         summary = dashboard.get_statistics_summary()
 
-        return {
-            "success": True,
-            "summary": summary
-        }
+        return router.success_response(
+            data=summary,
+            message="Statistics summary retrieved successfully"
+        )
     except Exception as e:
         logger.error(f"Error getting statistics summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/configuration")
@@ -244,14 +247,14 @@ async def get_configuration(
     try:
         config = dashboard.get_configuration(integration)
 
-        return {
-            "success": True,
-            "configuration": config,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data=config,
+            message="Configuration retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting configuration: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.post("/configuration/{integration}")
@@ -291,14 +294,13 @@ async def update_configuration(
         if request.config:
             dashboard.update_configuration(integration, request.config)
 
-        return {
-            "success": True,
-            "message": f"Configuration updated for {integration}",
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            message=f"Configuration updated for {integration}",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error updating configuration: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.post("/metrics/reset")
@@ -319,14 +321,13 @@ async def reset_metrics(request: MetricsResetRequest) -> Dict[str, Any]:
 
         integration_msg = f" for {request.integration}" if request.integration else " for all integrations"
 
-        return {
-            "success": True,
-            "message": f"Metrics reset{integration_msg}",
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            message=f"Metrics reset{integration_msg}",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error resetting metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/integrations")
@@ -354,14 +355,16 @@ async def list_integrations() -> Dict[str, Any]:
                 "last_fetch": metrics[name].get("last_fetch_time")
             })
 
-        return {
-            "success": True,
-            "integrations": integrations,
-            "count": len(integrations)
-        }
+        return router.success_response(
+            data={
+                "integrations": integrations,
+                "count": len(integrations)
+            },
+            message="Integrations listed successfully"
+        )
     except Exception as e:
         logger.error(f"Error listing integrations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/integrations/{integration}/details")
@@ -383,24 +386,21 @@ async def get_integration_details(integration: str) -> Dict[str, Any]:
         config = dashboard.get_configuration(integration)
 
         if not health:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Integration '{integration}' not found"
-            )
+            raise router.not_found_error("Integration", integration)
 
-        return {
-            "success": True,
-            "integration": integration,
-            "health": health,
-            "metrics": metrics,
-            "configuration": config,
-            "timestamp": datetime.now().isoformat()
-        }
-    except HTTPException:
-        raise
+        return router.success_response(
+            data={
+                "integration": integration,
+                "health": health,
+                "metrics": metrics,
+                "configuration": config
+            },
+            message="Integration details retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting integration details: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.post("/health/{integration}/check")
@@ -425,15 +425,17 @@ async def check_integration_health(integration: str) -> Dict[str, Any]:
 
         health = dashboard.get_health(integration)
 
-        return {
-            "success": True,
-            "integration": integration,
-            "health": health,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data={
+                "integration": integration,
+                "health": health
+            },
+            message="Health check completed successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error checking integration health: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/performance")
@@ -460,14 +462,14 @@ async def get_performance_metrics() -> Dict[str, Any]:
                 "attachment_count": integration_metrics.get("attachment_count", 0)
             }
 
-        return {
-            "success": True,
-            "performance": performance,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data=performance,
+            message="Performance metrics retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))
 
 
 @router.get("/data-quality")
@@ -494,11 +496,11 @@ async def get_data_quality_metrics() -> Dict[str, Any]:
                 "duplicate_rate": integration_metrics.get("duplicate_rate", 0.0)
             }
 
-        return {
-            "success": True,
-            "data_quality": quality,
-            "timestamp": datetime.now().isoformat()
-        }
+        return router.success_response(
+            data=quality,
+            message="Data quality metrics retrieved successfully",
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
     except Exception as e:
         logger.error(f"Error getting data quality metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise router.internal_error(message=str(e))

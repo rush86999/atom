@@ -4,10 +4,10 @@ Comprehensive Real World Usage Verification
 Test all actual working features against documented marketing claims
 """
 
+from datetime import datetime
 import json
 import os
 import sys
-from datetime import datetime
 
 
 def test_documented_capabilities():

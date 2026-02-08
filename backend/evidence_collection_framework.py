@@ -5,16 +5,16 @@ Systematically collects, organizes, and presents evidence for independent AI val
 """
 
 import asyncio
+from dataclasses import dataclass, field
 import datetime
 import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import requests
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -303,8 +303,8 @@ class EvidenceCollectionFramework:
                     try:
                         __import__(f"integrations.{module}_routes")
                         available_integrations += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Integration module {module} not available: {e}")
 
                 integration_tests["available_integrations"] = available_integrations
                 integration_tests["total_integration_modules"] = len(integration_modules)

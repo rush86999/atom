@@ -4,12 +4,12 @@ Provides caching, compression, and connection pooling
 """
 
 import asyncio
+from datetime import datetime, timedelta
+from functools import wraps
 import hashlib
 import json
 import logging
 import time
-from datetime import datetime, timedelta
-from functools import wraps
 from typing import Any, Dict, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -237,7 +237,8 @@ class DatabaseConnectionPool:
         """Release is handled automatically by httpx.AsyncClient context manager"""
         # httpx.AsyncClient handles connection pooling internally
         # No explicit release needed
-        pass
+        # This method exists for API compatibility
+        return
 
     async def close(self):
         """Close the connection pool"""

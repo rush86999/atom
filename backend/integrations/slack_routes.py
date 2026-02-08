@@ -1,18 +1,31 @@
 """
-Slack Integration Routes - Fixed FastAPI Version
+Slack Integration Routes - Fixed FastAPI Version with Governance
 Complete Slack integration with comprehensive API endpoints using FastAPI
+
+Includes:
+- Agent governance checks for all state-changing operations
+- Proper error handling (no silent pass statements)
+- Execution records for audit trail
 """
 
+from datetime import datetime, timezone
 import logging
 import os
 import secrets
-from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from core.database import get_db
+from core.models import User
 from core.oauth_handler import SLACK_OAUTH_CONFIG, OAuthHandler
 from core.token_storage import token_storage
+from integrations.integration_helpers import (
+    create_execution_record,
+    standard_error_response,
+    with_governance_check,
+)
 
 try:
     from slack_sdk import WebClient
@@ -27,6 +40,10 @@ logger = logging.getLogger(__name__)
 # Create FastAPI router
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/slack", tags=["slack"])
+
+# Feature flags
+SLACK_GOVERNANCE_ENABLED = os.getenv("SLACK_GOVERNANCE_ENABLED", "true").lower() == "true"
+EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
 
 def get_slack_client():
     """Get Slack WebClient if token is available"""
@@ -101,9 +118,44 @@ async def slack_health(user_id: str = "test_user"):
 
 
 @router.post("/messages")
-async def send_slack_message(request: SlackMessageRequest):
-    """Send a Slack message"""
+async def send_slack_message(
+    request: SlackMessageRequest,
+    agent_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Send a Slack message with governance check (complexity 2 - INTERN+)"""
     logger.info(f"Sending Slack message to channel: {request.channel}")
+
+    # Governance check if enabled and agent_id provided
+    agent = None
+    governance_check = {"allowed": True}
+    execution = None
+
+    if SLACK_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        try:
+            agent, governance_check = await with_governance_check(
+                db, User(id=request.user_id), "post_message", agent_id
+            )
+
+            if not governance_check["allowed"]:
+                logger.warning(f"Governance blocked Slack message: {governance_check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Agent not permitted to send messages: {governance_check['reason']}"
+                )
+
+            # Create execution record for audit trail
+            execution = create_execution_record(
+                db,
+                agent.id if agent else None,
+                request.user_id,
+                "slack_send_message"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Governance check error: {e}")
+            # Continue with request if governance check fails (graceful degradation)
 
     client = get_slack_client()
     if client and SLACK_SDK_AVAILABLE:
@@ -122,7 +174,7 @@ async def send_slack_message(request: SlackMessageRequest):
         except SlackApiError as e:
             logger.error(f"Error sending message: {e.response['error']}")
             raise HTTPException(status_code=400, detail=f"Slack API Error: {e.response['error']}")
-    
+
     # Fallback to mock
     return SlackMessageResponse(
         ok=True,
@@ -134,9 +186,31 @@ async def send_slack_message(request: SlackMessageRequest):
 
 
 @router.post("/search")
-async def slack_search(request: SlackSearchRequest):
-    """Search Slack messages"""
+async def slack_search(
+    request: SlackSearchRequest,
+    agent_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Search Slack messages with governance check (complexity 1 - STUDENT+)"""
     logger.info(f"Searching Slack for: {request.query}")
+
+    # Governance check for search operations (READ - complexity 1)
+    if SLACK_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        try:
+            agent, governance_check = await with_governance_check(
+                db, User(id=request.user_id), "search", agent_id
+            )
+
+            if not governance_check["allowed"]:
+                logger.warning(f"Governance blocked Slack search: {governance_check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Agent not permitted to search: {governance_check['reason']}"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Governance check error: {e}")
 
     # Mock search results
     mock_results = [
@@ -150,18 +224,22 @@ async def slack_search(request: SlackSearchRequest):
         }
         for i in range(1, request.max_results + 1)
     ]
-    # Ingest search results to memory
-    for result in results:
+
+    # Ingest search results to memory (FIXED: was using undefined 'results', now 'mock_results')
+    for result in mock_results:
         try:
+            # Import here to avoid circular dependency
+            from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
             atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, result)
         except Exception as e:
-            pass
+            # Fixed: proper error logging instead of silent pass
+            logger.warning(f"Failed to ingest Slack message to memory: {e}")
 
     return SlackSearchResponse(
         ok=True,
         query=request.query,
-        results=results,
-        total_results=len(results),
+        results=mock_results,
+        total_results=len(mock_results),
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
@@ -233,10 +311,32 @@ async def get_slack_user(user_id: str):
 
 @router.get("/conversations/history")
 async def get_conversation_history(
-    channel: str, limit: int = 10, user_id: str = "test_user"
+    channel: str,
+    limit: int = 10,
+    user_id: str = "test_user",
+    agent_id: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
-    """Get conversation history for a channel"""
+    """Get conversation history for a channel with governance check (complexity 1 - STUDENT+)"""
     logger.info(f"Getting conversation history for channel: {channel}")
+
+    # Governance check for history operations (READ - complexity 1)
+    if SLACK_GOVERNANCE_ENABLED and not EMERGENCY_GOVERNANCE_BYPASS and agent_id:
+        try:
+            agent, governance_check = await with_governance_check(
+                db, User(id=user_id), "search", agent_id
+            )
+
+            if not governance_check["allowed"]:
+                logger.warning(f"Governance blocked conversation history: {governance_check['reason']}")
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Agent not permitted to view history: {governance_check['reason']}"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Governance check error: {e}")
 
     messages = [
         {
@@ -249,14 +349,17 @@ async def get_conversation_history(
         for i in range(1, limit + 1)
     ]
 
-    # Ingest history to memory
+    # Ingest history to memory (FIXED: proper error handling)
     for msg in messages:
         try:
+            # Import here to avoid circular dependency
+            from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+
             # Add channel info to message for better context in memory
             msg_with_context = {**msg, "channel": channel}
             atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)
         except Exception as e:
-            pass
+            logger.debug(f"Ingestion pipeline not available or failed: {e}")
 
     return {"ok": True, "messages": messages}
 

@@ -4,14 +4,15 @@ Provides endpoints for Slack, Teams, and Gmail webhooks.
 """
 
 import logging
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
+from core.base_routes import BaseAPIRouter
 from core.webhook_handlers import get_webhook_processor
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+router = BaseAPIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 # Get webhook processor
 webhook_processor = get_webhook_processor()
@@ -85,12 +86,15 @@ async def gmail_webhook(
 @router.get("/health")
 async def webhook_health():
     """Check webhook endpoint health"""
-    return {
-        "status": "healthy",
-        "webhooks": {
-            "slack": "enabled",
-            "teams": "enabled",
-            "gmail": "enabled"
+    return router.success_response(
+        data={
+            "status": "healthy",
+            "webhooks": {
+                "slack": "enabled",
+                "teams": "enabled",
+                "gmail": "enabled"
+            },
+            "processed_events": len(webhook_processor.processed_events)
         },
-        "processed_events": len(webhook_processor.processed_events)
-    }
+        message="Webhook endpoints are healthy"
+    )

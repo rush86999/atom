@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta
 import json
 import logging
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceCustomer, EcommerceOrder
 from service_delivery.models import Appointment, AppointmentStatus

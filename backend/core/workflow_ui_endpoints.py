@@ -1,8 +1,8 @@
+from datetime import datetime
 import logging
 import os
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -766,16 +766,24 @@ async def execute_workflow(payload: Dict[str, Any], background_tasks: Background
             context.completed_at = datetime.now()
         
     background_tasks.add_task(_run_orchestration)
-    
+
+    # Calculate actual step count from workflow definition
+    total_steps = 0
+    if orchestrator_id and orchestrator_id in orchestrator.workflows:
+        workflow_def = orchestrator.workflows[orchestrator_id]
+        total_steps = len(workflow_def.steps) if workflow_def.steps else 0
+    elif found_mock and hasattr(found_mock, 'steps'):
+        total_steps = len(found_mock.steps)
+
     # Return FULL Execution Object compatible with Frontend
     return {
-        "success": True, 
+        "success": True,
         "execution_id": execution_id,
         "workflow_id": workflow_id,
         "status": "pending",
         "start_time": context.started_at.isoformat(),
         "current_step": 0,
-        "total_steps": 4, # Placeholder
+        "total_steps": total_steps,  # Dynamic count from workflow definition
         "results": {},
         "message": "Workflow started via Real Orchestrator"
     }

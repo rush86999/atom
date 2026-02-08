@@ -3,10 +3,10 @@ FastAPI Teams Integration Router
 Complete Teams integration with Microsoft Graph API for the ATOM platform
 """
 
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse

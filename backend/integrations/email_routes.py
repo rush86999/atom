@@ -3,8 +3,8 @@ Email Integration Routes
 Simple email integration for Gmail/Outlook
 """
 
-import logging
 from datetime import datetime
+import logging
 from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)

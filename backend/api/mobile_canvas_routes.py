@@ -5,15 +5,16 @@ Mobile-optimized endpoints for canvas operations on mobile devices.
 Includes push notification registration, offline sync, and mobile-friendly responses.
 """
 
-import logging
-import uuid
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+from fastapi import Depends, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import AgentRegistry, CanvasAudit, MobileDevice, OfflineAction, SyncState, User
 from core.push_notification_service import PushNotificationService, get_push_notification_service
@@ -21,7 +22,7 @@ from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/mobile", tags=["mobile"])
+router = BaseAPIRouter(prefix="/api/mobile", tags=["mobile"])
 
 
 # Request/Response Models
@@ -150,17 +151,15 @@ async def register_device(
                     message="Device registered successfully"
                 )
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=result.get("error", "Failed to register device")
+                raise router.error_response(
+                    error_code="DEVICE_REGISTRATION_FAILED",
+                    message=result.get("error", "Failed to register device"),
+                    status_code=400
                 )
 
     except Exception as e:
         logger.error(f"Failed to register device: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Device registration failed: {str(e)}"
-        )
+        raise router.internal_error(f"Device registration failed: {str(e)}")
 
 
 @router.post("/offline/queue", response_model=QueueOfflineActionResponse)
@@ -189,10 +188,7 @@ async def queue_offline_action(
         ).first()
 
         if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device not found"
-            )
+            raise router.not_found_error("Device", device_id)
 
         # Create offline action
         action = OfflineAction(
@@ -224,14 +220,9 @@ async def queue_offline_action(
             queued_at=action.created_at.isoformat()
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to queue offline action: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to queue action: {str(e)}"
-        )
+        raise router.internal_error(f"Failed to queue action: {str(e)}")
 
 
 @router.post("/sync/trigger")
@@ -258,10 +249,7 @@ async def trigger_sync(
         ).first()
 
         if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device not found"
-            )
+            raise router.not_found_error("Device", device_id)
 
         # Get pending actions
         pending_actions = db.query(OfflineAction).filter(
@@ -353,14 +341,9 @@ async def trigger_sync(
             "failed_count": failed_count
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Sync failed: {str(e)}"
-        )
+        raise router.internal_error(f"Sync failed: {str(e)}")
 
 
 @router.get("/sync/status", response_model=SyncStatusResponse)
@@ -387,10 +370,7 @@ async def get_sync_status(
         ).first()
 
         if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device not found"
-            )
+            raise router.not_found_error("Device", device_id)
 
         # Get sync state
         sync_state = db.query(SyncState).filter(
@@ -416,14 +396,9 @@ async def get_sync_status(
             failed_syncs=sync_state.failed_syncs
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get sync status: {str(e)}"
-        )
+        raise router.internal_error(f"Failed to get sync status: {str(e)}")
 
 
 @router.get("/canvas/list", response_model=MobileCanvasListResponse)
@@ -517,10 +492,7 @@ async def list_mobile_canvases(
 
     except Exception as e:
         logger.error(f"Failed to list canvases: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list canvases: {str(e)}"
-        )
+        raise router.internal_error(f"Failed to list canvases: {str(e)}")
 
 
 @router.delete("/notifications/unregister")
@@ -547,10 +519,7 @@ async def unregister_device(
         ).first()
 
         if not device:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device not found"
-            )
+            raise router.not_found_error("Device", device_id)
 
         # Mark as inactive
         device.status = "inactive"
@@ -565,14 +534,9 @@ async def unregister_device(
             "message": "Device unregistered successfully"
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to unregister device: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to unregister device: {str(e)}"
-        )
+        raise router.internal_error(f"Failed to unregister device: {str(e)}")
 
 
 @router.get("/notifications/devices")
@@ -612,7 +576,4 @@ async def list_user_devices(
 
     except Exception as e:
         logger.error(f"Failed to list devices: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list devices: {str(e)}"
-        )
+        raise router.internal_error(f"Failed to list devices: {str(e)}")
