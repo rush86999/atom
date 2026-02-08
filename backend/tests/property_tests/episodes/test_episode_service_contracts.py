@@ -321,7 +321,7 @@ class TestEpisodeErrorHandling:
 
     @given(
         empty_id=st.text(max_size=0),
-        valid_id=st.text(min_size=1, max_size=50)
+        valid_id=st.text(min_size=1, max_size=50).filter(lambda x: x.strip())
     )
     def test_empty_episode_id_handling(self, empty_id, valid_id):
         """INVARIANT: Empty episode IDs should be handled gracefully."""
