@@ -88,21 +88,21 @@ class FormulaMemoryManager:
         
         try:
             with get_db_session() as db:
-            formula = Formula(
-                id=formula_id,
-                workspace_id=self.workspace_id,
-                name=name,
-                expression=expression,
-                description=use_case,
-                domain=domain,
-                parameters=parameters,
-                dependencies=dependencies,
-                creator_id=user_id
-            )
-            db.add(formula)
-            db.commit()
-            db.refresh(formula)
-            db.close()
+                formula = Formula(
+                    id=formula_id,
+                    workspace_id=self.workspace_id,
+                    name=name,
+                    expression=expression,
+                    description=use_case,
+                    domain=domain,
+                    parameters=parameters,
+                    dependencies=dependencies,
+                    creator_id=user_id
+                )
+                db.add(formula)
+                db.commit()
+                db.refresh(formula)
+                db.close()
             logger.info(f"Formula SQL saved: {name} ({formula_id})")
         except Exception as e:
             logger.error(f"Failed to save formula to SQL: {e}")
@@ -114,9 +114,9 @@ class FormulaMemoryManager:
         if dependencies:
             try:
                 with get_db_session() as db:
-                deps = db.query(Formula).filter(Formula.id.in_(dependencies)).all()
-                dep_names = [d.name for d in deps]
-                db.close()
+                    deps = db.query(Formula).filter(Formula.id.in_(dependencies)).all()
+                    dep_names = [d.name for d in deps]
+                    db.close()
             except Exception as e:
                 logger.debug(f"Could not fetch dependency names: {e}")
 
@@ -226,20 +226,20 @@ Output: {json.dumps(example_output)}
         
         try:
             with get_db_session() as db:
-            formula = db.query(Formula).filter(Formula.id == formula_id).first()
-            if not formula:
+                formula = db.query(Formula).filter(Formula.id == formula_id).first()
+                if not formula:
+                    db.close()
+                    return None
+                
+                result = {
+                    "id": formula.id,
+                    "name": formula.name,
+                    "expression": formula.expression,
+                    "domain": formula.domain,
+                    "parameters": formula.parameters,
+                    "dependencies": formula.dependencies
+                }
                 db.close()
-                return None
-            
-            result = {
-                "id": formula.id,
-                "name": formula.name,
-                "expression": formula.expression,
-                "domain": formula.domain,
-                "parameters": formula.parameters,
-                "dependencies": formula.dependencies
-            }
-            db.close()
             return result
         except Exception as e:
             logger.error(f"Failed to get formula SQL: {e}")
@@ -291,12 +291,12 @@ Output: {json.dumps(example_output)}
         # 1. SQL Delete
         try:
             with get_db_session() as db:
-            row = db.query(Formula).filter(Formula.id == formula_id).first()
-            if row:
-                db.delete(row)
-                db.commit()
-                success = True
-            db.close()
+                row = db.query(Formula).filter(Formula.id == formula_id).first()
+                if row:
+                    db.delete(row)
+                    db.commit()
+                    success = True
+                db.close()
         except Exception as e:
             logger.error(f"SQL Delete failed: {e}")
             

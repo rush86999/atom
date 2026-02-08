@@ -24,12 +24,12 @@ export default function LoginPage() {
         try {
             if (isLogin) {
                 // Login
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Content-Type': 'application/json',
                     },
-                    body: new URLSearchParams({
+                    body: JSON.stringify({
                         username: formData.email,
                         password: formData.password
                     })
@@ -40,11 +40,14 @@ export default function LoginPage() {
                 }
 
                 const data = await response.json();
+                console.log("Login Success. Token:", data.access_token);
                 localStorage.setItem('auth_token', data.access_token);
-                router.push('/team-chat');
+                // Set cookie for proxy compatibility (legacy)
+                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                router.push('/agents');
             } else {
                 // Register
-                const response = await fetch('/api/auth/register', {
+                const response = await fetch('http://127.0.0.1:8000/api/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -58,8 +61,11 @@ export default function LoginPage() {
                 }
 
                 const data = await response.json();
+                console.log("Register Success. Token:", data.access_token);
                 localStorage.setItem('auth_token', data.access_token);
-                router.push('/team-chat');
+                // Set cookie for proxy compatibility
+                document.cookie = `next-auth.session-token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                router.push('/agents');
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred');

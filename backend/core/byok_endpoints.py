@@ -514,6 +514,16 @@ class BYOKManager:
             "status": "active" if provider.is_active and has_keys else "inactive",
         }
 
+    # --- Compatibility Methods for BYOKHandler ---
+    def is_configured(self, workspace_id: str, provider_id: str) -> bool:
+        """Check if a provider is configured for a workspace (compatibility alias)"""
+        # Map workspace_id to key_name
+        return bool(self.get_api_key(provider_id, key_name=workspace_id))
+
+    def get_tenant_api_key(self, tenant_id: str, provider_id: str) -> Optional[str]:
+        """Get API key for a tenant (compatibility alias)"""
+        return self.get_api_key(provider_id, key_name=tenant_id)
+
 
 # Global BYOK Manager instance
 _byok_manager = None

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
 import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
@@ -8,27 +9,56 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 
 const AgentsDashboard = () => {
+    const router = useRouter();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
     const { toast } = useToast();
 
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
     // Fetch Agents
     const fetchAgents = async () => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            setError("Unauthorized: Redirecting to login...");
+            router.push('/login');
+            return;
+        }
+
         try {
-            const res = await fetch('/api/agents/', { credentials: 'include' });
+            setError(null);
+            console.log("Fetching agents with token:", token ? token.substring(0, 10) + "..." : "NONE");
+            // Direct backend connection to bypass proxy issues
+            const res = await fetch('http://127.0.0.1:8000/api/agents/', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
             if (res.ok) {
                 const data = await res.json();
                 setAgents(data);
+            } else if (res.status === 401 || res.status === 403) {
+                setError("Unauthorized: Session expired. Redirecting...");
+                localStorage.removeItem('auth_token'); // Clear invalid token
+                router.push('/login');
+            } else {
+                setError(`Failed to load agents: ${res.statusText}`);
             }
-        } catch (e) {
-            console.error("Failed to fetch agents", e);
+        } catch (err: any) {
+            console.error("Agents fetch error:", err);
+            setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     useEffect(() => {
         fetchAgents();
-        const interval = setInterval(fetchAgents, 2000); // Poll status
+        const interval = setInterval(fetchAgents, 5000); // Poll every 5s
         return () => clearInterval(interval);
     }, []);
 
@@ -37,10 +67,13 @@ const AgentsDashboard = () => {
         setLogs([`Initializing agent: ${id}...`, "Connecting to reliable-messaging-service..."]);
 
         try {
-            const res = await fetch(`/api/agents/${id}/run/`, {
+            const res = await fetch(`http://127.0.0.1:8000/api/agents/${id}/run/`, {
                 credentials: 'include',
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                },
                 body: JSON.stringify({ parameters: {} })
             });
 
@@ -111,6 +144,24 @@ const AgentsDashboard = () => {
                     <div className="lg:col-span-2 space-y-6">
                         <h2 className="text-xl font-semibold">Available Agents</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {isLoading && agents.length === 0 && (
+                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500">
+                                    <p>Loading agents...</p>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="col-span-1 md:col-span-2 p-4 bg-red-50 text-red-600 rounded border border-red-200">
+                                    {error}
+                                </div>
+                            )}
+
+                            {!isLoading && !error && agents.length === 0 && (
+                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300">
+                                    <p>No agents found. Create your first agent or spawn from a template.</p>
+                                </div>
+                            )}
+
                             {agents.map(agent => (
                                 <AgentCard
                                     key={agent.id}
@@ -118,7 +169,6 @@ const AgentsDashboard = () => {
                                     onRun={handleRunAgent}
                                 />
                             ))}
-                            {agents.length === 0 && <p>Loading agents...</p>}
                         </div>
                     </div>
 
