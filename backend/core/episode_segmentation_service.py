@@ -33,6 +33,25 @@ from core.models import (
 
 logger = logging.getLogger(__name__)
 
+
+# Data classes for property testing support
+from typing import NamedTuple
+
+
+class SegmentationResult(NamedTuple):
+    """Result of episode segmentation"""
+    episodes: List[Episode]
+    segment_count: int
+    time_gaps_found: int
+    topic_changes_found: int
+
+
+class SegmentationBoundary(NamedTuple):
+    """Boundary between episodes"""
+    boundary_id: str
+    timestamp: datetime
+    boundary_type: str  # 'time_gap', 'topic_change', 'task_completion'
+
 # Configuration
 TIME_GAP_THRESHOLD_MINUTES = 30
 SEMANTIC_SIMILARITY_THRESHOLD = 0.75
