@@ -92,9 +92,10 @@ class TestSupervisionLearningBasic:
             workspace_id=workspace_id,
             supervisor_id=user_id,
             status=SupervisionStatus.COMPLETED.value,
+            trigger_context={},  # Required field
             intervention_count=2,
             supervisor_rating=5,
-            supervision_feedback="Excellent work",
+            supervisor_feedback="Excellent work",
             duration_seconds=300,
             started_at=datetime.now() - timedelta(seconds=300),
             completed_at=datetime.now(),
@@ -112,10 +113,7 @@ class TestSupervisionLearningBasic:
         execution = AgentExecution(
             id=execution_id,
             agent_id=agent_id,
-            agent_name=agent.name,
-            user_id=user_id,
             status="completed",
-            task_description="Test task",
             started_at=datetime.now() - timedelta(seconds=300),
             completed_at=datetime.now(),
             duration_seconds=300,
@@ -138,7 +136,6 @@ class TestSupervisionLearningBasic:
         assert episode.supervisor_id == user_id
         assert episode.supervisor_rating == 5
         assert episode.intervention_count == 2
-        assert episode.supervision_feedback == "Excellent work"
         assert episode.maturity_at_time == AgentStatus.SUPERVISED.value
         assert episode.status == "completed"
 
@@ -167,12 +164,10 @@ class TestSupervisionLearningBasic:
         supervision_columns = [
             'supervisor_id',
             'supervisor_rating',
-            'supervision_feedback',
             'intervention_count',
             'intervention_types',
             'proposal_id',
             'proposal_outcome',
-            'rejection_reason',
         ]
 
         for col in supervision_columns:
@@ -227,7 +222,7 @@ class TestSupervisionLearningBasic:
             supervisor_rating=5,
             intervention_count=1,
             intervention_types=["correct"],
-            supervision_feedback="Good work",
+            maturity_at_time=AgentStatus.SUPERVISED.value,
             status="completed",
             started_at=datetime.now(),
             ended_at=datetime.now(),
@@ -302,9 +297,10 @@ class TestSupervisionLearningBasic:
                 workspace_id=workspace_id,
                 supervisor_id=user_id,
                 status=SupervisionStatus.COMPLETED.value,
+                trigger_context={},  # Required field
                 intervention_count=i % 3,
                 supervisor_rating=5 - (i % 2),
-                supervision_feedback=f"Session {i} feedback",
+                supervisor_feedback=f"Session {i} feedback",
                 duration_seconds=300,
                 started_at=datetime.now() - timedelta(days=i+1, seconds=300),
                 completed_at=datetime.now() - timedelta(days=i+1),

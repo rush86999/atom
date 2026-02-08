@@ -511,8 +511,11 @@ class EpisodeSegmentationService:
 
     def _format_execution(self, exec: AgentExecution) -> str:
         """Format execution as text"""
+        task_desc = getattr(exec, 'task_description', None) or \
+                   getattr(exec, 'input_summary', None) or 'Unknown'
+
         parts = [
-            f"Task: {exec.task_description or 'Unknown'}",
+            f"Task: {task_desc}",
             f"Status: {exec.status}"
         ]
 
@@ -835,7 +838,9 @@ Topics: {', '.join(episode.topics)}
         parts = []
 
         if execution:
-            parts.append(f"Task: {execution.task_description or 'Unknown task'}")
+            task_desc = getattr(execution, 'task_description', None) or \
+                       getattr(execution, 'input_summary', None) or 'Unknown task'
+            parts.append(f"Task: {task_desc}")
             parts.append(f"Status: {execution.status}")
 
             if execution.input_summary:
@@ -898,8 +903,10 @@ Topics: {', '.join(episode.topics)}
 
         # Extract from execution
         if execution:
-            if execution.task_description:
-                words = execution.task_description.lower().split()
+            task_desc = getattr(execution, 'task_description', None) or \
+                       getattr(execution, 'input_summary', None)
+            if task_desc:
+                words = task_desc.lower().split()
                 topics.update([w for w in words if len(w) > 4][:3])
 
         # Add intervention types as topics
