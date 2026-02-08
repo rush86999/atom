@@ -19,8 +19,8 @@ jobs:
           - invariants
           - contracts
           - interfaces
+          - episodes
           # models - TODO: Has test logic errors (6 failed out of 48 tests - assertions incorrect)
-          # episodes - TODO: Has test implementation issues (service init params, hypothesis health checks)
           # workflows - TODO: Requires complete rewrite to match async WorkflowEngine API
           # multi_agent - TODO: Requires MultiAgentCoordinator implementation
 
