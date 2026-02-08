@@ -50,7 +50,7 @@ jobs:
           ATOM_DISABLE_LANCEDB: true
           ATOM_MOCK_DATABASE: true
         run: |
-          pytest tests/property_tests/${{ matrix.test-group }}/ -v -m "property" --tb=short --no-cov
+          pytest tests/property_tests/${{ matrix.test-group }}/ -v --tb=short --no-cov
 
       - name: Upload coverage to Codecov
         if: matrix.test-group == 'invariants'
