@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 
 # Data classes for property testing support
+from enum import Enum
+from typing import NamedTuple
+
+
 class RetrievalMode(str, Enum):
     """Episode retrieval modes"""
     TEMPORAL = "temporal"
