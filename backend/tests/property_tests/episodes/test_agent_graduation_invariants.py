@@ -274,10 +274,11 @@ class TestConstitutionalComplianceInvariants:
                 f"Individual score {score:.2f} out of bounds [0, 1]"
 
         # Invariant: Average should be within range of individual scores
+        # Allow small floating-point tolerance
         min_score = min(scores)
         max_score = max(scores)
-        assert min_score <= avg_score <= max_score, \
-            f"Average {avg_score:.2f} not in range [{min_score:.2f}, {max_score:.2f}]"
+        assert min_score - 1e-10 <= avg_score <= max_score + 1e-10, \
+            f"Average {avg_score:.10f} not in range [{min_score:.10f}, {max_score:.10f}]"
 
 
 class TestGraduationAuditTrailInvariants:
