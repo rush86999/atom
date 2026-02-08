@@ -53,7 +53,7 @@ from core.models import (
     AgentRegistry,
     DeepLinkAudit,
     AgentFeedback,
-    FeedbackABTest,
+    ABTest,
     Episode,
 )
 
