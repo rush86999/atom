@@ -1,0 +1,1 @@
+"""Financial property-based tests."""
