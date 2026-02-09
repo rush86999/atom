@@ -199,13 +199,25 @@ class TestReportGenerationInvariants:
 
     @given(
         report_id=st.uuids(),
-        status=st.sampled_from(['GENERATING', 'COMPLETED', 'FAILED']),
-        file_size_bytes=st.integers(min_value=0, max_value=100_000_000),  # 0 to 100 MB
+        status_and_size=st.one_of(
+            # COMPLETED status requires file_size_bytes > 0
+            st.tuples(
+                st.just('COMPLETED'),
+                st.integers(min_value=1, max_value=100_000_000)
+            ),
+            # GENERATING and FAILED can have file_size_bytes >= 0
+            st.tuples(
+                st.sampled_from(['GENERATING', 'FAILED']),
+                st.integers(min_value=0, max_value=100_000_000)
+            )
+        ),
         generated_at=st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2030, 1, 1))
     )
     @settings(max_examples=50)
-    def test_report_completion(self, report_id, status, file_size_bytes, generated_at):
+    def test_report_completion(self, report_id, status_and_size, generated_at):
         """Test that report completion is recorded correctly"""
+        status, file_size_bytes = status_and_size
+
         # Complete report
         report = {
             'id': str(report_id),
