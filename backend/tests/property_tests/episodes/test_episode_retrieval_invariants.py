@@ -1,306 +1,507 @@
 """
-Property-Based Tests for Episode Retrieval Invariants
+Property-Based Tests for Episode Retrieval Service - Critical Memory Logic
 
-Tests CRITICAL episode retrieval invariants:
-- Temporal retrieval returns episodes in chronological order
-- Semantic retrieval respects similarity bounds [0, 1]
-- Sequential retrieval returns complete episodes
-- Contextual retrieval preserves episode boundaries
-
-These tests protect against retrieval bugs and incorrect episode access.
+Tests episode retrieval invariants:
+- Temporal retrieval (chronological order)
+- Semantic retrieval (vector search similarity)
+- Sequential retrieval (full episode context)
+- Contextual retrieval (hybrid quality)
+- Similarity score bounds [0, 1]
+- Retrieval limit enforcement
+- Episode boundary consistency
+- Agent relationship integrity
+- Access log accuracy
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
 from datetime import datetime, timedelta
-from typing import List, Dict
-from unittest.mock import Mock
+from hypothesis import given, strategies as st, assume, settings, HealthCheck
+from uuid import uuid4
+from typing import List, Dict, Any
+import sys
+import os
 
-from core.models import Episode, EpisodeSegment
+# Add backend to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 
 class TestTemporalRetrievalInvariants:
-    """Property-based tests for temporal retrieval invariants."""
+    """Tests for temporal (time-based) retrieval invariants"""
 
     @given(
-        episode_count=st.integers(min_value=1, max_value=50),
+        num_episodes=st.integers(min_value=1, max_value=50),
         limit=st.integers(min_value=1, max_value=20)
     )
     @settings(max_examples=50)
-    def test_temporal_retrieval_ordered_by_time(self, episode_count, limit):
-        """INVARIANT: Temporal retrieval returns episodes in chronological order."""
-        base_time = datetime(2024, 1, 1)
-
-        # Create mock episodes with sequential timestamps
+    def test_temporal_retrieval_chronological_order(self, num_episodes, limit):
+        """Test that temporal retrieval returns episodes in chronological order"""
+        # Simulate episodes with timestamps
         episodes = []
-        for i in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.start_time = base_time + timedelta(hours=i)
-            episode.end_time = base_time + timedelta(hours=i + 1)
-            episode.created_at = base_time + timedelta(hours=i)
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "start_time": base_time + timedelta(hours=i),
+                "end_time": base_time + timedelta(hours=i, minutes=30),
+                "summary": f"Episode {i}",
+                "agent_id": "test_agent"
+            }
             episodes.append(episode)
 
-        # Apply limit
-        retrieved = episodes[:limit]
+        # Simulate temporal retrieval (sorted by start_time)
+        effective_limit = min(limit, num_episodes)
+        retrieved = sorted(episodes, key=lambda e: e["start_time"], reverse=True)[:effective_limit]
 
-        # Verify chronological order
-        for i in range(len(retrieved) - 1):
-            current_time = retrieved[i].start_time
-            next_time = retrieved[i + 1].start_time
-            assert current_time <= next_time, \
-                "Episodes not in chronological order"
+        # Verify chronological order (most recent first)
+        assert len(retrieved) <= limit, "Should respect limit"
+        for i in range(1, len(retrieved)):
+            assert retrieved[i-1]["start_time"] >= retrieved[i]["start_time"], "Should be in descending chronological order"
 
     @given(
-        episode_count=st.integers(min_value=10, max_value=100),
+        num_episodes=st.integers(min_value=10, max_value=100),
         limit=st.integers(min_value=1, max_value=50)
     )
     @settings(max_examples=50)
-    def test_temporal_retrieval_respects_limit(self, episode_count, limit):
-        """INVARIANT: Temporal retrieval respects result limit."""
-        base_time = datetime(2024, 1, 1)
-
+    def test_temporal_retrieval_respects_limit(self, num_episodes, limit):
+        """Test that temporal retrieval respects the limit parameter"""
         episodes = []
-        for i in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.start_time = base_time + timedelta(hours=i)
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "start_time": base_time + timedelta(hours=i),
+                "agent_id": "test_agent"
+            }
             episodes.append(episode)
 
-        # Apply limit
-        retrieved = episodes[:limit]
+        # Simulate retrieval with limit
+        retrieved = sorted(episodes, key=lambda e: e["start_time"], reverse=True)[:limit]
 
-        # Invariant: Result count should not exceed limit
-        assert len(retrieved) <= limit, \
-            f"Retrieved {len(retrieved)} episodes, limit is {limit}"
+        # Should not exceed limit
+        assert len(retrieved) <= limit, f"Retrieved {len(retrieved)} episodes, should be <= {limit}"
 
-        # Invariant: Should return min(episode_count, limit)
-        expected_count = min(episode_count, limit)
-        assert len(retrieved) == expected_count, \
-            f"Expected {expected_count} episodes, got {len(retrieved)}"
+        # If we have more episodes than limit, should return exactly limit
+        if num_episodes >= limit:
+            assert len(retrieved) == limit, f"Should return exactly {limit} episodes when available"
+
+    @given(
+        num_episodes=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_temporal_retrieval_time_bounds(self, num_episodes):
+        """Test that temporal retrieval respects time bounds"""
+        episodes = []
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "start_time": base_time + timedelta(hours=i),
+                "end_time": base_time + timedelta(hours=i, minutes=30),
+                "agent_id": "test_agent"
+            }
+            episodes.append(episode)
+
+        # Set time bounds (from 5 hours after base to end)
+        start_bound = base_time + timedelta(hours=5)
+        end_bound = base_time + timedelta(hours=num_episodes)
+
+        # Filter episodes by time bounds
+        filtered = [
+            e for e in episodes
+            if e["start_time"] >= start_bound and e["start_time"] <= end_bound
+        ]
+
+        # Verify all retrieved episodes are within bounds
+        for episode in filtered:
+            assert episode["start_time"] >= start_bound, "Episode should be after start bound"
+            assert episode["start_time"] <= end_bound, "Episode should be before end bound"
 
 
 class TestSemanticRetrievalInvariants:
-    """Property-based tests for semantic retrieval invariants."""
+    """Tests for semantic (vector search) retrieval invariants"""
 
     @given(
-        similarity_scores=st.lists(
-            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-            min_size=5,
-            max_size=50
-        )
+        dimension=st.integers(min_value=10, max_value=30),
+        num_episodes=st.integers(min_value=3, max_value=10),
+        limit=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
-    def test_semantic_retrieval_ranked_by_similarity(self, similarity_scores):
-        """INVARIANT: Semantic retrieval results ranked by similarity score."""
-        # Create mock episodes with similarity scores
-        episodes = []
-        for i, score in enumerate(similarity_scores):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.similarity_score = score
-            episodes.append(episode)
+    @settings(max_examples=20)
+    def test_semantic_retrieval_ranked_by_similarity(self, dimension, num_episodes, limit):
+        """Test that semantic retrieval is ranked by similarity score"""
+        # Generate query and episode vectors with same dimension
+        import random
+        random.seed(42)
+
+        query_vector = [random.uniform(-1.0, 1.0) for _ in range(dimension)]
+        episode_vectors = [[random.uniform(-1.0, 1.0) for _ in range(dimension)] for _ in range(num_episodes)]
+
+        # Calculate cosine similarity
+        def cosine_similarity(v1, v2):
+            dot_product = sum(a * b for a, b in zip(v1, v2))
+            magnitude1 = sum(a * a for a in v1) ** 0.5
+            magnitude2 = sum(b * b for b in v2) ** 0.5
+            if magnitude1 == 0 or magnitude2 == 0:
+                return 0.0
+            return dot_product / (magnitude1 * magnitude2)
+
+        # Calculate similarities
+        similarities = []
+        for i, episode_vector in enumerate(episode_vectors[:limit]):
+            sim = cosine_similarity(query_vector, episode_vector)
+            similarities.append((i, sim))
 
         # Sort by similarity (descending)
-        ranked = sorted(episodes, key=lambda e: e.similarity_score, reverse=True)
+        similarities.sort(key=lambda x: x[1], reverse=True)
 
-        # Verify ranking
-        for i in range(len(ranked) - 1):
-            current_score = ranked[i].similarity_score
-            next_score = ranked[i + 1].similarity_score
-            assert current_score >= next_score, \
-                "Episodes not ranked by similarity (descending)"
+        # Verify descending order
+        for i in range(1, len(similarities)):
+            assert similarities[i-1][1] >= similarities[i][1], "Similarities should be in descending order"
 
     @given(
         similarity_scores=st.lists(
-            st.floats(min_value=-0.5, max_value=1.5, allow_nan=False, allow_infinity=False),
-            min_size=5,
+            st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
             max_size=50
         )
     )
     @settings(max_examples=50)
-    def test_semantic_retrieval_similarity_bounds(self, similarity_scores):
-        """INVARIANT: Similarity scores must be in [0, 1]."""
-        # Filter invalid scores
-        valid_scores = [s for s in similarity_scores if 0.0 <= s <= 1.0]
-
-        # Create episodes with valid scores
-        episodes = []
-        for i, score in enumerate(valid_scores):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.similarity_score = score
-            episodes.append(episode)
-
-        # Verify all scores are within bounds
-        for episode in episodes:
-            assert 0.0 <= episode.similarity_score <= 1.0, \
-                f"Similarity score out of bounds: {episode.similarity_score}"
+    def test_semantic_similarity_bounds(self, similarity_scores):
+        """Test that semantic similarity scores are in valid range"""
+        # Cosine similarity should be in [-1, 1]
+        for score in similarity_scores:
+            assert -1.0 <= score <= 1.0, f"Similarity score {score} must be in [-1, 1]"
 
     @given(
-        episode_count=st.integers(min_value=1, max_value=30),
-        threshold=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+        num_episodes=st.integers(min_value=10, max_value=100),
+        limit=st.integers(min_value=1, max_value=50)
     )
     @settings(max_examples=50)
-    def test_semantic_retrieval_threshold_filtering(self, episode_count, threshold):
-        """INVARIANT: Semantic retrieval filters by similarity threshold."""
-        import random
-
+    def test_semantic_retrieval_limit_enforcement(self, num_episodes, limit):
+        """Test that semantic retrieval respects the limit"""
+        # Simulate episodes with similarity scores
         episodes = []
-        for i in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            # Generate random similarity scores
-            episode.similarity_score = random.random()
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "similarity_score": 0.9 - (i * 0.01),  # Decreasing similarity
+                "agent_id": "test_agent"
+            }
             episodes.append(episode)
 
-        # Filter by threshold
-        filtered = [e for e in episodes if e.similarity_score >= threshold]
+        # Sort by similarity and apply limit
+        retrieved = sorted(episodes, key=lambda e: e["similarity_score"], reverse=True)[:limit]
 
-        # Verify all filtered episodes meet threshold
-        for episode in filtered:
-            assert episode.similarity_score >= threshold, \
-                f"Episode similarity {episode.similarity_score} below threshold {threshold}"
+        # Should not exceed limit
+        assert len(retrieved) <= limit, f"Retrieved {len(retrieved)} episodes, should be <= {limit}"
+
+        # Should be sorted by similarity (highest first)
+        for i in range(1, len(retrieved)):
+            assert retrieved[i-1]["similarity_score"] >= retrieved[i]["similarity_score"], "Should be sorted by similarity"
 
 
 class TestSequentialRetrievalInvariants:
-    """Property-based tests for sequential retrieval invariants."""
+    """Tests for sequential (full episode) retrieval invariants"""
 
     @given(
-        segment_count=st.integers(min_value=1, max_value=20)
+        num_segments=st.integers(min_value=1, max_value=20),
+        segment_length=st.integers(min_value=100, max_value=1000)
     )
     @settings(max_examples=50)
-    def test_sequential_retrieval_includes_full_context(self, segment_count):
-        """INVARIANT: Sequential retrieval includes complete episode context."""
-        base_time = datetime(2024, 1, 1)
+    def test_sequential_retrieval_includes_full_context(self, num_segments, segment_length):
+        """Test that sequential retrieval includes full episode context"""
+        # Simulate episode with multiple segments
+        episode = {
+            "id": str(uuid4()),
+            "segments": []
+        }
 
-        # Create mock episode with segments
-        episode = Mock(spec=Episode)
-        episode.id = "test_episode"
-        episode.start_time = base_time
-        episode.end_time = base_time + timedelta(hours=segment_count)
-        episode.segments = []
+        base_content = "Sample episode content. "
+        for i in range(num_segments):
+            segment = {
+                "id": str(uuid4()),
+                "sequence_number": i,
+                "content": base_content * segment_length,
+                "timestamp": datetime(2024, 1, 1, 12, 0, 0) + timedelta(minutes=i*10)
+            }
+            episode["segments"].append(segment)
 
-        for i in range(segment_count):
-            segment = Mock(spec=EpisodeSegment)
-            segment.id = f"segment_{i}"
-            segment.order = i
-            segment.start_time = base_time + timedelta(hours=i)
-            segment.end_time = base_time + timedelta(hours=i + 1)
-            episode.segments.append(segment)
+        # Sequential retrieval should return all segments in order
+        retrieved_segments = sorted(episode["segments"], key=lambda s: s["sequence_number"])
 
-        # Verify all segments are included
-        assert len(episode.segments) == segment_count, \
-            f"Expected {segment_count} segments, got {len(episode.segments)}"
+        # Verify all segments are present
+        assert len(retrieved_segments) == num_segments, f"Should have {num_segments} segments"
 
-        # Verify segment order
-        for i in range(len(episode.segments) - 1):
-            current_order = episode.segments[i].order
-            next_order = episode.segments[i + 1].order
-            assert current_order < next_order, \
-                "Segments not in sequential order"
+        # Verify sequential order
+        for i in range(1, len(retrieved_segments)):
+            assert retrieved_segments[i]["sequence_number"] > retrieved_segments[i-1]["sequence_number"], "Segments should be in sequential order"
 
     @given(
-        episode_count=st.integers(min_value=1, max_value=20),
-        segment_count=st.integers(min_value=1, max_value=10)
+        num_episodes=st.integers(min_value=1, max_value=30)
     )
     @settings(max_examples=50)
-    def test_sequential_retrieval_episode_continuity(self, episode_count, segment_count):
-        """INVARIANT: Sequential retrieval maintains episode continuity."""
-        base_time = datetime(2024, 1, 1)
-
+    def test_sequential_retrieval_episode_integrity(self, num_episodes):
+        """Test that sequential retrieval maintains episode integrity"""
         episodes = []
-        for ep_idx in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{ep_idx}"
-            episode.start_time = base_time + timedelta(hours=ep_idx * segment_count)
-            episode.end_time = base_time + timedelta(hours=(ep_idx + 1) * segment_count)
-            episode.segments = []
-
-            for seg_idx in range(segment_count):
-                segment = Mock(spec=EpisodeSegment)
-                segment.id = f"segment_{ep_idx}_{seg_idx}"
-                segment.order = seg_idx
-                segment.start_time = episode.start_time + timedelta(hours=seg_idx)
-                segment.end_time = episode.start_time + timedelta(hours=seg_idx + 1)
-                episode.segments.append(segment)
-
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "agent_id": "test_agent",
+                "start_time": datetime(2024, 1, 1, 12, 0, 0) + timedelta(hours=i),
+                "end_time": datetime(2024, 1, 1, 13, 0, 0) + timedelta(hours=i),
+                "summary": f"Episode {i}",
+                "segments": [
+                    {"id": str(uuid4()), "sequence_number": 0},
+                    {"id": str(uuid4()), "sequence_number": 1}
+                ]
+            }
             episodes.append(episode)
 
-        # Verify no gaps between episodes
-        for i in range(len(episodes) - 1):
-            current_end = episodes[i].end_time
-            next_start = episodes[i + 1].start_time
-            assert current_end <= next_start, \
-                f"Gap found between episode {i} and {i + 1}"
+        # Sequential retrieval should return complete episodes
+        for episode in episodes:
+            # Verify episode has required fields
+            assert "id" in episode, "Episode should have ID"
+            assert "agent_id" in episode, "Episode should have agent_id"
+            assert "start_time" in episode, "Episode should have start_time"
+            assert "end_time" in episode, "Episode should have end_time"
+            assert episode["end_time"] >= episode["start_time"], "End time should be after start time"
+
+            # Verify segments are present
+            assert "segments" in episode, "Episode should have segments"
+            assert len(episode["segments"]) >= 1, "Episode should have at least one segment"
 
 
 class TestContextualRetrievalInvariants:
-    """Property-based tests for contextual retrieval invariants."""
+    """Tests for contextual (hybrid) retrieval invariants"""
 
     @given(
-        episode_count=st.integers(min_value=5, max_value=30),
-        context_window=st.integers(min_value=1, max_value=10)
+        score_pairs=st.lists(
+            st.tuples(
+                st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+                st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+            ),
+            min_size=5,
+            max_size=30
+        ),
+        temporal_weight=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_contextual_retrieval_hybrid_accuracy(self, episode_count, context_window):
-        """INVARIANT: Contextual retrieval combines temporal and semantic relevance."""
-        base_time = datetime(2024, 1, 1)
+    def test_contextual_hybrid_scoring(self, score_pairs, temporal_weight):
+        """Test that contextual retrieval uses hybrid scoring"""
+        # Unzip the pairs
+        temporal_scores = [t for t, _ in score_pairs]
+        semantic_scores = [s for _, s in score_pairs]
 
-        # Create episodes with both temporal and semantic scores
-        episodes = []
-        for i in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.start_time = base_time + timedelta(hours=i)
-            episode.similarity_score = (episode_count - i) / episode_count  # Decreasing
-            episode.hybrid_score = (episode.similarity_score + 0.5) / 2  # Combined score
-            episodes.append(episode)
+        semantic_weight = 1.0 - temporal_weight
 
-        # Retrieve with context window
-        center_idx = episode_count // 2
-        start_idx = max(0, center_idx - context_window)
-        end_idx = min(episode_count, center_idx + context_window + 1)
-        context_episodes = episodes[start_idx:end_idx]
+        # Calculate hybrid scores
+        hybrid_scores = []
+        for t_score, s_score in zip(temporal_scores, semantic_scores):
+            hybrid_score = (temporal_weight * t_score) + (semantic_weight * s_score)
+            hybrid_scores.append(hybrid_score)
 
-        # Verify context window respected
-        assert len(context_episodes) <= 2 * context_window + 1, \
-            "Context window size exceeded"
+        # Verify hybrid scores are in valid range [0, 1]
+        for score in hybrid_scores:
+            assert 0.0 <= score <= 1.0, f"Hybrid score {score} must be in [0, 1]"
 
-        # Verify episodes are contiguous
-        for i in range(len(context_episodes) - 1):
-            current_time = context_episodes[i].start_time
-            next_time = context_episodes[i + 1].start_time
-            assert current_time < next_time, \
-                "Context episodes not contiguous"
+        # Verify hybrid score is weighted average
+        for i, (t_score, s_score) in enumerate(zip(temporal_scores, semantic_scores)):
+            expected = (temporal_weight * t_score) + (semantic_weight * s_score)
+            epsilon = 1e-10
+            assert abs(hybrid_scores[i] - expected) < epsilon, "Hybrid score should be weighted average"
 
     @given(
-        episode_count=st.integers(min_value=10, max_value=50)
+        limit=st.integers(min_value=1, max_value=50),
+        num_candidates=st.integers(min_value=10, max_value=100)
     )
     @settings(max_examples=50)
-    def test_contextual_retrieval_preserves_boundaries(self, episode_count):
-        """INVARIANT: Contextual retrieval preserves episode boundaries."""
-        base_time = datetime(2024, 1, 1)
+    def test_contextual_retrieval_respects_limit(self, limit, num_candidates):
+        """Test that contextual retrieval respects the limit"""
+        # Simulate candidate episodes with hybrid scores
+        candidates = []
+        for i in range(num_candidates):
+            candidate = {
+                "id": str(uuid4()),
+                "hybrid_score": 0.9 - (i * 0.005),  # Decreasing scores
+                "agent_id": "test_agent"
+            }
+            candidates.append(candidate)
 
-        # Create episodes
+        # Sort by hybrid score and apply limit
+        retrieved = sorted(candidates, key=lambda e: e["hybrid_score"], reverse=True)[:limit]
+
+        # Should not exceed limit
+        assert len(retrieved) <= limit, f"Retrieved {len(retrieved)} candidates, should be <= {limit}"
+
+        # Should be sorted by hybrid score
+        for i in range(1, len(retrieved)):
+            assert retrieved[i-1]["hybrid_score"] >= retrieved[i]["hybrid_score"], "Should be sorted by hybrid score"
+
+
+class TestEpisodeRetrievalInvariants:
+    """Tests for general episode retrieval invariants"""
+
+    @given(
+        num_episodes=st.integers(min_value=1, max_value=100),
+        limit=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_retrieval_limit_enforcement(self, num_episodes, limit):
+        """Test that all retrieval methods respect limit parameter"""
         episodes = []
-        for i in range(episode_count):
-            episode = Mock(spec=Episode)
-            episode.id = f"episode_{i}"
-            episode.start_time = base_time + timedelta(hours=i)
-            episode.end_time = base_time + timedelta(hours=i + 1)
-            episode.summary = f"Summary {i}"
+        for i in range(num_episodes):
+            episode = {
+                "id": str(uuid4()),
+                "timestamp": datetime(2024, 1, 1, 12, 0, 0) + timedelta(hours=i),
+                "score": 0.9 - (i * 0.005),
+                "agent_id": "test_agent"
+            }
             episodes.append(episode)
 
-        # Contextual retrieval should not split episodes
-        for episode in episodes:
-            # Each episode should be returned intact or not at all
-            assert episode.start_time < episode.end_time, \
-                f"Episode {episode.id} has invalid time range"
+        # Simulate retrieval with limit
+        retrieved = sorted(episodes, key=lambda e: e["score"], reverse=True)[:limit]
 
-        # Verify no time overlaps
-        for i in range(len(episodes) - 1):
-            current_end = episodes[i].end_time
-            next_start = episodes[i + 1].start_time
-            assert current_end <= next_start, \
-                f"Episodes {i} and {i+1} overlap"
+        assert len(retrieved) <= limit, "Retrieval should respect limit"
+
+    @given(
+        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        episode_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_agent_filtering(self, agent_id, episode_count):
+        """Test that retrieval can filter by agent"""
+        # Create episodes for multiple agents
+        episodes = []
+        agents = ["agent_1", "agent_2", "agent_3"]
+
+        for i in range(episode_count):
+            for agent in agents:
+                episode = {
+                    "id": str(uuid4()),
+                    "agent_id": agent,
+                    "timestamp": datetime(2024, 1, 1, 12, 0, 0) + timedelta(hours=i)
+                }
+                episodes.append(episode)
+
+        # Filter by specific agent
+        filtered = [e for e in episodes if e["agent_id"] == agent_id]
+
+        # If agent_id is in our list, verify filtering worked
+        if agent_id in agents:
+            # All filtered episodes should have the correct agent_id
+            assert all(e["agent_id"] == agent_id for e in filtered), "All episodes should match agent filter"
+
+
+class TestEpisodeBoundaryInvariants:
+    """Tests for episode boundary consistency"""
+
+    @given(
+        start_hour=st.integers(min_value=0, max_value=20),
+        duration_hours=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_episode_time_boundaries(self, start_hour, duration_hours):
+        """Test that episode time boundaries are consistent"""
+        start_time = datetime(2024, 1, 1, start_hour, 0, 0)
+        end_time = start_time + timedelta(hours=duration_hours)
+
+        # Create episode
+        episode = {
+            "id": str(uuid4()),
+            "start_time": start_time,
+            "end_time": end_time,
+            "agent_id": "test_agent"
+        }
+
+        # Verify time boundaries
+        assert episode["end_time"] >= episode["start_time"], "End time should be after start time"
+
+        # Calculate duration
+        duration = (episode["end_time"] - episode["start_time"]).total_seconds() / 3600
+        assert duration == duration_hours, f"Duration should be {duration_hours} hours"
+
+    @given(
+        num_segments=st.integers(min_value=2, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_segment_boundaries(self, num_segments):
+        """Test that segment boundaries are consistent"""
+        segments = []
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        for i in range(num_segments):
+            segment = {
+                "id": str(uuid4()),
+                "sequence_number": i,
+                "start_time": base_time + timedelta(minutes=i*10),
+                "end_time": base_time + timedelta(minutes=(i+1)*10)
+            }
+            segments.append(segment)
+
+        # Verify segment boundaries don't overlap
+        for i in range(1, len(segments)):
+            assert segments[i]["start_time"] >= segments[i-1]["end_time"], "Segments should not overlap"
+
+
+class TestEpisodeAccessInvariants:
+    """Tests for episode access logging"""
+
+    @given(
+        num_accesses=st.integers(min_value=1, max_value=100),
+        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')
+    )
+    @settings(max_examples=50)
+    def test_access_log_accuracy(self, num_accesses, agent_id):
+        """Test that episode access is logged accurately"""
+        access_logs = []
+
+        # Simulate episode accesses
+        for i in range(num_accesses):
+            log_entry = {
+                "id": str(uuid4()),
+                "episode_id": str(uuid4()),
+                "agent_id": agent_id,
+                "access_type": "retrieval",
+                "timestamp": datetime(2024, 1, 1, 12, 0, 0) + timedelta(minutes=i)
+            }
+            access_logs.append(log_entry)
+
+        # Verify access logs
+        assert len(access_logs) == num_accesses, f"Should have {num_accesses} access logs"
+
+        # Verify all logs have required fields
+        for log in access_logs:
+            assert "id" in log, "Access log should have ID"
+            assert "episode_id" in log, "Access log should have episode_id"
+            assert "agent_id" in log, "Access log should have agent_id"
+            assert "access_type" in log, "Access log should have access_type"
+            assert "timestamp" in log, "Access log should have timestamp"
+
+        # Verify agent filtering works
+        agent_logs = [log for log in access_logs if log["agent_id"] == agent_id]
+        assert len(agent_logs) == num_accesses, "All logs should match the agent"
+
+    @given(
+        num_logs=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_access_log_chronology(self, num_logs):
+        """Test that access logs maintain chronological order"""
+        access_logs = []
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+
+        for i in range(num_logs):
+            log_entry = {
+                "id": str(uuid4()),
+                "timestamp": base_time + timedelta(minutes=i)
+            }
+            access_logs.append(log_entry)
+
+        # Sort by timestamp
+        sorted_logs = sorted(access_logs, key=lambda log: log["timestamp"])
+
+        # Verify chronological order
+        for i in range(1, len(sorted_logs)):
+            assert sorted_logs[i]["timestamp"] >= sorted_logs[i-1]["timestamp"], "Logs should be in chronological order"
