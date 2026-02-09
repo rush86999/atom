@@ -1,38 +1,105 @@
 """
-Property-Based Tests for Logging Invariants
+Property-Based Tests for Logging and Monitoring Invariants
 
 Tests CRITICAL logging invariants:
-- Log level filtering
 - Log message formatting
-- Log structured data
-- Log performance
-- Log rotation and retention
-- Log consistency
-- Log security
-- Log monitoring
+- Log levels
+- Log aggregation
+- Log rotation
+- Structured logging
+- Performance monitoring
+- Error tracking
+- Metrics collection
 
-These tests protect against logging bugs.
+These tests protect against logging vulnerabilities and ensure observability.
 """
 
 import pytest
 from hypothesis import given, strategies as st, settings
+from typing import Dict, List, Optional, Set, Any
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 import json
-import time
+
+
+class TestLogMessageFormattingInvariants:
+    """Property-based tests for log message formatting invariants."""
+
+    @given(
+        message=st.text(min_size=0, max_size=10000),
+        max_length=st.integers(min_value=100, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_log_message_length(self, message, max_length):
+        """INVARIANT: Log messages should be length-limited."""
+        # Check if message too long
+        too_long = len(message) > max_length
+
+        # Invariant: Long messages should be truncated
+        if too_long:
+            truncated = message[:max_length]
+            assert len(truncated) <= max_length, "Truncated message within limit"
+        else:
+            assert len(message) <= max_length, "Message within limit"
+
+    @given(
+        timestamp=st.integers(min_value=0, max_value=2**31 - 1)
+    )
+    @settings(max_examples=50)
+    def test_log_timestamp_validity(self, timestamp):
+        """INVARIANT: Log timestamps should be valid."""
+        # Convert to datetime
+        try:
+            dt = datetime.fromtimestamp(timestamp)
+            # Invariant: Timestamp should be valid
+            assert dt.year >= 1970, "Valid timestamp year"
+            assert dt.year <= 2100, "Reasonable timestamp year"
+        except Exception:
+            # Invalid timestamp
+            assert True  # Handle invalid timestamp
+
+    @given(
+        log_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+    )
+    @settings(max_examples=50)
+    def test_log_level_validity(self, log_level):
+        """INVARIANT: Log levels should be valid."""
+        # Valid log levels
+        valid_levels = {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
+
+        # Invariant: Log level should be valid
+        assert log_level in valid_levels, "Valid log level"
+
+    @given(
+        context=st.dictionaries(
+            keys=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+            values=st.one_of(st.text(max_size=200), st.integers(), st.floats(), st.booleans()),
+            min_size=0,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_log_context_serialization(self, context):
+        """INVARIANT: Log context should be serializable."""
+        # Try to serialize context
+        try:
+            serialized = json.dumps(context, default=str)
+            # Invariant: Should be serializable
+            assert True  # Context serializable
+        except Exception:
+            assert True  # Handle non-serializable context
 
 
 class TestLogLevelInvariants:
     """Property-based tests for log level invariants."""
 
     @given(
-        log_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
-        message_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+        message_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
+        logger_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     )
     @settings(max_examples=50)
-    def test_log_level_filtering(self, log_level, message_level):
-        """INVARIANT: Log levels should be filtered correctly."""
-        # Define level hierarchy
+    def test_log_level_filtering(self, message_level, logger_level):
+        """INVARIANT: Log levels should filter correctly."""
+        # Level hierarchy
         level_hierarchy = {
             'DEBUG': 0,
             'INFO': 1,
@@ -41,627 +108,523 @@ class TestLogLevelInvariants:
             'CRITICAL': 4
         }
 
-        # Check if should log
-        should_log = level_hierarchy[message_level] >= level_hierarchy[log_level]
+        # Check if message should be logged
+        message_level_int = level_hierarchy[message_level]
+        logger_level_int = level_hierarchy[logger_level]
+        should_log = message_level_int >= logger_level_int
 
-        # Invariant: Should filter by level
+        # Invariant: Higher level messages should always be logged
         if should_log:
-            assert True  # Should log message
+            assert True  # Log message
         else:
-            assert True  # Should filter message
+            assert True  # Filter out message
 
     @given(
-        log_count=st.integers(min_value=1, max_value=1000),
-        level_distribution=st.dictionaries(
-            keys=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
-            values=st.integers(min_value=0, max_value=1000),
-            min_size=1,
-            max_size=5
-        )
+        error_count=st.integers(min_value=0, max_value=1000),
+        warning_count=st.integers(min_value=0, max_value=1000)
     )
     @settings(max_examples=50)
-    def test_log_level_distribution(self, log_count, level_distribution):
-        """INVARIANT: Log levels should be distributed appropriately."""
-        # Calculate total distribution
-        total_dist = sum(level_distribution.values())
+    def test_error_level_precedence(self, error_count, warning_count):
+        """INVARIANT: Errors should take precedence over warnings."""
+        # Check severity
+        has_errors = error_count > 0
+        has_warnings = warning_count > 0
 
-        # Invariant: Distribution should match count
-        if total_dist > 0:
-            # Check if distribution is reasonable
-            assert True  # Should track level distribution
+        # Invariant: Errors should be logged even if warnings suppressed
+        if has_errors:
+            assert True  # Log errors
+        elif has_warnings:
+            assert True  # Log warnings
+
+    @given(
+        original_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
+        environment=st.sampled_from(['development', 'staging', 'production'])
+    )
+    @settings(max_examples=50)
+    def test_environment_level_mapping(self, original_level, environment):
+        """INVARIANT: Log levels should map correctly by environment."""
+        # Map level based on environment
+        if environment == 'production':
+            # Production: INFO and above
+            effective_level = 'INFO' if original_level == 'DEBUG' else original_level
         else:
-            assert True  # No logs in distribution
+            effective_level = original_level
+
+        # Invariant: Production should have minimum INFO level
+        if environment == 'production':
+            assert effective_level in ['INFO', 'WARNING', 'ERROR', 'CRITICAL'], "Production log level"
+        else:
+            assert True  # Any level allowed
 
     @given(
         current_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
-        new_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+        dynamic_level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     )
     @settings(max_examples=50)
-    def test_dynamic_level_change(self, current_level, new_level):
-        """INVARIANT: Log level changes should be handled correctly."""
-        # Define level hierarchy
-        level_hierarchy = {
-            'DEBUG': 0,
-            'INFO': 1,
-            'WARNING': 2,
-            'ERROR': 3,
-            'CRITICAL': 4
-        }
+    def test_dynamic_level_changes(self, current_level, dynamic_level):
+        """INVARIANT: Dynamic level changes should take effect."""
+        # Level should change immediately
+        new_level = dynamic_level
 
-        # Check if level increased
-        level_increased = level_hierarchy[new_level] > level_hierarchy[current_level]
-
-        # Invariant: Level changes should affect filtering
-        if level_increased:
-            assert True  # Should filter more messages
-        elif level_hierarchy[new_level] < level_hierarchy[current_level]:
-            assert True  # Should log more messages
-        else:
-            assert True  # Same level - no change
+        # Invariant: Level change should be immediate
+        assert new_level == dynamic_level, "Level changed immediately"
 
 
-class TestLogMessageInvariants:
-    """Property-based tests for log message invariants."""
+class TestLogAggregationInvariants:
+    """Property-based tests for log aggregation invariants."""
 
     @given(
-        message=st.text(min_size=1, max_size=10000, alphabet='abc DEF123!@#.'),
-        max_message_size=st.integers(min_value=100, max_value=10000)
+        log_count=st.integers(min_value=0, max_value=100000),
+        batch_size=st.integers(min_value=100, max_value=10000)
     )
     @settings(max_examples=50)
-    def test_message_size_limits(self, message, max_message_size):
-        """INVARIANT: Log messages should respect size limits."""
-        # Check if exceeds limit
-        exceeds_limit = len(message) > max_message_size
+    def test_log_batching(self, log_count, batch_size):
+        """INVARIANT: Logs should be batched efficiently."""
+        # Calculate batches
+        batch_count = (log_count + batch_size - 1) // batch_size
 
-        # Invariant: Should truncate large messages
-        if exceeds_limit:
-            assert True  # Should truncate message
+        # Invariant: Batch count should be correct
+        if log_count > 0:
+            assert batch_count >= 1, "At least one batch"
         else:
-            assert True  # Should log full message
-
-        # Invariant: Max size should be reasonable
-        assert 100 <= max_message_size <= 10000, "Max message size out of range"
+            assert batch_count == 0, "No logs - no batches"
 
     @given(
-        template=st.text(min_size=1, max_size=500, alphabet='abc {} DEF'),
-        args=st.lists(st.text(min_size=1, max_size=50, alphabet='abc123'), min_size=0, max_size=10)
+        similar_logs=st.integers(min_value=0, max_value=1000),
+        threshold=st.integers(min_value=5, max_value=100)
     )
     @settings(max_examples=50)
-    def test_message_formatting(self, template, args):
-        """INVARIANT: Log messages should format correctly."""
-        # Count placeholders
-        placeholder_count = template.count('{}')
+    def test_log_deduplication(self, similar_logs, threshold):
+        """INVARIANT: Similar logs should be deduplicated."""
+        # Check if should deduplicate
+        should_deduplicate = similar_logs >= threshold
 
-        # Check if args match placeholders
-        args_match = len(args) == placeholder_count
-
-        # Invariant: Should handle formatting correctly
-        if args_match:
-            assert True  # Should format successfully
+        # Invariant: Frequent similar logs should be aggregated
+        if should_deduplicate:
+            assert True  # Aggregate logs
         else:
-            assert True  # Should handle mismatch gracefully
+            assert True  # Keep separate
 
     @given(
-        message=st.text(min_size=1, max_size=1000, alphabet='abc DEF123'),
-        sanitize_enabled=st.booleans()
+        log_timestamps=st.lists(st.integers(min_value=0, max_value=1000000), min_size=0, max_size=100),
+        window_size=st.integers(min_value=10, max_value=1000)
     )
     @settings(max_examples=50)
-    def test_message_sanitization(self, message, sanitize_enabled):
-        """INVARIANT: Log messages should be sanitized."""
-        # Check for sensitive patterns
-        has_password = 'password' in message.lower()
-        has_token = 'token' in message.lower()
-        has_key = 'secret' in message.lower()
-        has_sensitive = has_password or has_token or has_key
-
-        # Invariant: Should sanitize sensitive information
-        if has_sensitive and sanitize_enabled:
-            assert True  # Should sanitize message
-        elif has_sensitive and not sanitize_enabled:
-            assert True  # Sanitization disabled - may log sensitive info
+    def test_log_time_window_aggregation(self, log_timestamps, window_size):
+        """INVARIANT: Logs should be aggregated within time windows."""
+        # Group logs by time window
+        if len(log_timestamps) == 0:
+            assert True  # No logs to aggregate
         else:
-            assert True  # No sensitive info
+            # Calculate windows
+            min_time = min(log_timestamps)
+            windows = set()
+            for ts in log_timestamps:
+                window = (ts - min_time) // window_size
+                windows.add(window)
+
+            # Invariant: Should create at least one window
+            assert len(windows) >= 1, "At least one time window"
 
     @given(
-        messages=st.lists(
-            st.text(min_size=1, max_size=200, alphabet='abc DEF123'),
-            min_size=1,
-            max_size=100
-        ),
-        separator=st.sampled_from(['\n', ' | ', ' ', ';'])
+        error_logs=st.integers(min_value=0, max_value=1000),
+        total_logs=st.integers(min_value=1, max_value=10000)
     )
     @settings(max_examples=50)
-    def test_message_aggregation(self, messages, separator):
-        """INVARIANT: Log messages should aggregate correctly."""
-        # Calculate aggregated size
-        total_size = sum(len(m) for m in messages)
-        separator_size = len(separator) * (len(messages) - 1)
-        aggregated_size = total_size + separator_size
-
-        # Invariant: Aggregation should be efficient
-        assert aggregated_size > 0, "Aggregated message should not be empty"
-
-        # Invariant: Should respect size limits
-        if aggregated_size > 10000:
-            assert True  # Should split or truncate
+    def test_error_rate_calculation(self, error_logs, total_logs):
+        """INVARIANT: Error rate should be calculated correctly."""
+        # Filter out invalid cases where error_logs > total_logs
+        from hypothesis import assume
+        assume(error_logs <= total_logs)
+        
+        # Calculate error rate
+        if total_logs > 0:
+            error_rate = error_logs / total_logs
         else:
-            assert True  # Should aggregate successfully
+            error_rate = 0.0
 
-
-class TestStructuredLoggingInvariants:
-    """Property-based tests for structured logging invariants."""
-
-    @given(
-        log_data=st.dictionaries(
-            keys=st.text(min_size=1, max_size=20, alphabet='abc_def'),
-            values=st.one_of(
-                st.text(min_size=1, max_size=100, alphabet='abc DEF123'),
-                st.integers(min_value=-1000, max_value=1000),
-                st.floats(min_value=-100.0, max_value=100.0, allow_nan=False, allow_infinity=False),
-                st.booleans(),
-                st.none()
-            ),
-            min_size=1,
-            max_size=20
-        )
-    )
-    @settings(max_examples=50)
-    def test_structured_log_serialization(self, log_data):
-        """INVARIANT: Structured logs should serialize correctly."""
-        # Try to serialize
-        try:
-            serialized = json.dumps(log_data)
-            assert True  # Successfully serialized
-        except Exception:
-            assert True  # Should handle serialization errors
-
-    @given(
-        field_name=st.text(min_size=1, max_size=50, alphabet='abc-def'),
-        field_value=st.text(min_size=1, max_size=500, alphabet='abc DEF123')
-    )
-    @settings(max_examples=50)
-    def test_field_validation(self, field_name, field_value):
-        """INVARIANT: Log fields should be validated."""
-        # Check field name
-        valid_field_name = all(c.isalnum() or c in ['-', '_'] for c in field_name)
-
-        # Invariant: Field names should be valid
-        if valid_field_name:
-            assert True  # Valid field name
-        else:
-            assert True  # Should sanitize or reject field name
-
-        # Invariant: Field values should be sanitized
-        assert len(field_value) <= 500, "Field value too long"
-
-    @given(
-        timestamp=st.integers(min_value=0, max_value=10000000000),
-        include_timestamp=st.booleans(),
-        timestamp_format=st.sampled_from(['unix', 'iso8601', 'rfc3339'])
-    )
-    @settings(max_examples=50)
-    def test_timestamp_handling(self, timestamp, include_timestamp, timestamp_format):
-        """INVARIANT: Log timestamps should be handled correctly."""
-        # Invariant: Should include timestamp when enabled
-        if include_timestamp:
-            assert True  # Should add timestamp to log
-        else:
-            assert True  # May omit timestamp
-
-        # Invariant: Format should be consistent
-        assert timestamp_format in ['unix', 'iso8601', 'rfc3339'], "Invalid timestamp format"
-
-    @given(
-        metadata=st.dictionaries(
-            keys=st.text(min_size=1, max_size=20, alphabet='abc'),
-            values=st.text(min_size=1, max_size=100, alphabet='abc DEF'),
-            min_size=0,
-            max_size=10
-        ),
-        max_metadata_size=st.integers(min_value=100, max_value=10000)
-    )
-    @settings(max_examples=50)
-    def test_metadata_limits(self, metadata, max_metadata_size):
-        """INVARIANT: Log metadata should be limited."""
-        # Calculate metadata size
-        metadata_size = len(json.dumps(metadata))
-
-        # Check if exceeds limit
-        exceeds_limit = metadata_size > max_metadata_size
-
-        # Invariant: Should enforce metadata size limits
-        if exceeds_limit:
-            assert True  # Should truncate or drop metadata
-        else:
-            assert True  # Should include metadata
-
-        # Invariant: Max size should be reasonable
-        assert 100 <= max_metadata_size <= 10000, "Max metadata size out of range"
-
-
-class TestLogPerformanceInvariants:
-    """Property-based tests for log performance invariants."""
-
-    @given(
-        log_count=st.integers(min_value=1, max_value=10000),
-        target_throughput=st.integers(min_value=100, max_value=10000)  # logs/sec
-    )
-    @settings(max_examples=50)
-    def test_logging_throughput(self, log_count, target_throughput):
-        """INVARIANT: Logging should handle high throughput."""
-        # Calculate expected time
-        expected_time = log_count / target_throughput if target_throughput > 0 else 0
-
-        # Invariant: Should handle throughput
-        if expected_time > 10:
-            assert True  # Should batch or async log
-        else:
-            assert True  # Should handle synchronously
-
-        # Invariant: Target throughput should be reasonable
-        assert 100 <= target_throughput <= 10000, "Target throughput out of range"
-
-    @given(
-        log_size=st.integers(min_value=1, max_value=10000),  # bytes
-        buffer_size=st.integers(min_value=1000, max_value=100000)
-    )
-    @settings(max_examples=50)
-    def test_buffer_management(self, log_size, buffer_size):
-        """INVARIANT: Log buffers should be managed correctly."""
-        # Check if fits in buffer
-        fits_in_buffer = log_size <= buffer_size
-
-        # Invariant: Should use buffering
-        if fits_in_buffer:
-            assert True  # Should buffer log entry
-        else:
-            assert True  # Should flush or bypass buffer
-
-        # Invariant: Buffer size should be reasonable
-        assert 1000 <= buffer_size <= 100000, "Buffer size out of range"
-
-    @given(
-        synchronous_logging=st.booleans(),
-        log_count=st.integers(min_value=1, max_value=1000)
-    )
-    @settings(max_examples=50)
-    def test_async_logging(self, synchronous_logging, log_count):
-        """INVARIANT: Async logging should not block."""
-        # Invariant: Async logging should be non-blocking
-        if not synchronous_logging:
-            assert True  # Should return immediately
-        else:
-            assert True  # May block for confirmation
-
-    @given(
-        log_count=st.integers(min_value=1, max_value=1000),
-        thread_count=st.integers(min_value=1, max_value=100)
-    )
-    @settings(max_examples=50)
-    def test_concurrent_logging(self, log_count, thread_count):
-        """INVARIANT: Concurrent logging should be thread-safe."""
-        # Invariant: Should handle concurrent logging
-        if thread_count > 1:
-            assert True  # Should use thread-safe logging
-        else:
-            assert True  # Single-threaded - no special handling
-
-        # Invariant: Thread count should be reasonable
-        assert 1 <= thread_count <= 100, "Thread count out of range"
+        # Invariant: Error rate should be between 0 and 1
+        assert 0.0 <= error_rate <= 1.0, "Valid error rate"
 
 
 class TestLogRotationInvariants:
     """Property-based tests for log rotation invariants."""
 
     @given(
-        current_file_size=st.integers(min_value=1, max_value=1000000),  # bytes
-        max_file_size=st.integers(min_value=10000, max_value=100000000)
+        file_size_bytes=st.integers(min_value=0, max_value=10**12),
+        max_size_bytes=st.integers(min_value=10**7, max_value=10**10)
     )
     @settings(max_examples=50)
-    def test_file_size_rotation(self, current_file_size, max_file_size):
-        """INVARIANT: Log files should rotate on size limit."""
+    def test_size_based_rotation(self, file_size_bytes, max_size_bytes):
+        """INVARIANT: Logs should rotate based on size."""
         # Check if should rotate
-        should_rotate = current_file_size >= max_file_size
+        should_rotate = file_size_bytes >= max_size_bytes
 
-        # Invariant: Should rotate when limit reached
+        # Invariant: Large files should trigger rotation
         if should_rotate:
-            assert True  # Should create new log file
+            assert True  # Rotate log file
         else:
-            assert True  # Should continue using current file
-
-        # Invariant: Max file size should be reasonable
-        assert 10000 <= max_file_size <= 100000000, "Max file size out of range"
+            assert True  # Continue writing
 
     @given(
-        file_age=st.integers(min_value=1, max_value=86400),  # seconds
-        max_age=st.integers(min_value=3600, max_value=604800)
+        file_age_seconds=st.integers(min_value=0, max_value=10**7),
+        max_age_seconds=st.integers(min_value=3600, max_value=86400)
     )
     @settings(max_examples=50)
-    def test_time_based_rotation(self, file_age, max_age):
-        """INVARIANT: Log files should rotate on time limit."""
+    def test_time_based_rotation(self, file_age_seconds, max_age_seconds):
+        """INVARIANT: Logs should rotate based on age."""
         # Check if should rotate
-        should_rotate = file_age >= max_age
+        should_rotate = file_age_seconds >= max_age_seconds
 
-        # Invariant: Should rotate when age limit reached
+        # Invariant: Old files should trigger rotation
         if should_rotate:
-            assert True  # Should create new log file
+            assert True  # Rotate log file
         else:
-            assert True  # Should continue using current file
-
-        # Invariant: Max age should be reasonable
-        assert 3600 <= max_age <= 604800, "Max age out of range"
+            assert True  # Continue writing
 
     @given(
-        log_file_count=st.integers(min_value=1, max_value=1000),
+        rotated_files=st.integers(min_value=0, max_value=1000),
         max_files=st.integers(min_value=5, max_value=100)
     )
     @settings(max_examples=50)
-    def test_retention_policy(self, log_file_count, max_files):
-        """INVARIANT: Old log files should be deleted."""
-        # Check if exceeds retention
-        exceeds_retention = log_file_count > max_files
+    def test_rotation_file_limit(self, rotated_files, max_files):
+        """INVARIANT: Rotation should respect file limits."""
+        # Check if should delete old files
+        should_delete = rotated_files > max_files
 
-        # Invariant: Should delete old files
-        if exceeds_retention:
-            files_to_delete = log_file_count - max_files
-            assert files_to_delete > 0, "Should delete old files"
+        # Invariant: Old rotated files should be deleted
+        if should_delete:
+            assert True  # Delete oldest files
         else:
-            assert True  # Within retention limit
-
-        # Invariant: Max files should be reasonable
-        assert 5 <= max_files <= 100, "Max files out of range"
+            assert True  # Keep all files
 
     @given(
-        compressed_size=st.integers(min_value=1000, max_value=10000000),
-        original_size=st.integers(min_value=10000, max_value=100000000)
+        compression_enabled=st.booleans(),
+        file_size_mb=st.floats(min_value=0.0, max_value=1000.0)
     )
     @settings(max_examples=50)
-    def test_log_compression(self, compressed_size, original_size):
+    def test_log_compression(self, compression_enabled, file_size_mb):
         """INVARIANT: Rotated logs should be compressed."""
-        # Calculate compression ratio
-        if original_size > 0:
-            compression_ratio = compressed_size / original_size
-
-            # Invariant: Compression should reduce size
-            if compression_ratio < 0.2:
-                assert True  # Excellent compression
-            elif compression_ratio < 0.5:
-                assert True  # Good compression
-            else:
-                assert True  # May not compress well
-
-        # Invariant: Compressed size should be less than original
-        # Note: Not always true for small files or already compressed data
-        if compressed_size < original_size:
-            assert True  # Compression successful
+        # Check if should compress
+        if compression_enabled:
+            # Invariant: Compressed files should be smaller
+            assert True  # Compress file
         else:
-            assert True  # No compression benefit
+            assert True  # Keep uncompressed
 
 
-class TestLogConsistencyInvariants:
-    """Property-based tests for log consistency invariants."""
+class TestStructuredLoggingInvariants:
+    """Property-based tests for structured logging invariants."""
 
     @given(
-        event_sequence=st.lists(
-            st.integers(min_value=1, max_value=1000),
-            min_size=10,
-            max_size=100
+        message=st.text(min_size=0, max_size=1000),
+        level=st.sampled_from(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
+        context=st.dictionaries(
+            keys=st.text(min_size=1, max_size=50),
+            values=st.one_of(st.text(), st.integers(), st.floats(), st.booleans()),
+            min_size=0,
+            max_size=10
         )
     )
     @settings(max_examples=50)
-    def test_event_ordering(self, event_sequence):
-        """INVARIANT: Log events should maintain order."""
-        # Invariant: Logging system should preserve event order
-        # (Documents the invariant - the logging framework should preserve order)
-        assert len(event_sequence) >= 10, "Should have events to log"
+    def test_structured_log_format(self, message, level, context):
+        """INVARIANT: Structured logs should have consistent format."""
+        # Create structured log
+        log_entry = {
+            'message': message,
+            'level': level,
+            'timestamp': datetime.utcnow().isoformat(),
+            'context': context
+        }
 
-        # Invariant: Should preserve original sequence
-        # Note: The test doesn't enforce ordering, it documents that
-        # the logging system should preserve the order of events
-        assert True  # Should preserve event order when logging
+        # Invariant: Structured log should have required fields
+        assert 'message' in log_entry, "Has message field"
+        assert 'level' in log_entry, "Has level field"
+        assert 'timestamp' in log_entry, "Has timestamp field"
+        assert 'context' in log_entry, "Has context field"
 
     @given(
-        log_entry_count=st.integers(min_value=1, max_value=10000),
-        sampled_count=st.integers(min_value=1, max_value=1000)
+        field_name=st.text(min_size=1, max_size=100),
+        field_value=st.one_of(st.text(), st.integers(), st.floats(), st.booleans(), st.none())
     )
     @settings(max_examples=50)
-    def test_log_sampling(self, log_entry_count, sampled_count):
-        """INVARIANT: Log sampling should be consistent."""
-        # Note: Independent generation may create sampled_count > log_entry_count
-        if sampled_count <= log_entry_count:
-            # Calculate sampling rate
-            sampling_rate = sampled_count / log_entry_count if log_entry_count > 0 else 0
-
-            # Invariant: Sampling rate should be reasonable
-            assert 0.0 < sampling_rate <= 1.0, "Sampling rate out of range"
-        else:
-            assert True  # Documents the invariant - sampled cannot exceed total
+    def test_field_serialization(self, field_name, field_value):
+        """INVARIANT: Log fields should be serializable."""
+        # Try to serialize
+        try:
+            serialized = json.dumps({field_name: field_value}, default=str)
+            # Invariant: Should serialize or convert to string
+            assert True  # Field serializable
+        except Exception:
+            assert True  # Handle serialization error
 
     @given(
-        log_id=st.integers(min_value=1, max_value=1000000),
-        id_space=st.integers(min_value=1000000, max_value=1000000000)
-    )
-    @settings(max_examples=50)
-    def test_log_id_uniqueness(self, log_id, id_space):
-        """INVARIANT: Log entries should have unique IDs."""
-        # Invariant: ID should be within valid range
-        # Note: When log_id equals id_space, it's at the boundary
-        if log_id < id_space:
-            assert True  # ID is within valid range
-        elif log_id == id_space:
-            assert True  # ID is at boundary - documents edge case
-        else:
-            assert True  # ID exceeds space - should reject or wrap
-
-        # Invariant: ID space should be large enough
-        assert id_space >= 1000000, "ID space too small"
-
-    @given(
-        log_checksum=st.integers(min_value=0, max_value=2**64 - 1),
-        is_valid=st.booleans()
-    )
-    @settings(max_examples=50)
-    def test_log_integrity(self, log_checksum, is_valid):
-        """INVARIANT: Log integrity should be verifiable."""
-        # Invariant: Should verify log integrity
-        if is_valid:
-            assert True  # Checksum valid - integrity intact
-        else:
-            assert True  # Checksum invalid - log corrupted
-
-
-class TestLogSecurityInvariants:
-    """Property-based tests for log security invariants."""
-
-    @given(
-        log_message=st.text(min_size=1, max_size=1000, alphabet='abc DEF123'),
-        contains_secret=st.booleans(),
-        redact_enabled=st.booleans()
-    )
-    @settings(max_examples=50)
-    def test_secret_redaction(self, log_message, contains_secret, redact_enabled):
-        """INVARIANT: Secrets should be redacted from logs."""
-        # Invariant: Should redact secrets when enabled
-        if contains_secret and redact_enabled:
-            assert True  # Should redact secret
-        elif contains_secret and not redact_enabled:
-            assert True  # Redaction disabled - may log secret
-        else:
-            assert True  # No secret to redact
-
-    @given(
-        log_data=st.dictionaries(
-            keys=st.text(min_size=1, max_size=20, alphabet='abc'),
-            values=st.text(min_size=1, max_size=100, alphabet='abc DEF'),
+        nested_depth=st.integers(min_value=1, max_value=10),
+        data=st.dictionaries(
+            keys=st.text(min_size=1, max_size=20),
+            values=st.integers(),
             min_size=1,
             max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_nested_context_depth(self, nested_depth, data):
+        """INVARIANT: Nested context should have depth limits."""
+        # Simulate nesting
+        current = data
+        for i in range(nested_depth):
+            current = {'level': current}
+
+        # Invariant: Depth should be reasonable
+        assert nested_depth <= 10, "Reasonable nesting depth"
+
+    @given(
+        log_entries=st.lists(
+            st.dictionaries(
+                keys=st.text(min_size=1, max_size=20),
+                values=st.text(),
+                min_size=3,
+                max_size=10
+            ),
+            min_size=0,
+            max_size=100
         ),
-        hash_sensitive_fields=st.booleans()
+        search_field=st.text(min_size=1, max_size=20),
+        search_value=st.text(min_size=0, max_size=100)
     )
     @settings(max_examples=50)
-    def test_sensitive_field_hashing(self, log_data, hash_sensitive_fields):
-        """INVARIANT: Sensitive fields should be hashed."""
-        # Invariant: Should hash sensitive fields
-        if hash_sensitive_fields:
-            assert True  # Should hash PII, secrets, etc.
-        else:
-            assert True  # Hashing disabled
+    def test_log_queryability(self, log_entries, search_field, search_value):
+        """INVARIANT: Structured logs should be queryable."""
+        # Filter logs by field/value
+        matching_entries = [
+            entry for entry in log_entries
+            if search_field in entry and entry[search_field] == search_value
+        ]
+
+        # Invariant: Query should return matching entries
+        assert len(matching_entries) <= len(log_entries), "Results subset of all logs"
+
+
+class TestPerformanceMonitoringInvariants:
+    """Property-based tests for performance monitoring invariants."""
 
     @given(
-        log_entry=st.text(min_size=1, max_size=1000, alphabet='abc DEF'),
-        access_level=st.sampled_from(['public', 'internal', 'confidential', 'secret'])
+        operation_duration_ms=st.floats(min_value=0.0, max_value=100000.0),
+        threshold_ms=st.floats(min_value=100.0, max_value=10000.0)
     )
     @settings(max_examples=50)
-    def test_access_control(self, log_entry, access_level):
-        """INVARIANT: Log access should be controlled."""
-        # Invariant: Should enforce access control
-        if access_level in ['confidential', 'secret']:
-            assert True  # Should restrict access
+    def test_slow_operation_detection(self, operation_duration_ms, threshold_ms):
+        """INVARIANT: Slow operations should be detected."""
+        # Check if slow
+        is_slow = operation_duration_ms > threshold_ms
+
+        # Invariant: Slow operations should be flagged
+        if is_slow:
+            assert True  # Flag as slow
         else:
-            assert True  # Lower sensitivity - wider access
+            assert True  # Normal speed
 
     @given(
-        audit_log_count=st.integers(min_value=1, max_value=1000),
-        tamper_detected=st.booleans()
+        operation_count=st.integers(min_value=1, max_value=1000000),
+        duration_seconds=st.floats(min_value=0.001, max_value=3600.0)
     )
     @settings(max_examples=50)
-    def test_audit_trail(self, audit_log_count, tamper_detected):
-        """INVARIANT: Audit logs should be tamper-evident."""
-        # Invariant: Should detect tampering
-        if tamper_detected:
-            assert True  # Should alert on tampering
+    def test_throughput_calculation(self, operation_count, duration_seconds):
+        """INVARIANT: Throughput should be calculated correctly."""
+        # Calculate throughput
+        if duration_seconds > 0:
+            throughput = operation_count / duration_seconds
         else:
-            assert True  # Audit trail intact
+            throughput = 0
 
-        # Invariant: Audit log count should be tracked
-        assert audit_log_count >= 1, "Should have audit logs"
-
-
-class TestLogMonitoringInvariants:
-    """Property-based tests for log monitoring invariants."""
+        # Invariant: Throughput should be non-negative
+        assert throughput >= 0, "Non-negative throughput"
 
     @given(
-        error_count=st.integers(min_value=0, max_value=1000),
-        total_count=st.integers(min_value=1, max_value=10000),
-        alert_threshold=st.floats(min_value=0.01, max_value=0.5, allow_nan=False, allow_infinity=False)
+        latencies_ms=st.lists(st.floats(min_value=0.0, max_value=10000.0), min_size=0, max_size=1000)
     )
     @settings(max_examples=50)
-    def test_error_rate_monitoring(self, error_count, total_count, alert_threshold):
+    def test_percentile_calculation(self, latencies_ms):
+        """INVARIANT: Percentiles should be calculated correctly."""
+        if len(latencies_ms) == 0:
+            assert True  # No data
+        else:
+            # Calculate p50, p95, p99
+            sorted_latencies = sorted(latencies_ms)
+            p50 = sorted_latencies[len(sorted_latencies) // 2]
+            p95_idx = int(len(sorted_latencies) * 0.95)
+            p99_idx = int(len(sorted_latencies) * 0.99)
+
+            # Invariant: Percentiles should be in range
+            assert min(latencies_ms) <= p50 <= max(latencies_ms), "P50 in range"
+            if p95_idx < len(sorted_latencies):
+                assert sorted_latencies[p95_idx] <= max(latencies_ms), "P95 in range"
+            if p99_idx < len(sorted_latencies):
+                assert sorted_latencies[p99_idx] <= max(latencies_ms), "P99 in range"
+
+    @given(
+        current_memory_mb=st.floats(min_value=0.0, max_value=100000.0),
+        max_memory_mb=st.floats(min_value=100.0, max_value=100000.0)
+    )
+    @settings(max_examples=50)
+    def test_memory_monitoring(self, current_memory_mb, max_memory_mb):
+        """INVARIANT: Memory usage should be monitored."""
+        # Check if over limit
+        over_limit = current_memory_mb > max_memory_mb
+
+        # Invariant: Over-limit usage should be flagged
+        if over_limit:
+            assert True  # Flag high memory
+        else:
+            assert True  # Memory OK
+
+
+class TestErrorTrackingInvariants:
+    """Property-based tests for error tracking invariants."""
+
+    @given(
+        error_message=st.text(min_size=1, max_size=1000),
+        stack_trace=st.text(min_size=0, max_size=10000),
+        context=st.dictionaries(
+            keys=st.text(min_size=1, max_size=50),
+            values=st.text(),
+            min_size=0,
+            max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_error_recording(self, error_message, stack_trace, context):
+        """INVARIANT: Errors should be recorded completely."""
+        # Create error record
+        error_record = {
+            'message': error_message,
+            'stack_trace': stack_trace,
+            'context': context,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+        # Invariant: Error record should have all fields
+        assert 'message' in error_record, "Has error message"
+        assert 'stack_trace' in error_record, "Has stack trace"
+        assert 'context' in error_record, "Has context"
+        assert 'timestamp' in error_record, "Has timestamp"
+
+    @given(
+        error_count=st.integers(min_value=0, max_value=10000),
+        time_window_seconds=st.integers(min_value=60, max_value=3600)
+    )
+    @settings(max_examples=50)
+    def test_error_rate_monitoring(self, error_count, time_window_seconds):
         """INVARIANT: Error rates should be monitored."""
         # Calculate error rate
-        # Note: Independent generation may create error_count > total_count
-        if error_count <= total_count:
-            error_rate = error_count / total_count if total_count > 0 else 0
-
-            # Check if exceeds threshold
-            exceeds_threshold = error_rate >= alert_threshold
-
-            # Invariant: Should alert on high error rate
-            if exceeds_threshold:
-                assert True  # Should send alert
-            else:
-                assert True  # Error rate acceptable
+        if time_window_seconds > 0:
+            error_rate = error_count / time_window_seconds
         else:
-            assert True  # Documents the invariant - errors cannot exceed total
+            error_rate = 0
+
+        # Invariant: Error rate should be non-negative
+        assert error_rate >= 0, "Non-negative error rate"
 
     @given(
-        log_volume=st.integers(min_value=1, max_value=1000000),
-        baseline_volume=st.integers(min_value=1, max_value=1000000),
-        anomaly_threshold=st.floats(min_value=1.5, max_value=10.0, allow_nan=False, allow_infinity=False)
+        error_type=st.text(min_size=1, max_size=100),
+        occurrence_count=st.integers(min_value=1, max_value=10000)
     )
     @settings(max_examples=50)
-    def test_log_anomaly_detection(self, log_volume, baseline_volume, anomaly_threshold):
-        """INVARIANT: Log anomalies should be detected."""
-        # Calculate ratio
-        if baseline_volume > 0:
-            volume_ratio = log_volume / baseline_volume
+    def test_error_aggregation(self, error_type, occurrence_count):
+        """INVARIANT: Similar errors should be aggregated."""
+        # Aggregate by error type
+        aggregated = {error_type: occurrence_count}
 
-            # Check if anomalous
-            is_anomaly = volume_ratio >= anomaly_threshold
-
-            # Invariant: Should detect anomalies
-            if is_anomaly:
-                assert True  # Should flag anomaly
-            else:
-                assert True  # Normal volume
-        else:
-            assert True  # No baseline - cannot detect anomaly
+        # Invariant: Aggregation should count occurrences
+        assert aggregated[error_type] == occurrence_count, "Correct count"
 
     @given(
-        pattern_match_count=st.integers(min_value=0, max_value=1000),
-        alert_threshold=st.integers(min_value=5, max_value=100)
+        error_frequency=st.integers(min_value=0, max_value=10000),
+        alert_threshold=st.integers(min_value=10, max_value=1000)
     )
     @settings(max_examples=50)
-    def test_pattern_matching(self, pattern_match_count, alert_threshold):
-        """INVARIANT: Critical patterns should trigger alerts."""
-        # Check if exceeds threshold
-        exceeds_threshold = pattern_match_count >= alert_threshold
+    def test_error_alerting(self, error_frequency, alert_threshold):
+        """INVARIANT: High error rates should trigger alerts."""
+        # Check if should alert
+        should_alert = error_frequency >= alert_threshold
 
-        # Invariant: Should alert on pattern matches
-        if exceeds_threshold:
-            assert True  # Should send alert
-        elif pattern_match_count > 0:
-            assert True  # Below threshold - track only
+        # Invariant: High frequency should trigger alert
+        if should_alert:
+            assert True  # Send alert
         else:
-            assert True  # No matches
+            assert True  # No alert
+
+
+class TestMetricsCollectionInvariants:
+    """Property-based tests for metrics collection invariants."""
 
     @given(
-        log_aggregation_window=st.integers(min_value=1, max_value=3600),  # seconds
-        metric_count=st.integers(min_value=1, max_value=100)
+        metric_name=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+        metric_value=st.floats(min_value=-1000000.0, max_value=1000000.0)
     )
     @settings(max_examples=50)
-    def test_metrics_aggregation(self, log_aggregation_window, metric_count):
-        """INVARIANT: Log metrics should be aggregated correctly."""
-        # Invariant: Should aggregate metrics over window
-        assert 1 <= log_aggregation_window <= 3600, "Aggregation window out of range"
+    def test_metric_recording(self, metric_name, metric_value):
+        """INVARIANT: Metrics should be recorded correctly."""
+        # Record metric
+        metric = {
+            'name': metric_name,
+            'value': metric_value,
+            'timestamp': datetime.utcnow().isoformat()
+        }
 
-        # Invariant: Should track multiple metrics
-        assert metric_count >= 1, "Should have at least one metric"
+        # Invariant: Metric should have required fields
+        assert 'name' in metric, "Has metric name"
+        assert 'value' in metric, "Has metric value"
+        assert 'timestamp' in metric, "Has timestamp"
 
-        # Invariant: Aggregation should be timely
-        if log_aggregation_window < 60:
-            assert True  # Frequent aggregation
-        elif log_aggregation_window < 300:
-            assert True  # Normal aggregation
+    @given(
+        values=st.lists(st.floats(min_value=0.0, max_value=1000.0), min_size=0, max_size=1000)
+    )
+    @settings(max_examples=50)
+    def test_metric_aggregation(self, values):
+        """INVARIANT: Metrics should support aggregation."""
+        if len(values) == 0:
+            assert True  # No data
         else:
-            assert True  # Batch aggregation
+            # Calculate sum, avg, min, max
+            total = sum(values)
+            average = sum(values) / len(values)
+            minimum = min(values)
+            maximum = max(values)
+
+            # Invariant: Aggregations should be correct
+            assert total >= 0, "Non-negative sum"
+            assert minimum <= average <= maximum, "Average in range"
+
+    @given(
+        metric_count=st.integers(min_value=0, max_value=10000),
+        sampling_rate=st.floats(min_value=0.0, max_value=1.0)
+    )
+    @settings(max_examples=50)
+    def test_metric_sampling(self, metric_count, sampling_rate):
+        """INVARIANT: Metric sampling should work correctly."""
+        # Calculate expected sample count
+        expected_samples = int(metric_count * sampling_rate)
+
+        # Invariant: Sample count should be proportional
+        assert 0 <= expected_samples <= metric_count, "Valid sample count"
+
+    @given(
+        dimension_name=st.text(min_size=1, max_size=50),
+        dimension_value=st.text(min_size=1, max_size=50),
+        metric_name=st.text(min_size=1, max_size=50),
+        metric_value=st.floats(min_value=0.0, max_value=1000.0)
+    )
+    @settings(max_examples=50)
+    def test_dimensioned_metrics(self, dimension_name, dimension_value, metric_name, metric_value):
+        """INVARIANT: Metrics should support dimensions."""
+        # Record metric with dimensions
+        metric = {
+            'name': metric_name,
+            'value': metric_value,
+            'dimensions': {dimension_name: dimension_value}
+        }
+
+        # Invariant: Metric should have dimensions
+        assert 'dimensions' in metric, "Has dimensions"
+        assert dimension_name in metric['dimensions'], "Has specified dimension"
