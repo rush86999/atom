@@ -414,16 +414,17 @@ class TestCaseConversionInvariants:
     """Property-based tests for case conversion invariants."""
 
     @given(
-        text=st.text(max_size=1000)
+        text=st.text(alphabet=st.characters(whitelist_categories=('Ll', 'Lu', 'Nd', 'Pd', 'Po', 'Zs'), max_codepoint=127), max_size=1000)
     )
     @settings(max_examples=50)
     def test_uppercase_length(self, text):
-        """INVARIANT: Uppercase should not change length."""
+        """INVARIANT: Uppercase should not change length for ASCII."""
         # Convert to uppercase
         result = text.upper()
 
-        # Invariant: Length should be unchanged
-        assert len(result) == len(text), "Uppercase preserves length"
+        # Invariant: Length should be unchanged for ASCII text
+        # Note: Some Unicode chars like 'ß' become 'SS' when uppercased
+        assert len(result) == len(text), "Uppercase preserves length (ASCII)"
 
     @given(
         text=st.text(max_size=1000)
