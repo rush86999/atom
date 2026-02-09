@@ -121,9 +121,11 @@ class TestNumericValidationInvariants:
         rounded = round(number * multiplier) / multiplier
 
         # Invariant: Rounded value should be close to original
-        # Use <= to handle edge cases where rounding creates exact half-unit difference
-        assert abs(rounded - number) <= (0.5 / multiplier), \
-            "Rounding should be within precision"
+        # Account for floating-point arithmetic errors with small epsilon
+        epsilon = 1e-10  # Small tolerance for floating-point errors
+        tolerance = (0.5 / multiplier) + epsilon
+        assert abs(rounded - number) <= tolerance, \
+            "Rounding should be within precision (with float epsilon)"
 
         # Invariant: Precision should be reasonable
         assert 0 <= precision <= 10, "Precision out of range"
