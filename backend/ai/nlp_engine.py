@@ -32,7 +32,7 @@ except ImportError:
 
 # OpenAI for LLM parsing
 try:
-    from openai import OpenAI
+    from OpenAI import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -179,44 +179,73 @@ class NaturalLanguageEngine:
         if not self._is_llm_available():
             return None
 
+        prompt = f"""Analyze this natural language command and extract the user's intent.
+        
+        Command: "{command}"
+        
+        Available Intents:
+        - SEARCH: Finding information, listing items
+        - CREATE: Creating new items (tasks, leads, contacts)
+        - UPDATE: Modifying existing items
+        - DELETE: Removing items
+        - SCHEDULE: Calendar events, meetings
+        - ANALYZE: Data analysis, insights, reports
+        - REPORT: Generating reports, statistics
+        - NOTIFY: Sending messages
+        - TRIGGER: Running workflows, starting processes
+        - BUSINESS_HEALTH: Strategy, priorities, simulation
+        
+        Return JSON format:
+        {{
+            "intent": "INTENT_NAME",
+            "platforms": ["list", "of", "platforms"],
+            "entities": ["extracted", "entities"],
+            "parameters": {{"key": "value"}},
+            "confidence": 0.0-1.0
+        }}
+        """
+        
         try:
-            prompt = f"""Analyze this natural language command and extract the user's intent.
-
-            Command: {command}
-
-            Extract:
-            - Command type (SEARCH, CREATE, UPDATE, DELETE, SCHEDULE, ANALYZE, REPORT, NOTIFY, TRIGGER, BUSINESS_HEALTH)
-            - Platforms involved (COMMUNICATION, STORAGE, PRODUCTIVITY, CRM, FINANCIAL, MARKETING, ANALYTICS)
-            - Entities (people, projects, files, etc.)
-            - Parameters (dates, times, amounts, etc.)
-
-            Return as JSON.
-            """
-
             response = self._llm_client.chat.completions.create(
                 model=NLU_LLM_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are a command parsing assistant. Return only valid JSON."},
+                    {"role": "system", "content": "You are a precise NLU engine. Output only valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
+                temperature=0.1,
                 response_format={"type": "json_object"}
             )
-
-            result = json.loads(response.choices[0].message.content)
-
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            
+            # Map string intent to Enum
+            intent_str = data.get("intent", "UNKNOWN").upper()
+            try:
+                command_type = CommandType[intent_str]
+            except KeyError:
+                command_type = CommandType.UNKNOWN
+                
+            # Map platforms
+            platforms = []
+            for p in data.get("platforms", []):
+                try:
+                    platforms.append(PlatformType(p.lower())) 
+                except ValueError:
+                    pass
+                    
             return CommandIntent(
-                command_type=CommandType(result.get("command_type", "unknown")),
-                platforms=[PlatformType(p) for p in result.get("platforms", [])],
-                entities=result.get("entities", []),
-                parameters=result.get("parameters", {}),
-                confidence=result.get("confidence", 0.5),
+                command_type=command_type,
+                platforms=platforms,
+                entities=data.get("entities", []),
+                parameters=data.get("parameters", {}),
+                confidence=float(data.get("confidence", 0.0)),
                 raw_command=command,
                 llm_parsed=True
             )
-
+            
         except Exception as e:
-            logger.error(f"LLM parsing failed: {e}")
+            logger.warning(f"LLM Intent Parsing failed: {e}")
             return None
 
     def query_llm(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1000) -> Optional[str]:
@@ -648,7 +677,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     for command in test_commands:
-        print(f"\nCommand: '{command}'")
+        print(f"\\nCommand: '{command}'")
         intent = nlp_engine.parse_command(command)
         response = nlp_engine.generate_response(intent)
 
@@ -659,4 +688,3 @@ if __name__ == "__main__":
         print(f"  Confidence: {intent.confidence:.2f}")
         print(f"  LLM Parsed: {intent.llm_parsed}")
         print(f"  Message: {response['message']}")
-

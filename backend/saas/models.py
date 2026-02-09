@@ -48,10 +48,9 @@ class UsageEvent(Base):
     metadata_json = Column(JSON, nullable=True) # Request ID, User ID, etc.
 
     # Relationships
-    # subscription is defined in ecommerce/models.py as backref or we can add it here if needed, 
-    # but usually better to stick to one side or strictly define both. 
-    # For now, we will assume relationship is set up in Subscription or we just usage joins.
-    subscription = relationship("Subscription", backref="usage_events")
+    # subscription is defined in ecommerce/models.py
+    # We use a string reference to avoid circular imports
+    subscription = relationship("ecommerce.models.Subscription", backref="usage_events")
 
 class Formula(Base):
     """
