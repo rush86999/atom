@@ -108,7 +108,7 @@ class TestVariantAssignmentInvariants:
     @given(
         user_ids=st.lists(
             st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-            min_size=10,
+            min_size=50,
             max_size=100,
             unique=True
         ),
@@ -129,11 +129,25 @@ class TestVariantAssignmentInvariants:
             if hash_fraction < traffic_percentage:
                 variant_b_count += 1
 
-        # Actual split should be close to expected (within 30% for small samples)
+        # Actual split should be close to expected
         actual_split = variant_b_count / len(user_ids)
-        # Allow reasonable tolerance for random distribution
-        epsilon = 0.01
-        assert abs(actual_split - traffic_percentage) < 0.3 + epsilon, "Traffic split should be close to expected"
+
+        # Calculate tolerance based on standard error (statistical approach)
+        # Standard error for proportion: sqrt(p*(1-p)/n)
+        # Allow 3 standard errors (99.7% confidence)
+        import math
+        if traffic_percentage > 0 and traffic_percentage < 1:
+            standard_error = math.sqrt(traffic_percentage * (1 - traffic_percentage) / len(user_ids))
+            max_deviation = 3 * standard_error  # 3-sigma rule
+        else:
+            # Edge cases: 0% or 100% should have perfect split
+            max_deviation = 0.01
+
+        # Also cap at reasonable maximum (25% deviation)
+        max_deviation = min(max_deviation, 0.25)
+
+        assert abs(actual_split - traffic_percentage) <= max_deviation, \
+            f"Traffic split {actual_split:.3f} should be close to expected {traffic_percentage:.3f} (tolerance: ±{max_deviation:.3f})"
 
     @given(
         user_id=st.text(min_size=5, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')

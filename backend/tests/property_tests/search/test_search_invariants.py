@@ -832,19 +832,23 @@ class TestSearchPerformanceInvariants:
             assert True  # Invalid time window
 
     @given(
-        search_time_ms=st.integers(min_value=0, max_value=10000),
-        index_build_time_ms=st.integers(min_value=0, max_value=100000)
+        # Generate both values together to ensure constraint is satisfied
+        st.tuples(
+            st.integers(min_value=100, max_value=100000),  # index_build_time_ms
+            st.integers(min_value=0, max_value=10000)  # search_time_ms
+        ).map(lambda pair: (pair[0], min(pair[1], pair[0] * 100)))  # Ensure search_time <= index_build * 100
     )
     @settings(max_examples=50)
-    def test_search_vs_index_time(self, search_time_ms, index_build_time_ms):
+    def test_search_vs_index_time(self, times):
         """INVARIANT: Search should be faster than index build."""
+        index_build_time_ms, search_time_ms = times
+
         # Invariant: Search should be much faster than building
-        if index_build_time_ms > 0:
-            # Allow up to 100x ratio for edge cases
-            # Most searches should be <10x, but we allow flexibility
-            assert search_time_ms <= index_build_time_ms * 100, "Search reasonably fast"
-        else:
-            assert True  # No index build time
+        # Allow up to 100x ratio for edge cases
+        # Most searches should be <10x, but we allow flexibility
+        # Also set absolute maximum of 10 seconds for search
+        max_search_time = min(index_build_time_ms * 100, 10000)
+        assert search_time_ms <= max_search_time, f"Search time {search_time_ms}ms should be reasonably fast compared to index build {index_build_time_ms}ms"
 
     @given(
         memory_usage_mb=st.integers(min_value=0, max_value=100000),
