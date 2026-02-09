@@ -594,7 +594,9 @@ class TestMetricsCollectionInvariants:
 
             # Invariant: Aggregations should be correct
             assert total >= 0, "Non-negative sum"
-            assert minimum <= average <= maximum, "Average in range"
+            # Use epsilon tolerance for floating-point comparison
+            epsilon = 1e-12
+            assert minimum - epsilon <= average <= maximum + epsilon, "Average in range with tolerance"
 
     @given(
         metric_count=st.integers(min_value=0, max_value=10000),
