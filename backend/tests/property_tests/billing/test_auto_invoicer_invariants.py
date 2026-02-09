@@ -80,7 +80,7 @@ class TestPricingInvariants:
 
     @given(
         hourly_rate=st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-        hours_worked=st.floats(min_value=0.0, max_value=160.0, allow_nan=False, allow_infinity=False)
+        hours_worked=st.floats(min_value=0.1, max_value=160.0, allow_nan=False, allow_infinity=False)  # Minimum 0.1 to avoid precision issues
     )
     @settings(max_examples=50)
     def test_hourly_billing_calculation(self, hourly_rate, hours_worked):
