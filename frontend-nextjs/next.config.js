@@ -2,6 +2,7 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: false, // Disable compression to prevent zlib Array buffer errors
   reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
@@ -130,6 +131,14 @@ const nextConfig = {
       {
         source: "/api/atom/:path*",
         destination: "http://127.0.0.1:8000/api/atom/:path*",
+      },
+      {
+        source: "/api/agents",
+        destination: "http://127.0.0.1:8000/api/agents/",
+      },
+      {
+        source: "/api/agents/",
+        destination: "http://127.0.0.1:8000/api/agents/",
       },
       {
         source: "/api/agents/:path*",

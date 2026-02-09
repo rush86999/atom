@@ -101,9 +101,12 @@ async def get_current_user(
             token = request.cookies.get("__Secure-next-auth.session-token")
             
     if not token:
-        logger.warning("AUTH DEBUG: No token found in header or cookie")
+        print("AUTH DEBUG: No token found in header or cookie")
         raise credentials_exception
 
+    if token.startswith('"') and token.endswith('"'):
+        token = token[1:-1]
+        
     try:
         # logger.info(f"AUTH DEBUG: Attempting to decode token: {token[:15]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -112,18 +115,18 @@ async def get_current_user(
             # Try "id" field if "sub" is missing (NextAuth sometimes differs)
             user_id = payload.get("id")
             if user_id is None:
-                logger.warning("AUTH DEBUG: Token payload missing 'sub' and 'id'")
+                print("AUTH DEBUG: Token payload missing 'sub' and 'id'")
                 raise credentials_exception
     except JWTError as e:
-        logger.warning(f"AUTH DEBUG: JWT Decode Error: {e}")
+        print(f"AUTH DEBUG: JWT Decode Error: {e}")
         raise credentials_exception
     except Exception as e:
-        logger.error(f"AUTH DEBUG: Unexpected Auth Error: {e}")
+        print(f"AUTH DEBUG: Unexpected Auth Error: {e}")
         raise credentials_exception
         
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        logger.warning(f"AUTH DEBUG: User {user_id} not found in DB")
+        print(f"AUTH DEBUG: User {user_id} not found in DB")
         raise credentials_exception
     return user
 

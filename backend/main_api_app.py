@@ -404,12 +404,6 @@ try:
         logger.warning(f"Failed to load tool discovery routes (skipping): {e}")
 
     try:
-        from api.agent_routes import router as agent_router
-        app.include_router(agent_router, prefix="/api/agents", tags=["agents"])
-    except ImportError as e:
-        logger.warning(f"Failed to load agent routes (skipping): {e}")
-
-    try:
         from api.workflow_template_routes import router as template_router
         app.include_router(template_router, prefix="/api/workflow-templates", tags=["workflow-templates"])
     except ImportError as e:
