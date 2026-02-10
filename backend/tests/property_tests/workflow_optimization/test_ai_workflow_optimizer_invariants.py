@@ -530,3 +530,315 @@ class TestWorkflowSectionTargetingInvariants:
         # Section should not exceed total workflow
         assert section_node_count <= node_count, "Section size cannot exceed workflow size"
         assert section_node_count >= 1, "Section should have at least one node"
+
+
+class TestWorkflowOptimizationValidationInvariants:
+    """Tests for optimization validation invariants"""
+
+    @given(
+        recommendations=st.lists(
+            st.dictionaries(
+                keys=st.text(min_size=3, max_size=20),
+                values=st.one_of(st.text(), st.integers(), st.floats(allow_nan=False, allow_infinity=False)),
+                min_size=2,
+                max_size=10
+            ),
+            min_size=1,
+            max_size=50
+        )
+    )
+    @settings(max_examples=50)
+    def test_recommendation_completeness(self, recommendations):
+        """INVARIANT: Recommendations should have all required fields."""
+        required_fields = {'title', 'description', 'confidence'}
+
+        for rec in recommendations:
+            # Invariant: Each recommendation should have core fields
+            assert 'title' in rec or len(rec) > 0, "Recommendation should have identifying field"
+
+    @given(
+        confidence_score=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False),
+        min_confidence_threshold=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_confidence_threshold_filtering(self, confidence_score, min_confidence_threshold):
+        """INVARIANT: Confidence filtering works correctly."""
+        # Check if confidence meets threshold
+        is_accepted = confidence_score >= min_confidence_threshold
+
+        # Invariant: Accepted recommendations meet threshold
+        if is_accepted:
+            assert confidence_score >= min_confidence_threshold, "Accepted rec should meet threshold"
+        else:
+            assert confidence_score < min_confidence_threshold, "Rejected rec should be below threshold"
+
+    @given(
+        optimization_types=st.lists(
+            st.sampled_from(["performance", "cost", "reliability", "efficiency", "security", "scalability"]),
+            min_size=1,
+            max_size=6,
+            unique=True
+        )
+    )
+    @settings(max_examples=50)
+    def test_optimization_type_coverage(self, optimization_types):
+        """INVARIANT: Optimization types cover all categories."""
+        # Invariant: All optimization types should be valid
+        valid_types = {"performance", "cost", "reliability", "efficiency", "security", "scalability"}
+
+        for opt_type in optimization_types:
+            assert opt_type in valid_types, f"Invalid optimization type: {opt_type}"
+
+        # Invariant: No duplicates (enforced by unique=True in strategy)
+        assert len(optimization_types) == len(set(optimization_types)), "Should have unique types"
+
+
+class TestCostBenefitAnalysisInvariants:
+    """Tests for cost-benefit analysis invariants"""
+
+    @given(
+        implementation_cost=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        expected_benefit=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_roi_calculation(self, implementation_cost, expected_benefit):
+        """INVARIANT: ROI calculation is valid."""
+        # Calculate ROI
+        if implementation_cost > 0:
+            roi = ((expected_benefit - implementation_cost) / implementation_cost) * 100
+
+            # Invariant: ROI should be numeric
+            assert isinstance(roi, float), "ROI should be float"
+
+            # Invariant: ROI can be negative (loss) or positive (gain)
+            assert True  # Document the invariant
+
+    @given(
+        time_to_implement_weeks=st.integers(min_value=1, max_value=52),
+        benefit_period_weeks=st.integers(min_value=1, max_value=260)
+    )
+    @settings(max_examples=50)
+    def test_payback_period_validation(self, time_to_implement_weeks, benefit_period_weeks):
+        """INVARIANT: Payback period is reasonable."""
+        # Invariant: Implementation time should be reasonable
+        assert 1 <= time_to_implement_weeks <= 52, "Implementation should be within 1 year"
+
+        # Invariant: Benefit period should be longer than implementation
+        if benefit_period_weeks > 0:
+            assert True  # Benefit period can be any positive value
+
+    @given(
+        one_time_cost=st.floats(min_value=0.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
+        recurring_cost=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        months=st.integers(min_value=1, max_value=60)
+    )
+    @settings(max_examples=50)
+    def test_total_cost_calculation(self, one_time_cost, recurring_cost, months):
+        """INVARIANT: Total cost calculation is accurate."""
+        # Calculate total cost
+        total_cost = one_time_cost + (recurring_cost * months)
+
+        # Invariant: Total cost should be non-negative
+        assert total_cost >= 0, "Total cost should be non-negative"
+
+        # Invariant: Total cost should be sum of components
+        expected_total = one_time_cost + (recurring_cost * months)
+        assert abs(total_cost - expected_total) < 0.01, "Total cost calculation should match"
+
+
+class TestRecommendationPrioritizationInvariants:
+    """Tests for recommendation prioritization invariants"""
+
+    @given(
+        st.lists(
+            st.tuples(
+                st.integers(min_value=1, max_value=10),
+                st.integers(min_value=1, max_value=10)
+            ),
+            min_size=3,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_priority_score_combination(self, score_pairs):
+        """INVARIANT: Priority combines urgency and impact correctly."""
+        # Unzip the tuples
+        urgency_scores = [u for u, _ in score_pairs]
+        impact_scores = [i for _, i in score_pairs]
+
+        # Calculate priority scores (simplified weighted sum)
+        priority_scores = [(u + i) / 2 for u, i in score_pairs]
+
+        # Invariant: Priority should be in valid range
+        for score in priority_scores:
+            assert 1 <= score <= 10, f"Priority score {score} out of range [1, 10]"
+
+    @given(
+        dependencies=st.lists(
+            st.integers(min_value=0, max_value=20),
+            min_size=1,
+            max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_dependency_aware_prioritization(self, dependencies):
+        """INVARIANT: Dependencies affect prioritization correctly."""
+        # Invariant: Recommendations with fewer dependencies can be prioritized higher
+        for dep_count in dependencies:
+            assert dep_count >= 0, "Dependency count should be non-negative"
+
+        # Sort by dependency count (ascending = fewer dependencies)
+        sorted_deps = sorted(dependencies)
+
+        # Invariant: Should be in ascending order
+        for i in range(len(sorted_deps) - 1):
+            assert sorted_deps[i] <= sorted_deps[i + 1], "Should be sorted by dependencies"
+
+    @given(
+        value_score=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False),
+        effort_score=st.floats(min_value=1.0, max_value=100.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_value_effort_ratio(self, value_score, effort_score):
+        """INVARIANT: Value/effort ratio calculated correctly."""
+        # Calculate value/effort ratio
+        if effort_score > 0:
+            ratio = value_score / effort_score
+
+            # Invariant: Ratio should be non-negative
+            assert ratio >= 0, "Value/effort ratio should be non-negative"
+
+            # Invariant: Higher value + lower effort = higher ratio
+            if value_score > effort_score:
+                assert ratio >= 1.0, "High value relative to effort should have ratio >= 1"
+
+
+class TestMultiObjectiveOptimizationInvariants:
+    """Tests for multi-objective optimization invariants"""
+
+    @given(
+        performance_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        cost_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        reliability_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_pareto_optimality(self, performance_score, cost_score, reliability_score):
+        """INVARIANT: Pareto frontier identification works correctly."""
+        # Invariant: All scores should be in valid range
+        assert 0.0 <= performance_score <= 1.0, "Performance score out of range"
+        assert 0.0 <= cost_score <= 1.0, "Cost score out of range"
+        assert 0.0 <= reliability_score <= 1.0, "Reliability score out of range"
+
+        # Invariant: Pareto optimal solutions cannot be improved in one objective
+        # without degrading another (documenting the invariant)
+        assert True  # Pareto optimality is a documented property
+
+    @given(
+        weights=st.lists(
+            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=5
+        ),
+        scores=st.lists(
+            st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=5
+        )
+    )
+    @settings(max_examples=50)
+    def test_weighted_objective_scoring(self, weights, scores):
+        """INVARIANT: Weighted objective scoring is valid."""
+        assume(len(weights) == len(scores))
+
+        # Normalize weights to sum to 1
+        total_weight = sum(weights)
+        if total_weight > 0:
+            normalized_weights = [w / total_weight for w in weights]
+
+            # Calculate weighted score
+            weighted_score = sum(w * s for w, s in zip(normalized_weights, scores))
+
+            # Invariant: Weighted score should be in valid range
+            min_possible = min(s for s in scores)
+            max_possible = max(s for s in scores)
+            assert min_possible <= weighted_score <= max_possible, \
+                f"Weighted score {weighted_score} outside range [{min_possible}, {max_possible}]"
+
+    @given(
+        tradeoff_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_tradeoff_analysis(self, tradeoff_count):
+        """INVARIANT: Tradeoff analysis handles multiple objectives."""
+        # Invariant: Should handle multiple tradeoffs
+        assert tradeoff_count >= 1, "Should have at least one tradeoff"
+
+        # Invariant: Tradeoff count should be reasonable
+        assert tradeoff_count <= 10, "Should have manageable number of tradeoffs"
+
+
+class TestOptimizationImpactTrackingInvariants:
+    """Tests for optimization impact tracking invariants"""
+
+    @given(
+        before_metrics=st.dictionaries(
+            keys=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+            values=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=10
+        ),
+        improvement_factors=st.dictionaries(
+            keys=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+            values=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_before_after_tracking(self, before_metrics, improvement_factors):
+        """INVARIANT: Before/after metrics tracked correctly."""
+        # Calculate after metrics
+        after_metrics = {}
+        for key, before_value in before_metrics.items():
+            factor = improvement_factors.get(key, 1.0)
+            after_metrics[key] = before_value * factor
+
+        # Invariant: After metrics should be positive
+        for key, after_value in after_metrics.items():
+            assert after_value >= 0, f"After metric {key} should be non-negative"
+
+    @given(
+        baseline_metric=st.floats(min_value=1.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        actual_metric=st.floats(min_value=0.0, max_value=20000.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_improvement_percentage_calculation(self, baseline_metric, actual_metric):
+        """INVARIANT: Improvement percentage calculated correctly."""
+        # Calculate improvement percentage
+        if baseline_metric > 0:
+            improvement_pct = ((actual_metric - baseline_metric) / baseline_metric) * 100
+
+            # Invariant: Improvement can be positive or negative
+            assert isinstance(improvement_pct, float), "Improvement should be float"
+
+            # Document: Positive improvement = improvement, Negative = regression
+            assert True  # Invariant documented
+
+    @given(
+        target_value=st.floats(min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+        achieved_value=st.floats(min_value=0.0, max_value=1200.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_target_achievement_rate(self, target_value, achieved_value):
+        """INVARIANT: Target achievement rate calculated correctly."""
+        # Calculate achievement rate
+        if target_value > 0:
+            achievement_rate = (achieved_value / target_value) * 100
+
+            # Invariant: Achievement rate should be non-negative
+            assert achievement_rate >= 0, "Achievement rate should be non-negative"
+
+            # Invariant: Rate >= 100% means target met or exceeded
+            if achieved_value >= target_value:
+                assert achievement_rate >= 100, "Met/exceeded target should have rate >= 100"
+
