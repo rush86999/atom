@@ -13,9 +13,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../'))
 try:
     import atheris
     ATHERIS_AVAILABLE = True
+    # Create the instrument_func decorator
+    fuzz_instrument = atheris.instrument_func
 except ImportError:
     ATHERIS_AVAILABLE = False
     print("Warning: Atheris not available")
+    # Create a no-op decorator when atheris is not available
+    def fuzz_instrument(func):
+        return func
 
 import re
 
@@ -62,7 +67,7 @@ def sanitize_user_input(user_input: str) -> str:
     return sanitized.strip()
 
 
-@atheris.instrument_func
+@fuzz_instrument
 def test_sanitize_input_fuzz(data):
     """
     Fuzz test for input sanitization.
