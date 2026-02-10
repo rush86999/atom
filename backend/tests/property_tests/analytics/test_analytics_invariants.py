@@ -72,7 +72,12 @@ class TestMetricsCollectionInvariants:
 
             # Verify aggregations
             assert total >= 0, "Non-negative sum"
-            assert minimum <= average <= maximum or len(values) == 1, "Average in range (with tolerance)"
+
+            # Use epsilon for floating-point comparison
+            epsilon = 1e-9
+            assert minimum - epsilon <= average <= maximum + epsilon, \
+                f"Average {average} should be between min {minimum} and max {maximum}"
+
             assert count >= 1, "Count must be >= 1"
 
     @given(

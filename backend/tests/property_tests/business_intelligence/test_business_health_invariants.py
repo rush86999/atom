@@ -269,8 +269,10 @@ class TestOperationalBottleneckInvariants:
             if max_time > 2 * avg_time:
                 assert True, "Should identify as bottleneck"
 
-            # Max should always be >= average
-            assert max_time >= avg_time, "Max time should be >= average"
+            # Max should always be >= average (with floating-point tolerance)
+            epsilon = 1e-9
+            assert max_time >= avg_time - epsilon, \
+                f"Max time {max_time} should be >= average {avg_time}"
 
     @given(
         failure_count=st.integers(min_value=0, max_value=100),
