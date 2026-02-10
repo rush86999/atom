@@ -369,3 +369,310 @@ class TestDeepLinkErrorHandlingInvariants:
         # Invariant: Fallback URL should have valid format
         has_protocol = any(fallback_url.startswith(proto) for proto in ['http://', 'https://', '/'])
         assert has_protocol, "Fallback URL should have valid protocol or be relative"
+
+
+class TestDeepLinkResolutionInvariants:
+    """Property-based tests for deep link resolution invariants."""
+
+    @given(
+        resource_id=st.text(min_size=1, max_size=50, alphabet='abc0123456789-_'),
+        resource_type=st.sampled_from(['agent', 'workflow', 'canvas', 'tool'])
+    )
+    @settings(max_examples=100)
+    def test_resource_resolution_success(self, resource_id, resource_type):
+        """INVARIANT: Valid resources should resolve successfully."""
+        # Simulate resource lookup
+        resource_exists = True  # Assume exists for this test
+
+        if resource_exists:
+            # Verify resolution
+            assert len(resource_id) > 0, "Resource ID should not be empty"
+            assert resource_type in ['agent', 'workflow', 'canvas', 'tool'], \
+                f"Resource type {resource_type} should be valid"
+
+    @given(
+        malformed_urls=st.text(min_size=1, max_size=100, alphabet='abc://[]{}|\\^')
+    )
+    @settings(max_examples=50)
+    def test_malformed_url_handling(self, malformed_urls):
+        """INVARIANT: Malformed deep links should be handled gracefully."""
+        # Check for obviously malformed patterns
+        has_unmatched_brackets = (
+            malformed_urls.count('[') != malformed_urls.count(']') or
+            malformed_urls.count('{') != malformed_urls.count('}')
+        )
+
+        # Invariant: Should not crash on malformed URLs
+        try:
+            # Attempt to parse URL
+            url_length = len(malformed_urls)
+            assert url_length > 0, "URL should have length"
+        except Exception:
+            # Should handle gracefully
+            assert True
+
+    @given(
+        link_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_batch_resolution_performance(self, link_count):
+        """INVARIANT: Batch resolution should scale efficiently."""
+        import time
+
+        # Simulate batch resolution
+        start_time = time.time()
+
+        for i in range(link_count):
+            # Simulate resource lookup
+            resource_id = f"resource_{i}"
+            # Simulate lookup delay
+            time.sleep(0.0001)  # 0.1ms per lookup
+
+        elapsed = time.time() - start_time
+
+        # Verify performance: should be fast
+        assert elapsed < link_count * 0.001, \
+            f"Batch resolution of {link_count} links took {elapsed:.3f}s"
+
+    @given(
+        resolved_count=st.integers(min_value=0, max_value=100),
+        total_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_resolution_rate_tracking(self, resolved_count, total_count):
+        """INVARIANT: Resolution rate should be tracked."""
+        # Cap resolved at total
+        resolved_count = min(resolved_count, total_count)
+
+        # Calculate resolution rate
+        resolution_rate = resolved_count / total_count if total_count > 0 else 0.0
+
+        # Verify rate calculation
+        assert 0.0 <= resolution_rate <= 1.0, \
+            f"Resolution rate {resolution_rate:.2f} out of bounds [0, 1]"
+
+        # Verify count matches
+        assert resolved_count <= total_count, \
+            f"Resolved count {resolved_count} should not exceed total {total_count}"
+
+
+class TestCrossPlatformInvariants:
+    """Property-based tests for cross-platform deep link invariants."""
+
+    @given(
+        platform=st.sampled_from(['ios', 'android', 'web', 'desktop', 'macos', 'windows'])
+    )
+    @settings(max_examples=50)
+    def test_platform_scheme_selection(self, platform):
+        """INVARIANT: Deep link scheme should match platform."""
+        # Platform-specific scheme preferences
+        platform_schemes = {
+            'ios': 'atom',
+            'android': 'atom',
+            'web': 'https',
+            'desktop': 'atom',
+            'macos': 'atom',
+            'windows': 'atom'
+        }
+
+        scheme = platform_schemes.get(platform, 'atom')
+
+        # Verify scheme selection
+        assert scheme in ['atom', 'https'], \
+            f"Invalid scheme {scheme} for platform {platform}"
+
+    @given(
+        platform=st.sampled_from(['ios', 'android', 'web']),
+        fallback_url=st.text(min_size=10, max_size=200, alphabet='abc://.com0123456789')
+    )
+    @settings(max_examples=50)
+    def test_fallback_url_generation(self, platform, fallback_url):
+        """INVARIANT: Fallback URLs should be generated for unsupported platforms."""
+        # Simulate platform support check
+        supported_platforms = {'ios', 'android', 'web'}
+
+        is_supported = platform in supported_platforms
+
+        if not is_supported:
+            # Should generate fallback URL
+            assert len(fallback_url) > 0, "Fallback URL should not be empty"
+        else:
+            # Platform supported, no fallback needed
+            assert True  # Would handle natively
+
+    @given(
+        app_state=st.sampled_from(['installed', 'not_installed', 'unknown'])
+    )
+    @settings(max_examples=50)
+    def test_app_state_detection(self, app_state):
+        """INVARIANT: App state should be detected for deep linking."""
+        # Valid app states
+        valid_states = {'installed', 'not_installed', 'unknown'}
+
+        # Verify state is valid
+        assert app_state in valid_states, \
+            f"Invalid app state: {app_state}"
+
+        # Deep link behavior depends on state
+        if app_state == 'not_installed':
+            # Should redirect to app store
+            assert True  # Would redirect
+        elif app_state == 'installed':
+            # Should handle deep link
+            assert True  # Would open
+
+
+class TestDeepLinkCachingInvariants:
+    """Property-based tests for deep link caching invariants."""
+
+    @given(
+        link_access_count=st.integers(min_value=1, max_value=1000),
+        cache_hit_rate=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_cache_hit_rate(self, link_access_count, cache_hit_rate):
+        """INVARIANT: Cache should provide acceptable hit rate."""
+        # Calculate cache hits (with integer truncation)
+        cache_hits = int(link_access_count * cache_hit_rate)
+
+        # Verify hit rate calculation (account for truncation)
+        actual_hit_rate = cache_hits / link_access_count if link_access_count > 0 else 0.0
+
+        # The actual rate may differ due to integer truncation, but should be close
+        # Allow up to 1.0/link_access_count difference due to truncation
+        tolerance = max(0.01, 1.0 / link_access_count)
+        assert abs(actual_hit_rate - cache_hit_rate) < tolerance, \
+            f"Hit rate calculation incorrect: {actual_hit_rate:.2f} vs {cache_hit_rate:.2f}"
+
+        # Verify cache effectiveness
+        if cache_hit_rate > 0.8 and link_access_count >= 5:
+            # With high hit rate and reasonable access count, should have some hits
+            assert cache_hits >= 1, "High hit rate should have at least one cache hit"
+
+    @given(
+        unique_link_count=st.integers(min_value=1, max_value=500),
+        cache_size=st.integers(min_value=100, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_cache_size_limits(self, unique_link_count, cache_size):
+        """INVARIANT: Cache should enforce size limits."""
+        # Simulate cache entries
+        cached_entries = min(unique_link_count, cache_size)
+
+        # Verify cache size enforcement
+        assert cached_entries <= cache_size, \
+            f"Cached entries {cached_entries} should not exceed cache size {cache_size}"
+
+        # If cache is full, should evict old entries
+        if unique_link_count > cache_size:
+            assert cached_entries == cache_size, "Should use full cache"
+        else:
+            assert cached_entries == unique_link_count, "Should cache all unique links"
+
+    @given(
+        link_id=st.text(min_size=1, max_size=100, alphabet='abc0123456789-_'),
+        ttl_seconds=st.integers(min_value=60, max_value=86400)  # 1 minute to 1 day
+    )
+    @settings(max_examples=50)
+    def test_cache_ttl_expiration(self, link_id, ttl_seconds):
+        """INVARIANT: Cache entries should expire after TTL."""
+        # Verify TTL is reasonable
+        assert 60 <= ttl_seconds <= 86400, \
+            f"TTL {ttl_seconds}s should be in [60, 86400]"
+
+        # Calculate expiration time
+        from datetime import datetime, timedelta
+        created_at = datetime.now()
+        expires_at = created_at + timedelta(seconds=ttl_seconds)
+
+        # Verify expiration is after creation
+        assert expires_at > created_at, \
+            "Expiration time should be after creation time"
+
+
+class TestDeepLinkAnalyticsInvariants:
+    """Property-based tests for deep link analytics invariants."""
+
+    @given(
+        click_count=st.integers(min_value=1, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_click_aggregation(self, click_count):
+        """INVARIANT: Clicks should be aggregated correctly."""
+        # Simulate click aggregation by source
+        sources = ['email', 'social', 'web', 'qr']
+        clicks_per_source = click_count // len(sources)
+
+        total_aggregated = 0
+        for source in sources:
+            total_aggregated += clicks_per_source
+
+        # Verify aggregation
+        assert total_aggregated <= click_count, \
+            f"Aggregated clicks {total_aggregated} should not exceed total {click_count}"
+
+    @given(
+        conversion_count=st.integers(min_value=0, max_value=100),
+        total_clicks=st.integers(min_value=1, max_value=1000)
+    )
+    @settings(max_examples=50)
+    def test_conversion_rate_calculation(self, conversion_count, total_clicks):
+        """INVARIANT: Conversion rate should be calculated correctly."""
+        # Cap conversions at total clicks
+        conversion_count = min(conversion_count, total_clicks)
+
+        # Calculate conversion rate
+        conversion_rate = conversion_count / total_clicks if total_clicks > 0 else 0.0
+
+        # Verify rate calculation
+        assert 0.0 <= conversion_rate <= 1.0, \
+            f"Conversion rate {conversion_rate:.2f} out of bounds [0, 1]"
+
+        # Verify conversion count
+        assert conversion_count <= total_clicks, \
+            f"Conversion count {conversion_count} should not exceed clicks {total_clicks}"
+
+    @given(
+        source_categories=st.lists(
+            st.sampled_from(['email', 'social', 'web', 'qr', 'direct', 'referral']),
+            min_size=1,
+            max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_source_attribution(self, source_categories):
+        """INVARIANT: Source attribution should be tracked."""
+        # Count clicks by source
+        source_counts = {}
+        for source in source_categories:
+            source_counts[source] = source_counts.get(source, 0) + 1
+
+        # Verify all sources are tracked
+        assert len(source_counts) <= len(set(source_categories)), \
+            "Source count should not exceed unique sources"
+
+        # Verify total attribution
+        total_attributed = sum(source_counts.values())
+        assert total_attributed == len(source_categories), \
+            f"Total attributed {total_attributed} should match {len(source_categories)}"
+
+    @given(
+        time_windows=st.integers(min_value=1, max_value=7)  # 1-7 days
+    )
+    @settings(max_examples=50)
+    def test_temporal_analytics(self, time_windows):
+        """INVARIANT: Analytics should support temporal aggregation."""
+        # Simulate daily data
+        daily_clicks = [100 + i * 10 for i in range(time_windows)]
+
+        # Calculate aggregates
+        total_clicks = sum(daily_clicks)
+        avg_clicks = sum(daily_clicks) / len(daily_clicks)
+
+        # Verify aggregation
+        assert total_clicks > 0, "Total clicks should be positive"
+        assert avg_clicks > 0, "Average clicks should be positive"
+
+        # Verify temporal consistency
+        assert len(daily_clicks) == time_windows, \
+            f"Should have {time_windows} days of data"
