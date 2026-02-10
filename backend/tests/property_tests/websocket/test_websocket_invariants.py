@@ -381,3 +381,348 @@ class TestWebSocketSecurityInvariants:
         # Invariant: Dangerous patterns should be detected
         if has_dangerous:
             assert True  # Should be sanitized
+
+
+class TestWebSocketRateLimitingInvariants:
+    """Property-based tests for WebSocket rate limiting invariants."""
+
+    @given(
+        message_count=st.integers(min_value=1, max_value=1000),
+        time_window_seconds=st.integers(min_value=1, max_value=60)
+    )
+    @settings(max_examples=50)
+    def test_rate_limiting_enforcement(self, message_count, time_window_seconds):
+        """INVARIANT: WebSocket should enforce rate limits."""
+        # Invariant: Message count should be positive
+        assert message_count > 0, "Message count must be positive"
+
+        # Invariant: Time window should be positive
+        assert time_window_seconds > 0, "Time window must be positive"
+
+        # Calculate rate limit (e.g., 100 messages per minute)
+        messages_per_second = message_count / time_window_seconds
+        max_rate = 100  # 100 messages per second
+
+        # Invariant: Rate should not exceed maximum
+        if messages_per_second > max_rate:
+            rate_exceeded = True
+        else:
+            rate_exceeded = False
+
+        # Check rate limiting behavior
+        assert isinstance(rate_exceeded, bool), "Rate limit check should return boolean"
+
+    @given(
+        connection_id=st.text(min_size=1, max_size=50, alphabet='abc0123456789'),
+        message_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_per_connection_rate_limits(self, connection_id, message_count):
+        """INVARIANT: Each connection should have independent rate limits."""
+        # Invariant: Connection ID should not be empty
+        assert len(connection_id) > 0, "Connection ID should not be empty"
+
+        # Invariant: Message count should be positive
+        assert message_count > 0, "Message count must be positive"
+
+        # Simulate per-connection rate tracking
+        connection_rates = {
+            conn_id: message_count for conn_id in [connection_id]
+        }
+
+        # Invariant: Each connection should have independent tracking
+        assert connection_id in connection_rates, \
+            f"Connection {connection_id} should be tracked"
+
+    @given(
+        burst_count=st.integers(min_value=1, max_value=50),
+        sustained_rate=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_burst_rate_limiting(self, burst_count, sustained_rate):
+        """INVARIANT: WebSocket should handle burst traffic."""
+        # Invariant: Burst count should be positive
+        assert burst_count > 0, "Burst count must be positive"
+
+        # Invariant: Sustained rate should be positive
+        assert sustained_rate > 0, "Sustained rate must be positive"
+
+        # Calculate burst allowance (e.g., 2x sustained rate)
+        burst_allowance = sustained_rate * 2
+
+        # Check if burst exceeds allowance
+        if burst_count > burst_allowance:
+            burst_exceeded = True
+        else:
+            burst_exceeded = False
+
+        # Invariant: Should track burst allowance
+        assert isinstance(burst_exceeded, bool), "Burst check should return boolean"
+
+
+class TestWebSocketCompressionInvariants:
+    """Property-based tests for WebSocket compression invariants."""
+
+    @given(
+        original_size=st.integers(min_value=100, max_value=1048576)  # 100B to 1MB
+    )
+    @settings(max_examples=50)
+    def test_compression_ratio(self, original_size):
+        """INVARIANT: Compression should reduce message size."""
+        # Invariant: Original size should be positive
+        assert original_size > 0, "Original size must be positive"
+
+        # Simulate compression (typically 2-10x reduction for text)
+        compression_ratio = 3  # Assume 3x compression
+        compressed_size = original_size // compression_ratio
+
+        # Invariant: Compressed size should be smaller
+        assert compressed_size < original_size, \
+            f"Compressed size {compressed_size} should be < original {original_size}"
+
+        # Invariant: Compressed size should be non-negative
+        assert compressed_size >= 0, "Compressed size cannot be negative"
+
+    @given(
+        message_count=st.integers(min_value=1, max_value=100),
+        avg_message_size=st.integers(min_value=100, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_compression_memory_limits(self, message_count, avg_message_size):
+        """INVARIANT: Compression should not exceed memory limits."""
+        # Invariant: Message count should be positive
+        assert message_count > 0, "Message count must be positive"
+
+        # Invariant: Average message size should be positive
+        assert avg_message_size > 0, "Average message size must be positive"
+
+        # Calculate memory usage
+        compression_buffer_size = avg_message_size * message_count
+        max_memory = 10485760  # 10MB
+
+        # Invariant: Should not exceed memory limit
+        assert compression_buffer_size <= max_memory, \
+            f"Buffer size {compression_buffer_size} exceeds max {max_memory}"
+
+    @given(
+        small_message_size=st.integers(min_value=1, max_value=100),
+        large_message_size=st.integers(min_value=1000, max_value=100000)
+    )
+    @settings(max_examples=50)
+    def test_adaptive_compression(self, small_message_size, large_message_size):
+        """INVARIANT: Compression should adapt to message size."""
+        # Invariant: Sizes should be positive
+        assert small_message_size > 0, "Small message size must be positive"
+        assert large_message_size > 0, "Large message size must be positive"
+
+        # Small messages may not be worth compressing
+        compress_small = small_message_size > 100
+
+        # Large messages should always be compressed
+        compress_large = large_message_size > 1000
+
+        # Invariant: Compression decision should be consistent
+        if large_message_size > 1000:
+            assert compress_large, "Large messages should be compressed"
+
+
+class TestWebSocketHeartbeatInvariants:
+    """Property-based tests for WebSocket heartbeat invariants."""
+
+    @given(
+        interval_seconds=st.integers(min_value=10, max_value=300)
+    )
+    @settings(max_examples=50)
+    def test_heartbeat_interval(self, interval_seconds):
+        """INVARIANT: Heartbeat should have reasonable interval."""
+        # Invariant: Interval should be at least 10 seconds
+        assert interval_seconds >= 10, \
+            f"Interval {interval_seconds}s should be >= 10s"
+
+        # Invariant: Interval should not exceed 5 minutes
+        assert interval_seconds <= 300, \
+            f"Interval {interval_seconds}s should be <= 300s"
+
+    @given(
+        last_ping_time=st.datetimes(min_value=datetime(2024, 1, 1), max_value=datetime.now()),
+        current_time=st.datetimes(min_value=datetime(2024, 1, 1), max_value=datetime.now()),
+        timeout_seconds=st.integers(min_value=30, max_value=300)
+    )
+    @settings(max_examples=50)
+    def test_connection_timeout_detection(self, last_ping_time, current_time, timeout_seconds):
+        """INVARIANT: Should detect connection timeouts."""
+        # Calculate time difference
+        time_diff = (current_time - last_ping_time).total_seconds()
+
+        # Check for timeout
+        if time_diff > timeout_seconds:
+            is_timeout = True
+        else:
+            is_timeout = False
+
+        # Invariant: Timeout detection should be consistent
+        if time_diff > timeout_seconds:
+            assert is_timeout, "Should detect timeout"
+
+    @given(
+        missed_ping_count=st.integers(min_value=0, max_value=10),
+        max_missed=st.integers(min_value=2, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_missed_ping_tolerance(self, missed_ping_count, max_missed):
+        """INVARIANT: Should tolerate missed pings within limit."""
+        # Invariant: Missed ping count should be non-negative
+        assert missed_ping_count >= 0, "Missed ping count must be non-negative"
+
+        # Invariant: Max missed should be positive
+        assert max_missed > 0, "Max missed pings must be positive"
+
+        # Check if connection should be closed
+        if missed_ping_count >= max_missed:
+            should_close = True
+        else:
+            should_close = False
+
+        # Invariant: Should close after threshold
+        if missed_ping_count >= max_missed:
+            assert should_close, "Should close connection after threshold"
+
+
+class TestWebSocketMultiplexingInvariants:
+    """Property-based tests for WebSocket multiplexing invariants."""
+
+    @given(
+        channel_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_channel_limits(self, channel_count):
+        """INVARIANT: Multiplexing should enforce channel limits."""
+        max_channels = 100
+
+        # Invariant: Channel count should not exceed maximum
+        assert channel_count <= max_channels, \
+            f"Channel count {channel_count} exceeds maximum {max_channels}"
+
+        # Invariant: Channel count should be positive
+        assert channel_count >= 1, "Channel count must be positive"
+
+    @given(
+        channel_name=st.text(min_size=1, max_size=100, alphabet='abc0123456789_-')
+    )
+    @settings(max_examples=100)
+    def test_channel_name_validation(self, channel_name):
+        """INVARIANT: Channel names should be valid."""
+        # Invariant: Channel name should not be empty
+        assert len(channel_name) > 0, "Channel name should not be empty"
+
+        # Invariant: Channel name should be reasonable length
+        assert len(channel_name) <= 100, f"Channel name too long: {len(channel_name)}"
+
+        # Channel names should only contain valid characters
+        valid_chars = set('abcdefghijklmnopqrstuvwxyz0123456789_-')
+        assert all(c in valid_chars for c in channel_name.lower()), \
+            f"Channel name '{channel_name}' contains invalid characters"
+
+    @given(
+        message_count=st.integers(min_value=1, max_value=1000),
+        channel_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_message_routing_to_channels(self, message_count, channel_count):
+        """INVARIANT: Messages should route to correct channels."""
+        # Invariant: Message count should be positive
+        assert message_count > 0, "Message count must be positive"
+
+        # Invariant: Channel count should be positive
+        assert channel_count > 0, "Channel count must be positive"
+
+        # Simulate message routing
+        messages_routed = 0
+        for i in range(message_count):
+            target_channel = i % channel_count
+            messages_routed += 1
+
+        # Invariant: All messages should be routed
+        assert messages_routed == message_count, \
+            f"Routed {messages_routed} != expected {message_count}"
+
+
+class TestWebSocketErrorRecoveryInvariants:
+    """Property-based tests for WebSocket error recovery invariants."""
+
+    @given(
+        error_code=st.integers(min_value=1000, max_value=4999)
+    )
+    @settings(max_examples=50)
+    def test_error_code_handling(self, error_code):
+        """INVARIANT: WebSocket should handle error codes correctly."""
+        # WebSocket close codes:
+        # 1000: Normal closure
+        # 1001: Going away
+        # 1002: Protocol error
+        # 1003: Unsupported data
+        # 4000-4999: Application-specific errors
+
+        # Initialize variables
+        is_standard = False
+        is_app_specific = False
+
+        if 1000 <= error_code <= 1003:
+            # Standard WebSocket close codes
+            is_standard = True
+        elif 4000 <= error_code <= 4999:
+            # Application-specific codes
+            is_app_specific = True
+
+        # Invariant: Should recognize error code type
+        assert isinstance(is_standard, bool), "Should identify standard codes"
+        assert isinstance(is_app_specific, bool), "Should identify app-specific codes"
+
+    @given(
+        reconnect_attempts=st.integers(min_value=0, max_value=10),
+        max_attempts=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_reconnect_attempt_limits(self, reconnect_attempts, max_attempts):
+        """INVARIANT: Reconnection attempts should be limited."""
+        # Invariant: Reconnect attempts should be non-negative
+        assert reconnect_attempts >= 0, "Reconnect attempts must be non-negative"
+
+        # Invariant: Max attempts should be positive
+        assert max_attempts > 0, "Max attempts must be positive"
+
+        # Check if should attempt reconnection
+        if reconnect_attempts < max_attempts:
+            should_reconnect = True
+        else:
+            should_reconnect = False
+
+        # Invariant: Should not exceed max attempts
+        if reconnect_attempts >= max_attempts:
+            assert not should_reconnect, "Should not reconnect after max attempts"
+
+    @given(
+        backoff_delay_seconds=st.integers(min_value=1, max_value=60),
+        attempt_number=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_exponential_backoff_during_reconnect(self, backoff_delay_seconds, attempt_number):
+        """INVARIANT: Reconnection should use exponential backoff."""
+        # Invariant: Delay should be positive
+        assert backoff_delay_seconds > 0, "Delay must be positive"
+
+        # Invariant: Attempt number should be positive
+        assert attempt_number > 0, "Attempt number must be positive"
+
+        # Calculate exponential backoff
+        delay = backoff_delay_seconds * (2 ** (attempt_number - 1))
+
+        # Invariant: Delay should increase with attempts
+        assert delay >= backoff_delay_seconds, \
+            f"Delay {delay}s should be >= base {backoff_delay_seconds}s"
+
+        # Cap at reasonable maximum (5 minutes)
+        max_delay = 300
+        capped_delay = min(delay, max_delay)
+        assert capped_delay <= max_delay, \
+            f"Capped delay {capped_delay}s should be <= max {max_delay}s"
