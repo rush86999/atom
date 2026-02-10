@@ -1,919 +1,812 @@
 """
-Property-Based Tests for Financial Operations Invariants
+Property-Based Tests for Financial Operations - CRITICAL BUSINESS LOGIC
 
-Tests CRITICAL financial invariants:
-- Cost calculation
-- Budget tracking
-- Invoice processing
-- Payment processing
-- Financial reporting
-- Currency conversion
-- Tax calculation
-- Financial audit trail
+Tests critical financial invariants:
+- Cost leak detection (unused subscriptions, redundant tools)
+- Budget guardrails (spend limits, approvals, pauses)
+- Invoice reconciliation (matching, discrepancies)
+- Savings calculations
+- Multi-currency handling
+- Tax calculations
 
-These tests protect against financial errors and ensure accuracy.
+These tests protect against:
+- Cost leaks (paying for unused services)
+- Budget overruns (overspending on categories)
+- Invoice fraud (incorrect payments)
+- Financial incorrectness (wrong calculations)
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
-from typing import Dict, List, Optional, Set, Tuple
 from datetime import datetime, timedelta
-import decimal
+from hypothesis import given, strategies as st, assume, settings
+from decimal import Decimal
+import sys
+import os
+
+# Add backend to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 
-class TestCostCalculationInvariants:
-    """Property-based tests for cost calculation invariants."""
-
-    @given(
-        unit_cost=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-        quantity=st.integers(min_value=0, max_value=1000000)
-    )
-    @settings(max_examples=50)
-    def test_total_cost_calculation(self, unit_cost, quantity):
-        """INVARIANT: Total cost should be calculated correctly."""
-        total_cost = unit_cost * quantity
-
-        # Invariant: Total cost should be non-negative
-        assert total_cost >= 0, "Non-negative total cost"
+class TestCostLeakDetectionInvariants:
+    """Tests for SaaS cost leak detection invariants"""
 
     @given(
-        hourly_rate=st.floats(min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-        hours_worked=st.floats(min_value=0.0, max_value=168.0, allow_nan=False, allow_infinity=False)
+        subscription_count=st.integers(min_value=1, max_value=50),
+        unused_threshold_days=st.integers(min_value=1, max_value=90)
     )
     @settings(max_examples=50)
-    def test_labor_cost_calculation(self, hourly_rate, hours_worked):
-        """INVARIANT: Labor cost should be calculated correctly."""
-        labor_cost = hourly_rate * hours_worked
+    def test_unused_subscription_detection(self, subscription_count, unused_threshold_days):
+        """Test that unused subscriptions are correctly identified"""
+        from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
 
-        # Invariant: Labor cost should be non-negative
-        assert labor_cost >= 0, "Non-negative labor cost"
+        detector = CostLeakDetector(unused_threshold_days=unused_threshold_days)
+        now = datetime.now()
 
-    @given(
-        base_cost=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_tax_inclusion(self, base_cost, tax_rate):
-        """INVARIANT: Tax should be calculated correctly."""
-        tax_amount = base_cost * tax_rate
-        total_with_tax = base_cost + tax_amount
-
-        # Invariant: Total with tax should be >= base
-        assert total_with_tax >= base_cost, "Tax increases total"
-
-    @given(
-        costs=st.lists(st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=100)
-    )
-    @settings(max_examples=50)
-    def test_cost_aggregation(self, costs):
-        """INVARIANT: Costs should be aggregated correctly."""
-        total_cost = sum(costs)
-
-        # Invariant: Total should equal sum of parts
-        assert total_cost >= 0, "Non-negative total"
-        assert total_cost == sum(costs), "Aggregation matches sum"
-
-    @given(
-        monthly_cost=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        months=st.integers(min_value=1, max_value=12)
-    )
-    @settings(max_examples=50)
-    def test_annual_cost_projection(self, monthly_cost, months):
-        """INVARIANT: Annual cost should be projected correctly."""
-        annual_cost = monthly_cost * months
-
-        # Invariant: Annual projection should be accurate
-        assert annual_cost >= monthly_cost if months >= 1 else True, "Annual >= monthly"
-
-    @given(
-        resource_usage=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-        unit_price=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_usage_based_cost(self, resource_usage, unit_price):
-        """INVARIANT: Usage-based cost should be calculated correctly."""
-        cost = resource_usage * unit_price
-
-        # Invariant: Cost should scale with usage
-        assert cost >= 0, "Non-negative cost"
-
-    @given(
-        original_cost=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        discount_percentage=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_discount_application(self, original_cost, discount_percentage):
-        """INVARIANT: Discounts should be applied correctly."""
-        discount_amount = original_cost * discount_percentage
-        discounted_cost = original_cost - discount_amount
-
-        # Invariant: Discounted cost should be <= original
-        assert discounted_cost <= original_cost, "Discount reduces cost"
-
-    @given(
-        costs=st.lists(st.floats(min_value=-1000.0, max_value=10000.0, allow_nan=False, allow_infinity=False), min_size=2, max_size=10)
-    )
-    @settings(max_examples=50)
-    def test_cost_allocation(self, costs):
-        """INVARIANT: Costs should be allocated correctly."""
-        total_cost = sum(costs)
-
-        # Invariant: Allocation should sum to total
-        assert total_cost == sum(costs), "Allocation sums to total"
-
-
-class TestBudgetTrackingInvariants:
-    """Property-based tests for budget tracking invariants."""
-
-    @given(
-        budget_amount=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        spent_amount=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_budget_balance(self, budget_amount, spent_amount):
-        """INVARIANT: Budget balance should be calculated correctly."""
-        remaining_budget = budget_amount - spent_amount
-
-        # Invariant: Remaining should be budget minus spent
-        assert remaining_budget <= budget_amount, "Remaining <= budget"
-
-    @given(
-        spent_amount=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        budget_amount=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        alert_threshold=st.floats(min_value=0.5, max_value=1.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_budget_alert_threshold(self, spent_amount, budget_amount, alert_threshold):
-        """INVARIANT: Budget alerts should trigger at threshold."""
-        if budget_amount > 0:
-            usage_percentage = spent_amount / budget_amount
-            should_alert = usage_percentage >= alert_threshold
-
-            # Invariant: Should alert when threshold exceeded
-            if should_alert:
-                assert True  # Trigger alert
+        # Create mix of used and unused subscriptions
+        unused_count = 0
+        for i in range(subscription_count):
+            # Alternate between used and unused
+            if i % 2 == 0:
+                # Unused: last_used before threshold
+                last_used = now - timedelta(days=unused_threshold_days + 10)
+                unused_count += 1
             else:
-                assert True  # No alert needed
+                # Used: last_used within threshold
+                last_used = now - timedelta(days=max(0, unused_threshold_days - 10))
+
+            sub = SaaSSubscription(
+                id=f"sub_{i}",
+                name=f"Service {i}",
+                monthly_cost=100.0 + i,
+                last_used=last_used,
+                user_count=5,
+                active_users=0 if i % 2 == 0 else 3,
+                category="general"
+            )
+            detector.add_subscription(sub)
+
+        unused = detector.detect_unused()
+
+        # Verify unused count
+        assert len(unused) == unused_count, f"Should detect {unused_count} unused subscriptions"
+
+        # Verify all detected are actually unused
+        for u in unused:
+            assert u["monthly_cost"] > 0, "Monthly cost should be positive"
+            assert u["days_unused"] >= unused_threshold_days, "Days unused should meet threshold"
+
+    @given(
+        categories=st.lists(
+            st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
+            min_size=2,
+            max_size=10,
+            unique=True
+        ),
+        tools_per_category=st.integers(min_value=2, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_redundant_tool_detection(self, categories, tools_per_category):
+        """Test that redundant tools in same category are detected"""
+        from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
+
+        detector = CostLeakDetector()
+        now = datetime.now()
+
+        # Create subscriptions with multiple tools per category
+        tool_id = 0
+        for category in categories:
+            for i in range(tools_per_category):
+                sub = SaaSSubscription(
+                    id=f"sub_{tool_id}",
+                    name=f"{category.capitalize()} Tool {i}",
+                    monthly_cost=50.0 + i * 10,
+                    last_used=now - timedelta(days=5),
+                    user_count=5,
+                    active_users=3,
+                    category=category
+                )
+                detector.add_subscription(sub)
+                tool_id += 1
+
+        redundant = detector.detect_redundant()
+
+        # Should detect redundancy for each category
+        assert len(redundant) == len(categories), f"Should detect {len(categories)} redundant categories"
+
+        # Each redundant entry should have multiple tools
+        for r in redundant:
+            assert len(r["tools"]) == tools_per_category, "Should list all tools in category"
+            assert r["total_monthly_cost"] > 0, "Total cost should be positive"
+            assert r["category"] in categories, "Category should be valid"
+
+    @given(
+        unused_costs=st.lists(
+            st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_savings_calculation_accuracy(self, unused_costs):
+        """Test that savings calculations are accurate"""
+        from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
+
+        detector = CostLeakDetector(unused_threshold_days=30)
+        now = datetime.now()
+
+        # Add unused subscriptions with specific costs
+        for i, cost in enumerate(unused_costs):
+            sub = SaaSSubscription(
+                id=f"sub_{i}",
+                name=f"Service {i}",
+                monthly_cost=cost,
+                last_used=now - timedelta(days=60),
+                user_count=5,
+                active_users=0,
+                category="general"
+            )
+            detector.add_subscription(sub)
+
+        report = detector.get_savings_report()
+
+        # Verify monthly savings (with epsilon for floating-point precision)
+        expected_monthly = sum(unused_costs)
+        actual_monthly = report["potential_monthly_savings"]
+        epsilon = 1e-9
+        assert abs(actual_monthly - expected_monthly) < epsilon * max(1.0, expected_monthly), \
+            f"Monthly savings should be {expected_monthly}, got {actual_monthly}"
+
+        # Verify annual savings (12x monthly)
+        expected_annual = expected_monthly * 12
+        actual_annual = report["potential_annual_savings"]
+        assert abs(actual_annual - expected_annual) < epsilon * max(1.0, expected_annual), \
+            f"Annual savings should be {expected_annual}, got {actual_annual}"
+
+        # Verify unused subscriptions are listed
+        assert len(report["unused_subscriptions"]) == len(unused_costs), \
+            "Should list all unused subscriptions"
+
+
+class TestBudgetGuardrailsInvariants:
+    """Tests for budget guardrails invariants"""
+
+    @given(
+        category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        monthly_limit=st.floats(min_value=100.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        current_spend=st.floats(min_value=0.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
+        new_spend=st.floats(min_value=1.0, max_value=10000.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_budget_limit_enforcement(self, category, monthly_limit, current_spend, new_spend):
+        """Test that budget limits are enforced correctly"""
+        from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+
+        guardrails = BudgetGuardrails()
+        limit = BudgetLimit(
+            category=category,
+            monthly_limit=monthly_limit,
+            current_spend=current_spend
+        )
+        guardrails.set_limit(limit)
+
+        result = guardrails.check_spend(category, new_spend)
+
+        # If within limit, should be approved
+        if current_spend + new_spend <= monthly_limit:
+            assert result["status"] in ["approved", "APPROVED"], \
+                "Spend within budget should be approved"
+            assert "remaining" in result, "Should return remaining budget"
+        # If exceeds limit, should be paused
         else:
-            assert True  # Invalid budget
+            assert result["status"] in ["paused", "PAUSED"], \
+                "Spend exceeding budget should be paused"
 
     @given(
-        daily_budget=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-        days_in_month=st.integers(min_value=28, max_value=31)
+        category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        monthly_limit=st.floats(min_value=1000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        spend_amounts=st.lists(
+            st.floats(min_value=100.0, max_value=5000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20
+        )
     )
     @settings(max_examples=50)
-    def test_monthly_budget_projection(self, daily_budget, days_in_month):
-        """INVARIANT: Monthly budget should be projected correctly."""
-        monthly_budget = daily_budget * days_in_month
+    def test_budget_alert_thresholds(self, category, monthly_limit, spend_amounts):
+        """Test that budget alerts trigger at correct thresholds"""
+        from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
 
-        # Invariant: Projection should be accurate
-        assert monthly_budget >= 0, "Non-negative projection"
+        guardrails = BudgetGuardrails()
+        limit = BudgetLimit(category=category, monthly_limit=monthly_limit, current_spend=0.0)
+        guardrails.set_limit(limit)
+
+        total_spend = 0.0
+        for amount in spend_amounts:
+            result = guardrails.check_spend(category, amount)
+
+            # If approved, record the spend
+            if result["status"] in ["approved", "APPROVED"]:
+                guardrails.record_spend(category, amount)
+                total_spend += amount
+
+            # Should be paused if over limit
+            if total_spend > monthly_limit:
+                assert result["status"] in ["paused", "PAUSED"], \
+                    f"Should pause when over limit: {total_spend} > {monthly_limit}, got status: {result['status']}"
+                break  # Stop once paused
 
     @given(
-        budget_amount=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        categories=st.dictionaries(st.text(min_size=1, max_size=20), st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=10)
+        category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        monthly_limit=st.floats(min_value=1000.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
+        required_stage=st.sampled_from(["closed_won", "contract_signed", None]),
+        deal_stage=st.sampled_from(["closed_won", "contract_signed", "prospecting", None])
     )
     @settings(max_examples=50)
-    def test_category_budget_allocation(self, budget_amount, categories):
-        """INVARIANT: Budget should be allocated across categories."""
-        # Calculate actual allocations
-        actual_allocations = {cat: budget_amount * prop for cat, prop in categories.items()}
-        total_allocation = sum(actual_allocations.values())
+    def test_deal_stage_enforcement(self, category, monthly_limit, required_stage, deal_stage):
+        """Test that deal stage requirements are enforced"""
+        from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
 
-        # Invariant: Allocations should be non-negative
-        assert total_allocation >= 0, "Non-negative allocation"
+        guardrails = BudgetGuardrails()
+        limit = BudgetLimit(
+            category=category,
+            monthly_limit=monthly_limit,
+            current_spend=0.0,
+            deal_stage_required=required_stage
+        )
+        guardrails.set_limit(limit)
 
-        # Invariant: Over-allocation should be detected
-        if total_allocation > budget_amount and budget_amount > 0:
-            assert True  # Over-budget - alert or restrict
+        result = guardrails.check_spend(category, 100.0, deal_stage=deal_stage)
+
+        # If deal stage required but not met, should be rejected
+        if required_stage and deal_stage != required_stage:
+            assert result["status"] in ["rejected", "REJECTED"], \
+                f"Should reject when deal stage '{deal_stage}' != required '{required_stage}'"
+        # Otherwise should be approved
         else:
-            assert True  # Within budget
+            assert result["status"] in ["approved", "APPROVED"], \
+                "Should approve when deal stage requirement met"
 
     @given(
-        current_spend=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        projected_spend=st.floats(min_value=0.0, max_value=200000.0, allow_nan=False, allow_infinity=False),
-        budget_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
+        category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        monthly_limit=st.floats(min_value=1000.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
+        required_milestone=st.sampled_from(["kickoff_complete", "delivery_accepted", None]),
+        milestone=st.sampled_from(["kickoff_complete", "delivery_accepted", "in_progress", None])
     )
     @settings(max_examples=50)
-    def test_overspend_prediction(self, current_spend, projected_spend, budget_amount):
-        """INVARIANT: Overspend should be predicted."""
-        will_overspend = projected_spend > budget_amount
+    def test_milestone_enforcement(self, category, monthly_limit, required_milestone, milestone):
+        """Test that milestone requirements are enforced"""
+        from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
 
-        # Invariant: Should predict overspend
-        if will_overspend:
-            assert True  # Alert - will overspend
+        guardrails = BudgetGuardrails()
+        limit = BudgetLimit(
+            category=category,
+            monthly_limit=monthly_limit,
+            current_spend=0.0,
+            milestone_required=required_milestone
+        )
+        guardrails.set_limit(limit)
+
+        result = guardrails.check_spend(category, 100.0, milestone=milestone)
+
+        # If milestone required but not met, should be pending
+        if required_milestone and milestone != required_milestone:
+            assert result["status"] in ["pending", "PENDING"], \
+                f"Should be pending when milestone '{milestone}' != required '{required_milestone}'"
+        # Otherwise should be approved
         else:
-            assert True  # Within budget
+            assert result["status"] in ["approved", "APPROVED"], \
+                "Should approve when milestone requirement met"
+
+
+class TestInvoiceReconciliationInvariants:
+    """Tests for invoice reconciliation invariants"""
 
     @given(
-        budget_id=st.text(min_size=1, max_size=100),
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        period_start=st.integers(min_value=0, max_value=10000),
-        period_end=st.integers(min_value=10000, max_value=20000)
+        invoice_amounts=st.lists(
+            st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20
+        ),
+        contract_amount=st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        tolerance_percent=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_budget_period_tracking(self, budget_id, amount, period_start, period_end):
-        """INVARIANT: Budget period should be tracked."""
-        period_length = period_end - period_start
+    def test_invoice_matching_within_tolerance(self, invoice_amounts, contract_amount, tolerance_percent):
+        """Test that invoices within tolerance are matched"""
+        from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
 
-        # Invariant: Period should be valid
-        if period_length > 0:
-            assert True  # Valid period
-        else:
-            assert True  # Invalid period length
+        reconciler = InvoiceReconciler(tolerance_percent=tolerance_percent)
+
+        # Add contract
+        contract = Contract(
+            id="contract_1",
+            vendor="Acme Corp",
+            monthly_amount=contract_amount,
+            start_date=datetime.now() - timedelta(days=60),
+            end_date=datetime.now() + timedelta(days=60)
+        )
+        reconciler.add_contract(contract)
+
+        # Add invoices
+        matched_count = 0
+        for i, amount in enumerate(invoice_amounts):
+            invoice = Invoice(
+                id=f"invoice_{i}",
+                vendor="Acme Corp",
+                amount=amount,
+                date=datetime.now(),
+                contract_id="contract_1"
+            )
+            reconciler.add_invoice(invoice)
+
+            # Check if within tolerance
+            diff_percent = abs(amount - contract_amount) / contract_amount * 100
+            if diff_percent <= tolerance_percent:
+                matched_count += 1
+
+        result = reconciler.reconcile()
+
+        # Verify matched count
+        assert result["summary"]["matched_count"] == matched_count, \
+            f"Should match {matched_count} invoices within {tolerance_percent}% tolerance"
 
     @given(
-        spend_rate=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-        remaining_budget=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
+        contract_amount=st.floats(min_value=1000.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        variance_percent=st.floats(min_value=6.0, max_value=50.0, allow_nan=False, allow_infinity=False),
+        tolerance_percent=st.floats(min_value=1.0, max_value=5.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_budget_runway_calculation(self, spend_rate, remaining_budget):
-        """INVARIANT: Budget runway should be calculated correctly."""
-        if spend_rate > 0:
-            runway_days = remaining_budget / spend_rate
-            assert runway_days >= 0, "Non-negative runway"
-        else:
-            assert True  # No spend rate
+    def test_invoice_discrepancy_detection(self, contract_amount, variance_percent, tolerance_percent):
+        """Test that invoices outside tolerance are flagged as discrepancies"""
+        from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
 
+        # Ensure variance is greater than tolerance
+        assume(variance_percent > tolerance_percent)
 
-class TestInvoiceProcessingInvariants:
-    """Property-based tests for invoice processing invariants."""
+        reconciler = InvoiceReconciler(tolerance_percent=tolerance_percent)
+
+        # Add contract
+        contract = Contract(
+            id="contract_1",
+            vendor="Acme Corp",
+            monthly_amount=contract_amount,
+            start_date=datetime.now() - timedelta(days=60),
+            end_date=datetime.now() + timedelta(days=60)
+        )
+        reconciler.add_contract(contract)
+
+        # Add invoice with variance
+        invoice_amount = contract_amount * (1 + variance_percent / 100)
+        invoice = Invoice(
+            id="invoice_1",
+            vendor="Acme Corp",
+            amount=invoice_amount,
+            date=datetime.now(),
+            contract_id="contract_1"
+        )
+        reconciler.add_invoice(invoice)
+
+        result = reconciler.reconcile()
+
+        # Should be flagged as discrepancy
+        assert result["summary"]["discrepancy_count"] == 1, \
+            "Invoice outside tolerance should be flagged as discrepancy"
+
+        discrepancy = result["discrepancies"][0]
+        assert discrepancy["status"] == "discrepancy", "Status should be discrepancy"
+        assert "expected_amount" in discrepancy, "Should include expected amount"
+        assert "difference" in discrepancy, "Should include difference"
+        assert "difference_percent" in discrepancy, "Should include difference percent"
 
     @given(
-        line_items=st.lists(st.tuples(st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False), st.integers(min_value=1, max_value=100)), min_size=1, max_size=50)
+        invoice_count=st.integers(min_value=1, max_value=30)
     )
     @settings(max_examples=50)
-    def test_invoice_total_calculation(self, line_items):
-        """INVARIANT: Invoice total should match sum of line items."""
-        # Calculate total from line items
-        invoice_total = sum(unit_price * quantity for unit_price, quantity in line_items)
+    def test_invoice_reconciliation_summary(self, invoice_count):
+        """Test that reconciliation summary is accurate"""
+        from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
 
-        # Invariant: Total should equal sum of parts
-        assert invoice_total >= 0, "Non-negative total"
+        reconciler = InvoiceReconciler(tolerance_percent=5.0)
+
+        # Add contract
+        contract = Contract(
+            id="contract_1",
+            vendor="Acme Corp",
+            monthly_amount=1000.0,
+            start_date=datetime.now() - timedelta(days=60),
+            end_date=datetime.now() + timedelta(days=60)
+        )
+        reconciler.add_contract(contract)
+
+        # Add invoices
+        matched = 0
+        discrepancies = 0
+        unmatched = 0
+
+        for i in range(invoice_count):
+            vendor = "Acme Corp" if i % 3 != 2 else "Unknown Vendor"
+            amount_variance = 0.0 if i % 2 == 0 else 0.08  # 8% variance
+
+            invoice = Invoice(
+                id=f"invoice_{i}",
+                vendor=vendor,
+                amount=1000.0 * (1 + amount_variance),
+                date=datetime.now(),
+                contract_id="contract_1" if vendor == "Acme Corp" else None
+            )
+            reconciler.add_invoice(invoice)
+
+            # Track expected results
+            if vendor != "Acme Corp":
+                unmatched += 1
+            elif amount_variance > 0.05:  # 5% tolerance
+                discrepancies += 1
+            else:
+                matched += 1
+
+        result = reconciler.reconcile()
+
+        # Verify summary
+        summary = result["summary"]
+        assert summary["total_invoices"] == invoice_count, "Total count should match"
+        assert summary["matched_count"] == matched, "Matched count should be correct"
+        assert summary["discrepancy_count"] == discrepancies, "Discrepancy count should be correct"
+        assert summary["unmatched_count"] == unmatched, "Unmatched count should be correct"
+
+
+class TestMultiCurrencyInvariants:
+    """Tests for multi-currency handling invariants"""
 
     @given(
-        invoice_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        payment_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
+        amounts=st.lists(
+            st.floats(min_value=10.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=10
+        ),
+        exchange_rates=st.lists(
+            st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=10
+        )
     )
     @settings(max_examples=50)
-    def test_payment_allocation(self, invoice_amount, payment_amount):
-        """INVARIANT: Payments should be allocated correctly."""
-        remaining_balance = invoice_amount - payment_amount
+    def test_currency_conversion_consistency(self, amounts, exchange_rates):
+        """Test that currency conversions are consistent"""
+        assume(len(amounts) == len(exchange_rates))
 
-        # Invariant: Payment should reduce balance
-        assert remaining_balance <= invoice_amount, "Balance reduces with payment"
+        # Convert to base currency
+        converted_amounts = [amount * rate for amount, rate in zip(amounts, exchange_rates)]
+
+        # Convert back
+        for i, (original, rate) in enumerate(zip(amounts, exchange_rates)):
+            if rate > 0:
+                back_converted = converted_amounts[i] / rate
+                # Use epsilon for floating-point comparison
+                epsilon = 1e-9
+                assert abs(back_converted - original) < epsilon * max(1.0, original), \
+                    f"Round-trip conversion should be consistent: {original} -> {back_converted}"
 
     @given(
-        invoice_date=st.integers(min_value=0, max_value=10000),
-        due_date=st.integers(min_value=0, max_value=20000),
-        current_date=st.integers(min_value=0, max_value=20000)
+        amount=st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        rate1=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
+        rate2=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_invoice_due_date(self, invoice_date, due_date, current_date):
-        """INVARIANT: Invoice due date should be tracked."""
-        is_overdue = current_date > due_date
+    def test_cross_currency_conversion(self, amount, rate1, rate2):
+        """Test cross-currency conversion consistency"""
+        # Direct conversion: amount -> rate1 -> rate2
+        direct = amount * (rate2 / rate1) if rate1 > 0 else 0
 
-        # Invariant: Should track overdue status
-        if is_overdue:
-            assert True  # Invoice overdue
-        else:
-            assert True  # Invoice not due
+        # Two-step conversion: amount -> rate1 -> base -> rate2
+        step1 = amount / rate1 if rate1 > 0 else 0
+        step2 = step1 * rate2
 
-    @given(
-        invoice_number=st.text(min_size=1, max_size=100),
-        existing_numbers=st.sets(st.text(min_size=1, max_size=100), min_size=0, max_size=100)
-    )
-    @settings(max_examples=50)
-    def test_invoice_number_uniqueness(self, invoice_number, existing_numbers):
-        """INVARIANT: Invoice numbers should be unique."""
-        is_duplicate = invoice_number in existing_numbers
-
-        # Invariant: Duplicate numbers should be rejected
-        if is_duplicate:
-            assert True  # Reject - duplicate
-        else:
-            assert True  # Accept - unique
-
-    @given(
-        subtotal=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_invoice_tax_calculation(self, subtotal, tax_rate):
-        """INVARIANT: Invoice tax should be calculated correctly."""
-        tax_amount = subtotal * tax_rate
-        total = subtotal + tax_amount
-
-        # Invariant: Tax should be included in total
-        assert total >= subtotal, "Total includes tax"
-
-    @given(
-        invoice_items=st.lists(st.text(min_size=1, max_size=50), min_size=0, max_size=20)
-    )
-    @settings(max_examples=50)
-    def test_line_item_validation(self, invoice_items):
-        """INVARIANT: Line items should be validated."""
-        # Invariant: Should have required fields
-        assert len(invoice_items) >= 0, "Valid items"
-
-    @given(
-        invoice_currency=st.sampled_from(['USD', 'EUR', 'GBP', 'JPY']),
-        payment_currency=st.sampled_from(['USD', 'EUR', 'GBP', 'JPY'])
-    )
-    @settings(max_examples=50)
-    def test_multi_currency_invoice(self, invoice_currency, payment_currency):
-        """INVARIANT: Multi-currency invoices should be handled."""
-        # Invariant: Should detect currency mismatch
-        if invoice_currency != payment_currency:
-            assert True  # Currency conversion needed
-        else:
-            assert True  # Same currency - no conversion
-
-    @given(
-        invoice_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tolerance=st.floats(min_value=0.01, max_value=1.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_payment_tolerance(self, invoice_amount, tolerance):
-        """INVARIANT: Payment tolerance should be respected."""
-        underpayment = invoice_amount * (1 - tolerance)
-
-        # Invariant: Should accept payment within tolerance
-        if underpayment >= 0:
-            assert True  # Within tolerance
-        else:
-            assert True  # Outside tolerance
-
-
-class TestPaymentProcessingInvariants:
-    """Property-based tests for payment processing invariants."""
-
-    @given(
-        payment_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        min_payment=st.floats(min_value=0.01, max_value=100.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_minimum_payment(self, payment_amount, min_payment):
-        """INVARIANT: Minimum payment should be enforced."""
-        meets_minimum = payment_amount >= min_payment
-
-        # Invariant: Should enforce minimum payment
-        if meets_minimum:
-            assert True  # Accept payment
-        else:
-            assert True  # Reject - below minimum
-
-    @given(
-        payment_method=st.sampled_from(['credit_card', 'debit_card', 'bank_transfer', 'check', 'cash']),
-        allowed_methods=st.sets(st.sampled_from(['credit_card', 'debit_card', 'bank_transfer', 'check', 'cash']), min_size=0, max_size=5)
-    )
-    @settings(max_examples=50)
-    def test_payment_method_validation(self, payment_method, allowed_methods):
-        """INVARIANT: Payment methods should be validated."""
-        is_allowed = len(allowed_methods) == 0 or payment_method in allowed_methods
-
-        # Invariant: Should validate payment method
-        if is_allowed:
-            assert True  # Method allowed
-        else:
-            assert True  # Method not allowed
-
-    @given(
-        transaction_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        fee_rate=st.floats(min_value=0.0, max_value=0.1, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_transaction_fee_calculation(self, transaction_amount, fee_rate):
-        """INVARIANT: Transaction fees should be calculated correctly."""
-        fee_amount = transaction_amount * fee_rate
-
-        # Invariant: Fee should be proportional to amount
-        assert fee_amount >= 0, "Non-negative fee"
-
-    @given(
-        payment_id=st.text(min_size=1, max_size=100),
-        refund_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        original_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_refund_processing(self, payment_id, refund_amount, original_amount):
-        """INVARIANT: Refunds should be processed correctly."""
-        can_refund = refund_amount <= original_amount
-
-        # Invariant: Should not refund more than original
-        if can_refund:
-            assert True  # Process refund
-        else:
-            assert True  # Reject - refund exceeds payment
-
-    @given(
-        payment_attempts=st.integers(min_value=0, max_value=100),
-        max_attempts=st.integers(min_value=1, max_value=10)
-    )
-    @settings(max_examples=50)
-    def test_retry_limit(self, payment_attempts, max_attempts):
-        """INVARIANT: Payment retry should be limited."""
-        exceeded_limit = payment_attempts >= max_attempts
-
-        # Invariant: Should limit retry attempts
-        if exceeded_limit:
-            assert True  # Stop retrying
-        else:
-            assert True  # Can retry
-
-    @given(
-        card_number=st.text(min_size=13, max_size=19, alphabet='0123456789'),
-        expiry_month=st.integers(min_value=1, max_value=12),
-        expiry_year=st.integers(min_value=2023, max_value=2100),
-        current_year=st.integers(min_value=2023, max_value=2030)
-    )
-    @settings(max_examples=50)
-    def test_card_expiry_validation(self, card_number, expiry_month, expiry_year, current_year):
-        """INVARIANT: Card expiry should be validated."""
-        is_expired = expiry_year < current_year or (expiry_year == current_year and expiry_month < 6)
-
-        # Invariant: Should reject expired cards
-        if is_expired:
-            assert True  # Card expired
-        else:
-            assert True  # Card valid
-
-    @given(
-        payment_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        daily_limit=st.floats(min_value=1000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        current_spend=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_daily_limit_enforcement(self, payment_amount, daily_limit, current_spend):
-        """INVARIANT: Daily limits should be enforced."""
-        new_total = current_spend + payment_amount
-        exceeds_limit = new_total > daily_limit
-
-        # Invariant: Should enforce daily limits
-        if exceeds_limit:
-            assert True  # Reject - limit exceeded
-        else:
-            assert True  # Accept - within limit
-
-    @given(
-        transaction_id=st.text(min_size=1, max_size=100),
-        status=st.sampled_from(['pending', 'processing', 'completed', 'failed', 'refunded'])
-    )
-    @settings(max_examples=50)
-    def test_payment_status_tracking(self, transaction_id, status):
-        """INVARIANT: Payment status should be tracked."""
-        # Invariant: Should track status transitions
-        valid_statuses = ['pending', 'processing', 'completed', 'failed', 'refunded']
-        assert status in valid_statuses, "Valid status"
-
-
-class TestFinancialReportingInvariants:
-    """Property-based tests for financial reporting invariants."""
-
-    @given(
-        revenues=st.lists(st.floats(min_value=-10000.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=12),
-        expenses=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=12)
-    )
-    @settings(max_examples=50)
-    def test_profit_calculation(self, revenues, expenses):
-        """INVARIANT: Profit should be calculated correctly."""
-        total_revenue = sum(revenues)
-        total_expenses = sum(expenses)
-        profit = total_revenue - total_expenses
-
-        # Invariant: Profit = revenue - expenses
-        assert profit == total_revenue - total_expenses, "Profit formula correct"
-
-    @given(
-        assets=st.lists(st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=20),
-        liabilities=st.lists(st.floats(min_value=0.0, max_value=500000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=20)
-    )
-    @settings(max_examples=50)
-    def test_equity_calculation(self, assets, liabilities):
-        """INVARIANT: Equity should be calculated correctly."""
-        total_assets = sum(assets)
-        total_liabilities = sum(liabilities)
-        equity = total_assets - total_liabilities
-
-        # Invariant: Equity = assets - liabilities
-        assert equity == total_assets - total_liabilities, "Equity formula correct"
-
-    @given(
-        cash_inflows=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=100),
-        cash_outflows=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=100)
-    )
-    @settings(max_examples=50)
-    def test_cash_flow_calculation(self, cash_inflows, cash_outflows):
-        """INVARIANT: Cash flow should be calculated correctly."""
-        total_inflow = sum(cash_inflows)
-        total_outflow = sum(cash_outflows)
-        net_cash_flow = total_inflow - total_outflow
-
-        # Invariant: Net cash flow = inflows - outflows
-        assert net_cash_flow == total_inflow - total_outflow, "Cash flow formula correct"
-
-    @given(
-        period_revenue=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        prior_period_revenue=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_revenue_growth_calculation(self, period_revenue, prior_period_revenue):
-        """INVARIANT: Revenue growth should be calculated correctly."""
-        if prior_period_revenue > 0:
-            growth_rate = (period_revenue - prior_period_revenue) / prior_period_revenue
-            # Invariant: Growth rate should be calculated correctly
-            assert growth_rate >= -1.0, "Growth rate >= -100%"
-        else:
-            assert True  # No prior period
-
-    @given(
-        monthly_revenues=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=1, max_size=12)
-    )
-    @settings(max_examples=50)
-    def test_ytd_revenue_calculation(self, monthly_revenues):
-        """INVARIANT: YTD revenue should be calculated correctly."""
-        ytd_revenue = sum(monthly_revenues)
-
-        # Invariant: YTD should equal sum of months
-        assert ytd_revenue == sum(monthly_revenues), "YTD equals sum"
-
-    @given(
-        operating_income=st.floats(min_value=-100000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        interest_expense=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_expense=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_net_income_calculation(self, operating_income, interest_expense, tax_expense):
-        """INVARIANT: Net income should be calculated correctly."""
-        net_income = operating_income - interest_expense - tax_expense
-
-        # Invariant: Net income = operating - interest - taxes
-        assert net_income == operating_income - interest_expense - tax_expense, "Net income formula correct"
-
-    @given(
-        current_assets=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=10),
-        current_liabilities=st.lists(st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=10)
-    )
-    @settings(max_examples=50)
-    def test_current_ratio_calculation(self, current_assets, current_liabilities):
-        """INVARIANT: Current ratio should be calculated correctly."""
-        total_current_assets = sum(current_assets)
-        total_current_liabilities = sum(current_liabilities)
-
-        if total_current_liabilities > 0:
-            current_ratio = total_current_assets / total_current_liabilities
-            assert current_ratio >= 0, "Non-negative ratio"
-        else:
-            assert True  # Division by zero - infinite ratio
-
-    @given(
-        report_period=st.integers(min_value=1, max_value=12),
-        fiscal_year=st.integers(min_value=2023, max_value=2100)
-    )
-    @settings(max_examples=50)
-    def test_report_period_validation(self, report_period, fiscal_year):
-        """INVARIANT: Report period should be validated."""
-        # Invariant: Period should be valid
-        assert 1 <= report_period <= 12, "Valid month"
-        assert fiscal_year >= 2023, "Valid year"
-
-
-class TestCurrencyConversionInvariants:
-    """Property-based tests for currency conversion invariants."""
-
-    @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        exchange_rate=st.floats(min_value=0.01, max_value=1000.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_conversion_calculation(self, amount, exchange_rate):
-        """INVARIANT: Currency conversion should be calculated correctly."""
-        converted_amount = amount * exchange_rate
-
-        # Invariant: Converted amount should be non-negative
-        assert converted_amount >= 0, "Non-negative converted amount"
-
-    @given(
-        usd_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        eur_rate=st.floats(min_value=0.8, max_value=1.2, allow_nan=False, allow_infinity=False),
-        gbp_rate=st.floats(min_value=1.2, max_value=1.6, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_cross_rate_calculation(self, usd_amount, eur_rate, gbp_rate):
-        """INVARIANT: Cross rates should be calculated correctly."""
-        # USD to EUR to GBP
-        eur_amount = usd_amount * eur_rate
-        gbp_amount = eur_amount * (1 / gbp_rate)
-
-        # Invariant: Cross conversion should be consistent
-        assert eur_amount >= 0, "Non-negative EUR"
-        assert gbp_amount >= 0, "Non-negative GBP"
-
-    @given(
-        base_currency=st.sampled_from(['USD', 'EUR']),
-        quote_currency=st.sampled_from(['USD', 'EUR']),
-        rate=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_rate_pair_validation(self, base_currency, quote_currency, rate):
-        """INVARIANT: Currency pairs should be validated."""
-        # Invariant: Same currency should have rate of 1
-        if base_currency == quote_currency:
-            assert rate == 1.0 or True, "Same currency rate"
-        else:
-            assert rate > 0, "Positive exchange rate"
-
-    @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        rate=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
-        fee_percentage=st.floats(min_value=0.0, max_value=0.05, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_conversion_with_fees(self, amount, rate, fee_percentage):
-        """INVARIANT: Conversion fees should be applied correctly."""
-        converted = amount * rate
-        fee = converted * fee_percentage
-        net_amount = converted - fee
-
-        # Invariant: Net amount should be after fee
-        assert net_amount <= converted, "Fee reduces amount"
-
-    @given(
-        exchange_rate=st.floats(min_value=0.9, max_value=1.1, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_round_trip_conversion(self, exchange_rate):
-        """INVARIANT: Round-trip conversion should not lose value (within tolerance)."""
-        # Convert USD to EUR and back
-        original_amount = 100.0
-        intermediate = original_amount * exchange_rate
-        final = intermediate * (1 / exchange_rate)
-
-        # Allow for small differences due to floating point
-        difference = abs(final - original_amount)
-        tolerance = original_amount * 0.01  # 1% tolerance
-
-        # Invariant: Round-trip should preserve value within tolerance
-        assert difference <= tolerance, "Round-trip preserves value"
-
-    @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        rate=st.floats(min_value=0.01, max_value=100.0, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_conversion_precision(self, amount, rate):
-        """INVARIANT: Conversion should maintain precision."""
-        converted = amount * rate
-
-        # Invariant: Should maintain reasonable precision
-        assert converted >= 0, "Non-negative converted"
-
-    @given(
-        currency=st.text(min_size=3, max_size=3, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    )
-    @settings(max_examples=50)
-    def test_currency_code_validation(self, currency):
-        """INVARIANT: Currency codes should be validated."""
-        # Check against common currency codes
-        common_currencies = {'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'}
-        is_valid = currency in common_currencies
-
-        # Invariant: Should validate currency codes
-        if is_valid:
-            assert True  # Valid code
-        else:
-            assert True  # Unknown code
-
-    @given(
-        conversion_timestamp=st.integers(min_value=0, max_value=10000),
-        rate_stale_seconds=st.integers(min_value=60, max_value=3600)
-    )
-    @settings(max_examples=50)
-    def test_rate_freshness(self, conversion_timestamp, rate_stale_seconds):
-        """INVARIANT: Exchange rates should be fresh."""
-        # Invariant: Should use fresh rates
-        assert conversion_timestamp >= 0, "Valid timestamp"
+        # Should be approximately equal (use epsilon for floating-point)
+        epsilon = 1e-9
+        assert abs(direct - step2) < epsilon * max(1.0, amount), \
+            "Cross-currency conversion should be consistent"
 
 
 class TestTaxCalculationInvariants:
-    """Property-based tests for tax calculation invariants."""
+    """Tests for tax calculation invariants"""
 
     @given(
-        taxable_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
+        amounts=st.lists(
+            st.floats(min_value=10.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=50
+        ),
+        tax_rate=st.floats(min_value=0.0, max_value=0.30, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_tax_calculation(self, taxable_amount, tax_rate):
-        """INVARIANT: Tax should be calculated correctly."""
-        tax_amount = taxable_amount * tax_rate
+    def test_tax_calculation_correctness(self, amounts, tax_rate):
+        """Test that tax calculations are correct"""
+        for amount in amounts:
+            tax = amount * tax_rate
+            total = amount + tax
 
-        # Invariant: Tax should be proportional to amount
-        assert tax_amount >= 0, "Non-negative tax"
+            # Tax should be non-negative
+            assert tax >= 0, "Tax should be non-negative"
+
+            # Total should equal amount + tax
+            epsilon = 1e-9
+            assert abs(total - (amount + tax)) < epsilon, "Total should equal amount + tax"
+
+            # Total should be >= amount
+            assert total >= amount - epsilon, "Total should be >= amount"
 
     @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_rate1=st.floats(min_value=0.0, max_value=0.3, allow_nan=False, allow_infinity=False),
-        tax_rate2=st.floats(min_value=0.0, max_value=0.2, allow_nan=False, allow_infinity=False)
+        amount=st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        tax_rates=st.lists(
+            st.floats(min_value=0.0, max_value=0.25, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=5
+        )
     )
     @settings(max_examples=50)
-    def test_compound_tax(self, amount, tax_rate1, tax_rate2):
-        """INVARIANT: Compound tax should be calculated correctly."""
-        tax1 = amount * tax_rate1
-        tax2 = (amount + tax1) * tax_rate2
-        total_tax = tax1 + tax2
-
-        # Invariant: Compound tax should be calculated correctly
-        assert total_tax >= 0, "Non-negative total tax"
-
-    @given(
-        income=st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
-        tax_brackets=st.lists(st.tuples(st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False), st.floats(min_value=0.0, max_value=500000.0, allow_nan=False, allow_infinity=False)), min_size=1, max_size=5)
-    )
-    @settings(max_examples=50)
-    def test_progressive_tax(self, income, tax_brackets):
-        """INVARIANT: Progressive tax should be calculated correctly."""
-        # Calculate progressive tax
-        remaining_income = income
+    def test_compound_tax_calculation(self, amount, tax_rates):
+        """Test compound tax calculation (e.g., federal + state)"""
         total_tax = 0.0
+        for rate in tax_rates:
+            total_tax += amount * rate
 
-        for rate, limit in tax_brackets:
-            taxable_in_bracket = min(remaining_income, limit)
-            tax_in_bracket = taxable_in_bracket * rate
-            total_tax += tax_in_bracket
-            remaining_income -= taxable_in_bracket
-            if remaining_income <= 0:
-                break
+        total = amount + total_tax
 
-        # Invariant: Tax should be non-negative
-        assert total_tax >= 0, "Non-negative tax"
+        # Each tax component should be non-negative
+        for rate in tax_rates:
+            tax_component = amount * rate
+            assert tax_component >= 0, "Each tax component should be non-negative"
+
+        # Total tax should be sum of components
+        expected_total_tax = sum(amount * rate for rate in tax_rates)
+        epsilon = 1e-9
+        assert abs(total_tax - expected_total_tax) < epsilon, "Total tax should equal sum of components"
 
     @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        tax_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False),
-        is_exempt=st.booleans()
+        amount=st.floats(min_value=100.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        tax_rate=st.floats(min_value=0.05, max_value=0.25, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
-    def test_tax_exemption(self, amount, tax_rate, is_exempt):
-        """INVARIANT: Tax exemption should be respected."""
-        if is_exempt:
-            # Exempt from tax
-            tax_amount = 0.0
+    def test_tax_inclusive_calculation(self, amount, tax_rate):
+        """Test tax-inclusive (tax already included) calculation"""
+        # For tax-inclusive: amount = base + tax = base * (1 + tax_rate)
+        # So: base = amount / (1 + tax_rate)
+        base_amount = amount / (1 + tax_rate)
+        tax = amount - base_amount
+
+        # Verify tax rate from extracted tax
+        extracted_rate = tax / base_amount if base_amount > 0 else 0
+        epsilon = 1e-6
+        assert abs(extracted_rate - tax_rate) < epsilon, \
+            f"Extracted tax rate should match: {extracted_rate} vs {tax_rate}"
+
+        # Base + tax should equal original amount
+        assert abs((base_amount + tax) - amount) < epsilon, \
+            "Base + tax should equal original amount"
+
+
+class TestNetWorthInvariants:
+    """Tests for net worth calculation invariants"""
+
+    @given(
+        assets=st.lists(
+            st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20
+        ),
+        liabilities=st.lists(
+            st.floats(min_value=0.0, max_value=500000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_net_worth_calculation(self, assets, liabilities):
+        """Test that net worth is calculated correctly"""
+        total_assets = sum(assets)
+        total_liabilities = sum(liabilities)
+        net_worth = total_assets - total_liabilities
+
+        # Net worth should equal assets - liabilities
+        epsilon = 1e-9
+        assert abs(net_worth - (total_assets - total_liabilities)) < epsilon, \
+            "Net worth should equal assets minus liabilities"
+
+        # If assets >= liabilities, net worth should be non-negative
+        if total_assets >= total_liabilities:
+            assert net_worth >= -epsilon, "Net worth should be non-negative when assets >= liabilities"
+
+    @given(
+        initial_balance=st.floats(min_value=1000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        transactions=st.lists(
+            st.floats(min_value=-5000.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=50
+        )
+    )
+    @settings(max_examples=50)
+    def test_balance_sheet_integrity(self, initial_balance, transactions):
+        """Test that balance sheet maintains integrity through transactions"""
+        balance = initial_balance
+        for transaction in transactions:
+            balance += transaction
+
+        # Final balance should equal initial plus all transactions
+        expected_balance = initial_balance + sum(transactions)
+        epsilon = 1e-9
+        assert abs(balance - expected_balance) < epsilon, \
+            "Final balance should equal initial plus transactions"
+
+
+class TestRevenueRecognitionInvariants:
+    """Tests for revenue recognition invariants"""
+
+    @given(
+        contract_value=st.floats(min_value=1000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        recognition_period_months=st.integers(min_value=1, max_value=24),
+        months_elapsed=st.integers(min_value=0, max_value=24)
+    )
+    @settings(max_examples=50)
+    def test_revenue_recognition_timing(self, contract_value, recognition_period_months, months_elapsed):
+        """Test that revenue recognition follows timing rules"""
+        assume(months_elapsed <= recognition_period_months)
+
+        # Recognize revenue linearly over period
+        monthly_revenue = contract_value / recognition_period_months
+        recognized_revenue = monthly_revenue * months_elapsed
+
+        # Recognized revenue should be non-negative
+        assert recognized_revenue >= 0, "Recognized revenue should be non-negative"
+
+        # Should not exceed total contract value
+        assert recognized_revenue <= contract_value + 1e-9, \
+            "Recognized revenue should not exceed contract value"
+
+        # After full period, should recognize entire contract
+        if months_elapsed == recognition_period_months:
+            epsilon = 1e-9
+            assert abs(recognized_revenue - contract_value) < epsilon * contract_value, \
+                "After full period, should recognize entire contract"
+
+    @given(
+        total_revenue=st.floats(min_value=10000.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
+        segments=st.integers(min_value=2, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_revenue_segmentation(self, total_revenue, segments):
+        """Test that revenue segmentation sums correctly"""
+        # Divide revenue into equal segments
+        segment_revenue = total_revenue / segments
+
+        # Sum all segments
+        total_from_segments = segment_revenue * segments
+
+        # Should equal original total
+        epsilon = 1e-9
+        assert abs(total_from_segments - total_revenue) < epsilon * max(1.0, total_revenue), \
+            "Sum of segments should equal total revenue"
+
+
+class TestInvoiceAgingInvariants:
+    """Tests for invoice aging calculations"""
+
+    @given(
+        invoice_days_ago=st.integers(min_value=0, max_value=120),
+        terms_days=st.integers(min_value=15, max_value=90)
+    )
+    @settings(max_examples=50)
+    def test_invoice_aging_calculation(self, invoice_days_ago, terms_days):
+        """Test that invoice aging is calculated correctly"""
+        days_overdue = invoice_days_ago - terms_days
+
+        # Determine aging bucket
+        if days_overdue <= 0:
+            bucket = "current"
+        elif days_overdue <= 30:
+            bucket = "1-30_days"
+        elif days_overdue <= 60:
+            bucket = "31-60_days"
         else:
-            tax_amount = amount * tax_rate
+            bucket = "61+_days"
 
-        # Invariant: Exempt entities should not pay tax
-        if is_exempt:
-            assert tax_amount == 0.0, "Exempt from tax"
+        # Verify bucket assignment
+        if invoice_days_ago <= terms_days:
+            assert bucket == "current", "Should be current if not overdue"
+        elif invoice_days_ago <= terms_days + 30:
+            assert bucket == "1-30_days", "Should be in 1-30 days bucket"
+        elif invoice_days_ago <= terms_days + 60:
+            assert bucket == "31-60_days", "Should be in 31-60 days bucket"
         else:
-            assert tax_amount >= 0, "Non-negative tax"
+            assert bucket == "61+_days", "Should be in 61+ days bucket"
 
     @given(
-        expense_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        is_deductible=st.booleans()
+        # Generate both lists together to ensure same length
+        st.lists(
+            st.tuples(
+                st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+                st.integers(min_value=1, max_value=90)
+            ),
+            min_size=1,
+            max_size=20
+        )
     )
     @settings(max_examples=50)
-    def test_tax_deduction(self, expense_amount, is_deductible):
-        """INVARIANT: Tax deductions should be applied correctly."""
-        if is_deductible:
-            # Can deduct from taxable income
-            deduction = expense_amount
+    def test_aging_report_aggregation(self, invoice_data):
+        """Test that aging report aggregates correctly"""
+        # Unzip the tuples
+        invoice_amounts = [amount for amount, _ in invoice_data]
+        overdue_days_list = [days for _, days in invoice_data]
+
+        # Calculate aging buckets
+        aging_buckets = {
+            "1-30_days": 0.0,
+            "31-60_days": 0.0,
+            "61+_days": 0.0
+        }
+
+        for amount, overdue_days in zip(invoice_amounts, overdue_days_list):
+            if overdue_days <= 30:
+                aging_buckets["1-30_days"] += amount
+            elif overdue_days <= 60:
+                aging_buckets["31-60_days"] += amount
+            else:
+                aging_buckets["61+_days"] += amount
+
+        # Sum of buckets should equal total
+        total_from_buckets = sum(aging_buckets.values())
+        total_invoices = sum(invoice_amounts)
+        epsilon = 1e-9
+        assert abs(total_from_buckets - total_invoices) < epsilon * max(1.0, total_invoices), \
+            "Sum of aging buckets should equal total outstanding"
+
+
+class TestPaymentTermsInvariants:
+    """Tests for payment terms enforcement"""
+
+    @given(
+        invoice_amount=st.floats(min_value=1000.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
+        terms_days=st.integers(min_value=15, max_value=90),
+        paid_days=st.integers(min_value=0, max_value=120),
+        late_fee_percent=st.floats(min_value=0.01, max_value=0.05, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_payment_term_enforcement(self, invoice_amount, terms_days, paid_days, late_fee_percent):
+        """Test that payment terms are enforced correctly"""
+        days_late = max(0, paid_days - terms_days)
+
+        # Calculate late fee if applicable
+        if days_late > 0:
+            late_fee = invoice_amount * late_fee_percent
+            total_due = invoice_amount + late_fee
         else:
-            # Cannot deduct
-            deduction = 0.0
+            late_fee = 0.0
+            total_due = invoice_amount
 
-        # Invariant: Should track deductible expenses
-        assert deduction >= 0, "Non-negative deduction"
+        # Late fee should be non-negative
+        assert late_fee >= 0, "Late fee should be non-negative"
 
-    @given(
-        amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        inclusive_tax_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_tax_inclusive_pricing(self, amount, inclusive_tax_rate):
-        """INVARIANT: Tax-inclusive pricing should be calculated correctly."""
-        # Amount includes tax, need to extract tax
-        tax_amount = amount - (amount / (1 + inclusive_tax_rate))
-        net_amount = amount - tax_amount
+        # Total due should be >= invoice amount
+        assert total_due >= invoice_amount - 1e-9, "Total due should be >= invoice amount"
 
-        # Invariant: Net + tax = gross
-        assert abs((net_amount + tax_amount) - amount) < 0.01, "Net + tax = gross"
+        # If paid on time, no late fee
+        if paid_days <= terms_days:
+            assert late_fee < 1e-9, "No late fee if paid on time"
 
     @given(
-        tax_amount=st.floats(min_value=0.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-        payment_date=st.integers(min_value=0, max_value=10000),
-        due_date=st.integers(min_value=0, max_value=10000),
-        penalty_rate=st.floats(min_value=0.0, max_value=0.5, allow_nan=False, allow_infinity=False)
+        base_amount=st.floats(min_value=1000.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
+        discount_percent=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False),
+        paid_early_days=st.integers(min_value=1, max_value=30)
     )
     @settings(max_examples=50)
-    def test_tax_penalty_calculation(self, tax_amount, payment_date, due_date, penalty_rate):
-        """INVARIANT: Tax penalties should be calculated correctly."""
-        days_late = max(0, payment_date - due_date)
-        penalty = tax_amount * penalty_rate * (days_late / 365)
+    def test_early_payment_discount(self, base_amount, discount_percent, paid_early_days):
+        """Test early payment discount calculation"""
+        discount = base_amount * (discount_percent / 100.0)
+        discounted_amount = base_amount - discount
 
-        # Invariant: Penalty should be proportional
-        assert penalty >= 0, "Non-negative penalty"
+        # Discount should be positive
+        assert discount > 0, "Early payment discount should be positive"
 
-    @given(
-        transaction_amount=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        vat_rate=st.floats(min_value=0.0, max_value=0.25, allow_nan=False, allow_infinity=False)
-    )
-    @settings(max_examples=50)
-    def test_vat_calculation(self, transaction_amount, vat_rate):
-        """INVARIANT: VAT should be calculated correctly."""
-        vat_amount = transaction_amount * vat_rate
-        total_with_vat = transaction_amount + vat_amount
+        # Discounted amount should be less than base
+        assert discounted_amount < base_amount, "Discounted amount should be less than base"
 
-        # Invariant: VAT should be added to price
-        assert total_with_vat >= transaction_amount, "VAT increases total"
-
-
-class TestFinancialAuditInvariants:
-    """Property-based tests for financial audit invariants."""
-
-    @given(
-        transaction_id=st.text(min_size=1, max_size=100),
-        amount=st.floats(min_value=0.01, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        timestamp=st.integers(min_value=0, max_value=10000)
-    )
-    @settings(max_examples=50)
-    def test_transaction_logging(self, transaction_id, amount, timestamp):
-        """INVARIANT: All transactions should be logged."""
-        # Invariant: Should log all transaction details
-        assert len(transaction_id) > 0, "Valid transaction ID"
-        assert amount > 0, "Valid amount"
-        assert timestamp >= 0, "Valid timestamp"
-
-    @given(
-        old_value=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        new_value=st.floats(min_value=0.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
-        field_name=st.text(min_size=1, max_size=50)
-    )
-    @settings(max_examples=50)
-    def test_change_tracking(self, old_value, new_value, field_name):
-        """INVARIANT: Financial changes should be tracked."""
-        has_changed = old_value != new_value
-
-        # Invariant: Should track all changes
-        if has_changed:
-            assert True  # Log change
-        else:
-            assert True  # No change to track
-
-    @given(
-        user_id=st.text(min_size=1, max_size=100),
-        action=st.sampled_from(['create', 'read', 'update', 'delete']),
-        resource_type=st.sampled_from(['invoice', 'payment', 'budget', 'report'])
-    )
-    @settings(max_examples=50)
-    def test_access_logging(self, user_id, action, resource_type):
-        """INVARIANT: Financial access should be logged."""
-        # Invariant: Should log all access
-        assert len(user_id) > 0, "Valid user ID"
-
-    @given(
-        approval_chain=st.lists(st.text(min_size=1, max_size=50), min_size=0, max_size=10)
-    )
-    @settings(max_examples=50)
-    def test_approval_chain_tracking(self, approval_chain):
-        """INVARIANT: Approval chain should be tracked."""
-        # Invariant: Should track all approvers
-        assert len(approval_chain) >= 0, "Valid chain"
-
-    @given(
-        transaction_id=st.text(min_size=1, max_size=100),
-        modified_count=st.integers(min_value=0, max_value=100)
-    )
-    @settings(max_examples=50)
-    def test_edit_history(self, transaction_id, modified_count):
-        """INVARIANT: Edit history should be maintained."""
-        # Invariant: Should track all modifications
-        assert modified_count >= 0, "Valid modification count"
-
-    @given(
-        financial_record=st.dictionaries(st.text(min_size=1, max_size=20), st.one_of(st.none(), st.integers(), st.floats(), st.text()), min_size=1, max_size=20)
-    )
-    @settings(max_examples=50)
-    def test_record_immutability(self, financial_record):
-        """INVARIANT: Financial records should be immutable."""
-        # Invariant: Should never modify records, only append
-        assert len(financial_record) > 0, "Valid record"
-
-    @given(
-        transaction_count=st.integers(min_value=0, max_value=1000000),
-        time_period=st.integers(min_value=1, max_value=86400)
-    )
-    @settings(max_examples=50)
-    def test_audit_trail_completeness(self, transaction_count, time_period):
-        """INVARIANT: Audit trail should be complete."""
-        # Invariant: Should track all transactions
-        assert transaction_count >= 0, "Valid count"
-
-    @given(
-        sensitive_data=st.text(min_size=0, max_size=1000),
-        access_level=st.sampled_from(['public', 'internal', 'confidential', 'restricted'])
-    )
-    @settings(max_examples=50)
-    def test_data_classification(self, sensitive_data, access_level):
-        """INVARIANT: Financial data should be classified."""
-        # Invariant: Should classify by sensitivity
-        assert len(sensitive_data) >= 0, "Valid data"
+        # Discounted amount should be positive
+        assert discounted_amount > 0, "Discounted amount should be positive"
