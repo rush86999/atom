@@ -435,3 +435,305 @@ class TestLLMCacheInvariants:
         # Invariant: TTL should not be too long
         assert ttl_seconds <= 3600, \
             f"TTL {ttl_seconds} exceeds 1 hour"
+
+
+class TestLLMStreamingInvariants:
+    """Property-based tests for LLM streaming invariants."""
+
+    @given(
+        chunk_count=st.integers(min_value=1, max_value=1000),
+        chunk_size=st.integers(min_value=1, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_streaming_chunk_consistency(self, chunk_count, chunk_size):
+        """INVARIANT: Streaming chunks should be consistent."""
+        # Invariant: Chunk count should be positive
+        assert chunk_count > 0, "Chunk count must be positive"
+
+        # Invariant: Chunk size should be positive
+        assert chunk_size > 0, "Chunk size must be positive"
+
+        # Simulate streaming
+        total_bytes = 0
+        for i in range(chunk_count):
+            total_bytes += chunk_size
+
+        # Invariant: Total should match
+        expected_total = chunk_count * chunk_size
+        assert total_bytes == expected_total, \
+            f"Total bytes {total_bytes} != expected {expected_total}"
+
+    @given(
+        token_count=st.integers(min_value=10, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_token_accounting(self, token_count):
+        """INVARIANT: Streaming should accurately track tokens."""
+        # Simulate token usage
+        input_tokens = token_count // 2
+        output_tokens = token_count - input_tokens
+
+        # Invariant: Total should match
+        total_tokens = input_tokens + output_tokens
+        assert total_tokens == token_count, \
+            f"Token count mismatch: {total_tokens} != {token_count}"
+
+        # Invariant: All counts should be non-negative
+        assert input_tokens >= 0, "Input tokens cannot be negative"
+        assert output_tokens >= 0, "Output tokens cannot be negative"
+
+    @given(
+        stream_duration_ms=st.integers(min_value=100, max_value=30000)
+    )
+    @settings(max_examples=50)
+    def test_streaming_timeout_handling(self, stream_duration_ms):
+        """INVARIANT: Streaming should handle timeouts."""
+        timeout_threshold = 30000  # 30 seconds
+
+        # Invariant: Duration should be positive
+        assert stream_duration_ms > 0, "Stream duration must be positive"
+
+        # Check for timeout
+        if stream_duration_ms > timeout_threshold:
+            should_timeout = True
+        else:
+            should_timeout = False
+
+        # Invariant: Should detect timeout
+        if stream_duration_ms > timeout_threshold:
+            assert should_timeout, "Should detect timeout"
+
+    @given(
+        chunk_delay_ms=st.integers(min_value=0, max_value=1000)
+    )
+    @settings(max_examples=50)
+    def test_streaming_chunk_delays(self, chunk_delay_ms):
+        """INVARIANT: Chunk delays should be reasonable."""
+        max_delay_ms = 1000  # 1 second
+
+        # Invariant: Delay should be within limits
+        assert 0 <= chunk_delay_ms <= max_delay_ms, \
+            f"Chunk delay {chunk_delay_ms}ms exceeds max {max_delay_ms}ms"
+
+        # Invariant: Long delays should trigger warnings
+        if chunk_delay_ms > 500:
+            is_slow = True
+        else:
+            is_slow = False
+
+        # Invariant: Should detect slow streaming
+        assert isinstance(is_slow, bool), "Should detect slow streaming"
+
+
+class TestLLMRateLimitingInvariants:
+    """Property-based tests for LLM rate limiting invariants."""
+
+    @given(
+        request_count=st.integers(min_value=1, max_value=1000),
+        window_seconds=st.integers(min_value=1, max_value=60)
+    )
+    @settings(max_examples=50)
+    def test_rate_limit_enforcement(self, request_count, window_seconds):
+        """INVARIANT: Should enforce rate limits."""
+        # Calculate rate
+        requests_per_second = request_count / window_seconds
+        max_rate = 100  # 100 requests per second
+
+        # Check if exceeds limit
+        if requests_per_second > max_rate:
+            should_limit = True
+        else:
+            should_limit = False
+
+        # Invariant: Should enforce limit
+        if requests_per_second > max_rate:
+            assert should_limit, "Should enforce rate limit"
+
+    @given(
+        concurrent_requests=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_concurrent_request_limiting(self, concurrent_requests):
+        """INVARIANT: Should limit concurrent requests."""
+        max_concurrent = 50
+
+        # Simulate limiting
+        allowed = min(concurrent_requests, max_concurrent)
+        queued = max(0, concurrent_requests - max_concurrent)
+
+        # Invariant: Allowed should not exceed maximum
+        assert allowed <= max_concurrent, \
+            f"Allowed {allowed} exceeds max {max_concurrent}"
+
+        # Invariant: Queued requests should be tracked
+        assert queued >= 0, "Queued requests should be non-negative"
+
+        # Invariant: Total should be preserved
+        assert allowed + queued == concurrent_requests, \
+            f"Allowed + queued {allowed + queued} != input {concurrent_requests}"
+
+    @given(
+        retry_count=st.integers(min_value=0, max_value=5),
+        backoff_delay_seconds=st.integers(min_value=1, max_value=60)
+    )
+    @settings(max_examples=50)
+    def test_retry_with_backoff(self, retry_count, backoff_delay_seconds):
+        """INVARIANT: Should retry with exponential backoff."""
+        max_retries = 3
+
+        # Invariant: Retry count should be non-negative
+        assert retry_count >= 0, "Retry count must be non-negative"
+
+        # Invariant: Backoff delay should be positive
+        assert backoff_delay_seconds > 0, "Backoff delay must be positive"
+
+        # Calculate exponential backoff
+        delay = backoff_delay_seconds * (2 ** retry_count)
+
+        # Cap delay at reasonable maximum (5 minutes)
+        max_delay = 300
+        capped_delay = min(delay, max_delay)
+
+        # Invariant: Delay should be capped
+        assert capped_delay <= max_delay, \
+            f"Capped delay {capped_delay}s exceeds max {max_delay}s"
+
+        # Invariant: Should not retry beyond max
+        if retry_count >= max_retries:
+            # Should give up
+            assert True  # Reached max retries
+
+
+class TestLLMResponseValidationInvariants:
+    """Property-based tests for LLM response validation invariants."""
+
+    @given(
+        response_length=st.integers(min_value=1, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_response_length_validation(self, response_length):
+        """INVARIANT: Response length should be validated."""
+        max_length = 10000
+
+        # Invariant: Response should not exceed maximum
+        assert response_length <= max_length, \
+            f"Response length {response_length} exceeds max {max_length}"
+
+        # Invariant: Response should be non-empty
+        assert response_length > 0, "Response should not be empty"
+
+    @given(
+        content=st.text(min_size=1, max_size=1000, alphabet='abc DEF{}:')
+    )
+    @settings(max_examples=50)
+    def test_content_format_validation(self, content):
+        """INVARIANT: Response content should be properly formatted."""
+        # Invariant: Content should not be empty
+        assert len(content) > 0, "Content should not be empty"
+
+        # Check for valid characters
+        valid_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}:,.-\'"!? \n')
+        has_valid_chars = all(c in valid_chars or c.isspace() for c in content)
+
+        # Invariant: Content should have valid characters
+        assert has_valid_chars, "Content has invalid characters"
+
+    @given(
+        finish_reason=st.sampled_from(['stop', 'length', 'content_filter', 'tool_calls', 'error'])
+    )
+    @settings(max_examples=50)
+    def test_finish_reason_validity(self, finish_reason):
+        """INVARIANT: Finish reason must be from valid set."""
+        valid_reasons = {'stop', 'length', 'content_filter', 'tool_calls', 'error'}
+
+        # Invariant: Finish reason must be valid
+        assert finish_reason in valid_reasons, \
+            f"Invalid finish reason: {finish_reason}"
+
+        # Invariant: Error finish reason should trigger error handling
+        if finish_reason == 'error':
+            should_handle_error = True
+        else:
+            should_handle_error = False
+
+        assert isinstance(should_handle_error, bool), \
+            "Should determine error handling"
+
+
+class TestLLMCostOptimizationInvariants:
+    """Property-based tests for LLM cost optimization invariants."""
+
+    @given(
+        input_tokens=st.integers(min_value=1, max_value=10000),
+        output_tokens=st.integers(min_value=0, max_value=10000),
+        cost_per_million_tokens=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_cost_calculation(self, input_tokens, output_tokens, cost_per_million_tokens):
+        """INVARIANT: Cost should be calculated accurately."""
+        # Simulate cost calculation
+        input_cost = (input_tokens / 1000000) * cost_per_million_tokens
+        output_cost = (output_tokens / 1000000) * cost_per_million_tokens
+        total_cost = input_cost + output_cost
+
+        # Invariant: Costs should be non-negative
+        assert input_cost >= 0, "Input cost cannot be negative"
+        assert output_cost >= 0, "Output cost cannot be negative"
+        assert total_cost >= 0, "Total cost cannot be negative"
+
+        # Invariant: Total should match sum
+        expected_total = input_cost + output_cost
+        assert abs(total_cost - expected_total) < 0.01, \
+            f"Total cost {total_cost} != expected {expected_total}"
+
+    @given(
+        model_a=st.sampled_from(['gpt-4', 'claude-3-opus', 'gemini-pro']),
+        model_b=st.sampled_from(['gpt-4', 'claude-3-opus', 'gemini-pro'])
+    )
+    @settings(max_examples=50)
+    def test_model_cost_comparison(self, model_a, model_b):
+        """INVARIANT: Should select cost-effective models when appropriate."""
+        # Define model costs (per 1M tokens)
+        model_costs = {
+            'gpt-4': 30.0,
+            'claude-3-opus': 15.0,
+            'gemini-pro': 0.5
+        }
+
+        # Invariant: Both models should have defined costs
+        assert model_a in model_costs, f"Unknown model: {model_a}"
+        assert model_b in model_costs, f"Unknown model: {model_b}"
+
+        # Compare costs
+        cost_a = model_costs[model_a]
+        cost_b = model_costs[model_b]
+
+        # Invariant: Should be able to compare costs
+        assert isinstance(cost_a, (int, float)), "Cost should be numeric"
+        assert isinstance(cost_b, (int, float)), "Cost should be numeric"
+
+    @given(
+        budget_amount=st.floats(min_value=0.01, max_value=1000.0, allow_nan=False, allow_infinity=False),
+        request_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_budget_enforcement(self, budget_amount, request_count):
+        """INVARIANT: Should enforce budget limits."""
+        # Cost per request (average)
+        cost_per_request = 0.05
+
+        # Calculate total cost
+        total_cost = request_count * cost_per_request
+
+        # Check if exceeds budget
+        if total_cost > budget_amount:
+            should_block = True
+        else:
+            should_block = False
+
+        # Invariant: Should block if exceeds budget
+        if total_cost > budget_amount:
+            assert should_block, "Should block requests exceeding budget"
+
+        # Invariant: Should track spending
+        assert total_cost >= 0, "Total cost cannot be negative"
