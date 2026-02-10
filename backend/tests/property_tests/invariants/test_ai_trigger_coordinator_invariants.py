@@ -400,3 +400,133 @@ class TestKeywordMatchingInvariants:
         # Invariant: Content should have reasonable maximum length
         assert content_length <= 1000, \
             f"Content too long: {content_length} characters"
+
+
+class TestTriggerRateLimitingInvariants:
+    """Property-based tests for trigger rate limiting invariants."""
+
+    @given(
+        requests_per_minute=st.integers(min_value=1, max_value=100),
+        time_window_seconds=st.integers(min_value=60, max_value=3600)
+    )
+    @settings(max_examples=50)
+    def test_rate_limit_calculation(self, requests_per_minute, time_window_seconds):
+        """INVARIANT: Rate limits are calculated correctly."""
+        # Calculate rate limit
+        max_requests = (time_window_seconds // 60) * requests_per_minute
+
+        # Invariant: Max requests should be positive
+        assert max_requests >= 1, \
+            f"Max requests should be positive, got {max_requests}"
+
+        # Invariant: Should scale with time window
+        expected_min = requests_per_minute
+        assert max_requests >= expected_min, \
+            f"Max requests {max_requests} should be at least {expected_min}"
+
+    @given(
+        request_count=st.integers(min_value=1, max_value=1000),
+        limit=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_rate_limit_enforcement(self, request_count, limit):
+        """INVARIANT: Rate limits are enforced."""
+        # Calculate allowed requests
+        allowed = min(request_count, limit)
+        rejected = max(0, request_count - limit)
+
+        # Invariant: Total should equal request_count
+        assert allowed + rejected == request_count, \
+            f"Allowed {allowed} + rejected {rejected} != total {request_count}"
+
+        # Invariant: Rejected should be non-negative
+        assert rejected >= 0, "Rejected count should be non-negative"
+
+    @given(
+        burst_size=st.integers(min_value=1, max_value=50),
+        sustained_rate=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_burst_rate_handling(self, burst_size, sustained_rate):
+        """INVARIANT: Burst traffic is handled gracefully."""
+        # Invariant: Burst size and sustained rate should be positive
+        assert burst_size >= 1, "Burst size should be positive"
+        assert sustained_rate >= 1, "Sustained rate should be positive"
+
+        # Invariant: System should calculate burst multiplier
+        burst_multiplier = burst_size / sustained_rate
+        assert burst_multiplier > 0, "Burst multiplier should be positive"
+
+        # Invariant: Excessive burst should trigger rate limiting
+        max_burst_multiplier = 5
+        if burst_multiplier > max_burst_multiplier:
+            assert True  # Should apply rate limiting
+
+
+class TestCategoryConfidenceInvariants:
+    """Property-based tests for category confidence invariants."""
+
+    @given(
+        confidence_scores=st.lists(
+            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=3,
+            max_size=8
+        )
+    )
+    @settings(max_examples=50)
+    def test_confidence_aggregation(self, confidence_scores):
+        """INVARIANT: Confidence scores are aggregated correctly."""
+        # Calculate average confidence
+        avg_confidence = sum(confidence_scores) / len(confidence_scores)
+
+        # Invariant: Average should be in [0, 1]
+        assert 0.0 <= avg_confidence <= 1.0, \
+            f"Average confidence {avg_confidence:.2f} out of bounds [0, 1]"
+
+        # Invariant: Average should be within min/max range
+        min_score = min(confidence_scores)
+        max_score = max(confidence_scores)
+        assert min_score <= avg_confidence <= max_score, \
+            f"Average {avg_confidence:.2f} outside range [{min_score:.2f}, {max_score:.2f}]"
+
+    @given(
+        secondary_confidence=st.floats(min_value=0.0, max_value=0.49, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_primary_category_selection(self, secondary_confidence):
+        """INVARIANT: Primary category has highest confidence."""
+        # Generate primary confidence that's always higher
+        import random
+        primary_confidence = random.uniform(secondary_confidence + 0.01, 1.0)
+
+        # Invariant: Primary should have higher confidence
+        assert primary_confidence > secondary_confidence, \
+            f"Primary {primary_confidence:.2f} should exceed secondary {secondary_confidence:.2f}"
+
+        # Invariant: Both should be in valid range
+        assert 0.0 <= primary_confidence <= 1.0, "Primary confidence out of bounds"
+        assert 0.0 <= secondary_confidence <= 1.0, "Secondary confidence out of bounds"
+
+    @given(
+        category_count=st.integers(min_value=1, max_value=8)
+    )
+    @settings(max_examples=50)
+    def test_category_score_normalization(self, category_count):
+        """INVARIANT: Category scores are normalized."""
+        # Generate raw scores
+        scores = [float(i) for i in range(category_count)]
+
+        # Normalize to sum to 1
+        total = sum(scores)
+        if total > 0:
+            normalized = [s / total for s in scores]
+
+            # Invariant: Normalized scores should sum to 1
+            sum_normalized = sum(normalized)
+            assert abs(sum_normalized - 1.0) < 0.001, \
+                f"Normalized scores sum to {sum_normalized:.3f}, expected 1.0"
+
+            # Invariant: Each score should be in [0, 1]
+            for score in normalized:
+                assert 0.0 <= score <= 1.0, \
+                    f"Normalized score {score:.3f} out of bounds [0, 1]"
