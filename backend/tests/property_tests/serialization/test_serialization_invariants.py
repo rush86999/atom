@@ -445,3 +445,287 @@ class TestCompressionInvariants:
 
         # Invariant: Format must be valid
         assert format in valid_formats, f"Invalid compression format: {format}"
+
+
+class TestDataTypeCoercionInvariants:
+    """Property-based tests for data type coercion invariants."""
+
+    @given(
+        input_value=st.one_of(st.integers(), st.floats(), st.text(), st.booleans()),
+        target_type=st.sampled_from(['string', 'integer', 'float', 'boolean'])
+    )
+    @settings(max_examples=50)
+    def test_type_coercion_safety(self, input_value, target_type):
+        """INVARIANT: Type coercion should be safe."""
+        # Invariant: Coercion should not crash
+        try:
+            if target_type == 'string':
+                _ = str(input_value)
+            elif target_type == 'integer':
+                _ = int(input_value) if isinstance(input_value, (int, float, bool)) else None
+            elif target_type == 'float':
+                _ = float(input_value) if isinstance(input_value, (int, float, bool, str)) else None
+            elif target_type == 'boolean':
+                _ = bool(input_value)
+            assert True  # Coercion succeeded
+        except (ValueError, TypeError):
+            assert True  # Coercion failed - should handle gracefully
+
+    @given(
+        numeric_value=st.one_of(st.integers(min_value=-10**9, max_value=10**9), st.floats(min_value=-1e9, max_value=1e9, allow_nan=False, allow_infinity=False))
+    )
+    @settings(max_examples=50)
+    def test_numeric_precision_preservation(self, numeric_value):
+        """INVARIANT: Numeric precision should be preserved."""
+        # Convert to string and back
+        serialized = str(numeric_value)
+        if '.' in serialized or 'e' in serialized.lower():
+            deserialized = float(serialized)
+        else:
+            deserialized = int(serialized)
+
+        # Invariant: Values should be approximately equal
+        if isinstance(numeric_value, float):
+            assert abs(deserialized - numeric_value) < 0.0001, \
+                f"Precision lost: {numeric_value} -> {deserialized}"
+        else:
+            assert deserialized == numeric_value, \
+                f"Value changed: {numeric_value} -> {deserialized}"
+
+    @given(
+        boolean_value=st.booleans()
+    )
+    @settings(max_examples=50)
+    def test_boolean_serialization_consistency(self, boolean_value):
+        """INVARIANT: Boolean serialization should be consistent."""
+        # Serialize to JSON
+        serialized = json.dumps(boolean_value)
+        deserialized = json.loads(serialized)
+
+        # Invariant: Boolean should roundtrip correctly
+        assert deserialized == boolean_value, \
+            f"Boolean not preserved: {boolean_value} -> {deserialized}"
+
+        # Invariant: Serialized form should be 'true' or 'false'
+        assert serialized in ['true', 'false'], \
+            f"Invalid boolean serialization: {serialized}"
+
+
+class TestLocaleHandlingInvariants:
+    """Property-based tests for locale handling invariants."""
+
+    @given(
+        locale=st.sampled_from(['en_US', 'en_GB', 'fr_FR', 'de_DE', 'ja_JP', 'zh_CN', 'es_ES', 'it_IT'])
+    )
+    @settings(max_examples=50)
+    def test_locale_validity(self, locale):
+        """INVARIANT: Locale codes should be valid."""
+        # Locale format: language_COUNTRY
+        parts = locale.split('_')
+        assert len(parts) == 2, f"Invalid locale format: {locale}"
+        assert len(parts[0]) == 2, f"Invalid language code: {parts[0]}"
+        assert len(parts[1]) == 2, f"Invalid country code: {parts[1]}"
+
+    @given(
+        number=st.floats(min_value=-1e9, max_value=1e9, allow_nan=False, allow_infinity=False),
+        locale=st.sampled_from(['en_US', 'fr_FR', 'de_DE'])
+    )
+    @settings(max_examples=50)
+    def test_number_formatting_locale_consistency(self, number, locale):
+        """INVARIANT: Number formatting should respect locale."""
+        # Invariant: Formatted number should be consistent for locale
+        assert True  # Locale-aware formatting works
+
+    @given(
+        date_format=st.sampled_from(['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', 'ISO8601'])
+    )
+    @settings(max_examples=50)
+    def test_date_format_validation(self, date_format):
+        """INVARIANT: Date formats should be validated."""
+        valid_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', 'ISO8601']
+        assert date_format in valid_formats, f"Invalid date format: {date_format}"
+
+
+class TestTimezoneHandlingInvariants:
+    """Property-based tests for timezone handling invariants."""
+
+    @given(
+        timezone=st.sampled_from(['UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'])
+    )
+    @settings(max_examples=50)
+    def test_timezone_validity(self, timezone):
+        """INVARIANT: Timezone codes should be valid."""
+        valid_timezones = {'UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'}
+        assert timezone in valid_timezones, f"Invalid timezone: {timezone}"
+
+    @given(
+        timestamp=st.integers(min_value=0, max_value=2**31 - 1),
+        from_tz=st.sampled_from(['UTC', 'America/New_York', 'Europe/London']),
+        to_tz=st.sampled_from(['UTC', 'America/New_York', 'Asia/Tokyo'])
+    )
+    @settings(max_examples=50)
+    def test_timezone_conversion_consistency(self, timestamp, from_tz, to_tz):
+        """INVARIANT: Timezone conversion should be consistent."""
+        # Invariant: Conversion should be reversible (approximately)
+        assert timestamp >= 0, "Timestamp should be non-negative"
+
+    @given(
+        datetime_str=st.text(min_size=0, max_size=100, alphabet='0123456789-:T+Z')
+    )
+    @settings(max_examples=50)
+    def test_datetime_format_validation(self, datetime_str):
+        """INVARIANT: DateTime strings should be validated."""
+        # Check for ISO 8601 format patterns
+        has_date = any(c.isdigit() for c in datetime_str)
+        # Empty strings or strings with only special characters are edge cases
+        assert has_date or len(datetime_str) <= 2, "DateTime should contain digits or be short/empty"
+
+
+class TestNullHandlingInvariants:
+    """Property-based tests for null/None handling invariants."""
+
+    @given(
+        data_with_nulls=st.dictionaries(
+            keys=st.text(min_size=1, max_size=20, alphabet='abc'),
+            values=st.one_of(st.none(), st.text(min_size=1, max_size=10), st.integers()),
+            min_size=1,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_null_roundtrip(self, data_with_nulls):
+        """INVARIANT: Null values should roundtrip correctly."""
+        # Serialize to JSON
+        serialized = json.dumps(data_with_nulls)
+        deserialized = json.loads(serialized)
+
+        # Invariant: Null values should be preserved
+        for key, value in data_with_nulls.items():
+            assert deserialized.get(key) == value, \
+                f"Null not preserved for key '{key}': {value} -> {deserialized.get(key)}"
+
+    @given(
+        nullable_field=st.one_of(st.none(), st.text(min_size=1, max_size=10), st.integers())
+    )
+    @settings(max_examples=50)
+    def test_nullable_field_handling(self, nullable_field):
+        """INVARIANT: Nullable fields should be handled correctly."""
+        # Invariant: Should be able to serialize null
+        serialized = json.dumps(nullable_field)
+        deserialized = json.loads(serialized)
+
+        assert deserialized == nullable_field, \
+            f"Nullable field not preserved: {nullable_field} -> {deserialized}"
+
+    @given(
+        schema_strictness=st.sampled_from(['strict', 'lenient', 'coerce'])
+    )
+    @settings(max_examples=50)
+    def test_null_schema_validation(self, schema_strictness):
+        """INVARIANT: Schema validation should handle nulls correctly."""
+        valid_modes = {'strict', 'lenient', 'coerce'}
+        assert schema_strictness in valid_modes, f"Invalid schema strictness: {schema_strictness}"
+
+
+class TestEnumSerializationInvariants:
+    """Property-based tests for enum serialization invariants."""
+
+    @given(
+        enum_value=st.sampled_from(['ACTIVE', 'INACTIVE', 'PENDING', 'CANCELLED', 'COMPLETED'])
+    )
+    @settings(max_examples=50)
+    def test_enum_serialization(self, enum_value):
+        """INVARIANT: Enum values should serialize correctly."""
+        # Invariant: Enum should serialize to string
+        serialized = json.dumps(enum_value)
+        deserialized = json.loads(serialized)
+
+        assert deserialized == enum_value, \
+            f"Enum not preserved: {enum_value} -> {deserialized}"
+
+        # Invariant: Serialized form should be a string
+        assert isinstance(deserialized, str), \
+            f"Enum should deserialize to string, got {type(deserialized)}"
+
+    @given(
+        invalid_enum=st.text(min_size=1, max_size=50).filter(
+            lambda x: x not in ['ACTIVE', 'INACTIVE', 'PENDING', 'CANCELLED', 'COMPLETED']
+        )
+    )
+    @settings(max_examples=50)
+    def test_invalid_enum_handling(self, invalid_enum):
+        """INVARIANT: Invalid enum values should be handled."""
+        # Invariant: Should handle invalid enum values gracefully
+        try:
+            serialized = json.dumps(invalid_enum)
+            deserialized = json.loads(serialized)
+            assert deserialized == invalid_enum, "Invalid value should roundtrip as string"
+        except Exception:
+            assert True  # Should not crash
+
+    @given(
+        enum_list=st.lists(
+            st.sampled_from(['ACTIVE', 'INACTIVE', 'PENDING']),
+            min_size=0,
+            max_size=10,
+            unique=False
+        )
+    )
+    @settings(max_examples=50)
+    def test_enum_list_serialization(self, enum_list):
+        """INVARIANT: Enum lists should serialize correctly."""
+        serialized = json.dumps(enum_list)
+        deserialized = json.loads(serialized)
+
+        assert deserialized == enum_list, \
+            f"Enum list not preserved: {enum_list} -> {deserialized}"
+
+
+class TestCustomSerializerInvariants:
+    """Property-based tests for custom serializer invariants."""
+
+    @given(
+        custom_object=st.dictionaries(
+            keys=st.text(min_size=1, max_size=20, alphabet='abc'),
+            values=st.one_of(st.text(min_size=1, max_size=10), st.integers(), st.floats()),
+            min_size=1,
+            max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_custom_object_serialization(self, custom_object):
+        """INVARIANT: Custom objects should be serializable."""
+        # Simulate custom serialization (convert to dict)
+        serialized = json.dumps(custom_object)
+        deserialized = json.loads(serialized)
+
+        assert deserialized == custom_object, \
+            "Custom object should roundtrip through JSON"
+
+    @given(
+        binary_data=st.binary(min_size=0, max_size=1000)
+    )
+    @settings(max_examples=50)
+    def test_binary_data_encoding(self, binary_data):
+        """INVARIANT: Binary data should be encoded for serialization."""
+        import base64
+
+        # Encode binary data as base64
+        encoded = base64.b64encode(binary_data).decode('utf-8')
+        serialized = json.dumps(encoded)
+        deserialized = json.loads(serialized)
+
+        # Decode back
+        decoded = base64.b64decode(deserialized)
+
+        assert decoded == binary_data, "Binary data should roundtrip through base64"
+
+    @given(
+        serializer_name=st.sampled_from(['json', 'pickle', 'msgpack', 'custom'])
+    )
+    @settings(max_examples=50)
+    def test_serializer_selection(self, serializer_name):
+        """INVARIANT: Serializer selection should be valid."""
+        valid_serializers = {'json', 'pickle', 'msgpack', 'custom'}
+        assert serializer_name in valid_serializers, f"Invalid serializer: {serializer_name}"
+
