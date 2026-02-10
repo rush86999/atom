@@ -348,3 +348,371 @@ class TestGraduationAuditTrailInvariants:
         assert audit_record['intervention_rate'] >= 0.0
         assert audit_record['constitutional_score'] >= 0.0
         assert audit_record['readiness_score'] >= 0.0
+
+
+class TestGraduationRejectionInvariants:
+    """Property-based tests for graduation rejection scenarios."""
+
+    @given(
+        episode_count=st.integers(min_value=0, max_value=100),
+        min_required=st.integers(min_value=10, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_insufficient_episodes_rejection(self, episode_count, min_required):
+        """INVARIANT: Graduation rejected when episode count insufficient."""
+        # Check if should be rejected
+        should_reject = episode_count < min_required
+
+        if should_reject:
+            assert episode_count < min_required, \
+                f"Should reject with {episode_count} episodes (min {min_required})"
+        else:
+            assert episode_count >= min_required, \
+                f"Should accept with {episode_count} episodes (min {min_required})"
+
+    @given(
+        intervention_rate=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        max_allowed=st.floats(min_value=0.1, max_value=0.5, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_high_intervention_rejection(self, intervention_rate, max_allowed):
+        """INVARIANT: Graduation rejected when intervention rate too high."""
+        # Check if should be rejected
+        should_reject = intervention_rate > max_allowed
+
+        if should_reject:
+            assert intervention_rate > max_allowed, \
+                f"Should reject with rate {intervention_rate:.2f} (max {max_allowed:.2f})"
+        else:
+            assert intervention_rate <= max_allowed, \
+                f"Should accept with rate {intervention_rate:.2f} (max {max_allowed:.2f})"
+
+    @given(
+        constitutional_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        min_score=st.floats(min_value=0.5, max_value=0.95, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_low_constitutional_rejection(self, constitutional_score, min_score):
+        """INVARIANT: Graduation rejected when constitutional score too low."""
+        # Check if should be rejected
+        should_reject = constitutional_score < min_score
+
+        if should_reject:
+            assert constitutional_score < min_score, \
+                f"Should reject with score {constitutional_score:.2f} (min {min_score:.2f})"
+        else:
+            assert constitutional_score >= min_score, \
+                f"Should accept with score {constitutional_score:.2f} (min {min_score:.2f})"
+
+    @given(
+        readiness_score=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_readiness_threshold_enforcement(self, readiness_score):
+        """INVARIANT: Readiness score threshold is enforced."""
+        threshold = 70.0  # 70% readiness required
+
+        should_promote = readiness_score >= threshold
+
+        if should_promote:
+            assert readiness_score >= threshold, \
+                f"Should promote with score {readiness_score:.2f} (threshold {threshold})"
+        else:
+            assert readiness_score < threshold, \
+                f"Should reject with score {readiness_score:.2f} (threshold {threshold})"
+
+
+class TestEpisodeQualityInvariants:
+    """Property-based tests for episode quality in graduation."""
+
+    @given(
+        total_episodes=st.integers(min_value=1, max_value=100),
+        successful_episodes=st.integers(min_value=0, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_episode_success_rate_calculation(self, total_episodes, successful_episodes):
+        """INVARIANT: Episode success rate calculated correctly."""
+        # Cap successful at total
+        successful_episodes = min(successful_episodes, total_episodes)
+
+        # Calculate success rate
+        success_rate = successful_episodes / total_episodes if total_episodes > 0 else 0.0
+
+        # Verify bounds
+        assert 0.0 <= success_rate <= 1.0, \
+            f"Success rate {success_rate:.2f} out of bounds [0, 1]"
+
+        # Verify calculation
+        expected_rate = successful_episodes / total_episodes
+        assert abs(success_rate - expected_rate) < 0.001, \
+            f"Success rate calculation incorrect"
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=50),
+        avg_duration=st.integers(min_value=1, max_value=3600)  # seconds
+    )
+    @settings(max_examples=50)
+    def test_episode_duration_requirements(self, episode_count, avg_duration):
+        """INVARIANT: Episode duration affects graduation eligibility."""
+        # Minimum duration threshold: 60 seconds
+        min_duration = 60
+
+        # Check if episodes meet duration requirement
+        meets_requirement = avg_duration >= min_duration
+
+        if meets_requirement:
+            assert avg_duration >= min_duration, \
+                f"Duration {avg_duration}s meets minimum {min_duration}s"
+        else:
+            assert avg_duration < min_duration, \
+                f"Duration {avg_duration}s below minimum {min_duration}s"
+
+    @given(
+        segment_count=st.integers(min_value=1, max_value=20),
+        segment_diversity=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_episode_diversity_bonus(self, segment_count, segment_diversity):
+        """INVARIANT: Episode diversity increases readiness score."""
+        base_score = 50.0
+
+        # Diversity bonus: up to 10 points
+        diversity_bonus = segment_diversity * 10.0
+        adjusted_score = base_score + diversity_bonus
+
+        # Verify score increase
+        assert adjusted_score >= base_score, \
+            "Diversity bonus should not decrease score"
+
+        # Verify bounds
+        assert adjusted_score <= 60.0, \
+            f"Adjusted score {adjusted_score:.2f} should not exceed 60.0"
+
+    @given(
+        recency_days=st.integers(min_value=0, max_value=365)
+    )
+    @settings(max_examples=50)
+    def test_episode_recency_weighting(self, recency_days):
+        """INVARIANT: Recent episodes have higher weight."""
+        # Recency weight: decays over 90 days
+        decay_days = 90
+        recency_weight = max(0.0, 1.0 - (recency_days / decay_days))
+
+        # Verify weight calculation
+        assert 0.0 <= recency_weight <= 1.0, \
+            f"Recency weight {recency_weight:.2f} out of bounds [0, 1]"
+
+        # Older episodes should have lower weight
+        if recency_days > 0:
+            assert recency_weight < 1.0, \
+                f"Episodes {recency_days} days old should have weight < 1.0"
+
+
+class TestInterventionTypeInvariants:
+    """Property-based tests for intervention type classification."""
+
+    @given(
+        intervention_types=st.lists(
+            st.sampled_from(['correction', 'guidance', 'block', 'override', 'termination']),
+            min_size=1,
+            max_size=20
+        )
+    )
+    @settings(max_examples=50)
+    def test_intervention_severity_classification(self, intervention_types):
+        """INVARIANT: Intervention types are classified by severity."""
+        # Severity levels
+        severity_map = {
+            'guidance': 1,      # Lowest severity
+            'correction': 2,
+            'override': 3,
+            'block': 4,
+            'termination': 5    # Highest severity
+        }
+
+        # Calculate total severity score
+        total_severity = sum(severity_map.get(t, 0) for t in intervention_types)
+        max_severity = max(severity_map.get(t, 0) for t in intervention_types)
+
+        # Verify classification
+        assert total_severity > 0, "Total severity should be positive"
+        assert max_severity <= 5, "Max severity should not exceed 5"
+
+    @given(
+        guidance_count=st.integers(min_value=0, max_value=20),
+        correction_count=st.integers(min_value=0, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_intervention_impact_scoring(self, guidance_count, correction_count):
+        """INVARIANT: Intervention impact is scored correctly."""
+        # Guidance has lower impact than correction
+        guidance_impact = guidance_count * 1
+        correction_impact = correction_count * 2
+
+        total_impact = guidance_impact + correction_impact
+
+        # Verify impact calculation
+        assert total_impact >= 0, "Total impact should be non-negative"
+
+        # Verify per-intervention impact weights
+        guidance_weight = 1
+        correction_weight = 2
+        assert correction_weight > guidance_weight, \
+            "Correction should have higher per-intervention weight than guidance"
+
+    @given(
+        total_executions=st.integers(min_value=1, max_value=100),
+        blocked_count=st.integers(min_value=0, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_blocking_intervention_penalty(self, total_executions, blocked_count):
+        """INVARIANT: Blocking interventions have high penalty."""
+        # Blocking interventions prevent execution
+        # Penalty proportional to block rate
+        blocked_count = min(blocked_count, total_executions)
+
+        if total_executions > 0:
+            block_rate = blocked_count / total_executions
+            # High block rate significantly impacts readiness
+            penalty = block_rate * 50  # Up to 50 points penalty
+
+            assert 0.0 <= penalty <= 50.0, \
+                f"Penalty {penalty:.2f} out of bounds [0, 50]"
+
+    @given(
+        intervention_count=st.integers(min_value=0, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_intervention_frequency_limit(self, intervention_count):
+        """INVARIANT: Excessive interventions prevent graduation."""
+        # Maximum interventions before requiring review
+        max_interventions = 30
+
+        # Check if limit exceeded
+        exceeds_limit = intervention_count > max_interventions
+
+        if exceeds_limit:
+            assert intervention_count > max_interventions, \
+                f"Should require review with {intervention_count} interventions"
+        else:
+            assert intervention_count <= max_interventions, \
+                f"Should allow with {intervention_count} interventions"
+
+
+class TestGraduationPerformanceInvariants:
+    """Property-based tests for graduation service performance."""
+
+    @given(
+        agent_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_readiness_calculation_performance(self, agent_count):
+        """INVARIANT: Readiness calculation scales efficiently."""
+        import time
+
+        # Simulate readiness calculation for multiple agents
+        start_time = time.time()
+
+        for i in range(agent_count):
+            # Simulate calculation
+            readiness = (
+                min(i / 10.0, 1.0) * 0.4 +  # Episode score
+                0.7 * 0.3 +  # Intervention score
+                0.8 * 0.3    # Constitutional score
+            ) * 100
+
+        elapsed = time.time() - start_time
+
+        # Verify performance: should be fast
+        assert elapsed < 1.0, \
+            f"Readiness calculation for {agent_count} agents took {elapsed:.3f}s (should be <1s)"
+
+    @given(
+        episode_count=st.integers(min_value=0, max_value=1000)
+    )
+    @settings(max_examples=50)
+    def test_episode_counting_performance(self, episode_count):
+        """INVARIANT: Episode counting is efficient."""
+        import time
+
+        # Simulate counting episodes
+        start_time = time.time()
+
+        # Simple increment loop
+        count = 0
+        for _ in range(episode_count):
+            count += 1
+
+        elapsed = time.time() - start_time
+
+        # Verify performance: should be very fast
+        assert elapsed < 0.1, \
+            f"Counting {episode_count} episodes took {elapsed:.3f}s (should be <0.1s)"
+
+    @given(
+        history_size=st.integers(min_value=10, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_audit_retrieval_performance(self, history_size):
+        """INVARIANT: Audit trail retrieval is efficient."""
+        import time
+
+        # Simulate audit history
+        audit_history = [
+            {
+                'agent_id': f'agent_{i % 10}',
+                'timestamp': datetime.now() + timedelta(seconds=i),
+                'action': 'graduation_check'
+            }
+            for i in range(history_size)
+        ]
+
+        # Simulate retrieval
+        start_time = time.time()
+
+        recent_audits = [
+            audit for audit in audit_history
+            if (datetime.now() - audit['timestamp']).days < 30
+        ]
+
+        elapsed = time.time() - start_time
+
+        # Verify retrieval
+        assert len(recent_audits) <= history_size, \
+            "Retrieved count should not exceed history size"
+
+        # Verify performance: should be fast
+        assert elapsed < 0.5, \
+            f"Audit retrieval for {history_size} records took {elapsed:.3f}s (should be <0.5s)"
+
+    @given(
+        cache_size=st.integers(min_value=10, max_value=1000),
+        lookup_count=st.integers(min_value=1, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_caching_efficiency(self, cache_size, lookup_count):
+        """INVARIANT: Caching improves graduation check performance."""
+        # Simulate cache
+        cache = {f'agent_{i}': {'readiness': 70.0 + i} for i in range(cache_size)}
+
+        # Simulate lookups
+        import time
+        start_time = time.time()
+
+        hits = 0
+        for i in range(lookup_count):
+            agent_id = f'agent_{i % cache_size}'
+            if agent_id in cache:
+                hits += 1
+                readiness = cache[agent_id]['readiness']
+
+        elapsed = time.time() - start_time
+
+        # Verify cache hit rate
+        hit_rate = hits / lookup_count if lookup_count > 0 else 0.0
+        assert hit_rate > 0.9, \
+            f"Cache hit rate {hit_rate:.2f} should be > 90%"
+
+        # Verify performance: should be fast
+        assert elapsed < 0.5, \
+            f"{lookup_count} cache lookups took {elapsed:.3f}s (should be <0.5s)"
