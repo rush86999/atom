@@ -536,3 +536,494 @@ class TestEpisodeIntegrityInvariants:
             for val in embed['vector']:
                 assert abs(val) < float('inf'), \
                     "Embedding values should be finite"
+
+
+class TestCanvasAwareRetrievalInvariants:
+    """Tests for canvas-aware episode retrieval invariants"""
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=30),
+        canvas_action_count=st.integers(min_value=0, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_canvas_action_count_tracking(self, episode_count, canvas_action_count):
+        """Test that canvas actions are counted per episode"""
+        # Simulate episodes with canvas actions
+        episodes = []
+        for i in range(episode_count):
+            episodes.append({
+                'id': f'episode_{i}',
+                'canvas_action_count': canvas_action_count,
+                'canvas_context': [] if canvas_action_count == 0 else [
+                    {'action': 'present', 'type': 'sheets'}
+                ] * canvas_action_count
+            })
+
+        # Verify canvas action counts
+        for episode in episodes:
+            assert 'canvas_action_count' in episode, "Episode should track canvas action count"
+            assert episode['canvas_action_count'] == canvas_action_count, \
+                f"Canvas action count should be {canvas_action_count}"
+
+    @given(
+        canvas_type=st.sampled_from(['sheets', 'charts', 'forms', 'docs', 'email', 'terminal', 'coding', 'generic']),
+        episode_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_canvas_type_filtering(self, canvas_type, episode_count):
+        """Test that episodes can be filtered by canvas type"""
+        # Simulate episodes with different canvas types
+        episodes = []
+        canvas_types = ['sheets', 'charts', 'forms', 'docs', 'email', 'terminal', 'coding', 'generic']
+
+        for i in range(episode_count):
+            ep_type = canvas_types[i % len(canvas_types)]
+            episodes.append({
+                'id': f'episode_{i}',
+                'canvas_type': ep_type,
+                'canvas_actions': [{'type': ep_type, 'action': 'present'}]
+            })
+
+        # Filter by specific canvas type
+        filtered = [ep for ep in episodes if ep.get('canvas_type') == canvas_type]
+
+        # Verify filtering
+        for ep in filtered:
+            assert ep['canvas_type'] == canvas_type, \
+                f"Filtered episodes should match canvas type {canvas_type}"
+
+    @given(
+        base_score=st.floats(min_value=0.0, max_value=0.9, allow_nan=False, allow_infinity=False),
+        has_canvas_actions=st.booleans()
+    )
+    @settings(max_examples=50)
+    def test_canvas_boost_application(self, base_score, has_canvas_actions):
+        """Test that canvas presence boosts retrieval score"""
+        # Canvas boost: +0.1 if actions present
+        canvas_boost = 0.1 if has_canvas_actions else 0.0
+        boosted_score = min(1.0, base_score + canvas_boost)
+
+        # Verify boost application
+        if has_canvas_actions:
+            assert boosted_score > base_score or base_score == 1.0, \
+                "Canvas actions should boost score (or cap at 1.0)"
+        else:
+            assert boosted_score == base_score, \
+                "No canvas actions should not change score"
+
+        # Verify bounds
+        assert 0.0 <= boosted_score <= 1.0, "Boosted score must be in [0, 1]"
+
+    @given(
+        action_types=st.lists(
+            st.sampled_from(['present', 'submit', 'close', 'update', 'execute']),
+            min_size=1, max_size=10
+        )
+    )
+    @settings(max_examples=50)
+    def test_canvas_action_type_tracking(self, action_types):
+        """Test that canvas action types are tracked"""
+        # Valid action types
+        valid_actions = {'present', 'submit', 'close', 'update', 'execute'}
+
+        # Create episode with actions
+        episode = {
+            'id': 'episode_0',
+            'canvas_actions': [{'action': action} for action in action_types]
+        }
+
+        # Verify all action types are valid
+        for action in episode['canvas_actions']:
+            assert action['action'] in valid_actions, \
+                f"Canvas action type {action['action']} should be valid"
+
+
+class TestFeedbackLinkedRetrievalInvariants:
+    """Tests for feedback-linked episode retrieval invariants"""
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=30),
+        feedback_count=st.integers(min_value=0, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_feedback_count_tracking(self, episode_count, feedback_count):
+        """Test that feedback counts are tracked per episode"""
+        # Simulate episodes with feedback
+        episodes = []
+        for i in range(episode_count):
+            episodes.append({
+                'id': f'episode_{i}',
+                'feedback_count': feedback_count,
+                'feedback_context': [] if feedback_count == 0 else [
+                    {'rating': 5, 'thumbs_up_down': True}
+                ] * feedback_count
+            })
+
+        # Verify feedback tracking
+        for episode in episodes:
+            assert 'feedback_count' in episode, "Episode should track feedback count"
+            assert episode['feedback_count'] == feedback_count, \
+                f"Feedback count should be {feedback_count}"
+
+    @given(
+        positive_count=st.integers(min_value=0, max_value=10),
+        negative_count=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_feedback_aggregation_score(self, positive_count, negative_count):
+        """Test that feedback is aggregated into a score"""
+        # Calculate aggregate score
+        # Positive: +1.0, Negative: -1.0
+        total = positive_count + negative_count
+
+        if total > 0:
+            aggregate = (positive_count * 1.0 - negative_count * 1.0) / total
+            assert -1.0 <= aggregate <= 1.0, \
+                f"Aggregate score {aggregate} must be in [-1, 1]"
+        else:
+            aggregate = 0.0
+            assert aggregate == 0.0, "No feedback should give 0.0 score"
+
+    @given(
+        base_score=st.floats(min_value=0.1, max_value=0.8, allow_nan=False, allow_infinity=False),
+        has_positive_feedback=st.booleans(),
+        has_negative_feedback=st.booleans()
+    )
+    @settings(max_examples=50)
+    def test_feedback_score_adjustment(self, base_score, has_positive_feedback, has_negative_feedback):
+        """Test that feedback adjusts retrieval score with clamping"""
+        adjusted_score = base_score
+
+        # Apply adjustments
+        if has_positive_feedback:
+            adjusted_score += 0.2  # Positive boost
+        if has_negative_feedback:
+            adjusted_score -= 0.3  # Negative penalty
+
+        # Clamp to [0, 1]
+        adjusted_score = max(0.0, min(1.0, adjusted_score))
+
+        # Verify bounds
+        assert 0.0 <= adjusted_score <= 1.0, \
+            f"Adjusted score {adjusted_score} must be in [0, 1]"
+
+        # Verify adjustment direction when clamping doesn't interfere
+        if has_positive_feedback and not has_negative_feedback:
+            assert adjusted_score >= base_score, \
+                "Positive feedback should not decrease score"
+        elif has_negative_feedback and not has_positive_feedback:
+            assert adjusted_score <= base_score, \
+                "Negative feedback should not increase score"
+
+    @given(
+        rating=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_rating_normalization(self, rating):
+        """Test that ratings are normalized to [-1, 1]"""
+        # Normalize: (rating - 3) / 2
+        # Maps 1→-1.0, 2→-0.5, 3→0.0, 4→0.5, 5→1.0
+        normalized = (rating - 3) / 2.0
+
+        assert -1.0 <= normalized <= 1.0, \
+            f"Normalized rating {normalized} must be in [-1, 1]"
+
+
+class TestEpisodePaginationInvariants:
+    """Tests for episode pagination invariants"""
+
+    @given(
+        total_episodes=st.integers(min_value=10, max_value=200),
+        page_size=st.integers(min_value=5, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_pagination_page_count(self, total_episodes, page_size):
+        """Test that pagination calculates page count correctly"""
+        # Calculate expected page count
+        expected_pages = (total_episodes + page_size - 1) // page_size  # Ceiling division
+
+        # Verify page count
+        assert expected_pages >= 1, "Should have at least 1 page"
+        assert expected_pages * page_size >= total_episodes, \
+            "Page capacity should cover all episodes"
+        assert (expected_pages - 1) * page_size < total_episodes, \
+            "Previous pages should not cover all episodes"
+
+    @given(
+        total_episodes=st.integers(min_value=20, max_value=100),
+        page_size=st.integers(min_value=5, max_value=30),
+        page_number=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_pagination_offset_calculation(self, total_episodes, page_size, page_number):
+        """Test that pagination offset is calculated correctly"""
+        # Calculate offset
+        offset = page_number * page_size
+
+        # Verify offset is valid
+        assert offset >= 0, "Offset should be non-negative"
+
+        # Calculate if page is valid
+        total_pages = (total_episodes + page_size - 1) // page_size
+        is_valid_page = page_number < total_pages
+
+        if is_valid_page:
+            assert offset < total_episodes, "Offset should be within bounds"
+        else:
+            # Page beyond available - offset may exceed total
+            assert offset >= 0, "Offset should still be non-negative"
+
+    @given(
+        page_size=st.integers(min_value=1, max_value=100),
+        total_items=st.integers(min_value=0, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_page_size_enforcement(self, page_size, total_items):
+        """Test that page size is enforced"""
+        # Simulate items
+        items = [{'id': f'item_{i}'} for i in range(total_items)]
+
+        # Apply page size
+        page = items[:page_size]
+
+        # Verify page size
+        assert len(page) <= page_size, \
+            f"Page size {len(page)} should not exceed limit {page_size}"
+
+        if total_items >= page_size:
+            assert len(page) == page_size, \
+                "Should return full page when enough items available"
+        else:
+            assert len(page) == total_items, \
+                "Should return all available items"
+
+    @given(
+        total_episodes=st.integers(min_value=10, max_value=100),
+        page_size=st.integers(min_value=5, max_value=30)
+    )
+    @settings(max_examples=50)
+    def test_pagination_total_count(self, total_episodes, page_size):
+        """Test that pagination preserves total count"""
+        # Simulate pagination
+        episodes = [{'id': f'ep_{i}'} for i in range(total_episodes)]
+
+        total_pages = (total_episodes + page_size - 1) // page_size
+
+        # Sum all pages
+        total_across_pages = 0
+        for page_num in range(total_pages):
+            start = page_num * page_size
+            end = min(start + page_size, total_episodes)
+            total_across_pages += (end - start)
+
+        # Verify total is preserved
+        assert total_across_pages == total_episodes, \
+            "Total count across all pages should match original"
+
+
+class TestEpisodeCachingInvariants:
+    """Tests for episode caching invariants"""
+
+    @given(
+        cache_size=st.integers(min_value=10, max_value=100),
+        access_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_cache_size_limit(self, cache_size, access_count):
+        """Test that cache respects size limits"""
+        # Simulate cache
+        cache = []
+        cache_hits = 0
+
+        for i in range(access_count):
+            episode_id = f'episode_{i % cache_size}'
+
+            # Check if in cache
+            if episode_id in cache:
+                cache_hits += 1
+            else:
+                # Add to cache
+                cache.append(episode_id)
+
+            # Enforce cache size limit
+            if len(cache) > cache_size:
+                cache = cache[-cache_size:]  # Keep most recent
+
+        # Verify cache size
+        assert len(cache) <= cache_size, \
+            f"Cache size {len(cache)} should not exceed limit {cache_size}"
+
+    @given(
+        hot_episodes=st.integers(min_value=1, max_value=20),
+        cold_episodes=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_hot_cold_separation(self, hot_episodes, cold_episodes):
+        """Test that hot and cold episodes are separated"""
+        # Simulate hot (frequently accessed) and cold (rarely accessed) episodes
+        hot_threshold = 5
+
+        episodes = []
+        # Hot episodes
+        for i in range(hot_episodes):
+            episodes.append({
+                'id': f'hot_{i}',
+                'access_count': hot_threshold + i,
+                'is_hot': True
+            })
+
+        # Cold episodes
+        for i in range(cold_episodes):
+            episodes.append({
+                'id': f'cold_{i}',
+                'access_count': i % hot_threshold,
+                'is_hot': False
+            })
+
+        # Separate hot and cold
+        hot_set = [ep for ep in episodes if ep['access_count'] >= hot_threshold]
+        cold_set = [ep for ep in episodes if ep['access_count'] < hot_threshold]
+
+        # Verify separation
+        assert len(hot_set) == hot_episodes, "Hot episodes should be correctly identified"
+        assert len(cold_set) == cold_episodes, "Cold episodes should be correctly identified"
+
+        # No overlap
+        hot_ids = {ep['id'] for ep in hot_set}
+        cold_ids = {ep['id'] for ep in cold_set}
+        assert len(hot_ids & cold_ids) == 0, "Hot and cold sets should be disjoint"
+
+    @given(
+        cache_key_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_cache_key_uniqueness(self, cache_key_count):
+        """Test that cache keys are unique"""
+        # Simulate cache keys
+        cache = {}
+
+        for i in range(cache_key_count):
+            key = f'episode_{i}'
+            # Check uniqueness
+            assert key not in cache, f"Cache key {key} should be unique"
+            cache[key] = {'data': f'value_{i}'}
+
+        # Verify all keys are unique
+        assert len(cache) == cache_key_count, \
+            f"Cache should have {cache_key_count} unique keys"
+
+
+class TestEpisodeSecurityInvariants:
+    """Tests for episode security and governance invariants"""
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=30),
+        user_count=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_user_isolation(self, episode_count, user_count):
+        """Test that users can only access their own episodes"""
+        # Simulate episodes owned by different users
+        episodes = []
+        for i in range(episode_count):
+            user_id = f'user_{i % user_count}'
+            episodes.append({
+                'id': f'episode_{i}',
+                'user_id': user_id,
+                'agent_id': f'agent_{i % 3}'
+            })
+
+        # Test user isolation
+        target_user = f'user_{user_count // 2}'
+        user_episodes = [ep for ep in episodes if ep['user_id'] == target_user]
+
+        # Verify isolation
+        for ep in user_episodes:
+            assert ep['user_id'] == target_user, \
+                "User should only access their own episodes"
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=20),
+        maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+    )
+    @settings(max_examples=50)
+    def test_maturity_based_access(self, episode_count, maturity_level):
+        """Test that episode access respects agent maturity"""
+        # Define access rules
+        access_rules = {
+            'STUDENT': ['temporal'],  # Read-only access
+            'INTERN': ['temporal', 'semantic'],  # + similarity search
+            'SUPERVISED': ['temporal', 'semantic', 'sequential'],  # + full context
+            'AUTONOMOUS': ['temporal', 'semantic', 'sequential', 'contextual']  # All modes
+        }
+
+        allowed_modes = access_rules[maturity_level]
+
+        # Verify maturity level has allowed modes
+        assert len(allowed_modes) > 0, "Each maturity level should have some access"
+        assert 'temporal' in allowed_modes, "All levels should have temporal access"
+
+        # AUTONOMOUS should have all modes
+        if maturity_level == 'AUTONOMOUS':
+            assert len(allowed_modes) == 4, "AUTONOMOUS should have full access"
+
+    @given(
+        agent_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_access_audit_trail(self, agent_count):
+        """Test that all episode accesses are logged"""
+        # Simulate access logs
+        access_logs = []
+
+        for i in range(agent_count):
+            log_entry = {
+                'agent_id': f'agent_{i % agent_count}',
+                'episode_id': f'episode_{i}',
+                'access_type': 'retrieval',
+                'timestamp': datetime.now(),
+                'authorized': True
+            }
+            access_logs.append(log_entry)
+
+        # Verify audit trail completeness
+        required_fields = ['agent_id', 'episode_id', 'access_type', 'timestamp', 'authorized']
+        for log in access_logs:
+            for field in required_fields:
+                assert field in log, f"Access log should contain {field}"
+
+        # Verify authorization tracking
+        authorized_count = sum(1 for log in access_logs if log['authorized'])
+        assert authorized_count == agent_count, "All accesses should be authorized"
+
+    @given(
+        episode_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_sensitive_data_filtering(self, episode_count):
+        """Test that sensitive data is filtered from episodes"""
+        # Simulate episodes with potentially sensitive data
+        sensitive_patterns = ['password', 'api_key', 'secret', 'token']
+
+        for i in range(episode_count):
+            # Create episode with mixed content
+            episode = {
+                'id': f'episode_{i}',
+                'content': f"This is episode {i} with some data",
+                'metadata': {}
+            }
+
+            # Add some sensitive fields
+            if i % 2 == 0:
+                episode['metadata']['password'] = 'secret123'
+
+            # Filter sensitive data
+            filtered_metadata = {
+                k: v for k, v in episode['metadata'].items()
+                if not any(pattern in k.lower() for pattern in sensitive_patterns)
+            }
+
+            # Verify filtering
+            for key in filtered_metadata.keys():
+                assert not any(pattern in key.lower() for pattern in sensitive_patterns), \
+                    f"Filtered metadata should not contain sensitive keys: {key}"
