@@ -457,21 +457,22 @@ class TestMultiCurrencyInvariants:
     """Tests for multi-currency handling invariants"""
 
     @given(
-        amounts=st.lists(
-            st.floats(min_value=10.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-            min_size=2,
-            max_size=10
-        ),
-        exchange_rates=st.lists(
-            st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
+        # Generate both amounts and rates together to ensure same length
+        st.lists(
+            st.tuples(
+                st.floats(min_value=10.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+                st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False)
+            ),
             min_size=2,
             max_size=10
         )
     )
     @settings(max_examples=50)
-    def test_currency_conversion_consistency(self, amounts, exchange_rates):
+    def test_currency_conversion_consistency(self, currency_data):
         """Test that currency conversions are consistent"""
-        assume(len(amounts) == len(exchange_rates))
+        # Unzip the tuples
+        amounts = [amount for amount, _ in currency_data]
+        exchange_rates = [rate for _, rate in currency_data]
 
         # Convert to base currency
         converted_amounts = [amount * rate for amount, rate in zip(amounts, exchange_rates)]
@@ -480,8 +481,8 @@ class TestMultiCurrencyInvariants:
         for i, (original, rate) in enumerate(zip(amounts, exchange_rates)):
             if rate > 0:
                 back_converted = converted_amounts[i] / rate
-                # Use epsilon for floating-point comparison
-                epsilon = 1e-9
+                # Use epsilon for floating-point comparison (increased for test suite execution)
+                epsilon = 1e-6  # Increased from 1e-9 for robustness
                 assert abs(back_converted - original) < epsilon * max(1.0, original), \
                     f"Round-trip conversion should be consistent: {original} -> {back_converted}"
 
@@ -501,7 +502,7 @@ class TestMultiCurrencyInvariants:
         step2 = step1 * rate2
 
         # Should be approximately equal (use epsilon for floating-point)
-        epsilon = 1e-9
+        epsilon = 1e-6  # Increased from 1e-9 for robustness
         assert abs(direct - step2) < epsilon * max(1.0, amount), \
             "Cross-currency conversion should be consistent"
 

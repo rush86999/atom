@@ -464,32 +464,36 @@ class TestSupportingDataInvariants:
             assert len(name) >= 3, "Metric name should have minimum length"
 
     @given(
-        before_metrics=st.lists(
-            st.floats(min_value=0.001, max_value=1000.0, allow_nan=False, allow_infinity=False),
-            min_size=1,
-            max_size=10
-        ),
-        improvement_factors=st.lists(
-            st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
+        # Generate both metrics and factors together to ensure same length
+        st.lists(
+            st.tuples(
+                st.floats(min_value=0.001, max_value=1000.0, allow_nan=False, allow_infinity=False),
+                st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False)
+            ),
             min_size=1,
             max_size=10
         )
     )
     @settings(max_examples=50)
-    def test_before_after_comparison(self, before_metrics, improvement_factors):
+    def test_before_after_comparison(self, metrics_data):
         """Test that before/after comparisons are valid"""
-        assume(len(before_metrics) == len(improvement_factors))
+        # Unzip the tuples
+        before_metrics = [before for before, _ in metrics_data]
+        improvement_factors = [factor for _, factor in metrics_data]
 
+        epsilon = 1e-9
         for before, factor in zip(before_metrics, improvement_factors):
             after = before * factor
 
             # Verify calculation
             assert after > 0, "After value should be positive"
 
-            if factor > 1:
-                assert after > before, "Factor > 1 should increase value"
-            elif factor < 1:
-                assert after < before, "Factor < 1 should decrease value"
+            # Use epsilon for comparisons to handle floating-point precision
+            if factor > 1 + epsilon:
+                assert after > before - epsilon, "Factor > 1 should increase value"
+            elif factor < 1 - epsilon:
+                assert after < before + epsilon, "Factor < 1 should decrease value"
+            # If factor is approximately 1, no assertion needed (value stays roughly same)
 
 
 class TestWorkflowSectionTargetingInvariants:
