@@ -30,7 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Developer can run `pytest --cov` and generate HTML, terminal, and JSON coverage reports showing current coverage metrics
   4. Test suite creates isolated test data using factory_boy patterns with no hardcoded IDs
   5. CI pipeline runs tests automatically on every push and PR with coverage enforcement
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 01-test-infrastructure-01-PLAN.md — Install and configure pytest-xdist for parallel execution
+- [ ] 01-test-infrastructure-02-PLAN.md — Create factory_boy test data factories for all core models
+- [ ] 01-test-infrastructure-03-PLAN.md — Configure multi-format coverage reporting with quality gates
+- [ ] 01-test-infrastructure-04-PLAN.md — Enhance CI pipeline with full test suite and coverage enforcement
+- [ ] 01-test-infrastructure-05-PLAN.md — Implement assertion density quality gate and factory documentation
 
 ### Phase 2: Core Property Tests
 **Goal**: Property-based tests verify critical system invariants for governance, episodic memory, database, API, state, events, and file operations
@@ -90,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Infrastructure | 0/TBD | Not started | - |
+| 1. Test Infrastructure | 0/5 | Ready to execute | - |
 | 2. Core Property Tests | 0/TBD | Not started | - |
 | 3. Integration & Security Tests | 0/TBD | Not started | - |
 | 4. Platform Coverage | 0/TBD | Not started | - |
