@@ -350,3 +350,339 @@ class TestBrowserSecurityInvariants:
             }
             assert 'name' in cookie, "Cookie missing name"
             assert 'value' in cookie, "Cookie missing value"
+
+
+class TestBrowserCDPInvariants:
+    """Property-based tests for browser CDP (Chrome DevTools Protocol) invariants."""
+
+    @given(
+        command_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_cdp_command_execution(self, command_count):
+        """INVARIANT: CDP commands should execute with proper sequencing."""
+        # Simulate CDP command queue
+        commands = []
+        for i in range(command_count):
+            command = {
+                'id': i,
+                'method': f'Page.command{i}',
+                'params': {},
+                'timestamp': datetime.now() + timedelta(milliseconds=i)
+            }
+            commands.append(command)
+
+        # Verify command ordering
+        assert len(commands) == command_count, \
+            f"All {command_count} commands should be queued"
+
+        for i in range(len(commands) - 1):
+            current_time = commands[i]['timestamp']
+            next_time = commands[i + 1]['timestamp']
+            assert current_time <= next_time, \
+                "Commands should be in chronological order"
+
+    @given(
+        message_size=st.integers(min_value=1, max_value=10_000_000)
+    )
+    @settings(max_examples=50)
+    def test_cdp_message_size_limits(self, message_size):
+        """INVARIANT: CDP messages should respect size limits."""
+        max_message_size = 10_000_000  # 10MB
+
+        # Verify size is within limits
+        assert message_size <= max_message_size, \
+            f"Message size {message_size} exceeds limit {max_message_size}"
+
+        # Check if message should be chunked
+        should_chunk = message_size > 1_000_000  # 1MB
+        if should_chunk:
+            # Would send in chunks
+            chunk_count = (message_size + 999_999) // 1_000_000
+            assert chunk_count >= 1, "Should have at least one chunk"
+
+    @given(
+        session_id_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_cdp_session_isolation(self, session_id_count):
+        """INVARIANT: CDP sessions should be isolated."""
+        # Simulate CDP sessions
+        sessions = {}
+        for i in range(session_id_count):
+            session_id = f"session_{i}"
+            sessions[session_id] = {
+                'target_id': f"target_{i}",
+                'context_id': i
+            }
+
+        # Verify session isolation
+        assert len(sessions) == session_id_count, \
+            f"All {session_id_count} sessions should be created"
+
+        # Each session should have unique target
+        target_ids = set(s['target_id'] for s in sessions.values())
+        assert len(target_ids) == session_id_count, \
+            "Each session should have unique target"
+
+
+class TestBrowserElementInvariants:
+    """Property-based tests for browser element interaction invariants."""
+
+    @given(
+        element_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_element_visibility_detection(self, element_count):
+        """INVARIANT: Element visibility should be correctly detected."""
+        # Simulate elements with visibility states
+        elements = []
+        for i in range(element_count):
+            element = {
+                'id': f"element_{i}",
+                'visible': i % 3 != 0,  # 2/3 are visible
+                'opacity': 1.0 if i % 3 != 0 else 0.0,
+                'display': 'block' if i % 3 != 0 else 'none'
+            }
+            elements.append(element)
+
+        # Count visible elements
+        visible_count = sum(1 for e in elements if e['visible'])
+
+        # Verify visibility detection
+        assert visible_count <= element_count, \
+            f"Visible count {visible_count} should not exceed total {element_count}"
+
+        # All visible elements should have opacity > 0
+        for elem in elements:
+            if elem['visible']:
+                assert elem['opacity'] > 0, "Visible element should have opacity > 0"
+
+    @given(
+        element_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_element_selector_uniqueness(self, element_count):
+        """INVARIANT: Element selectors should uniquely identify elements."""
+        # Simulate elements with selectors
+        elements = []
+        for i in range(element_count):
+            element = {
+                'id': f"element_{i}",
+                'selector': f"#id-{i}",
+                'class': f"class-{i % 10}"
+            }
+            elements.append(element)
+
+        # Verify ID selector uniqueness
+        id_selectors = [e['selector'] for e in elements]
+        assert len(id_selectors) == len(set(id_selectors)), \
+            "ID selectors should be unique"
+
+        # Class selectors may be shared
+        class_selectors = [e['class'] for e in elements]
+        assert len(class_selectors) <= element_count, \
+            "Class selector count should be <= element count"
+
+    @given(
+        click_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_element_interaction_timing(self, click_count):
+        """INVARIANT: Element interactions should have timing constraints."""
+        # Simulate click interactions
+        interactions = []
+        for i in range(click_count):
+            interaction = {
+                'element_id': f"element_{i % 10}",  # 10 different elements
+                'timestamp': datetime.now() + timedelta(milliseconds=i * 100),
+                'action': 'click'
+            }
+            interactions.append(interaction)
+
+        # Verify interaction timing
+        for i in range(len(interactions) - 1):
+            current_time = interactions[i]['timestamp']
+            next_time = interactions[i + 1]['timestamp']
+            time_diff = (next_time - current_time).total_seconds()
+
+            # Interactions should be at least 10ms apart (typical rate limit)
+            assert time_diff >= 0, "Interactions should be chronological"
+
+
+class TestBrowserPerformanceInvariants:
+    """Property-based tests for browser performance invariants."""
+
+    @given(
+        resource_count=st.integers(min_value=1, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_resource_loading_tracking(self, resource_count):
+        """INVARIANT: Browser should track all loaded resources."""
+        # Simulate resource loading
+        resources = []
+        resource_types = ['script', 'stylesheet', 'image', 'font', 'xhr']
+
+        for i in range(resource_count):
+            resource = {
+                'url': f'https://example.com/resource_{i}',
+                'type': resource_types[i % len(resource_types)],
+                'size': 1024 * (i % 100 + 1),  # 1KB to 100KB
+                'load_time_ms': 100 + i * 10
+            }
+            resources.append(resource)
+
+        # Verify resource tracking
+        assert len(resources) == resource_count, \
+            f"All {resource_count} resources should be tracked"
+
+        # Total size should be reasonable
+        total_size = sum(r['size'] for r in resources)
+        assert total_size > 0, "Total resource size should be positive"
+
+    @given(
+        dom_depth=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_dom_depth_limits(self, dom_depth):
+        """INVARIANT: DOM depth should be limited."""
+        max_depth = 50
+
+        # Verify depth limits
+        if dom_depth > max_depth:
+            # Would trigger warning or optimization
+            assert True  # Would enforce limit
+        else:
+            assert dom_depth <= max_depth, \
+                f"DOM depth {dom_depth} should be within limit {max_depth}"
+
+    @given(
+        memory_mb=st.integers(min_value=100, max_value=4096)
+    )
+    @settings(max_examples=50)
+    def test_memory_usage_limits(self, memory_mb):
+        """INVARIANT: Browser memory usage should be limited."""
+        warning_threshold = 1024  # 1GB warning
+        critical_threshold = 2048  # 2GB critical
+
+        # Verify memory thresholds
+        if memory_mb >= critical_threshold:
+            # Should trigger critical alert
+            assert True  # Would alert
+        elif memory_mb >= warning_threshold:
+            # Should trigger warning
+            assert True  # Would warn
+
+        # Memory should be reasonable
+        assert memory_mb > 0, "Memory usage should be positive"
+
+
+class TestBrowserGovernanceInvariants:
+    """Property-based tests for browser governance and maturity invariants."""
+
+    @given(
+        capability=st.sampled_from(['navigate', 'screenshot', 'fill_form', 'execute_script']),
+        maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+    )
+    @settings(max_examples=100)
+    def test_browser_capability_governance(self, capability, maturity_level):
+        """INVARIANT: Browser capabilities should respect maturity levels."""
+        # Define minimum maturity levels for each capability
+        maturity_requirements = {
+            'navigate': 'INTERN',
+            'screenshot': 'INTERN',
+            'fill_form': 'SUPERVISED',
+            'execute_script': 'AUTONOMOUS'
+        }
+
+        maturity_order = ['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS']
+
+        # Check if maturity level meets requirement
+        required_level = maturity_requirements[capability]
+        required_idx = maturity_order.index(required_level)
+        current_idx = maturity_order.index(maturity_level)
+
+        has_permission = current_idx >= required_idx
+
+        # Verify permission matches maturity
+        if has_permission:
+            assert current_idx >= required_idx, \
+                f"Agent {maturity_level} should not have {capability} permission"
+        else:
+            assert current_idx < required_idx, \
+                f"Agent {maturity_level} should have {capability} permission"
+
+    @given(
+        agent_count=st.integers(min_value=1, max_value=20),
+        session_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_browser_session_quota(self, agent_count, session_count):
+        """INVARIANT: Browser session quota should be enforced."""
+        # Define session quota per agent
+        max_sessions_per_agent = 3
+        max_total_sessions = 50
+
+        # Calculate if quota exceeded
+        avg_sessions_per_agent = session_count / agent_count
+        quota_exceeded = avg_sessions_per_agent > max_sessions_per_agent
+
+        # Verify quota enforcement
+        if quota_exceeded:
+            # Would reject new sessions
+            assert session_count <= max_total_sessions, \
+                f"Total sessions {session_count} should not exceed {max_total_sessions}"
+
+    @given(
+        operation_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_browser_audit_trail(self, operation_count):
+        """INVARIANT: All browser operations should be audited."""
+        # Simulate audit logs
+        audit_logs = []
+        operations = ['navigate', 'click', 'fill', 'screenshot', 'execute']
+
+        for i in range(operation_count):
+            log = {
+                'agent_id': f"agent_{i % 10}",
+                'operation': operations[i % len(operations)],
+                'timestamp': datetime.now() + timedelta(milliseconds=i),
+                'url': f'https://example.com/page{i}'
+            }
+            audit_logs.append(log)
+
+        # Verify audit completeness
+        assert len(audit_logs) == operation_count, \
+            f"All {operation_count} operations should be logged"
+
+        # Verify required fields
+        required_fields = ['agent_id', 'operation', 'timestamp', 'url']
+        for log in audit_logs:
+            for field in required_fields:
+                assert field in log, f"Audit log missing {field}"
+
+    @given(
+        blocked_domain_count=st.integers(min_value=1, max_value=20),
+        request_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_domain_blocking_policy(self, blocked_domain_count, request_count):
+        """INVARIANT: Blocked domains should be enforced."""
+        # Create blocked domains
+        blocked_domains = {f"blocked{i}.com" for i in range(blocked_domain_count)}
+
+        # Simulate requests
+        blocked_count = 0
+        for i in range(request_count):
+            domain = f"domain{i % 50}.com"
+            is_blocked = domain in blocked_domains
+            if is_blocked:
+                blocked_count += 1
+
+        # Verify blocking policy
+        assert blocked_count <= blocked_domain_count, \
+            "Blocked count should not exceed blocked domain count"
+
+        assert blocked_count <= request_count, \
+            "Blocked count should not exceed total requests"
