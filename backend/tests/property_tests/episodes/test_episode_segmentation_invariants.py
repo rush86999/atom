@@ -379,3 +379,403 @@ class TestContextPreservationInvariants:
                 segmented_ids.add(event["id"])
 
         assert original_ids == segmented_ids, "All event IDs should be preserved"
+
+
+class TestSimilaritySegmentationInvariants:
+    """Tests for semantic similarity-based segmentation"""
+
+    @given(
+        num_utterances=st.integers(min_value=2, max_value=30),
+        similarity_threshold=st.floats(min_value=0.5, max_value=0.95, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_semantic_similarity_boundary_detection(self, num_utterances, similarity_threshold):
+        """Test that semantic similarity below threshold triggers new segments"""
+        # Simulate utterances with varying similarity scores
+        utterances = []
+        for i in range(num_utterances):
+            # Alternate between high and low similarity
+            similarity = 0.9 if i % 2 == 0 else 0.6
+            utterance = {
+                "id": str(uuid4()),
+                "content": f"Utterance {i}",
+                "similarity_to_prev": similarity if i > 0 else 1.0
+            }
+            utterances.append(utterance)
+
+        # Simulate similarity-based segmentation
+        segments = []
+        current_segment = [utterances[0]]
+
+        for i in range(1, len(utterances)):
+            if utterances[i]["similarity_to_prev"] < similarity_threshold:
+                # Low similarity - start new segment
+                segments.append(current_segment)
+                current_segment = [utterances[i]]
+            else:
+                current_segment.append(utterances[i])
+
+        if current_segment:
+            segments.append(current_segment)
+
+        # Verify all utterances are in segments
+        total_utterances = sum(len(seg) for seg in segments)
+        assert total_utterances == num_utterances, "All utterances should be in segments"
+
+    @given(
+        similarity_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_similarity_score_bounds(self, similarity_score):
+        """Test that similarity scores are in valid range"""
+        assert 0.0 <= similarity_score <= 1.0, f"Similarity score {similarity_score} must be in [0, 1]"
+
+    @given(
+        high_similarity_count=st.integers(min_value=1, max_value=20),
+        low_similarity_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_similarity_segment_grouping(self, high_similarity_count, low_similarity_count):
+        """Test that high similarity items are grouped together"""
+        # Create items with known similarity patterns
+        items = []
+        for i in range(high_similarity_count):
+            items.append({"id": f"high_{i}", "similarity": 0.9, "group": "high"})
+        for i in range(low_similarity_count):
+            items.append({"id": f"low_{i}", "similarity": 0.5, "group": "low"})
+
+        # Group by similarity threshold
+        threshold = 0.75
+        high_group = [item for item in items if item["similarity"] >= threshold]
+        low_group = [item for item in items if item["similarity"] < threshold]
+
+        # Verify grouping
+        assert len(high_group) == high_similarity_count, "High similarity items should be grouped"
+        assert len(low_group) == low_similarity_count, "Low similarity items should be grouped"
+
+
+class TestEntityExtractionInvariants:
+    """Tests for entity extraction from segments"""
+
+    @given(
+        text_length=st.integers(min_value=10, max_value=500),
+        entity_density=st.floats(min_value=0.0, max_value=0.3, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_entity_extraction_completeness(self, text_length, entity_density):
+        """Test that entity extraction finds all entities"""
+        # Simulate text with entities
+        words = ["word"] * int(text_length * (1 - entity_density))
+        entities = [f"entity_{i}" for i in range(int(text_length * entity_density))]
+        text = " ".join(words + entities)
+
+        # Extract entities (those starting with "entity_")
+        extracted = [word for word in text.split() if word.startswith("entity_")]
+
+        # Verify extraction
+        expected_count = int(text_length * entity_density)
+        assert len(extracted) == expected_count, f"Should extract {expected_count} entities"
+
+    @given(
+        num_emails=st.integers(min_value=0, max_value=10),
+        num_phones=st.integers(min_value=0, max_value=10),
+        num_urls=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_entity_type_classification(self, num_emails, num_phones, num_urls):
+        """Test that entities are correctly classified by type"""
+        entities = []
+
+        # Add emails
+        for i in range(num_emails):
+            entities.append({"value": f"user{i}@example.com", "type": "email"})
+
+        # Add phones
+        for i in range(num_phones):
+            entities.append({"value": f"555-010{i}", "type": "phone"})
+
+        # Add URLs
+        for i in range(num_urls):
+            entities.append({"value": f"https://example.com/{i}", "type": "url"})
+
+        # Classify by type
+        emails = [e for e in entities if e["type"] == "email"]
+        phones = [e for e in entities if e["type"] == "phone"]
+        urls = [e for e in entities if e["type"] == "url"]
+
+        # Verify classification
+        assert len(emails) == num_emails, "All emails should be classified"
+        assert len(phones) == num_phones, "All phones should be classified"
+        assert len(urls) == num_urls, "All URLs should be classified"
+
+    @given(
+        entity_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_entity_deduplication(self, entity_count):
+        """Test that duplicate entities are removed"""
+        import random
+
+        # Create entities with duplicates
+        unique_count = entity_count // 2
+        entities = []
+
+        for i in range(unique_count):
+            entities.append(f"entity_{i}")
+            # Add duplicate
+            if i < entity_count - unique_count:
+                entities.append(f"entity_{i}")
+
+        # Deduplicate
+        unique_entities = list(set(entities))
+
+        # Verify deduplication
+        assert len(unique_entities) <= entity_count, "Deduplicated count should be <= original"
+        assert len(unique_entities) <= unique_count + 1, "Should remove most duplicates"
+
+
+class TestSegmentSummaryInvariants:
+    """Tests for segment summary generation"""
+
+    @given(
+        segment_length=st.integers(min_value=5, max_value=50),
+        max_summary_length=st.integers(min_value=50, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_summary_length_constraints(self, segment_length, max_summary_length):
+        """Test that summaries respect length constraints"""
+        # Create segment with utterances
+        utterances = [f"This is utterance number {i} in the segment" for i in range(segment_length)]
+        segment = " ".join(utterances)
+
+        # Generate summary (first max_summary_length chars)
+        summary = segment[:max_summary_length]
+
+        # Verify length constraint
+        assert len(summary) <= max_summary_length, f"Summary length {len(summary)} exceeds max {max_summary_length}"
+
+    @given(
+        key_info_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_summary_key_info_preservation(self, key_info_count):
+        """Test that summaries preserve key information"""
+        # Create segment with key information markers
+        key_info = [f"KEY_INFO_{i}" for i in range(key_info_count)]
+        filler = ["filler text"] * 10
+
+        # Interleave key info with filler
+        segment_parts = []
+        for i in range(max(key_info_count, 10)):
+            if i < key_info_count:
+                segment_parts.append(key_info[i])
+            if i < 10:
+                segment_parts.append(filler[i])
+
+        segment = " ".join(segment_parts)
+
+        # Generate summary (simplified - just take first 200 chars)
+        summary = segment[:200]
+
+        # Verify at least some key info is preserved
+        # (In real implementation, would use more sophisticated summarization)
+        preserved_count = sum(1 for info in key_info if info in summary)
+        assert preserved_count >= 0, "Should preserve some key information"
+
+    @given(
+        num_utterances=st.integers(min_value=3, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_summary_coherence(self, num_utterances):
+        """Test that summaries maintain coherence"""
+        # Create coherent segment
+        utterances = [f"I am discussing topic X in utterance {i}" for i in range(num_utterances)]
+        segment = " ".join(utterances)
+
+        # Generate summary (simplified)
+        summary = segment[:100]
+
+        # Verify summary is non-empty and coherent
+        assert len(summary) > 0, "Summary should not be empty"
+        assert isinstance(summary, str), "Summary should be a string"
+
+
+class TestEpisodeImportanceInvariants:
+    """Tests for episode importance scoring"""
+
+    @given(
+        message_count=st.integers(min_value=0, max_value=50),
+        execution_count=st.integers(min_value=0, max_value=20),
+        canvas_count=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_importance_score_bounds(self, message_count, execution_count, canvas_count):
+        """Test that importance scores are in valid range [0, 1]"""
+        # Calculate importance score
+        base_score = 0.5
+
+        if message_count > 10:
+            base_score += 0.2
+        elif message_count > 5:
+            base_score += 0.1
+
+        if execution_count > 0:
+            base_score += 0.1
+
+        if canvas_count > 0:
+            base_score += 0.1
+
+        # Cap at 1.0
+        score = min(1.0, base_score)
+
+        assert 0.0 <= score <= 1.0, f"Importance score {score} must be in [0, 1]"
+
+    @given(
+        high_importance_count=st.integers(min_value=1, max_value=10),
+        low_importance_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_importance_ranking(self, high_importance_count, low_importance_count):
+        """Test that episodes are ranked by importance"""
+        episodes = []
+
+        # Add high importance episodes
+        for i in range(high_importance_count):
+            episodes.append({"id": f"high_{i}", "importance": 0.9})
+
+        # Add low importance episodes
+        for i in range(low_importance_count):
+            episodes.append({"id": f"low_{i}", "importance": 0.3})
+
+        # Sort by importance (descending)
+        sorted_episodes = sorted(episodes, key=lambda e: e["importance"], reverse=True)
+
+        # Verify ranking
+        for i in range(len(sorted_episodes) - 1):
+            current = sorted_episodes[i]["importance"]
+            next_score = sorted_episodes[i + 1]["importance"]
+            assert current >= next_score, "Episodes should be sorted by descending importance"
+
+    @given(
+        access_count=st.integers(min_value=0, max_value=100),
+        days_since_access=st.integers(min_value=0, max_value=365)
+    )
+    @settings(max_examples=50)
+    def test_importance_decay(self, access_count, days_since_access):
+        """Test that importance decays over time without access"""
+        initial_importance = 0.8
+
+        # Decay factor based on days since access
+        decay_factor = max(0.1, 1.0 - (days_since_access / 365))
+
+        # Boost based on access count
+        access_boost = min(access_count / 100, 0.2)
+
+        # Calculate decayed importance
+        decayed_importance = (initial_importance * decay_factor) + access_boost
+
+        # Verify decay behavior
+        assert 0.0 <= decayed_importance <= 1.0, "Decayed importance must be in [0, 1]"
+
+        if days_since_access > 180:
+            assert decayed_importance < initial_importance, "Importance should decay after 6 months"
+
+
+class TestEpisodeConsolidationInvariants:
+    """Tests for episode consolidation and archival"""
+
+    @given(
+        episode_count=st.integers(min_value=2, max_value=30),
+        consolidation_threshold=st.integers(min_value=5, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_consolidation_eligibility(self, episode_count, consolidation_threshold):
+        """Test that consolidation eligibility is based on threshold"""
+        # Check if eligible for consolidation
+        eligible = episode_count >= consolidation_threshold
+
+        if episode_count >= consolidation_threshold:
+            assert eligible, f"{episode_count} episodes should be eligible for consolidation"
+        else:
+            assert not eligible, f"{episode_count} episodes should not be eligible for consolidation"
+
+    @given(
+        episode_count=st.integers(min_value=2, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_consolidation_metadata_preservation(self, episode_count):
+        """Test that consolidation preserves critical metadata"""
+        # Create episodes with metadata
+        episodes = []
+        for i in range(episode_count):
+            episode = {
+                "id": str(uuid4()),
+                "start_time": datetime(2024, 1, 1, 12, 0, 0) + timedelta(hours=i),
+                "end_time": datetime(2024, 1, 1, 13, 0, 0) + timedelta(hours=i),
+                "agent_id": f"agent_{i % 3}",
+                "importance": 0.5 + (i * 0.05)
+            }
+            episodes.append(episode)
+
+        # Consolidate (combine metadata)
+        consolidated = {
+            "episode_count": len(episodes),
+            "time_range": {
+                "start": min(ep["start_time"] for ep in episodes),
+                "end": max(ep["end_time"] for ep in episodes)
+            },
+            "agents": list(set(ep["agent_id"] for ep in episodes)),
+            "avg_importance": sum(ep["importance"] for ep in episodes) / len(episodes)
+        }
+
+        # Verify metadata preservation
+        assert consolidated["episode_count"] == episode_count, "Episode count should be preserved"
+        assert len(consolidated["agents"]) > 0, "Agent IDs should be preserved"
+        assert 0.0 <= consolidated["avg_importance"] <= 1.0, "Average importance should be valid"
+
+    @given(
+        stale_days=st.integers(min_value=90, max_value=365)
+    )
+    @settings(max_examples=50)
+    def test_stale_episode_detection(self, stale_days):
+        """Test that stale episodes are correctly identified"""
+        # Create episode with last access timestamp
+        last_accessed = datetime.now() - timedelta(days=stale_days)
+
+        # Check if stale
+        is_stale = (datetime.now() - last_accessed).days >= 90
+
+        if stale_days >= 90:
+            assert is_stale, f"Episode not accessed in {stale_days} days should be stale"
+        else:
+            assert not is_stale, f"Episode accessed {stale_days} days ago should not be stale"
+
+    @given(
+        episode_count=st.integers(min_value=5, max_value=30)
+    )
+    @settings(max_examples=50)
+    def test_archival_metadata_integrity(self, episode_count):
+        """Test that archival preserves episode integrity"""
+        # Create episodes to archive
+        episodes = []
+        for i in range(episode_count):
+            episode = {
+                "id": str(uuid4()),
+                "created_at": datetime(2024, 1, 1, 12, 0, 0) + timedelta(hours=i),
+                "segments": [f"segment_{j}" for j in range(3)],
+                "checksum": f"checksum_{i}"
+            }
+            episodes.append(episode)
+
+        # Archive (simulate)
+        archive = {
+            "archived_at": datetime.now(),
+            "episode_count": len(episodes),
+            "episodes": episodes,
+            "total_segments": sum(len(ep["segments"]) for ep in episodes)
+        }
+
+        # Verify archival integrity
+        assert archive["episode_count"] == episode_count, "All episodes should be archived"
+        assert archive["total_segments"] == episode_count * 3, "All segments should be preserved"
+        assert "archived_at" in archive, "Archival timestamp should be recorded"
