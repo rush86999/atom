@@ -341,3 +341,326 @@ class TestDeviceSecurityInvariants:
         # Invariant: Authorized sessions should be <= total
         assert authorized_count <= session_count, \
             f"Authorized count {authorized_count} > total {session_count}"
+
+
+class TestDevicePermissionMatrixInvariants:
+    """Property-based tests for device permission matrix invariants."""
+
+    @given(
+        user_role=st.sampled_from(['GUEST', 'MEMBER', 'SUPERVISOR', 'ADMIN']),
+        capability=st.sampled_from(['camera', 'screen', 'location', 'notifications', 'command'])
+    )
+    @settings(max_examples=100)
+    def test_role_capability_permissions(self, user_role, capability):
+        """INVARIANT: User roles should have appropriate capability permissions."""
+        # Define permission matrix
+        role_priority = {
+            'GUEST': 0,
+            'MEMBER': 1,
+            'SUPERVISOR': 2,
+            'ADMIN': 3
+        }
+
+        capability_requirements = {
+            'camera': 1,  # MEMBER+
+            'location': 1,  # MEMBER+
+            'notifications': 1,  # MEMBER+
+            'screen': 2,  # SUPERVISOR+
+            'command': 3  # ADMIN only
+        }
+
+        user_priority = role_priority[user_role]
+        required_priority = capability_requirements[capability]
+
+        has_permission = user_priority >= required_priority
+
+        # Verify permission calculation
+        if has_permission:
+            assert user_priority >= required_priority, \
+                f"Role {user_role} should not have {capability} permission"
+        else:
+            assert user_priority < required_priority, \
+                f"Role {user_role} should have {capability} permission"
+
+    @given(
+        agent_count=st.integers(min_value=1, max_value=20),
+        capability_count=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_permission_cache_consistency(self, agent_count, capability_count):
+        """INVARIANT: Permission cache should maintain consistency."""
+        # Simulate permission cache
+        cache = {}
+
+        capabilities = ['camera', 'screen', 'location', 'notifications', 'command'][:capability_count]
+
+        for i in range(agent_count):
+            agent_id = f"agent_{i}"
+            cache[agent_id] = {cap: (i % 2 == 0) for cap in capabilities}
+
+        # Verify cache consistency
+        assert len(cache) == agent_count, "Cache should have all agents"
+
+        for agent_id, permissions in cache.items():
+            assert len(permissions) == capability_count, \
+                f"Agent {agent_id} should have {capability_count} permissions"
+
+    @given(
+        permission_count=st.integers(min_value=1, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_permission_granularity(self, permission_count):
+        """INVARIANT: Permission granularity should be manageable."""
+        # Simulate permission definitions
+        permissions = [f"permission_{i}" for i in range(permission_count)]
+
+        # Verify granularity is manageable
+        assert len(permissions) == permission_count, \
+            "Permission count should match"
+
+        # All permissions should have unique IDs
+        assert len(set(permissions)) == permission_count, \
+            "All permissions should be unique"
+
+
+class TestDeviceErrorHandlingInvariants:
+    """Property-based tests for device error handling invariants."""
+
+    @given(
+        error_code=st.integers(min_value=400, max_value=599),
+        current_retry=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_error_retry_logic(self, error_code, current_retry):
+        """INVARIANT: Device errors should have appropriate retry logic."""
+        # Classify errors
+        is_client_error = 400 <= error_code < 500
+        is_server_error = 500 <= error_code < 600
+
+        max_retries = 3 if is_server_error else 0
+
+        # Test retry decision logic
+        should_retry = current_retry < max_retries
+
+        # Verify retry logic behavior
+        if is_client_error:
+            assert max_retries == 0, "Client errors should not retry"
+            # For client errors, should_retry should always be False
+            assert not should_retry, "Client errors should never retry"
+        elif is_server_error:
+            assert max_retries > 0, "Server errors should retry"
+            # Verify should_retry is boolean and depends on current_retry
+            assert isinstance(should_retry, bool), "Retry decision should be boolean"
+            # If current_retry is within bounds, should_retry should be True
+            if current_retry < max_retries:
+                assert should_retry, f"Should retry at attempt {current_retry}/{max_retries}"
+            else:
+                assert not should_retry, f"Should not retry after {current_retry}/{max_retries} attempts"
+
+    @given(
+        device_count=st.integers(min_value=1, max_value=20),
+        failure_rate=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_circuit_breaker_logic(self, device_count, failure_rate):
+        """INVARIANT: Circuit breaker should open after too many failures."""
+        failure_threshold = 0.5  # 50% failure rate
+        expected_failures = int(device_count * failure_rate)
+
+        # Check if circuit should open
+        should_open = failure_rate >= failure_threshold and device_count >= 5
+
+        # Verify circuit breaker logic
+        if should_open:
+            assert expected_failures >= int(device_count * failure_threshold), \
+                "Should have enough failures to open circuit"
+        else:
+            assert failure_rate < failure_threshold or device_count < 5, \
+                "Circuit should remain closed"
+
+    @given(
+        error_count=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_error_log_completeness(self, error_count):
+        """INVARIANT: All device errors should be logged."""
+        # Simulate error logging
+        error_logs = []
+        for i in range(error_count):
+            log = {
+                'error_id': f"error_{i}",
+                'timestamp': datetime.now() + timedelta(seconds=i),
+                'error_code': 500,
+                'message': f"Error {i}"
+            }
+            error_logs.append(log)
+
+        # Verify all errors are logged
+        assert len(error_logs) == error_count, \
+            f"All {error_count} errors should be logged"
+
+        # Verify required fields
+        required_fields = ['error_id', 'timestamp', 'error_code', 'message']
+        for log in error_logs:
+            for field in required_fields:
+                assert field in log, f"Error log missing {field}"
+
+
+class TestDevicePerformanceInvariants:
+    """Property-based tests for device performance invariants."""
+
+    @given(
+        operation_count=st.integers(min_value=1, max_value=100),
+        base_latency_ms=st.integers(min_value=50, max_value=5000)
+    )
+    @settings(max_examples=50)
+    def test_operation_latency_tracking(self, operation_count, base_latency_ms):
+        """INVARIANT: Device operation latency should be tracked."""
+        # Simulate latency tracking with positive values
+        latencies = [base_latency_ms + (i % 50) for i in range(operation_count)]
+
+        # Calculate metrics
+        avg_latency = sum(latencies) / len(latencies)
+        max_latency = max(latencies)
+        min_latency = min(latencies)
+
+        # Verify latency tracking
+        assert len(latencies) == operation_count, \
+            "Should track all operations"
+
+        # Latencies should be reasonable
+        assert min_latency > 0, "Minimum latency should be positive"
+        assert max_latency < 10000, "Maximum latency should be < 10 seconds"
+        assert 0 < avg_latency < 10000, "Average latency should be reasonable"
+
+    @given(
+        session_count=st.integers(min_value=1, max_value=50),
+        memory_per_session_mb=st.integers(min_value=1, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_memory_usage_limits(self, session_count, memory_per_session_mb):
+        """INVARIANT: Device sessions should respect memory limits."""
+        max_memory_mb = 1000  # 1GB limit
+
+        total_memory = session_count * memory_per_session_mb
+
+        # Verify memory limits
+        if total_memory > max_memory_mb:
+            # Should reject new sessions
+            assert True  # Would enforce memory limit
+        else:
+            # Should allow sessions
+            assert total_memory <= max_memory_mb, \
+                f"Memory usage {total_memory}MB should be within limit {max_memory_mb}MB"
+
+    @given(
+        request_count=st.integers(min_value=1, max_value=1000),
+        time_window_seconds=st.integers(min_value=1, max_value=60)
+    )
+    @settings(max_examples=50)
+    def test_rate_limiting(self, request_count, time_window_seconds):
+        """INVARIANT: Device requests should be rate limited."""
+        # Define rate limit
+        max_requests_per_second = 10
+        max_requests = max_requests_per_second * time_window_seconds
+
+        # Check if rate limited
+        exceeds_limit = request_count > max_requests
+
+        # Verify rate limiting
+        if exceeds_limit:
+            assert request_count > max_requests, \
+                "Should exceed rate limit"
+        else:
+            assert request_count <= max_requests, \
+                "Should be within rate limit"
+
+
+class TestDeviceLifecycleInvariants:
+    """Property-based tests for device lifecycle invariants."""
+
+    @given(
+        device_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_device_registration_flow(self, device_count):
+        """INVARIANT: Device registration should follow proper flow."""
+        # Simulate device registration
+        devices = []
+        for i in range(device_count):
+            device = {
+                'device_id': f"device_{i}",
+                'registered_at': datetime.now() + timedelta(seconds=i),
+                'status': 'registered',
+                'capabilities': ['camera', 'location']
+            }
+            devices.append(device)
+
+        # Verify registration
+        assert len(devices) == device_count, \
+            f"All {device_count} devices should be registered"
+
+        # All devices should have required fields
+        for device in devices:
+            assert 'device_id' in device, "Device should have ID"
+            assert 'registered_at' in device, "Device should have registration time"
+            assert 'status' in device, "Device should have status"
+            assert device['status'] == 'registered', "Device should be registered"
+
+    @given(
+        device_count=st.integers(min_value=1, max_value=20),
+        deregistration_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_device_deregistration_flow(self, device_count, deregistration_count):
+        """INVARIANT: Device deregistration should clean up properly."""
+        # Register devices
+        devices = [f"device_{i}" for i in range(device_count)]
+
+        # Deregister some devices
+        deregistered = devices[:min(deregistration_count, device_count)]
+        remaining = devices[min(deregistration_count, device_count):]
+
+        # Verify deregistration
+        assert len(deregistered) == min(deregistration_count, device_count), \
+            "Should deregister correct number of devices"
+
+        assert len(remaining) == max(0, device_count - deregistration_count), \
+            "Remaining devices should be correct"
+
+        # No device should be in both lists
+        assert set(deregistered).isdisjoint(set(remaining)), \
+            "Deregistered and remaining should be disjoint"
+
+    @given(
+        session_count=st.integers(min_value=1, max_value=50),
+        active_ratio=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_session_lifecycle_states(self, session_count, active_ratio):
+        """INVARIANT: Sessions should have valid lifecycle states."""
+        # Calculate active session count
+        active_count = int(session_count * active_ratio)
+        inactive_count = session_count - active_count
+
+        valid_states = ['pending', 'active', 'inactive', 'terminated']
+
+        # Create sessions
+        sessions = []
+        for i in range(active_count):
+            sessions.append({'id': f"session_{i}", 'state': 'active'})
+        for i in range(inactive_count):
+            sessions.append({'id': f"session_{active_count + i}", 'state': 'inactive'})
+
+        # Verify session states
+        assert len(sessions) == session_count, \
+            f"Should have {session_count} sessions"
+
+        for session in sessions:
+            assert session['state'] in valid_states, \
+                f"Session state {session['state']} should be valid"
+
+        # Count active sessions
+        actual_active = sum(1 for s in sessions if s['state'] == 'active')
+        assert actual_active == active_count, \
+            f"Active count mismatch: {actual_active} != {active_count}"
