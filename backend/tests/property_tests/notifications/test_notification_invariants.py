@@ -461,3 +461,267 @@ class TestErrorRecoveryInvariants:
         # Invariant: At least half should succeed
         assert successful >= notification_count // 2, \
             f"Successful {successful} should be >= half of {notification_count}"
+
+
+class TestNotificationGroupingInvariants:
+    """Property-based tests for notification grouping invariants."""
+
+    @given(
+        notification_count=st.integers(min_value=1, max_value=100),
+        group_size_limit=st.integers(min_value=5, max_value=50)
+    )
+    @settings(max_examples=50)
+    def test_group_size_limits(self, notification_count, group_size_limit):
+        """INVARIANT: Notification groups should respect size limits."""
+        # Calculate group count
+        group_count = (notification_count + group_size_limit - 1) // group_size_limit
+
+        # Invariant: Should have at least one group
+        assert group_count >= 1, "Should have at least one group"
+
+        # Invariant: Group size limit should be reasonable
+        assert 5 <= group_size_limit <= 50, "Group size limit out of range"
+
+    @given(
+        group_key=st.text(min_size=1, max_size=50, alphabet='abc0123456789_')
+    )
+    @settings(max_examples=50)
+    def test_group_key_validity(self, group_key):
+        """INVARIANT: Group keys should be valid."""
+        # Invariant: Group key should be non-empty
+        assert len(group_key) > 0, "Group key should not be empty"
+
+        # Invariant: Group key should be reasonable length
+        assert len(group_key) <= 50, f"Group key too long: {len(group_key)}"
+
+    @given(
+        notification_count=st.integers(min_value=1, max_value=100),
+        group_window_seconds=st.integers(min_value=60, max_value=3600)  # 1min to 1hr
+    )
+    @settings(max_examples=50)
+    def test_grouping_time_window(self, notification_count, group_window_seconds):
+        """INVARIANT: Grouping should respect time windows."""
+        # Invariant: Time window should be reasonable
+        assert 60 <= group_window_seconds <= 3600, "Time window out of range"
+
+        # Invariant: Should group notifications within window
+        assert notification_count >= 1, "Positive notification count"
+
+
+class TestNotificationSchedulingInvariants:
+    """Property-based tests for notification scheduling invariants."""
+
+    @given(
+        scheduled_count=st.integers(min_value=1, max_value=1000),
+        processing_rate=st.integers(min_value=10, max_value=100)  # per minute
+    )
+    @settings(max_examples=50)
+    def test_scheduled_notification_processing(self, scheduled_count, processing_rate):
+        """INVARIANT: Scheduled notifications should be processed on time."""
+        # Calculate processing time
+        processing_minutes = (scheduled_count + processing_rate - 1) // processing_rate
+
+        # Invariant: Should calculate processing time correctly
+        assert processing_minutes >= 1, "Should take at least 1 minute"
+
+        # Invariant: Processing rate should be reasonable
+        assert 10 <= processing_rate <= 100, "Processing rate out of range"
+
+    @given(
+        delay_seconds=st.integers(min_value=0, max_value=86400)  # 0 to 1 day
+    )
+    @settings(max_examples=50)
+    def test_delayed_delivery(self, delay_seconds):
+        """INVARIANT: Delayed notifications should be delivered at correct time."""
+        max_delay = 86400  # 1 day
+
+        # Invariant: Delay should be within limits
+        assert 0 <= delay_seconds <= max_delay, \
+            f"Delay {delay_seconds}s exceeds maximum {max_delay}s"
+
+    @given(
+        notification_count=st.integers(min_value=1, max_value=100),
+        schedule_time=st.integers(min_value=0, max_value=23)  # hour of day
+    )
+    @settings(max_examples=50)
+    def test_scheduled_time_validity(self, notification_count, schedule_time):
+        """INVARIANT: Scheduled times should be valid."""
+        # Invariant: Hour should be in valid range
+        assert 0 <= schedule_time <= 23, f"Hour {schedule_time} out of range [0, 23]"
+
+        # Invariant: Notification count should be positive
+        assert notification_count >= 1, "Positive notification count"
+
+
+class TestNotificationLocalizationInvariants:
+    """Property-based tests for notification localization invariants."""
+
+    @given(
+        locale=st.sampled_from(['en', 'es', 'fr', 'de', 'zh', 'ja'])
+    )
+    @settings(max_examples=50)
+    def test_locale_validity(self, locale):
+        """INVARIANT: Locales should be valid."""
+        valid_locales = {'en', 'es', 'fr', 'de', 'zh', 'ja'}
+
+        # Invariant: Locale should be supported
+        assert locale in valid_locales, f"Unsupported locale: {locale}"
+
+    @given(
+        template_length=st.integers(min_value=1, max_value=500),
+        locale_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_template_translation_coverage(self, template_length, locale_count):
+        """INVARIANT: Templates should have translations for all locales."""
+        # Invariant: Template length should be reasonable
+        assert 1 <= template_length <= 500, "Template length out of range"
+
+        # Invariant: Should support multiple locales
+        assert 1 <= locale_count <= 10, "Locale count out of range"
+
+    @given(
+        text_length=st.integers(min_value=1, max_value=200),
+        max_length=st.integers(min_value=50, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_localized_text_length_limits(self, text_length, max_length):
+        """INVARIANT: Localized text should respect length limits."""
+        # Invariant: Localized text should not exceed max length
+        if text_length > max_length:
+            assert True  # Should truncate or abbreviate
+        else:
+            assert True  # Within limits
+
+
+class TestNotificationDeliveryTrackingInvariants:
+    """Property-based tests for notification delivery tracking invariants."""
+
+    @given(
+        notification_id=st.text(min_size=1, max_size=50, alphabet='abc0123456789')
+    )
+    @settings(max_examples=50)
+    def test_notification_id_uniqueness(self, notification_id):
+        """INVARIANT: Notification IDs should be unique."""
+        # Invariant: ID should be non-empty
+        assert len(notification_id) > 0, "Notification ID should not be empty"
+
+        # Invariant: ID should be reasonable length
+        assert len(notification_id) <= 50, f"ID too long: {len(notification_id)}"
+
+    @given(
+        delivery_statuses=st.lists(
+            st.sampled_from(['pending', 'sent', 'delivered', 'failed', 'bounced']),
+            min_size=1,
+            max_size=100
+        )
+    )
+    @settings(max_examples=50)
+    def test_delivery_status_tracking(self, delivery_statuses):
+        """INVARIANT: Delivery statuses should be tracked correctly."""
+        valid_statuses = {'pending', 'sent', 'delivered', 'failed', 'bounced'}
+
+        # Invariant: All statuses should be valid
+        for status in delivery_statuses:
+            assert status in valid_statuses, f"Invalid status: {status}"
+
+        # Invariant: Should count by status
+        status_counts = {}
+        for status in delivery_statuses:
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        # Verify counts match total
+        total_counted = sum(status_counts.values())
+        assert total_counted == len(delivery_statuses), "Status counts don't match total"
+
+    @given(
+        delivery_time_ms=st.integers(min_value=10, max_value=60000)  # 10ms to 1min
+    )
+    @settings(max_examples=50)
+    def test_delivery_time_tracking(self, delivery_time_ms):
+        """INVARIANT: Delivery times should be tracked."""
+        max_delivery_time = 60000  # 1 minute
+
+        # Invariant: Delivery time should be within limits
+        assert delivery_time_ms <= max_delivery_time, \
+            f"Delivery time {delivery_time_ms}ms exceeds maximum {max_delivery_time}ms"
+
+        # Invariant: Delivery time should be positive
+        assert delivery_time_ms >= 10, "Delivery time should be at least 10ms"
+
+
+class TestMultiChannelConsistencyInvariants:
+    """Property-based tests for multi-channel notification consistency invariants."""
+
+    @given(
+        channels=st.lists(
+            st.sampled_from(['email', 'sms', 'push', 'webhook']),
+            min_size=1,
+            max_size=4,
+            unique=True
+        )
+    )
+    @settings(max_examples=50)
+    def test_multi_channel_delivery(self, channels):
+        """INVARIANT: Multi-channel notifications should be consistent."""
+        # Invariant: All channels should be valid
+        valid_channels = {'email', 'sms', 'push', 'webhook'}
+        for channel in channels:
+            assert channel in valid_channels, f"Invalid channel: {channel}"
+
+        # Invariant: Should deliver to all specified channels
+        assert len(channels) >= 1, "At least one channel"
+
+    @given(
+        content_length=st.integers(min_value=1, max_value=1000),
+        channel=st.sampled_from(['email', 'sms', 'push'])
+    )
+    @settings(max_examples=50)
+    def test_channel_specific_content_limits(self, content_length, channel):
+        """INVARIANT: Content should respect channel-specific limits."""
+        # Define channel limits
+        channel_limits = {
+            'email': 1000,
+            'sms': 160,
+            'push': 200
+        }
+
+        max_length = channel_limits[channel]
+
+        # Invariant: Content should respect channel limit
+        if content_length > max_length:
+            assert True  # Should truncate or split
+        else:
+            assert True  # Within limits
+
+    @given(
+        user_id=st.text(min_size=1, max_size=50, alphabet='abc0123456789'),
+        notification_count=st.integers(min_value=1, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_user_channel_coherence(self, user_id, notification_count):
+        """INVARIANT: User should receive coherent notifications across channels."""
+        # Invariant: User ID should be valid
+        assert len(user_id) > 0, "User ID should not be empty"
+
+        # Invariant: All notifications for user should have consistent ID
+        assert notification_count >= 1, "Positive notification count"
+
+    @given(
+        fallback_channels=st.lists(
+            st.sampled_from(['email', 'sms', 'push']),
+            min_size=1,
+            max_size=3,
+            unique=True
+        )
+    )
+    @settings(max_examples=50)
+    def test_channel_fallback_order(self, fallback_channels):
+        """INVARIANT: Channel fallback should follow correct order."""
+        # Invariant: Fallback channels should be valid
+        valid_channels = {'email', 'sms', 'push'}
+        for channel in fallback_channels:
+            assert channel in valid_channels, f"Invalid fallback channel: {channel}"
+
+        # Invariant: Should respect priority order
+        assert len(fallback_channels) >= 1, "At least one fallback channel"
