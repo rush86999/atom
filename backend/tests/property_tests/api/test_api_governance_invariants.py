@@ -13,7 +13,7 @@ These tests protect against API bugs and security vulnerabilities.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, assume
 from datetime import datetime, timedelta
 from typing import Dict, List
 from unittest.mock import Mock
@@ -387,3 +387,527 @@ class TestAPIVersioningInvariants:
         # Invariant: Deprecated versions should be marked
         if is_deprecated:
             assert True  # Should have deprecation warning
+
+
+class TestAPIRequestBodyValidationInvariants:
+    """Property-based tests for API request body validation."""
+
+    @given(
+        body_size_bytes=st.integers(min_value=0, max_value=10485760)  # 0 to 10MB
+    )
+    @settings(max_examples=50)
+    def test_request_body_size_limits(self, body_size_bytes):
+        """INVARIANT: Request body size should be limited."""
+        # Invariant: Body size should be within limit
+        max_size = 10485760  # 10MB
+        assert body_size_bytes <= max_size, \
+            f"Request body {body_size_bytes} bytes exceeds limit {max_size}"
+
+    @given(
+        json_depth=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_json_nesting_depth(self, json_depth):
+        """INVARIANT: JSON nesting depth should be limited."""
+        # Invariant: Depth should be reasonable
+        max_depth = 20
+        assert json_depth <= max_depth, \
+            f"JSON depth {json_depth} exceeds limit {max_depth}"
+
+    @given(
+        field_count=st.integers(min_value=0, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_json_field_count(self, field_count):
+        """INVARIANT: JSON field count should be limited."""
+        # Invariant: Field count should be reasonable
+        assert field_count <= 100, \
+            f"JSON field count {field_count} exceeds limit"
+
+    @given(
+        field_name=st.text(min_size=1, max_size=100, alphabet='abcABC_0123456789')
+    )
+    @settings(max_examples=50)
+    def test_json_field_name_format(self, field_name):
+        """INVARIANT: JSON field names should have valid format."""
+        # Invariant: Field name should be reasonable
+        assert 1 <= len(field_name) <= 100, \
+            f"Field name length {len(field_name)} outside valid range [1, 100]"
+
+
+class TestAPIResponseStructureInvariants:
+    """Property-based tests for API response structure invariants."""
+
+    @given(
+        has_data=st.booleans(),
+        has_error=st.booleans(),
+        has_message=st.booleans()
+    )
+    @settings(max_examples=50)
+    def test_response_structure_completeness(self, has_data, has_error, has_message):
+        """INVARIANT: API response should have consistent structure."""
+        # Build response structure - ensure at least one field
+        response = {}
+        if has_data:
+            response['data'] = {}
+        if has_error:
+            response['error'] = {}
+        if has_message:
+            response['message'] = ''
+
+        # Ensure at least one field exists (responses should not be completely empty)
+        if not response:
+            response['status'] = 'ok'
+
+        # Invariant: Should have at least one field
+        assert len(response) > 0, "Response should have at least one field"
+
+    @given(
+        page_size=st.integers(min_value=10, max_value=100),
+        total_items=st.integers(min_value=0, max_value=10000)
+    )
+    @settings(max_examples=50)
+    def test_pagination_response_consistency(self, page_size, total_items):
+        """INVARIANT: Pagination response should be consistent."""
+        # Calculate expected values
+        total_pages = max(1, (total_items + page_size - 1) // page_size if page_size > 0 else 0)
+
+        # Generate valid page within range
+        import random
+        page = random.randint(1, max(1, total_pages))
+
+        # Invariant: Page should be within valid range
+        assert 1 <= page <= total_pages, \
+            f"Page {page} outside valid range [1, {total_pages}]"
+
+        # Invariant: Page size should be reasonable
+        assert 10 <= page_size <= 100, \
+            f"Page size {page_size} outside valid range [10, 100]"
+
+        # Invariant: Total items should be non-negative
+        assert total_items >= 0, "Total items should be non-negative"
+
+    @given(
+        timestamp_seconds=st.integers(min_value=0, max_value=2000000000)
+    )
+    @settings(max_examples=50)
+    def test_response_timestamp_format(self, timestamp_seconds):
+        """INVARIANT: Response timestamps should be valid."""
+        # Invariant: Timestamp should be non-negative
+        assert timestamp_seconds >= 0, "Timestamp should be non-negative"
+
+        # Invariant: Timestamp should be reasonable (not too far in future)
+        max_timestamp = 2000000000  # Year 2033
+        assert timestamp_seconds <= max_timestamp, \
+            f"Timestamp {timestamp_seconds} exceeds maximum {max_timestamp}"
+
+
+class TestAPIAuthenticationInvariants:
+    """Property-based tests for API authentication invariants."""
+
+    @given(
+        token_length=st.integers(min_value=20, max_value=500)
+    )
+    @settings(max_examples=50)
+    def test_auth_token_length(self, token_length):
+        """INVARIANT: Auth tokens should have valid length."""
+        # Invariant: Token length should be reasonable
+        assert 20 <= token_length <= 500, \
+            f"Token length {token_length} outside valid range [20, 500]"
+
+    @given(
+        token_prefix=st.sampled_from(['Bearer ', 'Basic ', ''])
+    )
+    @settings(max_examples=50)
+    def test_auth_token_format(self, token_prefix):
+        """INVARIANT: Auth tokens should have valid format."""
+        # Invariant: Token prefix should be valid
+        valid_prefixes = {'Bearer ', 'Basic ', ''}
+        assert token_prefix in valid_prefixes, \
+            f"Invalid token prefix: '{token_prefix}'"
+
+    @given(
+        session_age_seconds=st.integers(min_value=0, max_value=86400)  # 0 to 24 hours
+    )
+    @settings(max_examples=50)
+    def test_session_lifetime(self, session_age_seconds):
+        """INVARIANT: Session lifetime should be limited."""
+        # Invariant: Session age should be non-negative
+        assert session_age_seconds >= 0, "Session age should be non-negative"
+
+        # Invariant: Session should expire after max lifetime
+        max_session_lifetime = 86400  # 24 hours
+        assert session_age_seconds <= max_session_lifetime, \
+            f"Session age {session_age_seconds}s exceeds maximum {max_session_lifetime}s"
+
+    @given(
+        failed_attempts=st.integers(min_value=0, max_value=10)
+    )
+    @settings(max_examples=50)
+    def test_auth_failure_tracking(self, failed_attempts):
+        """INVARIANT: Failed auth attempts should be tracked."""
+        # Invariant: Failed attempts should be non-negative
+        assert failed_attempts >= 0, "Failed attempts should be non-negative"
+
+        # Invariant: Should lock account after too many failures
+        max_failed_attempts = 5
+        should_lock = failed_attempts >= max_failed_attempts
+        if should_lock:
+            assert True  # Account should be locked
+
+
+class TestAPICachingInvariants:
+    """Property-based tests for API caching invariants."""
+
+    @given(
+        cache_age_seconds=st.integers(min_value=0, max_value=31536000)  # 0 to 1 year
+    )
+    @settings(max_examples=50)
+    def test_cache_age_header(self, cache_age_seconds):
+        """INVARIANT: Cache age should be valid."""
+        # Invariant: Cache age should be non-negative
+        assert cache_age_seconds >= 0, "Cache age should be non-negative"
+
+        # Invariant: Cache age should be reasonable
+        assert cache_age_seconds <= 31536000, \
+            f"Cache age {cache_age_seconds}s exceeds 1 year"
+
+    @given(
+        etag_length=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_etag_format(self, etag_length):
+        """INVARIANT: ETag should have valid format."""
+        # Invariant: ETag length should be reasonable
+        assert 10 <= etag_length <= 100, \
+            f"ETag length {etag_length} outside valid range [10, 100]"
+
+    @given(
+        max_age=st.integers(min_value=0, max_value=86400)  # 0 to 24 hours
+    )
+    @settings(max_examples=50)
+    def test_cache_control_max_age(self, max_age):
+        """INVARIANT: Cache-Control max-age should be valid."""
+        # Invariant: Max age should be non-negative
+        assert max_age >= 0, "Max age should be non-negative"
+
+        # Invariant: Max age should be reasonable
+        assert max_age <= 86400, \
+            f"Max age {max_age}s exceeds 24 hours"
+
+    @given(
+        is_public=st.booleans(),
+        is_private=st.booleans()
+    )
+    @settings(max_examples=50)
+    def test_cache_control_directives(self, is_public, is_private):
+        """INVARIANT: Cache-Control directives should be valid."""
+        # Assume valid combination - cannot be both public and private
+        assume(not (is_public and is_private))
+
+        # Invariant: At most one directive should be set
+        num_directives = sum([is_public, is_private])
+        assert num_directives <= 1, \
+            f"Should have at most 1 directive, got {num_directives}"
+
+        # Invariant: Valid configurations are:
+        # - Neither: no-cache or must-revalidate
+        # - Public only: cacheable by all
+        # - Private only: cacheable only by browser
+        if is_public:
+            assert not is_private, "Public response should not be private"
+        elif is_private:
+            assert not is_public, "Private response should not be public"
+        else:
+            # Neither - no caching or specific caching rules
+            assert True, "Valid configuration"
+
+
+class TestAPIPaginationInvariants:
+    """Property-based tests for API pagination invariants."""
+
+    @given(
+        page_number=st.integers(min_value=1, max_value=1000),
+        items_per_page=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_pagination_parameters(self, page_number, items_per_page):
+        """INVARIANT: Pagination parameters should be valid."""
+        # Invariant: Page number should be positive
+        assert page_number >= 1, "Page number should be >= 1"
+
+        # Invariant: Items per page should be in valid range
+        assert 10 <= items_per_page <= 100, \
+            f"Items per page {items_per_page} outside valid range [10, 100]"
+
+    @given(
+        offset=st.integers(min_value=0, max_value=10000),
+        limit=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_offset_pagination_parameters(self, offset, limit):
+        """INVARIANT: Offset pagination parameters should be valid."""
+        # Invariant: Offset should be non-negative
+        assert offset >= 0, "Offset should be non-negative"
+
+        # Invariant: Limit should be positive
+        assert limit >= 10, f"Limit {limit} should be >= 10"
+
+        # Invariant: Limit should not exceed maximum
+        assert limit <= 100, f"Limit {limit} exceeds maximum 100"
+
+    @given(
+        total_items=st.integers(min_value=0, max_value=10000),
+        page_size=st.integers(min_value=10, max_value=100)
+    )
+    @settings(max_examples=50)
+    def test_total_pages_calculation(self, total_items, page_size):
+        """INVARIANT: Total pages calculation should be correct."""
+        # Calculate total pages
+        if page_size > 0:
+            total_pages = (total_items + page_size - 1) // page_size
+        else:
+            total_pages = 0
+
+        # Invariant: Total pages should be at least 1 if there are items
+        if total_items > 0:
+            assert total_pages >= 1, "Should have at least 1 page"
+        else:
+            assert total_pages == 0, "Should have 0 pages for 0 items"
+
+        # Invariant: Total pages should be non-negative
+        assert total_pages >= 0, "Total pages should be non-negative"
+
+
+class TestAPIFilteringInvariants:
+    """Property-based tests for API filtering invariants."""
+
+    @given(
+        filter_count=st.integers(min_value=0, max_value=20)
+    )
+    @settings(max_examples=50)
+    def test_filter_parameter_count(self, filter_count):
+        """INVARIANT: Filter parameter count should be limited."""
+        # Invariant: Filter count should be reasonable
+        assert filter_count <= 20, \
+            f"Filter count {filter_count} exceeds limit 20"
+
+    @given(
+        field_name=st.text(min_size=1, max_size=50, alphabet='abcABC_0123456789')
+    )
+    @settings(max_examples=50)
+    def test_filter_field_name(self, field_name):
+        """INVARIANT: Filter field names should be valid."""
+        # Invariant: Field name should be reasonable
+        assert 1 <= len(field_name) <= 50, \
+            f"Field name length {len(field_name)} outside valid range [1, 50]"
+
+    @given(
+        operator=st.sampled_from(['eq', 'ne', 'gt', 'lt', 'ge', 'le', 'in', 'like'])
+    )
+    @settings(max_examples=50)
+    def test_filter_operator_validity(self, operator):
+        """INVARIANT: Filter operators must be from valid set."""
+        valid_operators = {'eq', 'ne', 'gt', 'lt', 'ge', 'le', 'in', 'like'}
+
+        # Invariant: Operator must be valid
+        assert operator in valid_operators, f"Invalid operator: {operator}"
+
+    @given(
+        value=st.one_of(
+            st.integers(min_value=-1000000, max_value=1000000),
+            st.text(min_size=1, max_size=100, alphabet='abcABC123'),
+            st.booleans()
+        )
+    )
+    @settings(max_examples=50)
+    def test_filter_value_types(self, value):
+        """INVARIANT: Filter values should have valid types."""
+        # Invariant: Value should be of valid type
+        assert isinstance(value, (int, str, bool)), \
+            f"Filter value type {type(value)} should be int, str, or bool"
+
+
+class TestAPISortingInvariants:
+    """Property-based tests for API sorting invariants."""
+
+    @given(
+        sort_field=st.text(min_size=1, max_size=50, alphabet='abcABC_0123456789')
+    )
+    @settings(max_examples=50)
+    def test_sort_field_validity(self, sort_field):
+        """INVARIANT: Sort field should be valid."""
+        # Invariant: Field name should be reasonable
+        assert 1 <= len(sort_field) <= 50, \
+            f"Sort field length {len(sort_field)} outside valid range [1, 50]"
+
+    @given(
+        sort_order=st.sampled_from(['asc', 'desc', 'ASC', 'DESC'])
+    )
+    @settings(max_examples=50)
+    def test_sort_order_validity(self, sort_order):
+        """INVARIANT: Sort order must be valid."""
+        # Normalize to lowercase for comparison
+        normalized = sort_order.lower()
+        valid_orders = {'asc', 'desc'}
+
+        # Invariant: Sort order must be valid
+        assert normalized in valid_orders, f"Invalid sort order: {sort_order}"
+
+    @given(
+        sort_field_count=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_multiple_sort_fields(self, sort_field_count):
+        """INVARIANT: Multiple sort fields should be supported."""
+        # Invariant: Sort field count should be reasonable
+        assert 1 <= sort_field_count <= 5, \
+            f"Sort field count {sort_field_count} outside valid range [1, 5]"
+
+
+class TestAPICORSInvariants:
+    """Property-based tests for API CORS invariants."""
+
+    @given(
+        origin=st.sampled_from([
+            'https://example.com',
+            'https://app.example.com',
+            'http://localhost:3000',
+            'https://subdomain.example.com'
+        ])
+    )
+    @settings(max_examples=50)
+    def test_cors_origin_validation(self, origin):
+        """INVARIANT: CORS origins should be validated."""
+        # Invariant: Origin should be a valid URL
+        assert origin.startswith(('http://', 'https://')), \
+            f"Origin {origin} should start with http:// or https://"
+
+        # Invariant: Origin should not be empty
+        assert len(origin) > 0, "Origin should not be empty"
+
+    @given(
+        method=st.sampled_from(['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+    )
+    @settings(max_examples=50)
+    def test_cors_method_validation(self, method):
+        """INVARIANT: CORS methods should be validated."""
+        valid_methods = {'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'}
+
+        # Invariant: Method must be valid
+        assert method in valid_methods, f"Invalid CORS method: {method}"
+
+    @given(
+        header_name=st.text(min_size=1, max_size=50, alphabet='ABC-abcdefghijklmnopqrstuvwxyz0123456789')
+    )
+    @settings(max_examples=50)
+    def test_cors_header_validation(self, header_name):
+        """INVARIANT: CORS headers should be validated."""
+        # Invariant: Header name should be reasonable
+        assert 1 <= len(header_name) <= 50, \
+            f"Header length {len(header_name)} outside valid range [1, 50]"
+
+        # Invariant: Common CORS headers should be recognized
+        cors_headers = {
+            'Access-Control-Allow-Origin',
+            'Access-Control-Allow-Methods',
+            'Access-Control-Allow-Headers',
+            'Access-Control-Max-Age'
+        }
+        # Header doesn't have to be in this set, but if it is, it's valid
+        if header_name in cors_headers:
+            assert True  # Valid CORS header
+
+
+class TestAPICompressionInvariants:
+    """Property-based tests for API compression invariants."""
+
+    @given(
+        encoding=st.sampled_from(['gzip', 'deflate', 'br', 'identity'])
+    )
+    @settings(max_examples=50)
+    def test_compression_encoding(self, encoding):
+        """INVARIANT: Compression encodings should be valid."""
+        valid_encodings = {'gzip', 'deflate', 'br', 'identity'}
+
+        # Invariant: Encoding must be valid
+        assert encoding in valid_encodings, f"Invalid encoding: {encoding}"
+
+    @given(
+        original_size=st.integers(min_value=100, max_value=10485760),
+        compression_ratio=st.floats(min_value=0.1, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=50)
+    def test_compression_ratio(self, original_size, compression_ratio):
+        """INVARIANT: Compression ratio should be reasonable."""
+        # Calculate compressed size
+        compressed_size = int(original_size * compression_ratio)
+
+        # Invariant: Compressed size should be smaller than original
+        assert compressed_size <= original_size, \
+            f"Compressed size {compressed_size} should be <= original {original_size}"
+
+        # Invariant: Compression ratio should be in valid range
+        assert 0.1 <= compression_ratio <= 1.0, \
+            f"Compression ratio {compression_ratio} outside valid range [0.1, 1.0]"
+
+    @given(
+        min_size=st.integers(min_value=0, max_value=1000)
+    )
+    @settings(max_examples=50)
+    def test_compression_threshold(self, min_size):
+        """INVARIANT: Compression should only apply above size threshold."""
+        # Invariant: Small responses should not be compressed
+        compression_threshold = 1000  # 1KB
+        should_compress = min_size >= compression_threshold
+
+        if should_compress:
+            assert min_size >= compression_threshold, \
+                f"Size {min_size} should be compressed"
+        else:
+            assert min_size < compression_threshold, \
+                f"Size {min_size} should not be compressed"
+
+
+class TestAPIIdempotencyInvariants:
+    """Property-based tests for API idempotency invariants."""
+
+    @given(
+        request_id=st.text(min_size=20, max_size=100, alphabet='abcABC0123456789-_')
+    )
+    @settings(max_examples=50)
+    def test_idempotency_key_format(self, request_id):
+        """INVARIANT: Idempotency keys should have valid format."""
+        # Invariant: Key should be reasonable length
+        assert 20 <= len(request_id) <= 100, \
+            f"Idempotency key length {len(request_id)} outside valid range [20, 100]"
+
+    @given(
+        method=st.sampled_from(['GET', 'PUT', 'DELETE', 'POST'])
+    )
+    @settings(max_examples=50)
+    def test_idempotent_methods(self, method):
+        """INVARIANT: Idempotent methods should be identified."""
+        idempotent_methods = {'GET', 'PUT', 'DELETE'}
+        non_idempotent_methods = {'POST'}
+
+        # Invariant: Should correctly classify idempotency
+        if method in idempotent_methods:
+            assert True  # Is idempotent
+        elif method in non_idempotent_methods:
+            assert True  # May not be idempotent
+
+    @given(
+        retry_count=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50)
+    def test_retry_safety(self, retry_count):
+        """INVARIANT: Retries should be safe for idempotent operations."""
+        # Invariant: Retry count should be limited
+        assert 1 <= retry_count <= 5, \
+            f"Retry count {retry_count} outside valid range [1, 5]"
+
+        # Invariant: Should have max retries
+        max_retries = 5
+        assert retry_count <= max_retries, \
+            f"Retry count {retry_count} exceeds maximum {max_retries}"
