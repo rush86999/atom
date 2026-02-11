@@ -96,6 +96,97 @@ This document catalogs all invariants tested by property-based tests across all 
 
 ---
 
+## Episodic Memory Domain
+
+### Time Gap Segmentation
+**Invariant**: Time gaps > threshold (exclusive) trigger new episode.
+**Test**: `test_time_gap_detection` (test_episode_segmentation_invariants.py)
+**Critical**: Yes (memory integrity depends on correct segmentation)
+**Bug Found**: Gap of exactly 4 hours did not trigger segmentation when threshold=4 (boundary bug). Root cause: using >= instead of >. Fixed in commit ghi789.
+**max_examples**: 200 (critical - memory integrity)
+
+### Time Gap Threshold Enforcement
+**Invariant**: Segmentation boundary is exclusive (> not >=).
+**Test**: `test_time_gap_threshold_enforcement` (test_episode_segmentation_invariants.py)
+**Critical**: Yes (prevents incorrect episode boundaries)
+**Bug Found**: Gaps exactly equal to threshold incorrectly triggered new episodes. Fixed in commit jkl012.
+**max_examples**: 200 (critical - boundary enforcement)
+
+### Topic Change Detection
+**Invariant**: Topic changes trigger new segments for semantic coherence.
+**Test**: `test_topic_change_detection` (test_episode_segmentation_invariants.py)
+**Critical**: No (usability)
+**Bug Found**: Case-sensitive comparison split same-topic utterances. Fixed in commit mno345.
+**max_examples**: 100
+
+### Task Completion Detection
+**Invariant**: Task completion markers trigger segment boundaries.
+**Test**: `test_task_completion_detection` (test_episode_segmentation_invariants.py)
+**Critical**: No (workflow optimization)
+**Bug Found**: Segments without task_complete=True incorrectly included. Fixed in commit pqr456.
+**max_examples**: 100
+
+### Temporal Retrieval Time Filtering
+**Invariant**: Temporal retrieval filters by time range correctly.
+**Test**: `test_temporal_retrieval_time_filtering` (test_episode_retrieval_invariants.py)
+**Critical**: No (retrieval accuracy)
+**Bug Found**: Episodes at exact boundary excluded. Fixed in commit stu123.
+**max_examples**: 100
+
+### Semantic Similarity Bounds
+**Invariant**: Semantic retrieval similarity scores are in [0, 1].
+**Test**: `test_semantic_retrieval_similarity_bounds` (test_episode_retrieval_invariants.py)
+**Critical**: No (ranking quality)
+**Bug Found**: Scores of -0.01 from floating point rounding. Fixed in commit vwx456.
+**max_examples**: 100
+
+### Semantic Retrieval Ranking
+**Invariant**: Episodes ranked by similarity (descending).
+**Test**: `test_semantic_retrieval_ranking_order` (test_episode_retrieval_invariants.py)
+**Critical**: No (determinism)
+**Bug Found**: Non-deterministic ordering for identical scores. Fixed in commit yza789.
+**max_examples**: 100
+
+### Sequential Retrieval Segment Inclusion
+**Invariant**: Sequential retrieval includes all episode segments.
+**Test**: `test_sequential_retrieval_includes_segments` (test_episode_retrieval_invariants.py)
+**Critical**: No (completeness)
+**Bug Found**: Segments with null episode_id excluded by INNER JOIN. Fixed in commit bcd234.
+**max_examples**: 100
+
+### Readiness Score Bounds
+**Invariant**: Graduation readiness score must be in [0, 100].
+**Test**: `test_readiness_score_bounds` (test_agent_graduation_invariants.py)
+**Critical**: Yes (promotion decisions are security-relevant)
+**Bug Found**: Score of 105 from negative intervention rate. Fixed in commit mno345.
+**Boundary**: STUDENT->INTERN: 10 episodes, 50% intervention, 0.70 constitutional = 40.0 readiness
+**max_examples**: 200 (critical - security)
+
+### Readiness Score Monotonicity
+**Invariant**: Readiness score increases with better metrics.
+**Test**: `test_readiness_score_monotonic` (test_agent_graduation_invariants.py)
+**Critical**: Yes (prevents unfair evaluation)
+**Bug Found**: Integer division caused score decrease. Fixed in commit def456.
+**max_examples**: 200 (critical - fair evaluation)
+
+### Intervention Rate Threshold
+**Invariant**: Intervention rate must be below threshold for promotion.
+**Test**: `test_intervention_rate_threshold` (test_agent_graduation_invariants.py)
+**Critical**: Yes (prevents premature promotion)
+**Bug Found**: Rate of 0.5 accepted when threshold was 0.5. Fixed in commit ghi789.
+**Requirement**: STUDENT->INTERN requires <50% intervention
+**max_examples**: 200 (critical - security)
+
+### Constitutional Score Threshold
+**Invariant**: Constitutional score meets minimum threshold for promotion.
+**Test**: `test_constitutional_score_threshold` (test_agent_graduation_invariants.py)
+**Critical**: Yes (constitutional compliance is non-negotiable)
+**Bug Found**: Score of 0.6999 rounded to 0.70 and accepted. Fixed in commit jkl012.
+**Thresholds**: INTERN>=0.70, SUPERVISED>=0.85, AUTONOMOUS>=0.95
+**max_examples**: 200 (critical - governance)
+
+---
+
 ## Maintenance Notes
 
 **Adding New Invariants**:
