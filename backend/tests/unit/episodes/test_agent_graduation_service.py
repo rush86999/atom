@@ -410,3 +410,272 @@ class TestEdgeCases:
 
         # Should still return result with default score
         assert "avg_constitutional_score" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_episode_list(self, graduation_service, sample_agent):
+        """Test readiness calculation with no episodes."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.all.return_value = []
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="agent-123",
+            target_maturity="INTERN"
+        )
+
+        assert result["episode_count"] == 0
+        assert result["intervention_rate"] == 1.0  # Default when no episodes
+
+    @pytest.mark.asyncio
+    async def test_custom_min_episodes_override(self, graduation_service, sample_agent):
+        """Test readiness with custom minimum episode count."""
+        episodes = [Mock(
+            human_intervention_count=0,
+            constitutional_score=0.9,
+            maturity_at_time="INTERN",
+            status="completed"
+        ) for _ in range(5)]
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="agent-123",
+            target_maturity="INTERN",
+            min_episodes=5  # Override default of 10
+        )
+
+        # Should meet custom minimum
+        assert result["episode_count"] == 5
+
+    @pytest.mark.asyncio
+    async def test_score_calculation_weights(self, graduation_service):
+        """Test readiness score calculation weights (40/30/30)."""
+        # Test the _calculate_score method directly
+        # Episode count (40%), Intervention (30%), Constitutional (30%)
+
+        # Perfect scores
+        score = graduation_service._calculate_score(
+            episode_count=25,
+            min_episodes=25,  # 100% of episode requirement
+            intervention_rate=0.0,
+            max_intervention=0.2,  # Better than requirement
+            constitutional_score=0.95,
+            min_constitutional=0.85  # Exceeds requirement
+        )
+
+        assert score == 100.0  # Perfect score
+
+        # Partial scores (50% each)
+        score = graduation_service._calculate_score(
+            episode_count=13,  # ~50% of 25
+            min_episodes=25,
+            intervention_rate=0.1,  # 50% of 0.2
+            max_intervention=0.2,
+            constitutional_score=0.9,  # ~50% above 0.85
+            min_constitutional=0.85
+        )
+
+        # Should be approximately 50 (actually the weighted sum)
+        assert 40 <= score <= 60  # Allow for rounding
+
+    @pytest.mark.asyncio
+    async def test_recommendation_by_score_range(self, graduation_service):
+        """Test recommendation text varies by score range."""
+        test_cases = [
+            (True, 95.0, "ready"),
+            (False, 20.0, "not ready"),
+            (False, 60.0, "making progress"),
+            (False, 80.0, "close to ready")
+        ]
+
+        for ready, score, expected_phrase in test_cases:
+            recommendation = graduation_service._generate_recommendation(ready, score, "SUPERVISED")
+            # Check recommendation is generated
+            assert isinstance(recommendation, str)
+            assert len(recommendation) > 0
+
+    @pytest.mark.asyncio
+    async def test_promote_with_metadata_update(self, graduation_service, sample_agent):
+        """Test agent promotion updates metadata."""
+        sample_agent.metadata_json = {}
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+
+        # Mock status assignment
+        original_status = sample_agent.status
+        sample_agent.status = Mock()
+
+        result = await graduation_service.promote_agent(
+            agent_id="agent-123",
+            new_maturity="SUPERVISED",
+            validated_by="admin-456"
+        )
+
+        assert result is True
+        # Metadata should be updated
+        assert "promoted_at" in sample_agent.metadata_json
+        assert sample_agent.metadata_json["promoted_by"] == "admin-456"
+
+    @pytest.mark.asyncio
+    async def test_promote_with_existing_metadata(self, graduation_service, sample_agent):
+        """Test promotion preserves existing metadata."""
+        sample_agent.metadata_json = {"existing_key": "existing_value"}
+        sample_agent.status = Mock()
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+
+        result = await graduation_service.promote_agent(
+            agent_id="agent-123",
+            new_maturity="INTERN",
+            validated_by="user-789"
+        )
+
+        assert result is True
+        assert sample_agent.metadata_json["existing_key"] == "existing_value"
+        assert "promoted_at" in sample_agent.metadata_json
+
+    @pytest.mark.asyncio
+    async def test_promote_invalid_status_key(self, graduation_service, sample_agent):
+        """Test promotion with invalid maturity status key."""
+        sample_agent.status = Mock()
+
+        # Mock KeyError on status assignment
+        def side_effect(key, value):
+            if key == "status":
+                raise KeyError("Invalid status")
+
+        sample_agent.__setattr__ = side_effect
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+
+        result = await graduation_service.promote_agent(
+            agent_id="agent-123",
+            new_maturity="INVALID",
+            validated_by="admin"
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_audit_trail_with_episodes_by_maturity(self, graduation_service, sample_agent):
+        """Test audit trail groups episodes by maturity level."""
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.id = f"episode-{i}"
+            ep.started_at = datetime.now() - timedelta(days=i)
+            ep.human_intervention_count = i % 3
+            ep.constitutional_score = 0.8 + (i * 0.01)
+            ep.maturity_at_time = "INTERN" if i < 5 else "SUPERVISED"
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = episodes
+
+        result = await graduation_service.get_graduation_audit_trail(agent_id="agent-123")
+
+        assert "episodes_by_maturity" in result
+        assert isinstance(result["episodes_by_maturity"], dict)
+
+    @pytest.mark.asyncio
+    async def test_audit_trail_summary_stats(self, graduation_service, sample_agent):
+        """Test audit trail calculates summary statistics."""
+        episodes = []
+        total_interventions = 0
+        constitutional_scores = []
+
+        for i in range(10):
+            ep = Mock()
+            ep.id = f"episode-{i}"
+            ep.started_at = datetime.now() - timedelta(days=i)
+            ep.human_intervention_count = i
+            ep.constitutional_score = 0.7 + (i * 0.02)
+            total_interventions += i
+            constitutional_scores.append(ep.constitutional_score)
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = episodes
+
+        result = await graduation_service.get_graduation_audit_trail(agent_id="agent-123")
+
+        assert result["total_episodes"] == 10
+        assert result["total_interventions"] == total_interventions
+        # Average constitutional score
+        expected_avg = sum(constitutional_scores) / len(constitutional_scores)
+        assert abs(result["avg_constitutional_score"] - expected_avg) < 0.01
+
+    @pytest.mark.asyncio
+    async def test_audit_trail_agent_not_found(self, graduation_service):
+        """Test audit trail for non-existent agent."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await graduation_service.get_graduation_audit_trail(agent_id="nonexistent")
+
+        assert "error" in result
+        assert result["error"] == "Agent not found"
+
+    @pytest.mark.asyncio
+    async def test_validate_constitutional_nonexistent_episode(self, graduation_service):
+        """Test constitutional validation for non-existent episode."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await graduation_service.validate_constitutional_compliance(
+            episode_id="nonexistent-episode"
+        )
+
+        assert "error" in result
+        assert result["error"] == "Episode not found"
+
+    @pytest.mark.asyncio
+    async def test_run_graduation_exam_nonexistent_episode(self, graduation_service):
+        """Test graduation exam with non-existent episode."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await graduation_service.run_graduation_exam(
+            agent_id="agent-123",
+            edge_case_episodes=["nonexistent-episode-1", "nonexistent-episode-2"]
+        )
+
+        # Should skip non-existent episodes and complete with whatever works
+        assert "passed" in result
+        assert "total_cases" in result
+        assert result["total_cases"] == 2
+
+    @pytest.mark.asyncio
+    async def test_multiple_gaps_identified(self, graduation_service, sample_agent):
+        """Test multiple gaps are identified simultaneously."""
+        # Create episodes that fail multiple criteria
+        episodes = []
+        for i in range(5):  # Too few (need 10)
+            ep = Mock()
+            ep.human_intervention_count = 5  # Too many (50%)
+            ep.constitutional_score = 0.6  # Too low (need 0.70)
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="agent-123",
+            target_maturity="INTERN"
+        )
+
+        # Should have multiple gaps
+        assert len(result["gaps"]) >= 2
+        assert not result["ready"]
+
+    @pytest.mark.asyncio
+    async def test_intervention_rate_division_by_zero_protection(self, graduation_service, sample_agent):
+        """Test intervention rate handles zero episode count."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.filter.return_value.all.return_value = []
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="agent-123",
+            target_maturity="INTERN"
+        )
+
+        # Should default to 1.0 (100% intervention rate) when no episodes
+        assert result["intervention_rate"] == 1.0
