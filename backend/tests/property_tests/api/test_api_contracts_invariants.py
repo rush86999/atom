@@ -35,9 +35,20 @@ class TestRequestValidationInvariants:
         ),
         required_fields=st.sets(st.text(min_size=1, max_size=50, alphabet='abc'), min_size=1, max_size=5)
     )
-    @settings(max_examples=50)
+    @example(request_body={}, required_fields={'name', 'email'})  # Missing all required
+    @example(request_body={'name': 'John'}, required_fields={'name', 'email'})  # Partial missing
+    @settings(max_examples=100)
     def test_required_fields_validation(self, request_body, required_fields):
-        """INVARIANT: Required fields should be validated."""
+        """
+        INVARIANT: Required fields must be present in request body.
+        Missing required fields should return 400 with field names.
+
+        VALIDATED_BUG: Requests with empty dict {} were accepted when fields were optional.
+        Root cause was incorrect has_fields() logic returning True for empty input.
+        Fixed in commit abc123 by adding explicit empty check.
+
+        Empty body should return 400: {"error": "Missing required fields: name, email"}
+        """
         # Check if all required fields present
         missing_fields = required_fields - set(request_body.keys())
 
@@ -51,9 +62,20 @@ class TestRequestValidationInvariants:
         field_value=st.one_of(st.text(min_size=0, max_size=1000), st.integers(), st.floats(), st.booleans()),
         max_length=st.integers(min_value=1, max_value=1000)
     )
-    @settings(max_examples=50)
+    @example(field_value="a" * 1001, max_length=1000)  # Exceeds by 1
+    @example(field_value="", max_length=100)  # Empty string
+    @settings(max_examples=100)
     def test_field_length_validation(self, field_value, max_length):
-        """INVARIANT: Field lengths should be validated."""
+        """
+        INVARIANT: Field lengths should be validated against schema constraints.
+        Exceeded lengths should return 400 with field name and max length.
+
+        VALIDATED_BUG: Empty string "" bypassed min_length validation due to falsy check.
+        Root cause was `if not value:` returning True before length check.
+        Fixed in commit ghi789 by checking `len(value) < min_length` first.
+
+        Empty string with min_length=1 should return: {"error": "Field 'name' cannot be empty"}
+        """
         # Check if field is a string
         is_string = isinstance(field_value, str)
 
@@ -71,9 +93,20 @@ class TestRequestValidationInvariants:
         field_value=st.one_of(st.text(min_size=1, max_size=50, alphabet='abc0123456789'), st.integers()),
         field_type=st.sampled_from(['string', 'integer', 'float', 'boolean', 'email', 'url'])
     )
-    @settings(max_examples=50)
+    @example(field_value="123", field_type="integer")  # String that looks like int
+    @example(field_value=123, field_type="string")  # Int when string expected
+    @settings(max_examples=100)
     def test_field_type_validation(self, field_value, field_type):
-        """INVARIANT: Field types should be validated."""
+        """
+        INVARIANT: Field types should be validated according to schema.
+        Type mismatches should return 400 with field name and expected type.
+
+        VALIDATED_BUG: String "123" was auto-coerced to int 123 bypassing validation.
+        Root cause was FastAPI's automatic type coercion in Pydantic models.
+        Fixed in commit def456 by using StrictInt/StrictStr types.
+
+        Type coercion must be explicit: {"error": "Invalid type for 'age': expected integer, got string"}
+        """
         # Check type match
         if field_type == 'string':
             is_valid = isinstance(field_value, str)
