@@ -220,7 +220,8 @@ class NotificationService {
    */
   private async registerTokenWithBackend(token: PushToken): Promise<void> {
     try {
-      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+      // Use Constants.expoConfig pattern for Jest compatibility (avoids expo/virtual/env babel transform)
+      const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
       const authToken = await this.getAuthToken();
 
       const response = await fetch(`${API_BASE_URL}/api/mobile/notifications/register`, {
