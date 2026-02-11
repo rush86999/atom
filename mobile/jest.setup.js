@@ -310,6 +310,7 @@ jest.mock('expo-constants', () => ({
     },
     extra: {
       apiUrl: 'http://localhost:8000',
+      socketUrl: 'http://localhost:8000',
       eas: {
         projectId: 'test-project-id',
       },
@@ -322,6 +323,7 @@ jest.mock('expo-constants', () => ({
       version: '1.0.0',
       extra: {
         apiUrl: 'http://localhost:8000',
+        socketUrl: 'http://localhost:8000',
       },
     },
   },

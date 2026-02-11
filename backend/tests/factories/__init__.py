@@ -17,6 +17,7 @@ from tests.factories.user_factory import UserFactory, AdminUserFactory, MemberUs
 from tests.factories.episode_factory import EpisodeFactory, EpisodeSegmentFactory
 from tests.factories.execution_factory import AgentExecutionFactory
 from tests.factories.canvas_factory import CanvasAuditFactory
+from tests.factories.chat_session_factory import ChatSessionFactory
 
 __all__ = [
     'BaseFactory',
@@ -32,4 +33,5 @@ __all__ = [
     'EpisodeSegmentFactory',
     'AgentExecutionFactory',
     'CanvasAuditFactory',
+    'ChatSessionFactory',
 ]
