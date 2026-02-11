@@ -13,6 +13,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 // Types
 interface WebSocketContextType {
@@ -34,7 +35,7 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 // Constants
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:8000';
+const SOCKET_URL = Constants.expoConfig?.extra?.socketUrl || 'http://localhost:8000';
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const MAX_RECONNECT_ATTEMPTS = 10;
 const ROOM_KEY_PREFIX = 'socket_room_';

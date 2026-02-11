@@ -187,14 +187,9 @@ class TestCoverageConfiguration:
                 assert "--cov-fail-under" not in pytest_content
                 assert "--cov-branch" not in pytest_content
 
-        # Read .coveragerc if exists
-        coveragerc_path = ".coveragerc"
-        if os.path.exists(coveragerc_path):
-            with open(coveragerc_path, "r") as f:
-                coveragerc_content = f.read()
-                # Verify deprecated options are not present
-                assert "precision" not in coveragerc_content
-                assert "partial_branches" not in coveragerc_content
+        # .coveragerc was removed in Phase 6 Plan 02
+        # No need to check for it - pytest-cov uses defaults now
+        # assert True  # Test passes if file doesn't exist
 
 
 # ============================================================================
