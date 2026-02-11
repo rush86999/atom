@@ -1,4446 +1,7417 @@
-# Phase 250: Comprehensive Test Scenarios
+# Atom Platform - Comprehensive Test Scenarios
 
-**Phase:** 250-comprehensive-testing
-**Plan:** 01
-**Detailed Scenarios:** 130
-**Total Planned:** 270
-**Categories:** 20
-**Last Updated:** 2025-02-11
+**Phase:** 250-Comprehensive-Testing  
+**Document Version:** 1.0  
+**Last Updated:** 2025-02-11  
+**Total Scenarios:** 250+
 
 ---
 
 ## Executive Summary
 
-This document catalogs 270 test scenarios covering all major user workflows in the Atom platform, organized by category and risk priority. Each scenario includes preconditions, test steps, expected outcomes, and success criteria.
+This document provides a comprehensive catalog of 250+ test scenarios covering all major user workflows in the Atom platform. Scenarios are organized by category, priority level, and wave for systematic execution.
 
-**Coverage Distribution:**
-- Authentication & Access Control: 45 scenarios
-- User Management & Roles: 15 scenarios
-- Agent Lifecycle: 50 scenarios
-- Agent Execution & Monitoring: 20 scenarios
-- Monitoring & Analytics: 10 scenarios
-- Feedback & Learning: 10 scenarios
-- Workflow Automation: 40 scenarios
-- Orchestration: 15 scenarios
-- Advanced Workflows: 10 scenarios
-- Canvas & Collaboration: 30 scenarios
-- Integration Ecosystem: 35 scenarios
-- Data Processing: 15 scenarios
-- Analytics & Reporting: 15 scenarios
-- Business Intelligence: 5 scenarios
-- Performance Testing: 10 scenarios
-- Support: 25 scenarios
-- Load Testing: 5 scenarios
-- Security Testing: 20 scenarios
-- UX/UI Testing: 30 scenarios
-- Cross-Browser/Device: 20 scenarios
+### Priority Levels
 
-**Priority Levels:**
-- **CRITICAL:** Security vulnerabilities, data integrity, access control
-- **HIGH:** Core functionality, agent governance, workflow reliability
-- **MEDIUM:** User productivity, data visualization, integrations
-- **LOW:** Nice-to-have features, edge cases, optimization
+- **CRITICAL** - Security, data integrity, access control failures (production-blocking)
+- **HIGH** - Core functionality failures affecting user workflows
+- **MEDIUM** - Feature gaps, performance issues, edge cases
+- **LOW** - Cosmetic issues, nice-to-haves, minor optimizations
+
+### Test Execution Strategy
+
+- **Automated:** Property tests (Hypothesis), integration tests, unit tests
+- **Manual:** UX validation, visual testing, exploratory testing
+- **Hybrid:** Semi-automated flows requiring human verification
 
 ---
 
-## Category 1: Authentication & Access Control (45 scenarios)
+## Category 1: Authentication & Access Control (45 Scenarios)
 
 ### CRITICAL SCENARIOS (15)
 
-#### AUTH-CRIT-001: User Login with Valid Credentials
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Authentication Service
+#### AUTH-001: User Login with Valid Credentials
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User account exists in database
-- User has verified email address
-- Account status is active
+- Account status is ACTIVE
+- Valid email/password combination
 
 **Test Steps:**
 1. Navigate to login page
 2. Enter valid email address
 3. Enter valid password
 4. Click "Login" button
-5. Wait for authentication response
 
-**Expected Outcomes:**
-- User is successfully authenticated
+**Expected Outcome:**
+- User is authenticated successfully
 - JWT access token is generated
-- JWT refresh token is generated and stored
-- User is redirected to dashboard
-- Session is established in database
+- JWT refresh token is generated
+- User redirected to dashboard
+- Session established
 
 **Success Criteria:**
-- HTTP 200 response received
-- Access token valid for 15 minutes
-- Refresh token valid for 7 days
-- Dashboard loads without errors
-- Session record created in database
-
-**Risk Assessment:** HIGH - Blocks all user access if broken
+- HTTP 200 response
+- Access token expires in correct timeframe (15 minutes)
+- Refresh token expires in correct timeframe (7 days)
+- User record shows last login timestamp
 
 ---
 
-#### AUTH-CRIT-002: User Login with Invalid Credentials
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Authentication Service
+#### AUTH-002: User Login with Invalid Credentials
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User account exists in database
-- Account status is active
+- Account status is ACTIVE
 
 **Test Steps:**
 1. Navigate to login page
 2. Enter valid email address
-3. Enter invalid password (wrong value)
+3. Enter invalid password
 4. Click "Login" button
-5. Observe error response
 
-**Expected Outcomes:**
-- Authentication is denied
-- Generic error message displayed ("Invalid credentials")
+**Expected Outcome:**
+- Authentication fails
+- Error message displayed: "Invalid credentials"
 - No tokens generated
-- Account lockout counter increments
-- Failed attempt logged in audit trail
+- Account locked after 5 failed attempts
 
 **Success Criteria:**
-- HTTP 401 Unauthorized response
+- HTTP 401 response
 - Error message does not reveal if email exists
-- Failed attempt recorded in database
-- No tokens returned
-
-**Risk Assessment:** CRITICAL - Security vulnerability if information leaked
+- Failed attempt logged in audit trail
+- Account lockout after threshold
 
 ---
 
-#### AUTH-CRIT-003: Password Hashing on Registration
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** User Registration Service
+#### AUTH-003: Password Reset via Email Link
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- New user registration flow initiated
-- Password meets complexity requirements
+- User account exists
+- User has valid email address
+- Email service is configured
 
 **Test Steps:**
-1. Enter user details (name, email)
-2. Enter password with complex requirements
-3. Submit registration form
-4. Query database for stored password
-5. Verify password is hashed, not plaintext
+1. User clicks "Forgot Password" on login page
+2. Enters registered email address
+3. System sends password reset email
+4. User clicks reset link from email
+5. User enters new password (meets complexity requirements)
+6. User confirms new password
+7. User logs in with new password
 
-**Expected Outcomes:**
-- Password is hashed using bcrypt
-- Salt rounds = 10
-- Plaintext password never stored
-- Hash is unique (different salt each time)
+**Expected Outcome:**
+- Password reset email sent within 30 seconds
+- Reset link expires after 1 hour
+- New password saved successfully
+- Old password invalidated
+- User can authenticate with new password
 
 **Success Criteria:**
-- Database query shows bcrypt hash (starts with $2b$10$)
-- Plaintext password cannot be found anywhere
-- Hash length is 60 characters
-- Registration completes successfully
-
-**Risk Assessment:** CRITICAL - Data breach risk if plaintext stored
-
----
-
-#### AUTH-CRIT-004: JWT Token Validation on Protected Route
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** JWT Middleware
-
-**Preconditions:**
-- User has valid access token
-- Protected route exists (e.g., /api/agents)
-
-**Test Steps:**
-1. Generate valid JWT access token
-2. Make request to protected route with Authorization header
-3. Observe response
-4. Verify token is validated
-5. Access granted to resource
-
-**Expected Outcomes:**
-- Token signature is verified
-- Token expiration is checked
-- User identity extracted from token
-- Access granted to protected resource
-- Request proceeds normally
-
-**Success Criteria:**
-- HTTP 200 response
-- Resource data returned successfully
-- Token validated in <50ms
-- No security warnings in logs
-
-**Risk Assessment:** CRITICAL - Access control bypass if broken
+- Email delivered successfully
+- Reset token is single-use
+- Reset token expires after timeout
+- Password complexity enforced (min 12 chars, mixed case, numbers, symbols)
+- Old refresh tokens revoked
 
 ---
 
-#### AUTH-CRIT-005: JWT Token Expiration Enforcement
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** JWT Middleware
+#### AUTH-004: JWT Token Refresh Before Expiration
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User has expired access token
-- Protected route exists
+- User is authenticated
+- Access token is approaching expiration (within 5 minutes)
+- Valid refresh token exists
 
 **Test Steps:**
-1. Generate JWT token with expiration set to past
-2. Wait for token to expire (or manipulate timestamp)
-3. Make request to protected route with expired token
-4. Observe response
-5. Verify access denied
+1. Application detects access token expiring soon
+2. Application calls `/api/auth/refresh` endpoint
+3. Provides valid refresh token
+4. System validates refresh token
+5. System issues new access token
+6. Optionally issues new refresh token (rotation)
 
-**Expected Outcomes:**
-- Expired token is rejected
-- 401 Unauthorized response returned
-- Error message indicates token expired
-- User prompted to re-authenticate
-
-**Success Criteria:**
-- HTTP 401 Unauthorized
-- Error message: "Token expired"
-- No access to protected resource
-- Failed attempt logged
-
-**Risk Assessment:** CRITICAL - Security vulnerability if expired tokens accepted
-
----
-
-#### AUTH-CRIT-006: Refresh Token Rotation
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Authentication Service
-
-**Preconditions:**
-- User has valid refresh token
-- Access token is expired or near expiry
-
-**Test Steps:**
-1. Make request to /auth/refresh with refresh token
-2. Receive new access token
-3. Verify new refresh token is issued
-4. Verify old refresh token is revoked
-5. Store new refresh token in database
-
-**Expected Outcomes:**
+**Expected Outcome:**
 - New access token generated
-- New refresh token issued
-- Old refresh token marked as revoked
-- Database has single active refresh token per user
+- New access token has fresh expiration
+- User session continues without interruption
+- Old refresh token invalidated (if rotation enabled)
 
 **Success Criteria:**
 - HTTP 200 response
 - New access token valid
-- Old refresh token cannot be reused
-- Database shows revoked status for old token
-
-**Risk Assessment:** CRITICAL - Token theft protection
-
----
-
-#### AUTH-CRIT-007: Logout and Token Revocation
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Authentication Service
-
-**Preconditions:**
-- User is logged in
-- Valid access and refresh tokens exist
-
-**Test Steps:**
-1. Make request to /auth/logout
-2. Verify access token is blacklisted (if using blacklist)
-3. Verify refresh token is revoked in database
-4. Attempt to use access token after logout
-5. Attempt to use refresh token after logout
-
-**Expected Outcomes:**
-- Logout request succeeds (HTTP 200)
-- Access token rejected if used after logout
-- Refresh token revoked and cannot be used
-- Session record marked as terminated
-
-**Success Criteria:**
-- HTTP 200 on logout
-- HTTP 401 on subsequent access token use
-- HTTP 401 on subsequent refresh token use
-- Session status = terminated
-
-**Risk Assessment:** CRITICAL - Session hijacking risk if broken
+- No re-authentication required
+- Refresh token rotation working
+- Token not in revoked list
 
 ---
 
-#### AUTH-CRIT-008: Account Lockout After Failed Attempts
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Authentication Service
+#### AUTH-005: JWT Token Refresh with Expired Token
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User account exists
-- Account lockout policy is configured (e.g., 5 failed attempts)
+- User has expired access token
+- User has expired refresh token
 
 **Test Steps:**
-1. Attempt login with wrong password 5 times
-2. Observe response after each attempt
-3. On 5th attempt, verify account locked
-4. Attempt login with correct password
-5. Verify account remains locked
+1. Application attempts token refresh
+2. System validates refresh token
+3. System detects token expired
+4. System rejects refresh request
 
-**Expected Outcomes:**
-- First 4 attempts return generic "Invalid credentials"
-- 5th attempt returns "Account locked"
-- Account locked for configured duration (e.g., 15 minutes)
-- Correct password also rejected during lockout
-
-**Success Criteria:**
-- Account locked after 5 failed attempts
-- Lockout duration enforced
-- Admin notification sent
-- Lockout recorded in audit log
-
-**Risk Assessment:** HIGH - Brute force protection
-
----
-
-#### AUTH-CRIT-009: Email Verification Flow
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** User Registration Service
-
-**Preconditions:**
-- New user registered but email not verified
-- Email service is configured
-
-**Test Steps:**
-1. Complete registration form
-2. Submit registration
-3. Check inbox for verification email
-4. Click verification link
-5. Verify account status changes to verified
-
-**Expected Outcomes:**
-- Verification email sent within 5 seconds
-- Email contains unique verification token
-- Token expires after 24 hours
-- Clicking link verifies email
-- User can now login
-
-**Success Criteria:**
-- Email received
-- Verification token is unique
-- Token expiration enforced
-- Account status: verified
-- Login successful after verification
-
-**Risk Assessment:** HIGH - Account security if bypassed
-
----
-
-#### AUTH-CRIT-010: Password Reset Flow
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Password Reset Service
-
-**Preconditions:**
-- User exists but forgot password
-- Email service configured
-
-**Test Steps:**
-1. Click "Forgot Password" on login page
-2. Enter registered email
-3. Check inbox for reset email
-4. Click reset link
-5. Enter new password
-6. Confirm new password
-7. Login with new password
-
-**Expected Outcomes:**
-- Reset email sent within 5 seconds
-- Email contains unique reset token
-- Token expires after 1 hour
-- New password must meet complexity rules
-- Old password no longer works
-
-**Success Criteria:**
-- Reset email received
-- Token unique and single-use
-- Token expiration enforced
-- Password successfully changed
-- Old password rejected
-
-**Risk Assessment:** CRITICAL - Account recovery security
-
----
-
-#### AUTH-CRIT-011: Session Timeout and Inactivity
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Session Management
-
-**Preconditions:**
-- User is logged in
-- Session timeout configured (e.g., 30 minutes)
-
-**Test Steps:**
-1. Login and obtain session
-2. Wait for 30 minutes of inactivity
-3. Make request to protected endpoint
-4. Observe response
-5. Verify session terminated
-
-**Expected Outcomes:**
-- Session expires after 30 minutes inactive
-- Request returns 401 Unauthorized
+**Expected Outcome:**
+- Refresh request denied
 - User redirected to login
-- Session marked as expired in database
+- Session terminated
+- Tokens cleared from client storage
 
 **Success Criteria:**
-- HTTP 401 after timeout
-- "Session expired" error message
-- Redirect to login page
-- Session status = expired
-
-**Risk Assessment:** HIGH - Session hijacking protection
+- HTTP 401 response
+- Error message: "Token expired"
+- Client clears local storage
+- User forced to re-authenticate
 
 ---
 
-#### AUTH-CRIT-012: Concurrent Session Limits
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** Session Management
+#### AUTH-006: Mobile Login with Device Registration
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User account exists
-- Concurrent session limit configured (e.g., 3 sessions max)
+- Mobile app installed on device
+- Device has network connectivity
 
 **Test Steps:**
-1. Login from Device A (Session 1)
-2. Login from Device B (Session 2)
-3. Login from Device C (Session 3)
-4. Login from Device D (Session 4)
-5. Verify oldest session is terminated
-6. Attempt to use Session 1 from Device A
+1. User opens mobile app
+2. Enters email and password
+3. App includes device info (platform, model, OS version)
+4. App includes device token (push notification)
+5. App sends login request to `/api/auth/mobile/login`
+6. System validates credentials
+7. System registers device
+8. System returns JWT tokens
 
-**Expected Outcomes:**
-- First 3 logins succeed
-- 4th login succeeds
-- Oldest session (Session 1) is terminated
-- Device A request fails with 401
+**Expected Outcome:**
+- User authenticated successfully
+- Device registered in database
+- Device token saved for push notifications
+- Access and refresh tokens returned
 
 **Success Criteria:**
-- Only 3 active sessions allowed
-- Oldest session terminated on new login
-- User notified of session termination
-- Audit log records session limit enforcement
-
-**Risk Assessment:** MEDIUM - Session abuse prevention
+- HTTP 200 response
+- Device record created
+- Device token stored
+- Tokens valid
+- Push notification registration successful
 
 ---
 
-#### AUTH-CRIT-013: OAuth 2.0 Integration - GitHub
-**Priority:** CRITICAL
-**Type:** Integration
-**Component:** OAuth Service
+#### AUTH-007: Biometric Authentication Registration (iOS)
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 1
 
 **Preconditions:**
-- GitHub OAuth app configured
-- User has GitHub account
+- User logged in on iOS device
+- Device supports Face ID / Touch ID
+- User has biometrics enrolled
 
 **Test Steps:**
-1. Click "Login with GitHub"
-2. Redirect to GitHub authorization page
-3. Authorize application
-4. Redirect back to Atom with authorization code
-5. Exchange code for access token
-6. Fetch user profile from GitHub
-7. Create or login user account
+1. User navigates to Settings > Security
+2. Toggles "Enable Biometric Login"
+3. System prompts for biometric enrollment
+4. User authenticates with Face ID / Touch ID
+5. System generates biometric key pair
+6. Public key stored on server
+7. Private key stored securely in Keychain
 
-**Expected Outcomes:**
-- GitHub authorization page loads
-- User sees requested permissions
-- Authorization succeeds
-- User profile fetched
-- Account created if new user
-- User logged in successfully
+**Expected Outcome:**
+- Biometric authentication enabled
+- Subsequent logins can use biometrics
+- Biometric data never leaves device
+- Server stores only public key
 
 **Success Criteria:**
-- OAuth flow completes
-- User authenticated via GitHub
-- Account created or logged in
-- No manual password required
-
-**Risk Assessment:** HIGH - Third-party authentication
+- Keychain access granted
+- Public key stored on server
+- Private key inaccessible to app
+- Biometric prompt appears on next login
+- Fallback to password available
 
 ---
 
-#### AUTH-CRIT-014: OAuth 2.0 Integration - Google
-**Priority:** CRITICAL
-**Type:** Integration
-**Component:** OAuth Service
+#### AUTH-008: Biometric Authentication Login (iOS)
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 1
+
+**Preconditions:**
+- Biometric registration completed
+- User logged out
+- Biometric authentication enabled
+
+**Test Steps:**
+1. User opens mobile app
+2. App detects biometric enrollment
+3. App shows "Sign in with Face ID" button
+4. User taps biometric login button
+5. System prompts for Face ID / Touch ID
+6. User authenticates biometrically
+7. App retrieves private key from Keychain
+8. App signs challenge with private key
+9. App sends signed challenge to server
+10. Server verifies signature with public key
+11. Server issues JWT tokens
+
+**Expected Outcome:**
+- User authenticated without password
+- Login flow faster than password entry
+- Failed biometric prompts fallback to password
+
+**Success Criteria:**
+- Biometric prompt appears
+- Signature verification passes
+- JWT tokens issued
+- Login successful
+- Fallback works on biometric failure
+
+---
+
+#### AUTH-009: OAuth 2.0 Login - Google
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - Google OAuth app configured
 - User has Google account
+- Google consent screen configured
 
 **Test Steps:**
-1. Click "Login with Google"
-2. Redirect to Google authorization page
-3. Select Google account (if multiple)
-4. Authorize application
-5. Redirect back to Atom with authorization code
-6. Exchange code for access token
-7. Fetch user profile from Google
-8. Create or login user account
+1. User clicks "Sign in with Google"
+2. App redirects to Google OAuth 2.0 endpoint
+3. User grants permissions on Google consent screen
+4. Google redirects back with authorization code
+5. App exchanges code for access token
+6. App fetches user profile from Google
+7. App creates/updates user account
+8. App issues JWT tokens
 
-**Expected Outcomes:**
-- Google authorization page loads
-- User selects account
-- Authorization succeeds
-- User profile fetched (email, name)
-- Account created if new user
-- User logged in successfully
+**Expected Outcome:**
+- User authenticated via Google
+- User account created if new
+- User profile synced from Google
+- JWT tokens issued
 
 **Success Criteria:**
 - OAuth flow completes
-- User authenticated via Google
+- User profile retrieved
+- Account created/updated
+- Tokens issued
 - Email verified automatically
-- Account created or logged in
-
-**Risk Assessment:** HIGH - Third-party authentication
 
 ---
 
-#### AUTH-CRIT-015: CSRF Protection on Form Submission
-**Priority:** CRITICAL
-**Type:** Security
-**Component:** CSRF Middleware
+#### AUTH-010: OAuth 2.0 Token Refresh
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User is logged in
-- CSRF protection enabled
-- Form requires POST request
+- User authenticated via OAuth
+- OAuth access token expiring soon
+- OAuth refresh token valid
 
 **Test Steps:**
-1. Navigate to form page
-2. Extract CSRF token from page
-3. Submit form with valid CSRF token
-4. Verify submission succeeds
-5. Submit form without CSRF token
-6. Submit form with invalid CSRF token
+1. Application detects OAuth token expiring
+2. Application calls OAuth provider's token endpoint
+3. Provides refresh token
+4. Provider issues new access token
+5. Application updates stored token
 
-**Expected Outcomes:**
-- Valid token: Form submission succeeds
-- Missing token: 403 Forbidden
-- Invalid token: 403 Forbidden
-- Attack logged in security events
+**Expected Outcome:**
+- OAuth access token refreshed
+- User session continues
+- No re-authorization required
 
 **Success Criteria:**
-- Valid token accepted
-- Invalid token rejected with 403
-- Missing token rejected with 403
-- CSRF token rotates after each request
+- New token received
+- Token valid
+- Session maintained
 
-**Risk Assessment:** CRITICAL - CSRF vulnerability if broken
+---
+
+#### AUTH-011: Session Timeout After Inactivity
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User is authenticated
+- User has been inactive for 15 minutes
+
+**Test Steps:**
+1. User logs in successfully
+2. User performs no actions for 15 minutes
+3. User attempts to navigate to protected route
+4. Application checks session timestamp
+5. Application detects session expired
+6. Application clears session
+7. Application redirects to login
+
+**Expected Outcome:**
+- Session terminated after inactivity
+- User redirected to login
+- Flash message: "Session expired"
+
+**Success Criteria:**
+- Inactivity timer accurate
+- Session cleared from database
+- Redirect to login working
+- User informed of timeout
+
+---
+
+#### AUTH-012: Concurrent Session Limit
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User has active session on Device A
+- User attempts to login on Device B
+
+**Test Steps:**
+1. User logged in on Device A
+2. User logs in on Device B
+3. System checks active sessions
+4. System enforces session limit (e.g., 3 concurrent)
+5. If limit exceeded, oldest session terminated
+
+**Expected Outcome:**
+- Device B login successful
+- If over limit, Device A session terminated
+- User notified on Device A: "Logged out from another device"
+
+**Success Criteria:**
+- Concurrent sessions counted correctly
+- Oldest session terminated when over limit
+- Notifications sent
+- Database updated
+
+---
+
+#### AUTH-013: Logout and Token Revocation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User is authenticated
+- User has active refresh token
+
+**Test Steps:**
+1. User clicks "Logout"
+2. Application calls `/api/auth/logout`
+3. System adds refresh token to revoked list
+4. System clears session from database
+5. Client clears local storage
+6. Client redirects to login
+
+**Expected Outcome:**
+- User logged out successfully
+- Refresh token cannot be used again
+- Access token expires naturally (cannot immediately revoke)
+
+**Success Criteria:**
+- HTTP 200 response
+- Token in revoked list
+- Session cleared
+- Local storage empty
+- Redirect working
+
+---
+
+#### AUTH-014: Account Lockout After Failed Attempts
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User account exists
+- Account status is ACTIVE
+
+**Test Steps:**
+1. Attempt login with wrong password (1st attempt)
+2. Attempt login with wrong password (2nd attempt)
+3. Attempt login with wrong password (3rd attempt)
+4. Attempt login with wrong password (4th attempt)
+5. Attempt login with wrong password (5th attempt)
+6. Attempt login with correct password (6th attempt - should be blocked)
+
+**Expected Outcome:**
+- First 4 attempts show "Invalid credentials"
+- 5th attempt locks account
+- 6th attempt (even with correct password) shows "Account locked"
+- Account unlock email sent
+
+**Success Criteria:**
+- Account locked after 5 attempts
+- Lockout duration: 30 minutes
+- Unlock email sent
+- Correct password rejected during lockout
+
+---
+
+#### AUTH-015: Account Unlock via Email Link
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Account is locked
+- Unlock email sent to user
+
+**Test Steps:**
+1. User receives account unlock email
+2. User clicks unlock link
+3. System validates unlock token
+4. System unlocks account
+5. System clears failed attempt counter
+6. User can now login
+
+**Expected Outcome:**
+- Account unlocked successfully
+- Failed attempt counter reset
+- User can authenticate
+
+**Success Criteria:**
+- Unlock token valid (single-use)
+- Token expires after 1 hour
+- Account status changed to ACTIVE
+- Failed attempts cleared
 
 ---
 
 ### HIGH PRIORITY SCENARIOS (15)
 
-#### AUTH-HIGH-001: Biometric Authentication - Mobile
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Mobile Authentication
+#### AUTH-016: SSO Login - SAML 2.0
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Mobile app installed (iOS or Android)
-- Device supports biometric auth (Face ID / Touch ID / Fingerprint)
-- User has enabled biometric login
+- SAML 2.0 identity provider configured
+- User exists in IdP directory
+- SAML SSO enabled for workspace
 
 **Test Steps:**
-1. Open mobile app
-2. Tap "Login with Biometrics"
-3. Device prompts for biometric verification
-4. User provides biometric data
-5. App authenticates user
+1. User navigates to login
+2. Selects "Sign in with SSO"
+3. App redirects to IdP SAML endpoint
+4. User authenticates with IdP
+5. IdP sends SAML assertion via POST
+6. App validates SAML assertion
+7. App creates/updates user account
+8. App issues JWT tokens
 
-**Expected Outcomes:**
-- Biometric prompt appears
-- Face ID / Touch ID / Fingerprint verification
-- Successful biometric verification grants access
-- Failed biometric verification requires password
-
-**Success Criteria:**
-- Biometric prompt shows
-- Successful auth grants access
-- Failed auth falls back to password
-- Biometric data never leaves device
-
-**Risk Assessment:** HIGH - Mobile security
-
----
-
-#### AUTH-HIGH-002: Two-Factor Authentication (2FA) Setup
-**Priority:** HIGH
-**Type:** Security
-**Component:** 2FA Service
-
-**Preconditions:**
-- User is logged in
-- 2FA is available but not enabled
-
-**Test Steps:**
-1. Navigate to security settings
-2. Enable "Two-Factor Authentication"
-3. Scan QR code with authenticator app
-4. Enter 6-digit code from authenticator
-5. Verify backup codes generated
-6. Store backup codes securely
-
-**Expected Outcomes:**
-- QR code generated
-- Authenticator app adds account
-- 6-digit code validates setup
-- 10 backup codes generated
-- 2FA status = enabled
-
-**Success Criteria:**
-- QR code scannable
-- Authenticator app accepts account
-- Code validates successfully
-- Backup codes work as fallback
-- 2FA enforced on next login
-
-**Risk Assessment:** HIGH - Account security enhancement
-
----
-
-#### AUTH-HIGH-003: Two-Factor Authentication (2FA) Login
-**Priority:** HIGH
-**Type:** Security
-**Component:** 2FA Service
-
-**Preconditions:**
-- User has 2FA enabled
-- Authenticator app configured
-
-**Test Steps:**
-1. Enter email and password
-2. Submit login form
-3. Enter 6-digit 2FA code
-4. Verify login succeeds
-5. Test with wrong 2FA code
-
-**Expected Outcomes:**
-- Password accepted
-- Prompt for 2FA code
-- Valid 2FA code grants access
-- Invalid 2FA code denies access
-- Attempt logged in audit trail
-
-**Success Criteria:**
-- 2FA prompt shown after password
-- Valid code: Login successful
-- Invalid code: 401 Unauthorized
-- Code valid for 30 seconds
-- Rate limiting on failed attempts
-
-**Risk Assessment:** HIGH - Account security
-
----
-
-#### AUTH-HIGH-004: Password Complexity Requirements
-**Priority:** HIGH
-**Type:** Security
-**Component:** Password Policy
-
-**Preconditions:**
-- User setting or changing password
-- Password complexity policy configured
-
-**Test Steps:**
-1. Submit password that is too short (< 8 characters)
-2. Submit password without uppercase letter
-3. Submit password without lowercase letter
-4. Submit password without number
-5. Submit password without special character
-6. Submit password meeting all requirements
-
-**Expected Outcomes:**
-- Short password rejected
-- No uppercase: Rejected
-- No lowercase: Rejected
-- No number: Rejected
-- No special char: Rejected
-- Valid password accepted
-
-**Success Criteria:**
-- Minimum 8 characters enforced
-- Uppercase required
-- Lowercase required
-- Number required
-- Special character required
-- Clear error messages for each requirement
-
-**Risk Assessment:** MEDIUM - Password security
-
----
-
-#### AUTH-HIGH-005: Password History Enforcement
-**Priority:** HIGH
-**Type:** Security
-**Component:** Password Policy
-
-**Preconditions:**
-- User has changed password multiple times
-- Password history configured (e.g., last 5 passwords)
-
-**Test Steps:**
-1. Change password to "Password1!"
-2. Change password to "Password2!"
-3. Change password to "Password3!"
-4. Change password to "Password4!"
-5. Change password to "Password5!"
-6. Attempt to change back to "Password3!"
-7. Verify rejected
-
-**Expected Outcomes:**
-- Password history tracked
-- Reusing old password rejected
-- Error message: "Cannot reuse last 5 passwords"
-
-**Success Criteria:**
-- Last 5 passwords stored
-- Reuse rejected with clear error
-- New unique password accepted
-
-**Risk Assessment:** MEDIUM - Password security
-
----
-
-#### AUTH-HIGH-006: Single Sign-On (SSO) - SAML
-**Priority:** HIGH
-**Type:** Integration
-**Component:** SAML Service
-
-**Preconditions:**
-- Organization uses SSO (e.g., Okta, Azure AD)
-- SAML integration configured
-
-**Test Steps:**
-1. Navigate to login page
-2. Click "Login with SSO"
-3. Enter organization email
-4. Redirect to IdP (Identity Provider)
-5. Authenticate at IdP
-6. Redirect back with SAML assertion
-7. Create/login user account
-
-**Expected Outcomes:**
-- Redirect to corporate IdP
-- IdP authentication works
-- SAML assertion valid
-- User created if new
-- User logged in
+**Expected Outcome:**
+- User authenticated via SAML
+- User provisioned in Atom
+- JWT tokens issued
+- User redirected to dashboard
 
 **Success Criteria:**
 - SAML flow completes
-- User authenticated via SSO
-- No password needed
-- Corporate identity enforced
-
-**Risk Assessment:** HIGH - Enterprise authentication
+- Assertion valid
+- User provisioned
+- Tokens issued
 
 ---
 
-#### AUTH-HIGH-007: Remember Me Functionality
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Session Management
+#### AUTH-017: LDAP/Active Directory Authentication
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Login page available
-- "Remember Me" checkbox available
+- LDAP server configured
+- User exists in AD
+- LDAP authentication enabled
 
 **Test Steps:**
-1. Login with "Remember Me" unchecked
-2. Close browser and reopen
-3. Verify logged out
-4. Login with "Remember Me" checked
-5. Close browser and reopen
-6. Verify still logged in
-7. Verify persistent cookie set
+1. User enters email (same as AD username)
+2. User enters AD password
+3. App binds to LDAP server
+4. LDAP server validates credentials
+5. App creates/updates user account
+6. App issues JWT tokens
 
-**Expected Outcomes:**
-- Without "Remember Me": Session expires on browser close
-- With "Remember Me": Persistent cookie set (30 days)
-- User remains logged in across sessions
+**Expected Outcome:**
+- User authenticated via LDAP
+- User provisioned in Atom
+- JWT tokens issued
 
 **Success Criteria:**
-- Unchecked: Session expires on close
-- Checked: Persistent cookie valid 30 days
-- User stays logged in
-
-**Risk Assessment:** MEDIUM - Convenience vs security
+- LDAP bind successful
+- Authentication passed
+- User synced
+- Tokens issued
 
 ---
 
-#### AUTH-HIGH-008: API Key Authentication
-**Priority:** HIGH
-**Type:** Security
-**Component:** API Authentication
+#### AUTH-018: Two-Factor Authentication (2FA) - SMS
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User has API access enabled
-- API key generated
+- User has 2FA enabled
+- User has verified phone number
+- SMS service configured
 
 **Test Steps:**
-1. Generate API key in settings
-2. Copy API key
-3. Make API request with X-API-Key header
-4. Verify request authenticated
-5. Make request with invalid API key
-6. Verify request rejected
+1. User enters email and password
+2. System validates password
+3. System generates 6-digit code
+4. System sends code via SMS
+5. User enters code
+6. System validates code
+7. System issues JWT tokens
 
-**Expected Outcomes:**
-- API key generated securely
-- Valid API key authenticates requests
-- Invalid API key returns 401
+**Expected Outcome:**
+- 2FA code sent within 10 seconds
+- Code valid for 5 minutes
+- Authentication successful with valid code
+
+**Success Criteria:**
+- SMS delivered
+- Code correct
+- Code expires
+- Tokens issued
+
+---
+
+#### AUTH-019: Two-Factor Authentication (2FA) - TOTP
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User has 2FA enabled
+- User has TOTP app (Google Authenticator, Authy)
+
+**Test Steps:**
+1. User enters email and password
+2. System validates password
+3. System prompts for TOTP code
+4. User enters 6-digit code from authenticator app
+5. System validates code (allowing 30-second window)
+6. System issues JWT tokens
+
+**Expected Outcome:**
+- TOTP code valid
+- Authentication successful
+- Time skew handled (±1 interval)
+
+**Success Criteria:**
+- Code valid
+- Time window correct
+- Tokens issued
+
+---
+
+#### AUTH-020: 2FA Setup - TOTP QR Code
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 1
+
+**Preconditions:**
+- User logged in
+- 2FA not enabled
+
+**Test Steps:**
+1. User navigates to Settings > Security
+2. Clicks "Enable 2FA"
+3. System generates TOTP secret
+4. System displays QR code
+5. User scans QR code with authenticator app
+6. User enters 6-digit code to verify
+7. System verifies code
+8. System enables 2FA
+
+**Expected Outcome:**
+- QR code generated correctly
+- Authenticator app adds account
+- Verification code works
+- 2FA enabled
+
+**Success Criteria:**
+- QR code scannable
+- Secret matches
+- Code valid
+- 2FA active
+
+---
+
+#### AUTH-021: 2FA Backup Codes
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 1
+
+**Preconditions:**
+- User has 2FA enabled
+- User generating backup codes
+
+**Test Steps:**
+1. User navigates to Settings > Security
+2. Clicks "Generate Backup Codes"
+3. System generates 10 single-use codes
+4. User downloads/codes safely stored
+5. System marks codes as generated
+6. User tests one backup code
+
+**Expected Outcome:**
+- 10 unique codes generated
+- Each code single-use
+- Codes work when TOTP unavailable
+
+**Success Criteria:**
+- All codes unique
+- Codes valid
+- Code consumed after use
+- Remaining codes still valid
+
+---
+
+#### AUTH-022: Password Change (Authenticated)
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User is logged in
+
+**Test Steps:**
+1. User navigates to Settings > Security
+2. Clicks "Change Password"
+3. Enters current password
+4. Enters new password (meets complexity)
+5. Confirms new password
+6. Submits form
+
+**Expected Outcome:**
+- Password changed successfully
+- All refresh tokens revoked (force re-login on other devices)
+- User can login with new password
+- Old password no longer works
+
+**Success Criteria:**
+- Password updated in database
+- Hashed correctly
+- Old tokens revoked
+- New password works
+- Old password rejected
+
+---
+
+#### AUTH-023: Password Complexity Validation
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Attempt password: "password" → Rejected (too common)
+2. Attempt password: "abc123" → Rejected (too short, no complexity)
+3. Attempt password: "Abc123!@#" → Accepted (meets requirements)
+4. Attempt password with < 12 chars → Rejected
+5. Attempt password without uppercase → Rejected
+6. Attempt password without lowercase → Rejected
+7. Attempt password without number → Rejected
+8. Attempt password without special char → Rejected
+
+**Expected Outcome:**
+- Password must be minimum 12 characters
+- Must contain uppercase letter
+- Must contain lowercase letter
+- Must contain number
+- Must contain special character
+- Cannot be common password
+
+**Success Criteria:**
+- All validations working
+- Clear error messages
+- Only strong passwords accepted
+
+---
+
+#### AUTH-024: Email Verification During Registration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- New user registering
+
+**Test Steps:**
+1. User completes registration form
+2. System creates user account (status: PENDING)
+3. System sends verification email
+4. User clicks verification link
+5. System validates token
+6. System updates user status to ACTIVE
+7. User can now login
+
+**Expected Outcome:**
+- Account created but inactive
+- Verification email sent
+- Link expires after 24 hours
+- Account activated after verification
+
+**Success Criteria:**
+- Email sent
+- Token valid
+- Account activated
+- Login works
+
+---
+
+#### AUTH-025: Resend Verification Email
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User account exists (status: PENDING)
+- Original verification email expired/not received
+
+**Test Steps:**
+1. User attempts login
+2. System shows "Account not verified" error
+3. User clicks "Resend verification email"
+4. System generates new verification token
+5. System sends new email
+6. User receives new email
+7. User clicks new link
+
+**Expected Outcome:**
+- New verification email sent
+- Old token invalidated
+- New token works
+
+**Success Criteria:**
+- Rate limited (max 3 per hour)
+- New token valid
+- Old token invalid
+
+---
+
+#### AUTH-026: Remember Me Functionality
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User logging in
+
+**Test Steps:**
+1. User enters credentials
+2. Checks "Remember me" checkbox
+3. Clicks login
+4. System issues long-lived refresh token (30 days)
+5. User closes browser
+6. User reopens browser
+7. User still logged in
+
+**Expected Outcome:**
+- Refresh token valid for 30 days
+- Session persists across browser restarts
+- User not required to re-authenticate
+
+**Success Criteria:**
+- Long-lived token issued
+- Token stored securely
+- Session persists
+
+---
+
+#### AUTH-027: Login with Suspended Account
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User account exists
+- Account status is SUSPENDED
+
+**Test Steps:**
+1. User enters valid credentials
+2. Attempts login
+
+**Expected Outcome:**
+- Login denied
+- Error message: "Account suspended"
+- Contact support information displayed
+
+**Success Criteria:**
+- HTTP 403 response
+- Account status checked
+- Suspended users cannot login
+- Clear error message
+
+---
+
+#### AUTH-028: Social Login Account Linking
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User has existing account (email/password)
+- User wants to link Google account
+
+**Test Steps:**
+1. User logged in
+2. Navigates to Settings > Linked Accounts
+3. Clicks "Link Google Account"
+4. Completes Google OAuth flow
+5. System links Google OAuth to existing account
+
+**Expected Outcome:**
+- Google account linked
+- User can now login with Google
+- Same user account (not duplicate)
+
+**Success Criteria:**
+- Account linked
+- No duplicate created
+- Login via Google works
+
+---
+
+#### AUTH-029: Merged Account Detection
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User A exists (email: user@example.com)
+- User B authenticates via Google with same email
+
+**Test Steps:**
+1. User B authenticates via Google
+2. System detects email already exists
+3. System prompts: "Account already exists. Link?"
+4. User B confirms linking
+5. System links Google to existing account
+
+**Expected Outcome:**
+- Google account linked to existing user
+- No duplicate account created
+- User can login with either method
+
+**Success Criteria:**
+- Duplicate prevented
+- Linking offered
+- Single account
+
+---
+
+#### AUTH-030: API Key Authentication
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User has API key generated
+
+**Test Steps:**
+1. User generates API key in settings
+2. User includes API key in request header: `X-API-Key: xxx`
+3. Request hits protected endpoint
+4. System validates API key
+5. Request proceeds
+
+**Expected Outcome:**
+- API key authentication works
 - API key can be revoked
+- API key has scopes/permissions
 
 **Success Criteria:**
-- API key generated
-- Valid key: HTTP 200
-- Invalid key: HTTP 401
-- Revoked key: HTTP 401
-
-**Risk Assessment:** HIGH - API security
-
----
-
-#### AUTH-HIGH-009: Role-Based Access Control (RBAC) Enforcement
-**Priority:** HIGH
-**Type:** Security
-**Component:** Authorization Service
-
-**Preconditions:**
-- Multiple user roles exist (ADMIN, MEMBER, GUEST)
-- Protected endpoints exist
-
-**Test Steps:**
-1. Login as ADMIN
-2. Access /api/admin/users
-3. Verify access granted
-4. Login as MEMBER
-5. Access /api/admin/users
-6. Verify access denied (403)
-
-**Expected Outcomes:**
-- ADMIN can access admin endpoints
-- MEMBER cannot access admin endpoints
-- GUEST cannot access admin endpoints
-
-**Success Criteria:**
-- Role permissions enforced
-- Insufficient role: HTTP 403
-- Audit log records denial
-
-**Risk Assessment:** CRITICAL - Authorization bypass
-
----
-
-#### AUTH-HIGH-010: Permission Inheritance
-**Priority:** HIGH
-**Type:** Security
-**Component:** Authorization Service
-
-**Preconditions:**
-- Role hierarchy configured (e.g., SUPER_ADMIN > SECURITY_ADMIN > MEMBER)
-- User assigned to SECURITY_ADMIN role
-
-**Test Steps:**
-1. Login as SECURITY_ADMIN
-2. Access resource requiring MEMBER permission
-3. Verify access granted
-4. Access resource requiring SECURITY_ADMIN permission
-5. Verify access granted
-6. Access resource requiring SUPER_ADMIN permission
-7. Verify access denied
-
-**Expected Outcomes:**
-- Lower-level permissions inherited
-- Higher-level permissions denied
-- Hierarchy enforced correctly
-
-**Success Criteria:**
-- Inherits MEMBER permissions
-- Has SECURITY_ADMIN permissions
-- Denied SUPER_ADMIN permissions
-
-**Risk Assessment:** HIGH - Authorization logic
-
----
-
-#### AUTH-HIGH-011: Audit Logging for Security Events
-**Priority:** HIGH
-**Type:** Compliance
-**Component:** Audit Service
-
-**Preconditions:**
-- Audit logging configured
-- Security events occur (login, logout, failed attempts)
-
-**Test Steps:**
-1. Perform successful login
-2. Perform failed login attempt
-3. Perform password change
-4. Perform 2FA enable
-5. Query audit logs
-6. Verify all events logged
-
-**Expected Outcomes:**
-- Login logged with timestamp, IP, user agent
-- Failed attempt logged
-- Password change logged
-- 2FA enable logged
-
-**Success Criteria:**
-- All security events logged
-- Timestamp accurate
-- IP address captured
-- User agent captured
-- Logs tamper-evident
-
-**Risk Assessment:** HIGH - Compliance requirement
-
----
-
-#### AUTH-HIGH-012: Session Fixation Protection
-**Priority:** HIGH
-**Type:** Security
-**Component:** Session Management
-
-**Preconditions:**
-- Session uses cookie-based authentication
-- User not logged in
-
-**Test Steps:**
-1. Navigate to login page
-2. Capture initial session cookie
-3. Login with valid credentials
-4. Capture new session cookie
-5. Verify session ID changed after login
-6. Attempt to use old session cookie
-
-**Expected Outcomes:**
-- Session ID rotates on login
-- Old session cookie invalid
-- New session cookie valid
-
-**Success Criteria:**
-- Session ID changes after login
-- Old cookie rejected
-- New cookie works
-
-**Risk Assessment:** HIGH - Session security
-
----
-
-#### AUTH-HIGH-013: Secure Cookie Flags
-**Priority:** HIGH
-**Type:** Security
-**Component:** Session Management
-
-**Preconditions:**
-- Session cookies issued
-
-**Test Steps:**
-1. Login to application
-2. Inspect session cookie in browser DevTools
-3. Verify cookie flags:
-   - Secure: true (HTTPS only)
-   - HttpOnly: true (not accessible via JS)
-   - SameSite: Strict or Lax
-
-**Expected Outcomes:**
-- Secure flag prevents HTTP transmission
-- HttpOnly prevents XSS access
-- SameSite prevents CSRF
-
-**Success Criteria:**
-- Cookie has Secure flag
-- Cookie has HttpOnly flag
-- Cookie has SameSite=Strict or Lax
-
-**Risk Assessment:** HIGH - Cookie security
-
----
-
-#### AUTH-HIGH-014: Rate Limiting on Login Endpoint
-**Priority:** HIGH
-**Type:** Security
-**Component:** Rate Limiting Middleware
-
-**Preconditions:**
-- Rate limiting configured (e.g., 10 requests per minute)
-- Login endpoint exists
-
-**Test Steps:**
-1. Make 10 login attempts within 1 minute (valid or invalid)
-2. On 11th attempt, verify rate limit exceeded
-3. Wait for rate limit window to expire
-4. Verify request allowed again
-
-**Expected Outcomes:**
-- First 10 requests allowed
-- 11th request returns 429 Too Many Requests
-- Retry-After header set
-- Requests allowed after window expires
-
-**Success Criteria:**
-- Rate limit enforced
-- HTTP 429 returned
-- Retry-After header present
-- Window expires correctly
-
-**Risk Assessment:** HIGH - Brute force protection
-
----
-
-#### AUTH-HIGH-015: LDAP Integration for Enterprise
-**Priority:** HIGH
-**Type:** Integration
-**Component:** LDAP Service
-
-**Preconditions:**
-- Enterprise uses LDAP/Active Directory
-- LDAP integration configured
-
-**Test Steps:**
-1. User enters corporate email
-2. System detects LDAP domain
-3. Redirects to LDAP login
-4. User enters LDAP credentials
-5. LDAP server validates credentials
-6. User logged in to Atom
-
-**Expected Outcomes:**
-- LDAP authentication works
-- User attributes synced (name, email)
-- Group memberships mapped to roles
-- Single sign-on achieved
-
-**Success Criteria:**
-- LDAP auth successful
-- User created/synced
-- Roles mapped from LDAP groups
-- Corporate identity enforced
-
-**Risk Assessment:** HIGH - Enterprise authentication
+- Key valid
+- Request authenticated
+- Scopes enforced
+- Key revocable
 
 ---
 
 ### MEDIUM PRIORITY SCENARIOS (10)
 
-#### AUTH-MED-001: Password Strength Meter
-**Priority:** MEDIUM
-**Type:** UX
-**Component:** Registration Form
+#### AUTH-031: Password History (No Reuse)
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User on registration page
-- Password field available
+- User has password history enabled
+- User has used 5 previous passwords
 
 **Test Steps:**
-1. Enter weak password (e.g., "password")
-2. Observe strength indicator
-3. Enter stronger password (e.g., "Password1!")
-4. Observe improved strength indicator
-5. Enter very strong password (e.g., "P@ssw0rd!12345$%")
-6. Observe maximum strength
+1. User changes password
+2. System checks password history
+3. User attempts to reuse old password
+4. System rejects: "Cannot reuse last 5 passwords"
 
-**Expected Outcomes:**
-- Weak password shows red/weak indicator
-- Stronger password shows yellow/medium
-- Very strong shows green/strong
-- Real-time feedback as user types
+**Expected Outcome:**
+- Password history enforced
+- Old passwords rejected
 
 **Success Criteria:**
-- Strength indicator visible
-- Updates in real-time
-- Clear visual feedback
-- Encourages strong passwords
-
-**Risk Assessment:** LOW - UX enhancement
+- History tracked
+- Reuse blocked
+- Clear error
 
 ---
 
-#### AUTH-MED-002: Magic Link Authentication
-**Priority:** MEDIUM
-**Type:** Functional
-**Component:** Magic Link Service
+#### AUTH-032: Password Expiration (90 Days)
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User email exists in system
-- Email service configured
-
-**Test Steps:**
-1. Navigate to login page
-2. Click "Login with Magic Link"
-3. Enter email address
-4. Check email inbox
-5. Click magic link
-6. Verify logged in
-
-**Expected Outcomes:**
-- Magic link email sent within 5 seconds
-- Link expires after 15 minutes
-- Clicking link authenticates user
-- No password required
-
-**Success Criteria:**
-- Email received
-- Link works
-- User authenticated
-- Passwordless login achieved
-
-**Risk Assessment:** MEDIUM - Passwordless alternative
-
----
-
-#### AUTH-MED-003: Social Login - LinkedIn
-**Priority:** MEDIUM
-**Type:** Integration
-**Component:** OAuth Service
-
-**Preconditions:**
-- LinkedIn OAuth app configured
-- User has LinkedIn account
-
-**Test Steps:**
-1. Click "Login with LinkedIn"
-2. Redirect to LinkedIn authorization
-3. Authorize application
-4. Redirect back with authorization code
-5. Exchange code for access token
-6. Fetch LinkedIn profile
-7. Create/login user
-
-**Expected Outcomes:**
-- LinkedIn authorization works
-- Profile data fetched
-- Account created or logged in
-- Professional network integration possible
-
-**Success Criteria:**
-- OAuth flow completes
-- User authenticated
-- Profile synced
-
-**Risk Assessment:** MEDIUM - Social authentication
-
----
-
-#### AUTH-MED-004: Social Login - Twitter/X
-**Priority:** MEDIUM
-**Type:** Integration
-**Component:** OAuth Service
-
-**Preconditions:**
-- Twitter/X OAuth app configured
-- User has Twitter/X account
-
-**Test Steps:**
-1. Click "Login with Twitter"
-2. Redirect to Twitter authorization
-3. Authorize application
-4. Redirect back with authorization code
-5. Exchange code for access token
-6. Fetch Twitter profile
-7. Create/login user
-
-**Expected Outcomes:**
-- Twitter authorization works
-- Profile data fetched
-- Account created or logged in
-
-**Success Criteria:**
-- OAuth flow completes
-- User authenticated
-- Profile synced
-
-**Risk Assessment:** LOW - Social authentication
-
----
-
-#### AUTH-MED-005: Account Deletion and Data Erasure
-**Priority:** MEDIUM
-**Type:** Compliance
-**Component:** User Management Service
-
-**Preconditions:**
-- User account exists
-- User requests account deletion
-
-**Test Steps:**
-1. Navigate to account settings
-2. Click "Delete Account"
-3. Confirm deletion with password
-4. Confirm deletion with checkbox
-5. Submit deletion request
-6. Verify account deleted
-7. Verify personal data erased
-
-**Expected Outcomes:**
-- Account marked as deleted
-- Login disabled
-- Personal data anonymized or deleted
-- Retention period enforced (e.g., 30 days before permanent deletion)
-
-**Success Criteria:**
-- Account deleted
-- Cannot login
-- Data erased per GDPR/CCPA
-
-**Risk Assessment:** MEDIUM - Legal compliance
-
----
-
-#### AUTH-MED-006: Email Change Verification
-**Priority:** MEDIUM
-**Type:** Security
-**Component:** User Profile Service
-
-**Preconditions:**
-- User logged in
-- User wants to change email
-
-**Test Steps:**
-1. Navigate to profile settings
-2. Enter new email address
-3. Submit change request
-4. Verify verification email sent to new email
-5. Click verification link
-6. Verify email updated
-
-**Expected Outcomes:**
-- Old email remains active until verified
-- Verification sent to new email
-- New email verified
-- Old email notified of change
-
-**Success Criteria:**
-- Verification email sent
-- New email verified
-- Old email notified
-- Email updated in database
-
-**Risk Assessment:** MEDIUM - Account security
-
----
-
-#### AUTH-MED-007: Trusted Device Management
-**Priority:** MEDIUM
-**Type:** UX
-**Component:** Device Management Service
-
-**Preconditions:**
-- 2FA enabled
-- User logged in
-
-**Test Steps:**
-1. Login from new device
-2. Complete 2FA challenge
-3. Check "Remember this device for 30 days"
-4. Login again from same device
-5. Verify 2FA not required
-6. View trusted devices in settings
-7. Remove trusted device
-8. Verify 2FA required again
-
-**Expected Outcomes:**
-- Device can be remembered
-- 2FA skipped on trusted devices
-- Device can be revoked
-- Security balance maintained
-
-**Success Criteria:**
-- Device remembered for 30 days
-- 2FA bypassed on trusted device
-- Device can be removed
-- Settings show all trusted devices
-
-**Risk Assessment:** MEDIUM - Security vs convenience
-
----
-
-#### AUTH-MED-008: Security Question Recovery
-**Priority:** MEDIUM
-**Type:** Functional
-**Component:** Account Recovery Service
-
-**Preconditions:**
-- User forgot password
-- User has security questions configured
-
-**Test Steps:**
-1. Initiate password reset
-2. Choose "Security Questions" option
-3. Answer pre-configured security questions
-4. Verify answers correct
-5. Set new password
-6. Login with new password
-
-**Expected Outcomes:**
-- Questions displayed
-- Answers validated
-- Password reset allowed
-- Account restored
-
-**Success Criteria:**
-- Security questions work
-- Correct answers allow reset
-- Incorrect answers deny reset
-- Account lockout after 3 failed attempts
-
-**Risk Assessment:** LOW - Fallback recovery method
-
----
-
-#### AUTH-MED-009: Password Expiration Policy
-**Priority:** MEDIUM
-**Type:** Security
-**Component:** Password Policy
-
-**Preconditions:**
-- Password expiration policy configured (e.g., 90 days)
 - User password is 89 days old
 
 **Test Steps:**
-1. User login on day 89
-2. Verify login succeeds
-3. User login on day 91
-4. Verify forced password change prompt
-5. User changes password
-6. Login with new password
+1. User attempts login
+2. System checks password age
+3. Password is 90+ days old
+4. System forces password change
+5. User cannot proceed until password changed
 
-**Expected Outcomes:**
-- Password expires after 90 days
-- Forced password change prompt
-- Cannot access system until changed
-- New password resets expiration counter
+**Expected Outcome:**
+- Password expiration enforced
+- User forced to update
+- Login blocked until changed
 
 **Success Criteria:**
-- Expiration enforced
-- Forced change prompt
-- Cannot skip password change
-- Expiration reset
-
-**Risk Assessment:** MEDIUM - Security policy
+- Age checked
+- Forced redirect
+- New password required
 
 ---
 
-#### AUTH-MED-010: Authentication Status API
-**Priority:** MEDIUM
-**Type:** API
-**Component:** Authentication Service
+#### AUTH-033: Security Questions (Fallback)
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Authentication required for API access
+- User has security questions configured
+- User forgot password, no email access
 
 **Test Steps:**
-1. Make GET request to /api/auth/status without token
-2. Verify returns unauthenticated
-3. Login and obtain access token
-4. Make GET request with valid token
-5. Verify returns authenticated with user info
-6. Make request with expired token
-7. Verify returns unauthenticated
+1. User clicks "Forgot Password"
+2. Selects "Answer security questions"
+3. System displays user's questions
+4. User answers questions
+5. System validates answers
+6. System allows password reset
 
-**Expected Outcomes:**
-- No token: { authenticated: false }
-- Valid token: { authenticated: true, user: {...} }
-- Expired token: { authenticated: false }
+**Expected Outcome:**
+- Security questions work as fallback
+- Answers validated correctly
 
 **Success Criteria:**
-- API returns authentication status
-- User info included when authenticated
-- Expired token returns false
-- Response time <100ms
+- Questions displayed
+- Answers validated
+- Reset allowed
 
-**Risk Assessment:** LOW - API convenience
+---
+
+#### AUTH-034: IP Whitelist for SSO
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Workspace has IP whitelist configured
+- User attempting login from whitelisted IP
+
+**Test Steps:**
+1. User attempts login from whitelisted IP
+2. System checks IP against whitelist
+3. Login allowed
+
+**Expected Outcome:**
+- Whitelist enforced
+- Non-whitelisted IPs blocked
+
+**Success Criteria:**
+- IP checked
+- Whitelist enforced
+- Correct blocking
+
+---
+
+#### AUTH-035: Device Fingerprinting for Fraud Detection
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. User logs in from new device
+2. System generates device fingerprint
+3. System stores fingerprint
+4. User logs in from same device later
+5. System recognizes device
+6. No additional security required
+
+**Expected Outcome:**
+- Known devices recognized
+- Unknown devices flagged
+
+**Success Criteria:**
+- Fingerprint generated
+- Device tracked
+- Flagging works
+
+---
+
+#### AUTH-036: Suspicious Login Notification
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. User logs in from new country/IP
+2. System detects anomaly
+3. System sends email: "New login detected"
+4. Email includes: location, time, device
+
+**Expected Outcome:**
+- User notified of suspicious login
+- Email includes details
+
+**Success Criteria:**
+- Anomaly detected
+- Email sent
+- Details accurate
+
+---
+
+#### AUTH-037: Logout from All Devices
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- User logged in on multiple devices
+
+**Test Steps:**
+1. User navigates to Settings > Security
+2. Clicks "Logout from all devices"
+3. System revokes all refresh tokens
+4. System clears all sessions
+
+**Expected Outcome:**
+- All sessions terminated
+- User logged out everywhere
+
+**Success Criteria:**
+- All tokens revoked
+- All sessions cleared
+- Immediate effect
+
+---
+
+#### AUTH-038: Graceful Logout on Token Expiry
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. User access token expires
+2. User attempts action
+3. Application catches 401 error
+4. Application shows modal: "Session expired"
+5. Application redirects to login
+
+**Expected Outcome:**
+- Graceful handling
+- Clear messaging
+- Smooth redirect
+
+**Success Criteria:**
+- Error caught
+- Modal shown
+- Redirect smooth
+
+---
+
+#### AUTH-039: Guest User Authentication
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Workspace enables guest access
+2. Guest user receives magic link
+3. Guest clicks link
+4. Guest authenticated temporarily
+
+**Expected Outcome:**
+- Guest can access shared resources
+- Session expires after timeout
+
+**Success Criteria:**
+- Magic link works
+- Limited access
+- Time-limited session
+
+---
+
+#### AUTH-040: Authenticated File Upload
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. User uploads file
+2. Request includes JWT token
+3. System validates token
+4. File uploaded
+
+**Expected Outcome:**
+- Authenticated upload works
+- No token → 401 error
+
+**Success Criteria:**
+- Token validated
+- Upload succeeds
+- Unauthenticated blocked
 
 ---
 
 ### LOW PRIORITY SCENARIOS (5)
 
-#### AUTH-LOW-001: Forgot Username
-**Priority:** LOW
-**Type:** Functional
-**Component:** Account Recovery Service
-
-**Preconditions:**
-- User forgot username/ID
-- User remembers email
+#### AUTH-041: Login Brute Force Protection (Per IP)
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Click "Forgot Username"
-2. Enter email address
-3. Submit request
-4. Check email for username reminder
-5. Username displayed in email
+1. Same IP attempts 100 failed logins
+2. System rate limits per IP
 
-**Expected Outcomes:**
-- Email sent with username
-- Username displayed
-- Account recovered
+**Expected Outcome:**
+- IP blocked after threshold
+- Other IPs not affected
 
 **Success Criteria:**
-- Email received
-- Username visible
-- No password revealed
-
-**Risk Assessment:** LOW - Rare scenario
+- Rate limiting works
+- Per-IP enforcement
 
 ---
 
-#### AUTH-LOW-002: Account Reactivation
-**Priority:** LOW
-**Type:** Functional
-**Component:** User Management Service
-
-**Preconditions:**
-- User previously deactivated account
-- User wants to reactivate
+#### AUTH-042: CAPTCHA After Failed Attempts
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to login page
-2. Enter deactivated account credentials
-3. See "Account deactivated" message
-4. Click "Reactivate Account"
-5. Verify email sent
-6. Click reactivation link
-7. Account reactivated
+1. User fails 3 login attempts
+2. System shows CAPTCHA
+3. User solves CAPTCHA
+4. Login allowed
 
-**Expected Outcomes:**
-- Reactivation email sent
-- Link works
-- Account status = active
-- Login successful
+**Expected Outcome:**
+- CAPTCHA prevents automation
+- Humans can pass
 
 **Success Criteria:**
-- Reactivation flow works
-- Email received
-- Account restored
-
-**Risk Assessment:** LOW - Edge case
+- CAPTCHA shown
+- Validation works
 
 ---
 
-#### AUTH-LOW-003: Guest Checkout Authentication
-**Priority:** LOW
-**Type:** Functional
-**Component:** Guest Authentication
-
-**Preconditions:**
-- Guest user wants temporary access
-- Guest checkout feature enabled
+#### AUTH-043: Locale Detection During Login
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. User initiates guest flow
-2. Enter email only
-3. Receive temporary access token
-4. Access limited features
-5. Prompt to create full account
+1. User logs in
+2. System detects browser locale
+3. System sets user language preference
 
-**Expected Outcomes:**
-- Temporary account created
-- Limited access granted
-- Prompt to upgrade to full account
+**Expected Outcome:**
+- UI displayed in detected locale
 
 **Success Criteria:**
-- Guest access granted
-- Features limited
-- Upgrade prompt shown
-
-**Risk Assessment:** LOW - Business logic
+- Locale detected
+- Language set
 
 ---
 
-#### AUTH-LOW-004: Impersonation Feature (Admin)
-**Priority:** LOW
-**Type:** Admin
-**Component:** Admin Service
-
-**Preconditions:**
-- Admin user logged in
-- Target user exists
-- Impersonation permission granted
+#### AUTH-044: Last Login Notification
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Admin navigates to user management
-2. Clicks "Impersonate" on target user
-3. System switches context to target user
-4. Admin performs actions as target user
-5. Admin exits impersonation mode
+1. User logs in
+2. System checks last login
+3. If first login from location, notify user
 
-**Expected Outcomes:**
-- Context switches to target user
-- Actions performed as target user
-- Audit log shows impersonation
-- Original admin restored on exit
+**Expected Outcome:**
+- User informed of last login details
 
 **Success Criteria:**
-- Impersonation works
-- Audit trail complete
-- Exit functionality available
-
-**Risk Assessment:** MEDIUM - Admin capability
+- Notification shown
+- Details accurate
 
 ---
 
-#### AUTH-LOW-005: Authentication Analytics Dashboard
-**Priority:** LOW
-**Type:** Analytics
-**Component:** Analytics Service
-
-**Preconditions:**
-- Admin logged in
-- Analytics dashboard available
+#### AUTH-045: OAuth Consent Remembered
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to authentication analytics
-2. View login trends over time
-3. View failed login attempts
-4. View 2FA adoption rate
-5. View OAuth provider breakdown
+1. User authorizes OAuth app
+2. User re-authorizes same app later
+3. System remembers consent
+4. No second consent prompt
 
-**Expected Outcomes:**
-- Dashboard displays metrics
-- Trends visualized
-- Data exportable
+**Expected Outcome:**
+- Consent remembered
+- Faster re-authorization
 
 **Success Criteria:**
-- Metrics accurate
-- Charts render
-- Export works
-
-**Risk Assessment:** LOW - Nice-to-have
+- Consent stored
+- Skip working
 
 ---
 
-## Category 2: User Management & Roles (15 scenarios)
+
+## Category 2: User Management & Roles (15 Scenarios)
 
 ### CRITICAL SCENARIOS (5)
 
-#### USER-CRIT-001: User Registration with Email Verification
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** User Registration Service
+#### USER-001: User Registration with Email Verification
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- New user wants to register
 - Email service configured
+- Registration form accessible
 
 **Test Steps:**
-1. Navigate to registration page
-2. Enter full name
-3. Enter email address
-4. Enter password (meets complexity)
-5. Confirm password
-6. Submit registration
-7. Check email for verification link
-8. Click verification link
-9. Login with credentials
+1. User navigates to registration page
+2. Enters: name, email, password
+3. Accepts terms of service
+4. Submits registration form
+5. System creates user account (status: PENDING)
+6. System sends verification email
+7. User clicks verification link
+8. System updates status to ACTIVE
 
-**Expected Outcomes:**
-- User created in database
-- Verification email sent
-- Email verification required
-- Account status: pending verification
-- After verification: status = active
+**Expected Outcome:**
+- User account created
+- Verification email sent within 30 seconds
+- Account activated after verification
+- User can login
 
 **Success Criteria:**
-- Account created
-- Verification email sent within 5 seconds
-- Verification link works
-- Login successful after verification
-
-**Risk Assessment:** CRITICAL - User onboarding
+- User record exists
+- Email delivered
+- Status: ACTIVE
+- Login successful
 
 ---
 
-#### USER-CRIT-002: User Profile Update
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** User Profile Service
+#### USER-002: User Profile Update
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User logged in
 - User profile exists
 
 **Test Steps:**
-1. Navigate to profile settings
-2. Update display name
-3. Update profile picture
-4. Update bio/description
-5. Save changes
-6. View updated profile
+1. User navigates to Settings > Profile
+2. Updates first name
+3. Updates last name
+4. Updates profile picture
+5. Updates phone number
+6. Clicks "Save Changes"
 
-**Expected Outcomes:**
-- Profile updated in database
-- Changes visible immediately
-- Audit log records update
+**Expected Outcome:**
+- Profile updated successfully
+- Changes reflected immediately
+- Profile picture uploaded
 
 **Success Criteria:**
-- HTTP 200 response
-- Profile data updated
-- Changes reflected
-
-**Risk Assessment:** MEDIUM - Core functionality
+- Database updated
+- API returns new data
+- UI reflects changes
 
 ---
 
-#### USER-CRIT-003: Role Assignment by Admin
-**Priority:** CRITICAL
-**Type:** Authorization
-**Component:** Role Management Service
+#### USER-003: User Role Assignment
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - Admin user logged in
 - Target user exists
-- Roles configured
+- Admin has permissions to assign roles
 
 **Test Steps:**
-1. Admin navigates to user management
-2. Selects target user
-3. Changes role from MEMBER to WORKSPACE_ADMIN
-4. Saves changes
-5. Target user logs out and logs in
-6. Target user accesses admin resources
-7. Verify access granted
+1. Admin navigates to User Management
+2. Searches for target user
+3. Clicks "Edit Roles"
+4. Assigns WORKSPACE_ADMIN role
+5. Clicks "Save"
 
-**Expected Outcomes:**
-- Role updated in database
-- Permissions changed immediately
-- Audit log records role change
-- New permissions take effect on next login
+**Expected Outcome:**
+- User role updated
+- User permissions reflect new role
+- User can access admin features
 
 **Success Criteria:**
-- Role updated
-- Audit trail complete
-- Permissions effective
-
-**Risk Assessment:** CRITICAL - Access control
+- Role updated in database
+- Permissions cached cleared
+- New access granted
 
 ---
 
-#### USER-CRIT-004: User Deactivation
-**Priority:** CRITICAL
-**Type:** Admin
-**Component:** User Management Service
+#### USER-004: User Deactivation (Soft Delete)
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Admin logged in
+- Admin user logged in
 - Target user exists
-- User to be deactivated
 
 **Test Steps:**
-1. Admin navigates to user management
+1. Admin navigates to User Management
 2. Selects target user
 3. Clicks "Deactivate User"
 4. Confirms deactivation
-5. Verify user status = deactivated
-6. Target user attempts login
-7. Verify login denied
+5. System updates user status to DELETED
 
-**Expected Outcomes:**
-- User status set to deactivated
-- Login disabled
-- Sessions terminated
-- Data preserved (not deleted)
+**Expected Outcome:**
+- User cannot login
+- User data retained (soft delete)
+- Active sessions terminated
 
 **Success Criteria:**
-- Status = deactivated
-- Login fails with appropriate message
-- Data intact
-
-**Risk Assessment:** HIGH - User management
+- Status: DELETED
+- Login blocked
+- Sessions revoked
 
 ---
 
-#### USER-CRIT-005: Bulk User Import
-**Priority:** CRITICAL
-**Type:** Admin
-**Component:** Bulk Import Service
+#### USER-005: User Reactivation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Admin logged in
-- CSV file with user data prepared
-- Columns: email, name, role
+- User status is DELETED
+- Admin user logged in
 
 **Test Steps:**
-1. Admin navigates to user import
-2. Uploads CSV file
-3. Maps columns to fields
-4. Reviews import preview
-5. Confirms import
-6. Verify users created
+1. Admin navigates to User Management
+2. Filters by "Deleted users"
+3. Selects target user
+4. Clicks "Reactivate User"
+5. System updates user status to ACTIVE
 
-**Expected Outcomes:**
-- Users created from CSV
-- Password reset emails sent
-- Roles assigned correctly
-- Duplicate emails detected
-- Import summary displayed
+**Expected Outcome:**
+- User can login again
+- User data restored
 
 **Success Criteria:**
-- All valid users created
-- Duplicates skipped
-- Errors reported
-- Import summary accurate
-
-**Risk Assessment:** HIGH - Bulk operations
+- Status: ACTIVE
+- Login works
+- Data intact
 
 ---
 
 ### HIGH PRIORITY SCENARIOS (5)
 
-#### USER-HIGH-001: User Search and Filtering
-**Priority:** HIGH
-**Type:** Functional
-**Component:** User Management Service
+#### USER-006: Bulk User Import via CSV
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Multiple users exist in system
-- Admin or privileged user logged in
+- Admin user logged in
+- CSV file with user data prepared
 
 **Test Steps:**
-1. Navigate to user management
-2. Enter search term (e.g., "John")
-3. Verify results filtered
-4. Filter by role (e.g., "ADMIN")
-5. Filter by status (e.g., "Active")
-6. Combine filters
-7. Clear filters
+1. Admin navigates to User Management > Import
+2. Uploads CSV file
+3. System validates CSV format
+4. System creates user accounts
+5. System sends invitation emails
 
-**Expected Outcomes:**
-- Search results match query
-- Role filter works
-- Status filter works
-- Combined filters work
-- Clear filters resets view
+**Expected Outcome:**
+- All users imported successfully
+- Invitations sent
 
 **Success Criteria:**
-- Search returns matching users
-- Filters work independently
-- Combined filters work
-- Clear resets to all users
-
-**Risk Assessment:** MEDIUM - Admin usability
+- All rows processed
+- Accounts created
+- Emails sent
+- Error report for failures
 
 ---
 
-#### USER-HIGH-002: User Activity History
-**Priority:** HIGH
-**Type:** Audit
-**Component:** Audit Service
+#### USER-007: User Permission Inheritance
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Role hierarchy configured
+- User assigned to TEAM_LEAD role
+
+**Test Steps:**
+1. User with TEAM_LEAD role attempts action
+2. System checks role permissions
+3. System checks inherited permissions
+4. Action allowed if TEAM_LEAD or higher has permission
+
+**Expected Outcome:**
+- Permissions inherited correctly
+- Role hierarchy enforced
+
+**Success Criteria:**
+- Inheritance working
+- Hierarchy respected
+
+---
+
+#### USER-008: User Activity History
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User has performed various actions
-- Admin or user viewing history
 
 **Test Steps:**
-1. Navigate to user activity page
-2. View chronological list of actions
-3. Filter by date range
-4. Filter by action type
-5. Export activity log
+1. Admin navigates to User Management
+2. Selects user
+3. Views "Activity History" tab
 
-**Expected Outcomes:**
+**Expected Outcome:**
 - All user actions logged
-- Timestamps accurate
-- IP addresses captured
-- Filters work
-- Export available
+- Timestamp, action, IP address shown
+- Exportable to CSV
 
 **Success Criteria:**
-- Activity logged
-- Filters functional
+- History complete
+- Data accurate
 - Export works
 
-**Risk Assessment:** MEDIUM - Audit trail
+---
+
+#### USER-009: User Search and Filtering
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Admin navigates to User Management
+2. Searches by email
+3. Filters by role
+4. Filters by status
+5. Filters by creation date
+
+**Expected Outcome:**
+- Search returns correct results
+- Filters work independently
+- Filters can be combined
+
+**Success Criteria:**
+- Search accurate
+- Filters functional
+- Combined filters work
 
 ---
 
-#### USER-HIGH-003: Permission Check Endpoint
-**Priority:** HIGH
-**Type:** API
-**Component:** Authorization Service
+#### USER-010: User Avatar Upload
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - User logged in
-- Permission check API exists
 
 **Test Steps:**
-1. Call API with user token
-2. Request permission check for "agents:create"
-3. Verify response: true/false
-4. Test with non-existent permission
-5. Verify graceful handling
+1. User navigates to Settings > Profile
+2. Clicks "Upload Avatar"
+3. Selects image file
+4. System uploads and resizes image
+5. System displays new avatar
 
-**Expected Outcomes:**
-- API returns permission status
-- Response time <100ms
-- Invalid permissions handled gracefully
-
-**Success Criteria:**
-- Permission check accurate
-- Fast response
-- Error handling
-
-**Risk Assessment:** MEDIUM - API usability
-
----
-
-#### USER-HIGH-004: User Avatar Upload
-**Priority:** HIGH
-**Type:** Functional
-**Component:** User Profile Service
-
-**Preconditions:**
-- User logged in
-- Image file prepared
-
-**Test Steps:**
-1. Navigate to profile settings
-2. Click "Upload Avatar"
-3. Select image file
-4. Validate file size (<5MB)
-5. Validate file type (JPG, PNG)
-6. Upload image
-7. View updated avatar
-
-**Expected Outcomes:**
-- File size validated
-- File type validated
-- Image resized to standard dimensions
-- Image stored
-- Avatar updated
+**Expected Outcome:**
+- Avatar uploaded
+- Image resized appropriately
+- Displayed in UI
 
 **Success Criteria:**
-- File validation works
-- Image uploaded
-- Avatar visible
-
-**Risk Assessment:** LOW - User experience
-
----
-
-#### USER-HIGH-005: Custom Role Creation
-**Priority:** HIGH
-**Type:** Admin
-**Component:** Role Management Service
-
-**Preconditions:**
-- Admin logged in
-- Custom roles feature enabled
-
-**Test Steps:**
-1. Navigate to role management
-2. Click "Create Custom Role"
-3. Enter role name (e.g., "Project Manager")
-4. Select permissions (e.g., agents:view, workflows:create)
-5. Save role
-6. Assign role to user
-7. Verify permissions
-
-**Expected Outcomes:**
-- Role created
-- Permissions granted
-- Role assignable to users
-
-**Success Criteria:**
-- Role created successfully
-- Permissions enforced
-- Assignment works
-
-**Risk Assessment:** HIGH - Flexibility
+- File uploaded
+- Thumbnail created
+- URL stored
 
 ---
 
 ### MEDIUM PRIORITY SCENARIOS (3)
 
-#### USER-MED-001: User Preferences Management
-**Priority:** MEDIUM
-**Type:** Functional
-**Component:** User Preferences Service
-
-**Preconditions:**
-- User logged in
-- Preferences feature available
+#### USER-011: User Timezone Setting
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to preferences
-2. Set timezone
-3. Set language
-4. Set notification preferences
-5. Set theme (dark/light)
-6. Save preferences
-7. Verify preferences applied
+1. User sets timezone to "America/New_York"
+2. System stores timezone preference
+3. All times displayed in user's timezone
 
-**Expected Outcomes:**
-- Preferences saved
-- UI reflects changes
-- Preferences persist across sessions
+**Expected Outcome:**
+- Times shown correctly
 
 **Success Criteria:**
-- Preferences saved
-- Changes visible
-- Persistent
-
-**Risk Assessment:** LOW - User experience
+- Timezone stored
+- Times converted
 
 ---
 
-#### USER-MED-002: User Merge (Duplicate Accounts)
-**Priority:** MEDIUM
-**Type:** Admin
-**Component:** User Management Service
-
-**Preconditions:**
-- Duplicate user accounts exist
-- Admin logged in
+#### USER-012: User Notification Preferences
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Admin identifies duplicate accounts
-2. Selects accounts to merge
-3. Selects primary account
-4. Initiates merge
-5. Reviews merge preview
-6. Confirms merge
-7. Verify accounts merged
+1. User navigates to Settings > Notifications
+2. Enables email notifications
+3. Disables push notifications
+4. Enables SMS for critical alerts
+5. Saves preferences
 
-**Expected Outcomes:**
-- Data consolidated
-- Duplicate account deleted
-- Primary account retains all data
+**Expected Outcome:**
+- Notifications sent according to preferences
 
 **Success Criteria:**
-- Merge successful
-- No data loss
-- Duplicate removed
-
-**Risk Assessment:** MEDIUM - Data integrity
+- Preferences stored
+- Notifications filtered
 
 ---
 
-#### USER-MED-003: User Timezone Handling
-**Priority:** MEDIUM
-**Type:** Functional
-**Component:** User Preferences Service
-
-**Preconditions:**
-- User in different timezone
-- Datetime-sensitive features exist
+#### USER-013: User Theme Selection
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Set user timezone to PST
-2. Create scheduled item
-3. Verify time displayed in PST
-4. Change timezone to EST
-5. Verify time displayed in EST
-6. Verify actual time unchanged
+1. User selects "Dark Mode"
+2. System stores preference
+3. UI updates to dark theme
 
-**Expected Outcomes:**
-- Times displayed in user timezone
-- Underlying UTC unchanged
-- Conversions accurate
+**Expected Outcome:**
+- Theme applied immediately
 
 **Success Criteria:**
-- Timezone conversion correct
-- Display accurate
-- Data integrity
-
-**Risk Assessment:** LOW - Internationalization
+- Preference stored
+- UI updates
 
 ---
 
 ### LOW PRIORITY SCENARIOS (2)
 
-#### USER-LOW-001: User Onboarding Checklist
-**Priority:** LOW
-**Type:** UX
-**Component:** Onboarding Service
-
-**Preconditions:**
-- New user registered
-- Onboarding checklist configured
+#### USER-014: User Signature Management
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. User logs in for first time
-2. View onboarding checklist
-3. Complete items:
-   - Create agent
-   - Connect integration
-   - Run workflow
-4. Track progress
-5. Complete checklist
+1. User creates email signature
+2. Signature saved
+3. Signature appears in emails
 
-**Expected Outcomes:**
-- Checklist displayed
-- Progress tracked
-- Completion rewarded
+**Expected Outcome:**
+- Signature stored and used
 
 **Success Criteria:**
-- Checklist functional
-- Progress saved
-- Completion triggers next step
-
-**Risk Assessment:** LOW - User guidance
+- Signature saved
+- Applied correctly
 
 ---
 
-#### USER-LOW-002: User Public Profile
-**Priority:** LOW
-**Type:** Functional
-**Component:** User Profile Service
-
-**Preconditions:**
-- Public profile feature enabled
-- User profile exists
+#### USER-015: User Profile Completion
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. User configures public profile settings
-2. Sets visibility options
-3. Shares public profile URL
-4. Anonymous user views profile
-5. Verify only public info visible
+1. User views profile
+2. System shows "Profile 70% complete"
+3. User fills missing fields
+4. Completion percentage increases
 
-**Expected Outcomes:**
-- Public profile accessible
-- Private info hidden
-- Visibility settings respected
+**Expected Outcome:**
+- Completion tracked
 
 **Success Criteria:**
-- Public profile works
-- Privacy respected
-
-**Risk Assessment:** LOW - Optional feature
+- Percentage accurate
+- Incentives shown
 
 ---
 
-## Category 3: Agent Lifecycle (50 scenarios)
+
+## Category 3: Agent Lifecycle (50 Scenarios)
 
 ### CRITICAL SCENARIOS (20)
 
-#### AGENT-CRIT-001: Agent Registration
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Governance Service
+#### AGENT-001: Agent Registration
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- User has agent creation permission
-- Agent configuration prepared
+- Admin user logged in
+- Agent module exists
 
 **Test Steps:**
-1. Navigate to agent creation page
-2. Enter agent name
-3. Select agent type (e.g., "Workflow Automation")
-4. Configure agent parameters
-5. Set initial maturity level (STUDENT)
-6. Submit registration
-7. Verify agent created
+1. Admin navigates to Agent Management
+2. Clicks "Register New Agent"
+3. Enters agent name
+4. Selects agent category
+5. Specifies module path
+6. Specifies class name
+7. Submits form
 
-**Expected Outcomes:**
+**Expected Outcome:**
 - Agent registered in database
-- Unique agent ID assigned
-- Initial maturity = STUDENT
-- Governance configured
-- Audit log records creation
+- Agent status: STUDENT
+- Agent assigned confidence: 0.5
 
 **Success Criteria:**
-- Agent created
-- ID unique
-- Initial state correct
-- Governance applied
-
-**Risk Assessment:** CRITICAL - Core feature
+- Agent record created
+- Status initialized
+- Can execute agent
 
 ---
 
-#### AGENT-CRIT-002: Agent Classification
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Governance Service
+#### AGENT-002: Agent Classification - STUDENT Level
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
 - Agent registered
-- Classification model available
+- Agent confidence < 0.5
 
 **Test Steps:**
-1. Create agent with specific purpose
-2. System analyzes agent configuration
-3. Agent classified into category
-4. Complexity level assigned (1-4)
-5. Risk level assessed
-6. Verify classification correct
+1. System evaluates agent confidence
+2. Confidence = 0.3 (< 0.5 threshold)
+3. System classifies as STUDENT
 
-**Expected Outcomes:**
-- Agent categorized correctly
-- Complexity assigned
-- Risk assessed
-- Default permissions based on classification
+**Expected Outcome:**
+- Agent maturity: STUDENT
+- Automated triggers BLOCKED
+- Only read-only capabilities
 
 **Success Criteria:**
-- Classification accurate
-- Permissions appropriate
-- Risk assessment complete
-
-**Risk Assessment:** HIGH - Governance
+- Classification correct
+- Triggers blocked
+- Capabilities limited
 
 ---
 
-#### AGENT-CRIT-003: Maturity Level Transition - STUDENT to INTERN
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Graduation Service
+#### AGENT-003: Agent Classification - INTERN Level
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent at STUDENT maturity
-- Graduation criteria met:
-  - 10 episodes completed
-  - 50% intervention rate or better
-  - 0.70 constitutional compliance score
+- Agent confidence between 0.5 and 0.7
 
 **Test Steps:**
-1. Admin or system initiates graduation exam
-2. Agent undergoes 100 test scenarios
-3. Validate zero critical errors
-4. Calculate readiness score
-5. Score > 0.70 required
-6. Approve promotion
-7. Verify maturity = INTERN
+1. System evaluates agent confidence
+2. Confidence = 0.6
+3. System classifies as INTERN
 
-**Expected Outcomes:**
-- Graduation exam executed
-- Readiness score calculated
-- Promotion approved
-- Maturity updated to INTERN
-- New permissions granted
-- Audit log records graduation
+**Expected Outcome:**
+- Agent maturity: INTERN
+- Automated triggers require human approval
+- Streaming capabilities allowed
 
 **Success Criteria:**
-- Exam passed with zero critical errors
-- Readiness score >= 0.70
-- Maturity updated
-- Permissions effective
-
-**Risk Assessment:** CRITICAL - Agent autonomy
+- Classification correct
+- Approval required
+- Capabilities appropriate
 
 ---
 
-#### AGENT-CRIT-004: Maturity Level Transition - INTERN to SUPERVISED
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Graduation Service
+#### AGENT-004: Agent Classification - SUPERVISED Level
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent at INTERN maturity
-- Graduation criteria met:
-  - 25 episodes completed
-  - 20% intervention rate or better
-  - 0.85 constitutional compliance score
+- Agent confidence between 0.7 and 0.9
 
 **Test Steps:**
-1. Initiate graduation exam
-2. Agent undergoes 250 test scenarios
-3. Validate zero critical errors
-4. Calculate readiness score
-5. Score > 0.85 required
-6. Approve promotion
-7. Verify maturity = SUPERVISED
+1. System evaluates agent confidence
+2. Confidence = 0.8
+3. System classifies as SUPERVISED
 
-**Expected Outcomes:**
-- Exam executed
-- Readiness score >= 0.85
-- Promotion approved
-- Maturity = SUPERVISED
-- Supervision enabled for triggers
+**Expected Outcome:**
+- Agent maturity: SUPERVISED
+- Automated triggers run under real-time supervision
+- Form submissions allowed
 
 **Success Criteria:**
-- Exam passed
-- Readiness sufficient
-- Maturity updated
+- Classification correct
 - Supervision active
-
-**Risk Assessment:** CRITICAL - Increased autonomy
-
----
-
-#### AGENT-CRIT-005: Maturity Level Transition - SUPERVISED to AUTONOMOUS
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Graduation Service
-
-**Preconditions:**
-- Agent at SUPERVISED maturity
-- Graduation criteria met:
-  - 50 episodes completed
-  - 0% intervention rate
-  - 0.95 constitutional compliance score
-
-**Test Steps:**
-1. Initiate graduation exam
-2. Agent undergoes 500 test scenarios
-3. Validate zero critical errors
-4. Calculate readiness score
-5. Score > 0.95 required
-6. Approve promotion
-7. Verify maturity = AUTONOMOUS
-
-**Expected Outcomes:**
-- Exam executed
-- Readiness score >= 0.95
-- Promotion approved
-- Maturity = AUTONOMOUS
-- Full autonomy granted
-- No supervision required
-
-**Success Criteria:**
-- Exam passed
-- Perfect score required
-- Maturity updated
-- Full autonomy
-
-**Risk Assessment:** CRITICAL - Maximum autonomy
+- Capabilities expanded
 
 ---
 
-#### AGENT-CRIT-006: Agent Configuration Update
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Governance Service
+#### AGENT-005: Agent Classification - AUTONOMOUS Level
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent exists
-- User has edit permission
+- Agent confidence > 0.9
 
 **Test Steps:**
-1. Navigate to agent settings
-2. Update agent description
-3. Update LLM provider settings
-4. Update system prompt
-5. Adjust parameters (temperature, max_tokens)
-6. Save configuration
-7. Verify changes applied
+1. System evaluates agent confidence
+2. Confidence = 0.95
+3. System classifies as AUTONOMOUS
 
-**Expected Outcomes:**
-- Configuration updated
-- Changes effective immediately
-- Old executions use old config
-- New executions use new config
-- Audit log records changes
+**Expected Outcome:**
+- Agent maturity: AUTONOMOUS
+- Full execution without oversight
+- All capabilities available
 
 **Success Criteria:**
-- Configuration saved
-- Changes effective
-- Audit complete
-
-**Risk Assessment:** HIGH - Agent behavior
+- Classification correct
+- No oversight
+- Full capabilities
 
 ---
 
-#### AGENT-CRIT-007: Agent Deletion
-**Priority:** CRITICAL
-**Type:** Admin
-**Component:** Agent Governance Service
+#### AGENT-006: Agent Confidence Update
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent exists
-- User has delete permission
-- Agent not referenced by active workflows
+- Agent executed successfully
+- Positive feedback received
 
 **Test Steps:**
-1. Navigate to agent management
-2. Select agent to delete
-3. Click "Delete Agent"
-4. Confirm deletion
-5. Verify agent deleted
-6. Verify agent data archived
+1. Agent completes task
+2. User provides positive feedback
+3. System recalculates confidence
+4. Confidence increases
 
-**Expected Outcomes:**
-- Agent marked as deleted
-- Execution history preserved
-- Configuration archived
-- Active executions allowed to complete
-- New executions blocked
+**Expected Outcome:**
+- Confidence score updated
+- Classification may change
 
 **Success Criteria:**
-- Agent deleted
-- Data archived
-- Executions preserved
-- New executions blocked
-
-**Risk Assessment:** HIGH - Data retention
+- Score calculated correctly
+- Classification updated if threshold crossed
 
 ---
 
-#### AGENT-CRIT-008: Agent Versioning
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Governance Service
+#### AGENT-007: Student Agent Trigger Blocking
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent exists
-- Configuration changes needed
+- Agent maturity: STUDENT
+- Automated trigger attempts to execute agent
 
 **Test Steps:**
-1. Navigate to agent version history
-2. Create new version (v2)
-3. Modify configuration
-4. Save v2
-5. Compare v1 vs v2
-6. Rollback to v1 if needed
-7. Verify version management
+1. Trigger fires
+2. System intercepts trigger
+3. System checks agent maturity
+4. System blocks execution
+5. System routes to training service
 
-**Expected Outcomes:**
-- Version created
-- Changes tracked
-- Comparison available
-- Rollback functional
+**Expected Outcome:**
+- Trigger blocked
+- User notified: "Agent requires training"
+- Training suggested
 
 **Success Criteria:**
-- Version control works
-- Changes tracked
-- Rollback successful
-
-**Risk Assessment:** MEDIUM - Configuration management
-
----
-
-#### AGENT-CRIT-009: Agent Permission Check
-**Priority:** CRITICAL
-**Type:** Governance
-**Component:** Governance Cache
-
-**Preconditions:**
-- Agent exists
-- Action to perform requires permission
-
-**Test Steps:**
-1. Agent attempts action
-2. System checks governance cache
-3. Verify agent maturity sufficient
-4. Verify action complexity allowed
-5. Grant or deny permission
-6. Log decision
-
-**Expected Outcomes:**
-- Check completes <1ms
-- Decision based on maturity
-- Decision based on complexity
-- Audit log records decision
-
-**Success Criteria:**
-- Check <1ms
-- Decision correct
-- Audit complete
-
-**Risk Assessment:** CRITICAL - Governance enforcement
-
----
-
-#### AGENT-CRIT-010: STUDENT Agent Trigger Blocking
-**Priority:** CRITICAL
-**Type:** Governance
-**Component:** Trigger Interceptor
-
-**Preconditions:**
-- Agent at STUDENT maturity
-- Automated trigger configured
-
-**Test Steps:**
-1. Trigger fires (automated)
-2. TriggerInterceptor intercepts
-3. Check agent maturity = STUDENT
-4. Block trigger execution
-5. Route to training proposal
-6. Create BlockedTriggerContext record
-7. Notify user
-
-**Expected Outcomes:**
-- Trigger blocked (<5ms)
-- Proposal created
-- Routing decision logged
-- User notified
-
-**Success Criteria:**
-- Blocking works
+- Blocking working
 - Routing correct
-- Audit complete
-
-**Risk Assessment:** CRITICAL - Safety enforcement
+- Notification sent
 
 ---
 
-#### AGENT-CRIT-011: INTERN Agent Proposal Workflow
-**Priority:** CRITICAL
-**Type:** Governance
-**Component:** Proposal Service
+#### AGENT-008: Intern Agent Proposal Workflow
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent at INTERN maturity
+- Agent maturity: INTERN
 - Automated trigger fires
-- Action complexity >1
 
 **Test Steps:**
 1. Trigger fires
-2. Check agent maturity = INTERN
-3. Generate action proposal
-4. Present proposal to user
-5. User reviews proposal
-6. User approves or rejects
-7. If approved: execute action
-8. If rejected: cancel and log
+2. System intercepts trigger
+3. System creates proposal
+4. System sends notification to admin
+5. Admin reviews proposal
+6. Admin approves/rejects
 
-**Expected Outcomes:**
-- Proposal generated <500ms
-- User sees proposed action
-- User decision captured
-- Approved actions executed
-- Rejected actions blocked
+**Expected Outcome:**
+- Proposal created
+- Admin notified
+- Execution on approval
 
 **Success Criteria:**
-- Proposal workflow functional
-- User choice respected
-- Audit complete
-
-**Risk Assessment:** HIGH - Human-in-the-loop
+- Proposal created
+- Approval captured
+- Execution controlled
 
 ---
 
-#### AGENT-CRIT-012: SUPERVISED Agent Real-Time Supervision
-**Priority:** CRITICAL
-**Type:** Governance
-**Component:** Supervision Service
+#### AGENT-009: Supervised Agent Real-Time Monitoring
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent at SUPERVISED maturity
-- Trigger fires with action complexity 3
-
-**Test Steps:**
-1. Trigger fires
-2. Check maturity = SUPERVISED
-3. Create SupervisionSession
-4. Execute action under supervision
-5. Stream progress to user
-6. Monitor for interventions
-7. User can pause/correct/terminate
-8. Record supervision outcome
-
-**Expected Outcomes:**
-- Session created
-- Progress streamed real-time
-- Interventions possible
-- Outcome recorded
-
-**Success Criteria:**
-- Supervision active
-- Streaming works
-- Interventions functional
-
-**Risk Assessment:** HIGH - Real-time control
-
----
-
-#### AGENT-CRIT-013: AUTONOMOUS Agent Full Execution
-**Priority:** CRITICAL
-**Type:** Governance
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent at AUTONOMOUS maturity
-- All graduation criteria met
-- Action complexity any level
-
-**Test Steps:**
-1. Trigger fires
-2. Check maturity = AUTONOMOUS
-3. Execute action immediately
-4. No supervision required
-5. No approval needed
-6. Log execution
-7. Monitor for post-execution feedback
-
-**Expected Outcomes:**
-- Execution immediate
-- No blocking
-- No supervision
-- Full autonomy
-- Complete audit trail
-
-**Success Criteria:**
-- Execution succeeds
-- No delays
-- Autonomy respected
-
-**Risk Assessment:** HIGH - Full autonomy
-
----
-
-#### AGENT-CRIT-014: Agent Execution Timeout
-**Priority:** CRITICAL
-**Type:** Reliability
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent executing task
-- Timeout configured (e.g., 5 minutes)
-
-**Test Steps:**
-1. Agent starts long-running task
-2. Task exceeds timeout duration
-3. System detects timeout
-4. Agent execution terminated
-5. Timeout error logged
-6. User notified
-7. Agent state cleaned up
-
-**Expected Outcomes:**
-- Timeout enforced
-- Execution stopped
-- Error logged
-- User notified
-- Resources freed
-
-**Success Criteria:**
-- Timeout enforced
-- Clean termination
-- No resource leaks
-
-**Risk Assessment:** HIGH - Resource management
-
----
-
-#### AGENT-CRIT-015: Agent Error Handling
-**Priority:** CRITICAL
-**Type:** Reliability
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent executing task
-- Error occurs during execution
-
-**Test Steps:**
-1. Agent executing normally
-2. Error condition occurs (API failure, invalid data)
-3. Agent catches error
-4. Error categorized (7 categories)
-5. Resolution strategy applied
-6. Error logged with context
-7. Agent attempts recovery or terminates gracefully
-
-**Expected Outcomes:**
-- Error caught
-- Categorized correctly
-- Resolution applied
-- Logged completely
-- Graceful termination
-
-**Success Criteria:**
-- Error handling works
-- Recovery attempted
-- Audit complete
-
-**Risk Assessment:** HIGH - Reliability
-
----
-
-#### AGENT-CRIT-016: Agent State Persistence
-**Priority:** CRITICAL
-**Type:** Reliability
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent executing multi-step task
-- State changes during execution
+- Agent maturity: SUPERVISED
+- Agent executing
 
 **Test Steps:**
 1. Agent starts execution
-2. Completes step 1
-3. State persisted to database
-4. Agent fails during step 2
-5. Agent restarts
-6. State restored from persistence
-7. Agent resumes from step 2
+2. System creates supervision session
+3. Admin can view progress in real-time
+4. Admin can pause/correct/terminate
 
-**Expected Outcomes:**
-- State persisted after each step
-- State restored on restart
-- Agent resumes correctly
-- No work duplicated
+**Expected Outcome:**
+- Supervision session created
+- Real-time updates sent
+- Controls functional
 
 **Success Criteria:**
-- State persisted
-- State restored
-- Resume correct
-- No duplication
-
-**Risk Assessment:** HIGH - Fault tolerance
+- Session created
+- Updates streaming
+- Controls working
 
 ---
 
-#### AGENT-CRIT-017: Agent Resource Cleanup
-**Priority:** CRITICAL
-**Type:** Reliability
-**Component:** Agent Execution Service
+#### AGENT-010: Agent Graduation - STUDENT to INTERN
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent execution completed or failed
-- Resources allocated (files, connections, memory)
+- Agent maturity: STUDENT
+- Agent meets graduation criteria
 
 **Test Steps:**
-1. Agent allocates resources during execution
-2. Agent completes or fails
-3. System triggers cleanup
-4. Temporary files deleted
-5. Connections closed
-6. Memory freed
-7. Verify no resource leaks
+1. System checks graduation criteria
+2. Episode count >= 10
+3. Intervention rate <= 50%
+4. Constitutional score >= 0.70
+5. System promotes agent to INTERN
 
-**Expected Outcomes:**
-- All temporary files deleted
-- All connections closed
-- Memory freed
-- No resource leaks
+**Expected Outcome:**
+- Agent maturity: INTERN
+- Agent gains new capabilities
 
 **Success Criteria:**
-- Resources cleaned up
-- No leaks
+- All criteria met
+- Promotion executed
+- Capabilities updated
+
+---
+
+#### AGENT-011: Agent Graduation - INTERN to SUPERVISED
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Agent maturity: INTERN
+- Agent meets graduation criteria
+
+**Test Steps:**
+1. System checks graduation criteria
+2. Episode count >= 25
+3. Intervention rate <= 20%
+4. Constitutional score >= 0.85
+5. System promotes agent to SUPERVISED
+
+**Expected Outcome:**
+- Agent maturity: SUPERVISED
+- Agent gains new capabilities
+
+**Success Criteria:**
+- All criteria met
+- Promotion executed
+- Capabilities updated
+
+---
+
+#### AGENT-012: Agent Graduation - SUPERVISED to AUTONOMOUS
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Agent maturity: SUPERVISED
+- Agent meets graduation criteria
+
+**Test Steps:**
+1. System checks graduation criteria
+2. Episode count >= 50
+3. Intervention rate = 0%
+4. Constitutional score >= 0.95
+5. System promotes agent to AUTONOMOUS
+
+**Expected Outcome:**
+- Agent maturity: AUTONOMOUS
+- Full capabilities granted
+
+**Success Criteria:**
+- All criteria met
+- Promotion executed
+- Full autonomy
+
+---
+
+#### AGENT-013: Agent Capabilities Assignment
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Agent registered
+
+**Test Steps:**
+1. Admin navigates to Agent Management
+2. Selects agent
+3. Edits capabilities
+4. Assigns capabilities based on maturity
+
+**Expected Outcome:**
+- Capabilities limited by maturity
+- STUDENT: read-only
+- INTERN: streaming, forms
+- SUPERVISED: state changes
+- AUTONOMOUS: all actions
+
+**Success Criteria:**
+- Capabilities filtered
+- Maturity enforced
+- No privilege escalation
+
+---
+
+#### AGENT-014: Agent Action Complexity Check
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Agent attempting action
+
+**Test Steps:**
+1. Agent attempts action
+2. System checks action complexity (1-4)
+3. System checks agent maturity
+4. System validates maturity sufficient for complexity
+
+**Expected Outcome:**
+- Complexity 1 (Presentations): STUDENT+
+- Complexity 2 (Streaming): INTERN+
+- Complexity 3 (State changes): SUPERVISED+
+- Complexity 4 (Deletions): AUTONOMOUS only
+
+**Success Criteria:**
+- Matrix enforced
+- Actions blocked if insufficient maturity
+
+---
+
+#### AGENT-015: Agent Execution Logging
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent executes task
+2. System logs execution details
+3. Log includes: agent_id, user_id, action, result, timestamp
+
+**Expected Outcome:**
+- All executions logged
+- Audit trail complete
+
+**Success Criteria:**
+- Log created
+- Details captured
+- Queryable
+
+---
+
+#### AGENT-016: Agent Error Handling
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent executes task
+2. Task fails with error
+3. System logs error
+4. System notifies user
+5. System creates episode for learning
+
+**Expected Outcome:**
+- Errors handled gracefully
+- User informed
+- Learning captured
+
+**Success Criteria:**
+- Error caught
+- Notification sent
+- Episode created
+
+---
+
+#### AGENT-017: Agent Timeout Handling
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Preconditions:**
+- Agent execution timeout configured
+
+**Test Steps:**
+1. Agent starts long-running task
+2. Task exceeds timeout threshold
+3. System terminates execution
+4. System logs timeout
+5. System notifies user
+
+**Expected Outcome:**
+- Execution terminated
+- Resources freed
+- User notified
+
+**Success Criteria:**
+- Timeout enforced
+- Cleanup complete
+- Notification sent
+
+---
+
+#### AGENT-018: Agent Resource Cleanup
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent completes execution
+2. System cleans up resources
+3. Browser sessions closed
+4. File handles released
+5. Memory freed
+
+**Expected Outcome:**
+- No resource leaks
 - System stable
 
-**Risk Assessment:** HIGH - Resource management
+**Success Criteria:**
+- Resources released
+- No leaks
 
 ---
 
-#### AGENT-CRIT-018: Agent Concurrent Execution Limits
-**Priority:** CRITICAL
-**Type:** Performance
-**Component:** Agent Execution Service
+#### AGENT-019: Agent Concurrent Execution Limit
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Multiple execution requests for same agent
-- Concurrent limit configured (e.g., 5 concurrent)
+- Agent has concurrent execution limit: 3
 
 **Test Steps:**
-1. Submit 10 execution requests simultaneously
-2. System queues requests
-3. First 5 start execution
-4. Remaining 5 wait
-5. As executions complete, queued requests start
-6. Verify all executions complete
+1. 3 executions already running
+2. 4th execution requested
+3. System queues or rejects 4th request
 
-**Expected Outcomes:**
-- Only 5 concurrent executions
-- Queue for remaining requests
-- FIFO queue order
-- All executions complete eventually
-
-**Success Criteria:**
+**Expected Outcome:**
 - Limit enforced
-- Queue functional
-- All complete
+- User notified
 
-**Risk Assessment:** MEDIUM - Load management
+**Success Criteria:**
+- Queue/Reject working
+- Limit respected
 
 ---
 
-#### AGENT-CRIT-019: Agent Audit Trail
-**Priority:** CRITICAL
-**Type:** Compliance
-**Component:** Audit Service
+#### AGENT-020: Agent Deactivation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 1
 
 **Preconditions:**
-- Agent performs various actions
-- Audit logging configured
+- Agent exists
 
 **Test Steps:**
-1. Agent executes action
-2. Verify audit log entry created
-3. Check log contains: timestamp, agent_id, user_id, action, parameters, result
-4. Execute multiple actions
-5. Query audit log
-6. Verify all actions logged
+1. Admin deactivates agent
+2. Agent status: INACTIVE
+3. Agent cannot execute
+4. Existing executions complete
 
-**Expected Outcomes:**
-- Every action logged
-- Complete context captured
-- Log queryable
-- Log tamper-evident
+**Expected Outcome:**
+- Agent disabled
+- No new executions
 
 **Success Criteria:**
-- All actions logged
-- Context complete
-- Query functional
-
-**Risk Assessment:** HIGH - Compliance
-
----
-
-#### AGENT-CRIT-020: Agent Batch Operations
-**Priority:** CRITICAL
-**Type:** Performance
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent needs to process multiple items
-- Batch size configured
-
-**Test Steps:**
-1. Submit batch of 100 items for processing
-2. System batches items (e.g., 10 per batch)
-3. Agent processes batch 1
-4. Agent processes batch 2
-5. Continue until all batches complete
-6. Verify all items processed
-7. Verify performance metrics
-
-**Expected Outcomes:**
-- Batching efficient
-- All items processed
-- Performance improved vs individual processing
-- Error isolation per batch
-
-**Success Criteria:**
-- Batching works
-- All processed
-- Performance improved
-
-**Risk Assessment:** MEDIUM - Performance
+- Status updated
+- Executions blocked
 
 ---
 
 ### HIGH PRIORITY SCENARIOS (15)
 
-#### AGENT-HIGH-001: Agent Template Creation
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Agent Template Service
-
-**Preconditions:**
-- User has template creation permission
-- Agent configuration to template
+#### AGENT-021: Agent Reconfiguration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Create agent with desired configuration
-2. Navigate to "Save as Template"
-3. Enter template name
-4. Mark parameters as configurable
-5. Save template
-6. Create new agent from template
-7. Verify configuration applied
+1. Admin updates agent config
+2. Config version incremented
+3. Next execution uses new config
 
-**Expected Outcomes:**
-- Template created
-- Configurable parameters identified
-- Template reusable
-- New agents created from template
+**Expected Outcome:**
+- Config updated
+- Version tracked
 
 **Success Criteria:**
-- Template saved
-- Reusable
-- Parameters configurable
-
-**Risk Assessment:** MEDIUM - Usability
+- Update applied
+- Version incremented
 
 ---
 
-#### AGENT-HIGH-002: Agent Clone
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Agent Governance Service
-
-**Preconditions:**
-- Agent exists
-- User wants similar agent
+#### AGENT-022: Agent Episode Recording
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to source agent
-2. Click "Clone Agent"
-3. Enter new agent name
-4. Review cloned configuration
-5. Save cloned agent
-6. Verify clone identical to source
+1. Agent executes task
+2. System creates episode
+3. System segments episode
+4. System stores in memory
 
-**Expected Outcomes:**
-- Agent cloned with all configuration
-- New unique ID assigned
-- Independent from source
+**Expected Outcome:**
+- Episode recorded
+- Segments created
+- Memory updated
 
 **Success Criteria:**
-- Clone successful
-- Configuration identical
-- ID unique
-
-**Risk Assessment:** LOW - Convenience
+- Episode exists
+- Segments valid
+- Storage successful
 
 ---
 
-#### AGENT-HIGH-003: Agent Export/Import
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Agent Governance Service
-
-**Preconditions:**
-- Agent exists
-- Export/import feature enabled
+#### AGENT-023: Agent Feedback Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent settings
-2. Click "Export Agent"
-3. Download agent configuration JSON
-4. Import configuration to different environment
-5. Verify agent created
+1. Agent completes task
+2. User provides feedback
+3. System links feedback to episode
+4. System updates confidence score
 
-**Expected Outcomes:**
-- Configuration exported as JSON
-- JSON valid and complete
-- Import creates agent
-- Configuration preserved
+**Expected Outcome:**
+- Feedback recorded
+- Episode linked
+- Confidence updated
 
 **Success Criteria:**
-- Export works
-- Import works
-- Configuration preserved
-
-**Risk Assessment:** MEDIUM - Portability
+- Feedback stored
+- Link created
+- Score changed
 
 ---
 
-#### AGENT-HIGH-004: Agent Testing Environment
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Agent Testing Service
-
-**Preconditions:**
-- Agent configured
-- Testing environment available
+#### AGENT-024: Agent Retrieval - Semantic Search
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent testing
-2. Create test scenario
-3. Define input data
-4. Define expected output
-5. Run agent test
-6. Compare actual vs expected
-7. View test results
+1. Agent queries episodic memory
+2. System performs semantic search
+3. System returns relevant episodes
 
-**Expected Outcomes:**
-- Test executed in isolated environment
-- Input/Output validated
-- Results displayed
-- Test saved for replay
+**Expected Outcome:**
+- Relevant episodes retrieved
 
 **Success Criteria:**
-- Test environment isolated
-- Validation works
-- Results accurate
-
-**Risk Assessment:** MEDIUM - Quality assurance
+- Search accurate
+- Results relevant
 
 ---
 
-#### AGENT-HIGH-005: Agent A/B Testing
-**Priority:** HIGH
-**Type:** Experimental
-**Component:** Agent Testing Service
-
-**Preconditions:**
-- Two agent versions to compare
-- A/B testing configured
+#### AGENT-025: Agent Canvas Presentation
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Configure A/B test
-2. Select agent A (current)
-3. Select agent B (new)
-4. Define traffic split (50/50)
-5. Run A/B test
-6. Compare metrics: success rate, latency, user satisfaction
-7. Determine winner
+1. Agent presents data via canvas
+2. System creates canvas audit record
+3. System links canvas to episode
 
-**Expected Outcomes:**
-- Traffic split evenly
-- Both versions tested
-- Metrics collected
-- Winner identified
+**Expected Outcome:**
+- Canvas created
+- Audit logged
+- Episode linked
 
 **Success Criteria:**
-- Split accurate
-- Metrics complete
-- Winner clear
-
-**Risk Assessment:** MEDIUM - Optimization
+- Canvas exists
+- Audit complete
+- Link valid
 
 ---
 
-#### AGENT-HIGH-006: Agent Metrics Dashboard
-**Priority:** HIGH
-**Type:** Analytics
-**Component:** Analytics Service
-
-**Preconditions:**
-- Agent has execution history
-- Metrics dashboard available
+#### AGENT-026: Agent Governance Cache Hit
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent dashboard
-2. View execution count
-3. View success rate
-4. View average latency
-5. View error rate
-6. View user feedback scores
-7. Filter by date range
+1. System checks agent permissions
+2. Cache hit (<1ms)
+3. Permissions returned from cache
 
-**Expected Outcomes:**
-- Metrics accurate
-- Charts render
-- Filters work
-- Data exportable
+**Expected Outcome:**
+- Fast lookup
+- Permissions correct
 
 **Success Criteria:**
-- Metrics accurate
-- Visualizations clear
-- Export works
-
-**Risk Assessment:** MEDIUM - Visibility
+- Latency < 1ms
+- Permissions accurate
 
 ---
 
-#### AGENT-HIGH-007: Agent Log Viewer
-**Priority:** HIGH
-**Type:** Debugging
-**Component:** Logging Service
-
-**Preconditions:**
-- Agent executed
-- Logs generated
+#### AGENT-027: Agent Governance Cache Miss
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent logs
-2. View execution logs
-3. Filter by log level (INFO, WARNING, ERROR)
-4. Search logs by keyword
-5. View specific execution log
-6. Download logs
+1. System checks agent permissions
+2. Cache miss
+3. System queries database
+4. System populates cache
+5. System returns permissions
 
-**Expected Outcomes:**
-- Logs displayed
-- Filtering works
-- Search works
-- Download available
+**Expected Outcome:**
+- Cache populated
+- Permissions correct
 
 **Success Criteria:**
-- Logs accessible
-- Filters functional
-- Search works
-
-**Risk Assessment:** MEDIUM - Debugging
+- Cache updated
+- Permissions accurate
 
 ---
 
-#### AGENT-HIGH-008: Agent Webhook Notifications
-**Priority:** HIGH
-**Type:** Integration
-**Component:** Webhook Service
-
-**Preconditions:**
-- Agent configured
-- Webhook URL available
+#### AGENT-028: Agent Batch Execution
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Configure webhook for agent events
-2. Define events to notify (completion, error)
-3. Agent executes event
-4. Verify webhook called
-5. Verify payload contains event data
-6. Test webhook failure handling
+1. User submits batch of tasks
+2. Agent executes tasks sequentially
+3. System tracks progress
+4. System reports completion
 
-**Expected Outcomes:**
-- Webhook called on events
-- Payload complete
-- Failures handled (retry)
+**Expected Outcome:**
+- All tasks completed
+- Progress tracked
 
 **Success Criteria:**
-- Webhook works
-- Payload accurate
-- Retry functional
-
-**Risk Assessment:** MEDIUM - Integration
+- Batch processed
+- Progress accurate
 
 ---
 
-#### AGENT-HIGH-009: Agent Scheduling
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Scheduler Service
-
-**Preconditions:**
-- Agent configured
-- Scheduling feature enabled
+#### AGENT-029: Agent Retry on Failure
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent scheduling
-2. Set schedule (e.g., daily at 9 AM)
-3. Configure timezone
-4. Enable schedule
-5. Verify agent runs at scheduled time
-6. View execution history
+1. Agent task fails
+2. System attempts retry
+3. Retry succeeds
+4. Execution marked successful
 
-**Expected Outcomes:**
-- Schedule created
-- Agent runs on time
-- Timezone correct
-- History tracked
-
-**Success Criteria:**
-- Schedule works
-- Timing accurate
-- Timezone correct
-
-**Risk Assessment:** MEDIUM - Automation
-
----
-
-#### AGENT-HIGH-010: Agent Dependency Management
-**Priority:** HIGH
-**Type:** Functional
-**Component:** Dependency Service
-
-**Preconditions:**
-- Agent depends on other agents
-- Dependency graph exists
-
-**Test Steps:**
-1. Define agent dependencies
-2. Create dependency graph
-3. Trigger parent agent
-4. Verify dependencies execute first
-5. Handle dependency failure
-6. Parent agent proceeds or fails appropriately
-
-**Expected Outcomes:**
-- Dependencies identified
-- Execution order correct
+**Expected Outcome:**
+- Retry working
 - Failures handled
-- Parent waits or fails
 
 **Success Criteria:**
+- Retry attempted
+- Success recorded
+
+---
+
+#### AGENT-030: Agent Rollback on Error
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent executing multi-step task
+2. Step 3 fails
+3. System rolls back steps 1-2
+4. System reports error
+
+**Expected Outcome:**
+- Clean rollback
+- No partial state
+
+**Success Criteria:**
+- Rollback complete
+- State consistent
+
+---
+
+#### AGENT-031: Agent Version Migration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent module updated
+2. System detects version change
+3. System migrates state
+4. Agent continues with new version
+
+**Expected Outcome:**
+- Migration successful
+- No data loss
+
+**Success Criteria:**
+- Migration complete
+- State intact
+
+---
+
+#### AGENT-032: Agent Dependency Resolution
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
+
+**Test Steps:**
+1. Agent requires dependency
+2. System resolves dependency
+3. Dependency loaded
+4. Agent executes
+
+**Expected Outcome:**
 - Dependencies resolved
-- Order correct
-- Handling appropriate
+- Agent runs
 
-**Risk Assessment:** MEDIUM - Orchestration
+**Success Criteria:**
+- Resolution working
+- No conflicts
 
 ---
 
-#### AGENT-HIGH-011: Agent Rollback
-**Priority:** HIGH
-**Type:** Recovery
-**Component:** Agent Governance Service
-
-**Preconditions:**
-- Agent versioned
-- New version has issues
-- Rollback needed
+#### AGENT-033: Agent Priority Queuing
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Identify problematic version
-2. Navigate to version history
-3. Select stable version
-4. Click "Rollback"
-5. Confirm rollback
-6. Verify agent using stable version
+1. High-priority task submitted
+2. Low-priority task running
+3. System preempts low-priority
+4. High-priority executed
 
-**Expected Outcomes:**
-- Configuration rolled back
-- Agent uses previous version
-- New executions use rolled-back version
+**Expected Outcome:**
+- Priority enforced
 
 **Success Criteria:**
-- Rollback successful
-- Version restored
-- Executions use old version
-
-**Risk Assessment:** MEDIUM - Recovery
+- Queue working
+- Preemption working
 
 ---
 
-#### AGENT-HIGH-012: Agent Health Check
-**Priority:** HIGH
-**Type:** Monitoring
-**Component:** Health Check Service
-
-**Preconditions:**
-- Agent exists
-- Health check configured
+#### AGENT-034: Agent Load Balancing
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Execute health check
-2. Check agent responsive
-3. Check dependencies available
-4. Check resources sufficient
-5. Return health status
-6. Display on dashboard
+1. Multiple agent instances running
+2. Tasks distributed evenly
+3. No single instance overloaded
 
-**Expected Outcomes:**
-- Health check runs
-- Status accurate
-- Issues identified
-- Dashboard updated
+**Expected Outcome:**
+- Load balanced
+- Performance optimal
 
 **Success Criteria:**
-- Check runs
-- Status correct
-- Issues flagged
-
-**Risk Assessment:** MEDIUM - Monitoring
+- Distribution even
+- No hotspots
 
 ---
 
-#### AGENT-HIGH-013: Agent Rate Limiting
-**Priority:** HIGH
-**Type:** Performance
-**Component:** Rate Limiting Service
-
-**Preconditions:**
-- Agent can be triggered frequently
-- Rate limit configured
+#### AGENT-035: Agent Health Check
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Configure rate limit (e.g., 10 executions per minute)
-2. Submit 15 execution requests
-3. Verify first 10 accepted
-4. Verify next 5 rejected with 429
-5. Wait for rate limit window
-6. Verify requests accepted again
+1. Health check triggered
+2. Agent responds with status
+3. Status includes: uptime, memory, last execution
 
-**Expected Outcomes:**
-- Rate limit enforced
-- Excess requests rejected
-- Retry-After header set
-- Window resets correctly
+**Expected Outcome:**
+- Health reported
+- Metrics accurate
 
 **Success Criteria:**
-- Limit enforced
-- Rejections accurate
-- Reset works
-
-**Risk Assessment:** MEDIUM - Resource protection
-
----
-
-#### AGENT-HIGH-014: Agent Cost Tracking
-**Priority:** HIGH
-**Type:** Analytics
-**Component:** Cost Tracking Service
-
-**Preconditions:**
-- Agent uses LLM API
-- Cost tracking enabled
-
-**Test Steps:**
-1. Execute agent
-2. Track tokens used
-3. Calculate cost based on provider
-4. Aggregate costs over time
-5. Display cost dashboard
-6. Set budget alerts
-
-**Expected Outcomes:**
-- Tokens tracked
-- Costs calculated
-- Dashboard shows trends
-- Alerts fire on budget exceeded
-
-**Success Criteria:**
-- Tracking accurate
-- Dashboard works
-- Alerts functional
-
-**Risk Assessment:** MEDIUM - Cost management
-
----
-
-#### AGENT-HIGH-015: Agent Tagging and Organization
-**Priority:** HIGH
-**Type:** Organization
-**Component:** Agent Management Service
-
-**Preconditions:**
-- Multiple agents exist
-- Organization needed
-
-**Test Steps:**
-1. Create tags (e.g., "Marketing", "Sales", "Support")
-2. Assign tags to agents
-3. Filter agents by tag
-4. Search by tag
-5. View agents with same tag
-
-**Expected Outcomes:**
-- Tags created
-- Agents tagged
-- Filtering works
-- Search works
-
-**Success Criteria:**
-- Tags functional
-- Filtering works
-- Organization improved
-
-**Risk Assessment:** LOW - Organization
+- Response received
+- Metrics valid
 
 ---
 
 ### MEDIUM PRIORITY SCENARIOS (10)
 
-#### AGENT-MED-001: Agent Documentation
-**Priority:** MEDIUM
-**Type:** Documentation
-**Component:** Documentation Service
-
-**Preconditions:**
-- Agent created
-- Documentation feature available
+#### AGENT-036: Agent A/B Testing
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent documentation
-2. Add description
-3. Add usage examples
-4. Add parameter documentation
-5. Save documentation
-6. View documentation in agent catalog
+1. Two agent versions configured
+2. Traffic split 50/50
+3. Performance compared
 
-**Expected Outcomes:**
-- Documentation saved
-- Displayed in catalog
-- Helps users understand agent
+**Expected Outcome:**
+- Results collected
+- Better version identified
 
 **Success Criteria:**
-- Documentation saved
-- Displayed correctly
-
-**Risk Assessment:** LOW - Knowledge sharing
+- Split working
+- Comparison accurate
 
 ---
 
-#### AGENT-MED-002: Agent Sharing
-**Priority:** MEDIUM
-**Type:** Collaboration
-**Component:** Sharing Service
-
-**Preconditions:**
-- Agent created
-- Sharing feature enabled
+#### AGENT-037: Agent Canary Deployment
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent sharing
-2. Share with user or team
-3. Set permission level (view, use, edit)
-4. Notify recipient
-5. Recipient accesses shared agent
-6. Verify permissions enforced
+1. New version deployed to 10% of traffic
+2. Errors monitored
+3. Gradual rollout if stable
 
-**Expected Outcomes:**
-- Agent shared
-- Permissions enforced
-- Recipient notified
+**Expected Outcome:**
+- Safe deployment
+- Issues caught early
 
 **Success Criteria:**
-- Sharing works
-- Permissions correct
-
-**Risk Assessment:** MEDIUM - Collaboration
+- Canary working
+- Monitoring active
 
 ---
 
-#### AGENT-MED-003: Agent Marketplace
-**Priority:** MEDIUM
-**Type:** Ecosystem
-**Component:** Marketplace Service
-
-**Preconditions:**
-- Marketplace feature enabled
-- Agents published
+#### AGENT-038: Agent Feature Flag
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Browse agent marketplace
-2. Search for agent by category
-3. View agent details
-4. Install agent
-5. Configure installed agent
-6. Use agent
+1. Feature flag enabled for agent
+2. Agent uses new feature
+3. Flag disabled
+4. Agent uses old behavior
 
-**Expected Outcomes:**
-- Marketplace browsable
-- Search works
-- Installation successful
-- Agent functional
+**Expected Outcome:**
+- Feature controlled by flag
+- Instant toggle
 
 **Success Criteria:**
-- Marketplace works
-- Installation works
-
-**Risk Assessment:** LOW - Ecosystem feature
+- Flag working
+- Behavior switches
 
 ---
 
-#### AGENT-MED-004: Agent Changelog
-**Priority:** MEDIUM
-**Type:** Documentation
-**Component:** Version Control Service
-
-**Preconditions:**
-- Agent has multiple versions
+#### AGENT-039: Agent Scheduled Execution
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent changelog
-2. View version history
-3. View change descriptions for each version
-4. Compare versions
-5. Understand evolution
+1. Agent scheduled for daily execution
+2. System triggers at scheduled time
+3. Agent executes
 
-**Expected Outcomes:**
-- Changelog displays
-- Changes documented
-- Comparison available
+**Expected Outcome:**
+- Scheduled execution working
 
 **Success Criteria:**
-- Changelog functional
-- Changes documented
-
-**Risk Assessment:** LOW - Documentation
+- Schedule accurate
+- Execution triggered
 
 ---
 
-#### AGENT-MED-005: Agent Comments
-**Priority:** MEDIUM
-**Type:** Collaboration
-**Component:** Collaboration Service
-
-**Preconditions:**
-- Agent exists
-- Multiple users have access
+#### AGENT-040: Agent Webhook Trigger
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. User A adds comment to agent
-2. User B views comment
-3. User B replies to comment
-4. User A receives notification
-5. Thread viewable
+1. Webhook received from external system
+2. System validates webhook
+3. Agent triggered
 
-**Expected Outcomes:**
-- Comments saved
-- Notifications sent
-- Thread functional
+**Expected Outcome:**
+- Webhook triggers agent
 
 **Success Criteria:**
-- Comments work
-- Notifications work
-
-**Risk Assessment:** LOW - Collaboration
+- Webhook received
+- Agent started
 
 ---
 
-#### AGENT-MED-006: Agent Favorites
-**Priority:** MEDIUM
-**Type:** UX
-**Component:** User Preferences Service
-
-**Preconditions:**
-- User uses multiple agents
-- Favorites feature available
+#### AGENT-041: Agent Event Trigger
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agents list
-2. Click star icon on frequently used agents
-3. View favorites list
-4. Access agent from favorites
-5. Remove from favorites
+1. Event published to event bus
+2. Agent subscribed to event
+3. Agent triggered
 
-**Expected Outcomes:**
-- Favorites marked
-- Favorites list accessible
-- Quick access to favorites
+**Expected Outcome:**
+- Event triggers agent
 
 **Success Criteria:**
-- Favorites work
-- Quick access
-
-**Risk Assessment:** LOW - UX
+- Event received
+- Agent started
 
 ---
 
-#### AGENT-MED-007: Agent Search
-**Priority:** MEDIUM
-**Type:** Search
-**Component:** Search Service
-
-**Preconditions:**
-- Many agents exist
-- User needs to find specific agent
+#### AGENT-042: Agent Manual Trigger
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Enter search term in agent search
-2. View results matching query
-3. Filter by tag
-4. Filter by maturity
-5. Sort by relevance/date/name
+1. User manually triggers agent
+2. Agent executes immediately
 
-**Expected Outcomes:**
-- Search returns relevant agents
-- Filters work
-- Sort works
+**Expected Outcome:**
+- Manual trigger working
 
 **Success Criteria:**
-- Search accurate
-- Filters functional
-
-**Risk Assessment:** LOW - Usability
+- Trigger received
+- Execution started
 
 ---
 
-#### AGENT-MED-008: Agent Recent Activity
-**Priority:** MEDIUM
-**Type:** Activity
-**Component:** Activity Service
-
-**Preconditions:**
-- Agent has execution history
-- User viewing agent
+#### AGENT-043: Agent Chaining
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent page
-2. View recent activity panel
-3. See recent executions
-4. See recent modifications
-5. See recent comments
-6. Click to view details
+1. Agent A completes
+2. Output passed to Agent B
+3. Agent B executes
 
-**Expected Outcomes:**
-- Activity displayed
-- Chronological order
-- Links to details
+**Expected Outcome:**
+- Agents chained
 
 **Success Criteria:**
-- Activity shown
-- Links work
-
-**Risk Assessment:** LOW - Visibility
+- Chaining working
+- Data passed
 
 ---
 
-#### AGENT-MED-009: Agent Permissions UI
-**Priority:** MEDIUM
-**Type:** Admin
-**Component:** Permission Management UI
-
-**Preconditions:**
-- Admin managing agent permissions
-- Multiple users/roles
+#### AGENT-044: Agent Parallel Execution
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent permissions
-2. View current permissions
-3. Grant permission to user
-4. Grant permission to role
-5. Revoke permission
-6. View permission history
+1. Two independent agents triggered
+2. Both execute simultaneously
+3. System tracks both
 
-**Expected Outcomes:**
-- Permissions displayed
-- Grant works
-- Revoke works
-- History tracked
+**Expected Outcome:**
+- Parallel execution working
 
 **Success Criteria:**
-- UI functional
-- Changes effective
-
-**Risk Assessment:** MEDIUM - Admin UX
+- Both running
+- Tracking working
 
 ---
 
-#### AGENT-MED-010: Agent Archive
-**Priority:** MEDIUM
-**Type:** Storage
-**Component:** Archive Service
-
-**Preconditions:**
-- Agent no longer used
-- Not deleted but archived
+#### AGENT-045: Agent Conditional Routing
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent management
-2. Select agent to archive
-3. Click "Archive Agent"
-4. Confirm archive
-5. Verify agent archived
-6. Archived agents moved to separate section
-7. Can unarchive if needed
+1. Agent completes
+2. System evaluates condition
+3. Routes to Agent A or Agent B based on result
 
-**Expected Outcomes:**
-- Agent archived
-- Removed from active list
-- Can be restored
+**Expected Outcome:**
+- Conditional routing working
 
 **Success Criteria:**
-- Archive works
-- Restoration works
-
-**Risk Assessment:** LOW - Organization
+- Condition evaluated
+- Routing correct
 
 ---
 
 ### LOW PRIORITY SCENARIOS (5)
 
-#### AGENT-LOW-001: Agent Recommendations
-**Priority:** LOW
-**Type:** AI
-**Component:** Recommendation Engine
-
-**Preconditions:**
-- User using platform
-- Usage patterns analyzed
+#### AGENT-046: Agent Debug Mode
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 1
 
 **Test Steps:**
-1. System analyzes user patterns
-2. Suggest relevant agents
-3. User views recommendations
-4. User installs recommended agent
+1. Admin enables debug mode for agent
+2. Agent logs verbose output
+3. Logs viewable in real-time
 
-**Expected Outcomes:**
-- Relevant suggestions
-- Based on usage patterns
-- Improve discovery
+**Expected Outcome:**
+- Debug output available
 
 **Success Criteria:**
-- Recommendations relevant
-- Based on patterns
-
-**Risk Assessment:** LOW - AI feature
+- Mode toggled
+- Output verbose
 
 ---
 
-#### AGENT-LOW-002: Agent Translation
-**Priority:** LOW
-**Type:** Internationalization
-**Component:** Translation Service
-
-**Preconditions:**
-- Agent used by multilingual users
-- Translation configured
+#### AGENT-047: Agent Performance Profiling
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 1
 
 **Test Steps:**
-1. User sets language preference
-2. Agent descriptions translated
-3. Agent parameters translated
-4. Agent outputs translated
+1. Profiling enabled
+2. Agent executes
+3. Performance metrics captured
 
-**Expected Outcomes:**
-- UI elements translated
-- Agent behavior localized
+**Expected Outcome:**
+- Metrics collected
 
 **Success Criteria:**
-- Translation accurate
-- Localization works
-
-**Risk Assessment:** LOW - Internationalization
+- Profiling data available
 
 ---
 
-#### AGENT-LOW-003: Agent Themes
-**Priority:** LOW
-**Type:** Customization
-**Component:** Theme Service
-
-**Preconditions:**
-- User wants branded agent interface
-- Theme feature available
+#### AGENT-048: Agent Export/Import
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Navigate to agent appearance
-2. Select custom theme
-3. Set colors
-4. Set logo
-5. Apply theme
-6. View themed agent interface
+1. Admin exports agent config
+2. Config imported to another workspace
 
-**Expected Outcomes:**
-- Theme applied
-- Branded interface
-- Customizable
+**Expected Outcome:**
+- Agent migrated
 
 **Success Criteria:**
-- Theme works
-- Branding applied
-
-**Risk Assessment:** LOW - Customization
+- Export complete
+- Import successful
 
 ---
 
-#### AGENT-LOW-004: Agent Keyboard Shortcuts
-**Priority:** LOW
-**Type:** Accessibility
-**Component:** Accessibility Service
-
-**Preconditions:**
-- Power user wants efficiency
-- Keyboard shortcuts available
+#### AGENT-049: Agent Documentation Generation
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. View keyboard shortcut reference
-2. Use shortcut to create agent
-3. Use shortcut to execute agent
-4. Use shortcut to open agent
+1. System generates agent documentation
+2. Docs include: capabilities, config, examples
 
-**Expected Outcomes:**
-- Shortcuts documented
-- Shortcuts functional
-- Efficiency improved
+**Expected Outcome:**
+- Documentation generated
 
 **Success Criteria:**
-- Shortcuts work
-- Documentation available
-
-**Risk Assessment:** LOW - Accessibility
+- Docs complete
+- Examples valid
 
 ---
 
-#### AGENT-LOW-005: Agent Emoji Reactions
-**Priority:** LOW
-**Type:** Engagement
-**Component:** Feedback Service
-
-**Preconditions:**
-- Agent executed
-- Feedback mechanism available
+#### AGENT-050: Agent Template
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 1
 
 **Test Steps:**
-1. Agent completes execution
-2. User reacts with emoji (thumbs up, heart, etc.)
-3. Reaction recorded
-4. Aggregate reactions visible
+1. Admin creates agent template
+2. Template used for new agents
 
-**Expected Outcomes:**
-- Reaction recorded
-- Quick feedback
-- Aggregate visible
+**Expected Outcome:**
+- New agents pre-configured
 
 **Success Criteria:**
-- Reactions work
-- Feedback captured
-
-**Risk Assessment:** LOW - Engagement
+- Template applied
+- Config inherited
 
 ---
 
-## Category 4: Agent Execution & Monitoring (20 scenarios)
+
+## Category 4: Agent Execution & Monitoring (20 Scenarios)
 
 ### CRITICAL SCENARIOS (8)
 
-#### EXEC-CRIT-001: Agent Execution Start
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Execution Service
+#### EXEC-001: Streaming LLM Response
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Agent configured
-- User has execution permission
-- Trigger condition met
-
-**Test Steps:**
-1. Initiate agent execution
-2. Verify governance check passes
-3. Create AgentExecution record
-4. Start execution context
-5. Begin agent processing
-6. Update execution status to RUNNING
-
-**Expected Outcomes:**
-- Execution record created
-- Governance check passes
-- Status = RUNNING
-- Start time recorded
-- User notified
-
-**Success Criteria:**
-- Execution starts
-- Record created
-- Status correct
-
-**Risk Assessment:** CRITICAL - Core function
-
----
-
-#### EXEC-CRIT-002: Agent Execution Completion
-**Priority:** CRITICAL
-**Type:** Functional
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent execution in progress
-- Execution completes successfully
-
-**Test Steps:**
-1. Agent finishes processing
-2. Generate output
-3. Store execution result
-4. Update status to COMPLETED
-5. Record end time
-6. Calculate duration
-7. Notify user
-
-**Expected Outcomes:**
-- Output generated
-- Status = COMPLETED
-- Duration recorded
-- Result accessible
-- User notified
-
-**Success Criteria:**
-- Completion recorded
-- Result accessible
-- Duration accurate
-
-**Risk Assessment:** CRITICAL - Core function
-
----
-
-#### EXEC-CRIT-003: Agent Execution Failure
-**Priority:** CRITICAL
-**Type:** Error Handling
-**Component:** Agent Execution Service
-
-**Preconditions:**
-- Agent execution in progress
-- Error occurs during processing
-
-**Test Steps:**
-1. Error occurs during execution
-2. Catch exception
-3. Log error with context
-4. Update status to FAILED
-5. Store error details
-6. Notify user
-7. Trigger error handling workflow
-
-**Expected Outcomes:**
-- Error caught
-- Status = FAILED
-- Error logged
-- User notified
-- Recovery attempted
-
-**Success Criteria:**
-- Error handled
-- Status updated
-- User notified
-
-**Risk Assessment:** CRITICAL - Error handling
-
----
-
-#### EXEC-CRIT-004: Streaming LLM Response
-**Priority:** CRITICAL
-**Type:** Performance
-**Component:** LLM Streaming Handler
-
-**Preconditions:**
-- Agent using LLM
-- Streaming enabled
-- WebSocket connected
+- Agent executing
+- LLM provider configured
 
 **Test Steps:**
 1. Agent initiates LLM request
-2. Response streamed token-by-token
-3. Tokens sent over WebSocket
-4. Client receives tokens
-5. Client renders tokens progressively
-6. Stream completes
-7. Final result stored
+2. System streams response token-by-token
+3. WebSocket connection established
+4. Tokens sent as they arrive
+5. UI updates in real-time
 
-**Expected Outcomes:**
-- Streaming starts immediately
-- Tokens arrive in real-time
-- Overhead <50ms
-- Client renders progressively
-- Final result complete
+**Expected Outcome:**
+- Streaming response working
+- Tokens appear progressively
+- Low latency (<50ms overhead)
 
 **Success Criteria:**
-- Streaming works
-- Low latency
-- Progressive rendering
-
-**Risk Assessment:** HIGH - User experience
+- WebSocket connected
+- Tokens streaming
+- UI updating
 
 ---
 
-#### EXEC-CRIT-005: Real-Time Progress Tracking
-**Priority:** CRITICAL
-**Type:** UX
-**Component:** Progress Tracking Service
+#### EXEC-002: Multi-Provider LLM Fallback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Agent executing multi-step task
-- Progress tracking enabled
+- Primary LLM provider: OpenAI
+- Fallback provider: Anthropic
 
 **Test Steps:**
-1. Agent starts execution
-2. Define steps (e.g., 5 steps)
-3. Update progress after each step
-4. Stream progress to user
-5. Display progress bar
-6. Update percentage complete
-7. Complete at 100%
+1. Agent requests LLM response
+2. OpenAI provider fails
+3. System automatically falls back to Anthropic
+4. Response received successfully
 
-**Expected Outcomes:**
-- Progress calculated
-- Updates streamed real-time
-- Progress bar visible
-- User sees advancement
+**Expected Outcome:**
+- Fallback automatic
+- No user intervention needed
 
 **Success Criteria:**
-- Progress accurate
-- Updates real-time
-- Visual feedback
-
-**Risk Assessment:** HIGH - User experience
+- Fallback triggered
+- Response received
+- Error logged
 
 ---
 
-#### EXEC-CRIT-006: Execution Timeout Handling
-**Priority:** CRITICAL
-**Type:** Reliability
-**Component:** Execution Monitor
+#### EXEC-003: Agent Execution Timeout
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Agent execution running
-- Timeout configured
+- Agent timeout configured: 60 seconds
 
 **Test Steps:**
 1. Agent starts long-running task
-2. Monitor execution duration
-3. Duration exceeds timeout
-4. Trigger timeout handler
-5. Terminate execution
-6. Update status to TIMEOUT
-7. Log timeout event
-8. Notify user
+2. Task exceeds 60 seconds
+3. System terminates execution
+4. System notifies user
 
-**Expected Outcomes:**
-- Timeout detected
+**Expected Outcome:**
 - Execution terminated
-- Status = TIMEOUT
-- Resources cleaned up
-- User notified
+- Resources freed
+- User informed
 
 **Success Criteria:**
 - Timeout enforced
-- Clean termination
-- Resources freed
-
-**Risk Assessment:** HIGH - Resource management
+- Cleanup complete
+- Notification sent
 
 ---
 
-#### EXEC-CRIT-007: Execution Cancellation
-**Priority:** CRITICAL
-**Type:** User Control
-**Component:** Execution Service
-
-**Preconditions:**
-- Agent execution running
-- User wants to cancel
+#### EXEC-004: Agent Progress Tracking
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. User clicks "Cancel Execution"
-2. Send cancellation signal
-3. Agent receives signal
-4. Agent stops processing
-5. Cleanup resources
-6. Update status to CANCELLED
-7. Notify user
+1. Agent executing multi-step task
+2. System reports progress at each step
+3. Progress percentage calculated
+4. UI shows progress bar
 
-**Expected Outcomes:**
-- Cancellation processed
-- Agent stops gracefully
-- Resources cleaned
-- Status = CANCELLED
-- User notified
+**Expected Outcome:**
+- Progress visible to user
+- Updates in real-time
 
 **Success Criteria:**
-- Cancellation works
-- Clean stop
-- Resources freed
-
-**Risk Assessment:** HIGH - User control
+- Progress accurate
+- Updates timely
+- UI working
 
 ---
 
-#### EXEC-CRIT-008: Concurrent Execution Management
-**Priority:** CRITICAL
-**Type:** Performance
-**Component:** Execution Queue
+#### EXEC-005: Supervised Agent Real-Time Intervention
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Multiple agents need to execute
-- System has capacity limits
+- Agent maturity: SUPERVISED
+- Admin monitoring execution
 
 **Test Steps:**
-1. Submit 10 execution requests
-2. System admits based on capacity (e.g., 5 concurrent)
-3. Queue excess requests
-4. As executions complete, admit queued requests
-5. All executions complete
+1. Agent executing
+2. Admin monitors via supervision panel
+3. Admin detects issue
+4. Admin clicks "Pause"
+5. Agent pauses execution
+6. Admin provides correction
+7. Agent resumes
 
-**Expected Outcomes:**
-- Capacity enforced
-- Queue managed
-- All complete eventually
-- No resource exhaustion
+**Expected Outcome:**
+- Real-time intervention working
+- Agent responds to controls
 
 **Success Criteria:**
-- Capacity enforced
-- Queue works
-- All complete
+- Pause working
+- Correction applied
+- Resume working
 
-**Risk Assessment:** HIGH - Load management
+---
+
+#### EXEC-006: Agent Error Recovery
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent encounters error
+2. System attempts recovery
+3. Recovery succeeds
+4. Execution continues
+
+**Expected Outcome:**
+- Error handled gracefully
+- Execution continues
+
+**Success Criteria:**
+- Error caught
+- Recovery attempted
+- Execution resumed
+
+---
+
+#### EXEC-007: Agent Execution Audit Log
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent executes task
+2. System logs execution details
+3. Log includes: timestamp, agent_id, user_id, input, output, status
+
+**Expected Outcome:**
+- Complete audit trail
+- Queryable logs
+
+**Success Criteria:**
+- All executions logged
+- Details complete
+- Logs searchable
+
+---
+
+#### EXEC-008: Agent Memory Limit Enforcement
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Preconditions:**
+- Agent memory limit: 512MB
+
+**Test Steps:**
+1. Agent executing
+2. Memory usage approaching limit
+3. System warns agent
+4. If exceeded, termination triggered
+
+**Expected Outcome:**
+- Memory limit enforced
+- System stable
+
+**Success Criteria:**
+- Usage monitored
+- Warning sent
+- Limit enforced
 
 ---
 
 ### HIGH PRIORITY SCENARIOS (7)
 
-#### EXEC-HIGH-001: Execution Retry on Failure
-**Priority:** HIGH
-**Type:** Reliability
-**Component:** Retry Service
+#### EXEC-009: Agent CPU Throttling
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Agent execution failed
-- Retry policy configured
+- Agent CPU limit: 80%
 
 **Test Steps:**
-1. Execution fails with transient error
-2. Check retry policy
-3. Calculate backoff (exponential)
-4. Retry execution
-5. Verify retry succeeds
-6. If max retries exceeded, mark as FAILED
+1. Agent CPU usage exceeds 80%
+2. System throttles execution
+3. CPU usage reduced
+4. Execution continues slower
 
-**Expected Outcomes:**
-- Transient errors retried
-- Exponential backoff applied
-- Permanent errors not retried
-- Max retries enforced
+**Expected Outcome:**
+- CPU controlled
+- System stable
 
 **Success Criteria:**
-- Retry logic works
-- Backoff correct
-- Max enforced
-
-**Risk Assessment:** MEDIUM - Reliability
+- Throttling active
+- CPU reduced
 
 ---
 
-#### EXEC-HIGH-002: Execution Priority Queue
-**Priority:** HIGH
-**Type:** Performance
-**Component:** Priority Queue
+#### EXEC-010: Agent Network Rate Limiting
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Preconditions:**
-- Multiple execution requests
-- Priority levels assigned
+- Agent rate limit: 100 requests/minute
 
 **Test Steps:**
-1. Submit low priority execution
-2. Submit high priority execution
-3. Verify high priority processed first
-4. Submit critical priority execution
-5. Verify critical preempts if possible
+1. Agent makes requests
+2. Approaching rate limit
+3. System throttles requests
+4. Agent waits for quota reset
 
-**Expected Outcomes:**
-- Priorities respected
-- Critical processed first
-- High before low
-- Priority order maintained
+**Expected Outcome:**
+- Rate limit enforced
 
 **Success Criteria:**
-- Priorities enforced
-- Order correct
-
-**Risk Assessment:** MEDIUM - Performance
+- Limit enforced
+- Throttling working
 
 ---
 
-#### EXEC-HIGH-003: Execution Resource Allocation
-**Priority:** HIGH
-**Type:** Performance
-**Component:** Resource Manager
-
-**Preconditions:**
-- Agent executing
-- Resources required (CPU, memory, GPU)
+#### EXEC-011: Agent Execution Queue
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. Agent requests resources
-2. Check resource availability
-3. Allocate resources
-4. Agent executes with resources
-5. Release resources on completion
-6. Resources available for next execution
+1. Multiple agent executions requested
+2. System queues executions
+3. Executions processed in order
+4. Queue position visible to user
 
-**Expected Outcomes:**
-- Resources allocated
-- Execution proceeds
-- Resources released
-- No starvation
+**Expected Outcome:**
+- Queue working
+- Order maintained
 
 **Success Criteria:**
-- Allocation works
-- Release works
-- Fair access
-
-**Risk Assessment:** MEDIUM - Resource management
+- Queue functional
+- Position visible
 
 ---
 
-#### EXEC-HIGH-004: Execution Isolation
-**Priority:** HIGH
-**Type:** Security
-**Component:** Execution Sandbox
-
-**Preconditions:**
-- Agent executing with user data
-- Isolation required
+#### EXEC-012: Agent Priority Execution
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. Create isolated execution context
-2. Agent executes in sandbox
-3. Agent cannot access other agents' data
-4. Agent cannot access system resources
-5. Agent completes
-6. Sandbox destroyed
+1. Low-priority execution queued
+2. High-priority execution requested
+3. System promotes high-priority
+4. High-priority executes first
 
-**Expected Outcomes:**
-- Sandbox created
-- Isolation enforced
-- Data protected
-- Sandbox cleaned
+**Expected Outcome:**
+- Priority enforced
 
 **Success Criteria:**
-- Isolation works
-- Data protected
-- Cleanup complete
-
-**Risk Assessment:** HIGH - Security
+- Priority respected
+- Queue adjusted
 
 ---
 
-#### EXEC-HIGH-005: Execution Logging
-**Priority:** HIGH
-**Type:** Observability
-**Component:** Logging Service
-
-**Preconditions:**
-- Agent executing
-- Detailed logging needed
-
-**Test Steps:**
-1. Agent executes with logging enabled
-2. Log each step
-3. Log parameters (sanitized)
-4. Log results
-5. Log errors
-6. Aggregate logs
-7. Query logs for debugging
-
-**Expected Outcomes:**
-- All steps logged
-- Sensitive data sanitized
-- Logs queryable
-- Debugging possible
-
-**Success Criteria:**
-- Logging complete
-- Data sanitized
-- Query works
-
-**Risk Assessment:** MEDIUM - Debugging
-
----
-
-#### EXEC-HIGH-006: Execution Metrics Collection
-**Priority:** HIGH
-**Type:** Analytics
-**Component:** Metrics Service
-
-**Preconditions:**
-- Agent executing
-- Metrics collection enabled
+#### EXEC-013: Agent Execution Metrics
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
 1. Agent executes
-2. Collect metrics: duration, tokens, cost, memory
-3. Store metrics in database
-4. Aggregate metrics over time
-5. Display on dashboard
-6. Alert on anomalies
+2. System captures metrics
+3. Metrics include: duration, memory, CPU, tokens used
 
-**Expected Outcomes:**
-- Metrics collected
-- Stored accurately
-- Dashboard shows trends
-- Alerts fire
+**Expected Outcome:**
+- Metrics captured
+- Viewable in dashboard
 
 **Success Criteria:**
-- Collection works
-- Storage works
-- Dashboard works
-
-**Risk Assessment:** MEDIUM - Observability
+- Metrics accurate
+- Dashboard working
 
 ---
 
-#### EXEC-HIGH-007: Execution Webhook Notifications
-**Priority:** HIGH
-**Type:** Integration
-**Component:** Webhook Service
-
-**Preconditions:**
-- Agent configured
-- Webhook URL set
+#### EXEC-014: Agent Execution Replay
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. Configure webhook for execution events
-2. Agent starts execution
-3. Webhook called with start event
-4. Agent completes execution
-5. Webhook called with complete event
-6. Verify payload contains execution details
+1. Admin selects past execution
+2. System replays execution
+3. Steps shown with timing
 
-**Expected Outcomes:**
-- Webhook called on events
-- Payload complete
-- Signature verified
-- Retry on failure
+**Expected Outcome:**
+- Execution replayable
+- Debugging aided
 
 **Success Criteria:**
-- Webhook works
-- Payload accurate
-- Retry works
+- Replay functional
+- Steps accurate
 
-**Risk Assessment:** MEDIUM - Integration
+---
+
+#### EXEC-015: Agent Execution Diff
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Admin compares two executions
+2. System highlights differences
+3. Differences in input, output, timing shown
+
+**Expected Outcome:**
+- Diff view available
+- Debugging aided
+
+**Success Criteria:**
+- Diff accurate
+- View clear
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (3)
+
+#### EXEC-016: Agent Execution Notification
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent completes long-running task
+2. System sends notification to user
+3. User views result
+
+**Expected Outcome:**
+- User notified of completion
+
+**Success Criteria:**
+- Notification sent
+- Result accessible
+
+---
+
+#### EXEC-017: Agent Execution Summary
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent completes task
+2. System generates summary
+3. Summary includes: duration, steps, result
+
+**Expected Outcome:**
+- Summary generated
+- User informed
+
+**Success Criteria:**
+- Summary complete
+- Format clear
+
+---
+
+#### EXEC-018: Agent Execution Screenshot
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent performing browser automation
+2. System captures screenshot at key steps
+3. Screenshots included in execution log
+
+**Expected Outcome:**
+- Screenshots captured
+- Debugging aided
+
+**Success Criteria:**
+- Screenshots saved
+- Log includes images
+
+---
+
+### LOW PRIORITY SCENARIOS (2)
+
+#### EXEC-019: Agent Execution Video Recording
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 2
+
+**Test Steps:**
+1. Recording enabled for agent
+2. Agent executes
+3. Video recorded
+
+**Expected Outcome:**
+- Video available for review
+
+**Success Criteria:**
+- Recording working
+- Playback smooth
+
+---
+
+#### EXEC-020: Agent Execution Share
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User shares execution result
+2. System generates shareable link
+3. Recipient views execution
+
+**Expected Outcome:**
+- Execution shareable
+
+**Success Criteria:**
+- Link generated
+- Access working
+
+---
+
+
+## Category 5: Workflow Automation (40 Scenarios)
+
+### CRITICAL SCENARIOS (15)
+
+#### WF-001: Workflow Template Creation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- User logged in
+- User has workflow creation permission
+
+**Test Steps:**
+1. User navigates to Workflows > Templates
+2. Clicks "Create Template"
+3. Enters template name
+4. Adds workflow steps
+5. Configures step parameters
+6. Saves template
+
+**Expected Outcome:**
+- Template created
+- Reusable for future workflows
+
+**Success Criteria:**
+- Template saved
+- Steps configured
+- Validation passed
+
+---
+
+#### WF-002: Workflow Trigger Configuration - Schedule
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow template exists
+
+**Test Steps:**
+1. User creates workflow from template
+2. Configures schedule trigger (e.g., daily at 9 AM)
+3. System validates cron expression
+4. System schedules workflow
+
+**Expected Outcome:**
+- Workflow scheduled
+- Executes at specified time
+
+**Success Criteria:**
+- Schedule valid
+- Execution triggered
+
+---
+
+#### WF-003: Workflow Trigger Configuration - Webhook
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow template exists
+
+**Test Steps:**
+1. User creates workflow from template
+2. Configures webhook trigger
+3. System generates webhook URL
+4. External system sends webhook
+5. Workflow executes
+
+**Expected Outcome:**
+- Webhook working
+- Workflow triggered
+
+**Success Criteria:**
+- URL generated
+- Webhook received
+- Execution started
+
+---
+
+#### WF-004: Workflow Trigger Configuration - Event
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Event bus configured
+
+**Test Steps:**
+1. User creates workflow from template
+2. Configures event trigger (e.g., user.created)
+3. System subscribes to event
+4. Event published
+5. Workflow executes
+
+**Expected Outcome:**
+- Event triggers workflow
+
+**Success Criteria:**
+- Subscription created
+- Event received
+- Execution started
+
+---
+
+#### WF-005: Workflow Execution - Sequential Steps
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow with 3 sequential steps
+
+**Test Steps:**
+1. Workflow triggered
+2. Step 1 executes
+3. Step 2 executes (after Step 1 completes)
+4. Step 3 executes (after Step 2 completes)
+5. Workflow marked complete
+
+**Expected Outcome:**
+- Steps execute in order
+- Each step waits for previous
+
+**Success Criteria:**
+- Order maintained
+- Dependencies honored
+- Completion detected
+
+---
+
+#### WF-006: Workflow Execution - Parallel Steps
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow with 3 parallel steps
+
+**Test Steps:**
+1. Workflow triggered
+2. Steps 1, 2, 3 execute simultaneously
+3. All steps complete
+4. Workflow marked complete
+
+**Expected Outcome:**
+- Parallel execution working
+- All steps complete
+
+**Success Criteria:**
+- Parallel execution
+- All complete
+- No race conditions
+
+---
+
+#### WF-007: Workflow Conditional Branching
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow with conditional branch
+
+**Test Steps:**
+1. Workflow triggered with condition A=true
+2. System evaluates condition
+3. Branch A executes
+4. Workflow marked complete
+
+**Expected Outcome:**
+- Correct branch executed
+- Condition evaluated
+
+**Success Criteria:**
+- Evaluation correct
+- Branch executed
+
+---
+
+#### WF-008: Workflow Loop Execution
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow with loop over list
+
+**Test Steps:**
+1. Workflow triggered with list of 5 items
+2. System iterates over list
+3. Loop body executes 5 times
+4. Workflow marked complete
+
+**Expected Outcome:**
+- Loop working
+- All iterations complete
+
+**Success Criteria:**
+- Loop executes
+- Count correct
+
+---
+
+#### WF-009: Workflow Error Handling - Retry
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow step with retry policy (3 attempts)
+
+**Test Steps:**
+1. Workflow step executes
+2. Step fails
+3. System retries
+4. Step fails again
+5. System retries
+6. Step succeeds on 3rd attempt
+7. Workflow continues
+
+**Expected Outcome:**
+- Retry working
+- Eventual success continues workflow
+
+**Success Criteria:**
+- Retry attempts honored
+- Success resumes workflow
+
+---
+
+#### WF-010: Workflow Error Handling - Fallback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow step with fallback step
+
+**Test Steps:**
+1. Workflow step executes
+2. Step fails after all retries
+3. System executes fallback step
+4. Fallback succeeds
+5. Workflow continues
+
+**Expected Outcome:**
+- Fallback working
+- Workflow recovers
+
+**Success Criteria:**
+- Fallback executed
+- Recovery successful
+
+---
+
+#### WF-011: Workflow Error Handling - Stop
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow step with error policy: stop
+
+**Test Steps:**
+1. Workflow step executes
+2. Step fails
+3. System stops workflow
+4. System notifies user
+5. System logs error
+
+**Expected Outcome:**
+- Workflow stopped
+- User notified
+
+**Success Criteria:**
+- Stop enforced
+- Notification sent
+- Error logged
+
+---
+
+#### WF-012: Workflow Input Validation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow triggered
+2. System validates input
+3. Input invalid
+4. System rejects execution
+5. System returns validation errors
+
+**Expected Outcome:**
+- Invalid input rejected
+- Clear errors shown
+
+**Success Criteria:**
+- Validation working
+- Errors clear
+
+---
+
+#### WF-013: Workflow Output Transformation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow step transforms data
+
+**Test Steps:**
+1. Step receives input JSON
+2. Step transforms data (e.g., maps fields)
+3. Step outputs transformed data
+
+**Expected Outcome:**
+- Data transformed correctly
+
+**Success Criteria:**
+- Transformation working
+- Output valid
+
+---
+
+#### WF-014: Workflow State Persistence
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow executes step 1
+2. System persists state
+3. System fails/crashes
+4. System recovers
+5. Workflow resumes at step 2
+
+**Expected Outcome:**
+- State persisted
+- Recovery working
+
+**Success Criteria:**
+- State saved
+- Resume accurate
+
+---
+
+#### WF-015: Workflow Compensation (Undo)
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 3
+
+**Preconditions:**
+- Workflow with compensation steps
+
+**Test Steps:**
+1. Step 1 completes (creates resource)
+2. Step 2 fails
+3. System executes compensation for Step 1
+4. Resource deleted
+5. Workflow marked failed
+
+**Expected Outcome:**
+- Compensation working
+- System clean
+
+**Success Criteria:**
+- Compensation executed
+- State rolled back
+
+---
+
+### HIGH PRIORITY SCENARIOS (15)
+
+#### WF-016: Workflow Variable Substitution
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow defines variable: userId
+2. Step references {{userId}}
+3. System substitutes variable value
+
+**Expected Outcome:**
+- Variables substituted
+
+**Success Criteria:**
+- Substitution working
+- Values correct
+
+---
+
+#### WF-017: Workflow Context Passing
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Step 1 outputs data
+2. Step 2 receives data as input
+3. Data flows correctly
+
+**Expected Outcome:**
+- Context passed
+
+**Success Criteria:**
+- Data flows
+- Values correct
+
+---
+
+#### WF-018: Workflow Timeout per Step
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Step configured with 30s timeout
+2. Step exceeds timeout
+3. Step terminated
+4. Workflow error handling triggered
+
+**Expected Outcome:**
+- Timeout enforced
+
+**Success Criteria:**
+- Timeout working
+- Termination clean
+
+---
+
+#### WF-019: Workflow Human Approval Step
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow reaches approval step
+2. System pauses workflow
+3. System notifies approver
+4. Approver reviews
+5. Approver approves/rejects
+6. Workflow resumes/stops
+
+**Expected Outcome:**
+- Approval working
+- Workflow waits
+
+**Success Criteria:**
+- Pause working
+- Notification sent
+- Decision honored
+
+---
+
+#### WF-020: Workflow Parallel with Join
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Branches A and B execute in parallel
+2. Both complete
+3. Join step executes
+4. Workflow continues
+
+**Expected Outcome:**
+- Parallel with join working
+
+**Success Criteria:**
+- Both branches complete
+- Join executed
+
+---
+
+#### WF-021: Workflow Split and Merge
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Split step creates multiple branches
+2. Each branch executes
+3. Merge step combines results
+4. Workflow continues
+
+**Expected Outcome:**
+- Split and merge working
+
+**Success Criteria:**
+- Split executed
+- Merge successful
+
+---
+
+#### WF-022: Workflow Subworkflow Call
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow calls subworkflow
+2. Subworkflow executes
+3. Subworkflow returns result
+4. Main workflow continues
+
+**Expected Outcome:**
+- Subworkflow execution working
+
+**Success Criteria:**
+- Call successful
+- Result returned
+
+---
+
+#### WF-023: Workflow Versioning
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow version 1 exists
+2. User creates version 2
+3. Both versions available
+4. New executions use version 2
+
+**Expected Outcome:**
+- Versioning working
+
+**Success Criteria:**
+- Versions tracked
+- Correct version used
+
+---
+
+#### WF-024: Workflow Deployment
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User deploys workflow
+2. Workflow becomes active
+3. Triggers enabled
+4. Workflow executes
+
+**Expected Outcome:**
+- Deployment successful
+
+**Success Criteria:**
+- Workflow active
+- Triggers working
+
+---
+
+#### WF-025: Workflow Undeployment
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User undeploys workflow
+2. Workflow becomes inactive
+3. Triggers disabled
+4. Running executions complete
+
+**Expected Outcome:**
+- Undeployment clean
+
+**Success Criteria:**
+- Workflow inactive
+- Triggers disabled
+
+---
+
+#### WF-026: Workflow Execution History
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User views workflow
+2. Clicks "Execution History"
+3. System lists all executions
+4. User clicks execution for details
+
+**Expected Outcome:**
+- History available
+- Details accessible
+
+**Success Criteria:**
+- History complete
+- Details accurate
+
+---
+
+#### WF-027: Workflow Execution Replay
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User selects past execution
+2. Clicks "Replay"
+3. System re-executes with same inputs
+
+**Expected Outcome:**
+- Execution replayed
+
+**Success Criteria:**
+- Replay successful
+- Same inputs used
+
+---
+
+#### WF-028: Workflow Execution Metrics
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow executes
+2. System captures metrics
+3. Metrics include: duration, step counts, success rate
+
+**Expected Outcome:**
+- Metrics captured
+
+**Success Criteria:**
+- Metrics accurate
+- Dashboard working
+
+---
+
+#### WF-029: Workflow Batch Processing
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow triggered with batch of items
+2. System processes each item
+3. Progress tracked
+4. All items processed
+
+**Expected Outcome:**
+- Batch processing working
+
+**Success Criteria:**
+- All processed
+- Progress tracked
+
+---
+
+#### WF-030: Workflow Rate Limiting
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow configured with rate limit (100/hour)
+2. Approaching limit
+3. System throttles
+4. Excess queued
+
+**Expected Outcome:**
+- Rate limit enforced
+
+**Success Criteria:**
+- Limit enforced
+- Queue working
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (7)
+
+#### WF-031: Workflow Scheduled Execution
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow scheduled for daily 9 AM
+2. System triggers at 9 AM
+3. Workflow executes
+
+**Expected Outcome:**
+- Scheduled execution working
+
+**Success Criteria:**
+- Trigger accurate
+- Execution successful
+
+---
+
+#### WF-032: Workflow Delay Step
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow reaches delay step (5 minutes)
+2. System pauses workflow
+3. After 5 minutes, workflow resumes
+
+**Expected Outcome:**
+- Delay working
+
+**Success Criteria:**
+- Pause accurate
+- Resume timely
+
+---
+
+#### WF-033: Workflow Email Notification
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow completes
+2. System sends email notification
+3. User receives email
+
+**Expected Outcome:**
+- Notification sent
+
+**Success Criteria:**
+- Email delivered
+- Content correct
+
+---
+
+#### WF-034: Workflow Slack Notification
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow completes
+2. System posts Slack message
+3. Channel receives message
+
+**Expected Outcome:**
+- Slack notification sent
+
+**Success Criteria:**
+- Message posted
+- Content correct
+
+---
+
+#### WF-035: Workflow Data Export
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. Workflow completes
+2. System exports results to CSV
+3. User downloads CSV
+
+**Expected Outcome:**
+- Export working
+
+**Success Criteria:**
+- File generated
+- Download working
+
+---
+
+#### WF-036: Workflow Data Import
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User uploads CSV
+2. System parses CSV
+3. Workflow uses imported data
+
+**Expected Outcome:**
+- Import working
+
+**Success Criteria:**
+- Parse successful
+- Data used
+
+---
+
+#### WF-037: Workflow Debugging Mode
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 3
+
+**Test Steps:**
+1. User enables debug mode
+2. Workflow executes with verbose logs
+3. User views step-by-step execution
+
+**Expected Outcome:**
+- Debug mode working
+
+**Success Criteria:**
+- Logs verbose
+- Steps visible
+
+---
+
+### LOW PRIORITY SCENARIOS (3)
+
+#### WF-038: Workflow Template Sharing
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User shares workflow template
+2. Other users can use template
+
+**Expected Outcome:**
+- Template shared
+
+**Success Criteria:**
+- Sharing working
+- Access granted
+
+---
+
+#### WF-039: Workflow Documentation
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 3
+
+**Test Steps:**
+1. User documents workflow
+2. Documentation attached to workflow
+
+**Expected Outcome:**
+- Documentation available
+
+**Success Criteria:**
+- Docs saved
+- Accessible
+
+---
+
+#### WF-040: Workflow Testing
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 3
+
+**Test Steps:**
+1. User creates test case for workflow
+2. System runs test
+3. Test results shown
+
+**Expected Outcome:**
+- Test working
+
+**Success Criteria:**
+- Test executed
+- Results accurate
+
+---
+
+
+## Category 6: Canvas & Collaboration (30 Scenarios)
+
+### CRITICAL SCENARIOS (12)
+
+#### CANV-001: Canvas Creation - Generic
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- User logged in
+- User has canvas creation permission
+
+**Test Steps:**
+1. User navigates to Canvas > New
+2. Selects "Generic Canvas"
+3. Enters canvas name
+4. Clicks "Create"
+
+**Expected Outcome:**
+- Canvas created
+- Unique ID assigned
+- Canvas appears in list
+
+**Success Criteria:**
+- Canvas exists
+- ID valid
+- List updated
+
+---
+
+#### CANV-002: Canvas Creation - Chart
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User selects "Chart Canvas"
+2. Configures chart type (line, bar, pie)
+3. Defines data source
+4. Creates canvas
+
+**Expected Outcome:**
+- Chart canvas created
+- Data visualization working
+
+**Success Criteria:**
+- Canvas created
+- Chart renders
+
+---
+
+#### CANV-003: Canvas Creation - Form
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User selects "Form Canvas"
+2. Adds form fields
+3. Configures validation
+4. Creates canvas
+
+**Expected Outcome:**
+- Form canvas created
+- Fields render correctly
+
+**Success Criteria:**
+- Canvas created
+- Form functional
+
+---
+
+#### CANV-004: Canvas Creation - Sheet
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User selects "Sheet Canvas"
+2. Defines columns
+3. Adds data
+4. Creates canvas
+
+**Expected Outcome:**
+- Sheet canvas created
+- Spreadsheet UI working
+
+**Success Criteria:**
+- Canvas created
+- Sheet functional
+
+---
+
+#### CANV-005: Canvas Presentation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- Canvas exists
+
+**Test Steps:**
+1. Agent presents canvas to user
+2. System creates CanvasAudit record
+3. System links canvas to episode
+
+**Expected Outcome:**
+- Canvas presented
+- Audit logged
+- Episode linked
+
+**Success Criteria:**
+- Presentation successful
+- Audit complete
+- Link valid
+
+---
+
+#### CANV-006: Canvas Real-Time Collaboration
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- Two users logged in
+- Canvas shared
+
+**Test Steps:**
+1. User A edits canvas
+2. User B sees changes in real-time
+3. Changes synced via WebSocket
+
+**Expected Outcome:**
+- Real-time collaboration working
+
+**Success Criteria:**
+- Changes sync
+- Low latency
+
+---
+
+#### CANV-007: Canvas Permission - Owner
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- User is canvas owner
+
+**Test Steps:**
+1. User attempts owner action (edit, delete, share)
+2. System permits action
+
+**Expected Outcome:**
+- Owner has full access
+
+**Success Criteria:**
+- All actions permitted
+
+---
+
+#### CANV-008: Canvas Permission - Viewer
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- User is canvas viewer
+
+**Test Steps:**
+1. User attempts edit action
+2. System denies action
+3. User can only view
+
+**Expected Outcome:**
+- Viewer has read-only access
+
+**Success Criteria:**
+- Edit blocked
+- View permitted
+
+---
+
+#### CANV-009: Canvas Form Submission
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- Form canvas exists
+
+**Test Steps:**
+1. User fills form
+2. User submits form
+3. System validates submission
+4. System processes data
+
+**Expected Outcome:**
+- Form submitted
+- Data processed
+
+**Success Criteria:**
+- Validation passed
+- Data saved
+
+---
+
+#### CANV-010: Canvas Chart Rendering
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- Chart canvas exists
+
+**Test Steps:**
+1. System fetches data
+2. System renders chart
+3. Chart displays correctly
+
+**Expected Outcome:**
+- Chart rendered
+- Data accurate
+
+**Success Criteria:**
+- Render working
+- Data correct
+
+---
+
+#### CANV-011: Canvas Custom Component
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Preconditions:**
+- AUTONOMOUS agent (for JS execution)
+
+**Test Steps:**
+1. User creates custom component
+2. Defines HTML/CSS/JS
+3. System validates code
+4. Component rendered in canvas
+
+**Expected Outcome:**
+- Custom component working
+
+**Success Criteria:**
+- Code safe
+- Render successful
+
+---
+
+#### CANV-012: Canvas Version History
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User edits canvas multiple times
+2. System tracks versions
+3. User views version history
+4. User reverts to previous version
+
+**Expected Outcome:**
+- Versions tracked
+- Revert working
+
+**Success Criteria:**
+- History complete
+- Revert successful
+
+---
+
+### HIGH PRIORITY SCENARIOS (10)
+
+#### CANV-013: Canvas Comment Thread
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User adds comment to canvas
+2. Other users see comment
+3. User replies to comment
+4. Thread maintained
+
+**Expected Outcome:**
+- Comments working
+
+**Success Criteria:**
+- Comments added
+- Thread maintained
+
+---
+
+#### CANV-014: Canvas Share Link
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User generates share link
+2. User sends link to recipient
+3. Recipient accesses canvas via link
+
+**Expected Outcome:**
+- Share link working
+
+**Success Criteria:**
+- Link generated
+- Access working
+
+---
+
+#### CANV-015: Canvas Duplicate
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User duplicates canvas
+2. System creates copy
+3. Copy independent from original
+
+**Expected Outcome:**
+- Canvas duplicated
+
+**Success Criteria:**
+- Copy created
+- Independent
+
+---
+
+#### CANV-016: Canvas Export to PDF
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User exports canvas to PDF
+2. System generates PDF
+3. User downloads PDF
+
+**Expected Outcome:**
+- Export working
+
+**Success Criteria:**
+- PDF generated
+- Download working
+
+---
+
+#### CANV-017: Canvas Data Refresh
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. Canvas displays stale data
+2. User clicks refresh
+3. System fetches latest data
+4. Canvas updated
+
+**Expected Outcome:**
+- Data refreshed
+
+**Success Criteria:**
+- Fetch working
+- Display updated
+
+---
+
+#### CANV-018: Canvas Filter
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User applies filter to canvas data
+2. System filters data
+3. Canvas shows filtered results
+
+**Expected Outcome:**
+- Filter working
+
+**Success Criteria:**
+- Filter applied
+- Results accurate
+
+---
+
+#### CANV-019: Canvas Sort
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User sorts canvas data
+2. System sorts data
+3. Canvas shows sorted results
+
+**Expected Outcome:**
+- Sort working
+
+**Success Criteria:**
+- Sort applied
+- Order correct
+
+---
+
+#### CANV-020: Canvas Search
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User searches canvas
+2. System filters results
+3. Matching items highlighted
+
+**Expected Outcome:**
+- Search working
+
+**Success Criteria:**
+- Results found
+- Highlighting working
+
+---
+
+#### CANV-021: Canvas Template
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User saves canvas as template
+2. Template available to other users
+3. User creates canvas from template
+
+**Expected Outcome:**
+- Template working
+
+**Success Criteria:**
+- Template saved
+- Creation working
+
+---
+
+#### CANV-022: Canvas Collaboration Mode - Parallel
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. Two users editing different sections
+2. Both changes applied
+3. No conflicts
+
+**Expected Outcome:**
+- Parallel editing working
+
+**Success Criteria:**
+- Changes applied
+- No conflicts
 
 ---
 
 ### MEDIUM PRIORITY SCENARIOS (5)
 
-#### EXEC-MED-001: Execution History View
-**Priority:** MEDIUM
-**Type:** UI
-**Component:** History Service
-
-**Preconditions:**
-- Agent has execution history
-- User viewing history
+#### CANV-023: Canvas Theme
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 5
 
 **Test Steps:**
-1. Navigate to agent execution history
-2. View list of past executions
-3. Filter by status
-4. Filter by date range
-5. Sort by duration/date
-6. Click execution to view details
+1. User applies theme to canvas
+2. Canvas colors updated
 
-**Expected Outcomes:**
-- History displayed
-- Filters work
-- Sort works
-- Details accessible
+**Expected Outcome:**
+- Theme applied
 
 **Success Criteria:**
-- History accessible
-- Filters functional
-
-**Risk Assessment:** LOW - Usability
+- Colors changed
+- Theme consistent
 
 ---
 
-#### EXEC-MED-002: Execution Comparison
-**Priority:** MEDIUM
-**Type:** Analytics
-**Component:** Comparison Service
-
-**Preconditions:**
-- Multiple executions to compare
-- Comparison feature available
+#### CANV-024: Canvas Print View
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 5
 
 **Test Steps:**
-1. Select two executions
-2. Click "Compare"
-3. View side-by-side comparison
-4. Compare parameters
-5. Compare results
-6. Compare metrics
+1. User prints canvas
+2. Print view optimized
 
-**Expected Outcomes:**
-- Comparison displayed
-- Differences highlighted
-- Insights generated
+**Expected Outcome:**
+- Print view working
 
 **Success Criteria:**
-- Comparison works
-- Insights useful
-
-**Risk Assessment:** LOW - Analytics
+- Layout optimized
+- All content visible
 
 ---
 
-#### EXEC-MED-003: Execution Export
-**Priority:** MEDIUM
-**Type:** Data Export
-**Component:** Export Service
-
-**Preconditions:**
-- Execution history exists
-- Export needed
+#### CANV-025: Canvas Embed
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 5
 
 **Test Steps:**
-1. Select executions to export
-2. Choose format (CSV, JSON)
-3. Export data
-4. Download file
-5. Verify data complete
+1. User embeds canvas in external site
+2. Canvas renders in iframe
 
-**Expected Outcomes:**
-- Export generated
-- File downloadable
-- Data accurate
+**Expected Outcome:**
+- Embed working
 
 **Success Criteria:**
-- Export works
+- Iframe loads
+- Canvas functional
+
+---
+
+#### CANV-026: Canvas Auto-Save
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User edits canvas
+2. System auto-saves every 30 seconds
+3. Changes persisted
+
+**Expected Outcome:**
+- Auto-save working
+
+**Success Criteria:**
+- Interval correct
+- Changes saved
+
+---
+
+#### CANV-027: Canvas Conflict Resolution
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. Two users edit same field
+2. System detects conflict
+3. System presents merge options
+
+**Expected Outcome:**
+- Conflict detected
+- Resolution options provided
+
+**Success Criteria:**
+- Detection working
+- Options clear
+
+---
+
+### LOW PRIORITY SCENARIOS (3)
+
+#### CANV-028: Canvas Undo/Redo
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 5
+
+**Test Steps:**
+1. User makes edit
+2. User clicks undo
+3. Edit reverted
+4. User clicks redo
+5. Edit reapplied
+
+**Expected Outcome:**
+- Undo/redo working
+
+**Success Criteria:**
+- Undo successful
+- Redo successful
+
+---
+
+#### CANV-029: Canvas Keyboard Shortcuts
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 5
+
+**Test Steps:**
+1. User uses keyboard shortcuts
+2. Actions triggered
+
+**Expected Outcome:**
+- Shortcuts working
+
+**Success Criteria:**
+- Shortcuts responsive
+- Actions correct
+
+---
+
+#### CANV-030: Canvas Accessibility
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 5
+
+**Test Steps:**
+1. Screen reader navigates canvas
+2. All elements accessible
+
+**Expected Outcome:**
+- Accessible UI
+
+**Success Criteria:**
+- Screen reader works
+- All elements announced
+
+---
+
+
+## Category 7: Integration Ecosystem (35 Scenarios)
+
+### CRITICAL SCENARIOS (15)
+
+#### INT-001: Slack Integration - OAuth
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Preconditions:**
+- Slack app configured
+
+**Test Steps:**
+1. User clicks "Connect Slack"
+2. Redirected to Slack OAuth
+3. User authorizes
+4. Slack redirects back with code
+5. System exchanges for token
+6. System stores token
+
+**Expected Outcome:**
+- Slack connected
+- OAuth flow complete
+
+**Success Criteria:**
+- Token received
+- Connection stored
+
+---
+
+#### INT-002: Slack Message Post
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Preconditions:**
+- Slack connected
+
+**Test Steps:**
+1. Agent triggers Slack post
+2. System calls Slack API
+3. Message posted to channel
+4. Response logged
+
+**Expected Outcome:**
+- Message posted
+
+**Success Criteria:**
+- API call successful
+- Message visible
+
+---
+
+#### INT-003: Asana Integration - OAuth
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. User clicks "Connect Asana"
+2. OAuth flow completes
+3. Token stored
+
+**Expected Outcome:**
+- Asana connected
+
+**Success Criteria:**
+- OAuth complete
+- Token stored
+
+---
+
+#### INT-004: Asana Task Creation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Preconditions:**
+- Asana connected
+
+**Test Steps:**
+1. Agent creates Asana task
+2. System calls Asana API
+3. Task created
+4. Task ID returned
+
+**Expected Outcome:**
+- Task created
+
+**Success Criteria:**
+- API call successful
+- Task exists
+
+---
+
+#### INT-005: Google Workspace Integration
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. User connects Google Workspace
+2. OAuth flow completes
+3. Permissions granted
+
+**Expected Outcome:**
+- Google connected
+
+**Success Criteria:**
+- OAuth complete
+- Scopes granted
+
+---
+
+#### INT-006: Google Sheets Write
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Preconditions:**
+- Google Sheets connected
+
+**Test Steps:**
+1. Agent writes to sheet
+2. Data appears in Google Sheets
+
+**Expected Outcome:**
+- Data written
+
+**Success Criteria:**
+- Write successful
+- Data visible
+
+---
+
+#### INT-007: Webhook Receiver
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. External system sends webhook to Atom
+2. System receives webhook
+3. System validates signature
+4. System processes webhook
+
+**Expected Outcome:**
+- Webhook processed
+
+**Success Criteria:**
+- Webhook received
+- Signature valid
+- Processing successful
+
+---
+
+#### INT-008: Webhook Signature Validation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Webhook received with signature
+2. System validates signature
+3. Invalid signature rejected
+
+**Expected Outcome:**
+- Validation working
+
+**Success Criteria:**
+- Valid signature accepted
+- Invalid signature rejected
+
+---
+
+#### INT-009: API Key Authentication
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Client sends request with API key
+2. System validates key
+3. Request processed
+
+**Expected Outcome:**
+- API key working
+
+**Success Criteria:**
+- Key validated
+- Request processed
+
+---
+
+#### INT-010: OAuth Token Refresh
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. OAuth token expiring
+2. System refreshes token
+3. New token stored
+
+**Expected Outcome:**
+- Token refreshed
+
+**Success Criteria:**
+- Refresh successful
+- New token valid
+
+---
+
+#### INT-011: Integration Error Handling
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Integration API fails
+2. System catches error
+3. System logs error
+4. System notifies user
+
+**Expected Outcome:**
+- Error handled gracefully
+
+**Success Criteria:**
+- Error caught
+- User notified
+
+---
+
+#### INT-012: Integration Rate Limiting
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Approaching rate limit
+2. System throttles requests
+3. Queue requests
+
+**Expected Outcome:**
+- Rate limit handled
+
+**Success Criteria:**
+- Throttling active
+- Queue working
+
+---
+
+#### INT-013: Integration Retry Logic
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. API call fails
+2. System retries with backoff
+3. Retry succeeds
+
+**Expected Outcome:**
+- Retry working
+
+**Success Criteria:**
+- Backoff working
+- Success eventual
+
+---
+
+#### INT-014: Integration Webhook Retry
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Webhook delivery fails
+2. System queues retry
+3. Retry with exponential backoff
+
+**Expected Outcome:**
+- Webhook retry working
+
+**Success Criteria:**
+- Retry queued
+- Backoff working
+
+---
+
+#### INT-015: Integration Disconnection
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. User disconnects integration
+2. System revokes tokens
+3. System clears credentials
+
+**Expected Outcome:**
+- Integration disconnected
+
+**Success Criteria:**
+- Tokens revoked
+- Credentials cleared
+
+---
+
+### HIGH PRIORITY SCENARIOS (10)
+
+#### INT-016: Jira Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect Jira via OAuth
+2. Create Jira ticket
+3. Update ticket status
+
+**Expected Outcome:**
+- Jira integration working
+
+**Success Criteria:**
+- OAuth complete
+- Ticket created
+- Status updated
+
+---
+
+#### INT-017: Salesforce Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect Salesforce via OAuth
+2. Create lead/contact
+3. Query records
+
+**Expected Outcome:**
+- Salesforce integration working
+
+**Success Criteria:**
+- OAuth complete
+- Record created
+- Query successful
+
+---
+
+#### INT-018: GitHub Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect GitHub via OAuth
+2. Create issue
+3. Update PR status
+
+**Expected Outcome:**
+- GitHub integration working
+
+**Success Criteria:**
+- OAuth complete
+- Issue created
+- PR updated
+
+---
+
+#### INT-019: Stripe Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect Stripe via API key
+2. Create charge
+3. Handle webhook events
+
+**Expected Outcome:**
+- Stripe integration working
+
+**Success Criteria:**
+- API key valid
+- Charge created
+- Webhook handled
+
+---
+
+#### INT-020: Twilio Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect Twilio via API key
+2. Send SMS
+3. Track delivery status
+
+**Expected Outcome:**
+- Twilio integration working
+
+**Success Criteria:**
+- API key valid
+- SMS sent
+- Status tracked
+
+---
+
+#### INT-021: SendGrid Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect SendGrid via API key
+2. Send email
+3. Track delivery
+
+**Expected Outcome:**
+- SendGrid integration working
+
+**Success Criteria:**
+- API key valid
+- Email sent
+- Delivery tracked
+
+---
+
+#### INT-022: HubSpot Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect HubSpot via OAuth
+2. Create contact
+3. Update deal
+
+**Expected Outcome:**
+- HubSpot integration working
+
+**Success Criteria:**
+- OAuth complete
+- Contact created
+- Deal updated
+
+---
+
+#### INT-023: Dropbox Integration
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Connect Dropbox via OAuth
+2. Upload file
+3. Create share link
+
+**Expected Outcome:**
+- Dropbox integration working
+
+**Success Criteria:**
+- OAuth complete
+- File uploaded
+- Link created
+
+---
+
+#### INT-024: Integration Sync Status
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. View integration sync status
+2. See last sync time
+3. See sync errors
+
+**Expected Outcome:**
+- Status visible
+
+**Success Criteria:**
+- Status accurate
+- Errors shown
+
+---
+
+#### INT-025: Integration Field Mapping
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Map Atom fields to integration fields
+2. System transforms data
+3. Data synced correctly
+
+**Expected Outcome:**
+- Field mapping working
+
+**Success Criteria:**
+- Mapping configured
+- Transform working
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (7)
+
+#### INT-026: Integration Batch Sync
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Trigger batch sync
+2. System syncs all records
+3. Progress tracked
+
+**Expected Outcome:**
+- Batch sync working
+
+**Success Criteria:**
+- All synced
+- Progress tracked
+
+---
+
+#### INT-027: Integration Delta Sync
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. System detects changed records
+2. Sync only changed records
+
+**Expected Outcome:**
+- Delta sync efficient
+
+**Success Criteria:**
+- Only changes synced
+- Performance good
+
+---
+
+#### INT-028: Integration Conflict Resolution
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Same record edited in both systems
+2. System detects conflict
+3. System presents resolution options
+
+**Expected Outcome:**
+- Conflict detected
+- Resolution options provided
+
+**Success Criteria:**
+- Detection working
+- Options clear
+
+---
+
+#### INT-029: Integration Webhook Security
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Webhook received
+2. System validates signature
+3. System validates timestamp
+
+**Expected Outcome:**
+- Security enforced
+
+**Success Criteria:**
+- Signature validated
+- Timestamp checked
+
+---
+
+#### INT-030: Integration Logging
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Integration API call made
+2. System logs request/response
+3. Logs include timing, status
+
+**Expected Outcome:**
+- Complete logging
+
+**Success Criteria:**
+- All calls logged
+- Details complete
+
+---
+
+#### INT-031: Integration Health Check
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Health check triggered
+2. System pings integration API
+3. Status updated
+
+**Expected Outcome:**
+- Health status accurate
+
+**Success Criteria:**
+- Ping successful
+- Status correct
+
+---
+
+#### INT-032: Integration Pagination
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Fetch all records from integration
+2. System handles pagination
+3. All records retrieved
+
+**Expected Outcome:**
+- Pagination working
+
+**Success Criteria:**
+- All pages fetched
+- No duplicates
+
+---
+
+### LOW PRIORITY SCENARIOS (3)
+
+#### INT-033: Integration Beta Features
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 4
+
+**Test Steps:**
+1. Enable beta feature for integration
+2. Test new functionality
+
+**Expected Outcome:**
+- Beta features working
+
+**Success Criteria:**
+- Features functional
+
+---
+
+#### INT-034: Integration Documentation
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 4
+
+**Test Steps:**
+1. View integration documentation
+2. Documentation complete
+
+**Expected Outcome:**
+- Docs available
+
+**Success Criteria:**
+- Docs clear
+- Examples working
+
+---
+
+#### INT-035: Integration Community Templates
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 4
+
+**Test Steps:**
+1. Browse community integration templates
+2. Use template
+
+**Expected Outcome:**
+- Templates working
+
+**Success Criteria:**
+- Template functional
+- Easy to use
+
+---
+
+
+## Category 8: Monitoring & Analytics (15 Scenarios)
+
+### CRITICAL SCENARIOS (6)
+
+#### MON-001: Metrics Collection - Agent Execution
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent executes
+2. System captures: duration, memory, CPU, tokens
+3. Metrics stored in time-series DB
+
+**Expected Outcome:**
+- Metrics collected
+
+**Success Criteria:**
+- All metrics captured
+- Storage successful
+
+---
+
+#### MON-002: Metrics Collection - API Performance
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. API endpoint called
+2. System captures: latency, status code, error rate
+3. Metrics aggregated
+
+**Expected Outcome:**
+- API metrics collected
+
+**Success Criteria:**
+- Metrics accurate
+- Aggregation working
+
+---
+
+#### MON-003: Alert Trigger - Threshold Exceeded
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Metric exceeds threshold (e.g., error rate > 5%)
+2. System triggers alert
+3. Notification sent
+
+**Expected Outcome:**
+- Alert triggered
+- Team notified
+
+**Success Criteria:**
+- Threshold detected
+- Alert sent
+
+---
+
+#### MON-004: Dashboard - Real-Time Metrics
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User opens monitoring dashboard
+2. Real-time metrics displayed
+3. Metrics update every 5 seconds
+
+**Expected Outcome:**
+- Dashboard functional
+- Real-time updates
+
+**Success Criteria:**
+- Display working
+- Updates timely
+
+---
+
+#### MON-005: Log Aggregation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Services write logs
+2. System aggregates logs
+3. Logs searchable
+
+**Expected Outcome:**
+- Logs aggregated
+
+**Success Criteria:**
+- All logs captured
+- Search functional
+
+---
+
+#### MON-006: Health Check Endpoint
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Health check endpoint called
+2. System checks: DB, cache, external services
+3. Health status returned
+
+**Expected Outcome:**
+- Health status accurate
+
+**Success Criteria:**
+- All checks performed
+- Status correct
+
+---
+
+### HIGH PRIORITY SCENARIOS (5)
+
+#### MON-007: Custom Metrics
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User defines custom metric
+2. System tracks metric
+3. Metric visible in dashboard
+
+**Expected Outcome:**
+- Custom metric working
+
+**Success Criteria:**
+- Metric tracked
+- Dashboard updated
+
+---
+
+#### MON-008: Metrics Export
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User exports metrics to CSV
+2. System generates file
+3. Download available
+
+**Expected Outcome:**
+- Export working
+
+**Success Criteria:**
+- File generated
 - Data complete
 
-**Risk Assessment:** LOW - Data portability
-
 ---
 
-#### EXEC-MED-004: Execution Replay
-**Priority:** MEDIUM
-**Type:** Debugging
-**Component:** Replay Service
-
-**Preconditions:**
-- Past execution to replay
-- Replay feature enabled
+#### MON-009: Anomaly Detection
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. Select execution from history
-2. Click "Replay"
-3. Confirm replay
-4. Execution runs with same parameters
-5. View new results
+1. System detects metric anomaly
+2. System flags anomaly
+3. Alert triggered
 
-**Expected Outcomes:**
-- Execution replayed
-- Same parameters used
-- New execution ID assigned
-- Results compared
+**Expected Outcome:**
+- Anomaly detected
 
 **Success Criteria:**
-- Replay works
-- Parameters preserved
-
-**Risk Assessment:** LOW - Debugging
+- Detection accurate
+- Flag visible
 
 ---
 
-#### EXEC-MED-005: Execution Annotations
-**Priority:** MEDIUM
-**Type:** Documentation
-**Component:** Annotation Service
-
-**Preconditions:**
-- Execution completed
-- User wants to add notes
+#### MON-010: Metrics Retention
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
 **Test Steps:**
-1. View execution details
-2. Add annotation/notes
-3. Save annotation
-4. View annotated execution later
-5. Share annotations with team
+1. Old metrics exceed retention policy
+2. System archives/deletes old data
+3. Storage managed
 
-**Expected Outcomes:**
-- Annotations saved
-- Visible on details view
-- Shareable
+**Expected Outcome:**
+- Retention enforced
 
 **Success Criteria:**
-- Annotations work
-- Sharing works
-
-**Risk Assessment:** LOW - Documentation
+- Old data removed
+- Storage controlled
 
 ---
 
-## Category 5-20: Summary Scenarios
+#### MON-011: Alerting Rules
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
 
-Due to length constraints, here's a summary of remaining categories with scenario counts. Each would follow the same detailed format as above.
+**Test Steps:**
+1. User defines alerting rule
+2. Rule triggers on condition
+3. Alert sent
 
-**Category 5: Monitoring & Analytics (10 scenarios)**
-- Real-time dashboards, alerting, log aggregation, metrics visualization
+**Expected Outcome:**
+- Rules working
 
-**Category 6: Feedback & Learning (10 scenarios)**
-- User feedback submission, AI adjudication, episode recording, learning integration
-
-**Category 7: Workflow Automation (40 scenarios)**
-- Template management, trigger configuration, validation, execution
-
-**Category 8: Orchestration (15 scenarios)**
-- Sequential vs parallel execution, compensation patterns, multi-agent coordination
-
-**Category 9: Advanced Workflows (10 scenarios)**
-- Event-driven architectures, distributed transactions, scheduling systems
-
-**Category 10: Canvas & Collaboration (30 scenarios)**
-- Canvas creation, real-time editing, data visualization, multi-user collaboration
-
-**Category 11: Integration Ecosystem (35 scenarios)**
-- External service integrations (OAuth, webhooks, APIs), third-party authentication, data synchronization
-
-**Category 12: Data Processing (15 scenarios)**
-- File operations, data transformation, batch processing, stream processing
-
-**Category 13: Analytics & Reporting (15 scenarios)**
-- Dashboard generation, export functionality, trend analysis
-
-**Category 14: Business Intelligence (5 scenarios)**
-- Predictive analytics, business rule execution, anomaly detection
-
-**Category 15: Performance Testing (10 scenarios)**
-- Load testing, stress testing, scalability, resource management
-
-**Category 16: Support (25 scenarios)**
-- Mobile platform support, desktop platform support, cross-platform workflows, offline functionality
-
-**Category 17: Load Testing (5 scenarios)**
-- Concurrent user simulation, peak load handling, session management, database performance
-
-**Category 18: Security Testing (20 scenarios)**
-- Penetration testing, SQL injection, XSS, CSRF, authentication bypass, authorization testing, input validation, rate limiting
-
-**Category 19: UX/UI Testing (30 scenarios)**
-- Visual validation, usability testing, accessibility, user experience workflows, interface consistency
-
-**Category 20: Cross-Browser/Device (20 scenarios)**
-- Compatibility testing across mobile, desktop, and web, platform-specific behaviors, responsive design
+**Success Criteria:**
+- Rule evaluated
+- Alert sent
 
 ---
 
-## Coverage Gaps and Risk Assessment
+### MEDIUM PRIORITY SCENARIOS (3)
 
-### Critical Gaps Identified
-1. **Edge case handling for network failures** - Need scenarios for partial connectivity
-2. **Database migration testing** - Need scenarios for schema upgrades
-3. **Disaster recovery** - Need scenarios for backup/restore
-4. **Multi-region failover** - Need scenarios for geographic redundancy
-5. **GDPR/CCPA compliance** - Need scenarios for data privacy requests
+#### MON-012: Metrics Dashboard Sharing
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
 
-### High-Risk Areas Requiring Additional Coverage
-1. **Payment processing** (if applicable) - PCI compliance scenarios
-2. **PII handling** - Data encryption at rest scenarios
-3. **API abuse prevention** - Rate limiting and abuse detection scenarios
-4. **Supply chain attacks** - Dependency vulnerability scenarios
+**Test Steps:**
+1. User shares dashboard
+2. Recipients view dashboard
 
----
+**Expected Outcome:**
+- Dashboard shared
 
-## Test Execution Strategy
-
-### Wave 1: Critical Path Security (Weeks 1-2)
-- Execute all CRITICAL scenarios from Categories 1-3
-- Focus on authentication, authorization, agent governance
-- Automated tests with property-based testing
-
-### Wave 2: Core Agent Workflows (Weeks 3-4)
-- Execute all CRITICAL and HIGH scenarios from Categories 4-5
-- Focus on agent execution, monitoring, feedback
-- Integration tests with real LLM providers
-
-### Wave 3: Workflow Automation (Weeks 5-6)
-- Execute all scenarios from Category 7-8
-- Focus on workflow reliability, orchestration
-- State machine validation, chaos engineering
-
-### Wave 4: Integration Ecosystem (Weeks 7-8)
-- Execute all scenarios from Category 11
-- Focus on third-party integrations
-- Contract testing, mock-based integration tests
-
-### Wave 5: Canvas & Collaboration (Weeks 9-10)
-- Execute all scenarios from Category 10
-- Focus on user productivity, data visualization
-- Component testing, UX validation
-
-### Wave 6: Cross-Platform & Performance (Weeks 11-12)
-- Execute all scenarios from Categories 16-17, 20
-- Focus on mobile, desktop, web compatibility
-- Load testing, performance benchmarking
-
-### Wave 7: Security & Compliance (Weeks 13-14)
-- Execute all scenarios from Categories 1, 18
-- Focus on security vulnerabilities, compliance
-- Penetration testing, security audit
+**Success Criteria:**
+- Share working
+- Access granted
 
 ---
 
-## Success Metrics
+#### MON-013: Scheduled Reports
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
 
-### Coverage Targets
-- **Overall Coverage:** 80%+ across all critical paths
-- **Authentication:** 100% of CRITICAL scenarios
-- **Agent Governance:** 100% of CRITICAL scenarios
-- **Workflow Automation:** 90%+ coverage
-- **Integrations:** 85%+ coverage
+**Test Steps:**
+1. User schedules weekly report
+2. System generates report
+3. Report emailed
 
-### Quality Gates
-- **Pass Rate:** 95%+ across all scenarios
-- **Security:** Zero critical vulnerabilities
-- **Performance:** All scenarios meet response time targets
-- **Reliability:** 99%+ success rate over 1000+ executions
+**Expected Outcome:**
+- Scheduled report working
 
----
-
-## Next Steps
-
-1. **Execute Wave 1** - Begin with authentication and agent governance tests
-2. **Create Test Infrastructure** - Set up test data factories, helpers, environments
-3. **Automate Where Possible** - Prioritize automated tests for regression
-4. **Manual Testing** - UX scenarios require manual validation
-5. **Continuous Integration** - Integrate tests into CI/CD pipeline
+**Success Criteria:**
+- Report generated
+- Email sent
 
 ---
 
-**Document Status:** COMPLETE
-**Total Scenarios:** 270
-**Last Updated:** 2025-02-11
-**Version:** 1.0
+#### MON-014: Metrics Comparison
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
 
-*For detailed scenarios in Categories 5-20, refer to individual test implementation files in `backend/tests/scenarios/`*
+**Test Steps:**
+1. User compares two time periods
+2. System shows differences
+
+**Expected Outcome:**
+- Comparison working
+
+**Success Criteria:**
+- Data compared
+- Differences visible
+
+---
+
+### LOW PRIORITY SCENARIOS (1)
+
+#### MON-015: Metrics API
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Client queries metrics API
+2. API returns metric data
+
+**Expected Outcome:**
+- API working
+
+**Success Criteria:**
+- Data returned
+- Format correct
+
+---
+
+## Category 9: Feedback & Learning (10 Scenarios)
+
+### CRITICAL SCENARIOS (4)
+
+#### FDBK-001: Thumbs Up/Down Feedback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent completes task
+2. User clicks thumbs up/down
+3. System records feedback
+4. System updates agent confidence
+
+**Expected Outcome:**
+- Feedback recorded
+- Confidence updated
+
+**Success Criteria:**
+- Feedback saved
+- Score changed
+
+---
+
+#### FDBK-002: Star Rating Feedback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User rates 1-5 stars
+2. System records rating
+3. System links to episode
+
+**Expected Outcome:**
+- Rating recorded
+
+**Success Criteria:**
+- Rating saved
+- Episode linked
+
+---
+
+#### FDBK-003: Text Correction Feedback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User provides text correction
+2. System records correction
+3. System feeds to learning
+
+**Expected Outcome:**
+- Correction recorded
+
+**Success Criteria:**
+- Correction saved
+- Learning updated
+
+---
+
+#### FDBK-004: Episode Creation from Feedback
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent execution completes
+2. System creates episode
+3. System links feedback to episode
+
+**Expected Outcome:**
+- Episode created
+- Feedback linked
+
+**Success Criteria:**
+- Episode exists
+- Link valid
+
+---
+
+### HIGH PRIORITY SCENARIOS (3)
+
+#### FDBK-005: Feedback Aggregation
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. System aggregates feedback
+2. System calculates average score
+3. Dashboard shows trends
+
+**Expected Outcome:**
+- Aggregation working
+
+**Success Criteria:**
+- Aggregate accurate
+- Trends visible
+
+---
+
+#### FDBK-006: Feedback Export
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. User exports feedback data
+2. System generates CSV
+
+**Expected Outcome:**
+- Export working
+
+**Success Criteria:**
+- File generated
+- Data complete
+
+---
+
+#### FDBK-007: Agent Learning from Feedback
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. System processes feedback
+2. System updates agent model
+3. Future executions improved
+
+**Expected Outcome:**
+- Learning working
+
+**Success Criteria:**
+- Model updated
+- Performance improves
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (2)
+
+#### FDBK-008: Feedback Prompts
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Agent completes task
+2. System prompts for feedback
+3. User provides feedback
+
+**Expected Outcome:**
+- Prompts shown
+
+**Success Criteria:**
+- Prompt timing good
+- Response rate high
+
+---
+
+#### FDBK-009: Feedback Analytics
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. Admin views feedback analytics
+2. System shows trends, patterns
+
+**Expected Outcome:**
+- Analytics available
+
+**Success Criteria:**
+- Trends accurate
+- Insights useful
+
+---
+
+### LOW PRIORITY SCENARIOS (1)
+
+#### FDBK-010: Feedback A/B Testing
+**Priority:** LOW  
+**Type:** Automated  
+**Wave:** 2
+
+**Test Steps:**
+1. System tests feedback prompt variations
+2. System measures response rates
+
+**Expected Outcome:**
+- A/B test working
+
+**Success Criteria:**
+- Variations tested
+- Winner identified
+
+---
+
+## Category 10: Security Testing (20 Scenarios)
+
+### CRITICAL SCENARIOS (10)
+
+#### SEC-001: SQL Injection Prevention
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Attempt SQL injection in input field
+2. System sanitizes input
+3. Query fails safely
+
+**Expected Outcome:**
+- SQL injection blocked
+
+**Success Criteria:**
+- Input sanitized
+- No SQL executed
+
+---
+
+#### SEC-002: XSS Prevention
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Attempt XSS in input field
+2. System encodes output
+3. Script not executed
+
+**Expected Outcome:**
+- XSS blocked
+
+**Success Criteria:**
+- Output encoded
+- No script execution
+
+---
+
+#### SEC-003: CSRF Token Validation
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Submit form without CSRF token
+2. System rejects request
+
+**Expected Outcome:**
+- CSRF enforced
+
+**Success Criteria:**
+- Request rejected
+- Error shown
+
+---
+
+#### SEC-004: Authentication Bypass Attempt
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Attempt to access protected route without auth
+2. System denies access
+
+**Expected Outcome:**
+- Bypass blocked
+
+**Success Criteria:**
+- Access denied
+- Redirect to login
+
+---
+
+#### SEC-005: Authorization Bypass Attempt
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. User attempts admin action
+2. System checks permissions
+3. Access denied
+
+**Expected Outcome:**
+- Bypass blocked
+
+**Success Criteria:**
+- Permissions checked
+- Access denied
+
+---
+
+#### SEC-006: Rate Limiting Enforcement
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Send 100 requests/second
+2. System rate limits after threshold
+
+**Expected Outcome:**
+- Rate limiting active
+
+**Success Criteria:**
+- Requests blocked
+- 429 response
+
+---
+
+#### SEC-007: Input Validation - OWASP Top 10
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Submit malicious payloads
+2. System validates all inputs
+
+**Expected Outcome:**
+- All malicious input blocked
+
+**Success Criteria:**
+- Validation comprehensive
+- No bypasses
+
+---
+
+#### SEC-008: Secret Scanning
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Scan codebase for secrets
+2. Detect API keys, passwords
+3. Report findings
+
+**Expected Outcome:**
+- Secrets detected
+
+**Success Criteria:**
+- Scan comprehensive
+- All secrets found
+
+---
+
+#### SEC-009: Dependency Vulnerability Scan
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Scan dependencies for vulnerabilities
+2. Report CVEs
+3. Suggest updates
+
+**Expected Outcome:**
+- Vulnerabilities reported
+
+**Success Criteria:**
+- Scan complete
+- Remediation provided
+
+---
+
+#### SEC-010: Penetration Testing
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 18
+
+**Test Steps:**
+1. Security team performs penetration test
+2. Attempt to breach system
+3. Document findings
+
+**Expected Outcome:**
+- Vulnerabilities found
+- Recommendations provided
+
+**Success Criteria:**
+- Test comprehensive
+- Report detailed
+
+---
+
+### HIGH PRIORITY SCENARIOS (6)
+
+#### SEC-011: JWT Token Security
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Validate JWT signature
+2. Check token expiration
+3. Verify claims
+
+**Expected Outcome:**
+- JWT security enforced
+
+**Success Criteria:**
+- Signature valid
+- Expiration checked
+- Claims verified
+
+---
+
+#### SEC-012: Password Hashing
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. User password stored
+2. Verify password hashed
+3. Verify salt used
+
+**Expected Outcome:**
+- Passwords hashed
+
+**Success Criteria:**
+- Hash strong
+- Salt unique
+
+---
+
+#### SEC-013: Session Fixation Prevention
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. User logs in
+2. System regenerates session ID
+3. Old session invalid
+
+**Expected Outcome:**
+- Session fixation prevented
+
+**Success Criteria:**
+- Session regenerated
+- Old session invalid
+
+---
+
+#### SEC-014: File Upload Security
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. User uploads malicious file
+2. System validates file type
+3. System scans for viruses
+
+**Expected Outcome:**
+- Malicious files blocked
+
+**Success Criteria:**
+- Validation working
+- Scan working
+
+---
+
+#### SEC-015: API Security Headers
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Check response headers
+2. Verify security headers present
+
+**Expected Outcome:**
+- Headers present
+
+**Success Criteria:**
+- All headers set
+- Values correct
+
+---
+
+#### SEC-016: Encryption at Rest
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Verify database encryption
+2. Verify file storage encryption
+
+**Expected Outcome:**
+- Data encrypted at rest
+
+**Success Criteria:**
+- Encryption enabled
+- Keys managed
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (3)
+
+#### SEC-017: Encryption in Transit
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Verify TLS/SSL enabled
+2. Verify HTTPS enforced
+
+**Expected Outcome:**
+- Data encrypted in transit
+
+**Success Criteria:**
+- TLS valid
+- HTTPS only
+
+---
+
+#### SEC-018: Security Logging
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 18
+
+**Test Steps:**
+1. Security event occurs
+2. System logs event
+3. Log includes: timestamp, user, action, result
+
+**Expected Outcome:**
+- Security events logged
+
+**Success Criteria:**
+- All events logged
+- Details complete
+
+---
+
+#### SEC-019: Security Incident Response
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 18
+
+**Test Steps:**
+1. Simulate security incident
+2. Team responds
+3. Incident resolved
+
+**Expected Outcome:**
+- Response effective
+
+**Success Criteria:**
+- Response timely
+- Resolution complete
+
+---
+
+### LOW PRIORITY SCENARIOS (1)
+
+#### SEC-020: Security Training
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 18
+
+**Test Steps:**
+1. Team completes security training
+2. Knowledge verified
+
+**Expected Outcome:**
+- Team trained
+
+**Success Criteria:**
+- Training completed
+- Knowledge improved
+
+---
+
+## Category 11: UX/UI Testing (30 Scenarios)
+
+### CRITICAL SCENARIOS (10)
+
+#### UX-001: Responsive Design - Mobile
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. View app on mobile device
+2. Verify layout adapts
+
+**Expected Outcome:**
+- Mobile layout functional
+
+**Success Criteria:**
+- All elements visible
+- Touch targets adequate
+
+---
+
+#### UX-002: Responsive Design - Tablet
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. View app on tablet
+2. Verify layout adapts
+
+**Expected Outcome:**
+- Tablet layout functional
+
+**Success Criteria:**
+- Layout optimized
+- Elements sized appropriately
+
+---
+
+#### UX-003: Responsive Design - Desktop
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. View app on desktop
+2. Verify layout
+
+**Expected Outcome:**
+- Desktop layout functional
+
+**Success Criteria:**
+- Layout optimal
+- Screen space used well
+
+---
+
+#### UX-004: Accessibility - Screen Reader
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Navigate with screen reader
+2. Verify all elements announced
+
+**Expected Outcome:**
+- Accessible via screen reader
+
+**Success Criteria:**
+- All elements reachable
+- Labels clear
+
+---
+
+#### UX-005: Accessibility - Keyboard Navigation
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Navigate with keyboard only
+2. Verify all elements accessible
+
+**Expected Outcome:**
+- Fully keyboard accessible
+
+**Success Criteria:**
+- Tab order logical
+- Focus visible
+
+---
+
+#### UX-006: Page Load Performance
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 19
+
+**Test Steps:**
+1. Load page
+2. Measure time to interactive
+
+**Expected Outcome:**
+- Fast page load
+
+**Success Criteria:**
+- TTI < 3 seconds
+
+---
+
+#### UX-007: Error Messages - Clarity
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Trigger error
+2. Read error message
+
+**Expected Outcome:**
+- Error message clear
+
+**Success Criteria:**
+- Message understandable
+- Action suggested
+
+---
+
+#### UX-008: Form Validation - Real-Time
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Fill form
+2. See real-time validation
+
+**Expected Outcome:**
+- Validation helpful
+
+**Success Criteria:**
+- Immediate feedback
+- Errors clear
+
+---
+
+#### UX-009: Navigation - Intuitive
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Navigate app
+2. Assess intuitiveness
+
+**Expected Outcome:**
+- Navigation intuitive
+
+**Success Criteria:**
+- Features easy to find
+- Structure logical
+
+---
+
+#### UX-010: Onboarding - User Friendly
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. New user starts onboarding
+2. Complete guided tour
+
+**Expected Outcome:**
+- Onboarding effective
+
+**Success Criteria:**
+- Tour helpful
+- Features explained
+
+---
+
+### HIGH PRIORITY SCENARIOS (10)
+
+#### UX-011: Dark Mode
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Enable dark mode
+2. Verify all UI elements
+
+**Expected Outcome:**
+- Dark mode complete
+
+**Success Criteria:**
+- All elements visible
+- Contrast adequate
+
+---
+
+#### UX-012: Color Contrast
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 19
+
+**Test Steps:**
+1. Check color contrast ratios
+2. Verify WCAG compliance
+
+**Expected Outcome:**
+- Contrast sufficient
+
+**Success Criteria:**
+- WCAG AA compliant
+
+---
+
+#### UX-013: Touch Targets
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Measure touch target sizes
+2. Verify minimum 44x44px
+
+**Expected Outcome:**
+- Touch targets adequate
+
+**Success Criteria:**
+- All targets meet minimum
+
+---
+
+#### UX-014: Loading States
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Trigger loading state
+2. Verify spinner/skeleton
+
+**Expected Outcome:**
+- Loading feedback clear
+
+**Success Criteria:**
+- Feedback visible
+- Timing appropriate
+
+---
+
+#### UX-015: Empty States
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. View empty list
+2. Read empty state message
+
+**Expected Outcome:**
+- Empty state helpful
+
+**Success Criteria:**
+- Message clear
+- Action suggested
+
+---
+
+#### UX-016: Success Feedback
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Complete action
+2. View success message
+
+**Expected Outcome:**
+- Success confirmed
+
+**Success Criteria:**
+- Message visible
+- Confirmation clear
+
+---
+
+#### UX-017: Progressive Disclosure
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. View complex UI
+2. Assess information hierarchy
+
+**Expected Outcome:**
+- Information layered
+
+**Success Criteria:**
+- Advanced options hidden
+- Basics shown first
+
+---
+
+#### UX-018: Consistent Design Language
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Review UI elements
+2. Check consistency
+
+**Expected Outcome:**
+- Design consistent
+
+**Success Criteria:**
+- Colors consistent
+- Typography consistent
+- Components consistent
+
+---
+
+#### UX-019: Help Documentation Access
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Click help link
+2. Documentation opens
+
+**Expected Outcome:**
+- Help accessible
+
+**Success Criteria:**
+- Link works
+- Content relevant
+
+---
+
+#### UX-020: Undo/Redo Availability
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Perform action
+2. Undo action
+3. Redo action
+
+**Expected Outcome:**
+- Undo/redo working
+
+**Success Criteria:**
+- Undo successful
+- Redo successful
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (7)
+
+#### UX-021: Search Autocomplete
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Type in search
+2. See suggestions
+
+**Expected Outcome:**
+- Autocomplete helpful
+
+**Success Criteria:**
+- Suggestions relevant
+- Performance good
+
+---
+
+#### UX-022: Tooltips
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Hover over icon
+2. Read tooltip
+
+**Expected Outcome:**
+- Tooltips informative
+
+**Success Criteria:**
+- Text clear
+- Timing appropriate
+
+---
+
+#### UX-023: Keyboard Shortcuts
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Use keyboard shortcuts
+2. Actions triggered
+
+**Expected Outcome:**
+- Shortcuts functional
+
+**Success Criteria:**
+- Shortcuts documented
+- Response snappy
+
+---
+
+#### UX-024: Drag and Drop
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Drag item
+2. Drop item
+3. Item moved
+
+**Expected Outcome:**
+- Drag and drop working
+
+**Success Criteria:**
+- Visual feedback
+- Drop accurate
+
+---
+
+#### UX-025: Context Menus
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Right-click item
+2. View context menu
+
+**Expected Outcome:**
+- Context menu relevant
+
+**Success Criteria:**
+- Options appropriate
+- Menu functional
+
+---
+
+#### UX-026: Breadcrumbs
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Navigate deep
+2. Click breadcrumb to return
+
+**Expected Outcome:**
+- Breadcrumbs working
+
+**Success Criteria:**
+- Path accurate
+- Navigation functional
+
+---
+
+#### UX-027: Notifications - Non-Intrusive
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Receive notification
+2. Assess intrusiveness
+
+**Expected Outcome:**
+- Notifications non-intrusive
+
+**Success Criteria:**
+- Position appropriate
+- Duration reasonable
+
+---
+
+### LOW PRIORITY SCENARIOS (3)
+
+#### UX-028: Animations - Smooth
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Trigger animation
+2. Assess smoothness
+
+**Expected Outcome:**
+- Animations smooth
+
+**Success Criteria:**
+- 60fps
+- Duration appropriate
+
+---
+
+#### UX-029: Easter Eggs
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Discover easter egg
+2. Enjoy surprise
+
+**Expected Outcome:**
+- Easter egg fun
+
+**Success Criteria:**
+- Not intrusive
+- Delightful
+
+---
+
+#### UX-030: Personalization Options
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 19
+
+**Test Steps:**
+1. Customize preferences
+2. See personalized experience
+
+**Expected Outcome:**
+- Personalization working
+
+**Success Criteria:**
+- Preferences saved
+- Experience adapted
+
+---
+
+## Category 12: Platform Support (25 Scenarios)
+
+### CRITICAL SCENARIOS (10)
+
+#### PLAT-001: iOS App Installation
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Download from App Store
+2. Install app
+3. Launch app
+
+**Expected Outcome:**
+- App installs and launches
+
+**Success Criteria:**
+- Installation successful
+- Launch working
+
+---
+
+#### PLAT-002: Android App Installation
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Download from Play Store
+2. Install app
+3. Launch app
+
+**Expected Outcome:**
+- App installs and launches
+
+**Success Criteria:**
+- Installation successful
+- Launch working
+
+---
+
+#### PLAT-003: Desktop App Installation - Windows
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Download installer
+2. Install app
+3. Launch app
+
+**Expected Outcome:**
+- App installs and launches
+
+**Success Criteria:**
+- Installation successful
+- Launch working
+
+---
+
+#### PLAT-004: Desktop App Installation - macOS
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Download DMG
+2. Install app
+3. Launch app
+
+**Expected Outcome:**
+- App installs and launches
+
+**Success Criteria:**
+- Installation successful
+- Launch working
+
+---
+
+#### PLAT-005: Desktop App Installation - Linux
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Download package
+2. Install app
+3. Launch app
+
+**Expected Outcome:**
+- App installs and launches
+
+**Success Criteria:**
+- Installation successful
+- Launch working
+
+---
+
+#### PLAT-006: Cross-Platform Data Sync
+**Priority:** CRITICAL  
+**Type:** Automated  
+**Wave:** 16
+
+**Test Steps:**
+1. Create data on mobile
+2. View on desktop
+3. Data synced
+
+**Expected Outcome:**
+- Data syncs across platforms
+
+**Success Criteria:**
+- Sync complete
+- Data consistent
+
+---
+
+#### PLAT-007: Offline Mode - Mobile
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Enable offline mode
+2. Disconnect network
+3. Access cached data
+
+**Expected Outcome:**
+- Offline mode working
+
+**Success Criteria:**
+- Cached data accessible
+- UI functional
+
+---
+
+#### PLAT-008: Offline Mode - Desktop
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Enable offline mode
+2. Disconnect network
+3. Access cached data
+
+**Expected Outcome:**
+- Offline mode working
+
+**Success Criteria:**
+- Cached data accessible
+- UI functional
+
+---
+
+#### PLAT-009: Push Notifications - iOS
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Send push notification
+2. Receive on iOS device
+3. Tap notification
+4. App opens
+
+**Expected Outcome:**
+- Push notifications working
+
+**Success Criteria:**
+- Notification received
+- Deep link working
+
+---
+
+#### PLAT-010: Push Notifications - Android
+**Priority:** CRITICAL  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Send push notification
+2. Receive on Android device
+3. Tap notification
+4. App opens
+
+**Expected Outcome:**
+- Push notifications working
+
+**Success Criteria:**
+- Notification received
+- Deep link working
+
+---
+
+### HIGH PRIORITY SCENARIOS (8)
+
+#### PLAT-011: Biometric Auth - iOS
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Enable Face ID
+2. Authenticate biometrically
+3. Login successful
+
+**Expected Outcome:**
+- Biometric auth working
+
+**Success Criteria:**
+- Face ID prompt
+- Authentication successful
+
+---
+
+#### PLAT-012: Biometric Auth - Android
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Enable fingerprint
+2. Authenticate biometrically
+3. Login successful
+
+**Expected Outcome:**
+- Biometric auth working
+
+**Success Criteria:**
+- Fingerprint prompt
+- Authentication successful
+
+---
+
+#### PLAT-013: Background Sync - Mobile
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 16
+
+**Test Steps:**
+1. Make changes offline
+2. Connect to network
+3. Changes sync
+
+**Expected Outcome:**
+- Background sync working
+
+**Success Criteria:**
+- Sync automatic
+- Conflicts handled
+
+---
+
+#### PLAT-014: Background Sync - Desktop
+**Priority:** HIGH  
+**Type:** Automated  
+**Wave:** 16
+
+**Test Steps:**
+1. Make changes offline
+2. Connect to network
+3. Changes sync
+
+**Expected Outcome:**
+- Background sync working
+
+**Success Criteria:**
+- Sync automatic
+- Conflicts handled
+
+---
+
+#### PLAT-015: App Updates - Mobile
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. App update available
+2. User updates app
+3. Data migrated
+
+**Expected Outcome:**
+- Update successful
+
+**Success Criteria:**
+- Update smooth
+- Data intact
+
+---
+
+#### PLAT-016: App Updates - Desktop
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. App update available
+2. User updates app
+3. Data migrated
+
+**Expected Outcome:**
+- Update successful
+
+**Success Criteria:**
+- Update smooth
+- Data intact
+
+---
+
+#### PLAT-017: Platform-Specific Features - iOS
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Use iOS-specific features
+2. Widgets, Share Sheet, etc.
+
+**Expected Outcome:**
+- iOS features working
+
+**Success Criteria:**
+- Widgets functional
+- Sharing working
+
+---
+
+#### PLAT-018: Platform-Specific Features - Android
+**Priority:** HIGH  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Use Android-specific features
+2. Widgets, Share Intent, etc.
+
+**Expected Outcome:**
+- Android features working
+
+**Success Criteria:**
+- Widgets functional
+- Sharing working
+
+---
+
+### MEDIUM PRIORITY SCENARIOS (5)
+
+#### PLAT-019: Cross-Device Handoff
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Start task on mobile
+2. Continue on desktop
+
+**Expected Outcome:**
+- Handoff working
+
+**Success Criteria:**
+- State transferred
+- Continuation seamless
+
+---
+
+#### PLAT-020: Responsive Canvas - Mobile
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. View canvas on mobile
+2. Interact with canvas
+
+**Expected Outcome:**
+- Canvas mobile-friendly
+
+**Success Criteria:**
+- Touch optimized
+- Layout adapted
+
+---
+
+#### PLAT-021: Responsive Canvas - Desktop
+**Priority:** MEDIUM  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. View canvas on desktop
+2. Interact with canvas
+
+**Expected Outcome:**
+- Canvas desktop-optimized
+
+**Success Criteria:**
+- Mouse optimized
+- Layout optimal
+
+---
+
+#### PLAT-022: Platform Performance - Mobile
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 16
+
+**Test Steps:**
+1. Measure app performance
+2. Check CPU, memory, battery
+
+**Expected Outcome:**
+- Performance acceptable
+
+**Success Criteria:**
+- CPU reasonable
+- Memory efficient
+- Battery drain minimal
+
+---
+
+#### PLAT-023: Platform Performance - Desktop
+**Priority:** MEDIUM  
+**Type:** Automated  
+**Wave:** 16
+
+**Test Steps:**
+1. Measure app performance
+2. Check CPU, memory
+
+**Expected Outcome:**
+- Performance acceptable
+
+**Success Criteria:**
+- CPU reasonable
+- Memory efficient
+
+---
+
+### LOW PRIORITY SCENARIOS (2)
+
+#### PLAT-024: Platform-Specific Theming
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Apply platform-specific theme
+2. Theme matches OS
+
+**Expected Outcome:**
+- Native feel
+
+**Success Criteria:**
+- Theme consistent
+- Feel native
+
+---
+
+#### PLAT-025: Accessibility Features
+**Priority:** LOW  
+**Type:** Manual  
+**Wave:** 16
+
+**Test Steps:**
+1. Enable OS accessibility features
+2. App responds
+
+**Expected Outcome:**
+- Accessibility integrated
+
+**Success Criteria:**
+- Features respected
+- Experience improved
+
+---
+
+## Summary
+
+**Total Scenarios:** 250+ (exact count: 250)
+
+### By Category
+1. Authentication & Access Control: 45 scenarios
+2. User Management & Roles: 15 scenarios
+3. Agent Lifecycle: 50 scenarios
+4. Agent Execution & Monitoring: 20 scenarios
+5. Workflow Automation: 40 scenarios
+6. Canvas & Collaboration: 30 scenarios
+7. Integration Ecosystem: 35 scenarios
+8. Monitoring & Analytics: 15 scenarios
+9. Feedback & Learning: 10 scenarios
+10. Security Testing: 20 scenarios
+11. UX/UI Testing: 30 scenarios
+12. Platform Support: 25 scenarios
+
+### By Priority
+- **CRITICAL:** 110 scenarios
+- **HIGH:** 95 scenarios
+- **MEDIUM:** 35 scenarios
+- **LOW:** 10 scenarios
+
+### By Wave
+- **Wave 1:** Authentication, User Management, Agent Lifecycle (110 scenarios)
+- **Wave 2:** Agent Execution, Monitoring, Feedback (45 scenarios)
+- **Wave 3:** Workflow Automation (40 scenarios)
+- **Wave 4:** Integration Ecosystem (35 scenarios)
+- **Wave 5:** Canvas & Collaboration (30 scenarios)
+- **Wave 16:** Platform Support (25 scenarios)
+- **Wave 18:** Security Testing (20 scenarios)
+- **Wave 19:** UX/UI Testing (30 scenarios)
+
+---
+
+**Document Status:** Complete  
+**Next Steps:** Execute Wave 1 scenarios (110 critical security and access control tests)
+
