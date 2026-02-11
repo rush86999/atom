@@ -15,7 +15,7 @@ mutmut>=2.4.0  # Mutation testing tool
 # chaos-toolkit>=0.23.0  # NOTE: Package doesn't exist on PyPI, removed
 
 # Parallel Test Execution
-pytest-xdist>=3.5.0,<4.0.0  # Parallel pytest execution (constrain to avoid pytest 9)
+pytest-xdist>=3.6.0,<4.0.0  # Parallel pytest execution (constrain to avoid pytest 9)
 
 # Coverage & Quality
 pytest-cov>=4.1.0  # Coverage reporting (already in requirements.txt)
