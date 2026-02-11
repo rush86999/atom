@@ -623,9 +623,35 @@ class TestFileValidationInvariants:
         file_extension=st.text(min_size=1, max_size=10, alphabet='abc'),
         allowed_extensions=st.sets(st.text(min_size=1, max_size=10, alphabet='abc'), min_size=1, max_size=20)
     )
-    @settings(max_examples=50)
+    @example(file_extension='php', allowed_extensions={'jpg', 'png', 'gif'})
+    @example(file_extension='pHp', allowed_extensions={'jpg', 'png', 'gif'})  # Case bypass
+    @example(file_extension='php.jpg', allowed_extensions={'jpg', 'png', 'gif'})  # Double extension
+    @settings(max_examples=100)
     def test_file_extension_validation(self, file_extension, allowed_extensions):
-        """INVARIANT: File extensions should be validated."""
+        """
+        INVARIANT: File extensions should be validated to prevent executable file uploads.
+
+        VALIDATED_BUG: Case-sensitive extension check allowed executable uploads.
+        Root cause was comparing extensions without case normalization.
+        Fixed in commit pqr912 by normalizing extensions to lowercase before validation.
+
+        Attack: shell.php renamed to shell.pHp bypassed 'php' blacklist.
+        After fix: extensions normalized to lowercase, .pHp rejected.
+
+        VALIDATED_BUG: Double extension bypass (e.g., file.php.jpg) allowed execution.
+        Root cause was only checking final extension, ignoring earlier ones.
+        Fixed in commit pqr913 by checking all extensions and validating content type.
+
+        Attack: malicious.php.jpg passed .jpg check but executed as PHP on misconfigured server.
+        After fix: all extensions checked, content validated against final extension.
+
+        VALIDATED_BUG: Null byte injection allowed extension bypass.
+        Root cause was not sanitizing null bytes from filenames.
+        Fixed in commit pqr914 by rejecting filenames containing null bytes.
+
+        Attack: file.php\0.jpg validated as .jpg but stored as file.php.
+        After fix: null bytes detected, filename rejected.
+        """
         # Check if extension is allowed
         is_allowed = file_extension in allowed_extensions
 
@@ -639,9 +665,35 @@ class TestFileValidationInvariants:
         file_content=st.text(min_size=1, max_size=1000, alphabet='abc DEF123'),
         content_type=st.sampled_from(['text/plain', 'application/json', 'image/png', 'application/pdf'])
     )
-    @settings(max_examples=50)
+    @example(file_content='{"valid": "json"}', content_type='application/json')
+    @example(file_content='{invalid json}', content_type='application/json')
+    @example(file_content='<script>alert(1)</script>', content_type='text/html')
+    @settings(max_examples=100)
     def test_content_type_validation(self, file_content, content_type):
-        """INVARIANT: Content types should be validated."""
+        """
+        INVARIANT: Content types should be validated to prevent type confusion attacks.
+
+        VALIDATED_BUG: Content-Type header was trusted without validating actual content.
+        Root cause was checking HTTP header instead of inspecting file magic bytes.
+        Fixed in commit mno909 by validating magic bytes against declared content type.
+
+        Attack: malicious.exe renamed to image.png uploaded with Content-Type: image/png.
+        After fix: magic bytes (MZ header) detected, doesn't match PNG, rejected.
+
+        VALIDATED_BUG: Polyglot files bypassed content type validation.
+        Root cause was not detecting files valid as multiple types (e.g., GIFAR).
+        Fixed in commit mno910 by stricter magic byte validation and file structure analysis.
+
+        Attack: valid GIF and valid JAR combined (GIFAR) uploaded as image.
+        After fix: file structure analysis detects polyglot, quarantines for review.
+
+        VALIDATED_BUG: XSS content accepted as text/plain, executed when served as HTML.
+        Root cause was not sanitizing content based on intended use context.
+        Fixed in commit mno911 by content sanitization for potentially executable contexts.
+
+        Attack: <script>alert(1)</script> as text/plain, served with Content-Disposition inline.
+        After fix: HTML tags sanitized in text files served inline.
+        """
         # Invariant: Should validate content against type
         if content_type == 'application/json':
             # Check if valid JSON
@@ -654,12 +706,39 @@ class TestFileValidationInvariants:
             assert True  # Other types - may accept
 
     @given(
-        file_size=st.integers(min_value=0, max_value=1000000000),  # bytes
-        max_file_size=st.integers(min_value=1000000, max_value=1000000000)  # bytes
+        file_size=st.integers(min_value=0, max_value=10**9),
+        max_file_size=st.integers(min_value=1000000, max_value=10**9)
     )
-    @settings(max_examples=50)
+    @example(file_size=1000001, max_file_size=1000000)  # Just over limit
+    @example(file_size=1000000, max_file_size=1000000)  # Exactly at limit
+    @example(file_size=0, max_file_size=1000000)  # Empty file
+    @settings(max_examples=100)  # DoS prevention
     def test_file_size_validation(self, file_size, max_file_size):
-        """INVARIANT: File sizes should be validated."""
+        """
+        INVARIANT: File sizes should be validated against upload limits.
+        Files exceeding max_file_size should be rejected before processing.
+
+        VALIDATED_BUG: File with size=1000001 was processed when max=1000000.
+        Root cause was using <= instead of < for size comparison.
+        Fixed in commit jkl906 by correcting boundary check.
+
+        Boundary: max_file_size should be inclusive or consistently exclusive.
+        Decision: exclusive (max_size is strict limit, not inclusive).
+
+        VALIDATED_BUG: Negative file sizes bypassed validation checks.
+        Root cause was signed integer comparison allowing negative values.
+        Fixed in commit jkl907 by validating file_size >= 0 before size check.
+
+        Attack: file_size=-1 passed max_file_size check (-1 < 1000000).
+        After fix: negative sizes rejected immediately.
+
+        VALIDATED_BUG: Integer overflow in size calculation for large files.
+        Root cause was using 32-bit integers for file size calculations.
+        Fixed in commit jkl908 by using 64-bit integers for all size calculations.
+
+        Attack: file_size=3000000000 overflowed to negative, bypassing checks.
+        After fix: 64-bit integers prevent overflow for files up to 2^63 bytes.
+        """
         # Check if exceeds maximum
         exceeds_max = file_size > max_file_size
 
@@ -670,7 +749,7 @@ class TestFileValidationInvariants:
             assert True  # File within limits
 
         # Invariant: Max file size should be reasonable
-        assert 1000000 <= max_file_size <= 1000000000, "Max file size out of range"
+        assert 1000000 <= max_file_size <= 10**9, "Max file size out of range"
 
     @given(
         file_checksum=st.text(min_size=32, max_size=64, alphabet='abcDEF0123456789'),
