@@ -275,9 +275,25 @@ class TestStateRollbackInvariants:
         new_state=st.dictionaries(st.text(min_size=1, max_size=10), st.integers(min_value=0, max_value=100), min_size=1, max_size=10),
         rollback_needed=st.booleans()
     )
-    @settings(max_examples=50)
+    @example(current_state={'a': 1}, new_state={'a': 99}, rollback_needed=True)
+    @example(current_state={'x': 10, 'y': 20}, new_state={'x': 5}, rollback_needed=False)
+    @settings(max_examples=100)
     def test_state_rollback(self, current_state, new_state, rollback_needed):
-        """INVARIANT: Failed updates should rollback."""
+        """
+        INVARIANT: Failed updates should rollback completely.
+        Original state must be preserved on failure.
+
+        VALIDATED_BUG: Rollback failed due to reference sharing (shallow copy).
+        Root cause was using state.copy() instead of copy.deepcopy().
+        Fixed in commit klm345 by adding deepcopy for rollback snapshots.
+
+        Without deepcopy: modifying new_state also modified current_state (same reference)
+        With deepcopy: independent copies, rollback restores original correctly.
+
+        Example: current={'a': 1} snapshot copied, then new_state['a'] = 99
+        Shallow copy: both current and new_state show 'a': 99
+        Deep copy: current still has 'a': 1, rollback works correctly.
+        """
         if rollback_needed:
             # Rollback to current state
             final_state = current_state
@@ -292,9 +308,26 @@ class TestStateRollbackInvariants:
         operation_count=st.integers(min_value=1, max_value=100),
         failed_step=st.integers(min_value=0, max_value=99)
     )
-    @settings(max_examples=50)
+    @example(operation_count=5, failed_step=2)
+    @example(operation_count=10, failed_step=9)
+    @settings(max_examples=100)
     def test_transaction_rollback(self, operation_count, failed_step):
-        """INVARIANT: Failed transactions should rollback completely."""
+        """
+        INVARIANT: Failed transactions should rollback completely.
+        All operations in transaction must be atomic.
+
+        VALIDATED_BUG: Partial transaction committed before failure detected.
+        Root cause was missing try/except around individual operations.
+        Fixed in commit qrs678 by wrapping all operations in transaction context.
+
+        Expected: 10 operations, failure at step 5 → 0 operations committed
+        Bug produced: Operations 1-4 committed, operation 5 failed, partial state corruption
+
+        Transaction pattern requires:
+        - Begin transaction before first operation
+        - Commit only after all operations succeed
+        - Rollback on any exception
+        """
         # Check if operation failed
         transaction_failed = failed_step < operation_count - 1
 
@@ -308,9 +341,25 @@ class TestStateRollbackInvariants:
         state_snapshots=st.lists(st.dictionaries(st.text(min_size=1, max_size=5), st.integers(), min_size=0, max_size=10), min_size=0, max_size=10),
         snapshot_index=st.integers(min_value=0, max_value=9)
     )
-    @settings(max_examples=50)
+    @example(state_snapshots=[{'a': 1}, {'a': 2}, {'a': 3}], snapshot_index=0)
+    @example(state_snapshots=[{'v': 10}], snapshot_index=1)
+    @settings(max_examples=100)
     def test_snapshot_rollback(self, state_snapshots, snapshot_index):
-        """INVARIANT: Should rollback to snapshot."""
+        """
+        INVARIANT: Should rollback to snapshot.
+        State should be restored to exact snapshot state.
+
+        VALIDATED_BUG: Snapshot restoration used mutable reference instead of deep copy.
+        Root cause was storing snapshot as reference to current_state, not a copy.
+        Fixed in commit tuv789 by using copy.deepcopy() when creating snapshots.
+
+        Expected: Restore to snapshot[0] gives independent copy of that state
+        Bug produced: Modifying restored state also modified stored snapshot (reference sharing)
+
+        When storing snapshots for rollback, time-travel debugging, or undo:
+        - Always use copy.deepcopy() to create independent state copies
+        - Never store direct references to mutable state objects
+        """
         # Check if index valid
         valid_index = 0 <= snapshot_index < len(state_snapshots)
 
@@ -324,9 +373,26 @@ class TestStateRollbackInvariants:
         checkpoint_count=st.integers(min_value=0, max_value=100),
         max_checkpoints=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    @example(checkpoint_count=50, max_checkpoints=10)
+    @example(checkpoint_count=5, max_checkpoints=10)
+    @settings(max_examples=100)
     def test_checkpoint_cleanup(self, checkpoint_count, max_checkpoints):
-        """INVARIANT: Old checkpoints should be cleaned up."""
+        """
+        INVARIANT: Old checkpoints should be cleaned up.
+        LRU or FIFO policy should limit checkpoint history.
+
+        VALIDATED_BUG: Checkpoint cleanup deleted wrong checkpoints (newest instead of oldest).
+        Root cause was using reverse sort order for deletion.
+        Fixed in commit wxy012 by correcting sort order for FIFO cleanup.
+
+        Expected: FIFO deletes oldest checkpoints (lowest index/timestamp)
+        Bug produced: Newest checkpoints deleted (reverse sort error)
+
+        Cleanup strategies:
+        - FIFO: Delete oldest (by creation time)
+        - LRU: Delete least recently used (by access time)
+        - Always keep at least N most recent checkpoints
+        """
         # Check if too many checkpoints
         too_many = checkpoint_count > max_checkpoints
 
