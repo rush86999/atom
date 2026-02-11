@@ -111,7 +111,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Mobile app achieves 80% coverage (mobile/src/) and desktop app achieves 80% coverage (desktop/, menu bar)
   6. Full test suite executes in parallel with zero shared state, zero flaky tests, and completes in <5 minutes
   7. Coverage trending setup tracks coverage.json over time with HTML reports for interpretation
-**Plans**: TBD
+**Plans**: 7 plans (2 waves)
+- [ ] 05-coverage-quality-validation-01a-PLAN.md — Governance domain unit tests part 1 (trigger_interceptor, student_training, supervision)
+- [ ] 05-coverage-quality-validation-01b-PLAN.md — Governance domain unit tests part 2 (proposal, graduation governance logic, context_resolver)
+- [ ] 05-coverage-quality-validation-02-PLAN.md — Security domain unit tests (auth endpoints, JWT, encryption, validation)
+- [ ] 05-coverage-quality-validation-03-PLAN.md — Episode domain unit tests (segmentation, retrieval, lifecycle, integration, graduation episodic memory)
+- [ ] 05-coverage-quality-validation-04-PLAN.md — Test quality infrastructure (flaky detection, isolation validation, performance baseline)
+- [ ] 05-coverage-quality-validation-05-PLAN.md — Coverage trending and comprehensive documentation
+- [ ] 05-coverage-quality-validation-06-PLAN.md — Mobile coverage completion (resolve expo/virtual/env blocker, DeviceContext tests, platform permissions)
+- [x] 05-coverage-quality-validation-07-PLAN.md — Desktop coverage completion (cargo-tarpaulin setup, 80% coverage, CI/CD integration) ✅
 
 ### Phase 6: Production Hardening
 **Goal**: Run full test suite to identify bugs, prioritize fixes, and harden codebase for production readiness
@@ -147,6 +155,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
 | 2. Core Property Tests | 7/7 | **Complete** | 2026-02-11 |
 | 3. Integration & Security Tests | 7/7 | **Complete** | 2026-02-11 |
+| 4. Platform Coverage | 8/8 | **Complete** | 2026-02-11 |
+| 5. Coverage & Quality Validation | 0/7 | **Ready to start** | - |
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
 | 6. Production Hardening | 0/TBD | Not started | - |
