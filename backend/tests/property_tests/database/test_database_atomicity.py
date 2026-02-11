@@ -399,7 +399,7 @@ class TestP1RegressionSummary:
     Conclusion: NO P1 regression bugs in current codebase.
     """
 
-    @pytest.mark.regression
+    @pytest.mark.property
     def test_no_p1_database_bugs_exist(self):
         """
         Document finding: No P1 database atomicity bugs exist.
