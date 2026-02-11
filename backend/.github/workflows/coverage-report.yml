@@ -37,7 +37,6 @@ jobs:
             --cov=core \
             --cov=api \
             --cov=tools \
-            --cov-branch \
             --cov-report=html:tests/coverage_reports/html \
             --cov-report=json:tests/coverage_reports/metrics/coverage.json \
             --cov-report=term-missing \
