@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Platform Coverage** - Extend test coverage to React Native mobile components and Tauri desktop/menu bar applications
 - [ ] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
 - [ ] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
+- [ ] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 
 ## Phase Details
 
@@ -112,10 +113,34 @@ Decimal phases appear between their surrounding integers in numeric order.
   7. Coverage trending setup tracks coverage.json over time with HTML reports for interpretation
 **Plans**: TBD
 
+### Phase 6: Production Hardening
+**Goal**: Run full test suite to identify bugs, prioritize fixes, and harden codebase for production readiness
+**Depends on**: Phase 5
+**Requirements**: New requirements based on bugs found during Phases 1-5
+**Success Criteria** (what must be TRUE):
+  1. Full test suite (property + integration + platform) executes without blocking errors
+  2. All identified bugs are documented with severity and priority
+  3. Critical and high-priority bugs are fixed
+  4. Test suite achieves stable baseline (zero flaky tests)
+  5. Performance baselines established (<5min full suite, <1s per property test)
+**Plans**: TBD
+
+### Phase 7: Implementation Fixes
+**Goal**: Fix incomplete and inconsistent implementations discovered during testing, ensuring all tests can run and pass
+**Depends on**: Phase 6
+**Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, FIX-05
+**Success Criteria** (what must be TRUE):
+  1. Expo SDK 50 + Jest compatibility issue resolved (mobile auth tests can run)
+  2. Service implementation bugs fixed (notificationService destructuring, state management)
+  3. Incomplete mobile implementations completed or stubbed
+  4. Desktop integration issues resolved
+  5. All platform tests achieve stable baseline (>80% pass rate)
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -125,3 +150,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
 | 6. Production Hardening | 0/TBD | Not started | - |
+| 7. Implementation Fixes | 0/TBD | Not started | - |
