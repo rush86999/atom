@@ -7,6 +7,7 @@ and configuration for the entire test suite.
 
 import sys
 import os
+import uuid
 import pytest
 
 # Add backend to path
@@ -52,3 +53,19 @@ def ensure_numpy_available(request):
     yield
 
     # No cleanup needed
+
+
+@pytest.fixture(scope="function")
+def unique_resource_name():
+    """
+    Generate a unique resource name for parallel test execution.
+    Combines worker ID with UUID to ensure no collisions.
+
+    Usage example:
+        def test_file_operations(unique_resource_name):
+            filename = f"{unique_resource_name}.txt"
+            # No collision with parallel tests
+    """
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
+    unique_id = str(uuid.uuid4())[:8]
+    return f"test_{worker_id}_{unique_id}"
