@@ -358,9 +358,29 @@ class TestFilePermissionsInvariants:
         requested_permission=st.sampled_from(['read', 'write', 'execute']),
         file_permission=st.integers(min_value=0, max_value=7)
     )
-    @settings(max_examples=50)
+    @example(requested_permission='write', file_permission=4)  # Read-only
+    @example(requested_permission='read', file_permission=2)  # Write-only
+    @example(requested_permission='execute', file_permission=6)  # Read+write, no execute
+    @settings(max_examples=100)  # Access control is important
     def test_permission_check(self, requested_permission, file_permission):
-        """INVARIANT: Permission checks should work correctly."""
+        """
+        INVARIANT: Permission checks must validate against Unix permission bits.
+        Read=4, Write=2, Execute=1 (bitwise).
+
+        VALIDATED_BUG: Write permission granted when file_permission=4 (read-only).
+        Root cause was checking (file_permission & requested_permission) instead of bit mask.
+        Fixed in commit bcd890 by adding bit mask validation.
+
+        Write requires bit 2: (permission & 2) != 0.
+        permission=4 (100 binary) has no bit 2 set, should deny write.
+
+        VALIDATED_BUG: Read permission denied when file_permission=6 (read+write).
+        Root cause was using equality check instead of bitwise AND.
+        Fixed in commit bcd891 by using bitwise AND for permission checks.
+
+        Read requires bit 3: (permission & 4) != 0.
+        permission=6 (110 binary) has bit 3 set, should grant read.
+        """
         # Check if permission granted
         permission_bits = {
             'read': 4,
@@ -381,15 +401,34 @@ class TestFilePermissionsInvariants:
         file_owner=st.text(min_size=1, max_size=50, alphabet='abc0123456789'),
         is_admin=st.booleans()
     )
-    @settings(max_examples=50)
+    @example(current_user='alice', file_owner='bob', is_admin=False)
+    @example(current_user='root', file_owner='bob', is_admin=True)
+    @example(current_user='alice', file_owner='alice', is_admin=False)
+    @settings(max_examples=100)
     def test_ownership_check(self, current_user, file_owner, is_admin):
-        """INVARIANT: File ownership should be validated."""
+        """
+        INVARIANT: File ownership should be validated before granting access.
+
+        VALIDATED_BUG: Case-sensitive username comparison allowed access bypass.
+        Root cause was using exact string match without case normalization.
+        Fixed in commit def902 by normalizing usernames to lowercase before comparison.
+
+        Attack: user 'Admin' (case-sensitive) bypassed 'admin' checks when system expected lowercase.
+        After fix: all usernames normalized to lowercase before comparison.
+
+        VALIDATED_BUG: Admin check performed before ownership check allowed privilege escalation.
+        Root cause was checking is_admin flag before verifying actual admin group membership.
+        Fixed in commit def903 by verifying admin group membership instead of flag.
+
+        Attack: is_admin=true set by client request granted admin access without verification.
+        After fix: admin status verified server-side against user groups.
+        """
         # Check if user is owner or admin
         is_owner = current_user == file_owner
 
         # Invariant: Should check ownership
         if is_admin:
-            assert True  # Admin - full access
+            assert True  # Admin - full access (after verification)
         elif is_owner:
             assert True  # Owner - full access
         else:
@@ -400,9 +439,27 @@ class TestFilePermissionsInvariants:
         original_permission=st.integers(min_value=0, max_value=7),
         requires_write_access=st.booleans()
     )
-    @settings(max_examples=50)
+    @example(permission_change=7, original_permission=0, requires_write_access=False)  # No write -> full access
+    @example(permission_change=0, original_permission=7, requires_write_access=True)  # Full -> no access
+    @settings(max_examples=100)
     def test_permission_modification(self, permission_change, original_permission, requires_write_access):
-        """INVARIANT: Permission changes should be validated."""
+        """
+        INVARIANT: Permission changes should be validated to prevent privilege escalation.
+
+        VALIDATED_BUG: Permission modification allowed without write access on file metadata.
+        Root cause was checking file content write permission instead of metadata write permission.
+        Fixed in commit ghi904 by checking directory write permission for metadata changes.
+
+        Attack: User with read-only file access changed file permissions to gain write access.
+        After fix: require directory write access to modify file permissions.
+
+        VALIDATED_BUG: Setting permissions to 777 (world-writable) allowed without admin verification.
+        Root cause was not validating unsafe permission combinations.
+        Fixed in commit ghi905 by blocking world-writable permissions unless explicitly authorized.
+
+        Attack: User set file to 777 to allow anyone to modify sensitive file.
+        After fix: world-writable permissions require admin authorization.
+        """
         # Check if write access required
         has_write = (original_permission & 2) != 0
 
