@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 5 of 7 (Coverage & Quality Validation)
-Plan: TBD in current phase
-Status: Ready to start
-Last activity: 2026-02-11 — Completed Phase 4 Plan 8 (React Native screen component tests)
+Plan: 06 of 08 (Mobile Coverage Blocker Resolution)
+Status: In progress
+Last activity: 2026-02-11 — Completed Phase 5 Plan 6 (Mobile coverage blocker resolution, 602 tests)
 
-Progress: [████████████░░] 57% (Phase 1-4 complete, Phase 5-7 TBD)
+Progress: [████████████░░] 57% (Phase 1-4 complete, Phase 5: 6/8 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 29
 - Average duration: 11 min
-- Total execution time: 5.3 hours
+- Total execution time: 5.5 hours
 
 **By Phase:**
 
@@ -63,6 +63,7 @@ Progress: [████████████░░] 57% (Phase 1-4 complete, 
 | Phase 04-platform-coverage P05 | 410s | 2 tasks | 2 files |
 | Phase 04-platform-coverage P06 | 1728s | 2 tasks | 2 files |
 | Phase 04-platform-coverage P08 | 2128s | 4 tasks | 4 files |
+| Phase 05-coverage-quality-validation P06 | 1064s | 4 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,11 @@ Recent decisions affecting current work:
 - [Phase 04]: Used mockImplementation() in beforeEach to reset singleton service state between tests
 - [Phase 04]: Accepted partial coverage for notificationService due to implementation bugs (line 158 destructuring error)
 - [Phase 04]: Documented expo/virtual/env Jest incompatibility blocking biometric tests
+- [Phase 05]: Used Constants.expoConfig?.extra?.apiUrl pattern instead of process.env.EXPO_PUBLIC_API_URL to avoid babel transform to expo/virtual/env
+- [Phase 05]: Created comprehensive DeviceContext tests (41 tests) following React Testing Library patterns from AuthContext.test.tsx
+- [Phase 05]: Added getForegroundPermissionsAsync to expo-location mock in jest.setup.js for DeviceContext test compatibility
+- [Phase 05]: Set 80% coverage threshold in jest.config.js (realistic target aligned with Phase 5 goals)
+- [Phase 05]: Moved Jest configuration from package.json to separate jest.config.js file for better organization
 
 ### Pending Todos
 
@@ -131,16 +137,12 @@ None yet.
 
 [Issues that affect future work]
 
-**expo/virtual/env Jest Incompatibility (2026-02-11)**
+**expo/virtual/env Jest Incompatibility (RESOLVED 2026-02-11)**
 - **Issue:** Expo's environment variable system uses babel transform that doesn't work in Jest
 - **Impact:** AuthContext.tsx cannot be tested because it accesses process.env.EXPO_PUBLIC_API_URL at module load time
 - **Affected:** Biometric authentication tests (17 tests written but cannot run)
-- **Workarounds attempted:**
-  - Set process.env.EXPO_PUBLIC_API_URL in test file before imports
-  - Added jest.mock('expo/virtual/env', ..., { virtual: true }) in jest.setup.js
-  - Created manual mock file at node_modules/expo/virtual/env.js
-  - Mocked expo-constants
-- **Next steps:** Investigate Expo's babel plugin for environment variables or modify AuthContext to handle missing env vars gracefully
+- **Resolution:** Used Constants.expoConfig?.extra?.apiUrl pattern instead of process.env.EXPO_PUBLIC_API_URL
+- **Status:** RESOLVED - AuthContext tests now run (22/25 passing), 602 mobile tests total
 
 **notificationService.ts Implementation Bugs (2026-02-11)**
 - **Issue 1:** Line 158 destructures { status } from getExpoPushTokenAsync which returns { data }
@@ -151,14 +153,18 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed Phase 4 Plan 2 (Device capability service tests - Camera, Location, Notification, Biometric)
+Stopped at: Completed Phase 5 Plan 6 (Mobile coverage blocker resolution, 602 tests)
 Resume file: None
 
 ## Blockers
 
-### Expo SDK 50 Jest Incompatibility (2026-02-11)
+### Expo SDK 50 Jest Incompatibility (RESOLVED 2026-02-11)
 
 **Issue:** babel-preset-expo inline-env-vars plugin transforms `process.env.EXPO_PUBLIC_*` references to use `expo/virtual/env` module which doesn't exist in Jest environment.
+
+**Resolution:** Used Constants.expoConfig?.extra?.apiUrl pattern instead of process.env.EXPO_PUBLIC_API_URL in AuthContext.tsx and DeviceContext.tsx. Updated jest.setup.js to add extra.apiUrl to expo-constants mock.
+
+**Status:** RESOLVED - AuthContext and DeviceContext tests now run without expo/virtual/env errors.
 
 **Impact:** 
 - AuthContext.test.tsx (1100+ lines) cannot run
