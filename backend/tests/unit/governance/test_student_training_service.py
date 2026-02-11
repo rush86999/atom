@@ -8,6 +8,7 @@ Coverage target: 80%+ for student_training_service.py
 """
 
 import pytest
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -119,9 +120,11 @@ class TestTrainingDurationEstimation:
 
         # Create completed training session for similar agent
         training_session = TrainingSession(
+            id=str(uuid.uuid4()),
             proposal_id="test_proposal_1",
             agent_id=similar_agent.id,
             agent_name=similar_agent.name,
+            supervisor_id="test_supervisor",  # Required field
             status="completed",
             started_at=datetime.now() - timedelta(days=5),
             completed_at=datetime.now() - timedelta(days=1),
@@ -778,9 +781,11 @@ class TestLearningRateCalculation:
 
         # Create training session with good performance
         session = TrainingSession(
+            id=str(uuid.uuid4()),
             proposal_id="proposal_1",
             agent_id=agent.id,
             agent_name=agent.name,
+            supervisor_id="test_supervisor",  # Required field
             status="completed",
             performance_score=0.85,  # Above average performance
             started_at=datetime.now() - timedelta(days=2),
