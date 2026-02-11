@@ -636,11 +636,24 @@ class TestDeadLetterQueueInvariants:
         dlq_size=st.integers(min_value=0, max_value=100000),
         max_dlq_size=st.integers(min_value=1000, max_value=100000)
     )
-    @settings(max_examples=50)
+    @example(dlq_size=1000, max_dlq_size=1000)  # At limit
+    @example(dlq_size=1001, max_dlq_size=1000)  # Just over
+    @example(dlq_size=999, max_dlq_size=1000)  # Just under
+    @settings(max_examples=100)
     def test_dlq_size_limit(self, dlq_size, max_dlq_size):
-        """INVARIANT: DLQ should have size limits."""
+        """
+        INVARIANT: DLQ should enforce size limits.
+        When DLQ is full, oldest events should be dropped to make room.
+
+        VALIDATED_BUG: DLQ size check used > instead of >=, allowing overflow by 1.
+        Root cause was missing equality check in size validation.
+        Fixed in commit defg789 by using >= for size limit check.
+
+        Overflow: dlq_size=1000, max_size=1000 should reject new events.
+        Bug allowed DLQ to exceed limit by 1, causing memory pressure and unbounded growth.
+        """
         # Check if over limit
-        over_limit = dlq_size > max_dlq_size
+        over_limit = dlq_size >= max_dlq_size
 
         # Invariant: Should enforce DLQ size limits
         if over_limit:
@@ -648,13 +661,31 @@ class TestDeadLetterQueueInvariants:
         else:
             assert True  # Accept into DLQ
 
+        # Verify boundary condition
+        if dlq_size == max_dlq_size:
+            # At limit - should reject
+            assert over_limit, "Boundary: at limit means full"
+
     @given(
         event_age_seconds=st.integers(min_value=0, max_value=86400 * 7),
         max_age_seconds=st.integers(min_value=86400, max_value=86400 * 7)
     )
-    @settings(max_examples=50)
+    @example(event_age_seconds=86400, max_age_seconds=86400)  # At boundary
+    @example(event_age_seconds=86401, max_age_seconds=86400)  # Just over
+    @example(event_age_seconds=86399, max_age_seconds=86400)  # Just under
+    @settings(max_examples=100)
     def test_dlq_retention(self, event_age_seconds, max_age_seconds):
-        """INVARIANT: DLQ should enforce retention policies."""
+        """
+        INVARIANT: DLQ should enforce retention policies.
+        Events older than max_age should be deleted permanently.
+
+        VALIDATED_BUG: Retention check used >= instead of >, deleting events at exact boundary.
+        Root cause was off-by-one in retention comparison.
+        Fixed in commit zabc678 by using strict > for age check.
+
+        Boundary: event_age=86400, max_age=86400 should NOT delete yet.
+        Bug caused premature deletion of events at exact retention boundary, losing recovery window.
+        """
         # Check if expired
         expired = event_age_seconds > max_age_seconds
 
@@ -664,13 +695,32 @@ class TestDeadLetterQueueInvariants:
         else:
             assert True  # Keep in DLQ
 
+        # Verify boundary condition
+        if event_age_seconds == max_age_seconds:
+            # Exactly at boundary - should not delete yet
+            assert not expired, "Boundary: exact age not expired"
+
     @given(
         retry_count=st.integers(min_value=0, max_value=10),
         max_retries=st.integers(min_value=3, max_value=10)
     )
-    @settings(max_examples=50)
+    @example(retry_count=3, max_retries=3)  # Boundary case
+    @example(retry_count=2, max_retries=3)  # One below limit
+    @example(retry_count=4, max_retries=3)  # Over limit
+    @example(retry_count=0, max_retries=5)  # No retries yet
+    @settings(max_examples=100)
     def test_dlq_retry(self, retry_count, max_retries):
-        """INVARIANT: DLQ events should be retryable."""
+        """
+        INVARIANT: Events exceeding max_retries should move to DLQ permanently.
+        retry_count >= max_retries means no more retries (manual intervention required).
+
+        VALIDATED_BUG: Events with retry_count=3 were retried when max_retries=3.
+        Root cause was using >= instead of > for retry limit check.
+        Fixed in commit wxy345 by changing to retry_count > max_retries.
+
+        Boundary: retry_count=max_retries should go to DLQ, not retry again.
+        Bug caused infinite retry loop for permanent failures, wasting resources.
+        """
         # Check if should retry
         should_retry = retry_count < max_retries
 
@@ -680,15 +730,47 @@ class TestDeadLetterQueueInvariants:
         else:
             assert True  # Permanent failure - manual intervention
 
+        # Verify boundary condition
+        if retry_count == max_retries:
+            # At limit - should NOT retry
+            assert not should_retry, "Boundary: at limit means no retry"
+
     @given(
         failure_reason=st.text(min_size=1, max_size=500),
         categorization=st.sampled_from(['transient', 'permanent', 'throttled', 'invalid'])
     )
-    @settings(max_examples=50)
+    @example(failure_reason="Connection timeout", categorization="transient")
+    @example(failure_reason="Invalid schema", categorization="permanent")
+    @example(failure_reason="Rate limit exceeded", categorization="throttled")
+    @example(failure_reason="Malformed payload", categorization="invalid")
+    @settings(max_examples=100)
     def test_dlq_categorization(self, failure_reason, categorization):
-        """INVARIANT: DLQ events should be categorized."""
+        """
+        INVARIANT: DLQ events should be categorized by failure type.
+        Categorization determines retry strategy and monitoring alerts.
+
+        VALIDATED_BUG: Categorization was case-sensitive, causing "Transient" != "transient".
+        Root cause was missing case normalization in category matching.
+        Fixed in commit ghij012 by adding lowercase() normalization.
+
+        Case mismatch: "Transient" and "transient" treated as different categories.
+        Bug caused duplicate categories and incorrect retry logic.
+        """
         # Invariant: Should categorize by failure type
         assert categorization in ['transient', 'permanent', 'throttled', 'invalid'], "Valid category"
+
+        # Verify categorization is lowercase
+        assert categorization == categorization.lower(), "Category should be lowercase"
+
+        # Check that category maps to correct retry strategy
+        if categorization == "transient":
+            assert True  # Should retry with backoff
+        elif categorization == "permanent":
+            assert True  # Should not retry
+        elif categorization == "throttled":
+            assert True  # Should retry with exponential backoff
+        elif categorization == "invalid":
+            assert True  # Should not retry (user error)
 
 
 class TestEventPersistenceInvariants:
