@@ -42,12 +42,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Phase 1
 **Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05, PROP-06, PROP-07, QUAL-04, QUAL-05, DOCS-02
 **Success Criteria** (what must be TRUE):
-  1. Property tests verify governance invariants (agent maturity levels, permissions matrix, confidence scores) hold across 1000+ random inputs
-  2. Property tests verify episodic memory invariants (segmentation boundaries, retrieval accuracy, lifecycle decay, consolidation rules) hold across 1000+ random inputs
-  3. Property tests verify database transaction invariants (atomicity, consistency, isolation, durability) hold across 1000+ random inputs
-  4. Each property test documents the invariant being tested and includes bug-finding evidence in docstrings
-  5. Property tests execute in <1s per test with Hypothesis examples generating edge cases that unit tests miss
-**Plans**: TBD
+  1. Property tests verify governance invariants (agent maturity levels, permissions matrix, confidence scores) with bug-finding evidence documented
+  2. Property tests verify episodic memory invariants (segmentation boundaries, retrieval accuracy, graduation criteria) with bug-finding evidence documented
+  3. Property tests verify database transaction invariants (ACID properties, constraints) with bug-finding evidence documented
+  4. Each property test documents the invariant being tested and includes VALIDATED_BUG section in docstrings
+  5. INVARIANTS.md documents all invariants externally with test locations and max_examples values
+  6. Strategic max_examples: 200 for critical invariants (financial, security, data loss), 100 for standard, 50 for IO-bound
+**Plans**: 7 plans
+- [ ] 02-core-property-tests-01-PLAN.md — Enhance governance property tests with bug-finding evidence documentation
+- [ ] 02-core-property-tests-02-PLAN.md — Enhance episodic memory property tests with bug-finding evidence documentation
+- [ ] 02-core-property-tests-03-PLAN.md — Enhance database transaction property tests with ACID invariant documentation
+- [ ] 02-core-property-tests-04-PLAN.md — Enhance API contract property tests with validation error documentation
+- [ ] 02-core-property-tests-05-PLAN.md — Enhance state management property tests with rollback sync documentation
+- [ ] 02-core-property-tests-06-PLAN.md — Enhance event handling property tests with ordering batching documentation
+- [ ] 02-core-property-tests-07-PLAN.md — Enhance file operations property tests with security path documentation
 
 ### Phase 3: Integration & Security Tests
 **Goal**: Integration tests validate component interactions and security tests validate authentication, authorization, input validation, and access control
@@ -96,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
-| 2. Core Property Tests | 0/TBD | Not started | - |
+| 2. Core Property Tests | 0/7 | Not started | - |
 | 3. Integration & Security Tests | 0/TBD | Not started | - |
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
