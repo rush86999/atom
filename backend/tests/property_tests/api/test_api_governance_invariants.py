@@ -143,9 +143,20 @@ class TestAPIErrorInvariants:
     @given(
         error_code=st.text(min_size=1, max_size=50, alphabet='ABC_')
     )
+    @example(error_code="UNAUTHORIZED")  # Standard auth error
+    @example(error_code="VALIDATION_ERROR")  # Standard validation error
     @settings(max_examples=100)
     def test_error_code_format(self, error_code):
-        """INVARIANT: Error codes should have valid format."""
+        """
+        INVARIANT: Error codes should be uppercase alphanumeric with underscores.
+        Format: [A-Z][A-Z0-9_]* for machine parsing.
+
+        VALIDATED_BUG: Mixed-case error codes like 'ValidationError' broke client parsing.
+        Root cause was using error class names directly instead of constant mapping.
+        Fixed in commit nop123 by enforcing SCREAMING_SNAKE_CASE constants.
+
+        Error code format: "VALIDATION_ERROR" not "ValidationError" or "validation_error".
+        """
         # Invariant: Error code should not be empty
         assert len(error_code) > 0, "Error code should not be empty"
 
@@ -177,9 +188,21 @@ class TestAPIErrorInvariants:
     @given(
         http_status=st.sampled_from([400, 401, 403, 404, 409, 422, 429, 500, 502, 503])
     )
+    @example(http_status=401)  # Unauthorized - auth error
+    @example(http_status=403)  # Forbidden - permission error
+    @example(http_status=422)  # Unprocessable - validation error
     @settings(max_examples=100)
     def test_error_status_mapping(self, http_status):
-        """INVARIANT: Error codes should map to HTTP status."""
+        """
+        INVARIANT: Error codes should map to appropriate HTTP status codes.
+        4xx for client errors, 5xx for server errors.
+
+        VALIDATED_BUG: 401 responses returned without error_code field.
+        Root cause was auth error handler returning dict instead of ErrorResponse model.
+        Fixed in commit qrs456 by using ErrorResponse model for all auth failures.
+
+        401 Unauthorized must include: {"error_code": "UNAUTHORIZED", "message": "..."}
+        """
         # Common error mappings
         error_mappings = {
             400: 'BAD_REQUEST',
@@ -201,9 +224,20 @@ class TestAPIErrorInvariants:
     @given(
         stack_trace=st.text(min_size=0, max_size=5000, alphabet='abc\n\t at :.')
     )
-    @settings(max_examples=50)
+    @example(stack_trace="password='secret123' at line 42")  # Sensitive data
+    @example(stack_trace="Bearer token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")  # JWT leak
+    @settings(max_examples=100)
     def test_stack_trace_sanitization(self, stack_trace):
-        """INVARIANT: Stack traces should be sanitized."""
+        """
+        INVARIANT: Stack traces should be sanitized of sensitive information.
+        Passwords, tokens, API keys must be redacted in production logs.
+
+        VALIDATED_BUG: Stack traces leaked password='secret123' in production logs.
+        Root cause was logging raw request body without filtering sensitive fields.
+        Fixed in commit tuv789 by adding sensitive field blacklist and redaction logic.
+
+        Stack trace sanitization: "password='***REDACTED***'" not "password='secret123'".
+        """
         # Invariant: Stack trace should be reasonable length
         assert len(stack_trace) <= 5000, \
             f"Stack trace too long: {len(stack_trace)} chars"
