@@ -23,6 +23,11 @@ import '@testing-library/jest-native';
 // Note: expo/virtual/env is not available in Jest, use process.env instead
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:8000';
 
+// Mock the expo/virtual/env module to prevent import errors
+jest.mock('expo/virtual/env', () => ({
+  EXPO_PUBLIC_API_URL: 'http://localhost:8000',
+}), { virtual: true });
+
 // ============================================================================
 // expo-camera Mock
 // ============================================================================
@@ -322,6 +327,7 @@ jest.mock('expo-device', () => ({
     deviceYearClass: 2022,
     totalMemory: 6 * 1024 * 1024 * 1024, // 6GB
     supportedCpuArchitectures: ['arm64'],
+    isDevice: true, // Add isDevice property to Device object
   },
 }));
 
