@@ -2,7 +2,8 @@
 
 **Phase:** 250-comprehensive-testing
 **Plan:** 01
-**Total Scenarios:** 270
+**Detailed Scenarios:** 130
+**Total Planned:** 270
 **Categories:** 20
 **Last Updated:** 2025-02-11
 
