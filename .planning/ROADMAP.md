@@ -68,7 +68,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Security tests validate authentication flows (signup, login, logout, session management, JWT refresh)
   5. Security tests validate authorization (agent maturity permissions, action complexity matrix, episode access control, OAuth flows)
   6. Security tests validate input validation (SQL injection, XSS, path traversal prevention, canvas JavaScript security)
-**Plans**: TBD
+**Plans**: 7 plans
+- [ ] 03-integration-security-tests-01-PLAN.md — API and database integration tests with TestClient and transaction rollback
+- [ ] 03-integration-security-tests-02-PLAN.md — Authentication flows and JWT security tests
+- [ ] 03-integration-security-tests-03-PLAN.md — Authorization and input validation security tests
+- [ ] 03-integration-security-tests-04-PLAN.md — WebSocket integration tests with async patterns
+- [ ] 03-integration-security-tests-05-PLAN.md — Canvas and browser integration tests with JavaScript security
+- [ ] 03-integration-security-tests-06-PLAN.md — External service mocking and multi-agent coordination tests
+- [ ] 03-integration-security-tests-07-PLAN.md — OAuth flows and episode access control security tests
 
 ### Phase 4: Platform Coverage
 **Goal**: Mobile and desktop applications have comprehensive test coverage for React Native and Tauri components
@@ -105,6 +112,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
 | 2. Core Property Tests | 7/7 | **Complete** | 2026-02-11 |
-| 3. Integration & Security Tests | 0/TBD | Not started | - |
+| 3. Integration & Security Tests | 0/7 | Not started | - |
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
