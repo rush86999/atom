@@ -83,6 +83,12 @@ jest.mock('expo-location', () => ({
     granted: true,
     expires: 'never',
   }),
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  }),
   requestBackgroundPermissionsAsync: jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
