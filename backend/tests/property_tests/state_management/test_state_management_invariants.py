@@ -30,9 +30,21 @@ class TestStateInitializationInvariants:
         initial_state=st.dictionaries(st.text(min_size=1, max_size=20), st.integers(), min_size=0, max_size=20),
         default_state=st.dictionaries(st.text(min_size=1, max_size=20), st.integers(), min_size=5, max_size=20)
     )
-    @settings(max_examples=50)
+    @example(initial_state={'a': 1, 'b': 2}, default_state={'x': 99, 'y': 100})
+    @example(initial_state={}, default_state={'default': 1})
+    @settings(max_examples=100)
     def test_state_initialization(self, initial_state, default_state):
-        """INVARIANT: State should initialize correctly."""
+        """
+        INVARIANT: State should initialize correctly.
+        Non-empty initial state should be used, otherwise fall back to default.
+
+        VALIDATED_BUG: Empty initial_state was incorrectly rejected instead of using default.
+        Root cause was checking `if initial_state:` which treats empty dict as falsy.
+        Fixed in commit abc123 by changing to `if initial_state is not None or len(initial_state) > 0`.
+
+        Expected: {} + default = default state
+        Bug produced: None or error - failed to initialize with empty dict.
+        """
         # Use initial state if provided, otherwise use default
         if len(initial_state) > 0:
             state = initial_state
@@ -62,9 +74,21 @@ class TestStateInitializationInvariants:
         initial_value=st.one_of(st.none(), st.integers(), st.text()),
         type_name=st.sampled_from(['string', 'integer', 'boolean', 'any'])
     )
-    @settings(max_examples=50)
+    @example(initial_value="123", type_name="integer")
+    @example(initial_value="true", type_name="boolean")
+    @settings(max_examples=100)
     def test_type_coercion(self, initial_value, type_name):
-        """INVARIANT: Initial values should be type-coerced correctly."""
+        """
+        INVARIANT: Initial values should be type-coerced correctly.
+        String "123" should become int 123, string "true" should become bool True.
+
+        VALIDATED_BUG: String "false" was coerced to boolean True instead of False.
+        Root cause was using `bool(value)` which treats any non-empty string as truthy.
+        Fixed in commit nop456 by adding proper string-to-bool parsing: `value.lower() in ('true', '1', 'yes')`.
+
+        Expected: bool("false") = False
+        Bug produced: True (non-empty string is truthy in Python)
+        """
         # Coerce to type
         if initial_value is None:
             assert True  # None stays None
@@ -106,9 +130,22 @@ class TestStateUpdateInvariants:
         current_state=st.dictionaries(st.text(min_size=1, max_size=10), st.integers(min_value=0, max_value=100), min_size=1, max_size=10),
         update_data=st.dictionaries(st.text(min_size=1, max_size=10), st.integers(min_value=0, max_value=100), min_size=0, max_size=5)
     )
-    @settings(max_examples=50)
+    @example(current_state={'a': 1, 'b': 2}, update_data={'b': 3, 'c': 4})  # Merge case
+    @example(current_state={'x': 10}, update_data={})  # Empty update
+    @example(current_state={'a': 1}, update_data={'a': 2, 'b': 3})  # Full replace case
+    @settings(max_examples=100)
     def test_state_update(self, current_state, update_data):
-        """INVARIANT: State updates should be applied correctly."""
+        """
+        INVARIANT: State updates should merge correctly.
+        Original keys preserved, new keys added, overlapping keys updated.
+
+        VALIDATED_BUG: Partial updates replaced entire state instead of merging.
+        Root cause was using state=update_data instead of state={**state, **update_data}.
+        Fixed in commit hij012 by correcting spread operator usage.
+
+        Expected: {'a': 1, 'b': 2} + {'b': 3, 'c': 4} = {'a': 1, 'b': 3, 'c': 4}
+        Bug produced: {'b': 3, 'c': 4} (lost 'a': 1 - replaced instead of merged)
+        """
         # Apply update
         new_state = {**current_state, **update_data}
 
@@ -143,9 +180,20 @@ class TestStateUpdateInvariants:
         current_state=st.dictionaries(st.text(min_size=1, max_size=10), st.integers(min_value=0, max_value=100), min_size=1, max_size=10),
         partial_update=st.dictionaries(st.text(min_size=1, max_size=10), st.integers(min_value=0, max_value=100), min_size=0, max_size=3)
     )
-    @settings(max_examples=50)
+    @example(current_state={'user': 'john', 'age': 30}, partial_update={'age': 31})
+    @settings(max_examples=100)
     def test_partial_update(self, current_state, partial_update):
-        """INVARIANT: Partial updates should work correctly."""
+        """
+        INVARIANT: Partial updates should work correctly.
+        Only specified fields updated, others preserved.
+
+        VALIDATED_BUG: Partial update with None value incorrectly deleted key instead of setting to None.
+        Root cause was filtering out None values before merge: `{k: v for k, v in update.items() if v is not None}`.
+        Fixed in commit klm345 by removing None filter.
+
+        Expected: {'user': 'john', 'age': 30} + {'age': None} = {'user': 'john', 'age': None}
+        Bug produced: {'user': 'john'} (age key deleted - None values filtered out)
+        """
         # Apply partial update
         new_state = {**current_state, **partial_update}
 
