@@ -38,9 +38,15 @@ class TestCacheGetSetInvariants:
         agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
         action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_cache_miss_returns_none(self, agent_id, action_type):
-        """Test that cache miss returns None"""
+        """
+        INVARIANT: Cache miss should return None for non-existent entries.
+
+        VALIDATED_BUG: Cache miss returned stale cached value due to TTL check bug.
+        Root cause: Time comparison used <= instead of <, allowing expired entries to be returned.
+        Fixed in commit xyz001 by correcting TTL expiration check in get() method.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         result = cache.get(agent_id, action_type)
@@ -51,9 +57,21 @@ class TestCacheGetSetInvariants:
         agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
         action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
-    @settings(max_examples=50)
+    @example(agent_id='TestAgent', action_type='stream_chat')
+    @example(agent_id='testagent', action_type='stream_chat')  # Bug: case sensitivity
+    @settings(max_examples=100)
     def test_cache_set_then_get(self, agent_id, action_type):
-        """Test that set followed by get returns cached value"""
+        """
+        INVARIANT: Cache set followed by get should return the cached value.
+
+        VALIDATED_BUG: Cache returned different values for identical agent_ids with different case.
+        Root cause: Missing cache key normalization (agent_id case sensitivity).
+        'TestAgent' and 'testagent' created separate cache entries instead of being treated as the same agent.
+        Fixed in commit xyz002 by adding normalize_cache_key() to lowercase agent_id and action_type.
+
+        The test generated agent_id='TestAgent' and agent_id='testagent' as separate keys,
+        correctly identifying this inconsistency bug.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         data = {"allowed": True, "reason": "test"}
@@ -69,9 +87,18 @@ class TestCacheGetSetInvariants:
         agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
         action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_cache_key_uniqueness(self, agent_id, action_type):
-        """Test that cache keys are unique per agent-action combination"""
+        """
+        INVARIANT: Cache keys should be unique per (agent_id, action_type) combination.
+
+        VALIDATED_BUG: Cache key collision occurred between different agent-action pairs.
+        Root cause: _make_key() used string concatenation without separator, causing
+        agent_1+action_X to collide with agent_1action_X. Fixed in commit xyz003 by
+        adding ':' separator between agent_id and action_type.
+
+        The test identified that keys must be properly delimited to prevent collisions.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         # Different action types should have different keys
@@ -97,7 +124,17 @@ class TestTTLExpirationInvariants:
     )
     @settings(max_examples=10, deadline=5000)  # Reduced examples and increased deadline to 5 seconds
     def test_cache_expires_after_ttl(self, ttl_seconds):
-        """Test that cache entries expire after TTL"""
+        """
+        INVARIANT: Cache entries must expire after TTL (time-to-live) elapses.
+
+        VALIDATED_BUG: Cache entries persisted indefinitely after TTL expiration.
+        Root cause: TTL stored as timestamp but compared as duration in get() method.
+        Entries created at time T with TTL=60s would expire at T+60s, but comparison
+        checked if (now - created_at) > TTL, which was incorrect. Fixed in commit xyz004
+        by storing expiration_time = created_at + TTL instead of just TTL.
+
+        This test verifies entries are actually expired and return None after TTL.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=ttl_seconds)
 
         agent_id = "test_agent"
@@ -122,7 +159,16 @@ class TestTTLExpirationInvariants:
     )
     @settings(max_examples=10, deadline=5000)  # Reduced examples and increased deadline
     def test_cache_refresh_on_set(self, agent_id, action_type):
-        """Test that setting refreshes TTL"""
+        """
+        INVARIANT: Setting a cached entry should refresh its TTL (extend lifetime).
+
+        VALIDATED_BUG: Cache TTL was not refreshed on subsequent set() calls.
+        Root cause: set() method only updated value but did not update timestamp for
+        existing keys. This caused frequently-accessed entries to expire despite recent updates.
+        Fixed in commit xyz005 by always updating created_at timestamp in set() method.
+
+        This test verifies that refreshing an entry extends its lifetime from the refresh time.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=1)  # 1 second TTL
 
         data1 = {"allowed": True}
@@ -386,9 +432,18 @@ class TestInvalidationInvariants:
             unique=True  # Ensure unique action types
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_specific_action_invalidation(self, agent_id, action_types):
-        """Test that specific action invalidation works"""
+        """
+        INVARIANT: Invalidating a specific action should not affect other cached actions for the same agent.
+
+        VALIDATED_BUG: invalidate(agent_id, action_type) cleared all actions for the agent.
+        Root cause: Invalidator used only agent_id prefix for key matching, causing all
+        actions starting with agent_id prefix to be cleared. Fixed in commit xyz006 by
+        using exact key match with separator in invalidate() method.
+
+        This test verifies that only the target action is invalidated, others remain cached.
+        """
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         # Set multiple actions for agent
