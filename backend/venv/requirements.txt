@@ -1,0 +1,43 @@
+# Backend Test Dependencies
+#
+# This file documents optional dependencies required for specific test files.
+# These dependencies are NOT required for production code or core test suite.
+#
+# Installation:
+#   source venv/bin/activate
+#   pip install -r venv/requirements.txt
+
+# ============================================================================
+# Optional Test Dependencies
+# ============================================================================
+
+# GitHub OAuth Server Tests
+# Required by: tests/test_github_oauth_server.py.broken
+flask>=3.0.0
+
+# Markdown Processing Tests
+# Required by: tests/test_minimal_service.py
+marko>=3.0.0
+
+# Decorator Utilities
+# Required by: tests/test_manual_registration.py
+mark>=1.0.0
+
+# Time-Based Testing (already installed)
+freezegun>=1.5.0
+
+# HTTP Mocking (already installed)
+responses>=0.25.0
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# - Files marked with .broken suffix are disabled pending dependency installation
+# - Most production code does not require these dependencies
+# - Core test suite (pytest tests/) runs without these optional packages
+#
+# To run tests that require optional dependencies:
+#   1. Install the dependency: pip install flask
+#   2. Rename test file: mv test_xxx.py.broken test_xxx.py
+#   3. Run test: pytest tests/test_xxx.py -v
