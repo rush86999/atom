@@ -5,6 +5,11 @@
 **Total Execution Time:** 87.17 seconds
 **Coverage:** 19.08% (below 80% target)
 
+**P1 Bug Status (Phase 6 Plan 04):**
+- BUG-008 (Calculator UI): ✅ RESOLVED - fe27acd7, regression test added
+- BUG-009 (Low assertion density): ⚠️ DOCUMENTED - Code quality issue, not a crash/financial bug
+- **Finding:** NO P1 system crash, financial incorrectness, or data integrity bugs were discovered. All P1 bugs are test-related.
+
 ---
 
 ## Severity Summary
@@ -168,7 +173,10 @@
   2. Tests can now be skipped with `-m "not integration"`
   3. Fixed files: test_browser_agent_ai.py, test_react_loop.py
   4. Renamed: test_lux.py → manual_lux_calculator.py
-- **Status:** ✅ FIXED - Integration marker added, tests skip correctly
+- **Fix:** Commit fe27acd7 (Phase 6 Plan 01)
+- **Regression Test:** tests/test_p1_regression.py::TestP1CalculatorUIRegression
+- **Verification:** `pytest tests/test_p1_regression.py::TestP1CalculatorUIRegression -v` passes
+- **Status:** ✅ RESOLVED - Integration marker added, regression test created, tests skip correctly
 
 ---
 
@@ -185,7 +193,8 @@
   1. Add more granular assertions
   2. Break up complex tests into smaller units
   3. Add assertions for edge cases
-- **Status:** ⚠️ DOCUMENTED - Test refactoring needed
+- **Status:** ⚠️ DOCUMENTED - Test refactoring needed (not a crash/financial bug, code quality issue)
+- **Regression Test:** tests/test_p1_regression.py::TestP1AssertionDensity (documents current state)
 
 ---
 
