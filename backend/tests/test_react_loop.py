@@ -37,6 +37,7 @@ def generic_agent(mock_agent_registry):
             
             yield agent
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_react_loop_reasoning(generic_agent):
     """
@@ -80,6 +81,7 @@ async def test_react_loop_reasoning(generic_agent):
     # Check that record_experience was called
     generic_agent.world_model.record_experience.assert_called_once()
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_react_loop_max_steps(generic_agent):
     """Test that loop terminates after max_steps"""
