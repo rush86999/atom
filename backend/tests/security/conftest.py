@@ -25,19 +25,13 @@ from core.models import User
 @pytest.fixture(scope="function")
 def test_user_with_password(db_session: Session):
     """Create user with known password for testing."""
-    from core.models import User
+    from tests.factories.user_factory import UserFactory
 
-    # Create user without attaching to session
-    user = User(
+    user = UserFactory(
         email="auth@test.com",
         password_hash=get_password_hash("KnownPassword123!"),
-        first_name="Test",
-        last_name="User",
-        role="member"
+        _session=db_session
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
     return user
 
 
@@ -129,13 +123,7 @@ def admin_user(db_session: Session):
     """
     from tests.factories.user_factory import AdminUserFactory
 
-    user = AdminUserFactory(
-        email="admin@test.com",
-        password_hash=get_password_hash("admin123")
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    user = AdminUserFactory(_session=db_session)
     return user
 
 
