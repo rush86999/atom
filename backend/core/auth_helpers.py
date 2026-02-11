@@ -490,7 +490,7 @@ def cleanup_expired_revoked_tokens(db: Session, older_than_hours: int = 24) -> i
         register_periodic_task(cleanup_revoked_tokens, hours=24)
     """
     try:
-        cutoff_time = datetime.now() - timedelta(hours=older_than_hours)
+        cutoff_time = datetime.utcnow() - timedelta(hours=older_than_hours)
 
         deleted = db.query(RevokedToken).filter(
             RevokedToken.expires_at < cutoff_time
@@ -533,7 +533,7 @@ def cleanup_expired_active_tokens(db: Session, older_than_hours: int = 1) -> int
         register_periodic_task(cleanup_active_tokens, hours=1)
     """
     try:
-        cutoff_time = datetime.now() - timedelta(hours=older_than_hours)
+        cutoff_time = datetime.utcnow() - timedelta(hours=older_than_hours)
 
         deleted = db.query(ActiveToken).filter(
             ActiveToken.expires_at < cutoff_time
