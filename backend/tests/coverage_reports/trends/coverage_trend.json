@@ -1,0 +1,19 @@
+{
+  "coverage_history": [
+    {
+      "date": "2026-02-11",
+      "commit": "baseline",
+      "overall_percent": 15.57,
+      "governance_percent": 13.37,
+      "security_percent": 22.40,
+      "episodes_percent": 15.52,
+      "test_count": 0
+    }
+  ],
+  "targets": {
+    "overall": 80,
+    "governance": 80,
+    "security": 80,
+    "episodes": 80
+  }
+}
