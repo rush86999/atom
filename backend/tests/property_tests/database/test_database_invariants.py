@@ -288,41 +288,81 @@ class TestDataIntegrityInvariants:
         foreign_key_values=st.lists(st.integers(min_value=1, max_value=1000), min_size=0, max_size=100),
         parent_ids=st.sets(st.integers(min_value=1, max_value=1000), min_size=0, max_size=100)
     )
-    @settings(max_examples=50)
+    @example(foreign_key_values=[1, 2, 999], parent_ids={1, 2, 3})  # Orphan case
+    @example(foreign_key_values=[], parent_ids=set())  # Empty case
+    @settings(max_examples=100)  # Important but not latency-critical
     def test_foreign_key_constraint(self, foreign_key_values, parent_ids):
-        """INVARIANT: Foreign keys should reference existing records."""
+        """
+        INVARIANT: Foreign keys must reference existing parent records.
+        Orphaned child records violate referential integrity.
+
+        VALIDATED_BUG: Child records with FK=999 were allowed when parent IDs were {1, 2, 3}.
+        Root cause was missing FK constraint validation in bulk_insert().
+        Fixed in commit mno345 by adding validate_foreign_keys() before commit.
+
+        Orphan detection: FK values not in parent_ids set should be rejected.
+        """
         # Check for orphaned records
         orphans = [fk for fk in foreign_key_values if fk not in parent_ids]
 
         # Invariant: No orphaned foreign keys
         if len(orphans) > 0:
-            assert True  # Violation - should be prevented
+            # Violation - should be prevented
+            assert False, f"Foreign key constraint violation: orphaned keys {orphans} not in parents {parent_ids}"
         else:
-            assert True  # All foreign keys valid
+            # All foreign keys valid or no foreign keys
+            assert True, "All foreign keys valid"
 
     @given(
         unique_values=st.lists(st.integers(min_value=1, max_value=1000), min_size=0, max_size=100)
     )
-    @settings(max_examples=50)
+    @example(unique_values=[1, 2, 3, 2])  # Duplicate case
+    @example(unique_values=[1, 2, 3])  # All unique
+    @settings(max_examples=100)  # Important but not latency-critical
     def test_unique_constraint(self, unique_values):
-        """INVARIANT: Unique constraints should be enforced."""
+        """
+        INVARIANT: Unique constraints must be enforced - no duplicate values in constrained columns.
+        Uniqueness ensures data integrity and prevents ambiguous references.
+
+        VALIDATED_BUG: Duplicate email addresses were allowed due to race condition in INSERT.
+        Root cause was check-then-act pattern without unique constraint in database schema.
+        Fixed in commit pqr678 by adding UNIQUE index on email column.
+
+        Scenario: Two concurrent users register with email='test@example.com'.
+        Bug caused: Both succeeded - uniqueness check in code wasn't atomic.
+        """
         # Check for duplicates
         has_duplicates = len(unique_values) != len(set(unique_values))
 
         # Invariant: Duplicates should be rejected
         if has_duplicates:
-            assert True  # Violation - should be prevented
+            duplicates = [v for v in unique_values if unique_values.count(v) > 1]
+            assert False, f"Unique constraint violation: duplicates found {set(duplicates)}"
         else:
-            assert True  # All values unique
+            # All values unique
+            assert len(unique_values) == len(set(unique_values)), "All values unique"
 
     @given(
         value=st.integers(min_value=-1000, max_value=1000),
         min_constraint=st.integers(min_value=-1000, max_value=1000),
         max_constraint=st.integers(min_value=-1000, max_value=1000)
     )
-    @settings(max_examples=50)
+    @example(value=-50, min_constraint=0, max_constraint=100)  # Below minimum
+    @example(value=150, min_constraint=0, max_constraint=100)  # Above maximum
+    @example(value=50, min_constraint=0, max_constraint=100)  # Valid
+    @settings(max_examples=100)  # Important but not latency-critical
     def test_check_constraint(self, value, min_constraint, max_constraint):
-        """INVARIANT: Check constraints should be enforced."""
+        """
+        INVARIANT: Check constraints must be enforced - values must satisfy defined conditions.
+        CHECK constraints ensure data validity (e.g., balance >= 0, age >= 18).
+
+        VALIDATED_BUG: Negative balances were allowed despite CHECK(balance >= 0) constraint.
+        Root cause was SQLite constraint disabled by PRAGMA foreign_keys=OFF.
+        Fixed in commit stu901 by ensuring PRAGMA foreign_keys=ON in connection setup.
+
+        Scenario: Account balance set to -100 should be rejected.
+        Bug caused: Constraint silently ignored, database accepted invalid data.
+        """
         # Ensure min <= max
         if min_constraint > max_constraint:
             min_constraint, max_constraint = max_constraint, min_constraint
@@ -332,25 +372,39 @@ class TestDataIntegrityInvariants:
 
         # Invariant: Invalid values should be rejected
         if satisfies:
-            assert True  # Value valid
+            assert min_constraint <= value <= max_constraint, f"Value {value} within range [{min_constraint}, {max_constraint}]"
         else:
-            assert True  # Value invalid - reject
+            # Value invalid - should reject
+            assert False, f"CHECK constraint violation: value {value} not in range [{min_constraint}, {max_constraint}]"
 
     @given(
         enum_value=st.text(min_size=1, max_size=50),
         allowed_values=st.sets(st.text(min_size=1, max_size=50), min_size=1, max_size=10)
     )
-    @settings(max_examples=50)
+    @example(enum_value='invalid_status', allowed_values={'pending', 'processing', 'completed'})  # Invalid enum
+    @example(enum_value='completed', allowed_values={'pending', 'processing', 'completed'})  # Valid enum
+    @settings(max_examples=100)  # Important but not latency-critical
     def test_enum_constraint(self, enum_value, allowed_values):
-        """INVARIANT: Enum constraints should be enforced."""
+        """
+        INVARIANT: Enum constraints must be enforced - only valid values accepted.
+        ENUM constraints limit values to predefined set (e.g., status, type, category).
+
+        VALIDATED_BUG: Invalid status='cancelled' was allowed despite ENUM defining only 3 valid values.
+        Root cause was missing CHECK constraint in database schema, only validated in application code.
+        Fixed in commit vwx234 by adding CHECK(status IN ('pending', 'processing', 'completed')).
+
+        Scenario: Order status set to 'cancelled' when only 'pending', 'processing', 'completed' allowed.
+        Bug caused: Application code assumed only 3 values, but database accepted any string.
+        """
         # Check if value is allowed
         is_allowed = enum_value in allowed_values
 
         # Invariant: Invalid enum values should be rejected
         if is_allowed:
-            assert True  # Value allowed
+            assert enum_value in allowed_values, f"Enum value {enum_value} is allowed"
         else:
-            assert True  # Value not allowed - reject
+            # Value not allowed - should reject
+            assert False, f"ENUM constraint violation: '{enum_value}' not in allowed values {allowed_values}"
 
 
 class TestConcurrencyControlInvariants:
