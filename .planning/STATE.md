@@ -10,24 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 4 of 6 (Platform Coverage)
-Plan: 6 of 8 in current phase
+Plan: 2 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-11 — Completed Phase 4 Plan 6 (Desktop-Backend integration tests)
+Last activity: 2026-02-11 — Completed Phase 4 Plan 2 (Device capability service tests)
 
-Progress: [██████████░] 62% (Phase 1-3 complete, Phase 4: 6/8 done, 2 pending)
+Progress: [██████████░] 60% (Phase 1-3 complete, Phase 4: 2/8 done, 6 pending)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
-- Average duration: 7 min
-- Total execution time: 3.02 hours
+- Total plans completed: 21
+- Average duration: 6 min
+- Total execution time: 2.25 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-test-infrastructure | 5 of 5 | 1012s | 202s |
+| 02-core-property-tests | 7 of 7 | 3902s | 557s |
+| 03-integration-security-tests | 7 of 7 | 6407s | 915s |
+| 04-platform-coverage | 2 of 8 | 2700s | 1350s |
 | 02-core-property-tests | 7 of 7 | 3902s | 557s |
 | 03-integration-security-tests | 7 of 7 | 6407s | 915s |
 | 04-platform-coverage | 6 of 8 | 3158s | 526s |
@@ -57,6 +60,7 @@ Progress: [██████████░] 62% (Phase 1-3 complete, Phase 4: 
 | Phase 03-integration-security-tests P06 | 368s | 2 tasks | 2 files |
 | Phase 03-integration-security-tests P07 | 410s | 2 tasks | 2 files |
 | Phase 04-platform-coverage P01 | 599s | 3 tasks | 8 files |
+| Phase 04-platform-coverage P02 | 2700s | 4 tasks | 5 files |
 | Phase 04-platform-coverage P04 | 1431s | 3 tasks | 4 files |
 | Phase 04-platform-coverage P05 | 410s | 2 tasks | 2 files |
 | Phase 04-platform-coverage P06 | 1728s | 2 tasks | 2 files |
@@ -112,10 +116,11 @@ Recent decisions affecting current work:
 - [Phase 01-test-infrastructure]: Function-scoped unique_resource_name fixture prevents state sharing between parallel tests
 - [Phase 01-test-infrastructure]: Split BaseFactory into base.py module to avoid circular imports with factory exports
 - [Phase 01-test-infrastructure]: Use factory-boy's LazyFunction for dict defaults instead of LambdaFunction
-- [Phase 04]: Used global mocks from jest.setup.js for MMKV, AsyncStorage, and socket.io-client instead of per-test mocks
-- [Phase 04]: Fixed MMKV mock to handle falsy values (false, 0) using has() check instead of || operator
-- [Phase 04]: Added complete MMKV mock interface with getString, getNumber, getBoolean, contains, getAllKeys, getSizeInBytes
-- [Phase 04]: Marked all WebSocket tests as TODO placeholders since actual WebSocketService implementation is pending
+- [Phase 04]: Used jest.requireMock() to access and configure existing mocks from jest.setup.js
+- [Phase 04]: Fixed Device.isDevice mock by adding isDevice property to Device object in jest.setup.js
+- [Phase 04]: Used mockImplementation() in beforeEach to reset singleton service state between tests
+- [Phase 04]: Accepted partial coverage for notificationService due to implementation bugs (line 158 destructuring error)
+- [Phase 04]: Documented expo/virtual/env Jest incompatibility blocking biometric tests
 
 ### Pending Todos
 
@@ -127,12 +132,27 @@ None yet.
 
 [Issues that affect future work]
 
-None yet.
+**expo/virtual/env Jest Incompatibility (2026-02-11)**
+- **Issue:** Expo's environment variable system uses babel transform that doesn't work in Jest
+- **Impact:** AuthContext.tsx cannot be tested because it accesses process.env.EXPO_PUBLIC_API_URL at module load time
+- **Affected:** Biometric authentication tests (17 tests written but cannot run)
+- **Workarounds attempted:**
+  - Set process.env.EXPO_PUBLIC_API_URL in test file before imports
+  - Added jest.mock('expo/virtual/env', ..., { virtual: true }) in jest.setup.js
+  - Created manual mock file at node_modules/expo/virtual/env.js
+  - Mocked expo-constants
+- **Next steps:** Investigate Expo's babel plugin for environment variables or modify AuthContext to handle missing env vars gracefully
+
+**notificationService.ts Implementation Bugs (2026-02-11)**
+- **Issue 1:** Line 158 destructures { status } from getExpoPushTokenAsync which returns { data }
+- **Issue 2:** registerForPushNotifications called during requestPermissions can fail
+- **Impact:** 8/19 notification service tests failing
+- **Recommendation:** Fix these bugs in notificationService.ts for better testability
 
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed Phase 4 Plan 6 (Desktop-Backend integration tests - Tauri command tests and backend API tests)
+Stopped at: Completed Phase 4 Plan 2 (Device capability service tests - Camera, Location, Notification, Biometric)
 Resume file: None
 
 ## Blockers
