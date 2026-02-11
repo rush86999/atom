@@ -18,12 +18,62 @@
 // Set environment variable before importing service
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:8000';
 
-import { Platform } from 'react-native';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
-import { notificationService } from '../../services/notificationService';
+// Mock expo-notifications BEFORE importing the service
+jest.mock('expo-notifications', () => {
+  const mock = {
+    requestPermissionsAsync: jest.fn().mockResolvedValue({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+      ios: {
+        allowsAlert: true,
+        allowsBadge: true,
+        allowsSound: true,
+      },
+      android: {},
+    }),
+    getPermissionsAsync: jest.fn().mockResolvedValue({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    }),
+    getBadgeCountAsync: jest.fn().mockResolvedValue(0),
+    setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
+    scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
+    cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+    dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+    getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
+    getExpoPushTokenAsync: jest.fn().mockResolvedValue({
+      type: 'expo',
+      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+    }),
+    setNotificationHandler: jest.fn(),
+    addNotificationReceivedListener: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    removeNotificationSubscription: jest.fn(),
+    AndroidImportance: {
+      HIGH: 'high',
+      DEFAULT: 'default',
+      LOW: 'low',
+      MIN: 'min',
+    },
+  };
 
-// Note: Mocks are configured in jest.setup.js, we use jest.requireMock to access them
+  // Mock both default and named exports
+  return {
+    default: mock,
+    ...mock,
+    Notifications: mock,
+    Notification: mock,
+  };
+});
 
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
@@ -36,21 +86,26 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import { notificationService } from '../../services/notificationService';
+
 // Mock fetch
 global.fetch = jest.fn();
 
-// Get the mock Notifications object from jest.setup.js
-const Notifications = jest.requireMock('expo-notifications');
+// Import the mocked Notifications module (the mock is at the top of this file)
+import { Notifications } from 'expo-notifications';
 
 describe('NotificationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Get the mock objects from jest.setup.js
-    const mockNotifications = jest.requireMock('expo-notifications');
+    // Reset notification service state
+    (notificationService as any)._resetState();
 
     // Default mock implementations - configure the existing mocks
-    mockNotifications.getPermissionsAsync.mockImplementation(() =>
+    (Notifications.getPermissionsAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve({
         granted: true,
         ios: {
@@ -62,7 +117,7 @@ describe('NotificationService', () => {
       })
     );
 
-    mockNotifications.requestPermissionsAsync.mockImplementation(() =>
+    (Notifications.requestPermissionsAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve({
         granted: true,
         ios: {
@@ -75,23 +130,23 @@ describe('NotificationService', () => {
     );
 
     // Mock getExpoPushTokenAsync to avoid causing issues
-    mockNotifications.getExpoPushTokenAsync.mockImplementation(() =>
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve({
         data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
       })
     );
 
-    mockNotifications.scheduleNotificationAsync.mockImplementation(() =>
+    (Notifications.scheduleNotificationAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve('notification-id-123')
     );
 
-    mockNotifications.getAllScheduledNotificationsAsync.mockImplementation(() =>
+    (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockImplementation(() =>
       Promise.resolve([])
     );
 
-    mockNotifications.getBadgeCountAsync.mockImplementation(() => Promise.resolve(0));
+    (Notifications.getBadgeCountAsync as jest.Mock).mockImplementation(() => Promise.resolve(0));
 
-    mockNotifications.setBadgeCountAsync.mockImplementation(() => Promise.resolve(undefined));
+    (Notifications.setBadgeCountAsync as jest.Mock).mockImplementation(() => Promise.resolve(undefined));
 
     // Mock fetch
     (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
@@ -201,14 +256,14 @@ describe('NotificationService', () => {
 
   describe('Push Token', () => {
     test('should return null when not on physical device for push token', async () => {
-      const originalIsDevice = Device.Device.isDevice;
-      (Device.Device as any).isDevice = false;
+      const originalIsDevice = Device.isDevice;
+      (Device as any).isDevice = false;
 
       const token = await notificationService.registerForPushNotifications();
       expect(token).toBeNull();
 
       // Restore
-      (Device.Device as any).isDevice = originalIsDevice;
+      (Device as any).isDevice = originalIsDevice;
     });
 
     test('should register for push notifications', async () => {

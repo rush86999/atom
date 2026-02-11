@@ -182,6 +182,12 @@ jest.mock('expo-notifications', () => ({
   removeNotificationSubscription: jest.fn(),
   NotificationContentInput: jest.fn(),
   NotificationRequestInput: jest.fn(),
+  AndroidImportance: {
+    HIGH: 'high',
+    DEFAULT: 'default',
+    LOW: 'low',
+    MIN: 'min',
+  },
 }));
 
 // ============================================================================
@@ -325,8 +331,8 @@ jest.mock('expo-constants', () => ({
 // expo-device Mock
 // ============================================================================
 
-jest.mock('expo-device', () => ({
-  Device: {
+jest.mock('expo-device', () => {
+  const Device = {
     osName: 'iOS',
     osVersion: '16.0',
     modelName: 'iPhone 14',
@@ -338,8 +344,15 @@ jest.mock('expo-device', () => ({
     totalMemory: 6 * 1024 * 1024 * 1024, // 6GB
     supportedCpuArchitectures: ['arm64'],
     isDevice: true, // Add isDevice property to Device object
-  },
-}));
+  };
+
+  // Support both `import * as Device` and `import { Device }` patterns
+  return {
+    default: Device,
+    ...Device,
+    Device,
+  };
+});
 
 // ============================================================================
 // react-native-mmkv Mock (for existing tests)
