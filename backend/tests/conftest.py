@@ -26,10 +26,14 @@ for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
 
 def pytest_configure(config):
     """
-    Pytest hook called after command line options have been parsed
-    but before test collection begins.
+    Pytest hook called after command line options have been parsed.
+    Configures pytest-xdist worker isolation.
     """
-    pass
+    # Set unique worker ID for parallel execution
+    if hasattr(config, 'workerinput'):
+        # Running in pytest-xdist worker
+        worker_id = config.workerinput.get('workerid', 'master')
+        os.environ['PYTEST_XDIST_WORKER_ID'] = worker_id
 
 
 @pytest.fixture(autouse=True)
