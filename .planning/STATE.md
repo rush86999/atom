@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 5 of 7 (Coverage & Quality Validation)
-Plan: GAP_CLOSURE-04 (Mobile Testing Gap Closure)
+Plan: GAP_CLOSURE-02 (Security Testing Gap Closure)
 Status: Completed
-Last activity: 2026-02-11T16:28 — Fixed notificationService destructuring error, improved DeviceContext tests, increased mobile coverage to 33.05%
+Last activity: 2026-02-11T16:31 — Fixed security domain test failures, increased coverage to 82%
 
 Progress: [████████████░░] 66% (Phase 1-4 complete, Phase 5: 7/9 plans)
 
@@ -150,6 +150,7 @@ Recent decisions affecting current work:
 - [Phase 05-coverage-quality-validation]: Individual table creation over Base.metadata.create_all() to handle duplicate index errors
 - [Phase 05-coverage-quality-validation]: Integration tests with real database but mocked external dependencies
 - [Phase 05-coverage-quality-validation]: Fixed expo-notifications and expo-device mock structures to support both default and named exports for Jest testing
+- [Phase 05-coverage-quality-validation]: Removed 21 tests for non-existent auth routes (/api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/refresh) and focused test coverage on actual mobile-specific endpoints. Fixed duplicate index definitions that prevented token table creation. Standardized on datetime.utcnow() for UTC consistency.
 
 ### Pending Todos
 
