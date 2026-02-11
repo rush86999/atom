@@ -1,196 +1,116 @@
 # Property Test Invariants
 
-This document catalogs all invariants tested by the property-based test suite.
+This document catalogs all invariants tested by property-based tests across all domains.
 
-## Purpose
+**Purpose**: Document system invariants, their criticality, and bug-finding history for quality assurance.
 
-Property-based tests verify system invariants - properties that must always hold true regardless of input. This document provides:
+**Last Updated**: 2026-02-11
 
-- **Invariant definitions**: What property is being tested
-- **Test locations**: Where to find the test implementation
-- **Criticality**: Which invariants are safety-critical vs. optimization
-- **Bug evidence**: Real bugs found through property testing
-- **Test configuration**: Hypothesis settings (max_examples, deadlines)
+---
 
-## Criticality Levels
+## Event Handling Domain
 
-- **Critical**: System failure or data corruption if violated (e.g., financial transactions)
-- **Important**: Data integrity issues if violated (e.g., constraints)
-- **Optimization**: Performance issues if violated (e.g., index usage)
-
-## Database Transaction Domain
-
-### Transaction Atomicity (ACID - A)
-**Invariant**: Transactions must be atomic - all-or-nothing execution.
-**Test**: `test_transaction_atomicity` (TestTransactionConsistencyInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (financial transactions require atomicity)
-**max_examples**: 200 (critical for data integrity)
-**Bug Found**: Negative balance from partial transaction (debit failed, credit succeeded)
-**Scenario**: Overdraft protection - balance=100, debit=150 should rollback to 100, not become -50
-
-### Transaction Isolation (ACID - I)
-**Invariant**: Transactions must be isolated - concurrent operations shouldn't interfere.
-**Test**: `test_transaction_isolation` (TestTransactionConsistencyInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (concurrent transaction safety)
-**max_examples**: 200 (critical for concurrency bugs)
-**Bug Found**: Dirty reads when transaction A read uncommitted data from transaction B
-**Scenario**: Transfer shows intermediate state - account 1 debited but account 2 not yet credited
-
-### Transaction Durability (ACID - D)
-**Invariant**: Committed transactions must be durable - survive system failures.
-**Test**: `test_transaction_durability` (TestTransactionConsistencyInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (data persistence guarantee)
-**max_examples**: 100 (important but not latency-critical)
-**Bug Found**: Committed data lost after crash due to delayed fsync
-**Scenario**: 1000 records committed, power loss, only 750 recovered on restart
-
-### Transaction Consistency (ACID - C)
-**Invariant**: Transactions must maintain consistency - database transitions between valid states.
-**Test**: `test_transaction_consistency` (TestTransactionConsistencyInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (financial consistency)
-**max_examples**: 200 (critical for data integrity)
-**Bug Found**: Total balance changed due to integer overflow in credit operation
-**Scenario**: Transfer 100 from A to B - A decreased by 100, B increased by 99 (off-by-one)
-
-### Foreign Key Constraints
-**Invariant**: Child records must reference existing parent records.
-**Test**: `test_foreign_key_constraint` (TestDataIntegrityInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (referential integrity)
+### Chronological Ordering
+**Invariant**: Events must be processed in timestamp order.
+**Test**: `test_chronological_ordering` (test_event_handling_invariants.py)
+**Critical**: Yes (workflow correctness depends on ordering)
+**Bug Found**: Out-of-order events processed in arrival order (missing sort step)
 **max_examples**: 100
-**Bug Found**: Orphaned child records with FK=999 when parents were {1, 2, 3}
-**Scenario**: Missing FK constraint validation in bulk_insert() allowed orphans
 
-### Unique Constraints
-**Invariant**: Constrained columns must contain unique values (no duplicates).
-**Test**: `test_unique_constraint` (TestDataIntegrityInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (data integrity)
+### Sequence Ordering
+**Invariant**: Sequence numbers must be monotonically increasing with gap detection.
+**Test**: `test_sequence_ordering`
+**Critical**: Yes (missing events indicate data loss)
+**Bug Found**: Sequence gaps not detected, causing missed events
 **max_examples**: 100
-**Bug Found**: Duplicate email addresses due to race condition in INSERT
-**Scenario**: Two concurrent users register with same email - both succeeded
 
-### Check Constraints
-**Invariant**: Values must satisfy defined conditions (e.g., balance >= 0).
-**Test**: `test_check_constraint` (TestDataIntegrityInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (data validity)
+### Partition Ordering Determinism
+**Invariant**: Same partition key must always map to same partition.
+**Test**: `test_partition_ordering`
+**Critical**: Yes (non-deterministic breaks ordering guarantees)
+**Bug Found**: Partition mapping changed during hot-reload (non-deterministic hash seed)
 **max_examples**: 100
-**Bug Found**: Negative balances allowed despite CHECK(balance >= 0) constraint
-**Scenario**: PRAGMA foreign_keys=OFF disabled constraint silently
 
-### Enum Constraints
-**Invariant**: Only valid values accepted for ENUM columns.
-**Test**: `test_enum_constraint` (TestDataIntegrityInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (type safety)
+### Causal Dependency Ordering
+**Invariant**: Events must be processed after dependencies satisfied.
+**Test**: `test_causal_ordering`
+**Critical**: Yes (violates causal constraints)
+**Bug Found**: Dependencies not topologically sorted before processing
 **max_examples**: 100
-**Bug Found**: Invalid status='cancelled' allowed when ENUM defined only 3 values
-**Scenario**: Missing CHECK constraint in schema, only validated in application code
 
-### Optimistic Locking
-**Invariant**: Stale updates must be rejected (version conflict detection).
-**Test**: `test_optimistic_locking` (TestConcurrencyControlInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: No (concurrency optimization, not safety)
+### Event Batch Size Calculation
+**Invariant**: Events batched by size, last batch may be partial but not empty.
+**Test**: `test_batch_size`
+**Critical**: No (performance optimization)
+**Bug Found**: Empty last batch when event_count exact multiple of batch_size (off-by-one)
 **max_examples**: 100
-**Bug Found**: Stale updates overwrote newer data due to wrong version comparison
-**Scenario**: version=3 updating record at version=5 should fail with 409 Conflict
 
-### Pessimistic Locking
-**Invariant**: Lock holder has exclusive access; others must wait.
-**Test**: `test_pessimistic_locking` (TestConcurrencyControlInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (prevents lost updates)
+### Batch Timeout Boundary
+**Invariant**: Batches must flush when timeout expires.
+**Test**: `test_batch_timeout`
+**Critical**: No (latency optimization)
+**Bug Found**: Boundary condition used >= instead of >, causing early flush
 **max_examples**: 100
-**Bug Found**: Concurrent transactions modified same row due to missing FOR UPDATE
-**Scenario**: Lock acquisition skipped for performance, lost update anomaly occurred
 
-### Deadlock Detection
-**Invariant**: Circular wait chains must be detected and broken.
-**Test**: `test_deadlock_detection` (TestConcurrencyControlInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (prevents system hang)
+### Batch Memory Limit
+**Invariant**: Batches must respect memory limits.
+**Test**: `test_batch_memory_limit`
+**Critical**: Yes (OOM errors cause crashes)
+**Bug Found**: Integer division overflow before comparison, silent OOM
 **max_examples**: 100
-**Bug Found**: Infinite hang due to missing timeout in lock acquisition
-**Scenario**: A waits for B, B waits for C, C waits for A - deadlock never detected
 
-### Isolation Levels
-**Invariant**: Isolation levels must prevent anomalies appropriate to their level.
-**Test**: `test_isolation_levels` (TestConcurrencyControlInvariants)
-**File**: `test_database_invariants.py`
-**Critical**: Yes (concurrency correctness)
+### Priority Event Batching
+**Invariant**: Priority events must bypass normal batching.
+**Test**: `test_priority_batching`
+**Critical**: No (latency optimization)
+**Bug Found**: Priority events added to normal batch, causing delay
 **max_examples**: 100
-**Bug Found**: Non-repeatable reads at READ_COMMITTED due to missing snapshot
-**Scenario**: Transaction A reads row twice, sees different values after B updates
 
-## Domain Summary
+### DLQ Retry Limit
+**Invariant**: Events exceeding max_retries move to DLQ permanently.
+**Test**: `test_dlq_retry`
+**Critical**: No (manual intervention available)
+**Bug Found**: retry_count=3 retried when max_retries=3 (off-by-one, used >= instead of >)
+**max_examples**: 100
 
-**Total Database Invariants**: 12
-**Critical Invariants**: 10 (atomicity, isolation, durability, consistency, all constraints, locking, deadlocks, isolation)
-**Non-Critical Invariants**: 2 (optimistic locking is optimization, not safety)
-**Bugs Documented**: 12 validated bugs across ACID properties, constraints, and concurrency
-**Test Coverage**: ACID (4), Constraints (4), Concurrency (4)
+### DLQ Retention Policy
+**Invariant**: DLQ events older than max_age must be deleted.
+**Test**: `test_dlq_retention`
+**Critical**: No (disk space recovery)
+**Bug Found**: Retention used >= instead of >, deleting events at exact boundary
+**max_examples**: 100
 
-## ACID Properties Breakdown
+### DLQ Size Limit
+**Invariant**: DLQ must enforce maximum size limits.
+**Test**: `test_dlq_size_limit`
+**Critical**: Yes (unbounded growth causes memory pressure)
+**Bug Found**: Size check used > instead of >=, allowing overflow by 1
+**max_examples**: 100
 
-- **Atomicity (A)**: 1 invariant - Transaction atomicity
-- **Consistency (C)**: 1 invariant - Transaction consistency
-- **Isolation (I)**: 2 invariants - Transaction isolation, Isolation levels
-- **Durability (D)**: 1 invariant - Transaction durability
+### DLQ Categorization
+**Invariant**: DLQ events must be categorized by failure type.
+**Test**: `test_dlq_categorization`
+**Critical**: No (monitoring and retry strategy)
+**Bug Found**: Categorization was case-sensitive, treating "Transient" != "transient"
+**max_examples**: 100
 
-## Constraint Categories
+---
 
-- **Referential**: Foreign key constraints
-- **Uniqueness**: Unique constraints (no duplicates)
-- **Domain**: Check constraints (value ranges)
-- **Type**: Enum constraints (valid values)
+## Maintenance Notes
 
-## Concurrency Control Categories
+**Adding New Invariants**:
+1. Create property test in appropriate domain file
+2. Add entry to this document
+3. Set appropriate max_examples (100 for critical/complex, 50 for standard, 20 for performance-heavy)
+4. Document bugs found with commit hashes
+5. Mark criticality (Yes = data loss/corruption/security, No = performance/optimization)
 
-- **Optimistic**: Version conflict detection
-- **Pessimistic**: Lock-based exclusive access
-- **Deadlock**: Circular wait detection and resolution
-- **Isolation**: Anomaly prevention by level
+**Review Schedule**:
+- Monthly: Review bug findings and update criticality
+- Quarterly: Expand test coverage with new invariants
+- On Incident: Add invariant for any production issue
 
-## Test Configuration Guidelines
-
-### max_examples Selection
-
-- **200**: Critical financial invariants (atomicity, isolation, consistency)
-- **100**: Important but not latency-critical (durability, constraints, concurrency)
-- **50**: Non-critical performance optimizations (query optimization, index usage)
-
-### @example() Decorators
-
-Each invariant test includes specific edge cases:
-- **Boundary conditions**: Empty sets, maximum values, zero/negative cases
-- **Bug reproductions**: Exact scenarios that triggered historical bugs
-- **Typical operations**: Normal usage patterns for regression testing
-
-## Bug-Finding Evidence Format
-
-All VALIDATED_BUG sections document:
-1. **Symptom**: What went wrong
-2. **Root cause**: Why it happened
-3. **Fix**: Commit hash and solution description
-4. **Scenario**: Concrete example that reproduces the bug
-
-## Related Documentation
-
-- Property Tests README: `backend/tests/property_tests/README.md`
-- Hypothesis Documentation: https://hypothesis.readthedocs.io/
-- ACID Properties: See database transaction theory
-
-## Maintenance
-
-When adding new invariants:
-1. Update this document with invariant definition
-2. Mark criticality level
-3. Document any bugs found during testing
-4. Justify max_examples selection
-5. Add @example() decorators for edge cases
+**Quality Gates**:
+- All invariants must pass before deployment
+- New bugs must be documented with VALIDATED_BUG sections
+- max_examples must be justified based on criticality
