@@ -3,7 +3,7 @@ phase: 05-coverage-quality-validation
 plan: GAP_CLOSURE-04
 subsystem: mobile-testing
 type: execute
-wave: 2
+wave: 1
 depends_on: []
 files_modified:
   - mobile/src/services/notificationService.ts

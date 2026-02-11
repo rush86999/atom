@@ -86,7 +86,29 @@ Re-measure backend coverage after all tests pass and verify 80% overall coverage
        cd backend && PYTHONPATH=. python -m pytest tests/ -v --tb=short
        ```
 
-    4. Document any remaining failing tests and why they're failing (expected vs unexpected failures)
+    4. Verify domain-specific coverage gaps from VERIFICATION.md are closed:
+       FROM VERIFICATION.md (lines 7-27):
+       - Governance: 14-61% coverage -> Target: 80%+
+         * trigger_interceptor: 83% (already exceeds)
+         * student_training_service: 23% -> 80%+ (57% gap)
+         * supervision_service: 14% -> 80%+ (66% gap)
+         * proposal_service: 46% -> 80%+ (34% gap)
+         * agent_graduation_governance: 51% -> 80%+ (29% gap)
+
+       - Security: 0-91% coverage -> Target: 80%+
+         * validation_service: 78.62% -> 80%+ (1.38% gap)
+         * security.py: 91% (already exceeds)
+         * auth_helpers: 59.76% -> 80%+ (20% gap)
+         * auth.py: ~70% -> 80%+ (10% gap)
+         * auth_routes: 0% -> 80%+ (80% gap)
+
+       - Episodes: ~40% weighted average -> Target: 80%+
+         * EpisodeSegmentationService: 26.81% -> 80%+ (53% gap)
+         * EpisodeRetrievalService: 65.14% -> 80%+ (15% gap)
+         * EpisodeLifecycleService: 53.49% -> 80%+ (27% gap)
+         * AgentGraduationService: 41.99% -> 80%+ (38% gap)
+
+    5. Document any remaining failing tests and why they're failing (expected vs unexpected failures)
 
     Don't proceed to coverage measurement until tests are stable.
   </action>
@@ -94,9 +116,15 @@ Re-measure backend coverage after all tests pass and verify 80% overall coverage
     Run: cd backend && PYTHONPATH=. python -m pytest tests/ --tb=no -q
 
     Expected: All tests pass or only expected skips. No unexpected failures.
+
+    Coverage targets (from VERIFICATION.md gaps):
+    - Governance domain: >80% overall (trigger_interceptor 83% + others fixed)
+    - Security domain: >80% overall (validation_service 79%+ -> 80%, auth fixed)
+    - Episodes domain: >80% overall (all services increased)
   </verify>
   <done>
     All backend tests pass. Test suite is stable for coverage measurement.
+    Domain-specific gaps from VERIFICATION.md verified as closed.
   </done>
 </task>
 

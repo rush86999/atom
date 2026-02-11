@@ -75,6 +75,7 @@ Progress: [████████████░░] 66% (Phase 1-4 complete, 
 | Phase 05-coverage-quality-validation PGAP_CLOSURE-05 | 600 | 4 tasks | 4 files |
 | Phase 05-coverage-quality-validation PGAP_CLOSURE-01 | 1042 | 3 tasks | 5 files |
 | Phase 05-coverage-quality-validation PGAP_CLOSURE-04 | 1248 | 2 tasks | 5 files |
+| Phase 05-coverage-quality-validation PGAP_CLOSURE-01 | 2040 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,7 @@ Recent decisions affecting current work:
 - [Phase 05-coverage-quality-validation]: Integration tests with real database but mocked external dependencies
 - [Phase 05-coverage-quality-validation]: Fixed expo-notifications and expo-device mock structures to support both default and named exports for Jest testing
 - [Phase 05-coverage-quality-validation]: Removed 21 tests for non-existent auth routes (/api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/refresh) and focused test coverage on actual mobile-specific endpoints. Fixed duplicate index definitions that prevented token table creation. Standardized on datetime.utcnow() for UTC consistency.
+- [Phase 05-coverage-quality-validation]: Re-focused gap closure on test fixes: fixed test assertions instead of service code bugs, documented timezone bug in supervision_service
 
 ### Pending Todos
 

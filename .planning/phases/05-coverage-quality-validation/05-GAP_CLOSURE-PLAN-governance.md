@@ -73,24 +73,43 @@ Fix governance domain database setup issues and add integration tests to achieve
   <action>
     Reference property_tests/conftest.py for the correct import pattern.
 
-    Add the following missing models to the import statement:
-    - Workspace (currently causing 16 test failures in student_training_service)
-    - ChatSession (needed for session management tests)
-    - Ensure TrainingSession, SupervisionSession, BlockedTriggerContext are imported
-
-    The models are defined in core/models.py at these locations:
-    - Workspace: line 151
-    - ChatSession: line 970
-    - TrainingSession: line 3775
-    - SupervisionSession: line 3609
-    - BlockedTriggerContext: line 3682
-
-    Import pattern should be:
+    CURRENT STATE (lines 13-26 in conftest.py):
     ```python
     from core.models import (
-        AgentRegistry, AgentStatus, AgentProposal, ProposalStatus, ProposalType,
-        SupervisionSession, SupervisionStatus, BlockedTriggerContext,
-        TrainingSession, TriggerSource, User, UserRole, Workspace, ChatSession
+        AgentRegistry,
+        AgentStatus,
+        AgentProposal,
+        ProposalStatus,
+        ProposalType,
+        SupervisionSession,
+        SupervisionStatus,
+        BlockedTriggerContext,
+        TrainingSession,
+        TriggerSource,
+        User,
+        UserRole,
+    )
+    ```
+
+    MISSING: Workspace (line 151 in models.py) and ChatSession (line 970 in models.py)
+
+    TARGET STATE (add Workspace and ChatSession to import):
+    ```python
+    from core.models import (
+        AgentRegistry,
+        AgentStatus,
+        AgentProposal,
+        ProposalStatus,
+        ProposalType,
+        SupervisionSession,
+        SupervisionStatus,
+        BlockedTriggerContext,
+        TrainingSession,
+        TriggerSource,
+        User,
+        UserRole,
+        Workspace,  # ADD: line 151 in models.py - needed for student_training_service tests
+        ChatSession,  # ADD: line 970 in models.py - needed for session management tests
     )
     ```
 

@@ -72,37 +72,43 @@ Fix security domain test failures related to missing endpoints, incorrect route 
 
 <task type="auto">
   <name>Fix auth endpoint tests with correct route paths</name>
-  <files>backend/tests/unit/security/test_auth_endpoints.py</files>
+  <files>backend/tests/unit/security/test_auth_endpoints.py backend/api/auth_routes.py</files>
   <action>
-    The auth_routes.py file only provides mobile-specific endpoints under /api/auth/mobile/ prefix:
-    - POST /api/auth/mobile/login
-    - POST /api/auth/mobile/biometric/register
-    - POST /api/auth/mobile/biometric/authenticate
-    - POST /api/auth/mobile/refresh
-    - GET /api/auth/mobile/device
-    - DELETE /api/auth/mobile/device
+    STEP 1: Verify actual routes in auth_routes.py
+    Run: grep -n "@router\." backend/api/auth_routes.py
+    ACTUAL ROUTES (verified 2026-02-11):
+    - POST /api/auth/mobile/login (line 97)
+    - POST /api/auth/mobile/biometric/register (line 155)
+    - POST /api/auth/mobile/biometric/authenticate (line 215)
+    - POST /api/auth/mobile/refresh (line 296)
+    - GET /api/auth/mobile/device (line 358)
+    - DELETE /api/auth/mobile/device (line 400)
 
-    Current tests are failing because they expect routes like /api/auth/register, /api/auth/login, /api/auth/logout which don't exist.
+    NON-EXISTENT ROUTES (tests expect but aren't in auth_routes.py):
+    - /api/auth/register - NOT FOUND
+    - /api/auth/login - NOT FOUND (only /api/auth/mobile/login exists)
+    - /api/auth/logout - NOT FOUND
+    - /api/auth/refresh - NOT FOUND (only /api/auth/mobile/refresh exists)
 
-    Fix the test file by:
-    1. Updating all test route paths to match the actual mobile endpoints in auth_routes.py
-    2. For non-existent routes (register, standard login), either:
-       a. Remove those tests if the routes don't exist elsewhere
-       b. Update them to test equivalent functionality
+    STEP 2: Fix test file
+    Current tests are failing because they expect routes that don't exist.
 
-    Specific fixes:
-    - test_signup_with_valid_email_password: Route /api/auth/register doesn't exist - remove or find actual signup endpoint
-    - test_login_with_valid_credentials: Route /api/auth/login doesn't exist - change to /api/auth/mobile/login
-    - test_logout_with_valid_token: Route /api/auth/logout doesn't exist - remove or find actual logout endpoint
-    - test_token_refresh_with_valid_token: Change to /api/auth/mobile/refresh
-    - test_password_reset_request: Check if endpoint exists or remove
+    For each failing test:
+    1. test_signup_with_valid_email_password: /api/auth/register doesn't exist - REMOVE TEST (no equivalent endpoint)
+    2. test_login_with_valid_credentials: /api/auth/login doesn't exist - UPDATE to /api/auth/mobile/login
+    3. test_logout_with_valid_token: /api/auth/logout doesn't exist - REMOVE TEST (no equivalent endpoint)
+    4. test_token_refresh_with_valid_token: UPDATE to /api/auth/mobile/refresh
+    5. test_password_reset_request: Check if endpoint exists - LIKELY REMOVE (no password reset in mobile auth)
 
     Keep passing tests as-is (11/32 currently passing).
+
+    STEP 3: Document removed tests
+    Add comment in test file explaining why tests were removed (routes don't exist in implementation).
   </action>
   <verify>
     Run: cd backend && PYTHONPATH=. python -m pytest tests/unit/security/test_auth_endpoints.py -v --tb=short
 
-    Expected: At least 25/32 tests passing (up from 11/32)
+    Expected: At least 25/32 tests passing (up from 11/32) - after removing/updating non-existent route tests
   </verify>
   <done>
     Auth endpoint tests route paths match actual implementation. Pass rate increases from 34% to 78%+.

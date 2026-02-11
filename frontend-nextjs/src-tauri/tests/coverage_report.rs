@@ -149,8 +149,8 @@
 
 // ============================================================================
 // OVERALL COVERAGE SUMMARY
-// ============================================================================/*
-
+// ============================================================================
+/*
 | Source File | Lines | Test Status | Estimated Coverage | Target | Gap |
 |-------------|-------|-------------|-------------------|--------|-----|
 | main.rs | ~1600 | PARTIAL | 75% | 80% | -5% |
@@ -162,11 +162,12 @@
 
 **Overall Coverage: 74%**
 **Gap to 80% Target: 6 percentage points**
+*/
 
 // ============================================================================
 // PRIORITY IMPROVEMENTS TO REACH 80%
-// ============================================================================/*
-
+// ============================================================================
+/*
 **Priority 1 (High Impact, Low Effort):**
 1. ✅ Add error path tests for main.rs setup (tray icon build failure)
 2. ✅ Add network timeout tests for login/get_recent_items
@@ -180,11 +181,12 @@
 **Priority 3 (Lower Priority):**
 7. ⚠️  GUI-dependent tests (requires headless display or manual verification)
 8. ⚠️  Platform-specific menu items (macOS vs Windows vs Linux)
+*/
 
 // ============================================================================
 // TESTING NOTES
-// ============================================================================/*
-
+// ============================================================================
+/*
 **Test Infrastructure:**
 - Total Tests: 108 passing (Phase 4)
 - Test Files: 5 (menu_bar_test.rs, window_test.rs, menu_unit_test.rs, commands_test.rs, device_capabilities_test.rs)
@@ -200,7 +202,7 @@
 **Coverage Tool Limitations:**
 - cargo-tarpaulin requires x86_64 architecture
 - ARM Macs (M1/M2/M3) need Cross or CI/CD
-- Tauri's Swift integration causes linking issues with tarpaulin
+- Tauri Swift integration causes linking issues with tarpaulin
 - Alternative: Use llvm-cov or manual test coverage analysis
 
 **Next Steps:**
@@ -208,7 +210,6 @@
 2. Set up CI/CD for automated coverage tracking
 3. Generate baseline coverage report with tarpaulin in x86_64 environment
 4. Track coverage trends over time
-
 */
 
 // ============================================================================
