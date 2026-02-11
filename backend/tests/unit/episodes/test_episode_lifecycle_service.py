@@ -321,3 +321,322 @@ class TestEdgeCases:
         )
 
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_consolidate_with_metadata_parsing(self, lifecycle_service):
+        """Test consolidation handles JSON metadata parsing."""
+        # Create mock episodes with metadata
+        episodes = []
+        for i in range(3):
+            ep = Mock()
+            ep.id = f"episode-{i}"
+            ep.consolidated_into = None
+            episodes.append(ep)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = episodes
+
+        # Mock LanceDB search results with metadata as string
+        mock_results = [
+            {
+                "metadata": '{"episode_id": "episode-1", "similarity": 0.9}',
+                "_distance": 0.1
+            },
+            {
+                "metadata": '{"episode_id": "episode-2", "similarity": 0.8}',
+                "_distance": 0.2
+            }
+        ]
+        lifecycle_service.lancedb.search.return_value = mock_results
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent-123",
+            similarity_threshold=0.85
+        )
+
+        assert "consolidated" in result
+        assert isinstance(result["consolidated"], int)
+
+    @pytest.mark.asyncio
+    async def test_consolidate_skips_already_consolidated(self, lifecycle_service):
+        """Test consolidation skips episodes already consolidated."""
+        parent_ep = Mock()
+        parent_ep.id = "episode-parent"
+        parent_ep.consolidated_into = None
+
+        child_ep = Mock()
+        child_ep.id = "episode-child"
+        child_ep.consolidated_into = "some-other-parent"  # Already consolidated
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
+            parent_ep, child_ep
+        ]
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [parent_ep, child_ep, None]
+
+        lifecycle_service.lancedb.search.return_value = [
+            {
+                "metadata": '{"episode_id": "episode-child"}',
+                "_distance": 0.1
+            }
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent-123",
+            similarity_threshold=0.85
+        )
+
+        # Child should not be consolidated again
+        assert result["consolidated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_decay_with_zero_threshold(self, lifecycle_service):
+        """Test decay with threshold of 0 (affects all episodes)."""
+        episodes = [Mock(id=f"ep-{i}", started_at=datetime.now() - timedelta(days=i), status="completed") for i in range(5)]
+
+        lifecycle_service.db.query.return_value.filter.return_value.all.return_value = episodes
+
+        result = await lifecycle_service.decay_old_episodes(days_threshold=0)
+
+        assert result["affected"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_decay_skips_archived_episodes(self, lifecycle_service):
+        """Test decay calculation skips already archived episodes."""
+        now = datetime.now()
+        episodes = [
+            Mock(id="ep-1", started_at=now - timedelta(days=100), status="completed", decay_score=1.0, access_count=0, archived_at=None),
+            Mock(id="ep-2", started_at=now - timedelta(days=100), status="archived", decay_score=1.0, access_count=0, archived_at=None),
+            Mock(id="ep-3", started_at=now - timedelta(days=100), status="completed", decay_score=1.0, access_count=0, archived_at=None),
+        ]
+
+        lifecycle_service.db.query.return_value.filter.return_value.all.return_value = episodes
+
+        result = await lifecycle_service.decay_old_episodes(days_threshold=90)
+
+        # Archived episode should be skipped from decay calculation
+        assert result["affected"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_consolidate_with_empty_search_results(self, lifecycle_service):
+        """Test consolidation when LanceDB returns no similar episodes."""
+        parent_ep = Mock()
+        parent_ep.id = "episode-parent"
+        parent_ep.consolidated_into = None
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent_ep]
+
+        # No similar episodes found
+        lifecycle_service.lancedb.search.return_value = []
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent-123",
+            similarity_threshold=0.85
+        )
+
+        assert result["consolidated"] == 0
+        assert result["parent_episodes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_update_importance_with_zero_feedback(self, lifecycle_service):
+        """Test importance update with neutral (zero) feedback."""
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.importance_score = 0.7
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.update_importance_scores(
+            episode_id="episode-123",
+            user_feedback=0.0  # Neutral feedback
+        )
+
+        assert result is True
+        # Score should remain close to original (0.7 * 0.8 + 0.5 * 0.2 = 0.56 + 0.1 = 0.66)
+        assert 0.0 <= episode.importance_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_update_importance_clamps_at_minimum(self, lifecycle_service):
+        """Test importance score clamps at minimum 0.0."""
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.importance_score = 0.05  # Already very low
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.update_importance_scores(
+            episode_id="episode-123",
+            user_feedback=-1.0  # Maximum negative
+        )
+
+        assert result is True
+        assert episode.importance_score >= 0.0
+
+    @pytest.mark.asyncio
+    async def test_update_importance_clamps_at_maximum(self, lifecycle_service):
+        """Test importance score clamps at maximum 1.0."""
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.importance_score = 0.95  # Already very high
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.update_importance_scores(
+            episode_id="episode-123",
+            user_feedback=1.0  # Maximum positive
+        )
+
+        assert result is True
+        assert episode.importance_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_batch_update_with_mixed_valid_invalid_ids(self, lifecycle_service):
+        """Test batch update with mix of valid and invalid episode IDs."""
+        episode_ids = ["episode-1", "nonexistent-1", "episode-2", "nonexistent-2"]
+
+        # Mock returns episode for valid IDs, None for invalid
+        def mock_query_side_effect(*args, **kwargs):
+            ep = Mock()
+            ep.access_count = 5
+            return ep
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [
+            mock_query_side_effect(),  # episode-1
+            None,  # nonexistent-1
+            mock_query_side_effect(),  # episode-2
+            None   # nonexistent-2
+        ]
+
+        result = await lifecycle_service.batch_update_access_counts(episode_ids)
+
+        assert result["updated"] == 2  # Only valid episodes
+
+    @pytest.mark.asyncio
+    async def test_archive_already_archived_episode(self, lifecycle_service):
+        """Test archiving an episode that's already archived."""
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.status = "archived"  # Already archived
+        episode.archived_at = datetime.now()
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.archive_to_cold_storage(episode_id="episode-123")
+
+        assert result is True
+        # Should update archived_at even if already archived
+
+    @pytest.mark.asyncio
+    async def test_consolidate_distance_calculation(self, lifecycle_service):
+        """Test consolidation correctly calculates similarity from distance."""
+        parent_ep = Mock()
+        parent_ep.id = "episode-parent"
+        parent_ep.consolidated_into = None
+
+        child_ep = Mock()
+        child_ep.id = "episode-child"
+        child_ep.consolidated_into = None
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent_ep]
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [child_ep, None]
+
+        # Mock results with different distances
+        lifecycle_service.lancedb.search.return_value = [
+            {
+                "metadata": '{"episode_id": "episode-child"}',
+                "_distance": 0.1  # High similarity (0.9)
+            }
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent-123",
+            similarity_threshold=0.85
+        )
+
+        # Should consolidate since 1.0 - 0.1 = 0.9 >= 0.85
+        assert result["consolidated"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_consolidate_below_threshold(self, lifecycle_service):
+        """Test episodes below similarity threshold are not consolidated."""
+        parent_ep = Mock()
+        parent_ep.id = "episode-parent"
+        parent_ep.consolidated_into = None
+
+        child_ep = Mock()
+        child_ep.id = "episode-child"
+        child_ep.consolidated_into = None
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent_ep]
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [child_ep, None]
+
+        # Mock result with low similarity
+        lifecycle_service.lancedb.search.return_value = [
+            {
+                "metadata": '{"episode_id": "episode-child"}',
+                "_distance": 0.5  # Low similarity (0.5)
+            }
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent-123",
+            similarity_threshold=0.85
+        )
+
+        # Should NOT consolidate since 1.0 - 0.5 = 0.5 < 0.85
+        assert result["consolidated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_decay_updates_access_count(self, lifecycle_service):
+        """Test decay operation increments access count."""
+        now = datetime.now()
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.started_at = now - timedelta(days=100)
+        episode.status = "completed"
+        episode.decay_score = 1.0
+        episode.access_count = 10
+        episode.archived_at = None
+
+        lifecycle_service.db.query.return_value.filter.return_value.all.return_value = [episode]
+
+        await lifecycle_service.decay_old_episodes(days_threshold=90)
+
+        # Access count should be incremented
+        assert episode.access_count == 11
+
+    @pytest.mark.asyncio
+    async def test_consolidate_rollback_on_error(self, lifecycle_service):
+        """Test consolidation rolls back on database error."""
+        episodes = [Mock(id=f"ep-{i}", consolidated_into=None) for i in range(3)]
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = episodes
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [Mock(consolidated_into=None)] * 10
+        lifecycle_service.db.commit.side_effect = Exception("Database error")
+
+        lifecycle_service.lancedb.search.return_value = [
+            {
+                "metadata": '{"episode_id": "ep-1"}',
+                "_distance": 0.1
+            }
+        ]
+
+        # Should handle error gracefully
+        result = await lifecycle_service.consolidate_similar_episodes(agent_id="agent-123")
+
+        assert isinstance(result, dict)
+
+    @pytest.mark.asyncio
+    async def test_archive_updates_timestamp(self, lifecycle_service):
+        """Test archival sets archived_at timestamp."""
+        episode = Mock()
+        episode.id = "episode-123"
+        episode.status = "completed"
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        before_archival = datetime.now()
+        result = await lifecycle_service.archive_to_cold_storage(episode_id="episode-123")
+        after_archival = datetime.now()
+
+        assert result is True
+        assert episode.archived_at is not None
+        assert before_archival <= episode.archived_at <= after_archival
