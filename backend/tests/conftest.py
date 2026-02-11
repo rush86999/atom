@@ -9,6 +9,8 @@ import sys
 import os
 import uuid
 import pytest
+import ast
+from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -71,31 +73,69 @@ def unique_resource_name():
     return f"test_{worker_id}_{unique_id}"
 
 
+def _count_assertions(node: ast.AST) -> int:
+    """Count assert statements and pytest assertions in AST node."""
+    count = 0
+    for child in ast.walk(node):
+        if isinstance(child, ast.Assert):
+            count += 1
+        # Check for common assertion patterns
+        if isinstance(child, ast.Call):
+            if isinstance(child.func, ast.Attribute):
+                if child.func.attr in ('assertEqual', 'assertTrue', 'assertFalse',
+                                       'assertIn', 'assertNotIn', 'assertRaises',
+                                       'assertIs', 'assertIsNone', 'assertIsNotNone'):
+                    count += 1
+    return count
+
+
+def _calculate_assertion_density(test_file: Path) -> float:
+    """Calculate assertions per line of test code."""
+    try:
+        source = test_file.read_text()
+        tree = ast.parse(source)
+        lines = len(source.splitlines())
+        if lines == 0:
+            return 0.0
+        asserts = _count_assertions(tree)
+        return asserts / lines
+    except Exception:
+        return 0.0
+
+
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """
-    Display coverage summary after test run.
+    Display quality metrics after test run.
 
-    This hook runs after all tests complete to show coverage metrics.
+    Reports assertion density and coverage summary.
     """
+    # Assertion density check
+    min_density = 0.15  # 15 assertions per 100 lines
+    test_files = list(Path("tests").rglob("test_*.py"))
+    low_density_files = []
+
+    for test_file in test_files:
+        density = _calculate_assertion_density(test_file)
+        if 0 < density < min_density:
+            low_density_files.append((test_file, density))
+
+    if low_density_files:
+        terminalreporter.write_sep("=", "WARNING: Low Assertion Density", red=True)
+        for test_file, density in low_density_files[:5]:  # Show first 5
+            terminalreporter.write_line(
+                f"  {test_file}: {density:.3f} (target: {min_density:.2f})",
+                red=True
+            )
+
+    # Coverage summary
     try:
         import json
-        from pathlib import Path
-
         coverage_path = Path("tests/coverage_reports/metrics/coverage.json")
         if coverage_path.exists():
             with open(coverage_path) as f:
                 coverage_data = json.load(f)
 
-            # Extract key metrics
-            total_lines = coverage_data.get('totals', {}).get('num_statements', 0)
-            covered_lines = coverage_data.get('totals', {}).get('covered_lines', 0)
             line_coverage = coverage_data.get('totals', {}).get('percent_covered', 0)
-            branch_coverage = coverage_data.get('totals', {}).get('percent_covered', 0)  # Simplified
-
-            terminalreporter.write_sep("=", f"Coverage: {line_coverage:.1f}% lines", red=True)
-            terminalreporter.write_line(f"  Total lines: {total_lines}")
-            terminalreporter.write_line(f"  Covered: {covered_lines}")
-            terminalreporter.write_line(f"  Report: tests/coverage_reports/html/index.html")
+            terminalreporter.write_sep("=", f"Coverage: {line_coverage:.1f}%", red=True)
     except Exception:
-        # Silently fail if coverage file not available
         pass
