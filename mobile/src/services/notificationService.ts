@@ -63,6 +63,16 @@ class NotificationService {
   private responseListeners: Set<(response: any) => void> = new Set();
 
   /**
+   * Reset service state (for testing)
+   */
+  _resetState(): void {
+    this.pushToken = null;
+    this.permissionStatus = 'undetermined';
+    this.notificationListeners.clear();
+    this.responseListeners.clear();
+  }
+
+  /**
    * Initialize the notification service
    */
   async initialize(): Promise<void> {
@@ -140,9 +150,15 @@ class NotificationService {
    * Check current permission status
    */
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
-    const settings = await Notifications.getPermissionsAsync();
-    this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
-    return this.permissionStatus;
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      this.permissionStatus = settings.granted ? 'granted' : settings.ios?.status || 'denied';
+      return this.permissionStatus;
+    } catch (error) {
+      console.error('NotificationService: Failed to get permission status:', error);
+      this.permissionStatus = 'denied';
+      return this.permissionStatus;
+    }
   }
 
   /**
@@ -155,12 +171,20 @@ class NotificationService {
         return null;
       }
 
-      const { status: existingStatus } = await Notifications.getExpoPushTokenAsync();
-      if (existingStatus === 'granted') {
+      // Check if we already have a token
+      if (this.pushToken) {
         console.log('NotificationService: Push token already registered');
         return this.pushToken;
       }
 
+      // Check permissions first
+      const settings = await Notifications.getPermissionsAsync();
+      if (!settings.granted) {
+        console.warn('NotificationService: Notification permissions not granted');
+        return null;
+      }
+
+      // Get push token
       const { data: tokenData } = await Notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
