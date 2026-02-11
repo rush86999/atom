@@ -44,7 +44,7 @@ MALICIOUS_JS_PATTERNS = [
 
     # DOM manipulation
     "document.body.innerHTML = xhr.responseText",
-    "document.write('<script>alert(1)</script>')",
+    'document.write("<script>alert(1)</script>")',
 
     # Dynamic script creation
     "var s = document.createElement('script'); s.src = 'evil.js'; document.head.appendChild(s)",
@@ -350,7 +350,8 @@ class TestJavaScriptStaticAnalysis:
         ]
 
         for api in dangerous_apis:
-            code = f"// Using {api}\n{api.replace('()', '(\"test\")')};"
+            code_template = "// Using {api}\n{code};"
+            code = code_template.format(api=api, code=api.replace('()', '(\"test\")'))
 
             response = client.post(
                 "/api/canvas/validate-javascript",
