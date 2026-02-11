@@ -69,3 +69,33 @@ def unique_resource_name():
     worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
     unique_id = str(uuid.uuid4())[:8]
     return f"test_{worker_id}_{unique_id}"
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """
+    Display coverage summary after test run.
+
+    This hook runs after all tests complete to show coverage metrics.
+    """
+    try:
+        import json
+        from pathlib import Path
+
+        coverage_path = Path("tests/coverage_reports/metrics/coverage.json")
+        if coverage_path.exists():
+            with open(coverage_path) as f:
+                coverage_data = json.load(f)
+
+            # Extract key metrics
+            total_lines = coverage_data.get('totals', {}).get('num_statements', 0)
+            covered_lines = coverage_data.get('totals', {}).get('covered_lines', 0)
+            line_coverage = coverage_data.get('totals', {}).get('percent_covered', 0)
+            branch_coverage = coverage_data.get('totals', {}).get('percent_covered', 0)  # Simplified
+
+            terminalreporter.write_sep("=", f"Coverage: {line_coverage:.1f}% lines", red=True)
+            terminalreporter.write_line(f"  Total lines: {total_lines}")
+            terminalreporter.write_line(f"  Covered: {covered_lines}")
+            terminalreporter.write_line(f"  Report: tests/coverage_reports/html/index.html")
+    except Exception:
+        # Silently fail if coverage file not available
+        pass
