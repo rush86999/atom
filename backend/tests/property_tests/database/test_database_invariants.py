@@ -15,7 +15,7 @@ These tests protect against database vulnerabilities and ensure data consistency
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, example, strategies as st, settings, assume
 from typing import Dict, List, Optional, Set
 from datetime import datetime, timedelta
 
