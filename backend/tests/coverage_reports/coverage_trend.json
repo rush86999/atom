@@ -1,0 +1,18 @@
+{
+  "history": [
+    {
+      "date": "2026-02-11",
+      "timestamp": "2026-02-11T09:09:03.968890",
+      "backend_percent": null,
+      "mobile_percent": null,
+      "desktop_percent": 74.0,
+      "overall_percent": 74.0,
+      "meets_target": false
+    }
+  ],
+  "backend_percent": null,
+  "mobile_percent": null,
+  "desktop_percent": 74.0,
+  "overall_percent": 74.0,
+  "last_updated": "2026-02-11T09:09:03.968895"
+}
