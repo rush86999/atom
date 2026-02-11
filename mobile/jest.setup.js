@@ -17,6 +17,13 @@
 import '@testing-library/jest-native';
 
 // ============================================================================
+// Mock Expo environment variables
+// ============================================================================
+
+// Note: expo/virtual/env is not available in Jest, use process.env instead
+process.env.EXPO_PUBLIC_API_URL = 'http://localhost:8000';
+
+// ============================================================================
 // expo-camera Mock
 // ============================================================================
 
@@ -269,6 +276,37 @@ global.__resetAsyncStorageMock = () => {
 };
 
 // ============================================================================
+// expo-constants Mock
+// ============================================================================
+
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    name: 'Atom',
+    slug: 'atom',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    splash: {
+      image: './assets/splash.png',
+      resizeMode: 'contain',
+      backgroundColor: '#ffffff',
+    },
+    extra: {
+      eas: {
+        projectId: 'test-project-id',
+      },
+    },
+  },
+  default: {
+    expoConfig: {
+      name: 'Atom',
+      slug: 'atom',
+      version: '1.0.0',
+    },
+  },
+}));
+
+// ============================================================================
 // expo-device Mock
 // ============================================================================
 
@@ -291,14 +329,51 @@ jest.mock('expo-device', () => ({
 // react-native-mmkv Mock (for existing tests)
 // ============================================================================
 
+const mockMmkvStorage = new Map();
+
+const createMMKVMock = () => ({
+  set: jest.fn((key, value) => {
+    mockMmkvStorage.set(key, value);
+  }),
+  get: jest.fn((key) => {
+    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
+  }),
+  getString: jest.fn((key) => {
+    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+  }),
+  getNumber: jest.fn((key) => {
+    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+  }),
+  getBoolean: jest.fn((key) => {
+    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+  }),
+  delete: jest.fn((key) => {
+    mockMmkvStorage.delete(key);
+  }),
+  contains: jest.fn((key) => {
+    return mockMmkvStorage.has(key);
+  }),
+  getAllKeys: jest.fn(() => {
+    return Array.from(mockMmkvStorage.keys());
+  }),
+  removeAll: jest.fn(() => {
+    mockMmkvStorage.clear();
+  }),
+  getSizeInBytes: jest.fn(() => {
+    return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
+      return acc + key.length + String(value).length;
+    }, 0);
+  }),
+});
+
 jest.mock('react-native-mmkv', () => ({
-  MMKV: jest.fn().mockImplementation(() => ({
-    set: jest.fn(),
-    get: jest.fn(),
-    delete: jest.fn(),
-    removeAll: jest.fn(),
-  })),
+  MMKV: jest.fn().mockImplementation(() => createMMKVMock()),
 }));
+
+// Export helper to reset mock MMKV storage for tests
+global.__resetMmkvMock = () => {
+  mockMmkvStorage.clear();
+};
 
 // ============================================================================
 // @react-native-community/netinfo Mock
