@@ -17,7 +17,7 @@ These tests protect against agent governance failures.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, example
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
