@@ -13,7 +13,7 @@ These tests protect against API bugs and security vulnerabilities.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, example, strategies as st, settings, assume
 from datetime import datetime, timedelta
 from typing import Dict, List
 from unittest.mock import Mock

@@ -17,7 +17,7 @@ These tests protect against API contract violations.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, example, strategies as st, settings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import json

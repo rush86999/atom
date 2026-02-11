@@ -15,7 +15,7 @@ These tests protect against API vulnerabilities and ensure consistent responses.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, example, strategies as st, settings
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 
