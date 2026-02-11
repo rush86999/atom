@@ -88,7 +88,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Mobile tests validate platform-specific permissions (iOS vs Android differences) and authentication flows
   4. Desktop tests validate Tauri app components and menu bar functionality
   5. Desktop tests validate desktop-backend integration and desktop-specific device capabilities
-**Plans**: TBD
+**Plans**: 8 plans (3 waves)
+- [ ] 04-platform-coverage-01-PLAN.md — Mobile test infrastructure with Jest, Expo mocks, and test helpers
+- [ ] 04-platform-coverage-02-PLAN.md — Mobile device capability tests (Camera, Location, Notifications, Biometric)
+- [ ] 04-platform-coverage-03-PLAN.md — Mobile authentication and device context tests with platform-specific permissions
+- [ ] 04-platform-coverage-04-PLAN.md — Mobile service tests (storage, agent API, WebSocket)
+- [ ] 04-platform-coverage-05-PLAN.md — Tauri desktop app component tests (menu bar, window management)
+- [ ] 04-platform-coverage-06-PLAN.md — Desktop-backend integration tests (Tauri commands, API endpoints)
+- [ ] 04-platform-coverage-07-PLAN.md — Desktop device capability tests (camera, recording, location, notifications)
+- [ ] 04-platform-coverage-08-PLAN.md — React Native component tests for screens (WorkflowsList, AgentChat, CanvasViewer, Settings)
 
 ### Phase 5: Coverage & Quality Validation
 **Goal**: All domains achieve 80% code coverage, test suite validates quality standards, and comprehensive documentation is created

@@ -10,9 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 4 of 6 (Platform Coverage)
-Plan: 4 of 8 in current phase
-Status: In progress
-Last activity: 2026-02-11 — Completed Phase 4 Plan 4 (Mobile service tests)
+Plan: 3 of 8 in current phase
+Status: Blocked - Expo SDK 50 Jest incompatibility
+Last activity: 2026-02-11 — Attempted Phase 4 Plan 3 (Auth/Device Context tests)
+
+**BLOCKER:** babel-preset-expo transforms `process.env.EXPO_PUBLIC_*` to `expo/virtual/env` which doesn't exist in Jest. AuthContext.test.tsx created but not runnable. See 04-03-SUMMARY.md for details.
 
 Progress: [██████████░] 60% (Phase 1-3 complete, Phase 4: 2/8 done, 6 pending)
 
@@ -130,3 +132,28 @@ None yet.
 Last session: 2026-02-11
 Stopped at: Completed Phase 4 Plan 7 (Desktop device capability and governance tests)
 Resume file: None
+
+## Blockers
+
+### Expo SDK 50 Jest Incompatibility (2026-02-11)
+
+**Issue:** babel-preset-expo inline-env-vars plugin transforms `process.env.EXPO_PUBLIC_*` references to use `expo/virtual/env` module which doesn't exist in Jest environment.
+
+**Impact:** 
+- AuthContext.test.tsx (1100+ lines) cannot run
+- DeviceContext.test.tsx will have same issue
+- Any test importing files with EXPO_PUBLIC_ env vars will fail
+
+**Error:** `TypeError: Cannot read properties of undefined (reading 'EXPO_PUBLIC_API_URL')`
+
+**Files affected:**
+- mobile/src/contexts/AuthContext.tsx:73
+- mobile/src/contexts/DeviceContext.tsx:64
+
+**Potential solutions:**
+1. Modify source files to use `Constants.expoConfig?.extra?.eas?.projectId` pattern
+2. Create custom Jest transform for expo/virtual/env
+3. Downgrade to Expo SDK 49
+
+**Time spent:** 45+ minutes debugging
+
