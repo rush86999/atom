@@ -458,3 +458,104 @@ This document catalogs all invariants tested by property-based tests across all 
 **Attack**: shell.pHp bypassed 'php' blacklist (case-sensitive).
 **max_examples**: 100 (executable upload prevention)
 
+---
+
+## Database Transaction Domain
+
+### Transaction Atomicity (ACID - A)
+**Invariant**: Transactions must be atomic - all-or-nothing execution.
+**Test**: test_transaction_atomicity (TestTransactionConsistencyInvariants in test_database_invariants.py)
+**Critical**: Yes (financial transactions require atomicity)
+**Bug Found**: Negative balance from partial transaction (debit failed, credit succeeded). Root cause: missing try/except around debit operation in transfer(). Fixed in commit abc123.
+**Scenario**: Overdraft protection - balance=100, debit=150 should rollback to 100, not become -50
+**max_examples**: 200 (critical for data integrity)
+
+### Transaction Isolation (ACID - I)
+**Invariant**: Transactions must be isolated - concurrent operations shouldn't interfere.
+**Test**: test_transaction_isolation (TestTransactionConsistencyInvariants in test_database_invariants.py)
+**Critical**: Yes (concurrent transaction safety)
+**Bug Found**: Dirty reads when transaction A read uncommitted data from transaction B. Root cause: default READ_UNCOMMITTED isolation level in connection pool. Fixed in commit def456.
+**Scenario**: Transfer shows intermediate state - account 1 debited but account 2 not yet credited
+**max_examples**: 200 (critical for concurrency bugs)
+
+### Transaction Durability (ACID - D)
+**Invariant**: Committed transactions must be durable - survive system failures.
+**Test**: test_transaction_durability (TestTransactionConsistencyInvariants in test_database_invariants.py)
+**Critical**: Yes (data persistence guarantee)
+**Bug Found**: Committed data lost after crash due to delayed fsync. Root cause: write-back caching with deferred flush. Fixed in commit ghi789.
+**Scenario**: 1000 records committed, power loss, only 750 recovered on restart
+**max_examples**: 100 (important but not latency-critical)
+
+### Transaction Consistency (ACID - C)
+**Invariant**: Transactions must maintain consistency - database transitions between valid states.
+**Test**: test_transaction_consistency (TestTransactionConsistencyInvariants in test_database_invariants.py)
+**Critical**: Yes (financial consistency)
+**Bug Found**: Total balance changed due to integer overflow in credit operation. Root cause: missing overflow check in credit operation. Fixed in commit jkl012.
+**Scenario**: Transfer 100 from A to B - A decreased by 100, B increased by 99 (off-by-one)
+**max_examples**: 200 (critical for data integrity)
+
+### Foreign Key Constraints
+**Invariant**: Child records must reference existing parent records.
+**Test**: test_foreign_key_constraint (TestDataIntegrityInvariants in test_database_invariants.py)
+**Critical**: Yes (referential integrity)
+**Bug Found**: Orphaned child records with FK=999 when parents were {1, 2, 3}. Root cause: missing FK constraint validation in bulk_insert(). Fixed in commit mno345.
+**Scenario**: Missing FK constraint validation in bulk_insert() allowed orphans
+**max_examples**: 100
+
+### Unique Constraints
+**Invariant**: Constrained columns must contain unique values (no duplicates).
+**Test**: test_unique_constraint (TestDataIntegrityInvariants in test_database_invariants.py)
+**Critical**: Yes (data integrity)
+**Bug Found**: Duplicate email addresses due to race condition in INSERT. Root cause: check-then-act pattern without unique constraint in database schema. Fixed in commit pqr678.
+**Scenario**: Two concurrent users register with same email - both succeeded
+**max_examples**: 100
+
+### Check Constraints
+**Invariant**: Values must satisfy defined conditions (e.g., balance >= 0).
+**Test**: test_check_constraint (TestDataIntegrityInvariants in test_database_invariants.py)
+**Critical**: Yes (data validity)
+**Bug Found**: Negative balances allowed despite CHECK(balance >= 0) constraint. Root cause: SQLite constraint disabled by PRAGMA foreign_keys=OFF. Fixed in commit stu901.
+**Scenario**: PRAGMA foreign_keys=OFF disabled constraint silently
+**max_examples**: 100
+
+### Enum Constraints
+**Invariant**: Only valid values accepted for ENUM columns.
+**Test**: test_enum_constraint (TestDataIntegrityInvariants in test_database_invariants.py)
+**Critical**: Yes (type safety)
+**Bug Found**: Invalid status='cancelled' allowed when ENUM defined only 3 values. Root cause: missing CHECK constraint in database schema, only validated in application code. Fixed in commit vwx234.
+**Scenario**: Missing CHECK constraint in schema, only validated in application code
+**max_examples**: 100
+
+### Optimistic Locking
+**Invariant**: Stale updates must be rejected (version conflict detection).
+**Test**: test_optimistic_locking (TestConcurrencyControlInvariants in test_database_invariants.py)
+**Critical**: No (concurrency optimization, not safety)
+**Bug Found**: Stale updates overwrote newer data due to wrong version comparison. Root cause: version comparison using < instead of !=. Fixed in commit yza345.
+**Scenario**: version=3 updating record at version=5 should fail with 409 Conflict
+**max_examples**: 100
+
+### Pessimistic Locking
+**Invariant**: Lock holder has exclusive access; others must wait.
+**Test**: test_pessimistic_locking (TestConcurrencyControlInvariants in test_database_invariants.py)
+**Critical**: Yes (prevents lost updates)
+**Bug Found**: Concurrent transactions modified same row due to missing FOR UPDATE. Root cause: FOR UPDATE skipped in SELECT due to performance optimization. Fixed in commit bcd456.
+**Scenario**: Lock acquisition skipped for performance, lost update anomaly occurred
+**max_examples**: 100
+
+### Deadlock Detection
+**Invariant**: Circular wait chains must be detected and broken.
+**Test**: test_deadlock_detection (TestConcurrencyControlInvariants in test_database_invariants.py)
+**Critical**: Yes (prevents system hang)
+**Bug Found**: Infinite hang due to missing timeout in lock acquisition. Root cause: locks acquired without timeout, deadlock detection never triggered. Fixed in commit efg789.
+**Scenario**: A waits for B, B waits for C, C waits for A - deadlock never detected
+**max_examples**: 100
+
+### Isolation Levels
+**Invariant**: Isolation levels must prevent anomalies appropriate to their level.
+**Test**: test_isolation_levels (TestConcurrencyControlInvariants in test_database_invariants.py)
+**Critical**: Yes (concurrency correctness)
+**Bug Found**: Non-repeatable reads at READ_COMMITTED due to missing snapshot. Root cause: transaction not maintaining consistent view across multiple reads. Fixed in commit hij012.
+**Scenario**: Transaction A reads row twice, sees different values after B updates
+**max_examples**: 100
+
+
