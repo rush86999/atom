@@ -14,9 +14,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Infrastructure** - Establish pytest configuration, parallel execution, test data factories, coverage reporting, quality gates, and CI integration
 - [x] **Phase 2: Core Property Tests** - Implement Hypothesis-based property tests for governance, episodic memory, database transactions, API contracts, state management, event handling, and file operations
-- [ ] **Phase 3: Integration & Security Tests** - Build integration tests for API endpoints, database transactions, WebSockets, external services, and security flows (authentication, authorization, input validation, canvas security, JWT, OAuth, episode access)
+- [x] **Phase 3: Integration & Security Tests** - Build integration tests for API endpoints, database transactions, WebSockets, external services, and security flows (authentication, authorization, input validation, canvas security, JWT, OAuth, episode access)
 - [ ] **Phase 4: Platform Coverage** - Extend test coverage to React Native mobile components and Tauri desktop/menu bar applications
 - [ ] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
+- [ ] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
 
 ## Phase Details
 
@@ -106,12 +107,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
 | 2. Core Property Tests | 7/7 | **Complete** | 2026-02-11 |
-| 3. Integration & Security Tests | 0/7 | Not started | - |
+| 3. Integration & Security Tests | 7/7 | **Complete** | 2026-02-11 |
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
+| 6. Production Hardening | 0/TBD | Not started | - |
