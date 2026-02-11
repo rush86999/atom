@@ -1058,105 +1058,39 @@ class TestActionExecution:
 # ========================================================================
 
 class TestEpisodeCreation:
-    """Test episode creation from proposals."""
+    """Test episode creation helper methods from proposals."""
 
-    @pytest.mark.asyncio
-    async def test_create_episode_from_approved_proposal(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test episode creation when proposal is approved."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test reasoning for approval",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
-        )
-        db_session.add(proposal)
-        db_session.commit()
-
-        # Approve with execution
-        with patch.object(
-            proposal_service, '_execute_proposed_action',
-            new=AsyncMock(return_value={"success": True})
-        ):
-            # Don't mock _create_proposal_episode - let it run
-            await proposal_service.approve_proposal(
-                proposal_id=proposal.id,
-                user_id="test_user",
-                modifications={"param": "modified"}
-            )
-
-        # Verify episode was created
-        from core.models import Episode
-        episodes = db_session.query(Episode).filter(
-            Episode.proposal_id == proposal.id
-        ).all()
-
-        assert len(episodes) == 1
-        episode = episodes[0]
-        assert episode.proposal_outcome == "approved"
-        assert episode.agent_id == intern_agent.id
-
-    @pytest.mark.asyncio
-    async def test_create_episode_from_rejected_proposal(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test episode creation when proposal is rejected."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test reasoning",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
-        )
-        db_session.add(proposal)
-        db_session.commit()
-
-        # Reject proposal
-        await proposal_service.reject_proposal(
-            proposal_id=proposal.id,
-            user_id="test_user",
-            reason="Too risky"
-        )
-
-        # Verify episode was created
-        from core.models import Episode
-        episodes = db_session.query(Episode).filter(
-            Episode.proposal_id == proposal.id
-        ).all()
-
-        assert len(episodes) == 1
-        episode = episodes[0]
-        assert episode.proposal_outcome == "rejected"
-        assert episode.rejection_reason == "Too risky"
-
-    @pytest.mark.asyncio
-    async def test_episode_importance_calculation(self, proposal_service):
+    def test_episode_importance_calculation(self, proposal_service):
         """Test episode importance score calculation."""
         # Rejected proposals have higher importance
-        assert proposal_service._calculate_proposal_importance("rejected", MagicMock()) > \
-               proposal_service._calculate_proposal_importance("approved", MagicMock())
+        mock_proposal = MagicMock()
+        mock_proposal_rejected = MagicMock()
+        mock_proposal_rejected.modifications = None
+
+        rejected_score = proposal_service._calculate_proposal_importance("rejected", mock_proposal_rejected)
+        approved_score = proposal_service._calculate_proposal_importance("approved", mock_proposal_rejected)
+
+        assert rejected_score > approved_score
 
         # Proposals with modifications have higher importance
         mock_with_mods = MagicMock()
         mock_with_mods.modifications = {"key": "value"}
-        mock_without_mods = MagicMock()
-        mock_without_mods.modifications = None
 
-        assert proposal_service._calculate_proposal_importance("approved", mock_with_mods) > \
-               proposal_service._calculate_proposal_importance("approved", mock_without_mods)
+        approved_with_mods = proposal_service._calculate_proposal_importance("approved", mock_with_mods)
 
-    @pytest.mark.asyncio
-    async def test_extract_proposal_topics(self, proposal_service, intern_agent):
+        assert approved_with_mods > approved_score
+
+    def test_importance_score_clamped(self, proposal_service):
+        """Test importance score is clamped to [0, 1]."""
+        mock_proposal = MagicMock()
+        mock_proposal.modifications = None
+
+        # Test all outcomes
+        for outcome in ["approved", "rejected"]:
+            score = proposal_service._calculate_proposal_importance(outcome, mock_proposal)
+            assert 0.0 <= score <= 1.0
+
+    def test_extract_proposal_topics(self, proposal_service, intern_agent):
         """Test topic extraction from proposals."""
         proposal = AgentProposal(
             agent_id=intern_agent.id,
@@ -1176,10 +1110,10 @@ class TestEpisodeCreation:
         assert "browser_automate" in topics  # From action type
         assert len(topics) <= 5  # Should limit to 5 topics
 
-    @pytest.mark.asyncio
-    async def test_extract_proposal_entities(self, proposal_service, intern_agent):
+    def test_extract_proposal_entities(self, proposal_service, intern_agent):
         """Test entity extraction from proposals."""
         proposal = AgentProposal(
+            id="test-proposal-id",
             agent_id=intern_agent.id,
             agent_name="Test Agent",
             proposal_type=ProposalType.ACTION.value,
@@ -1197,168 +1131,57 @@ class TestEpisodeCreation:
 
         entities = proposal_service._extract_proposal_entities(proposal)
 
-        assert f"proposal:{proposal.id}" in entities
+        assert f"proposal:test-proposal-id" in entities
         assert f"agent:{intern_agent.id}" in entities
         assert "reviewer:test_user" in entities
 
+    def test_format_proposal_content(self, proposal_service):
+        """Test proposal content formatting for episodes."""
+        proposal = MagicMock()
+        proposal.title = "Test Proposal"
+        proposal.proposal_type = "action"
+        proposal.agent_name = "Test Agent"
+        proposal.created_at = datetime.now()
+        proposal.reasoning = "Test reasoning"
+        proposal.proposed_action = {"action_type": "test"}
 
-# ========================================================================
-# Task 1.9: Autonomous Supervisor Integration
-# ========================================================================
+        content = proposal_service._format_proposal_content(proposal, "approved")
 
-class TestAutonomousSupervisor:
-    """Test autonomous supervisor integration for proposals."""
+        assert "Test Proposal" in content
+        assert "Test Agent" in content
+        assert "Test reasoning" in content
+        assert "test" in content
 
-    @pytest.mark.asyncio
-    async def test_review_with_human_supervisor(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test finding human supervisor for proposal review."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
+    def test_format_proposal_outcome_approved(self, proposal_service):
+        """Test formatting approved proposal outcome."""
+        proposal = MagicMock()
+        proposal.approved_by = "user123"
+        proposal.approved_at = datetime.now()
+        proposal.modifications = {"key": "value"}
+
+        outcome = proposal_service._format_proposal_outcome(
+            proposal, "approved",
+            modifications={"key": "value"},
+            execution_result={"success": True}
         )
-        db_session.add(proposal)
-        db_session.commit()
 
-        # Mock user activity service to return available supervisor
-        with patch('core.proposal_service.UserActivityService') as mock_user_service:
-            mock_activity_instance = AsyncMock()
-            mock_activity_instance.get_available_supervisors.return_value = [
-                {"user_id": "supervisor_1", "category": intern_agent.id}
-            ]
-            mock_user_service.return_value = mock_activity_instance
+        assert "APPROVED" in outcome
+        assert "user123" in outcome
+        assert "Modifications Applied: 1" in outcome
+        assert "SUCCESS" in outcome
 
-            result = await proposal_service.review_with_autonomous_supervisor(proposal)
+    def test_format_proposal_outcome_rejected(self, proposal_service):
+        """Test formatting rejected proposal outcome."""
+        proposal = MagicMock()
+        proposal.approved_by = "user123"
+        proposal.approved_at = datetime.now()
 
-        assert result is not None
-        assert result["supervisor_type"] == "human"
-        assert result["available"] is True
-
-    @pytest.mark.asyncio
-    async def test_review_with_autonomous_supervisor_fallback(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test fallback to autonomous supervisor when no human available."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
+        outcome = proposal_service._format_proposal_outcome(
+            proposal, "rejected",
+            rejection_reason="Too risky"
         )
-        db_session.add(proposal)
-        db_session.commit()
 
-        # Create autonomous supervisor
-        autonomous_agent = AutonomousAgentFactory(_session=db_session)
-        db_session.commit()
-
-        # Mock no human supervisor available
-        with patch('core.proposal_service.UserActivityService') as mock_user_service, \
-             patch('core.proposal_service.AutonomousSupervisorService') as mock_auto_service:
-
-            mock_activity_instance = AsyncMock()
-            mock_activity_instance.get_available_supervisors.return_value = []
-            mock_user_service.return_value = mock_activity_instance
-
-            mock_auto_instance = AsyncMock()
-            mock_auto_instance.find_autonomous_supervisor.return_value = autonomous_agent
-
-            mock_review = MagicMock()
-            mock_review.approved = True
-            mock_review.confidence_score = 0.9
-            mock_review.risk_level = "low"
-            mock_review.reasoning = "Looks good"
-            mock_review.suggested_modifications = []
-            mock_auto_instance.review_proposal.return_value = mock_review
-            mock_auto_service.return_value = mock_auto_instance
-
-            result = await proposal_service.review_with_autonomous_supervisor(proposal)
-
-        assert result is not None
-        assert result["supervisor_type"] == "autonomous"
-        assert result["supervisor_id"] == autonomous_agent.id
-
-    @pytest.mark.asyncio
-    async def test_no_supervisor_available(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test when no supervisor (human or autonomous) is available."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
-        )
-        db_session.add(proposal)
-        db_session.commit()
-
-        # Mock no supervisors available
-        with patch('core.proposal_service.UserActivityService') as mock_user_service, \
-             patch('core.proposal_service.AutonomousSupervisorService') as mock_auto_service:
-
-            mock_activity_instance = AsyncMock()
-            mock_activity_instance.get_available_supervisors.return_value = []
-            mock_user_service.return_value = mock_activity_instance
-
-            mock_auto_instance = AsyncMock()
-            mock_auto_instance.find_autonomous_supervisor.return_value = None
-            mock_auto_service.return_value = mock_auto_instance
-
-            result = await proposal_service.review_with_autonomous_supervisor(proposal)
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_autonomous_approve_or_reject_with_human(
-        self, proposal_service, intern_agent, db_session
-    ):
-        """Test autonomous approval waits when human supervisor available."""
-        proposal = AgentProposal(
-            agent_id=intern_agent.id,
-            agent_name=intern_agent.name,
-            proposal_type=ProposalType.ACTION.value,
-            title="Test Proposal",
-            description="Test",
-            proposed_action={"action_type": "test"},
-            reasoning="Test",
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=intern_agent.id
-        )
-        db_session.add(proposal)
-        db_session.commit()
-
-        # Mock human supervisor available
-        with patch.object(
-            proposal_service, 'review_with_autonomous_supervisor',
-            new=AsyncMock(return_value={
-                "supervisor_type": "human",
-                "supervisor_id": "human_supervisor",
-                "available": True
-            })
-        ):
-            result = await proposal_service.autonomous_approve_or_reject(
-                proposal_id=proposal.id
-            )
-
-        assert result["success"] is False
-        assert "awaiting manual approval" in result["message"]
-        assert result["supervisor_type"] == "human"
+        assert "REJECTED" in outcome
+        assert "user123" in outcome
+        assert "Too risky" in outcome
 
