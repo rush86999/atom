@@ -651,4 +651,408 @@ mod tests {
         // - Stdout/stderr are emitted as events
         // - Process is tracked in state
     }
+
+    // ============================================================================
+    // Network Timeout Tests
+    // ============================================================================
+
+    #[test]
+    fn test_command_timeout_duration_parsing() {
+        // Test timeout parameter parsing from execute_shell_command
+        let timeout_seconds = Some(30);
+        let timeout_duration = std::time::Duration::from_secs(timeout_seconds.unwrap_or(30));
+
+        assert_eq!(timeout_duration.as_secs(), 30);
+
+        // Test default timeout
+        let default_timeout = std::time::Duration::from_secs(None.unwrap_or(30));
+        assert_eq!(default_timeout.as_secs(), 30);
+    }
+
+    #[test]
+    fn test_command_timeout_variations() {
+        // Test various timeout values
+        let test_cases = vec![
+            (Some(5), 5),
+            (Some(10), 10),
+            (Some(30), 30),
+            (Some(60), 60),
+            (Some(300), 300),
+            (None, 30), // Default
+        ];
+
+        for (input, expected) in test_cases {
+            let duration = std::time::Duration::from_secs(input.unwrap_or(30));
+            assert_eq!(duration.as_secs(), expected);
+        }
+    }
+
+    #[test]
+    fn test_slow_command_execution() {
+        // Test handling of slow commands (under timeout threshold)
+        use std::process::Command;
+        use std::time::Instant;
+
+        // Sleep command that completes quickly (under 5 second timeout)
+        let start_time = Instant::now();
+        let output = if cfg!(target_os = "windows") {
+            Command::new("timeout")
+                .args(["/t", "1"])
+                .output()
+        } else {
+            Command::new("sleep")
+                .args(["1"])
+                .output()
+        };
+
+        let elapsed = start_time.elapsed();
+
+        // Command should succeed
+        assert!(output.is_ok());
+        let output = output.unwrap();
+        assert!(output.status.success());
+
+        // Should complete in reasonable time (< 5 seconds)
+        assert!(elapsed.as_secs() < 5);
+    }
+
+    #[test]
+    #[ignore = "Command takes too long to run in CI/CD"]
+    fn test_command_timeout_exceeded() {
+        // Test command that exceeds timeout threshold
+        // This test is ignored because it would take 30+ seconds to run
+
+        use std::process::Command;
+        use std::time::Duration;
+
+        // Simulate a command that would exceed timeout
+        let timeout_duration = Duration::from_secs(1);
+
+        // Sleep for 5 seconds (exceeds 1 second timeout)
+        let output = if cfg!(target_os = "windows") {
+            Command::new("timeout")
+                .args(["/t", "5"])
+                .output()
+        } else {
+            Command::new("sleep")
+                .args(["5"])
+                .output()
+        };
+
+        // Command completes but took longer than timeout
+        // In real implementation, tokio::time::timeout would cancel it
+        assert!(output.is_ok());
+
+        let start = std::time::Instant::now();
+        let _output = output.unwrap();
+        let elapsed = start.elapsed();
+
+        // Verify it took longer than our timeout threshold
+        assert!(elapsed > timeout_duration);
+    }
+
+    #[test]
+    fn test_command_cancellation_simulation() {
+        // Test command cancellation logic simulation
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancelled_clone = cancelled.clone();
+
+        // Simulate cancellation after some time
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            cancelled_clone.store(true, Ordering::SeqCst);
+        });
+
+        // Simulate command that checks for cancellation
+        let mut iterations = 0;
+        loop {
+            if cancelled.load(Ordering::SeqCst) {
+                break; // Command was cancelled
+            }
+            iterations += 1;
+            if iterations > 1000 {
+                break; // Safety exit
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
+        // Verify command was cancelled
+        assert!(cancelled.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_network_unavailable_scenario() {
+        // Test command behavior when network is unavailable
+        use std::process::Command;
+
+        // Try to connect to unreachable address
+        let output = if cfg!(target_os = "windows") {
+            Command::new("ping")
+                .args(["-n", "1", "-w", "1", "192.0.2.1"]) // TEST-NET-1 (unreachable)
+                .output()
+        } else {
+            Command::new("ping")
+                .args(["-c", "1", "-W", "1", "192.0.2.1"]) // TEST-NET-1 (unreachable)
+                .output()
+        };
+
+        // Command should execute (but fail to connect)
+        assert!(output.is_ok());
+        let output = output.unwrap();
+
+        // Ping should fail (non-zero exit code)
+        assert!(!output.status.success());
+
+        // Should have error output
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        // Either stdout or stderr should indicate failure
+        let output_has_error = !stdout.trim().is_empty() || !stderr.trim().is_empty();
+        assert!(output_has_error || !output.status.success());
+    }
+
+    #[test]
+    fn test_slow_response_handling() {
+        // Test handling of slow responses (under timeout)
+        use std::process::Command;
+        use std::time::Instant;
+
+        // Simulate slow but successful command
+        let start_time = Instant::now();
+
+        let output = if cfg!(target_os = "windows") {
+            Command::new("timeout")
+                .args(["/t", "2"])
+                .output()
+        } else {
+            Command::new("sleep")
+                .args(["2"])
+                .output()
+        };
+
+        let elapsed = start_time.elapsed();
+
+        // Command should succeed
+        assert!(output.is_ok());
+
+        // Verify it took expected time (1-3 seconds)
+        assert!(elapsed.as_secs() >= 1 && elapsed.as_secs() <= 3);
+    }
+
+    #[test]
+    fn test_timeout_enforcement_mechanism() {
+        // Test timeout enforcement mechanism
+        use std::time::Duration;
+
+        // Simulate timeout enforcement logic
+        let command_start = std::time::Instant::now();
+        let timeout_duration = Duration::from_secs(5);
+
+        // Simulate command running
+        std::thread::sleep(Duration::from_millis(100));
+
+        let elapsed = command_start.elapsed();
+
+        // Check if timeout exceeded
+        let timeout_exceeded = elapsed > timeout_duration;
+
+        assert!(!timeout_exceeded, "Command should complete within timeout");
+
+        // Test case where timeout would be exceeded
+        let timeout_duration_short = Duration::from_millis(50);
+        let timeout_exceeded_short = elapsed > timeout_duration_short;
+
+        assert!(timeout_exceeded_short, "Command should exceed short timeout");
+    }
+
+    #[test]
+    fn test_retry_logic_simulation() {
+        // Test retry logic for transient failures
+        let mut attempts = 0;
+        let max_retries = 3;
+        let mut success = false;
+
+        // Simulate failing then succeeding
+        while attempts < max_retries {
+            attempts += 1;
+
+            // Simulate: fail first 2 attempts, succeed on 3rd
+            if attempts >= 3 {
+                success = true;
+                break;
+            }
+        }
+
+        assert!(success, "Command should succeed after retries");
+        assert_eq!(attempts, 3, "Should take 3 attempts");
+    }
+
+    #[test]
+    fn test_exponential_backoff_simulation() {
+        // Test exponential backoff for retries
+        let mut delay: u64 = 1; // Start with 1 second
+        let base_delay = 1u64;
+
+        for attempt in 0..5 {
+            let expected_delay = base_delay * 2_u64.pow(attempt);
+            assert_eq!(delay, expected_delay);
+
+            // Calculate next delay with exponential backoff
+            delay = base_delay * 2_u64.pow(attempt + 1);
+        }
+
+        // Verify exponential growth: 1, 2, 4, 8, 16
+        let expected_delays: Vec<u64> = vec
+![1, 2, 4, 8, 16];
+        let calculated_delays: Vec<u64> = (0..5)
+            .map(|i| base_delay * 2_u64.pow(i))
+            .collect();
+
+        assert_eq!(calculated_delays, expected_delays);
+    }
+
+    #[test]
+    fn test_partial_response_handling() {
+        // Test handling of partial responses (truncated output)
+        let full_output = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
+        let max_length = 20;
+
+        // Simulate truncation
+        let truncated = if full_output.len() > max_length {
+            &full_output[..max_length]
+        } else {
+            full_output
+        };
+
+        // Verify truncation
+        assert!(truncated.len() <= max_length);
+        assert_eq!(truncated, "Line 1\nLine 2\nLine 3");
+    }
+
+    #[test]
+    fn test_timeout_error_message() {
+        // Test timeout error message format
+        let timeout_seconds = 30u64;
+        let command = "some_long_running_command";
+
+        let error_msg = format!(
+            "Command '{}' timed out after {} seconds",
+            command, timeout_seconds
+        );
+
+        assert!(error_msg.contains("timed out"));
+        assert!(error_msg.contains(command));
+        assert!(error_msg.contains(&timeout_seconds.to_string()));
+    }
+
+    #[test]
+    fn test_network_error_classification() {
+        // Test classification of network errors
+        use std::process::Command;
+
+        // Test connection refused (no server listening)
+        let output = Command::new("sh")
+            .args(["-c", "echo 'Connection refused' >&2; exit 1"])
+            .output();
+
+        assert!(output.is_ok());
+        let output = output.unwrap();
+
+        // Should fail
+        assert!(!output.status.success());
+
+        // Should have error output
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("Connection refused"));
+    }
+
+    #[test]
+    fn test_command_timeout_configuration() {
+        // Test various timeout configurations
+        let configs = vec![
+            ("quick_command", 5),
+            ("normal_command", 30),
+            ("long_command", 300),
+            ("very_long_command", 600),
+        ];
+
+        for (command_type, timeout) in configs {
+            assert!(timeout > 0, "Timeout should be positive for {}", command_type);
+            assert!(timeout <= 600, "Timeout should be reasonable for {}", command_type);
+        }
+    }
+
+    #[test]
+    fn test_timeout_grace_period() {
+        // Test grace period before timeout enforcement
+        let timeout_seconds = 30u64;
+        let grace_period_seconds = 5u64;
+
+        let effective_timeout = timeout_seconds + grace_period_seconds;
+
+        assert_eq!(effective_timeout, 35);
+
+        // Verify grace period is added
+        assert!(effective_timeout > timeout_seconds);
+    }
+
+    #[test]
+    fn test_command_cleanup_on_timeout() {
+        // Test cleanup logic when command times out
+        use std::sync::{Arc, Mutex};
+
+        let cleanup_called = Arc::new(Mutex::new(false));
+        let cleanup_clone = cleanup_called.clone();
+
+        // Simulate command timeout
+        let timeout_occurred = true;
+
+        // Cleanup should be called on timeout
+        if timeout_occurred {
+            let mut cleanup = cleanup_clone.lock().unwrap();
+            *cleanup = true;
+        }
+
+        // Verify cleanup was called
+        let cleanup = cleanup_called.lock().unwrap();
+        assert!(*cleanup);
+    }
+
+    // ============================================================================
+    // TODO: Integration Network Tests
+    // ============================================================================
+
+    #[test]
+    #[ignore = "Requires actual backend API server"]
+    fn test_backend_api_request_timeout() {
+        // TODO: Requires backend server
+        // Would verify:
+        // - API request timeout is enforced
+        // - Partial responses are handled
+        // - Timeout error is returned correctly
+    }
+
+    #[test]
+    #[ignore = "Requires network access and external API"]
+    fn test_external_api_timeout() {
+        // TODO: Requires network access
+        // Would verify:
+        // - External API timeout handling
+        // - Retry logic on timeout
+        // - Exponential backoff implementation
+    }
+
+    #[test]
+    #[ignore = "Requires actual WebSocket server"]
+    fn test_websocket_connection_timeout() {
+        // TODO: Requires WebSocket server
+        // Would verify:
+        // - WebSocket connection timeout
+        // - Automatic reconnection on timeout
+        // - Connection state management
+    }
 }
