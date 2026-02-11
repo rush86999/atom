@@ -111,9 +111,91 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+  backend-test-full:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: atom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+
+      - name: Run tests with coverage (parallel)
+        working-directory: ./backend
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          BYOV_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+        run: |
+          pytest tests/ -v -n auto \
+            --cov=core \
+            --cov=api \
+            --cov=tools \
+            --cov-report=html:tests/coverage_reports/html \
+            --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+            --cov-report=term-missing:skip-covered \
+            --cov-fail-under=80 \
+            --maxfail=5
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            backend/tests/coverage_reports/html/
+            backend/tests/coverage_reports/metrics/coverage.json
+          retention-days: 30
+
+      - name: Coverage summary
+        working-directory: ./backend
+        if: always()
+        run: |
+          if [ -f tests/coverage_reports/metrics/coverage.json ]; then
+            python -c "import json; d=json.load(open('tests/coverage_reports/metrics/coverage.json')); p=d['totals']['percent_covered']; print(f'Coverage: {p:.1f}%')"
+          fi
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: [backend-test, frontend-build]
+    needs: [backend-test, backend-test-full, frontend-build]
     steps:
       - name: Free Disk Space (Ubuntu)
         run: |
