@@ -5,9 +5,7 @@ Factories for Episode and EpisodeSegment models.
 import factory
 from factory import fuzzy
 from datetime import datetime, timedelta
-from tests.factories import BaseFactory
-from tests.factories.agent_factory import AgentFactory
-from tests.factories.user_factory import UserFactory
+from tests.factories.base import BaseFactory
 from core.models import Episode, EpisodeSegment
 
 
