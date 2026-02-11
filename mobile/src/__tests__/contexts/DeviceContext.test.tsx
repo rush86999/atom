@@ -163,9 +163,9 @@ describe('DeviceContext - Device Registration', () => {
     renderWithDeviceProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('false');
-      expect(screen.getByTestId('deviceId')).toHaveTextContent('null');
-      expect(screen.getByTestId('deviceToken')).toHaveTextContent('null');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('false');
+      expect(screen.getByTestId('deviceId').props.children).toBe('null');
+      expect(screen.getByTestId('deviceToken').props.children).toBe('null');
     });
   });
 
@@ -204,7 +204,7 @@ describe('DeviceContext - Device Registration', () => {
 
     // Verify error is handled gracefully
     await waitFor(() => {
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('false');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('false');
     });
   });
 
@@ -236,9 +236,9 @@ describe('DeviceContext - Device Registration', () => {
     renderWithDeviceProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('deviceId')).toHaveTextContent('stored_device_123');
-      expect(screen.getByTestId('deviceToken')).toHaveTextContent('stored_token_123');
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('true');
+      expect(screen.getByTestId('deviceId').props.children).toBe('stored_device_123');
+      expect(screen.getByTestId('deviceToken').props.children).toBe('stored_token_123');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('true');
     });
   });
 });
@@ -550,7 +550,7 @@ describe('DeviceContext - Device State Management', () => {
     renderWithDeviceProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('false');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('false');
     });
 
     // Simulate registration
@@ -705,7 +705,7 @@ describe('DeviceContext - Device Token Management', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('false');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('false');
     });
   });
 });
@@ -781,7 +781,7 @@ describe('DeviceContext - Device Sync', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('isRegistered')).toHaveTextContent('false');
+      expect(screen.getByTestId('isRegistered').props.children).toBe('false');
     });
   });
 });
@@ -942,10 +942,10 @@ describe('DeviceContext - Capability Caching', () => {
     renderWithDeviceProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('cameraCapability')).toHaveTextContent('true');
-      expect(screen.getByTestId('locationCapability')).toHaveTextContent('true');
-      expect(screen.getByTestId('notificationsCapability')).toHaveTextContent('false');
-      expect(screen.getByTestId('biometricCapability')).toHaveTextContent('true');
+      expect(screen.getByTestId('cameraCapability').props.children).toBe('true');
+      expect(screen.getByTestId('locationCapability').props.children).toBe('true');
+      expect(screen.getByTestId('notificationsCapability').props.children).toBe('false');
+      expect(screen.getByTestId('biometricCapability').props.children).toBe('true');
     });
   });
 
