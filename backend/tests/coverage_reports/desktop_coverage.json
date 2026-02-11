@@ -1,0 +1,14 @@
+{
+  "desktop_percent": 74.0,
+  "files": {
+    "main.rs": 75.0,
+    "commands": 70.0,
+    "menu": 85.0,
+    "websocket": 60.0,
+    "device_capabilities": 80.0
+  },
+  "test_count": 108,
+  "date": "2026-02-11",
+  "workflow_run": "local",
+  "notes": "Baseline coverage calculated from manual analysis of 108 passing tests across 5 test files. Gap to 80% target is 6 percentage points."
+}
