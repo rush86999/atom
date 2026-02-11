@@ -297,6 +297,7 @@ jest.mock('expo-constants', () => ({
       backgroundColor: '#ffffff',
     },
     extra: {
+      apiUrl: 'http://localhost:8000',
       eas: {
         projectId: 'test-project-id',
       },
@@ -307,6 +308,9 @@ jest.mock('expo-constants', () => ({
       name: 'Atom',
       slug: 'atom',
       version: '1.0.0',
+      extra: {
+        apiUrl: 'http://localhost:8000',
+      },
     },
   },
 }));
