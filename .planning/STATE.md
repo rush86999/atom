@@ -51,6 +51,10 @@ Progress: [██████████] 34% (Phase 1 complete, Phase 2: 6/7 p
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 02-core-property-tests]: Increased max_examples from 50 to 100 for ordering, batching, and DLQ tests to improve bug detection
+- [Phase 02-core-property-tests]: Used @example decorators to document specific edge cases (boundary conditions, off-by-one errors)
+- [Phase 02-core-property-tests]: Documented 11 validated bugs across 12 invariants with commit hashes and root causes
+- [Phase 02-core-property-tests]: Created INVARIANTS.md to centralize invariant documentation across all domains
 - [Phase 02-core-property-tests]: Used max_examples=100 for API contract invariants (validation, pagination, error handling - IO-bound, not critical)
 - [Phase 02-core-property-tests]: Documented 9 validated bugs in API contract domain (empty dict bypass, type coercion, falsy checks, pagination off-by-one, timezone issues, mixed-case codes, missing error fields, stack trace leaks)
 - [Phase 02-core-property-tests]: Added @example decorators for API edge cases (empty request bodies, last page boundaries, authentication failures, password leaks)
@@ -97,5 +101,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed Phase 2 Plan 4 - API contract property tests with bug-finding evidence
+Stopped at: Completed Phase 2 Plan 6 - Event handling property tests with bug-finding evidence
 Resume file: None
