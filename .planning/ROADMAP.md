@@ -13,7 +13,7 @@ A comprehensive testing initiative to achieve 80% code coverage across the Atom 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Infrastructure** - Establish pytest configuration, parallel execution, test data factories, coverage reporting, quality gates, and CI integration
-- [ ] **Phase 2: Core Property Tests** - Implement Hypothesis-based property tests for governance, episodic memory, database transactions, API contracts, state management, event handling, and file operations
+- [x] **Phase 2: Core Property Tests** - Implement Hypothesis-based property tests for governance, episodic memory, database transactions, API contracts, state management, event handling, and file operations
 - [ ] **Phase 3: Integration & Security Tests** - Build integration tests for API endpoints, database transactions, WebSockets, external services, and security flows (authentication, authorization, input validation, canvas security, JWT, OAuth, episode access)
 - [ ] **Phase 4: Platform Coverage** - Extend test coverage to React Native mobile components and Tauri desktop/menu bar applications
 - [ ] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
@@ -49,13 +49,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. INVARIANTS.md documents all invariants externally with test locations and max_examples values
   6. Strategic max_examples: 200 for critical invariants (financial, security, data loss), 100 for standard, 50 for IO-bound
 **Plans**: 7 plans
-- [ ] 02-core-property-tests-01-PLAN.md — Enhance governance property tests with bug-finding evidence documentation
-- [ ] 02-core-property-tests-02-PLAN.md — Enhance episodic memory property tests with bug-finding evidence documentation
-- [ ] 02-core-property-tests-03-PLAN.md — Enhance database transaction property tests with ACID invariant documentation
-- [ ] 02-core-property-tests-04-PLAN.md — Enhance API contract property tests with validation error documentation
-- [ ] 02-core-property-tests-05-PLAN.md — Enhance state management property tests with rollback sync documentation
-- [ ] 02-core-property-tests-06-PLAN.md — Enhance event handling property tests with ordering batching documentation
-- [ ] 02-core-property-tests-07-PLAN.md — Enhance file operations property tests with security path documentation
+- [x] 02-core-property-tests-01-PLAN.md — Enhance governance property tests with bug-finding evidence documentation
+- [x] 02-core-property-tests-02-PLAN.md — Enhance episodic memory property tests with bug-finding evidence documentation
+- [x] 02-core-property-tests-03-PLAN.md — Enhance database transaction property tests with ACID invariant documentation
+- [x] 02-core-property-tests-04-PLAN.md — Enhance API contract property tests with validation error documentation
+- [x] 02-core-property-tests-05-PLAN.md — Enhance state management property tests with rollback sync documentation
+- [x] 02-core-property-tests-06-PLAN.md — Enhance event handling property tests with ordering batching documentation
+- [x] 02-core-property-tests-07-PLAN.md — Enhance file operations property tests with security path documentation
 
 ### Phase 3: Integration & Security Tests
 **Goal**: Integration tests validate component interactions and security tests validate authentication, authorization, input validation, and access control
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
-| 2. Core Property Tests | 0/7 | Not started | - |
+| 2. Core Property Tests | 7/7 | **Complete** | 2026-02-11 |
 | 3. Integration & Security Tests | 0/TBD | Not started | - |
 | 4. Platform Coverage | 0/TBD | Not started | - |
 | 5. Coverage & Quality Validation | 0/TBD | Not started | - |
