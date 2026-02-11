@@ -5,7 +5,7 @@ Factory for AgentExecution model.
 import factory
 from factory import fuzzy
 from datetime import datetime, timedelta
-from tests.factories import BaseFactory
+from tests.factories.base import BaseFactory
 from core.models import AgentExecution
 
 

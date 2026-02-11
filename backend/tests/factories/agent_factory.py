@@ -4,7 +4,7 @@ Factory for AgentRegistry model.
 
 import factory
 from factory import fuzzy
-from tests.factories import BaseFactory
+from tests.factories.base import BaseFactory
 from core.models import AgentRegistry, AgentStatus
 
 
