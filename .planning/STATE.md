@@ -73,6 +73,7 @@ Progress: [████████████░░] 66% (Phase 1-4 complete, 
 | Phase 05-coverage-quality-validation P05 | 7min | 6 tasks | 8 files |
 | Phase 05-coverage-quality-validation GAP_CLOSURE-03 | 610s | 6 tasks | 6 files |
 | Phase 05-coverage-quality-validation PGAP_CLOSURE-05 | 600 | 4 tasks | 4 files |
+| Phase 05-coverage-quality-validation PGAP_CLOSURE-01 | 1042 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,8 @@ Recent decisions affecting current work:
 - [Phase 05-coverage-quality-validation]: Used Git-tracked JSON for coverage trending (no Codecov dependency)
 - [Phase 05-coverage-quality-validation]: Configured workflow with fail_ci_if_error=false to avoid blocking on external service outages
 - [Phase 05-coverage-quality-validation]: Set 15% initial coverage threshold (realistic baseline, will increase over time)
+- [Phase 05-coverage-quality-validation]: Individual table creation over Base.metadata.create_all() to handle duplicate index errors
+- [Phase 05-coverage-quality-validation]: Integration tests with real database but mocked external dependencies
 
 ### Pending Todos
 
