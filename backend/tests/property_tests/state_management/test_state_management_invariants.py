@@ -15,7 +15,7 @@ These tests protect against state corruption and ensure consistency.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, example
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import copy
