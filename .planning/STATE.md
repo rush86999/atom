@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 2 - Core Property Tests (ready to start)
+**Current focus:** Phase 2 - Core Property Tests (in progress)
 
 ## Current Position
 
 Phase: 2 of 5 (Core Property Tests)
-Plan: 1 of 7 in current phase
-Status: Plan 01 complete (governance invariants with bug-finding evidence)
-Last activity: 2026-02-11 — Completed Phase 2 Plan 1 (governance property tests enhanced)
+Plan: 7 of 7 in current phase
+Status: Plan 07 complete (file operations invariants with bug-finding evidence)
+Last activity: 2026-02-11 — Completed Phase 2 Plan 2 (episodic memory property tests enhanced with 21 bugs)
 
-Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 1/7 plans done)
+Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 7/7 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 12
 - Average duration: 4 min
-- Total execution time: 0.37 hours
+- Total execution time: 1.42 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-test-infrastructure | 5 of 5 | 1012s | 202s |
-| 02-core-property-tests | 1 of 7 | 425s | 425s |
+| 02-core-property-tests | 7 of 7 | 2550s | 364s |
 
 **Recent Trend:**
-- Last 5 plans: 293s (P01), 193s (P02), 150s (P03), 136s (P04), 425s (P05)
+- Last 5 plans: 293s (P01), 193s (P02), 150s (P03), 136s (P04), 607s (P02)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -41,7 +41,8 @@ Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 1/7 p
 | Phase 01-test-infrastructure P04 | 150 | 3 tasks | 3 files |
 | Phase 01-test-infrastructure P05 | 136 | 2 tasks | 2 files |
 | Phase 02-core-property-tests P01 | 425 | 3 tasks | 3 files |
-| Phase 02-core-property-tests P01 | 425 | 3 tasks | 3 files |
+| Phase 02-core-property-tests P02 | 607 | 4 tasks | 3 files |
+| Phase 02-core-property-tests P02 | 607 | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -49,6 +50,10 @@ Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 1/7 p
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 02-core-property-tests]: Used max_examples=200 for critical file operations invariants (time gap segmentation, graduation scores, intervention rate, constitutional score)
+- [Phase 02-core-property-tests]: Used max_examples=100 for episodic retrieval tests (important but not security-critical)
+- [Phase 02-core-property-tests]: Documented 12 validated bugs in episodic memory domain with boundary conditions, floating point issues, and comparison bugs
+- [Phase 02-core-property-tests]: Added @example decorators for time gap boundaries (4:00:00 vs 4:00:01) and graduation thresholds (exact 0.5 intervention rate)
 - [Phase 02-core-property-tests]: Used max_examples=200 for critical governance invariants (confidence, maturity, actions, intervention)
 - [Phase 02-core-property-tests]: Used max_examples=100 for standard cache tests (non-critical for data loss)
 - [Phase 02-core-property-tests]: Documented VALIDATED_BUG sections with bug description, root cause, fix commit, and test generation
@@ -81,5 +86,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed Phase 2 Plan 1 - governance property tests with bug-finding evidence
+Stopped at: Completed Phase 2 Plan 7 - file operations property tests with bug-finding evidence
 Resume file: None
