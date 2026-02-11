@@ -15,8 +15,17 @@
  * These tests work around these issues where possible.
  */
 
-// Set environment variable before importing service
-process.env.EXPO_PUBLIC_API_URL = 'http://localhost:8000';
+// Mock expo-constants BEFORE importing service (with apiUrl for notificationService)
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    extra: {
+      eas: {
+        projectId: 'test-project-id',
+      },
+      apiUrl: 'http://localhost:8000',
+    },
+  },
+}));
 
 // Mock expo-notifications BEFORE importing the service
 jest.mock('expo-notifications', () => {
@@ -74,17 +83,6 @@ jest.mock('expo-notifications', () => {
     Notification: mock,
   };
 });
-
-// Mock expo-constants
-jest.mock('expo-constants', () => ({
-  expoConfig: {
-    extra: {
-      eas: {
-        projectId: 'test-project-id',
-      },
-    },
-  },
-}));
 
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
