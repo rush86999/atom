@@ -15,7 +15,7 @@ These tests protect against file operation bugs.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, example
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import os
