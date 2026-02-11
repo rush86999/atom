@@ -18,7 +18,7 @@ Tests governance cache invariants:
 import pytest
 import time
 from datetime import datetime, timedelta
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import given, strategies as st, assume, settings, example
 from uuid import uuid4
 from typing import Dict, Any, List
 import sys
