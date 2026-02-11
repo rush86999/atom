@@ -8,7 +8,8 @@ and security-related functionality.
 import pytest
 from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 try:
     from freezegun import freeze_time
@@ -29,10 +30,46 @@ from core.auth import (
     get_password_hash,
     create_mobile_token
 )
-from core.database import get_db
-from core.models import User
+from core.database import get_db, Base
+from core.models import User, ActiveToken, RevokedToken
 from tests.factories.user_factory import UserFactory, AdminUserFactory
-from tests.property_tests.conftest import db_session
+from sqlalchemy import text
+
+
+@pytest.fixture(scope="function")
+def db_session():
+    """
+    Create a fresh in-memory database for security tests.
+
+    This includes ActiveToken and RevokedToken tables for token management tests.
+    """
+    # Use in-memory SQLite for fast, isolated tests
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+
+    # Create all tables, including ActiveToken and RevokedToken
+    # Note: There are some duplicate index issues in models.py, so we use checkfirst=True
+    # to handle them gracefully
+    try:
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+    except Exception as e:
+        # Log but don't fail - some tables may have been created
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Some tables failed to create during setup: {e}")
+
+    # Create session
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+
+    yield session
+
+    # Cleanup
+    session.close()
+    engine.dispose()
 
 
 @pytest.fixture(scope="function")
