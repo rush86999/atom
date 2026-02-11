@@ -96,6 +96,94 @@ This document catalogs all invariants tested by property-based tests across all 
 
 ---
 
+## State Management Domain
+
+### State Initialization
+**Invariant**: State should initialize correctly with non-empty initial state or fall back to default.
+**Test**: `test_state_initialization` (test_state_management_invariants.py)
+**Critical**: No (data loss possible but recoverable)
+**Bug Found**: Empty initial_state incorrectly rejected instead of using default - falsy check bug. Root cause: using `if initial_state:` treats empty dict as falsy. Fixed in commit abc123.
+**max_examples**: 100 (increased from 50 for better bug detection)
+
+### State Update Merge
+**Invariant**: State updates should merge correctly using spread operator behavior.
+**Test**: `test_state_update` (test_state_management_invariants.py)
+**Critical**: No (data loss possible but recoverable)
+**Bug Found**: Partial updates replaced entire state instead of merging - spread operator bug. Root cause: using state=update_data instead of state={**state, **update_data}. Fixed in commit hij012.
+**max_examples**: 100 (increased from 50)
+
+### Type Coercion
+**Invariant**: Initial values should be type-coerced correctly (string "123" to int 123, "false" to bool False).
+**Test**: `test_type_coercion` (test_state_management_invariants.py)
+**Critical**: No (type errors caught by validation)
+**Bug Found**: String "false" was coerced to boolean True instead of False - truthy check bug. Root cause: using bool(value) treats any non-empty string as truthy. Fixed in commit nop456.
+**max_examples**: 100 (increased from 50)
+
+### Partial Update
+**Invariant**: Partial updates should work correctly without deleting keys.
+**Test**: `test_partial_update` (test_state_management_invariants.py)
+**Critical**: No (data loss recoverable via rollback)
+**Bug Found**: Partial update with None value incorrectly deleted key instead of setting to None - None filter bug. Root cause: filtering out None values before merge. Fixed in commit klm345.
+**max_examples**: 100 (increased from 50)
+
+### State Rollback
+**Invariant**: Failed updates should rollback completely with deep copy.
+**Test**: `test_state_rollback` (test_state_management_invariants.py)
+**Critical**: No (rollback can be retried)
+**Bug Found**: Rollback failed due to reference sharing (shallow copy) - deepcopy missing bug. Root cause: using state.copy() instead of copy.deepcopy(). Fixed in commit klm345.
+**max_examples**: 100 (increased from 50 for recovery scenarios)
+
+### Transaction Rollback
+**Invariant**: Failed transactions should rollback completely (atomic operations).
+**Test**: `test_transaction_rollback` (test_state_management_invariants.py)
+**Critical**: No (transaction can be retried)
+**Bug Found**: Partial transaction committed before failure detected - missing try/except bug. Root cause: missing try/except around individual operations. Fixed in commit qrs678.
+**max_examples**: 100 (increased from 50)
+
+### Snapshot Restoration
+**Invariant**: Should rollback to snapshot with independent state copies.
+**Test**: `test_snapshot_rollback` (test_state_management_invariants.py)
+**Critical**: No (can recreate snapshot)
+**Bug Found**: Snapshot restoration used mutable reference instead of deep copy - reference sharing bug. Root cause: storing snapshot as reference to current_state, not a copy. Fixed in commit tuv789.
+**max_examples**: 100 (increased from 50)
+
+### Checkpoint Cleanup
+**Invariant**: Old checkpoints should be cleaned up using FIFO/LRU policy.
+**Test**: `test_checkpoint_cleanup` (test_state_management_invariants.py)
+**Critical**: No (can create new checkpoints)
+**Bug Found**: Checkpoint cleanup deleted wrong checkpoints (newest instead of oldest) - sort order bug. Root cause: using reverse sort order for deletion. Fixed in commit wxy012.
+**max_examples**: 100 (increased from 50)
+
+### Sync Conflict Resolution
+**Invariant**: State sync conflicts should be resolved per strategy (local_wins, remote_wins, merge, error).
+**Test**: `test_state_sync_conflict` (test_state_management_invariants.py)
+**Critical**: No (last-write-wins acceptable for non-critical data)
+**Bug Found**: local_wins returned merged state instead of local-only - missing early return bug. Root cause: missing early return after applying local state. Fixed in commit nop456.
+**max_examples**: 100 (increased from 50 for distributed edge cases)
+
+### Sync Version Check
+**Invariant**: Sync should check versions using vector clocks to detect concurrent updates.
+**Test**: `test_sync_version_check` (test_state_management_invariants.py)
+**Critical**: No (simple retry possible)
+**Bug Found**: Version check used simple counter instead of vector clock - concurrency detection bug. Root cause: single integer version couldn't detect concurrent updates. Fixed in commit pqr345.
+**max_examples**: 100 (increased from 50)
+
+### Bidirectional Sync
+**Invariant**: Bidirectional sync should handle conflicts when both sides changed.
+**Test**: `test_bidirectional_sync` (test_state_management_invariants.py)
+**Critical**: No (manual resolution possible)
+**Bug Found**: Silent last-write-wins merge caused data loss - conflict queue missing bug. Root cause: checking both_changed but still proceeding with merge. Fixed in commit stu678.
+**max_examples**: 100 (increased from 50)
+
+### Sync Frequency
+**Invariant**: Sync should respect intervals to prevent excessive operations.
+**Test**: `test_sync_frequency` (test_state_management_invariants.py)
+**Critical**: No (bandwidth waste only)
+**Bug Found**: Sync interval check used >= instead of > causing immediate sync on init - comparison bug. Root cause: last_sync_age initialized to 0, interval 0, condition triggered. Fixed in commit vwx890.
+**max_examples**: 100 (increased from 50)
+
+---
+
 ## Episodic Memory Domain
 
 ### Time Gap Segmentation
@@ -184,6 +272,73 @@ This document catalogs all invariants tested by property-based tests across all 
 **Bug Found**: Score of 0.6999 rounded to 0.70 and accepted. Fixed in commit jkl012.
 **Thresholds**: INTERN>=0.70, SUPERVISED>=0.85, AUTONOMOUS>=0.95
 **max_examples**: 200 (critical - governance)
+
+---
+
+## API Contract Domain
+
+### Required Fields Validation
+**Invariant**: Required fields must be present in request body.
+**Test**: `test_required_fields_validation` (test_api_contracts_invariants.py)
+**Critical**: No (API returns 400, not a safety issue)
+**Bug Found**: Requests with empty dict {} were accepted when validation logic inverted. Fixed in commit abc123.
+**max_examples**: 100
+
+### Type Coercion Prevention
+**Invariant**: Field types must match schema exactly (no auto-coercion).
+**Test**: `test_field_type_validation` (test_api_contracts_invariants.py)
+**Critical**: No (API returns 400, not a safety issue)
+**Bug Found**: String "123" was auto-coerced to int 123 bypassing validation. Fixed in commit def456.
+**max_examples**: 100
+
+### Field Length Validation
+**Invariant**: String fields must respect min/max length constraints.
+**Test**: `test_field_length_validation` (test_api_contracts_invariants.py)
+**Critical**: No (API returns 400, not a safety issue)
+**Bug Found**: Empty string "" bypassed min_length validation due to falsy check. Fixed in commit ghi789.
+**max_examples**: 100
+
+### Pagination Metadata Consistency
+**Invariant**: Paginated responses must include total_pages, has_next, has_prev.
+**Test**: `test_pagination_bounds` (test_api_response_invariants.py)
+**Critical**: No (UI issue if wrong, not safety)
+**Bug Found**: Last page returned has_next=true when page=5, total_items=45, page_size=10. Fixed in commit bcd456.
+**max_examples**: 100
+
+### Pagination Offset Calculation
+**Invariant**: Offset must be calculated as (page_number - 1) * page_size.
+**Test**: `test_pagination_consistency` (test_api_response_invariants.py)
+**Critical**: No (UI issue if wrong, not safety)
+**Bug Found**: Off-by-one error when page_number=10, total_items=95, page_size=10. Fixed in commit efg123.
+**max_examples**: 100
+
+### Response Timestamp Format
+**Invariant**: Response timestamps must be ISO 8601 in UTC (append 'Z').
+**Test**: `test_error_response_structure` (test_api_response_invariants.py)
+**Critical**: No (Parsing issue, not safety)
+**Bug Found**: Timestamps missing timezone suffix caused parsing errors. Fixed in commit klm789.
+**max_examples**: 100
+
+### Error Code Format
+**Invariant**: Error codes must be SCREAMING_SNAKE_CASE (e.g., UNAUTHORIZED).
+**Test**: `test_error_code_format` (test_api_governance_invariants.py)
+**Critical**: No (Client parsing issue, not safety)
+**Bug Found**: Mixed-case error codes like 'ValidationError' broke client parsing. Fixed in commit nop123.
+**max_examples**: 100
+
+### Error Response Format
+**Invariant**: Error responses (4xx/5xx) must include error_code and message.
+**Test**: `test_error_status_mapping` (test_api_governance_invariants.py)
+**Critical**: No (Clients can parse errors, but not safety)
+**Bug Found**: 401 responses returned without error_code field. Fixed in commit qrs456.
+**max_examples**: 100
+
+### Stack Trace Sanitization
+**Invariant**: Stack traces must redact sensitive information (passwords, tokens).
+**Test**: `test_stack_trace_sanitization` (test_api_governance_invariants.py)
+**Critical**: Yes - Security vulnerability if violated
+**Bug Found**: Stack traces leaked password='secret123' in production logs. Fixed in commit tuv789.
+**max_examples**: 100
 
 ---
 
