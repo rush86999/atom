@@ -10,39 +10,40 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 2 of 5 (Core Property Tests)
-Plan: 7 of 7 in current phase
-Status: Plan 07 complete (file operations invariants with bug-finding evidence)
-Last activity: 2026-02-11 — Completed Phase 2 Plan 2 (episodic memory property tests enhanced with 21 bugs)
+Plan: 3 of 7 in current phase
+Status: Plan 03 complete (Database transaction property tests with bug-finding evidence)
+Last activity: 2026-02-11 — Completed Phase 2 Plan 3 (Database transaction property tests enhanced with 12 bugs)
 
-Progress: [████████░░] 29% (Phase 1 complete, Phase 2: 7/7 plans done)
+Progress: [████████░░] 26% (Phase 1 complete, Phase 2: 3/7 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 4 min
-- Total execution time: 1.42 hours
+- Total plans completed: 9
+- Average duration: 5 min
+- Total execution time: 0.79 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-test-infrastructure | 5 of 5 | 1012s | 202s |
-| 02-core-property-tests | 7 of 7 | 2550s | 364s |
+| 02-core-property-tests | 4 of 7 | 2297s | 574s |
 
 **Recent Trend:**
-- Last 5 plans: 293s (P01), 193s (P02), 150s (P03), 136s (P04), 607s (P02)
+- Last 5 plans: 240s, 293s, 193s, 150s, 136s, 425s, 607s, 634s
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 01-test-infrastructure P01 | 240 | 3 tasks | 3 files |
-| Phase 01-test-infrastructure P02 | 293 | 5 tasks | 8 files |
-| Phase 01-test-infrastructure P03 | 193 | 4 tasks | 4 files |
-| Phase 01-test-infrastructure P04 | 150 | 3 tasks | 3 files |
-| Phase 01-test-infrastructure P05 | 136 | 2 tasks | 2 files |
-| Phase 02-core-property-tests P01 | 425 | 3 tasks | 3 files |
-| Phase 02-core-property-tests P02 | 607 | 4 tasks | 3 files |
-| Phase 02-core-property-tests P02 | 607 | 4 tasks | 3 files |
+| Phase 01-test-infrastructure P01 | 240s | 3 tasks | 3 files |
+| Phase 01-test-infrastructure P02 | 293s | 5 tasks | 8 files |
+| Phase 01-test-infrastructure P03 | 193s | 4 tasks | 4 files |
+| Phase 01-test-infrastructure P04 | 150s | 3 tasks | 3 files |
+| Phase 01-test-infrastructure P05 | 136s | 2 tasks | 2 files |
+| Phase 02-core-property-tests P01 | 425s | 3 tasks | 3 files |
+| Phase 02-core-property-tests P02 | 607s | 4 tasks | 3 files |
+| Phase 02-core-property-tests P04 | 634s | 4 tasks | 4 files |
+| Phase 02-core-property-tests P04 | 634 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -50,6 +51,10 @@ Progress: [████████░░] 29% (Phase 1 complete, Phase 2: 7/7 p
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 02-core-property-tests]: Used max_examples=100 for API contract invariants (validation, pagination, error handling - IO-bound, not critical)
+- [Phase 02-core-property-tests]: Documented 9 validated bugs in API contract domain (empty dict bypass, type coercion, falsy checks, pagination off-by-one, timezone issues, mixed-case codes, missing error fields, stack trace leaks)
+- [Phase 02-core-property-tests]: Added @example decorators for API edge cases (empty request bodies, last page boundaries, authentication failures, password leaks)
+- [Phase 02-core-property-tests]: Imported 'example' decorator from hypothesis for regression testing support
 - [Phase 02-core-property-tests]: Used max_examples=200 for critical file operations invariants (time gap segmentation, graduation scores, intervention rate, constitutional score)
 - [Phase 02-core-property-tests]: Used max_examples=200 for critical path security invariants (traversal, symlinks, construction)
 - [Phase 02-core-property-tests]: Used max_examples=100 for file permission and validation tests (access control, DoS prevention)
@@ -74,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01-test-infrastructure]: Use factory-boy's LazyFunction for dict defaults instead of LambdaFunction
 - [Phase 02-core-property-tests]: Used max_examples=200 for critical governance invariants (confidence, maturity, actions, intervention)
 - [Phase 02-core-property-tests]: Created external INVARIANTS.md cataloging 68 governance invariants with test mappings
+- [Phase 02-core-property-tests]: Used max_examples=100 for API contract invariants (validation, pagination, error handling - IO-bound, not critical)
+- [Phase 02-core-property-tests]: Documented 9 validated bugs in API contract domain with commit hashes (empty dict bypass, type coercion, pagination off-by-one, stack trace leaks)
 
 ### Pending Todos
 
@@ -90,5 +97,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed Phase 2 Plan 7 - file operations property tests with bug-finding evidence
+Stopped at: Completed Phase 2 Plan 4 - API contract property tests with bug-finding evidence
 Resume file: None
