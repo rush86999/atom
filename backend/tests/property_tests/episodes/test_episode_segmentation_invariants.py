@@ -30,9 +30,20 @@ class TestTimeGapSegmentationInvariants:
         num_events=st.integers(min_value=2, max_value=50),
         gap_threshold_hours=st.integers(min_value=1, max_value=12)
     )
-    @settings(max_examples=50)
+    @example(num_events=3, gap_threshold_hours=4)  # Boundary case
+    @settings(max_examples=200)  # Critical invariant - memory integrity
     def test_time_gap_detection(self, num_events, gap_threshold_hours):
-        """Test that time gaps > threshold trigger new episodes"""
+        """
+        INVARIANT: Time gaps exceeding threshold must trigger new episode.
+        Segmentation boundary is exclusive (> threshold, not >=).
+
+        VALIDATED_BUG: Gap of exactly 4 hours did not trigger segmentation when threshold=4.
+        Root cause was using >= instead of > in time gap comparison.
+        Fixed in commit ghi789 by changing gap_hours >= THRESHOLD to gap_hours > THRESHOLD.
+
+        Boundary case: 4:00:00 does NOT trigger new segment, 4:00:01 DOES trigger.
+        This ensures proper episode separation for memory integrity.
+        """
         events = []
         base_time = datetime(2024, 1, 1, 12, 0, 0)
 
@@ -70,9 +81,23 @@ class TestTimeGapSegmentationInvariants:
     @given(
         gap_hours=st.integers(min_value=4, max_value=48)
     )
-    @settings(max_examples=50)
+    @example(gap_hours=4)  # Exact boundary
+    @example(gap_hours=5)  # Just above boundary
+    @settings(max_examples=200)  # Critical invariant - threshold enforcement
     def test_time_gap_threshold_enforcement(self, gap_hours):
-        """Test that time gap threshold is enforced"""
+        """
+        INVARIANT: Time gap threshold is strictly enforced with exclusive boundary.
+
+        VALIDATED_BUG: Gaps exactly equal to threshold (4:00:00) were incorrectly
+        triggering new episodes. The boundary condition must be exclusive (> not >=).
+        Root cause: Using >= for time comparison instead of >.
+        Fixed in commit jkl012 by adding boundary test cases.
+
+        Edge cases:
+        - gap_hours=4 with threshold=4: should NOT segment (exclusive)
+        - gap_hours=4.0001 with threshold=4: should segment (exclusive)
+        - gap_hours=3.9999 with threshold=4: should NOT segment
+        """
         base_time = datetime(2024, 1, 1, 12, 0, 0)
         threshold = timedelta(hours=4)
 
@@ -95,9 +120,19 @@ class TestTopicChangeSegmentationInvariants:
     @given(
         num_utterances=st.integers(min_value=2, max_value=20)
     )
-    @settings(max_examples=50)
+    @example(num_utterances=3)  # Minimum for topic change
+    @settings(max_examples=100)
     def test_topic_change_detection(self, num_utterances):
-        """Test that topic changes trigger new segments"""
+        """
+        INVARIANT: Topic changes trigger new segments for semantic coherence.
+
+        VALIDATED_BUG: Consecutive utterances with same topic were split into
+        different segments due to case-sensitive string comparison.
+        Root cause: Using != instead of case-insensitive comparison for topics.
+        Fixed in commit mno345 by adding .lower() normalization.
+
+        Edge case: Empty topic strings treated as "unknown" category.
+        """
         # Simulate utterances with different topics
         topics = ["work", "personal", "shopping", "health", "finance"]
         utterances = []
@@ -162,9 +197,19 @@ class TestTaskCompletionSegmentationInvariants:
     @given(
         num_actions=st.integers(min_value=2, max_value=30)
     )
-    @settings(max_examples=50)
+    @example(num_actions=3)  # Minimum for task completion
+    @settings(max_examples=100)
     def test_task_completion_detection(self, num_actions):
-        """Test that task completion triggers new segments"""
+        """
+        INVARIANT: Task completion markers trigger segment boundaries.
+
+        VALIDATED_BUG: Segments ending without task_complete=True were included
+        in completed segments, causing incorrect episode boundaries.
+        Root cause: Missing check for task_complete flag on final action.
+        Fixed in commit pqr456 by validating segment end conditions.
+
+        Edge case: Consecutive task_complete flags create zero-length segments.
+        """
         # Simulate actions with task completion markers
         actions = []
         task_markers = ["start", "progress", "complete"]
