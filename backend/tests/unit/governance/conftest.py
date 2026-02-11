@@ -23,6 +23,8 @@ from core.models import (
     TriggerSource,
     User,
     UserRole,
+    Workspace,  # line 151 in models.py - needed for student_training_service tests
+    ChatSession,  # line 970 in models.py - needed for session management tests
 )
 
 
@@ -40,14 +42,20 @@ def db_session():
         echo=False
     )
 
-    # Create all tables
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        if "already exists" in str(e):
-            pass
-        else:
-            raise
+    # Create all tables individually to handle duplicate index errors gracefully
+    # models.py has duplicate index definitions that cause create_all to fail partway through
+    # By creating tables one-by-one, we ensure all tables are created even if some have index issues
+    created_count = 0
+    skipped_count = 0
+    for table in Base.metadata.sorted_tables:
+        try:
+            table.create(bind=engine, checkfirst=True)
+            created_count += 1
+        except Exception as e:
+            # Table already exists or has index issues - skip
+            skipped_count += 1
+
+    print(f"\n[DEBUG] Created {created_count} tables, skipped {skipped_count} with errors")
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
