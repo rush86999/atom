@@ -34,15 +34,6 @@ omit =
 # Branch coverage
 branch = True
 
-# Partial coverage (for decorated functions)
-partial_branches =
-    pragma: no cover
-    if NotImplementedError:
-    if TYPE_CHECKING:
-
-# Precision
-precision = 2
-
 # Data file
 data_file = .coverage
 
