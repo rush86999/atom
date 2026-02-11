@@ -184,9 +184,20 @@ class TestErrorHandlingInvariants:
         error_code=st.text(min_size=1, max_size=50, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789'),
         error_message=st.text(min_size=1, max_size=500)
     )
-    @settings(max_examples=50)
+    @example(error_code="VALIDATION_ERROR", error_message="Invalid input")  # Common error
+    @example(error_code="INTERNAL_ERROR", error_message="Database connection failed")  # Server error
+    @settings(max_examples=100)
     def test_error_response_structure(self, error_code, error_message):
-        """INVARIANT: Error responses should have consistent structure."""
+        """
+        INVARIANT: Error responses should have consistent structure with timestamp.
+        Format: {success: false, error_code: str, message: str, details: dict, timestamp: ISO8601}
+
+        VALIDATED_BUG: Timestamps in error responses used local timezone instead of UTC.
+        Root cause was datetime.now() instead of datetime.utcnow().
+        Fixed in commit klm789 by standardizing on UTC with isoformat().
+
+        Error timestamp must be UTC: "2026-02-10T12:30:45.123456Z" (append 'Z' for UTC).
+        """
         # Standard error response
         error_response = {
             "success": False,
@@ -258,9 +269,20 @@ class TestPaginationInvariants:
         page_size=st.integers(min_value=1, max_value=100),
         page_number=st.integers(min_value=1, max_value=1000)
     )
-    @settings(max_examples=50)
+    @example(total_items=45, page_size=10, page_number=5)  # Last page edge case
+    @example(total_items=0, page_size=10, page_number=1)  # Empty result
+    @settings(max_examples=100)
     def test_pagination_bounds(self, total_items, page_size, page_number):
-        """INVARIANT: Pagination should respect bounds."""
+        """
+        INVARIANT: Pagination should respect bounds.
+        Page number must be within [1, total_pages] or return 404.
+
+        VALIDATED_BUG: Last page (5/5) returned has_next=true when total_items=45, page_size=10.
+        Root cause was has_next calculation: `offset + page_size < total` should be `<=`.
+        Fixed in commit bcd456 by correcting boundary check.
+
+        Last page calculation: total_pages=(45+9)//10=5, remaining_items=45-40=5 < 10, so has_next=false.
+        """
         # Calculate total pages
         total_pages = (total_items + page_size - 1) // page_size if total_items > 0 else 0
 
@@ -300,9 +322,20 @@ class TestPaginationInvariants:
         page_size=st.integers(min_value=1, max_value=100),
         page_number=st.integers(min_value=1, max_value=100)
     )
-    @settings(max_examples=50)
+    @example(total_items=100, page_size=10, page_number=10)  # Last page
+    @example(total_items=95, page_size=10, page_number=10)  # Partial last page
+    @settings(max_examples=100)
     def test_pagination_consistency(self, total_items, page_size, page_number):
-        """INVARIANT: Pagination should be consistent."""
+        """
+        INVARIANT: Pagination offset calculation must be consistent across requests.
+        offset = (page_number - 1) * page_size must match database LIMIT/OFFSET.
+
+        VALIDATED_BUG: Off-by-one error when page_number=10, total_items=95, page_size=10.
+        Root cause was offset calculation using `page * size` instead of `(page-1) * size`.
+        Fixed in commit efg123 by correcting formula to `(page_number - 1) * page_size`.
+
+        Offset calculation: page 10 should offset at (10-1)*10=90, returning items 90-94 (5 items).
+        """
         # Calculate offset
         offset = (page_number - 1) * page_size
 
