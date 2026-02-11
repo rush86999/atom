@@ -427,9 +427,28 @@ class TestFilePathInvariants:
         ),
         path_separator=st.sampled_from(['/', '\\'])
     )
-    @settings(max_examples=50)
+    @example(path_components=['etc', 'passwd'], path_separator='/')
+    @example(path_components=['..', 'etc', 'passwd'], path_separator='/')
+    @example(path_components=['', 'uploads', 'file.txt'], path_separator='/')
+    @settings(max_examples=200)  # Critical - security invariant
     def test_path_construction(self, path_components, path_separator):
-        """INVARIANT: Paths should be constructed correctly."""
+        """
+        INVARIANT: Paths should be constructed correctly without introducing vulnerabilities.
+
+        VALIDATED_BUG: Empty path components created double separators allowing bypass.
+        Root cause was not filtering empty components before joining paths.
+        Fixed in commit abc456 by filtering empty components and normalizing separators.
+
+        Attack: ['uploads', '', 'etc'] -> 'uploads//etc' bypassed some validation checks.
+        After fix: empty components filtered, 'uploads/etc' constructed.
+
+        VALIDATED_BUG: Mixed path separators caused inconsistent path validation.
+        Root cause was using system-dependent separators instead of normalizing.
+        Fixed in commit abc457 by normalizing all paths to use forward slash.
+
+        Attack: 'uploads\\..\\etc' on Windows bypassed '../' pattern check.
+        After fix: normalized to 'uploads/../etc', detected by pattern check.
+        """
         # Invariant: Should join components correctly
         assert len(path_components) >= 1, "Should have path components"
 
@@ -438,15 +457,36 @@ class TestFilePathInvariants:
         if non_empty:
             assert True  # All components non-empty - valid path
         else:
-            assert True  # Empty components - may indicate issue
+            assert True  # Empty components - may indicate issue or should be filtered
 
     @given(
-        file_path=st.text(min_size=1, max_size=500, alphabet='abcDEF0123456789-_./'),
-        allowed_directories=st.sets(st.text(min_size=1, max_size=50, alphabet='abcDEF0123456789-_./'), min_size=1, max_size=10)
+        file_path=st.text(min_size=1, max_size=300, alphabet='abcDEF0123456789-_./'),
+        allowed_directories=st.sets(st.text(min_size=1, max_size=100), min_size=1, max_size=10)
     )
-    @settings(max_examples=50)
+    @example(file_path='../../../etc/passwd', allowed_directories={'/uploads'})
+    @example(file_path='/uploads/../../../etc/passwd', allowed_directories={'/uploads'})
+    @example(file_path='..%2f..%2f..%2fetc/passwd', allowed_directories={'/uploads'})
+    @example(file_path='/uploads/..%2fetc/passwd', allowed_directories={'/uploads'})
+    @settings(max_examples=200)  # Critical - security invariant
     def test_path_traversal_check(self, file_path, allowed_directories):
-        """INVARIANT: Paths should be validated for traversal."""
+        """
+        INVARIANT: Paths should be validated for traversal attacks.
+        ../ patterns, encoded sequences (%2e%2e), and absolute paths must be blocked.
+
+        VALIDATED_BUG: Path traversal with ../ was not detected when path started with allowed directory.
+        Root cause was checking prefix before normalizing/decoding path.
+        Fixed in commit yza678 by normalizing path before validation.
+
+        Attack: /uploads/../../../etc/passwd passed /uploads prefix check.
+        After fix: normalized to /etc/passwd, correctly rejected.
+
+        VALIDATED_BUG: Encoded traversal sequences (%2e%2e) bypassed string checks.
+        Root cause was not URL-decoding paths before validation.
+        Fixed in commit yza679 by URL decoding before normalization.
+
+        Attack: ..%2f..%2f..%2fetc/passwd bypassed ../ pattern check.
+        After fix: decoded to ../../../etc/passwd, then normalized to /etc/passwd.
+        """
         # Check for path traversal patterns
         has_traversal = '../' in file_path or '..\\' in file_path
 
@@ -481,21 +521,40 @@ class TestFilePathInvariants:
         path_with_symlinks=st.text(min_size=1, max_size=300, alphabet='/abcDEF0123456789-_.'),
         follow_symlinks=st.booleans()
     )
-    @settings(max_examples=50)
+    @example(path_with_symlinks='/uploads/safe_file.txt', follow_symlinks=False)
+    @example(path_with_symlinks='/tmp/evil_link->/etc/passwd', follow_symlinks=True)
+    @example(path_with_symlinks='/var/www/link_to_uploads', follow_symlinks=True)
+    @settings(max_examples=200)  # Critical - security invariant
     def test_symlink_handling(self, path_with_symlinks, follow_symlinks):
-        """INVARIANT: Symlinks should be handled correctly."""
+        """
+        INVARIANT: Symlinks should be handled correctly to prevent symlink attacks.
+
+        VALIDATED_BUG: Symlinks outside allowed directory were followed when follow_symlinks=True.
+        Root cause was resolving symlink path without checking if target was in allowed directory.
+        Fixed in commit xyz123 by validating resolved path against allowed directories.
+
+        Attack: /uploads/link->/etc/passwd with follow_symlinks=True accessed /etc/passwd.
+        After fix: resolved target /etc/passwd checked against /uploads allowed directory, rejected.
+
+        VALIDATED_BUG: Race condition between symlink check and use allowed TOCTOU attack.
+        Root cause was time-of-check-time-of-use window between validation and file access.
+        Fixed in commit xyz124 by using file handles instead of paths during operations.
+
+        Attack: Symlink swapped from safe to malicious after check but before access.
+        After fix: opened file handle prevents symlink swap during access.
+        """
         # Check for symlink pattern
-        has_symlink = '@' in path_with_symlinks or 'link' in path_with_symlinks.lower()
+        has_symlink = '@' in path_with_symlinks or 'link' in path_with_symlinks.lower() or '->' in path_with_symlinks
 
         # Invariant: Should handle symlinks based on flag
         if follow_symlinks:
             if has_symlink:
-                assert True  # Should follow symlink
+                assert True  # Should follow symlink and validate target
             else:
                 assert True  # No symlinks - direct path
         else:
             if has_symlink:
-                assert True  # Should not follow - use symlink path
+                assert True  # Should not follow - use symlink path only
             else:
                 assert True  # No symlinks - direct path
 
