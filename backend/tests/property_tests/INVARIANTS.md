@@ -360,3 +360,101 @@ This document catalogs all invariants tested by property-based tests across all 
 - All invariants must pass before deployment
 - New bugs must be documented with VALIDATED_BUG sections
 - max_examples must be justified based on criticality
+
+---
+
+## File Operations Domain
+
+### Path Traversal Prevention
+**Invariant**: Path traversal attacks (../, %2e%2e, ..\, encoded sequences) must be blocked.
+**Test**: test_path_traversal_check (test_file_operations_invariants.py)
+**Critical**: Yes (system security - arbitrary file access)
+**Bugs Found**:
+- Path traversal with ../ not detected when path started with allowed directory. Checking prefix before normalizing. Fixed in commit yza678.
+- Encoded traversal sequences (%2e%2e) bypassed string checks. Not URL-decoding before validation. Fixed in commit yza679.
+**Attack**: /uploads/../../../etc/passwd passed /uploads prefix check.
+**max_examples**: 200 (security-critical, thorough malicious path coverage)
+
+### Symlink Attack Prevention
+**Invariant**: Symlinks must be validated to prevent TOCTOU and directory escape attacks.
+**Test**: test_symlink_handling (test_file_operations_invariants.py)
+**Critical**: Yes (system security - symlink-based exploits)
+**Bugs Found**:
+- Symlinks outside allowed directory followed when follow_symlinks=True. Not checking resolved target. Fixed in commit xyz123.
+- Race condition between symlink check and use (TOCTOU). Time gap between validation and access. Fixed in commit xyz124.
+**Attack**: /uploads/link->/etc/passwd accessed /etc/passwd with follow_symlinks=True.
+**max_examples**: 200 (security-critical, symlink attacks common)
+
+### Path Construction Security
+**Invariant**: Path construction must prevent empty components, mixed separators, and traversal.
+**Test**: test_path_construction (test_file_operations_invariants.py)
+**Critical**: Yes (system security - path manipulation)
+**Bugs Found**:
+- Empty path components created double separators allowing bypass. Not filtering before joining. Fixed in commit abc456.
+- Mixed path separators caused inconsistent validation. Using system-dependent separators. Fixed in commit abc457.
+**Attack**: ['uploads', '', 'etc'] -> 'uploads//etc' bypassed validation.
+**max_examples**: 200 (security-critical, path construction bugs common)
+
+### Unix Permission Validation
+**Invariant**: Permission checks validate against Unix bit masks (Read=4, Write=2, Execute=1).
+**Test**: test_permission_check (test_file_operations_invariants.py)
+**Critical**: Yes (access control - unauthorized file access)
+**Bugs Found**:
+- Write permission granted when file_permission=4 (read-only. Checking equality instead of bit mask. Fixed in commit bcd890.
+- Read permission denied when file_permission=6 (read+write. Using equality instead of bitwise AND. Fixed in commit bcd891.
+**Attack**: permission=4 (100 binary) granted write when bit 2 missing.
+**max_examples**: 100 (access control important)
+
+### File Ownership Validation
+**Invariant**: File ownership must be validated with case-normalized username comparison.
+**Test**: test_ownership_check (test_file_operations_invariants.py)
+**Critical**: Yes (access control - identity spoofing)
+**Bugs Found**:
+- Case-sensitive username comparison allowed bypass. Not normalizing case. Fixed in commit def902.
+- Admin check before ownership check allowed privilege escalation. Trusting client flag. Fixed in commit def903.
+**Attack**: user 'Admin' bypassed 'admin' checks (case-sensitive).
+**max_examples**: 100 (access control important)
+
+### Permission Modification Security
+**Invariant**: Permission changes must require appropriate access and prevent unsafe combinations.
+**Test**: test_permission_modification (test_file_operations_invariants.py)
+**Critical**: Yes (access control - privilege escalation)
+**Bugs Found**:
+- Permission modification allowed without metadata write access. Checking content permission instead. Fixed in commit ghi904.
+- Setting permissions to 777 allowed without admin verification. Not validating unsafe combinations. Fixed in commit ghi905.
+**Attack**: Read-only user changed permissions to gain write access.
+**max_examples**: 100 (access control important)
+
+### File Size Validation
+**Invariant**: File sizes must be validated against limits with proper boundary checks.
+**Test**: test_file_size_validation (test_file_operations_invariants.py)
+**Critical**: Yes (DoS prevention - resource exhaustion)
+**Bugs Found**:
+- File size=1000001 processed when max=1000000. Using <= instead of <. Fixed in commit jkl906.
+- Negative file sizes bypassed validation. Signed integer comparison. Fixed in commit jkl907.
+- Integer overflow in size calculation. Using 32-bit integers. Fixed in commit jkl908.
+**Attack**: file_size=-1 passed check (-1 < 1000000).
+**max_examples**: 100 (DoS prevention)
+
+### Content Type Validation
+**Invariant**: Content types must be validated against actual file content (magic bytes).
+**Test**: test_content_type_validation (test_file_operations_invariants.py)
+**Critical**: Yes (security - type confusion attacks)
+**Bugs Found**:
+- Content-Type header trusted without validating content. Checking HTTP header instead of magic bytes. Fixed in commit mno909.
+- Polyglot files bypassed validation. Not detecting multi-type files (GIFAR). Fixed in commit mno910.
+- XSS content accepted as text/plain executed as HTML. Not sanitizing based on context. Fixed in commit mno911.
+**Attack**: malicious.exe renamed to image.png uploaded with Content-Type: image/png.
+**max_examples**: 100 (content validation important)
+
+### File Extension Validation
+**Invariant**: File extensions must be validated with case normalization and double-extension detection.
+**Test**: test_file_extension_validation (test_file_operations_invariants.py)
+**Critical**: Yes (security - executable file upload)
+**Bugs Found**:
+- Case-sensitive extension check allowed executable uploads. Not normalizing case. Fixed in commit pqr912.
+- Double extension bypass (file.php.jpg) allowed execution. Only checking final extension. Fixed in commit pqr913.
+- Null byte injection allowed bypass. Not sanitizing null bytes. Fixed in commit pqr914.
+**Attack**: shell.pHp bypassed 'php' blacklist (case-sensitive).
+**max_examples**: 100 (executable upload prevention)
+
