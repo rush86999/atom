@@ -14,7 +14,7 @@ Plan: 7 of 7 in current phase
 Status: Plan 07 complete (file operations invariants with bug-finding evidence)
 Last activity: 2026-02-11 — Completed Phase 2 Plan 2 (episodic memory property tests enhanced with 21 bugs)
 
-Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 7/7 plans done)
+Progress: [████████░░] 29% (Phase 1 complete, Phase 2: 7/7 plans done)
 
 ## Performance Metrics
 
@@ -51,6 +51,10 @@ Progress: [████████░░] 21% (Phase 1 complete, Phase 2: 7/7 p
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 - [Phase 02-core-property-tests]: Used max_examples=200 for critical file operations invariants (time gap segmentation, graduation scores, intervention rate, constitutional score)
+- [Phase 02-core-property-tests]: Used max_examples=200 for critical path security invariants (traversal, symlinks, construction)
+- [Phase 02-core-property-tests]: Used max_examples=100 for file permission and validation tests (access control, DoS prevention)
+- [Phase 02-core-property-tests]: Documented 21 validated bugs in file operations domain (path traversal, permission bypass, size validation, content spoofing)
+- [Phase 02-core-property-tests]: Added @example decorators for malicious paths (../../../etc/passwd, shell.pHp, file.php.jpg)
 - [Phase 02-core-property-tests]: Used max_examples=100 for episodic retrieval tests (important but not security-critical)
 - [Phase 02-core-property-tests]: Documented 12 validated bugs in episodic memory domain with boundary conditions, floating point issues, and comparison bugs
 - [Phase 02-core-property-tests]: Added @example decorators for time gap boundaries (4:00:00 vs 4:00:01) and graduation thresholds (exact 0.5 intervention rate)
