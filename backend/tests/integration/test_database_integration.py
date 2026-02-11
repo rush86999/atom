@@ -31,9 +31,8 @@ class TestTransactionRollback:
 
     def test_agent_not_visible_in_next_test(self, db_session: Session):
         """Test agents created in one test don't appear in next."""
-        # Create agent
+        # Create agent (Factory already adds to session)
         agent = AgentFactory(name="RollbackTestAgent")
-        db_session.add(agent)
         db_session.commit()
         agent_id = agent.id
 
@@ -74,7 +73,6 @@ class TestTransactionRollback:
     def test_user_not_leaked_between_tests(self, db_session: Session):
         """Test users created don't leak to next test."""
         user = UserFactory(email="leak_test@example.com")
-        db_session.add(user)
         db_session.commit()
         user_id = user.id
 
@@ -95,8 +93,6 @@ class TestTransactionRollback:
         """Test episodes created don't leak to next test."""
         agent = AgentFactory(name="EpisodeLeakTestAgent")
         episode = EpisodeFactory(agent_id=agent.id, title="Leak Test Episode")
-        db_session.add(agent)
-        db_session.add(episode)
         db_session.commit()
         episode_id = episode.id
 
@@ -122,9 +118,7 @@ class TestDatabaseConstraints:
         user1 = UserFactory(email="duplicate@test.com")
         user2 = UserFactory(email="duplicate@test.com")
 
-        db_session.add(user1)
-        db_session.add(user2)
-
+        # Both users added by factory
         with pytest.raises(IntegrityError):
             db_session.commit()
 
@@ -166,7 +160,6 @@ class TestDatabaseConstraints:
 
         # Valid status should work
         agent = AgentFactory(status=AgentStatus.STUDENT.value)
-        db_session.add(agent)
         db_session.commit()
 
         # Verify status was set correctly
@@ -179,7 +172,6 @@ class TestDatabaseConstraints:
         """Test user role only accepts valid enum values."""
         # Valid role should work
         user = UserFactory(role=UserRole.MEMBER.value)
-        db_session.add(user)
         db_session.commit()
 
         # Verify role was set correctly
@@ -205,9 +197,6 @@ class TestCascadeOperations:
         """Test deleting agent cascades to related executions."""
         agent = AgentFactory(name="CascadeTestAgent")
         execution = AgentExecutionFactory(agent_id=agent.id)
-
-        db_session.add(agent)
-        db_session.add(execution)
         db_session.commit()
 
         agent_id = agent.id
@@ -241,10 +230,6 @@ class TestCascadeOperations:
         user = UserFactory(email="cascade_user@test.com")
         agent = AgentFactory(name="CascadeTestAgent")
         episode = EpisodeFactory(agent_id=agent.id)
-
-        db_session.add(user)
-        db_session.add(agent)
-        db_session.add(episode)
         db_session.commit()
 
         user_id = user.id
@@ -265,9 +250,6 @@ class TestCascadeOperations:
         """Test agent-execution relationship works correctly."""
         agent = AgentFactory(name="RelationTestAgent")
         execution = AgentExecutionFactory(agent_id=agent.id)
-
-        db_session.add(agent)
-        db_session.add(execution)
         db_session.commit()
 
         # Test relationship from execution to agent
@@ -283,9 +265,6 @@ class TestCascadeOperations:
         """Test episode-agent relationship works correctly."""
         agent = AgentFactory(name="EpisodeRelationAgent")
         episode = EpisodeFactory(agent_id=agent.id)
-
-        db_session.add(agent)
-        db_session.add(episode)
         db_session.commit()
 
         # Test relationship from episode to agent
@@ -304,7 +283,6 @@ class TestTransactionIsolation:
         """Test that committed changes are visible."""
         # Create and commit an agent
         agent = AgentFactory(name="IsolationTestAgent")
-        db_session.add(agent)
         db_session.commit()
 
         # Query in same session should see it
@@ -335,12 +313,10 @@ class TestTransactionIsolation:
         """Test multiple commits are independent."""
         # Create and commit first agent
         agent1 = AgentFactory(name="FirstAgent")
-        db_session.add(agent1)
         db_session.commit()
 
         # Create and commit second agent
         agent2 = AgentFactory(name="SecondAgent")
-        db_session.add(agent2)
         db_session.commit()
 
         # Both should be visible
@@ -362,9 +338,7 @@ class TestBatchOperations:
             AgentFactory(name=f"BatchAgent{i}") for i in range(10)
         ]
 
-        for agent in agents:
-            db_session.add(agent)
-
+        # All agents added by factory
         db_session.commit()
 
         # Verify all agents were created
@@ -379,8 +353,6 @@ class TestBatchOperations:
         # Create batch of agents
         for i in range(5):
             agent = AgentFactory(name=f"DeleteAgent{i}")
-            db_session.add(agent)
-
         db_session.commit()
 
         # Delete all with matching pattern
@@ -402,8 +374,6 @@ class TestBatchOperations:
         # Create batch of student agents
         for i in range(5):
             agent = StudentAgentFactory(name=f"UpdateAgent{i}")
-            db_session.add(agent)
-
         db_session.commit()
 
         # Update all to INTERN status
