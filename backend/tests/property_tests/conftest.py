@@ -15,8 +15,48 @@ os.environ["TESTING"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient
+from hypothesis import settings, HealthCheck
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
+
+
+# ============================================================================
+# HYPOTHESIS PROPERTY-BASED TESTING SETTINGS
+# ============================================================================
+#
+# Property tests run with max_examples iterations to comprehensively validate
+# invariants. For CI optimization, we use fewer examples (50) vs local (200).
+#
+# Performance targets (see TESTING_GUIDE.md):
+# - Fast tier: <10s (simple invariants)
+# - Medium tier: <60s (database operations)
+# - Slow tier: <100s (complex system invariants)
+#
+# Usage in tests:
+#   @given(...)
+#   @settings(DEFAULT_PROFILE)
+#   def test_something(...):
+#       ...
+# ============================================================================
+
+# CI profile: faster tests with fewer examples
+ci_profile = settings(
+    max_examples=50,
+    deadline=None,
+    suppress_health_check=list(HealthCheck)
+)
+
+# Local profile: thorough testing with more examples
+local_profile = settings(
+    max_examples=200,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow]
+)
+
+# Auto-select based on environment
+# In CI (GitHub Actions, GitLab CI, etc.), use max_examples=50
+# In local development, use max_examples=200 for thorough testing
+DEFAULT_PROFILE = ci_profile if os.getenv("CI") else local_profile
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
