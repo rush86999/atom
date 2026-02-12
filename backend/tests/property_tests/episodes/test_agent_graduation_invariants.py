@@ -12,7 +12,7 @@ These tests protect against premature agent promotions and governance violations
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import given, strategies as st, settings, HealthCheck, example
 from datetime import datetime, timedelta
 from typing import List, Dict
 from unittest.mock import Mock, MagicMock
