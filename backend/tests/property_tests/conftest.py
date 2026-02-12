@@ -46,6 +46,11 @@ def db_session():
 
     This ensures complete isolation between test runs.
     """
+    # Flag to ensure warning is only logged once per test run
+    global _tables_warning_logged
+    if '_tables_warning_logged' not in globals():
+        _tables_warning_logged = False
+
     # Use in-memory SQLite for fast, isolated tests
     engine = create_engine(
         "sqlite:///:memory:",
@@ -57,39 +62,39 @@ def db_session():
     # Optional modules (accounting, service_delivery, saas, ecommerce) may have
     # foreign key references to tables that aren't imported during testing.
     # We create tables one by one and skip those with missing dependencies.
-    try:
-        Base.metadata.create_all(bind=engine)
-    except exc.NoReferencedTableError as e:
-        # Optional modules have missing FK references - create tables individually
-        import warnings
+    #
+    # IMPORTANT: Don't use Base.metadata.create_all() because it will raise
+    # NoReferencedTableError which pytest captures as a test setup ERROR even
+    # if we catch and handle it. Instead, create tables individually.
+    import warnings
+    tables_created = 0
+    tables_skipped = 0
+    for table in Base.metadata.sorted_tables:
+        try:
+            table.create(engine, checkfirst=True)
+            tables_created += 1
+        except exc.NoReferencedTableError:
+            # Skip tables with missing FK references (from optional modules)
+            tables_skipped += 1
+            continue
+        except Exception as e:
+            # Ignore other errors (like duplicate index definitions)
+            # These don't prevent tests from running
+            if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                # Table or index already exists - this is fine
+                continue
+            else:
+                # Re-raise unexpected exceptions
+                raise
+
+    # Log what happened (only once per test run)
+    if tables_skipped > 0 and not _tables_warning_logged:
         warnings.warn(
-            f"Optional module tables with missing foreign key references detected: {e}. "
-            "Creating available tables individually.",
+            f"Skipping {tables_skipped} tables with missing foreign key references "
+            f"from optional modules. Created {tables_created} core tables.",
             UserWarning
         )
-        # Create tables that don't have missing dependencies
-        tables_created = 0
-        tables_skipped = 0
-        for table in Base.metadata.sorted_tables:
-            try:
-                table.create(engine, checkfirst=True)
-                tables_created += 1
-            except exc.NoReferencedTableError:
-                # Skip tables with missing FK references (from optional modules)
-                tables_skipped += 1
-                continue
-        if tables_created > 0:
-            warnings.warn(
-                f"Created {tables_created} tables, skipped {tables_skipped} tables "
-                f"with missing foreign key references.",
-                UserWarning
-            )
-    except Exception as e:
-        if "already exists" in str(e):
-            # Ignore duplicate index errors
-            pass
-        else:
-            raise
+        _tables_warning_logged = True
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
