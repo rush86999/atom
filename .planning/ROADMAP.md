@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
 - [x] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
+- [ ] **Phase 8: 80% Coverage Push** - Systematically add unit tests to uncovered code paths across core, api, and tools modules to achieve 80% overall coverage
 
 ## Phase Details
 
@@ -153,6 +154,27 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 07-PLAN.md — Expo SDK 50 compatibility and notification service fixes
 - [x] 07-implementation-fixes-02-PLAN.md — Fix test collection errors
 
+### Phase 8: 80% Coverage Push
+**Goal**: Systematically add unit tests to uncovered code paths across core, api, and tools modules to achieve 80% overall coverage
+**Depends on**: Phase 7
+**Requirements**: COVR-08-01, COVR-08-02, COVR-08-03, COVR-08-04, COVR-08-05, COVR-08-06, COVR-08-07
+**Success Criteria** (what must be TRUE):
+  1. Overall code coverage reaches 80% (44,298 additional lines covered)
+  2. Core module coverage increases from 16.6% to 80%+ (27,231 additional lines)
+  3. API module coverage increases from 30.3% to 80%+ (6,373 additional lines)
+  4. Tools module coverage increases from 7.6% to 80%+ (906 additional lines)
+  5. All zero-coverage files receive baseline unit tests
+  6. High-impact files (workflow_engine, atom_agent_endpoints, auto_document_ingestion) receive comprehensive tests
+  7. Coverage quality gates prevent regression in CI/CD
+**Plans**: 7 plans (estimated)
+- [ ] 08-80-percent-coverage-01-PLAN.md — Zero-coverage files baseline (15 files, 4,783 lines)
+- [ ] 08-80-percent-coverage-02-PLAN.md — Workflow engine comprehensive tests (1,089 lines)
+- [ ] 08-80-percent-coverage-03-PLAN.md — LLM & BYOK handler tests (794 lines)
+- [ ] 08-80-percent-coverage-04-PLAN.md — Episodic memory service tests (650+ lines)
+- [ ] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
+- [ ] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
+- [ ] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
+
 ## Progress
 
 **Execution Order:**
@@ -163,7 +185,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Test Infrastructure | 5/5 | **Complete** | 2026-02-11 |
 | 2. Core Property Tests | 7/7 | **Complete** | 2026-02-11 |
 | 3. Integration & Security Tests | 7/7 | **Complete** | 2026-02-11 |
-| 4. Platform Coverage | 0/8 | **Pending** | - |
-| 5. Coverage & Quality Validation | 1/8 | **Pending** | - |
+| 4. Platform Coverage | 8/8 | **Complete** | 2026-02-11 |
+| 5. Coverage & Quality Validation | 8/8 | **Complete** | 2026-02-11 |
 | 6. Production Hardening | 6/6 | **Complete** | 2026-02-12 |
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 |
+| 8. 80% Coverage Push | 0/7 | **Pending** | - |
