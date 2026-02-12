@@ -1,0 +1,459 @@
+"""
+Unit tests for canvas tool functions.
+
+Tests cover:
+- Chart presentation (line, bar, pie)
+- Markdown content rendering
+- Form presentation
+- Status panel rendering
+- Canvas update functionality
+- Canvas closing
+- Specialized canvas presentation
+- JavaScript execution (AUTONOMOUS only)
+- Audit entry creation
+"""
+
+from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from contextlib import contextmanager
+import pytest
+
+from core.models import AgentStatus
+from tools.canvas_tool import (
+    _create_canvas_audit,
+    present_chart,
+    present_markdown,
+    present_form,
+    present_status_panel,
+    update_canvas,
+    close_canvas,
+    canvas_execute_javascript,
+    present_specialized_canvas,
+)
+
+
+# ============================================================================
+# Fixtures
+# ============================================================================
+
+@pytest.fixture
+def mock_db():
+    """Mock database session."""
+    db = Mock()
+    db.add = Mock()
+    db.commit = Mock()
+    db.refresh = Mock()
+    db.query = Mock()
+    return db
+
+
+@contextmanager
+def mock_db_session(db):
+    """Mock database session context manager."""
+    yield db
+
+
+@pytest.fixture
+def mock_ws():
+    """Mock WebSocket manager."""
+    with patch('tools.canvas_tool.ws_manager') as mock_mgr:
+        mock_mgr.broadcast = AsyncMock()
+        yield mock_mgr
+
+
+# ============================================================================
+# Test: _create_canvas_audit
+# ============================================================================
+
+class TestCreateCanvasAudit:
+    """Tests for _create_canvas_audit helper function."""
+
+    @pytest.mark.asyncio
+    async def test_create_audit_basic(self, mock_db):
+        """Test basic audit entry creation."""
+        audit = await _create_canvas_audit(
+            db=mock_db,
+            agent_id="agent-1",
+            agent_execution_id="exec-1",
+            user_id="user-1",
+            canvas_id="canvas-1",
+            session_id="session-1",
+            canvas_type="generic",
+            component_type="chart",
+            component_name="line_chart",
+            action="present",
+            governance_check_passed=True,
+            metadata={"title": "Test Chart"}
+        )
+
+        assert audit is not None
+        mock_db.add.assert_called_once()
+        mock_db.commit.assert_called_once()
+        mock_db.refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_audit_with_defaults(self, mock_db):
+        """Test audit entry creation with default values."""
+        audit = await _create_canvas_audit(
+            db=mock_db,
+            agent_id=None,
+            agent_execution_id=None,
+            user_id="user-1",
+            canvas_id="canvas-1",
+            session_id=None
+        )
+
+        assert audit is not None
+        assert audit.agent_id is None
+        assert audit.canvas_type == "generic"
+
+
+# ============================================================================
+# Test: present_chart
+# ============================================================================
+
+class TestPresentChart:
+    """Tests for present_chart function."""
+
+    @pytest.mark.asyncio
+    async def test_present_chart_line_success(self, mock_ws):
+        """Test successful line chart presentation without governance."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_chart(
+                user_id="user-1",
+                chart_type="line_chart",
+                data=[{"x": 1, "y": 2}],
+                title="Sales Trend"
+            )
+
+            assert result["success"] is True
+            assert result["chart_type"] == "line_chart"
+            assert "canvas_id" in result
+            mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_present_chart_bar_success(self, mock_ws):
+        """Test successful bar chart presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_chart(
+                user_id="user-1",
+                chart_type="bar_chart",
+                data=[{"category": "A", "value": 10}]
+            )
+
+            assert result["success"] is True
+            assert result["chart_type"] == "bar_chart"
+
+    @pytest.mark.asyncio
+    async def test_present_chart_pie_success(self, mock_ws):
+        """Test successful pie chart presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_chart(
+                user_id="user-1",
+                chart_type="pie_chart",
+                data=[{"segment": "X", "value": 30}]
+            )
+
+            assert result["success"] is True
+            assert result["chart_type"] == "pie_chart"
+
+    @pytest.mark.asyncio
+    async def test_present_chart_with_session_isolation(self, mock_ws):
+        """Test chart presentation with session isolation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_chart(
+                user_id="user-1",
+                chart_type="line_chart",
+                data=[{"x": 1, "y": 2}],
+                session_id="session-123"
+            )
+
+            assert result["success"] is True
+
+
+# ============================================================================
+# Test: present_markdown
+# ============================================================================
+
+class TestPresentMarkdown:
+    """Tests for present_markdown function."""
+
+    @pytest.mark.asyncio
+    async def test_present_markdown_success(self, mock_ws):
+        """Test successful markdown presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_markdown(
+                user_id="user-1",
+                content="# Heading\n\nBody text",
+                title="Documentation"
+            )
+
+            assert result["success"] is True
+            assert "canvas_id" in result
+            mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_present_markdown_empty_content(self, mock_ws):
+        """Test markdown presentation with empty content."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_markdown(
+                user_id="user-1",
+                content="",
+                title="Empty"
+            )
+
+            assert result["success"] is True
+
+
+# ============================================================================
+# Test: present_form
+# ============================================================================
+
+class TestPresentForm:
+    """Tests for present_form function."""
+
+    @pytest.mark.asyncio
+    async def test_present_form_success(self, mock_ws):
+        """Test successful form presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            form_schema = {
+                "fields": [
+                    {"name": "email", "type": "email", "required": True},
+                    {"name": "message", "type": "text", "required": True}
+                ]
+            }
+
+            result = await present_form(
+                user_id="user-1",
+                form_schema=form_schema,
+                title="Contact Form"
+            )
+
+            assert result["success"] is True
+            assert "canvas_id" in result
+            mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_present_form_empty_schema(self, mock_ws):
+        """Test form presentation with empty schema."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await present_form(
+                user_id="user-1",
+                form_schema={},
+                title="Empty Form"
+            )
+
+            assert result["success"] is True
+
+
+# ============================================================================
+# Test: present_status_panel
+# ============================================================================
+
+class TestPresentStatusPanel:
+    """Tests for present_status_panel function."""
+
+    @pytest.mark.asyncio
+    async def test_present_status_panel_success(self, mock_ws):
+        """Test successful status panel presentation."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            items = [
+                {"label": "Revenue", "value": "$100K", "trend": "+5%"},
+                {"label": "Users", "value": "1,234", "trend": "+2%"}
+            ]
+
+            result = await present_status_panel(
+                user_id="user-1",
+                items=items,
+                title="Dashboard Status"
+            )
+
+            assert result["success"] is True
+            mock_ws.broadcast.assert_called_once()
+
+
+# ============================================================================
+# Test: update_canvas
+# ============================================================================
+
+class TestUpdateCanvas:
+    """Tests for update_canvas function."""
+
+    @pytest.mark.asyncio
+    async def test_update_canvas_success(self, mock_ws):
+        """Test successful canvas update."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            updates = {"data": [{"x": 1, "y": 10}]}
+
+            result = await update_canvas(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                updates=updates
+            )
+
+            assert result["success"] is True
+            assert result["canvas_id"] == "canvas-123"
+            mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_canvas_multiple_fields(self, mock_ws):
+        """Test canvas update with multiple fields."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            updates = {
+                "title": "Updated Title",
+                "data": [{"x": 1, "y": 5}]
+            }
+
+            result = await update_canvas(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                updates=updates
+            )
+
+            assert result["success"] is True
+            assert result["updated_fields"] == ["title", "data"]
+
+
+# ============================================================================
+# Test: close_canvas
+# ============================================================================
+
+class TestCloseCanvas:
+    """Tests for close_canvas function."""
+
+    @pytest.mark.asyncio
+    async def test_close_canvas_success(self, mock_ws):
+        """Test successful canvas closing."""
+        result = await close_canvas(user_id="user-1")
+
+        assert result["success"] is True
+        mock_ws.broadcast.assert_called_once()
+
+        # Verify broadcast message type
+        call_args = mock_ws.broadcast.call_args
+        message = call_args[0][1]
+        assert message["data"]["action"] == "close"
+
+
+# ============================================================================
+# Test: canvas_execute_javascript
+# ============================================================================
+
+class TestCanvasExecuteJavaScript:
+    """Tests for canvas_execute_javascript function."""
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_no_agent_id(self, mock_ws):
+        """Test JavaScript execution blocked when no agent_id provided."""
+        result = await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="document.title = 'Test';",
+            agent_id=None
+        )
+
+        assert result["success"] is False
+        assert "requires an explicit agent_id" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_empty_code(self, mock_ws):
+        """Test JavaScript execution with empty code."""
+        # This should fail before even hitting the governance check
+        result = await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="   ",
+            agent_id="agent-1"
+        )
+
+        # Empty JS should be rejected
+        assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_dangerous_pattern_eval(self, mock_ws):
+        """Test JavaScript execution blocked for dangerous patterns (eval)."""
+        result = await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="eval('malicious code');",
+            agent_id="agent-1"
+        )
+
+        # Should be blocked due to dangerous pattern
+        assert result["success"] is False
+
+
+# ============================================================================
+# Test: present_specialized_canvas
+# ============================================================================
+
+class TestPresentSpecializedCanvas:
+    """Tests for present_specialized_canvas function."""
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_docs(self, mock_ws):
+        """Test presenting specialized documentation canvas."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="docs",
+                    component_type="rich_editor",
+                    data={"content": "# API Reference"},
+                    title="API Docs"
+                )
+
+                assert result["success"] is True
+                assert result["canvas_type"] == "docs"
+                assert result["component_type"] == "rich_editor"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_invalid_type(self, mock_ws):
+        """Test specialized canvas with invalid type."""
+        with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+            mock_registry.validate_canvas_type.return_value = False
+            mock_registry.get_all_types.return_value = {
+                "docs": {}, "sheets": {}, "email": {},
+                "orchestration": {}, "terminal": {}, "coding": {}
+            }
+
+            result = await present_specialized_canvas(
+                user_id="user-1",
+                canvas_type="invalid_type",
+                component_type="component",
+                data={}
+            )
+
+            assert result["success"] is False
+            assert "Invalid canvas type" in result["error"]
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
