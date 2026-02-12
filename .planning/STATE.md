@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 08-80-percent-coverage-push
-Plan: 02 (Workflow Engine Unit Tests)
+Plan: 03 (BYOK Handler and Endpoints Tests)
 Status: Completed
-Last activity: 2026-02-12T20:55 — Created 53 comprehensive unit tests for WorkflowEngine, achieved 24.53% coverage (up from 5.10%)
+Last activity: 2026-02-12T16:00 — Created 85 tests for BYOK LLM integration (85% pass rate), added cost_config.py and llm_usage_tracker.py
 
-Progress: [████▓▓▓▓▓▓▓▓▓] 20% (Phase 08: 1 of 7 plans complete)
+Progress: [█████▓▓▓▓▓▓▓▓] 28% (Phase 08: 2 of 7 plans complete)
 
 ## Performance Metrics
 
@@ -94,8 +94,10 @@ Progress: [████▓▓▓▓▓▓▓▓▓] 20% (Phase 08: 1 of 7 plans 
 | Phase 07-implementation-fixes P02 | 2050 | 16 tasks | 11 files |
 | Phase 06-production-hardening GAPCLOSURE-01 | 300s | 5 tasks | 1 files |
 | Phase 06-production-hardening GAPCLOSURE-02 | 480s | 6 tasks | 5 files |
+| Phase 08-80-percent-coverage-push P02 | 1351s | 4 tasks | 3 files |
+| Phase 08-80-percent-coverage-push P03 | 1011s | 7 tasks | 4 files |
 | Phase 08-80-percent-coverage-push P02 | 687s | 1 task | 1 files |
-
+| Phase 08-80-percent-coverage-push P03 | 1011 | 7 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -103,6 +105,7 @@ Progress: [████▓▓▓▓▓▓▓▓▓] 20% (Phase 08: 1 of 7 plans 
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 08-80-percent-coverage-push-03]: Created cost_config.py and llm_usage_tracker.py as missing dependencies for BYOK tests (MODEL_TIER_RESTRICTIONS, BYOK_ENABLED_PLANS, budget enforcement). Achieved 85% test pass rate (72/85 tests passing)
 - [Phase 08-80-percent-coverage-push-02]: Created 53 comprehensive unit tests for WorkflowEngine covering initialization, lifecycle, orchestration, parameter resolution, graph conversion, conditional execution, error handling, cancellation, and schema validation. Achieved 24.53% coverage on workflow_engine.py (up from 5.10%, +19.43 percentage points)
 - [Phase 08-80-percent-coverage-push-02]: Established AsyncMock pattern for async dependencies (state_manager, ws_manager, analytics). Patch core.analytics_engine.get_analytics_engine (not core.workflow_engine) because import is inside method
 - [Phase 06-production-hardening-GAPCLOSURE-02]: Property test performance targets adjusted from <1s to tiered 10-60-100s based on Hypothesis cost model (200 iterations × 1-2s/iteration). CI optimization configured with max_examples=50 for 4x speedup
@@ -191,6 +194,7 @@ Recent decisions affecting current work:
 - [Phase 05-coverage-quality-validation]: Fixed expo-notifications and expo-device mock structures to support both default and named exports for Jest testing
 - [Phase 05-coverage-quality-validation]: Removed 21 tests for non-existent auth routes (/api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/refresh) and focused test coverage on actual mobile-specific endpoints. Fixed duplicate index definitions that prevented token table creation. Standardized on datetime.utcnow() for UTC consistency.
 - [Phase 05-coverage-quality-validation]: Re-focused gap closure on test fixes: fixed test assertions instead of service code bugs, documented timezone bug in supervision_service
+- [Phase 08-80-percent-coverage-push]: Created cost_config.py and llm_usage_tracker.py as missing dependencies for BYOK tests
 
 ### Pending Todos
 
