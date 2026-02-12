@@ -1,6 +1,12 @@
 """
 Security test fixtures for authentication and JWT testing.
 """
+import os
+
+# Set TESTING environment variable BEFORE any imports to prevent
+# recursion in models_registration.py during test setup
+os.environ["TESTING"] = "1"
+
 import pytest
 from datetime import datetime, timedelta
 try:

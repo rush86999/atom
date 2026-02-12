@@ -3,6 +3,13 @@ Scenario test fixtures.
 
 Extends security/conftest.py fixtures for scenario testing.
 """
+import os
+import sys
+
+# Set TESTING environment variable BEFORE any imports to prevent
+# recursion in models_registration.py during test setup
+os.environ["TESTING"] = "1"
+
 import pytest
 from sqlalchemy.orm import Session
 from tests.factories.user_factory import MemberUserFactory
