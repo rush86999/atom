@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-  
 import os
 import sys
 import types
@@ -692,7 +692,7 @@ try:
     # 7. Chat Orchestrator Routes (Critical for chat functionality)
     try:
         from integrations.chat_routes import router as chat_router
-        app.include_router(chat_router, prefix="/api", tags=["Chat"])
+        app.include_router(chat_router, tags=["Chat"])
         logger.info("✓ Chat Routes Loaded")
     except ImportError as e:
         logger.warning(f"Chat routes not found: {e}")
@@ -708,7 +708,7 @@ try:
     # 9. Memory/Document Routes
     try:
         from api.memory_routes import router as memory_router
-        app.include_router(memory_router, prefix="/api/v1/memory", tags=["Memory"])
+        app.include_router(memory_router, tags=["Memory"])
         logger.info("✓ Memory Routes Loaded")
     except ImportError as e:
         logger.warning(f"Memory routes not found: {e}")
@@ -716,7 +716,7 @@ try:
     # 10. Voice Routes
     try:
         from api.voice_routes import router as voice_router
-        app.include_router(voice_router, prefix="/api/voice", tags=["Voice"])
+        app.include_router(voice_router, tags=["Voice"])
         logger.info("✓ Voice Routes Loaded")
     except ImportError as e:
         logger.warning(f"Voice routes not found: {e}")
@@ -724,7 +724,7 @@ try:
     # 11. Document Ingestion Routes
     try:
         from api.document_routes import router as doc_router
-        app.include_router(doc_router, prefix="/api/documents", tags=["Documents"])
+        app.include_router(doc_router, tags=["Documents"])
         logger.info("✓ Document Routes Loaded")
     except ImportError as e:
         logger.warning(f"Document routes not found: {e}")
@@ -732,7 +732,7 @@ try:
     # 12. Formula Routes
     try:
         from api.formula_routes import router as formula_router
-        app.include_router(formula_router, prefix="/api/formulas", tags=["Formulas"])
+        app.include_router(formula_router, tags=["Formulas"])
         logger.info("✓ Formula Routes Loaded")
     except ImportError as e:
         logger.warning(f"Formula routes not found: {e}")
@@ -764,7 +764,7 @@ try:
     # 14.5 Core Agent Routes (The missing piece)
     try:
         from api.agent_routes import router as agent_router
-        app.include_router(agent_router, prefix="/api/agents", tags=["Agents"])
+        app.include_router(agent_router, tags=["Agents"])
         logger.info("✓ Core Agent Routes Loaded")
     except ImportError as e:
         logger.warning(f"Core Agent routes not found: {e}")

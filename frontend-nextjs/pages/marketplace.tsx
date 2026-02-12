@@ -47,13 +47,13 @@ export default function MarketplacePage() {
         try {
             setLoading(true)
             const url = selectedCategory
-                ? `/api/marketplace/templates?category=${selectedCategory}`
-                : '/api/marketplace/templates'
+                ? `/api/workflows/templates?category=${selectedCategory}`
+                : '/api/workflows/templates'
 
             const response = await fetch(url)
             if (!response.ok) throw new Error('Failed to fetch templates')
             const data = await response.json()
-            setTemplates(data)
+            setTemplates(data.templates || [])
         } catch (error) {
             console.error('Error fetching templates:', error)
         } finally {
@@ -63,7 +63,7 @@ export default function MarketplacePage() {
 
     const handleImport = async (id: string) => {
         try {
-            const response = await fetch(`/api/marketplace/templates/${id}/import`, {
+            const response = await fetch(`/api/workflows/templates/${id}/import`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             })

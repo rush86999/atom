@@ -108,7 +108,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const response = await fetch(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`);
+            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+            const fetchUrl = `${baseUrl}/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
+            console.log('Fetching history from:', fetchUrl);
+            const response = await fetch(fetchUrl);
 
             if (response.ok) {
                 try {
@@ -154,7 +157,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/chat/message", {
+            const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+            const response = await fetch(`${baseUrl}/api/chat/message`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

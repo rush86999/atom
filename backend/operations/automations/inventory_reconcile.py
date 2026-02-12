@@ -22,6 +22,8 @@ class InventoryReconciliationWorkflow:
         for sku in sku_list:
             try:
                 # 1. Get Shopify Count (Simulated UI action or API)
+                print(f"!!! AGENT EXECUTING: Checking Inventory for SKU: {sku} !!!")
+                logger.info(f"Agent checking {sku}...")
                 shopify_count = self._get_shopify_count(sku)
                 
                 # 2. Get WMS Count (Simulated UI action on internal portal)
