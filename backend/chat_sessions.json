@@ -1957,5 +1957,16 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "session_1767376509238_cmcy9x79k",
+    "user_id": "anonymous",
+    "created_at": "2026-02-10T09:03:03.050600",
+    "last_active": "2026-02-10T09:03:03.050600",
+    "metadata": {
+      "source": "chat_orchestrator"
+    },
+    "message_count": 0,
+    "history": []
   }
 ]

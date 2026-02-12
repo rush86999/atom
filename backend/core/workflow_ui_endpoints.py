@@ -27,7 +27,7 @@ class WorkflowStep(BaseModel):
     parameters: Dict[str, Any] = {}
     name: str
 
-class WorkflowTemplate(BaseModel):
+class WorkflowTemplateResponse(BaseModel):
     id: str
     name: str
     description: str
@@ -67,7 +67,7 @@ class ServiceInfo(BaseModel):
 # --- Mock Data for UI ---
 
 MOCK_TEMPLATES = [
-    WorkflowTemplate(
+    WorkflowTemplateResponse(
         id="tpl_marketing_campaign",
         name="Marketing Campaign",
         description="Generate and schedule a multi-channel marketing campaign",
@@ -87,7 +87,7 @@ MOCK_TEMPLATES = [
             "required": ["product"]
         }
     ),
-    WorkflowTemplate(
+    WorkflowTemplateResponse(
         id="tpl_daily_standup",
         name="Daily Standup Summary",
         description="Collect updates and post summary to Slack",
@@ -106,7 +106,7 @@ MOCK_TEMPLATES = [
             "required": ["team_channel"]
         }
     ),
-    WorkflowTemplate(
+    WorkflowTemplateResponse(
         id="tpl_o365_finance",
         name="O365 Financial Reporting",
         description=" OneDrive ingestion -> Excel processing -> Power BI refresh -> Teams notification",
@@ -127,7 +127,7 @@ MOCK_TEMPLATES = [
             "required": ["month"]
         }
     ),
-    WorkflowTemplate(
+    WorkflowTemplateResponse(
         id="tpl_o365_project",
         name="Project Inception",
         description="Setup Project Tracker (Excel) and Tasks (Planner)",
@@ -223,7 +223,6 @@ async def get_templates(
     # Order by rating and usage count
     templates = query.order_by(
         WorkflowTemplate.is_featured.desc(),
-        WorkflowTemplate.rating.desc(),
         WorkflowTemplate.usage_count.desc()
     ).limit(50).all()
 
