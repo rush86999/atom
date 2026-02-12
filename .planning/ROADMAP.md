@@ -174,6 +174,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
 - [x] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
 - [x] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
+- [x] 08-80-percent-coverage-08-PLAN.md — Meta-agent & data mapper baseline tests
+- [x] 08-80-percent-coverage-09-PLAN.md — Document ingestion & proposal service tests
+- [x] 08-80-percent-coverage-10-PLAN.md — Advanced workflow & marketplace tests
+- [x] 08-80-percent-coverage-11-PLAN.md — Extend workflow engine and tools coverage
+- [x] 08-80-percent-coverage-12-PLAN.md — Fix API test mocks for 100% pass rate
+- [x] 08-80-percent-coverage-13-PLAN.md — CI/CD coverage quality gates
+- [x] 08-80-percent-coverage-14-PLAN.md — Database integration tests
+- [x] 08-80-percent-coverage-01-PLAN.md — Zero-coverage files baseline (15 files, 4,783 lines)
+- [x] 08-80-percent-coverage-02-PLAN.md — Workflow engine comprehensive tests (1,089 lines)
+- [x] 08-80-percent-coverage-03-PLAN.md — LLM & BYOK handler tests (794 lines)
+- [x] 08-80-percent-coverage-04-PLAN.md — Episodic memory service tests (650+ lines)
+- [x] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
+- [x] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
+- [x] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
 - [ ] 08-80-percent-coverage-push-08-PLAN.md — Gap closure: Meta-agent & data mapper baseline tests
 - [ ] 08-80-percent-coverage-push-09-PLAN.md — Gap closure: Document ingestion & proposal service tests
 - [ ] 08-80-percent-coverage-push-10-PLAN.md — Gap closure: Advanced workflow & marketplace tests
