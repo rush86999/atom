@@ -7,6 +7,16 @@ import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 const AgentsDashboard = () => {
     const router = useRouter();
@@ -17,6 +27,12 @@ const AgentsDashboard = () => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Run Dialog State
+    const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
+    const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+    const [runInstructions, setRunInstructions] = useState("");
+    const [isRunning, setIsRunning] = useState(false);
 
     // WebSocket Integration
     const { isConnected, lastMessage, subscribe } = useWebSocket();
@@ -72,7 +88,7 @@ const AgentsDashboard = () => {
             setError(null);
             console.log("Fetching agents with token:", token ? token.substring(0, 10) + "..." : "NONE");
             // Direct backend connection to bypass proxy issues
-            const res = await fetch('http://127.0.0.1:8000/api/agents/', {
+            const res = await fetch('http://localhost:8000/api/agents/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -103,22 +119,40 @@ const AgentsDashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const handleRunAgent = async (id: string) => {
-        setActiveAgentId(id);
-        setLogs([`Initializing agent: ${id}...`, "Connecting to real-time stream..."]);
+    const handleRunAgent = (id: string) => {
+        setSelectedAgentId(id);
+        setRunInstructions("");
+        setIsRunDialogOpen(true);
+    };
+
+    const executeAgentRun = async () => {
+        if (!selectedAgentId) return;
+
+        setIsRunning(true);
+        setActiveAgentId(selectedAgentId);
+        setLogs([`Initializing agent: ${selectedAgentId}...`, "Connecting to real-time stream...", `Instructions: ${runInstructions || "Default behavior"}`]);
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/agents/${id}/run/`, {
+            const res = await fetch(`http://localhost:8000/api/agents/${selectedAgentId}/run/`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
                 method: 'POST',
-                body: JSON.stringify({ parameters: {} })
+                body: JSON.stringify({
+                    parameters: {
+                        task_input: runInstructions // Pass user instructions to backend
+                    }
+                })
             });
 
             if (res.ok) {
-                toast({ title: "Agent Started", description: `Agent ${id} is now running.` });
+                toast({
+                    title: "Agent Started Successfully",
+                    description: `Agent ${selectedAgentId} is now running with your instructions.`,
+                    duration: 5000
+                });
+                setIsRunDialogOpen(false); // Close dialog on success
             } else {
                 const err = await res.json();
                 toast({ title: "Failed to start", description: err.detail, variant: "error" });
@@ -126,6 +160,8 @@ const AgentsDashboard = () => {
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
+        } finally {
+            setIsRunning(false);
         }
     };
 
@@ -229,7 +265,36 @@ const AgentsDashboard = () => {
                     </div>
                 </div>
             </div>
-        </div>
+
+
+            {/* Run Agent Dialog */}
+            <Dialog open={isRunDialogOpen} onOpenChange={setIsRunDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Run Agent</DialogTitle>
+                        <DialogDescription>
+                            Provide specific instructions for this agent execution. Leave empty for default behavior.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Textarea
+                            placeholder="e.g. Reconcile inventory for SKU-123 and SKU-999..."
+                            value={runInstructions}
+                            onChange={(e) => setRunInstructions(e.target.value)}
+                            className="min-h-[100px]"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRunDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={executeAgentRun} disabled={isRunning}>
+                            {isRunning ? "Starting..." : "Run Agent"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 };
 

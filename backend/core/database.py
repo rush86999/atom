@@ -26,9 +26,12 @@ def get_database_url():
             )
         else:
             # Development fallback: Use FILE-BASED SQLite to prevent threading/import issues
-            database_url = "sqlite:///./dev.db"
+            # Resolve path relative to backend root (parent of core)
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base_dir, "dev.db")
+            database_url = f"sqlite:///{db_path}"
             logger.warning(
-                "⚠️ WARNING: Using SQLite file database (dev.db). "
+                f"⚠️ WARNING: Using SQLite file database ({db_path}). "
                 "Set DATABASE_URL for production deployment."
             )
     

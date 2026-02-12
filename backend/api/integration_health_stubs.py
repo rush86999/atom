@@ -616,12 +616,13 @@ async def ws_chat():
     )
 
 # Chat history (needs session_id)
-@router.get("/api/chat/history/{session_id}")
-async def chat_history(session_id: str):
-    return router.error_response(
-        status_code=404,
-        message=f"Session {session_id} not found"
-    )
+# @router.get("/api/chat/history/{session_id}")
+# async def chat_history(session_id: str):
+#     return router.error_response(
+#         error_code="SESSION_NOT_FOUND",
+#         status_code=404,
+#         message=f"Session {session_id} not found"
+#     )
 
 # Workflow-specific endpoints
 @router.get("/api/v1/workflow-ui/workflows/{workflow_id}")
