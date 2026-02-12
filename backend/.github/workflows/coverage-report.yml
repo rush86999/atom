@@ -99,7 +99,7 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false  # Don't fail CI if Codecov is down
           token: ${{ secrets.CODECOV_TOKEN }}  # Optional for public repos
-        continue-on-error: true  # Continue even if Codecov upload fails
+          continue-on-error: true  # Continue even if Codecov upload fails
 
       - name: Coverage trending summary
         working-directory: backend
@@ -130,7 +130,6 @@ jobs:
               echo "Coverage decreased by more than $THRESHOLD%"
               exit 1  # Fail CI
             fi
-          fi
 
       - name: Fail if coverage below threshold
         working-directory: backend
@@ -142,3 +141,4 @@ jobs:
             echo "Please improve coverage before merging."
             exit 1
           fi
+          echo "✓ Coverage meets threshold: $overall_percent% >= $THRESHOLD%"

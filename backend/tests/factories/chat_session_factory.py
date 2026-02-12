@@ -23,7 +23,7 @@ class ChatSessionFactory(BaseFactory):
     # Metadata
     metadata_json = factory.LazyFunction(lambda: {
         'source': fuzzy.FuzzyChoice(['agent', 'user', 'system', 'import']).fuzz(),
-        'context': factory.Faker('text', max_nb_chars=200),
+        'context': str(factory.Faker('text', max_nb_chars=200)),
     })
 
     # Timing
