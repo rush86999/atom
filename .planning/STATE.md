@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 08-80-percent-coverage-push
-Plan: 01 (Zero-Coverage Files Baseline Tests)
-Status: Partially Complete
-Last activity: 2026-02-12T20:51 — Created 74 unit tests for 3 zero-coverage modules (canvas_tool, formula_extractor, bulk_operations_processor), achieved ~27% average coverage
+Plan: 06 (API Routes Integration Tests)
+Status: Complete
+Last activity: 2026-02-12T21:30 — Created 3,692 lines of API integration tests across 8 test files (78+ tests) covering canvas, browser, device, governance, auth, episode, and analytics endpoints
 
-Progress: [█████▓▓▓▓▓▓▓▓] 28% (Phase 08: 2 of 7 plans complete)
+Progress: [██████▓▓▓▓▓] 42% (Phase 08: 3 of 7 plans complete)
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Progress: [█████▓▓▓▓▓▓▓▓] 28% (Phase 08: 2 of 7 plans 
 | Phase 08-80-percent-coverage-push P02 | 687s | 1 task | 1 files |
 | Phase 08-80-percent-coverage-push P03 | 1011 | 7 tasks | 4 files |
 | Phase 08-80-percent-coverage-push P08-80-percent-coverage-01 | 1292 | 3 tasks | 3 files |
+| Phase 08-80-percent-coverage-push P08-80-percent-coverage-06 | 1200 | 1 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,8 @@ Recent decisions affecting current work:
 - [Phase 05-coverage-quality-validation]: Removed 21 tests for non-existent auth routes (/api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/refresh) and focused test coverage on actual mobile-specific endpoints. Fixed duplicate index definitions that prevented token table creation. Standardized on datetime.utcnow() for UTC consistency.
 - [Phase 05-coverage-quality-validation]: Re-focused gap closure on test fixes: fixed test assertions instead of service code bugs, documented timezone bug in supervision_service
 - [Phase 08-80-percent-coverage-push]: Created cost_config.py and llm_usage_tracker.py as missing dependencies for BYOK tests
+- [Phase 08-80-percent-coverage-push]: Used patch-based authentication mocking instead of dependency override for router compatibility
+- [Phase 08-80-percent-coverage-push]: Created fixtures directly instead of using factories to avoid SQLAlchemy session attachment issues
 
 ### Pending Todos
 
@@ -222,8 +225,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-12T20:51
-Stopped at: Completed Phase 08 Plan 01 - Created 74 unit tests for 3 zero-coverage modules (canvas_tool, formula_extractor, bulk_operations_processor), achieved ~27% average coverage
+Last session: 2026-02-12T21:30
+Stopped at: Completed Phase 08 Plan 06 - API Routes Integration Tests (3,692 lines, 78+ tests across 8 test files)
 Resume file: None
 
 ## Blockers
