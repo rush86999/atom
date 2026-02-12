@@ -19,7 +19,7 @@ These tests protect against:
 
 import pytest
 from datetime import datetime, timedelta
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import given, strategies as st, assume, settings, example
 from typing import List, Dict, Any
 import sys
 import os
