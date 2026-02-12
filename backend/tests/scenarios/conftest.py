@@ -7,15 +7,43 @@ import pytest
 from sqlalchemy.orm import Session
 from tests.factories.user_factory import MemberUserFactory
 from core.auth import create_access_token
+from core.models import User, AgentRegistry, AgentStatus, WorkflowTemplate
+
+# Import db_session directly from property_tests to avoid circular import
+from tests.property_tests.conftest import db_session
+
+# Import other fixtures from security/conftest (avoiding db_session which creates circular import)
 from tests.security.conftest import (
-    client,
-    db_session,
     test_user_with_password,
     valid_auth_token,
     admin_user,
     admin_token,
 )
-from core.models import User, AgentRegistry, AgentStatus, WorkflowTemplate
+
+
+@pytest.fixture(scope="function")
+def client(db_session: Session):
+    """
+    Create a FastAPI TestClient for testing API endpoints.
+    """
+    from fastapi.testclient import TestClient
+    from core.database import get_db
+    from main_api_app import app
+
+    # Override the database dependency
+    def _get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # Clean up
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
