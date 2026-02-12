@@ -86,7 +86,7 @@ def sample_agent(test_db):
 
 
 @pytest.fixture
-def episodes_with varying_ages(test_db, sample_agent, sample_user):
+def episodes_with_varying_ages(test_db, sample_agent, sample_user):
     """Create episodes with different ages for decay testing."""
     now = datetime.now()
     episodes = []
