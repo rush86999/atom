@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry, AgentExecution, User, ChatSession
-from api.atom_agent_endpoints import app
+from main_api_app import app
 from core.agent_governance_service import AgentGovernanceService
 
 
