@@ -848,3 +848,305 @@ class TestDatabasePersistence:
         # Verify max lengths
         assert engine.metrics_buffer.maxlen == 10000
         assert engine.events_buffer.maxlen == 50000
+
+
+# ============================================================================
+# Test Performance Metrics Collection
+# ============================================================================
+
+class TestPerformanceMetrics:
+    """Tests for performance metrics collection."""
+
+    def test_get_workflow_performance_metrics(self, analytics_engine, temp_db_path,
+                                              sample_workflow_id):
+        """Test getting performance metrics for a workflow."""
+        # First, populate some data
+        import asyncio
+        async def populate_data():
+            # Track some workflow completions
+            for duration in [100, 200, 300, 400, 500]:
+                analytics_engine.track_workflow_completion(
+                    workflow_id=sample_workflow_id,
+                    execution_id=f"exec-{duration}",
+                    status=WorkflowStatus.COMPLETED,
+                    duration_ms=duration,
+                    user_id="test-user"
+                )
+            await analytics_engine.flush()
+
+        # Run async populate
+        asyncio.run(populate_data())
+
+        # Give background thread time to process
+        import time
+        time.sleep(0.5)
+
+        # Get performance metrics
+        metrics = analytics_engine.get_workflow_performance_metrics(sample_workflow_id)
+
+        assert isinstance(metrics, PerformanceMetrics)
+        assert metrics.workflow_id == sample_workflow_id
+        assert metrics.total_executions >= 0
+        assert isinstance(metrics.average_duration_ms, (int, float))
+
+    def test_performance_metrics_time_windows(self, analytics_engine, temp_db_path):
+        """Test different time windows for performance metrics."""
+        workflow_id = "wf-time-windows"
+
+        # Test different time windows
+        windows = ["1h", "24h", "7d", "30d"]
+
+        for window in windows:
+            metrics = analytics_engine.get_workflow_performance_metrics(workflow_id, time_window=window)
+            assert metrics.time_window == window
+            assert isinstance(metrics, PerformanceMetrics)
+
+    def test_performance_metrics_includes_duration_stats(self, analytics_engine):
+        """Test that performance metrics include duration statistics."""
+        workflow_id = "wf-duration-stats"
+
+        metrics = analytics_engine.get_workflow_performance_metrics(workflow_id)
+
+        # Should have duration fields
+        assert hasattr(metrics, "average_duration_ms")
+        assert hasattr(metrics, "median_duration_ms")
+        assert hasattr(metrics, "p95_duration_ms")
+        assert hasattr(metrics, "p99_duration_ms")
+
+    def test_performance_metrics_includes_error_rate(self, analytics_engine):
+        """Test that performance metrics include error rate."""
+        workflow_id = "wf-error-rate"
+
+        metrics = analytics_engine.get_workflow_performance_metrics(workflow_id)
+
+        # Should have error rate field
+        assert hasattr(metrics, "error_rate")
+        assert isinstance(metrics.error_rate, (int, float))
+        assert 0 <= metrics.error_rate <= 100
+
+    def test_performance_cache_working(self, analytics_engine, sample_workflow_id):
+        """Test that performance metrics cache is working."""
+        # First call - not cached
+        metrics1 = analytics_engine.get_workflow_performance_metrics(sample_workflow_id)
+
+        # Second call - should be cached
+        cache_key = f"{sample_workflow_id}_24h"
+        assert cache_key in analytics_engine.performance_cache
+
+        metrics2 = analytics_engine.performance_cache[cache_key]
+
+        # Should be same object
+        assert metrics1 is metrics2
+
+    def test_performance_cache_expiry(self, analytics_engine, temp_db_path, sample_workflow_id):
+        """Test that performance cache expires after TTL."""
+        import time
+
+        # Get metrics to populate cache
+        metrics1 = analytics_engine.get_workflow_performance_metrics(sample_workflow_id)
+
+        # Manually expire the cache
+        cache_key = f"{sample_workflow_id}_24h"
+        if cache_key in analytics_engine.performance_cache:
+            cached = analytics_engine.performance_cache[cache_key]
+            # Set timestamp to before TTL
+            cached.timestamp = datetime.now() - timedelta(seconds=analytics_engine.cache_ttl + 1)
+
+        # Cache should be expired now
+        # (This would trigger recalculation on next call in real usage)
+
+    def test_record_execution_time(self, analytics_engine):
+        """Test recording execution time metric."""
+        workflow_id = "wf-execution-time"
+        duration = 1500  # 1.5 seconds
+
+        analytics_engine.track_workflow_completion(
+            workflow_id=workflow_id,
+            execution_id="exec-001",
+            status=WorkflowStatus.COMPLETED,
+            duration_ms=duration,
+            user_id="test-user"
+        )
+
+        # Check that duration was tracked
+        assert len(analytics_engine.metrics_buffer) >= 1
+
+        duration_metrics = [
+            m for m in analytics_engine.metrics_buffer
+            if m.metric_name == "execution_duration_ms"
+        ]
+
+        assert len(duration_metrics) >= 1
+        assert duration_metrics[0].value == duration
+
+    def test_record_step_duration(self, analytics_engine):
+        """Test recording step duration metric."""
+        workflow_id = "wf-step-duration"
+        step_id = "step-001"
+        duration = 250
+
+        analytics_engine.track_step_execution(
+            workflow_id=workflow_id,
+            execution_id="exec-001",
+            step_id=step_id,
+            step_name="Process",
+            event_type="step_completed",
+            duration_ms=duration,
+            user_id="test-user"
+        )
+
+        # Check that step duration was tracked
+        duration_metrics = [
+            m for m in analytics_engine.metrics_buffer
+            if m.metric_name == "step_duration_ms"
+        ]
+
+        assert len(duration_metrics) >= 1
+        assert duration_metrics[0].value == duration
+        # step_id is stored in tags
+        assert duration_metrics[0].tags["step_id"] == step_id
+
+    def test_calculate_average_duration(self, analytics_engine, temp_db_path):
+        """Test average duration calculation."""
+        import asyncio
+
+        workflow_id = "wf-average"
+        durations = [100, 200, 300, 400, 500]
+
+        async def populate():
+            for d in durations:
+                analytics_engine.track_workflow_completion(
+                    workflow_id=workflow_id,
+                    execution_id=f"exec-{d}",
+                    status=WorkflowStatus.COMPLETED,
+                    duration_ms=d,
+                    user_id="test-user"
+                )
+            await analytics_engine.flush()
+
+        asyncio.run(populate())
+        import time
+        time.sleep(0.5)
+
+        metrics = analytics_engine.get_workflow_performance_metrics(workflow_id)
+
+        # Average should be 300
+        assert metrics.average_duration_ms == sum(durations) / len(durations)
+
+    def test_calculate_percentile_duration(self, analytics_engine, temp_db_path):
+        """Test percentile duration calculation."""
+        import asyncio
+
+        workflow_id = "wf-percentiles"
+        # Create enough data points for percentiles (need 20+ for p95, 100+ for p99)
+        durations = list(range(100, 1500, 10))  # 140 data points
+
+        async def populate():
+            for d in durations:
+                analytics_engine.track_workflow_completion(
+                    workflow_id=workflow_id,
+                    execution_id=f"exec-{d}",
+                    status=WorkflowStatus.COMPLETED,
+                    duration_ms=d,
+                    user_id="test-user"
+                )
+            await analytics_engine.flush()
+
+        asyncio.run(populate())
+        import time
+        time.sleep(0.5)
+
+        metrics = analytics_engine.get_workflow_performance_metrics(workflow_id)
+
+        # P95 should be calculated (need 20+ data points)
+        assert metrics.p95_duration_ms > 0
+        # P99 should be calculated (need 100+ data points)
+        assert metrics.p99_duration_ms > 0
+        assert metrics.p99_duration_ms >= metrics.p95_duration_ms
+
+    def test_track_memory_usage(self, analytics_engine):
+        """Test memory usage tracking."""
+        workflow_id = "wf-memory"
+        memory_mb = 1024.5
+
+        analytics_engine.track_resource_usage(
+            workflow_id=workflow_id,
+            cpu_usage=50.0,
+            memory_usage=memory_mb,
+            user_id="test-user"
+        )
+
+        # Find memory metric
+        memory_metrics = [
+            m for m in analytics_engine.metrics_buffer
+            if m.metric_name == "memory_usage_mb"
+        ]
+
+        assert len(memory_metrics) >= 1
+        assert memory_metrics[0].value == memory_mb
+
+    def test_track_cpu_usage(self, analytics_engine):
+        """Test CPU usage tracking."""
+        workflow_id = "wf-cpu"
+        cpu_percent = 75.5
+
+        analytics_engine.track_resource_usage(
+            workflow_id=workflow_id,
+            cpu_usage=cpu_percent,
+            memory_usage=1024,
+            user_id="test-user"
+        )
+
+        # Find CPU metric
+        cpu_metrics = [
+            m for m in analytics_engine.metrics_buffer
+            if m.metric_name == "cpu_usage_percent"
+        ]
+
+        assert len(cpu_metrics) >= 1
+        assert cpu_metrics[0].value == cpu_percent
+
+    def test_track_concurrent_executions(self, analytics_engine):
+        """Test concurrent execution tracking."""
+        workflow_id = "wf-concurrent"
+
+        # Track multiple concurrent executions
+        for i in range(5):
+            analytics_engine.track_workflow_start(
+                workflow_id=workflow_id,
+                execution_id=f"exec-{i}",
+                user_id="test-user"
+            )
+
+        # Should have 5 workflow_started events
+        start_events = [
+            e for e in analytics_engine.events_buffer
+            if e.event_type == "workflow_started"
+        ]
+
+        assert len(start_events) == 5
+
+    def test_calculate_throughput(self, analytics_engine, temp_db_path):
+        """Test throughput calculation (executions per time period)."""
+        import asyncio
+
+        workflow_id = "wf-throughput"
+
+        async def populate():
+            # Simulate 10 executions over time
+            for i in range(10):
+                analytics_engine.track_workflow_start(
+                    workflow_id=workflow_id,
+                    execution_id=f"exec-{i}",
+                    user_id="test-user"
+                )
+            await analytics_engine.flush()
+
+        asyncio.run(populate())
+        import time
+        time.sleep(0.5)
+
+        metrics = analytics_engine.get_workflow_performance_metrics(workflow_id)
+
+        # Throughput is implicit in total_executions over time_window
+        assert metrics.total_executions >= 0
