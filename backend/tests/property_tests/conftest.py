@@ -15,7 +15,7 @@ os.environ["TESTING"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
 
 # Add parent directory to path for imports
@@ -53,10 +53,37 @@ def db_session():
         echo=False
     )
 
-    # Create all tables, ignoring duplicate index errors
-    # This is a workaround for duplicate index definitions in models
+    # Create all tables, handling missing foreign key references from optional modules
+    # Optional modules (accounting, service_delivery, saas, ecommerce) may have
+    # foreign key references to tables that aren't imported during testing.
+    # We create tables one by one and skip those with missing dependencies.
     try:
         Base.metadata.create_all(bind=engine)
+    except exc.NoReferencedTableError as e:
+        # Optional modules have missing FK references - create tables individually
+        import warnings
+        warnings.warn(
+            f"Optional module tables with missing foreign key references detected: {e}. "
+            "Creating available tables individually.",
+            UserWarning
+        )
+        # Create tables that don't have missing dependencies
+        tables_created = 0
+        tables_skipped = 0
+        for table in Base.metadata.sorted_tables:
+            try:
+                table.create(engine, checkfirst=True)
+                tables_created += 1
+            except exc.NoReferencedTableError:
+                # Skip tables with missing FK references (from optional modules)
+                tables_skipped += 1
+                continue
+        if tables_created > 0:
+            warnings.warn(
+                f"Created {tables_created} tables, skipped {tables_skipped} tables "
+                f"with missing foreign key references.",
+                UserWarning
+            )
     except Exception as e:
         if "already exists" in str(e):
             # Ignore duplicate index errors
