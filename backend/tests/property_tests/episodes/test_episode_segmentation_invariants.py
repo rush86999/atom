@@ -13,7 +13,7 @@ Tests episode segmentation invariants:
 
 import pytest
 from datetime import datetime, timedelta
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import given, strategies as st, assume, settings, example
 from uuid import uuid4
 from typing import List, Dict, Any
 import sys
