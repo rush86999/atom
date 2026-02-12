@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-02-11T19:15:00Z",
+  "execution_time_seconds": 87.17,
+  "test_count": 55248,
+  "passed": 42275,
+  "failed": 12982,
+  "flaky_retries": 0,
+  "slowest_tests": [
+    {"test": "tests/property_tests/episodes/test_episode_segmentation_service.py::test_episode_creation_after_chat", "duration": 400.41},
+    {"test": "tests/property_tests/episodes/test_episode_segmentation_service.py::test_episode_creation_with_no_context", "duration": 348.35},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_atomic_rollback_with_constraint_violation", "duration": 337.37},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_atomic_rollback_with_foreign_key_constraint", "duration": 336.93},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_isolation_level_read_committed_no_lock", "duration": 336.26},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_isolation_level_serializable_no_lock", "duration": 335.89},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_concurrent_transaction_isolation", "duration": 335.18},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_partial_rollback_remains_locked", "duration": 334.02},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_partial_rollback_all_or_nothing", "duration": 331.89},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_savepoint_rollback_to_different_savepoint", "duration": 330.57},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_savepoint_rollback_simplified", "duration": 328.35},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_rollback_without_savepoint", "duration": 325.71},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_nested_transactions_supported", "duration": 324.70},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_double_rollback_prevents_data_loss", "duration": 324.62},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_foreign_key_propagation", "duration": 324.06},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_cross_schema_foreign_keys", "duration": 321.79},
+    {"test": "tests/property_tests/database/test_database_atomicity.py::test_deferred_foreign_key_checks", "duration": 319.43},
+    {"test": "tests/property_tests/database/test_database_baseline.py::test_very_large_dataset_performance", "duration": 319.32},
+    {"test": "tests/property_tests/contracts/test_action_complexity.py::test_timeout_causes_agent_block", "duration": 318.30},
+    {"test": "tests/property_tests/contracts/test_action_complexity.py::test_concurrent_actions_preserve_order", "duration": 317.45},
+    {"test": "tests/property_tests/contracts/test_action_complexity.py::test_complex_action_succeeds_if_all_succeed", "duration": 316.80},
+    {"test": "tests/property_tests/contracts/test_action_complexity.py::test_action_fails_if_any_fail", "duration": 314.97}
+  ],
+  "target_full_suite": 300,
+  "target_property_test": 1.0,
+  "targets_met": {
+    "full_suite_under_5min": false,
+    "property_tests_under_1s": false
+  }
+}

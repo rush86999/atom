@@ -1,0 +1,21 @@
+# Desktop Integration Test Dependencies
+#
+# This file documents dependencies required for desktop (Tauri) integration tests.
+#
+# The desktop integration tests were resolved in Phase 6 Plan 04.
+# No additional Python dependencies are currently required for Tauri testing.
+#
+# ============================================================================
+
+# Desktop Integration Test Status: RESOLVED (Phase 6 Plan 04)
+# ============================================================================
+#
+# Desktop integration tests use:
+# - JavaScript/TypeScript test framework (Jest/Vitest)
+# - Tauri CLI for desktop commands
+# - No Python backend dependencies required
+#
+# If Python integration tests are added for desktop features:
+# 1. Add dependencies below
+# 2. Document which test files require them
+# 3. Update this header with integration test status

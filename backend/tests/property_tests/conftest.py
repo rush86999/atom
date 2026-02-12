@@ -29,7 +29,9 @@ from core.models import (
     TrainingSession,
     TriggerSource,
     User,
-    WorkflowExecution
+    WorkflowExecution,
+    ActiveToken,
+    RevokedToken
 )
 
 

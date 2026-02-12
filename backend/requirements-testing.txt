@@ -15,7 +15,7 @@ mutmut>=2.4.0  # Mutation testing tool
 # chaos-toolkit>=0.23.0  # NOTE: Package doesn't exist on PyPI, removed
 
 # Parallel Test Execution
-pytest-xdist>=3.5.0,<4.0.0  # Parallel pytest execution (constrain to avoid pytest 9)
+pytest-xdist>=3.6.0,<4.0.0  # Parallel pytest execution (constrain to avoid pytest 9)
 
 # Coverage & Quality
 pytest-cov>=4.1.0  # Coverage reporting (already in requirements.txt)
@@ -30,3 +30,5 @@ pytest-mock>=3.12.0  # Mocking utilities (already in requirements.txt)
 pytest-timeout>=2.2.0,<3.0.0  # Test timeout enforcement
 pytest-randomly>=3.15.0,<4.0.0  # Randomize test execution order
 freezegun>=1.4.0,<2.0.0  # Time freezing for tests
+factory-boy>=3.3.0  # Test data factories
+faker>=22.0.0  # Fake data generation for tests

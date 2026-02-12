@@ -3550,8 +3550,8 @@ class ActiveToken(Base):
     user = relationship("User")
 
     # Indexes for efficient lookups and cleanup
+    # Note: ix_active_tokens_jti is auto-created by unique=True on jti column
     __table_args__ = (
-        Index('ix_active_tokens_jti', 'jti'),
         Index('ix_active_tokens_expires', 'expires_at'),
         Index('ix_active_tokens_user', 'user_id', 'issued_at'),
     )
@@ -3583,8 +3583,8 @@ class RevokedToken(Base):
     user = relationship("User")
 
     # Indexes for efficient lookups and cleanup
+    # Note: ix_revoked_tokens_jti is auto-created by unique=True on jti column
     __table_args__ = (
-        Index('ix_revoked_tokens_jti', 'jti'),
         Index('ix_revoked_tokens_expires', 'expires_at'),
         Index('ix_revoked_tokens_user', 'user_id', 'revoked_at'),
     )

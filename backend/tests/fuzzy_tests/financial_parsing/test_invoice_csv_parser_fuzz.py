@@ -13,9 +13,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../'))
 try:
     import atheris
     ATHERIS_AVAILABLE = True
+    # Create the instrument_func decorator
+    fuzz_instrument = atheris.instrument_func
 except ImportError:
     ATHERIS_AVAILABLE = False
     print("Warning: Atheris not available")
+    # Create a no-op decorator when atheris is not available
+    def fuzz_instrument(func):
+        return func
 
 import csv
 import io
@@ -68,7 +73,7 @@ def parse_invoice_csv(csv_data: str) -> list:
         raise ValueError(f"Invalid CSV: {e}") from e
 
 
-@atheris.instrument_func
+@fuzz_instrument
 def test_invoice_csv_parser_fuzz(data):
     """
     Fuzz test for CSV invoice parsing.
