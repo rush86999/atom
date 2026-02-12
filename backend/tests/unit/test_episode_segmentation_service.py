@@ -1215,3 +1215,183 @@ class TestLanceDBIntegration:
 
         # add_document should not be called when LanceDB is unavailable
         assert not mock_lancedb_handler.add_document.called
+
+
+# ============================================================================
+# Canvas-Aware Episode Tests
+# ============================================================================
+
+class TestCanvasAwareEpisodes:
+    """Test canvas-aware episode tracking"""
+
+    @pytest.mark.asyncio
+    async def test_track_canvas_presentation(
+        self,
+        segmentation_service,
+        sample_chat_session,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test canvas presentations are tracked in episodes"""
+        mock_db.query.return_value.filter.return_value.first.return_value = sample_chat_session
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.side_effect = [
+            [],  # No messages
+            [],  # No executions
+            sample_canvas_audits,  # Canvas audits
+            []   # No feedbacks
+        ]
+
+        episode = await segmentation_service.create_episode_from_session(
+            session_id="session_1",
+            agent_id="agent_1",
+            force_create=True
+        )
+
+        if episode:
+            assert episode.canvas_ids == [c.id for c in sample_canvas_audits]
+            assert episode.canvas_action_count == len(sample_canvas_audits)
+
+    @pytest.mark.asyncio
+    async def test_track_canvas_action(
+        self,
+        segmentation_service,
+        sample_chat_session,
+        mock_db
+    ):
+        """Test different canvas actions are tracked"""
+        from core.models import CanvasAudit
+        
+        # Create canvases with different actions
+        canvases = []
+        for action in ["present", "submit", "close", "update", "execute"]:
+            canvas = Mock(spec=CanvasAudit)
+            canvas.id = f"canvas_{action}"
+            canvas.session_id = "session_1"
+            canvas.action = action
+            canvas.canvas_type = "sheets"
+            canvases.append(canvas)
+
+        mock_db.query.return_value.filter.return_value.first.return_value = sample_chat_session
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.side_effect = [
+            [],
+            [],
+            canvases,
+            []
+        ]
+
+        episode = await segmentation_service.create_episode_from_session(
+            session_id="session_1",
+            agent_id="agent_1",
+            force_create=True
+        )
+
+        if episode:
+            # All canvas actions should be tracked
+            assert episode.canvas_action_count == len(canvases)
+
+    @pytest.mark.asyncio
+    async def test_filter_by_canvas_type(
+        self,
+        segmentation_service,
+        sample_chat_session,
+        mock_db
+    ):
+        """Test filtering episodes by canvas type"""
+        from core.models import CanvasAudit
+        
+        # Create canvases of different types
+        canvas_types = ["generic", "docs", "email", "sheets", "orchestration", "terminal", "coding"]
+        canvases = []
+        
+        for canvas_type in canvas_types:
+            canvas = Mock(spec=CanvasAudit)
+            canvas.id = f"canvas_{canvas_type}"
+            canvas.session_id = "session_1"
+            canvas.canvas_type = canvas_type
+            canvas.action = "present"
+            canvases.append(canvas)
+
+        mock_db.query.return_value.filter.return_value.first.return_value = sample_chat_session
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.side_effect = [
+            [],
+            [],
+            canvases,
+            []
+        ]
+
+        episode = await segmentation_service.create_episode_from_session(
+            session_id="session_1",
+            agent_id="agent_1",
+            force_create=True
+        )
+
+        if episode:
+            # All canvas types should be included
+            assert episode.canvas_action_count == len(canvas_types)
+
+    @pytest.mark.asyncio
+    async def test_canvas_context_inclusion(
+        self,
+        segmentation_service,
+        sample_chat_session,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test canvas context is included in episode metadata"""
+        mock_db.query.return_value.filter.return_value.first.return_value = sample_chat_session
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.side_effect = [
+            [],
+            [],
+            sample_canvas_audits,
+            []
+        ]
+
+        episode = await segmentation_service.create_episode_from_session(
+            session_id="session_1",
+            agent_id="agent_1",
+            force_create=True
+        )
+
+        if episode:
+            # Episode should have canvas context
+            assert episode.canvas_ids is not None
+            assert len(episode.canvas_ids) > 0
+            assert episode.canvas_action_count > 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_canvas_tracking(
+        self,
+        segmentation_service,
+        sample_chat_session,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test tracking multiple canvases in single episode"""
+        # Create multiple canvases
+        many_canvases = []
+        for i in range(10):
+            canvas = Mock(spec=CanvasAudit)
+            canvas.id = f"canvas_{i}"
+            canvas.session_id = "session_1"
+            canvas.canvas_type = "sheets"
+            canvas.action = "present"
+            many_canvases.append(canvas)
+
+        mock_db.query.return_value.filter.return_value.first.return_value = sample_chat_session
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.side_effect = [
+            [],
+            [],
+            many_canvases,
+            []
+        ]
+
+        episode = await segmentation_service.create_episode_from_session(
+            session_id="session_1",
+            agent_id="agent_1",
+            force_create=True
+        )
+
+        if episode:
+            # All canvases should be tracked
+            assert episode.canvas_action_count == len(many_canvases)
+            assert len(episode.canvas_ids) == len(many_canvases)
