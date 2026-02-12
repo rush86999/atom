@@ -11,6 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as Device from 'expo-device';
+import * as Constants from 'expo-constants';
 import { useAuth } from './AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -60,8 +61,8 @@ const DEVICE_REGISTERED_KEY = 'atom_device_registered';
 const CAPABILITIES_KEY = 'atom_device_capabilities';
 const LAST_SYNC_KEY = 'atom_last_sync';
 
-// API Base URL
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+// API Base URL - use Constants.expoConfig pattern for Jest compatibility
+const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
 
 /**
  * DeviceProvider Component

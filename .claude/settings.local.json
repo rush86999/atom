@@ -42,10 +42,15 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(source:*)",
+      "Bash(PYTHONPATH=. python -m pytest:*)"
     ],
     "deny": [],
     "ask": []
   },
-  "enabledMcpjsonServers": ["chrome-devtools", "brave-search"]
+  "enabledMcpjsonServers": [
+    "chrome-devtools",
+    "brave-search"
+  ]
 }

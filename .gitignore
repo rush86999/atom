@@ -755,3 +755,9 @@ playwright-report/
 archive/
 tests/archive/
 .secrets.json
+
+# Mobile coverage reports
+# Keep JSON for CI/CD tracking, ignore HTML for local development
+mobile/coverage/html/
+!mobile/coverage/coverage-final.json/
+!mobile/coverage/coverage-summary.json/

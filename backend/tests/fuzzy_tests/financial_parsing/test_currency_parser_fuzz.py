@@ -16,9 +16,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../'))
 try:
     import atheris
     ATHERIS_AVAILABLE = True
+    # Create the instrument_func decorator
+    fuzz_instrument = atheris.instrument_func
 except ImportError:
     ATHERIS_AVAILABLE = False
     print("Warning: Atheris not available. Install with: pip install atheris")
+    # Create a no-op decorator when atheris is not available
+    def fuzz_instrument(func):
+        return func
 
 import re
 from decimal import Decimal, InvalidOperation
@@ -66,7 +71,7 @@ def parse_currency(currency_str: str) -> float:
         raise ValueError(f"Cannot parse currency: {currency_str}") from e
 
 
-@atheris.instrument_func
+@fuzz_instrument
 def test_currency_parser_fuzz(data):
     """
     Fuzz test for currency parsing.

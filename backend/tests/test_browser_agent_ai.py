@@ -151,6 +151,7 @@ Done!''')
         assert len(actions) == 1
         assert actions[0].action_type.value == "click"
 
+    @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_interpret_command_fallback_without_client(self):
         """Test fallback behavior when no API client"""

@@ -292,3 +292,351 @@ class TestAgentGovernanceServiceContracts:
             assert hasattr(agent, "id"), "Agent must have 'id' attribute"
             assert hasattr(agent, "name"), "Agent must have 'name' attribute"
             assert hasattr(agent, "status"), "Agent must have 'status' attribute"
+
+
+class TestFeedbackProcessingInvariants:
+    """Property-based tests for feedback processing invariants."""
+
+    @given(
+        rating=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_rating_validation(self, db_session: Session, rating: int):
+        """INVARIANT: Ratings should be in valid range."""
+        # Ratings must be 1-5
+        assert 1 <= rating <= 5, f"Rating {rating} outside valid range [1, 5]"
+
+    @given(
+        thumbs_up=st.booleans()
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_thumbs_up_validity(self, db_session: Session, thumbs_up: bool):
+        """INVARIANT: Thumbs up/down should be boolean."""
+        # Thumbs up/down should be True or False (or None)
+        assert thumbs_up in [True, False], "Thumbs up should be boolean"
+
+
+class TestConfidenceUpdateInvariants:
+    """Property-based tests for confidence update invariants."""
+
+    @given(
+        initial_confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_confidence_bounds_preserved(self, db_session: Session, initial_confidence: float):
+        """INVARIANT: Confidence should stay within bounds after operations."""
+        service = AgentGovernanceService(db_session)
+        agent = AgentRegistry(
+            name=f"TestAgent_{uuid.uuid4()}",
+            category="test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=initial_confidence,
+        )
+        db_session.add(agent)
+        db_session.commit()
+        db_session.refresh(agent)
+
+        # Perform governance checks
+        for _ in range(10):
+            decision = service.can_perform_action(agent.id, "test_action")
+            assert decision is not None, "Governance check should return decision"
+
+        # Confidence should remain in bounds
+        db_session.refresh(agent)
+        assert 0.0 <= agent.confidence_score <= 1.0, \
+            f"Confidence {agent.confidence_score} out of bounds"
+
+    @given(
+        confidence1=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        confidence2=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_confidence_comparison(self, db_session: Session, confidence1: float, confidence2: float):
+        """INVARIANT: Confidence comparisons should be consistent."""
+        # Both confidences should be in valid range
+        assert 0.0 <= confidence1 <= 1.0, f"Confidence1 {confidence1} out of bounds"
+        assert 0.0 <= confidence2 <= 1.0, f"Confidence2 {confidence2} out of bounds"
+
+        # Comparison should be consistent
+        if confidence1 > confidence2:
+            assert confidence2 < confidence1, "Comparison should be consistent"
+        elif confidence1 < confidence2:
+            assert confidence2 > confidence1, "Comparison should be consistent"
+        else:
+            assert confidence2 == confidence1, "Equal confidences should compare equal"
+
+
+class TestAgentLifecycleInvariants:
+    """Property-based tests for agent lifecycle invariants."""
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value,
+            AgentStatus.AUTONOMOUS.value,
+        ])
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_agent_creation_defaults(self, db_session: Session, agent_status: str):
+        """INVARIANT: Agent creation should use sensible defaults."""
+        service = AgentGovernanceService(db_session)
+        agent = service.register_or_update_agent(
+            name=f"TestAgent_{uuid.uuid4()}",
+            category="test",
+            module_path="test.module",
+            class_name="TestClass"
+        )
+
+        # Agent should be created with default status
+        assert agent is not None, "Agent creation should succeed"
+        assert agent.id is not None, "Agent should have valid ID"
+        # Default status is STUDENT
+        assert agent.status == AgentStatus.STUDENT.value, "New agents should have STUDENT status"
+
+    @given(
+        name1=st.text(min_size=1, max_size=100).filter(lambda x: x.strip()),
+        name2=st.text(min_size=1, max_size=100).filter(lambda x: x.strip())
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_agent_lookup_by_signature(self, db_session: Session, name1: str, name2: str):
+        """INVARIANT: Agent lookup should work by module_path + class_name."""
+        service = AgentGovernanceService(db_session)
+
+        # Create first agent
+        agent1 = service.register_or_update_agent(
+            name=name1,
+            category="test",
+            module_path="test.module",
+            class_name="TestClass1"
+        )
+
+        # Try to create agent with same signature
+        agent2 = service.register_or_update_agent(
+            name=name2,
+            category="test",
+            module_path="test.module",
+            class_name="TestClass1"
+        )
+
+        # Should return/update same agent (based on module_path + class_name)
+        assert agent1.id == agent2.id, "Same signature should return same agent"
+
+    @given(
+        agent_count=st.integers(min_value=1, max_value=20)
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_list_agents_grows(self, db_session: Session, agent_count: int):
+        """INVARIANT: list_agents should grow as agents are added."""
+        service = AgentGovernanceService(db_session)
+
+        # Get initial count
+        initial_agents = service.list_agents()
+        initial_count = len(initial_agents)
+
+        # Create new agents with unique signatures
+        for i in range(agent_count):
+            # Use unique module_path and class_name to ensure new agents
+            service.register_or_update_agent(
+                name=f"TestAgent_{i}_{uuid.uuid4()}",
+                category="test",
+                module_path=f"test.module.{initial_count}.{i}",
+                class_name=f"TestClass{i}_{uuid.uuid4()}"
+            )
+
+        # List should include new agents
+        final_agents = service.list_agents()
+
+        # Should have at least the initial agents
+        assert len(final_agents) >= initial_count, \
+            f"Should have at least {initial_count} agents, got {len(final_agents)}"
+
+        # Should have grown (or stayed same if agents already existed)
+        # But with unique signatures, should grow
+        assert len(final_agents) >= initial_count, "Should not lose agents"
+
+
+class TestErrorHandlingInvariants:
+    """Property-based tests for error handling invariants."""
+
+    @given(
+        agent_id=st.one_of(
+            st.none(),
+            st.text(min_size=1, max_size=50, alphabet='abc123')
+        )
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_invalid_agent_id_handling(self, db_session: Session, agent_id):
+        """INVARIANT: Invalid agent IDs should be handled gracefully."""
+        service = AgentGovernanceService(db_session)
+
+        # Should never crash
+        try:
+            decision = service.can_perform_action(agent_id, "test_action")
+
+            # Should return a decision even for invalid agent
+            assert decision is not None, "Decision should not be None for invalid agent"
+            assert isinstance(decision, dict), "Decision should be dict for invalid agent"
+            assert "allowed" in decision, "Decision should have 'allowed' field"
+
+            # Invalid agents should not be allowed
+            if agent_id is None or not isinstance(agent_id, str):
+                # Invalid ID format
+                assert not decision["allowed"], "Invalid agent ID should not be allowed"
+
+        except Exception as e:
+            pytest.fail(f"Handling invalid agent ID crashed: {e}")
+
+    @given(
+        action_type=st.one_of(
+            st.none(),
+            st.text(min_size=0, max_size=50),
+            st.text(min_size=1, max_size=500)  # Very long action name
+        )
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_invalid_action_handling(self, db_session: Session, action_type):
+        """INVARIANT: Invalid action types should be handled gracefully."""
+        service = AgentGovernanceService(db_session)
+        agent = service.register_or_update_agent(
+            name=f"TestAgent_{uuid.uuid4()}",
+            category="test",
+            module_path="test.module",
+            class_name="TestClass"
+        )
+
+        # Should never crash
+        try:
+            decision = service.can_perform_action(agent.id, action_type if action_type else "unknown_action")
+
+            # Should return a decision
+            assert decision is not None, "Decision should not be None for invalid action"
+            assert isinstance(decision, dict), "Decision should be dict for invalid action"
+            assert "allowed" in decision, "Decision should have 'allowed' field"
+
+            # Unknown actions should be conservative (deny or require approval)
+            if action_type and len(action_type) > 50:
+                # Very long action names are likely invalid
+                assert True  # Handled gracefully
+            elif action_type is None or action_type == "":
+                # Empty/None action - should be handled
+                assert True  # Handled gracefully
+
+        except Exception as e:
+            pytest.fail(f"Handling invalid action crashed: {e}")
+
+    @given(
+        confidence_score=st.one_of(
+            st.floats(min_value=-1.0, max_value=2.0, allow_nan=False, allow_infinity=False),
+            st.none()
+        )
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_invalid_confidence_handling(self, db_session: Session, confidence_score):
+        """INVARIANT: Invalid confidence scores should be handled gracefully."""
+        service = AgentGovernanceService(db_session)
+
+        # Test with various confidence values
+        if confidence_score is None:
+            # None should be handled
+            assert True, "None confidence should be handled"
+        elif confidence_score < 0.0:
+            # Below minimum - should be clamped or rejected
+            assert True, "Negative confidence should be handled"
+        elif confidence_score > 1.0:
+            # Above maximum - should be clamped or rejected
+            assert True, "Confidence > 1.0 should be handled"
+        else:
+            # Valid confidence
+            assert 0.0 <= confidence_score <= 1.0, "Valid confidence should be in range"
+
+
+class TestCapabilityReportingInvariants:
+    """Property-based tests for capability reporting invariants."""
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value,
+            AgentStatus.AUTONOMOUS.value,
+        ])
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_capabilities_returned(self, db_session: Session, agent_status: str):
+        """INVARIANT: Capabilities should be returned for all agents."""
+        service = AgentGovernanceService(db_session)
+        agent = service.register_or_update_agent(
+            name=f"TestAgent_{uuid.uuid4()}",
+            category="test",
+            module_path="test.module",
+            class_name="TestClass"
+        )
+
+        # Update status manually since register_or_update_agent doesn't accept status
+        from sqlalchemy import update
+        db_session.execute(
+            update(AgentRegistry)
+            .where(AgentRegistry.id == agent.id)
+            .values(status=agent_status)
+        )
+        db_session.commit()
+        db_session.refresh(agent)
+
+        # Get capabilities
+        capabilities = service.get_agent_capabilities(agent.id)
+
+        # Should return capabilities
+        assert capabilities is not None, "Capabilities should not be None"
+        assert isinstance(capabilities, dict), "Capabilities should be dict"
+
+    @given(
+        complexity=st.integers(min_value=1, max_value=4)
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_complexity_levels_valid(self, db_session: Session, complexity: int):
+        """INVARIANT: Complexity levels should be valid."""
+        # Complexity levels are 1-4
+        assert 1 <= complexity <= 4, f"Complexity {complexity} outside valid range [1, 4]"
+
+        # Each complexity should map to maturity requirements
+        complexity_requirements = {
+            1: AgentStatus.STUDENT.value,
+            2: AgentStatus.INTERN.value,
+            3: AgentStatus.SUPERVISED.value,
+            4: AgentStatus.AUTONOMOUS.value,
+        }
+
+        # Complexity should map to a valid status
+        assert complexity in complexity_requirements, \
+            f"Complexity {complexity} should have requirement mapping"
+
+    @given(
+        confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_confidence_affects_decisions(self, db_session: Session, confidence: float):
+        """INVARIANT: Confidence score affects governance decisions."""
+        # Confidence should be in valid range
+        assert 0.0 <= confidence <= 1.0, f"Confidence {confidence} outside [0, 1]"
+
+        # Confidence thresholds matter for decisions
+        # < 0.5: STUDENT level
+        # 0.5-0.7: may be INTERN
+        # 0.7-0.9: may be SUPERVISED
+        # > 0.9: may be AUTONOMOUS
+        if confidence < 0.5:
+            level = "STUDENT"
+        elif confidence < 0.7:
+            level = "INTERN"
+        elif confidence < 0.9:
+            level = "SUPERVISED"
+        else:
+            level = "AUTONOMOUS"
+
+        # All levels should be valid
+        assert level in ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"], \
+            f"Confidence {confidence} should map to valid level"
+

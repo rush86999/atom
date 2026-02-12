@@ -69,8 +69,8 @@ const USER_DATA_KEY = 'atom_user_data';
 const DEVICE_ID_KEY = 'atom_device_id';
 const BIOMETRIC_KEY = 'atom_biometric_enabled';
 
-// API Base URL
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+// API Base URL - use Constants.expoConfig pattern for Jest compatibility
+const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
 
 /**
  * AuthProvider Component

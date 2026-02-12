@@ -53,8 +53,42 @@ try:
     from atom_zoom_integration import atom_zoom_integration
 
     from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+
+    # Set flags for enterprise services availability
+    HAS_ENTERPRISE_SERVICES = True
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    # Provide fallback values when enterprise services are not available
+    atom_ai_integration = None
+    atom_discord_integration = None
+    atom_enterprise_security_service = None
+    atom_google_chat_integration = None
+    atom_slack_integration = None
+    atom_teams_integration = None
+    atom_telegram_integration = None
+    atom_whatsapp_integration = None
+    atom_workflow_automation_service = None
+    atom_zoom_integration = None
+    ai_enhanced_service = None
+    ComplianceStandard = None
+    SecurityLevel = None
+    AutomationPriority = None
+    AutomationStatus = None
+    RecordType = None
+    atom_ingestion_pipeline = None
+    HAS_ENTERPRISE_SERVICES = False
+
+# Default enterprise service (None if not available)
+if HAS_ENTERPRISE_SERVICES:
+    # Use the actual imported service
+    default_enterprise_security = atom_enterprise_security_service
+    default_workflow_automation = atom_workflow_automation_service
+    default_ai_service = ai_enhanced_service
+else:
+    # Use None as fallback
+    default_enterprise_security = None
+    default_workflow_automation = None
+    default_ai_service = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -213,9 +247,9 @@ class AtomHubSpotIntegrationService:
         self.campaign_performance: Dict[str, Dict[str, Any]] = {}
         
         # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
+        self.enterprise_security = config.get('security_service') or default_enterprise_security
+        self.enterprise_automation = config.get('automation_service') or default_workflow_automation
+        self.ai_service = config.get('ai_service') or default_ai_service
         
         # Platform integrations
         self.platform_integrations = {
@@ -391,8 +425,11 @@ class AtomHubSpotIntegrationService:
                     
                     # Ingest to ATOM memory (LanceDB)
                     try:
-                        atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CONTACT.value, contact)
-                        logger.info(f"HubSpot contact {contact.get('id')} ingested to memory")
+                        if atom_ingestion_pipeline:
+                            atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CONTACT.value, contact)
+                            logger.info(f"HubSpot contact {contact.get('id')} ingested to memory")
+                        else:
+                            logger.warning(f"Skipping ingestion: atom_ingestion_pipeline not available")
                     except Exception as me:
                         logger.error(f"Failed to ingest HubSpot contact to memory: {me}")
                     
@@ -477,8 +514,11 @@ class AtomHubSpotIntegrationService:
                     
                     # Ingest to ATOM memory (LanceDB)
                     try:
-                        atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CAMPAIGN.value, campaign)
-                        logger.info(f"HubSpot campaign {campaign.get('id')} ingested to memory")
+                        if atom_ingestion_pipeline:
+                            atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CAMPAIGN.value, campaign)
+                            logger.info(f"HubSpot campaign {campaign.get('id')} ingested to memory")
+                        else:
+                            logger.warning(f"Skipping ingestion: atom_ingestion_pipeline not available")
                     except Exception as me:
                         logger.error(f"Failed to ingest HubSpot campaign to memory: {me}")
                     
@@ -980,7 +1020,7 @@ atom_hubspot_integration_service = AtomHubSpotIntegrationService({
     'real_time_tracking': True,
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
+    'security_service': default_enterprise_security,
+    'automation_service': default_workflow_automation,
+    'ai_service': default_ai_service
 })

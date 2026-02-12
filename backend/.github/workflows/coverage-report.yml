@@ -1,0 +1,144 @@
+name: Coverage Report
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  coverage:
+    name: Coverage Report & Trending
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: backend
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-xdist
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: |
+          pytest tests/ \
+            --cov=core \
+            --cov=api \
+            --cov=tools \
+            --cov-report=html:tests/coverage_reports/html \
+            --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+            --cov-report=term-missing \
+            -v
+
+      - name: Extract coverage metrics
+        working-directory: backend
+        run: |
+          # Extract coverage percentages
+          OVERALL=$(jq '.totals.percent_covered' tests/coverage_reports/metrics/coverage.json)
+          BRANCH=$(jq '.totals.percent_covered_branch' tests/coverage_reports/metrics/coverage.json)
+
+          echo "Overall Coverage: $OVERALL%"
+          echo "Branch Coverage: $BRANCH%"
+
+          # Save to environment variables for trending
+          echo "overall_percent=$OVERALL" >> $GITHUB_ENV
+          echo "branch_percent=$BRANCH" >> $GITHUB_ENV
+
+      - name: Create dated snapshot
+        working-directory: backend
+        run: |
+          # Create trends directory if it doesn't exist
+          mkdir -p tests/coverage_reports/trends
+
+          # Copy coverage.json with date stamp
+          DATE=$(date +%Y-%m-%d)
+          COMMIT=$(git rev-parse --short HEAD)
+
+          # Create snapshot
+          cp tests/coverage_reports/metrics/coverage.json \
+             tests/coverage_reports/trends/${DATE}_coverage.json
+
+          # Update coverage_trend.json
+          cat > tests/coverage_reports/trends/coverage_trend.json << EOF
+          {
+            "coverage_history": [
+              {
+                "date": "$DATE",
+                "commit": "$COMMIT",
+                "overall_percent": $overall_percent,
+                "branch_percent": $branch_percent
+              }
+            ]
+          }
+          EOF
+
+      - name: Archive coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-${{ github.sha }}
+          path: backend/tests/coverage_reports/
+          retention-days: 30
+
+      - name: Upload coverage to Codecov (optional)
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/tests/coverage_reports/metrics/coverage.json
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false  # Don't fail CI if Codecov is down
+          token: ${{ secrets.CODECOV_TOKEN }}  # Optional for public repos
+        continue-on-error: true  # Continue even if Codecov upload fails
+
+      - name: Coverage trending summary
+        working-directory: backend
+        run: |
+          echo "## Coverage Report Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Overall Coverage**: $overall_percent%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch Coverage**: $branch_percent%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check coverage regression
+        working-directory: backend
+        run: |
+          # Check if coverage_trend.json has previous data
+          if [ -f tests/coverage_reports/trends/coverage_trend.json ]; then
+            # Read previous coverage (if exists)
+            PREV_COVERAGE=$(jq '.coverage_history[-1].overall_percent // 0' tests/coverage_reports/trends/coverage_trend.json)
+
+            # Check for regression (more than 1% decrease)
+            THRESHOLD=1.0
+            REGRESSION=$(echo "$PREV_COVERAGE - $overall_percent > $THRESHOLD" | bc -l)
+
+            if [ "$REGRESSION" -eq 1 ]; then
+              echo "WARNING: Coverage regression detected!"
+              echo "Previous: $PREV_COVERAGE%"
+              echo "Current: $overall_percent%"
+              echo "Coverage decreased by more than $THRESHOLD%"
+              exit 1  # Fail CI
+            fi
+          fi
+
+      - name: Fail if coverage below threshold
+        working-directory: backend
+        run: |
+          THRESHOLD=15.0  # Set minimum coverage threshold (adjust as needed)
+
+          if (( $(echo "$overall_percent < $THRESHOLD" | bc -l) )); then
+            echo "ERROR: Coverage $overall_percent% below threshold $THRESHOLD%"
+            echo "Please improve coverage before merging."
+            exit 1
+          fi

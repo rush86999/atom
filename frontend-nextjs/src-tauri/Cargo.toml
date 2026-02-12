@@ -36,6 +36,9 @@ tauri-plugin-notification = "2.3"
 
 notify = { version = "6", features = ["serde"] }
 
+[dev-dependencies]
+cargo-tarpaulin = "0.27"
+
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL

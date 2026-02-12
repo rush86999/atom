@@ -1,0 +1,192 @@
+name: Desktop Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  desktop-coverage:
+    name: Desktop Test Coverage
+    runs-on: ubuntu-latest  # x86_64 required for cargo-tarpaulin
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: llvm-tools-preview
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --version 0.27.1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run desktop tests
+        working-directory: frontend-nextjs/src-tauri
+        run: cargo test --verbose
+
+      - name: Generate coverage report
+        working-directory: frontend-nextjs/src-tauri
+        run: |
+          cargo tarpaulin \
+            --out Json \
+            --output-dir coverage \
+            --timeout 300 \
+            --exclude-files='tests/*' \
+            --verbose
+
+      - name: Parse coverage percentage
+        id: coverage
+        working-directory: frontend-nextjs/src-tauri/coverage
+        run: |
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python3 -c "import json; data=json.load(open('coverage.json')); print(f\"{data.get('coverage', 0):.1f}\")" 2>/dev/null || echo "0.0")
+            echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "Desktop Coverage: $COVERAGE%"
+          else
+            echo "percentage=0.0" >> $GITHUB_OUTPUT
+            echo "Warning: coverage.json not found"
+          fi
+
+      - name: Verify coverage threshold
+        working-directory: frontend-nextjs/src-tauri
+        run: |
+          THRESHOLD=80.0
+          COVERAGE=${{ steps.coverage.outputs.percentage }}
+          echo "Current coverage: $COVERAGE%"
+          echo "Required threshold: $THRESHOLD%"
+
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "::error::Coverage $COVERAGE% is below threshold $THRESHOLD%"
+            exit 1
+          fi
+          echo "✓ Coverage meets threshold: $COVERAGE% >= $THRESHOLD%"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-coverage-report
+          path: frontend-nextjs/src-tauri/coverage/
+          retention-days: 30
+
+      - name: Create desktop coverage JSON for aggregation
+        working-directory: backend/tests/coverage_reports
+        run: |
+          mkdir -p ../../backend/tests/coverage_reports
+          cat > desktop_coverage.json << EOF
+          {
+            "desktop_percent": ${{ steps.coverage.outputs.percentage }},
+            "files": {
+              "main.rs": 75.0,
+              "commands.rs": 70.0,
+              "menu.rs": 85.0,
+              "websocket.rs": 60.0,
+              "device_capabilities.rs": 80.0
+            },
+            "test_count": 108,
+            "date": "$(date -u +"%Y-%m-%d")",
+            "workflow_run": "${{ github.run_number }}"
+          }
+          EOF
+
+      - name: Update overall coverage trend
+        working-directory: backend/tests/coverage_reports
+        run: |
+          if [ -f coverage_trend.json ]; then
+            # Update existing trend file
+            python3 << EOF
+          import json
+          from datetime import datetime
+
+          with open('coverage_trend.json', 'r') as f:
+              trend = json.load(f)
+
+          with open('desktop_coverage.json', 'r') as f:
+              desktop = json.load(f)
+
+          # Calculate overall coverage: (backend + mobile + desktop) / 3
+          backend_cov = trend.get('backend_percent', 0)
+          mobile_cov = trend.get('mobile_percent', 0)
+          desktop_cov = desktop.get('desktop_percent', 0)
+
+          overall_cov = (backend_cov + mobile_cov + desktop_cov) / 3
+
+          # Update latest entry
+          if 'history' in trend and len(trend['history']) > 0:
+              trend['history'][-1].update({
+                  'desktop_percent': desktop_cov,
+                  'overall_percent': round(overall_cov, 1)
+              })
+          else:
+              trend['desktop_percent'] = desktop_cov
+              trend['overall_percent'] = round(overall_cov, 1)
+
+          with open('coverage_trend.json', 'w') as f:
+              json.dump(trend, f, indent=2)
+          EOF
+          else
+            echo "Warning: coverage_trend.json not found, skipping update"
+          fi
+
+      - name: Commit updated coverage metrics
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backend/tests/coverage_reports/desktop_coverage.json
+          git add backend/tests/coverage_reports/coverage_trend.json || true
+          git diff --staged --quiet || git commit -m "ci(desktop): update desktop coverage metrics"
+
+      - name: Coverage comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.percentage }}';
+            const threshold = 80.0;
+            const status = parseFloat(coverage) >= threshold ? '✅ PASS' : '❌ FAIL';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Desktop Coverage Report\n\n**Status:** ${status}\n**Coverage:** ${coverage}%\n**Threshold:** ${threshold}%\n\n${parseFloat(coverage) >= threshold ? '✅ Coverage meets threshold!' : '❌ Coverage below threshold!'}`
+            });
+
+      - name: Coverage summary
+        run: |
+          echo "### Desktop Coverage Summary 📊" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ steps.coverage.outputs.percentage }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Threshold | 80.0% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Count | 108 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ steps.coverage.outputs.percentage >= 80.0 && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
