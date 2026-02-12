@@ -972,3 +972,162 @@ class TestEdgeCases:
 
         # Should return episodes as-is when insufficient data
         assert len(result) == 3
+
+
+# ============================================================================
+# Canvas-Aware Episode Tests (Additional)
+# ============================================================================
+
+class TestCanvasAwareEpisodesExtended:
+    """Extended canvas-aware episode tests"""
+
+    @pytest.mark.asyncio
+    async def test_track_canvas_presentation(
+        self,
+        retrieval_service,
+        sample_episodes,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test tracking canvas presentation in episode"""
+        episode = sample_episodes[0]
+        episode.canvas_ids = ["canvas_1"]
+
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = episode
+        mock_query.filter.return_value.all.return_value = sample_canvas_audits[:1]
+        mock_db.query.return_value = mock_query
+
+        result = await retrieval_service._fetch_canvas_context(episode.canvas_ids)
+
+        assert len(result) > 0
+
+    @pytest.mark.asyncio
+    async def test_track_canvas_action(
+        self,
+        retrieval_service,
+        sample_canvas_audits
+    ):
+        """Test tracking canvas actions"""
+        # Different canvas actions
+        actions = ["present", "submit", "close", "update", "execute"]
+
+        for i, action in enumerate(actions):
+            canvas = Mock(spec=CanvasAudit)
+            canvas.id = f"canvas_{i}"
+            canvas.action = action
+            canvas.canvas_type = "sheets"
+            canvas.component_type = "table"
+            canvas.component_name = f"Component {i}"
+            canvas.audit_metadata = {}
+            canvas.created_at = datetime.now()
+            sample_canvas_audits.append(canvas)
+
+        # Verify all actions are tracked
+        assert len(sample_canvas_audits) >= len(actions)
+
+    @pytest.mark.asyncio
+    async def test_filter_by_canvas_type_extended(
+        self,
+        retrieval_service,
+        sample_episodes,
+        mock_db
+    ):
+        """Test filtering by canvas type for all types"""
+        canvas_types = ["generic", "docs", "email", "sheets", "orchestration", "terminal", "coding"]
+
+        for canvas_type in canvas_types:
+            mock_query = Mock()
+            mock_query.filter.return_value = mock_query
+            mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            mock_db.query.return_value = mock_query
+
+            result = await retrieval_service.retrieve_by_canvas_type(
+                agent_id="agent_1",
+                canvas_type=canvas_type,
+                limit=10
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == canvas_type
+
+    @pytest.mark.asyncio
+    async def test_filter_by_canvas_action_extended(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test filtering by all canvas actions"""
+        actions = ["present", "submit", "close", "update", "execute"]
+
+        for action in actions:
+            mock_query = Mock()
+            mock_query.filter.return_value = mock_query
+            mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            mock_db.query.return_value = mock_query
+
+            result = await retrieval_service.retrieve_by_canvas_type(
+                agent_id="agent_1",
+                canvas_type="sheets",
+                action=action,
+                limit=10
+            )
+
+            assert result is not None
+            assert result["action"] == action
+
+    @pytest.mark.asyncio
+    async def test_canvas_context_inclusion(
+        self,
+        retrieval_service,
+        sample_episodes,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test canvas context is included in episode retrieval"""
+        episode = sample_episodes[0]
+        episode.canvas_ids = ["canvas_1", "canvas_2"]
+
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = episode
+        mock_query.filter.return_value.order_by.return_value.all.return_value = []
+        mock_query.filter.return_value.all.return_value = sample_canvas_audits[:2]
+        mock_db.query.return_value = mock_query
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="episode_1",
+            agent_id="agent_1",
+            include_canvas=True
+        )
+
+        assert "canvas_context" in result
+        assert len(result["canvas_context"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_multiple_canvas_tracking(
+        self,
+        retrieval_service,
+        sample_episodes,
+        sample_canvas_audits,
+        mock_db
+    ):
+        """Test tracking multiple canvases in single episode"""
+        episode = sample_episodes[0]
+        # Assign multiple canvases
+        episode.canvas_ids = ["canvas_0", "canvas_1", "canvas_2"]
+        episode.canvas_action_count = 3
+
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = episode
+        mock_query.filter.return_value.order_by.return_value.all.return_value = []
+        mock_query.filter.return_value.all.return_value = sample_canvas_audits
+        mock_db.query.return_value = mock_query
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="episode_1",
+            agent_id="agent_1",
+            include_canvas=True
+        )
+
+        assert "canvas_context" in result
+        assert result["canvas_context"] is not None

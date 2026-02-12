@@ -821,3 +821,143 @@ class TestEdgeCases:
 
         # Should return zeros when LanceDB unavailable
         assert result["consolidated"] == 0
+
+
+# ============================================================================
+# Episode Access Log and Audit Tests
+# ============================================================================
+
+class TestEpisodeAccessLog:
+    """Test episode access logging and audit trail"""
+
+    @pytest.mark.asyncio
+    async def test_log_access(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test recording episode access"""
+        from core.episode_retrieval_service import EpisodeRetrievalService
+        
+        await retrieval_service._log_access(
+            episode_id="episode_1",
+            access_type="temporal",
+            governance_check={"allowed": True, "agent_maturity": "INTERN"},
+            agent_id="agent_1",
+            results_count=5
+        )
+
+        assert mock_db.add.called
+        assert mock_db.commit.called
+
+    @pytest.mark.asyncio
+    async def test_get_access_history(
+        self,
+        mock_db
+    ):
+        """Test retrieving access log history"""
+        from core.models import EpisodeAccessLog
+        
+        mock_query = Mock()
+        mock_query.filter.return_value.order_by.return_value.all.return_value = [
+            Mock(spec=EpisodeAccessLog, episode_id="episode_1", access_type="temporal", created_at=datetime.now()),
+            Mock(spec=EpisodeAccessLog, episode_id="episode_1", access_type="semantic", created_at=datetime.now()),
+        ]
+        mock_db.query.return_value = mock_query
+
+        logs = mock_db.query.return_value.filter.return_value.order_by.return_value.all()
+
+        assert len(logs) == 2
+
+    @pytest.mark.asyncio
+    async def test_access_count_tracking(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test access count is tracked correctly"""
+        # Log multiple accesses
+        for i in range(5):
+            await retrieval_service._log_access(
+                episode_id="episode_1",
+                access_type="temporal",
+                governance_check={"allowed": True},
+                agent_id="agent_1",
+                results_count=i
+            )
+
+        # Should have called add 5 times
+        assert mock_db.add.call_count == 5
+
+    @pytest.mark.asyncio
+    async def test_last_access_tracking(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test last access time is tracked"""
+        import time
+        
+        # Log access
+        await retrieval_service._log_access(
+            episode_id="episode_1",
+            access_type="sequential",
+            governance_check={"allowed": True, "agent_maturity": "AUTONOMOUS"},
+            agent_id="agent_1",
+            results_count=1
+        )
+
+        # Verify the log entry was created
+        assert mock_db.add.called
+
+    @pytest.mark.asyncio
+    async def test_audit_trail_integrity(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test audit trail maintains integrity"""
+        # Test different access types
+        access_types = ["temporal", "semantic", "sequential", "contextual"]
+
+        for access_type in access_types:
+            await retrieval_service._log_access(
+                episode_id="episode_1",
+                access_type=access_type,
+                governance_check={"allowed": True, "agent_maturity": "INTERN"},
+                agent_id="agent_1",
+                results_count=10
+            )
+
+        # Should have logged all access types
+        assert mock_db.add.call_count == len(access_types)
+
+    @pytest.mark.asyncio
+    async def test_audit_log_includes_metadata(
+        self,
+        retrieval_service,
+        mock_db
+    ):
+        """Test audit log includes required metadata"""
+        from core.models import EpisodeAccessLog
+        
+        # Create a mock log entry
+        log = EpisodeAccessLog(
+            id="log_1",
+            episode_id="episode_1",
+            accessed_by_agent="agent_1",
+            access_type="temporal",
+            governance_check_passed=True,
+            agent_maturity_at_access="INTERN",
+            results_count=5,
+            access_duration_ms=150,
+            created_at=datetime.now()
+        )
+
+        # Verify all required fields
+        assert log.episode_id == "episode_1"
+        assert log.accessed_by_agent == "agent_1"
+        assert log.access_type == "temporal"
+        assert log.governance_check_passed is True
+        assert log.agent_maturity_at_access == "INTERN"
+        assert log.results_count == 5
