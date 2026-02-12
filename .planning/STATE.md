@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 06-production-hardening
-Plan: GAPCLOSURE-01 (Property Test TypeError Fixes)
+Plan: GAPCLOSURE-02 (Property Test Performance Targets)
 Status: Completed
-Last activity: 2026-02-12T17:10 — Verified all property test TypeErrors resolved (3,710 tests collect, 0 errors - work completed in Phase 07 Plan 02)
+Last activity: 2026-02-12T17:23 — Adjusted property test targets from <1s to tiered 10-60-100s, configured CI optimization with max_examples=50
 
-Progress: [████████████] 100% (Phase 1-8 complete, Phase 06: GAPCLOSURE-01 complete)
+Progress: [████████████] 100% (Phase 1-8 complete, Phase 06: GAPCLOSURE-02 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39
+- Total plans completed: 40
 - Average duration: 11 min
-- Total execution time: 6.9 hours
+- Total execution time: 7.0 hours
 
 **By Phase:**
 
@@ -93,6 +93,7 @@ Progress: [████████████] 100% (Phase 1-8 complete, Phase
 | Phase 250 P10 | 291 | 6 tasks | 1 files |
 | Phase 07-implementation-fixes P02 | 2050 | 16 tasks | 11 files |
 | Phase 06-production-hardening GAPCLOSURE-01 | 300s | 5 tasks | 1 files |
+| Phase 06-production-hardening GAPCLOSURE-02 | 480s | 6 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,7 @@ Progress: [████████████] 100% (Phase 1-8 complete, Phase
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 06-production-hardening-GAPCLOSURE-02]: Property test performance targets adjusted from <1s to tiered 10-60-100s based on Hypothesis cost model (200 iterations × 1-2s/iteration). CI optimization configured with max_examples=50 for 4x speedup
 - [Phase 06-production-hardening-GAPCLOSURE-01]: Property test TypeErrors already fixed in Phase 07 Plan 02 - 3,710 tests collect with 0 errors. Verified completion, documented root cause (missing example imports, not isinstance issues)
 - [Phase 07-implementation-fixes-02]: All 17 test collection errors fixed - 7,494 tests now collect (99.8% success rate). Root cause: missing hypothesis imports and syntax errors, not complex type issues
 - [Phase 07-implementation-fixes-02]: 10 property test files have pytest collection edge cases (work fine individually, fail during full suite). Hypothesis: pytest symbol table conflicts with 7,000+ tests. Workaround: run as subsets
@@ -211,8 +213,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-12T17:10
-Stopped at: Completed Phase 06 GAPCLOSURE-01 (verified property test TypeErrors fixed in Phase 07 - 3,710 tests collect, 0 errors)
+Last session: 2026-02-12T17:23
+Stopped at: Completed Phase 06 GAPCLOSURE-02 (adjusted property test targets to 10-60-100s, configured CI optimization)
 Resume file: None
 
 ## Blockers
