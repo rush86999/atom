@@ -118,8 +118,7 @@ def test_agent(db_session: Session):
         module_path="test.module",
         class_name="TestClass",
         status=AgentStatus.STUDENT.value,
-        confidence=0.5,
-        capabilities=["test_capability"],
+        confidence_score=0.5,
     )
     db_session.add(agent)
     db_session.commit()
@@ -141,8 +140,7 @@ def test_agents(db_session: Session):
             module_path="test.module",
             class_name="TestClass",
             status=status.value,
-            confidence=0.5,
-            capabilities=["test_capability"],
+            confidence_score=0.5,
         )
         db_session.add(agent)
         db_session.commit()
