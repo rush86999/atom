@@ -166,14 +166,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. All zero-coverage files receive baseline unit tests
   6. High-impact files (workflow_engine, atom_agent_endpoints, auto_document_ingestion) receive comprehensive tests
   7. Coverage quality gates prevent regression in CI/CD
-**Plans**: 7 plans (estimated)
-- [ ] 08-80-percent-coverage-01-PLAN.md — Zero-coverage files baseline (15 files, 4,783 lines)
-- [ ] 08-80-percent-coverage-02-PLAN.md — Workflow engine comprehensive tests (1,089 lines)
-- [ ] 08-80-percent-coverage-03-PLAN.md — LLM & BYOK handler tests (794 lines)
-- [ ] 08-80-percent-coverage-04-PLAN.md — Episodic memory service tests (650+ lines)
-- [ ] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
-- [ ] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
-- [ ] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
+**Plans**: 7 plans
+- [x] 08-80-percent-coverage-01-PLAN.md — Zero-coverage files baseline (15 files, 4,783 lines)
+- [x] 08-80-percent-coverage-02-PLAN.md — Workflow engine comprehensive tests (1,089 lines)
+- [x] 08-80-percent-coverage-03-PLAN.md — LLM & BYOK handler tests (794 lines)
+- [x] 08-80-percent-coverage-04-PLAN.md — Episodic memory service tests (650+ lines)
+- [x] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
+- [x] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
+- [x] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
 
 ## Progress
 
