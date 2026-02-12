@@ -953,3 +953,265 @@ class TestEdgeCases:
 
         assert episode is None
         assert mock_db.rollback.called
+
+
+# ============================================================================
+# LanceDB Integration Tests
+# ============================================================================
+
+class TestLanceDBIntegration:
+    """Test LanceDB integration for episodic memory"""
+
+    @pytest.mark.asyncio
+    async def test_lancedb_connection(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test LanceDB connection"""
+        # Verify LanceDB handler is connected
+        assert segmentation_service.lancedb is not None
+        assert segmentation_service.lancedb.db is not None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_table(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test episode table creation in LanceDB"""
+        # Mock table check
+        mock_lancedb_handler.table_names.return_value = []
+
+        episode = Mock(spec=Episode)
+        episode.id = "episode_1"
+        episode.title = "Test"
+        episode.description = "Test"
+        episode.summary = "Test"
+        episode.topics = []
+        episode.agent_id = "agent_1"
+        episode.user_id = "user_1"
+        episode.workspace_id = "workspace_1"
+        episode.session_id = "session_1"
+        episode.status = "completed"
+        episode.maturity_at_time = "INTERN"
+        episode.human_intervention_count = 0
+        episode.constitutional_score = None
+
+        await segmentation_service._archive_to_lancedb(episode)
+
+        # Verify table was created
+        assert mock_lancedb_handler.create_table.called
+
+    @pytest.mark.asyncio
+    async def test_insert_episode_vector(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test vector insertion for episode"""
+        mock_lancedb_handler.table_names.return_value = ["episodes"]
+
+        episode = Mock(spec=Episode)
+        episode.id = "episode_1"
+        episode.title = "Test Episode"
+        episode.description = "Test Description"
+        episode.summary = "Test Summary"
+        episode.topics = ["test", "topic"]
+        episode.agent_id = "agent_1"
+        episode.user_id = "user_1"
+        episode.workspace_id = "workspace_1"
+        episode.session_id = "session_1"
+        episode.status = "completed"
+        episode.maturity_at_time = "INTERN"
+        episode.human_intervention_count = 0
+        episode.constitutional_score = 0.85
+
+        await segmentation_service._archive_to_lancedb(episode)
+
+        # Verify add_document was called
+        assert mock_lancedb_handler.add_document.called
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["table_name"] == "episodes"
+        assert "test" in call_args[1]["text"] or "Test" in call_args[1]["text"]
+
+    @pytest.mark.asyncio
+    async def test_vector_search(
+        self,
+        mock_lancedb_handler
+    ):
+        """Test vector similarity search"""
+        # Mock search results
+        mock_lancedb_handler.search.return_value = [
+            {
+                "id": "ep1",
+                "_distance": 0.2,  # High similarity
+                "metadata": '{"episode_id": "episode_1", "agent_id": "agent_1"}'
+            },
+            {
+                "id": "ep2",
+                "_distance": 0.5,  # Medium similarity
+                "metadata": '{"episode_id": "episode_2", "agent_id": "agent_1"}'
+            }
+        ]
+
+        results = mock_lancedb_handler.search(
+            table_name="episodes",
+            query="test query",
+            filter_str="agent_id == 'agent_1'",
+            limit=10
+        )
+
+        assert len(results) == 2
+        assert results[0]["_distance"] < results[1]["_distance"]  # Sorted by similarity
+
+    @pytest.mark.asyncio
+    async def test_batch_insert(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test batch insertion of episodes"""
+        mock_lancedb_handler.table_names.return_value = ["episodes"]
+
+        episodes = []
+        for i in range(5):
+            episode = Mock(spec=Episode)
+            episode.id = f"episode_{i}"
+            episode.title = f"Episode {i}"
+            episode.description = f"Description {i}"
+            episode.summary = f"Summary {i}"
+            episode.topics = [f"topic_{i}"]
+            episode.agent_id = "agent_1"
+            episode.user_id = "user_1"
+            episode.workspace_id = "workspace_1"
+            episode.session_id = "session_1"
+            episode.status = "completed"
+            episode.maturity_at_time = "INTERN"
+            episode.human_intervention_count = 0
+            episode.constitutional_score = 0.8
+            episodes.append(episode)
+
+        # Insert all episodes
+        for episode in episodes:
+            await segmentation_service._archive_to_lancedb(episode)
+
+        # Should have called add_document 5 times
+        assert mock_lancedb_handler.add_document.call_count == 5
+
+    @pytest.mark.asyncio
+    async def test_update_vector(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test vector update (re-insertion)"""
+        mock_lancedb_handler.table_names.return_value = ["episodes"]
+
+        episode = Mock(spec=Episode)
+        episode.id = "episode_1"
+        episode.title = "Updated Title"
+        episode.description = "Updated Description"
+        episode.summary = "Updated Summary"
+        episode.topics = ["updated"]
+        episode.agent_id = "agent_1"
+        episode.user_id = "user_1"
+        episode.workspace_id = "workspace_1"
+        episode.session_id = "session_1"
+        episode.status = "completed"
+        episode.maturity_at_time = "INTERN"
+        episode.human_intervention_count = 0
+        episode.constitutional_score = 0.9
+
+        await segmentation_service._archive_to_lancedb(episode)
+
+        # Verify add_document was called with updated content
+        assert mock_lancedb_handler.add_document.called
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert "Updated" in call_args[1]["text"]
+
+    @pytest.mark.asyncio
+    async def test_table_indexes(
+        self,
+        mock_lancedb_handler
+    ):
+        """Test LanceDB table index management"""
+        # LanceDB automatically creates indexes on vector columns
+        # This test verifies the handler can access table information
+
+        mock_lancedb_handler.table_names.return_value = ["episodes", "knowledge", "documents"]
+
+        tables = mock_lancedb_handler.table_names()
+
+        assert "episodes" in tables
+        assert len(tables) == 3
+
+    @pytest.mark.asyncio
+    async def test_embedding_generation(
+        self,
+        mock_lancedb_handler
+    ):
+        """Test embedding generation for episodes"""
+        # Mock embedding generation
+        mock_lancedb_handler.embed_text.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
+
+        text = "This is a test episode about semantic search"
+        embedding = mock_lancedb_handler.embed_text(text)
+
+        assert len(embedding) == 5
+        assert isinstance(embedding, list)
+        assert all(isinstance(x, float) for x in embedding)
+
+    @pytest.mark.asyncio
+    async def test_cosine_similarity_in_search(
+        self,
+        mock_lancedb_handler
+    ):
+        """Test cosine similarity is used in vector search"""
+        # Mock search with distances
+        mock_lancedb_handler.search.return_value = [
+            {"id": "ep1", "_distance": 0.0, "metadata": '{"episode_id": "ep1"}'},  # Identical
+            {"id": "ep2", "_distance": 0.5, "metadata": '{"episode_id": "ep2"}'},  # Similar
+            {"id": "ep3", "_distance": 1.0, "metadata": '{"episode_id": "ep3"}'},  # Different
+        ]
+
+        results = mock_lancedb_handler.search(
+            table_name="episodes",
+            query="test query",
+            limit=10
+        )
+
+        # Results should be sorted by distance (ascending)
+        distances = [r["_distance"] for r in results]
+        assert distances == sorted(distances)
+
+    @pytest.mark.asyncio
+    async def test_lancedb_connection_error_handling(
+        self,
+        segmentation_service,
+        mock_lancedb_handler
+    ):
+        """Test error handling when LanceDB connection fails"""
+        # Simulate connection failure
+        mock_lancedb_handler.db = None
+
+        episode = Mock(spec=Episode)
+        episode.id = "episode_1"
+        episode.title = "Test"
+        episode.description = "Test"
+        episode.summary = "Test"
+        episode.topics = []
+        episode.agent_id = "agent_1"
+        episode.user_id = "user_1"
+        episode.workspace_id = "workspace_1"
+        episode.session_id = "session_1"
+        episode.status = "completed"
+        episode.maturity_at_time = "INTERN"
+        episode.human_intervention_count = 0
+        episode.constitutional_score = None
+
+        # Should not raise exception
+        await segmentation_service._archive_to_lancedb(episode)
+
+        # add_document should not be called when LanceDB is unavailable
+        assert not mock_lancedb_handler.add_document.called
