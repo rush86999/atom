@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Integration & Security Tests** - Build integration tests for API endpoints, database transactions, WebSockets, external services, and security flows (authentication, authorization, input validation, canvas security, JWT, OAuth, episode access)
 - [x] **Phase 4: Platform Coverage** - Extend test coverage to React Native mobile components and Tauri desktop/menu bar applications
 - [x] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
-- [ ] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
+- [x] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 
 ## Phase Details
@@ -131,11 +131,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Critical and high-priority bugs are fixed
   4. Test suite achieves stable baseline (zero flaky tests)
   5. Performance baselines established (<5min full suite, <1s per property test)
-**Plans**: 4 plans (4 waves)
-- [ ] 06-production-hardening-01-PLAN.md — Run full test suite, establish performance baseline, create bug triage report
-- [ ] 06-production-hardening-02-PLAN.md — Fix P0 (critical) bugs with regression tests
-- [ ] 06-production-hardening-03-PLAN.md — Eliminate flaky tests with root cause fixes
-- [ ] 06-production-hardening-04-PLAN.md — Fix P1 (high-priority) bugs with regression tests
+**Plans**: 6 plans (4 original + 2 gap closure)
+- [x] 06-production-hardening-01-PLAN.md — Run full test suite, establish performance baseline, create bug triage report
+- [x] 06-production-hardening-02-PLAN.md — Fix P0 (critical) bugs with regression tests
+- [x] 06-production-hardening-03-PLAN.md — Eliminate flaky tests with root cause fixes
+- [x] 06-production-hardening-04-PLAN.md — Fix P1 (high-priority) bugs with regression tests
+- [x] 06-production-hardening-GAPCLOSURE-01-PLAN.md — Fix property test TypeErrors (resolved in Phase 07)
+- [x] 06-production-hardening-GAPCLOSURE-02-PLAN.md — Adjust property test performance targets to realistic tiered goals
 
 ### Phase 7: Implementation Fixes
 **Goal**: Fix incomplete and inconsistent implementations discovered during testing, ensuring all tests can run and pass
@@ -163,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Integration & Security Tests | 7/7 | **Complete** | 2026-02-11 |
 | 4. Platform Coverage | 8/8 | **Complete** | 2026-02-11 |
 | 5. Coverage & Quality Validation | 8/8 | **Complete** | 2026-02-11 |
-| 6. Production Hardening | 0/4 | **Ready to start** | - |
+| 6. Production Hardening | 6/6 | **Complete** | 2026-02-12 |
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 |
