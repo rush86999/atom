@@ -30,7 +30,8 @@ def test_user(db_session: Session):
     """Create a test user."""
     user = User(
         email="testuser@example.com",
-        username="testuser",
+        first_name="Test",
+        last_name="User",
         role="member"
     )
     db_session.add(user)
