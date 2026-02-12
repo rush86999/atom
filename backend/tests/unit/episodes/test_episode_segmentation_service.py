@@ -746,7 +746,8 @@ class TestEdgeCases:
         assert "Unknown" in formatted
         assert "running" in formatted
 
-    def test_session_too_small_for_episode(self, segmentation_service, sample_session):
+    @pytest.mark.asyncio
+    async def test_session_too_small_for_episode(self, segmentation_service, sample_session):
         """Test episode creation fails for sessions that are too small."""
         # Session with only 1 message (below threshold of 2)
         segmentation_service.db.query.return_value.first.return_value = sample_session
