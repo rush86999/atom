@@ -5,6 +5,12 @@
       "overall_coverage": 4.4,
       "lines_covered": 3007,
       "lines_total": 55087
+    },
+    {
+      "date": "2026-02-12T23:33:50.214398",
+      "overall_coverage": 4.4,
+      "lines_covered": 3007,
+      "lines_total": 55087
     }
   ],
   "baseline": {
