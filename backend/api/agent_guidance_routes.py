@@ -16,7 +16,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.agent_guidance_canvas_tool import get_agent_guidance_system
+from tools.agent_guidance_canvas_tool import get_agent_guidance_system
 from core.agent_request_manager import get_agent_request_manager
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
