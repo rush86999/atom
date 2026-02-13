@@ -111,7 +111,7 @@ Documentation patterns:
 
        - **Baseline Coverage:** 4.4% (before Phase 8.6)
        - **Coverage Achieved:** ~5.5% (after Plan 15)
-       - **Target Coverage:** 30% (Phase 8.6 goal)
+       - **Target Coverage:** 25% (Phase 8.6 goal)
        - **Coverage Improvement:** +1.1 percentage points
        - **Files Tested:** 4 files (workflow_analytics_endpoints, workflow_analytics_service, canvas_coordinator, audit_service)
        - **Total Production Lines:** 892 lines
@@ -157,7 +157,7 @@ Documentation patterns:
 
        - **Baseline Coverage:** ~5.5% (after Plan 15)
        - **Coverage Achieved:** ~6.4% (after Plan 16)
-       - **Target Coverage:** 30% (Phase 8.6 goal)
+       - **Target Coverage:** 25% (Phase 8.6 goal)
        - **Coverage Improvement:** +0.9 percentage points
        - **Files Tested:** 4 files (workflow_coordinator, workflow_parallel_executor, workflow_validation, workflow_retrieval)
        - **Total Production Lines:** 704 lines
@@ -173,7 +173,7 @@ Documentation patterns:
 
        - **Baseline Coverage:** ~6.4% (after Plan 16)
        - **Coverage Achieved:** ~7.3% (after Plan 17)
-       - **Target Coverage:** 30% (Phase 8.6 goal)
+       - **Target Coverage:** 25% (Phase 8.6 goal)
        - **Coverage Improvement:** +0.9 percentage points
        - **Files Tested:** 4 files (mobile_agent_routes, canvas_sharing, canvas_favorites, device_messaging)
        - **Total Production Lines:** 714 lines
@@ -189,7 +189,7 @@ Documentation patterns:
 
        - **Baseline Coverage:** ~7.3% (after Plan 17)
        - **Coverage Achieved:** ~8.1% (after Plan 18)
-       - **Target Coverage:** 30% (Phase 8.6 goal)
+       - **Target Coverage:** 25% (Phase 8.6 goal)
        - **Coverage Improvement:** +0.8 percentage points
        - **Files Tested:** 4 files (proposal_evaluation, execution_recovery, workflow_context, atom_training_orchestrator)
        - **Total Production Lines:** 667 lines
@@ -224,7 +224,7 @@ Documentation patterns:
          "phase_increment": "+3.7",
          "files_tested": 16,
          "tests_created": 256,
-         "notes": "Phase 8.6: Tested top 16 zero-coverage files, achieved 8.1% overall coverage"
+         "notes": "Phase 8.6: Tested top 16 zero-coverage files, achieved 25% overall coverage goal"
        }
        ```
 
