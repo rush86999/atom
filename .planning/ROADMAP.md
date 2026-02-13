@@ -20,7 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 - [x] **Phase 8: 80% Coverage Push** - Systematically add unit tests to uncovered code paths across core, api, and tools modules to achieve 80% overall coverage (93% complete - 13/14 plans)
-- [x] **Phase 8.5: Coverage Expansion** - Realistic incremental coverage expansion achieving 15.70% overall coverage (+6.38% from 9.32% baseline). Created 16 test files (588 tests, 10,691 lines) with 66.29% average coverage. CI/CD gates and trending infrastructure in place.
+- [x] **Phase 8.5: Coverage Expansion** - Realistic incremental coverage expansion achieving 20.66% overall coverage (+11.32% from 9.32% baseline). Created 16 test files (588 tests, 10,691 lines) with 66.29% average coverage. CI/CD gates and trending infrastructure in place.
+- [ ] **Phase 8.6: Zero-Coverage File Testing (30% Goal)** - Target 30% overall coverage by testing top 20-30 zero-coverage files with 70% average coverage per file. 6 plans covering 16 zero-coverage files (workflow, API, governance modules).
 
 ## Phase Details
 
@@ -215,6 +216,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] 08.5-coverage-expansion-04-PLAN.md — Validation and optimization tests (validation_service, ai_optimizer, meta_automation, advanced_endpoints)
 - [ ] 08.5-coverage-expansion-05-PLAN.md — Coverage reporting and Phase 8.5 summary with recommendations for Phase 8.6
 
+
+### Phase 8.6: Zero-Coverage File Testing (30% Goal)
+**Goal**: Achieve 30% overall coverage by testing top 20-30 zero-coverage files with 70% average coverage per file, building on Phase 8.5's 20.66% baseline
+**Depends on**: Phase 8.5
+**Requirements**: COVR-08-01, COVR-08-02, COVR-08-03 (continued)
+**Success Criteria** (what must be TRUE):
+  1. Overall coverage reaches 30%+ (baseline: 20.66%, target: +9.3 percentage points)
+  2. Top 20-30 zero-coverage files receive comprehensive tests (70%+ coverage per file)
+  3. 16 zero-coverage files tested in Wave 1 (plans 15-18)
+  4. Coverage metrics and trending properly documented (addressing Phase 8.5 gaps)
+  5. Comprehensive Phase 8.6 coverage report generated
+  6. Next phase priorities identified based on results
+**Plans**: 6 plans (2 waves)
+- [ ] 08-80-percent-coverage-push-15-PLAN.md — Workflow analytics and canvas tests (4 files: workflow_analytics_endpoints, workflow_analytics_service, canvas_coordinator, audit_service)
+- [ ] 08-80-percent-coverage-push-16-PLAN.md — Workflow orchestration tests (4 files: workflow_coordinator, workflow_parallel_executor, workflow_validation, workflow_retrieval)
+- [ ] 08-80-percent-coverage-push-17-PLAN.md — Mobile and canvas API tests (4 files: mobile_agent_routes, canvas_sharing, canvas_favorites, device_messaging)
+- [ ] 08-80-percent-coverage-push-18-PLAN.md — Governance and training tests (4 files: proposal_evaluation, execution_recovery, workflow_context, atom_training_orchestrator)
+- [ ] 08-80-percent-coverage-push-19-PLAN.md — Gap closure: Documentation fixes for Phase 8.5 and Phase 8.6 coverage metrics
+- [ ] 08-80-percent-coverage-push-20-PLAN.md — Coverage reporting and trending analysis with Phase 8.6 summary
+
 ## Progress
 
 **Execution Order:**
@@ -231,3 +252,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 |
 | 8. 80% Coverage Push | 14/14 | **Complete** | 2026-02-13 |
 | 8.5. Coverage Expansion | 0/5 | **Pending** | - |
+| 8.6. Zero-Coverage File Testing | 0/6 | **Pending** | - |
