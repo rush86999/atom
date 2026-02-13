@@ -30,24 +30,40 @@ from core.models import AgentRegistry, User, BrowserSession
 
 
 # ============================================================================
+# Global test user storage
+# ============================================================================
+
+_current_test_user = None
+
+
+# ============================================================================
 # Fixtures
 # ============================================================================
 
 @pytest.fixture
 def client(db: Session):
     """Create TestClient for browser routes with database override."""
+    global _current_test_user
+    _current_test_user = None
+
     app = FastAPI()
     app.include_router(router)
 
     from core.database import get_db
+    from core.security_dependencies import get_current_user
 
     def override_get_db():
         yield db
 
+    def override_get_current_user():
+        return _current_test_user
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     client = TestClient(app, raise_server_exceptions=False)
     yield client
     app.dependency_overrides.clear()
+    _current_test_user = None
 
 
 @pytest.fixture
@@ -153,10 +169,10 @@ def test_create_session_success(
             "browser_type": "chromium"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/session/create", json=request_data)
+    response = client.post("/api/browser/session/create", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -183,10 +199,10 @@ def test_create_session_with_agent(
             "session_id": "test-session-456"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/session/create", json=request_data)
+    response = client.post("/api/browser/session/create", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -217,10 +233,10 @@ def test_navigate_success(
             "title": "New Page"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/navigate", json=request_data)
+    response = client.post("/api/browser/navigate", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -246,10 +262,10 @@ def test_navigate_invalid_url(
             "error": "Invalid URL format"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/navigate", json=request_data)
+    response = client.post("/api/browser/navigate", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -280,10 +296,10 @@ def test_screenshot_success(
             "size_bytes": 12345
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/screenshot", json=request_data)
+    response = client.post("/api/browser/screenshot", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -316,10 +332,10 @@ def test_fill_form_success(
             "fields_filled": 2
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/fill-form", json=request_data)
+    response = client.post("/api/browser/fill-form", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -350,10 +366,10 @@ def test_click_success(
             "selector": "#submit-button"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/click", json=request_data)
+    response = client.post("/api/browser/click", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -383,10 +399,10 @@ def test_extract_text_success(
             "length": 19
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/extract-text", json=request_data)
+    response = client.post("/api/browser/extract-text", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -418,10 +434,10 @@ def test_execute_script_success(
             "result": "Page Title"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/execute-script", json=request_data)
+    response = client.post("/api/browser/execute-script", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -449,10 +465,10 @@ def test_close_session_success(
             "session_id": mock_browser_session.session_id
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/session/close", json=request_data)
+    response = client.post("/api/browser/session/close", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -477,10 +493,10 @@ def test_get_session_info_success(
             "title": "Example Page"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.get(f"/api/browser/session/{mock_browser_session.session_id}/info")
+    response = client.get(f"/api/browser/session/{mock_browser_session.session_id}/info")
 
             assert response.status_code == 200
             data = response.json()
@@ -570,10 +586,10 @@ def test_navigate_session_not_found(
             "error": "Session not found"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/navigate", json=request_data)
+    response = client.post("/api/browser/navigate", json=request_data)
 
             # Should handle error gracefully
             assert response.status_code == 200
@@ -604,10 +620,10 @@ def test_response_format_structure(
             "title": "Example"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/browser/navigate", json=request_data)
+    response = client.post("/api/browser/navigate", json=request_data)
 
             # Verify response structure
             data = response.json()
