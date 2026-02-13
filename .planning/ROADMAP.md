@@ -188,13 +188,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 08-80-percent-coverage-05-PLAN.md — Analytics & debugging tests (930 lines)
 - [x] 08-80-percent-coverage-06-PLAN.md — API module coverage completion (6,000+ lines)
 - [x] 08-80-percent-coverage-07-PLAN.md — Tools module coverage completion (1,000+ lines)
-- [ ] 08-80-percent-coverage-push-08-PLAN.md — Gap closure: Meta-agent & data mapper baseline tests
-- [ ] 08-80-percent-coverage-push-09-PLAN.md — Gap closure: Document ingestion & proposal service tests
-- [ ] 08-80-percent-coverage-push-10-PLAN.md — Gap closure: Advanced workflow & marketplace tests
-- [ ] 08-80-percent-coverage-push-11-PLAN.md — Gap closure: Extend workflow engine and tools coverage
+- [x] 08-80-percent-coverage-push-08-PLAN.md — Gap closure: Meta-agent & data mapper baseline tests
+- [x] 08-80-percent-coverage-push-09-PLAN.md — Gap closure: Document ingestion & proposal service tests
+- [x] 08-80-percent-coverage-push-10-PLAN.md — Gap closure: Advanced workflow & marketplace tests
+- [x] 08-80-percent-coverage-push-11-PLAN.md — Gap closure: Extend workflow engine and tools coverage
 - [x] 08-80-percent-coverage-push-12-PLAN.md — Gap closure: Fix API test mocks for 100% pass rate
-- [ ] 08-80-percent-coverage-push-13-PLAN.md — Gap closure: CI/CD coverage quality gates
-- [ ] 08-80-percent-coverage-push-14-PLAN.md — Gap closure: Database integration tests
+- [x] 08-80-percent-coverage-push-13-PLAN.md — Gap closure: CI/CD coverage quality gates
+- [x] 08-80-percent-coverage-push-14-PLAN.md — Gap closure: Database integration tests
 
 ## Progress
 
@@ -210,4 +210,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Coverage & Quality Validation | 8/8 | **Complete** | 2026-02-11 |
 | 6. Production Hardening | 6/6 | **Complete** | 2026-02-12 |
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 |
-| 8. 80% Coverage Push | 13/14 | **Complete** | 2026-02-13 |
+| 8. 80% Coverage Push | 14/14 | **Complete** | 2026-02-13 |
