@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 08-80-percent-coverage-push
-Plan: 08 (Zero-Coverage Baseline Tests for Meta-Agent and Integration Modules)
-Status: Complete
-Last activity: 2026-02-12T22:46 — Created 95 baseline unit tests for 3 zero-coverage core modules (atom_meta_agent, meta_agent_training_orchestrator, integration_data_mapper), achieved 54-95% coverage (72.67% average)
+Plan: 12 (API Test Mock Refinement)
+Status: Incomplete - Requires Manual Intervention
+Last activity: 2026-02-13T04:28 — Attempted API test mock refinement but encountered extensive indentation issues requiring manual resolution. Fixed route paths and established FastAPI app wrapper pattern, but 34 tests across 3 files need manual review.
 
-Progress: [██████▓▓▓▓▓] 50% (Phase 08: 3.5 of 7 plans complete)
+Progress: [██████▓▓▓▓▓] 50% (Phase 08: 3.5 of 7 plans complete, Plan 12 incomplete)
 
 ## Performance Metrics
 
@@ -239,6 +239,35 @@ Stopped at: Completed Phase 08 Plan 06 - API Routes Integration Tests (3,692 lin
 Resume file: None
 
 ## Blockers
+
+### Expo SDK 50 Jest Incompatibility (RESOLVED 2026-02-11)
+
+**Issue:** babel-preset-expo inline-env-vars plugin transforms `process.env.EXPO_PUBLIC_*` references to use `expo/virtual/env` module which doesn't exist in Jest environment.
+
+**Resolution:** Used Constants.expoConfig?.extra?.apiUrl pattern instead of process.env.EXPO_PUBLIC_API_URL in AuthContext.tsx and DeviceContext.tsx. Updated jest.setup.js to add extra.apiUrl to expo-constants mock.
+
+**Status:** RESOLVED - AuthContext and DeviceContext tests now run without expo/virtual/env errors.
+
+### API Test Mock Refinement Incomplete (2026-02-13)
+
+**Issue:** Phase 08 Plan 12 (API Test Mock Refinement) could not be completed due to complex nested context manager structure requiring manual resolution.
+
+**Impact:** 34 API tests across 3 files (test_canvas_routes.py, test_browser_routes.py, test_device_capabilities.py) have indentation and structural issues preventing execution.
+
+**Root Cause:** Tests were created with `TestClient(router)` which doesn't support dependency overrides. Converting to `TestClient(app)` pattern requires restructuring 4-5 levels of nested `with patch()` blocks, which is extremely fragile to fix programmatically.
+
+**Status:** INCOMPLETE - Partial fixes applied (route paths corrected, FastAPI app wrapper pattern established) but manual intervention required.
+
+**Next Steps:**
+1. Manual fix: Review and correct indentation for all 34 tests (~1-2 hours)
+2. OR rewrite: Create new test files with correct structure from scratch (~3-4 hours)
+3. OR simplify: Use dependency overrides for all mocks instead of patches (~2-3 hours)
+
+**Commits:**
+- `7f2d0e10`: Initial route path fixes and app wrapper pattern
+- `1fd84715`: Partial progress with indentation issues
+
+**See:** `.planning/phases/08-80-percent-coverage-push/08-80-percent-coverage-push-12-SUMMARY.md`
 
 ### Expo SDK 50 Jest Incompatibility (RESOLVED 2026-02-11)
 
