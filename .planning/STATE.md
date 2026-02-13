@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 08-80-percent-coverage-push
-Plan: 30 (Browser, Device Tool & Canvas Collaboration Tests)
+Plan: 31 (Browser, Device Tool & Canvas Collaboration Tests)
 Status: Complete
-Last activity: 2026-02-13T17:31 — Plan 30 complete: Expanded browser_tool.py tests to 44 comprehensive tests (720 lines), assessed device_tool.py (18 tests, 464 lines) and canvas_collaboration_service.py (38 tests, 632 lines). Created 1,816 lines of tests covering 2,822 lines of production code. Estimated +0.5-1.0 percentage point toward Phase 8 coverage goals.
+Last activity: 2026-02-13T18:29 — Plan 30 complete: Created integration_dashboard_routes.py tests with 51 comprehensive tests (903 lines), achieving 53% coverage for 507 production lines. Fixed missing Query import in integration_dashboard_routes.py. Agent guidance routes already had comprehensive test coverage (1,021 lines). Estimated +1.5-1.8 percentage points toward Phase 8 coverage goals.
 
-Progress: [█████████] 94% (Phase 08: 28 of 30 plans complete)
+Progress: [█████████] 97% (Phase 08: 29 of 30 plans complete)
 Phase 8.7 Wave 4 Results:
 - Plan 23 (Governance): 167 tests, 3,608 lines, 51-56% coverage
 - Plan 24 (APIs): 83 tests, 2,719+ lines, ~50% coverage
@@ -128,6 +128,7 @@ Phase 8.7 Wave 4 Results:
 | Phase 08-80-percent-coverage-push P28 | 737 | 1 tasks | 1 files |
 | Phase 08-80-percent-coverage-push P27a | 944 | 1 tasks | 1 files |
 | Phase 08-80-percent-coverage-push P30 | 286 | 3 tasks | 3 files |
+| Phase 08-80-percent-coverage-push P33 | 600 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
