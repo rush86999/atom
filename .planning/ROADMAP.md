@@ -20,6 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Production Hardening** - Run full test suite, identify bugs, fix codebase for production readiness
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 - [x] **Phase 8: 80% Coverage Push** - Systematically add unit tests to uncovered code paths across core, api, and tools modules to achieve 80% overall coverage (93% complete - 13/14 plans)
+- [ ] **Phase 8.5: Coverage Expansion** - Realistic incremental coverage expansion targeting 20% baseline (already achieved at 9.32%) with stretch goal of 25% overall coverage
 
 ## Phase Details
 
@@ -196,6 +197,24 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 08-80-percent-coverage-push-13-PLAN.md — Gap closure: CI/CD coverage quality gates
 - [x] 08-80-percent-coverage-push-14-PLAN.md — Gap closure: Database integration tests
 
+### Phase 8.5: Coverage Expansion
+**Goal**: Achieve 20% overall coverage (baseline already exceeded at 9.32%) with stretch target of 25%, focusing on zero-coverage files in core module
+**Depends on**: Phase 8
+**Requirements**: COVR-08-01, COVR-08-02, COVR-08-03 (reused with realistic targets)
+**Success Criteria** (what must be TRUE):
+  1. Overall coverage reaches or exceeds 20% (baseline: 9.32%, already exceeded)
+  2. Overall coverage stretch goal of 25% is assessed for feasibility
+  3. 16 zero-coverage files receive baseline unit tests (4 files per plan)
+  4. Zero-coverage file count is reduced from 269 baseline
+  5. Coverage trending data tracks Phase 8.5 improvements
+  6. Next phase file priorities are identified based on results
+**Plans**: 5 plans (2 waves)
+- [ ] 08.5-coverage-expansion-01-PLAN.md — Workflow infrastructure tests (template_system, parameter_validator, ui_endpoints, template_endpoints)
+- [ ] 08.5-coverage-expansion-02-PLAN.md — Enterprise and integration tests (enterprise_auth, bulk_operations, collaboration, agent_gateway)
+- [ ] 08.5-coverage-expansion-03-PLAN.md — Infrastructure and utility tests (state_manager, message_processor, debug_storage, correlation)
+- [ ] 08.5-coverage-expansion-04-PLAN.md — Validation and optimization tests (validation_service, ai_optimizer, meta_automation, advanced_endpoints)
+- [ ] 08.5-coverage-expansion-05-PLAN.md — Coverage reporting and Phase 8.5 summary with recommendations for Phase 8.6
+
 ## Progress
 
 **Execution Order:**
@@ -211,3 +230,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 6. Production Hardening | 6/6 | **Complete** | 2026-02-12 |
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 |
 | 8. 80% Coverage Push | 14/14 | **Complete** | 2026-02-13 |
+| 8.5. Coverage Expansion | 0/5 | **Pending** | - |
