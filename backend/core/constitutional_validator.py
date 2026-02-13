@@ -142,7 +142,7 @@ class ConstitutionalValidator:
         checked_actions = 0
 
         # Handle None or non-iterable episode_segments
-        if not episode_segments:
+        if not episode_segments or not isinstance(episode_segments, (list, tuple)):
             return {
                 "compliant": True,
                 "score": 1.0,
@@ -249,7 +249,7 @@ class ConstitutionalValidator:
             ViolationSeverity.LOW: 0.5
         }
 
-        total_weight = sum(severity_weights.get(v["severity"], 1.0) for v in violations)
+        total_weight = sum(severity_weights.get(v.get("severity"), 1.0) for v in violations)
 
         # Normalize score (assuming 10 critical violations = 0.0 score)
         max_weight = 100.0
@@ -267,6 +267,9 @@ class ConstitutionalValidator:
         Returns:
             Action dictionary or None
         """
+        if segment is None:
+            return None
+
         try:
             # Segment content is stored as JSON
             import json
@@ -279,7 +282,8 @@ class ConstitutionalValidator:
                 "metadata": segment.metadata or {}
             }
         except Exception as e:
-            logger.warning(f"Failed to extract action data from segment {segment.id}: {e}")
+            segment_id = getattr(segment, 'id', 'unknown')
+            logger.warning(f"Failed to extract action data from segment {segment_id}: {e}")
             return None
 
     def _check_rule_violation(
@@ -378,7 +382,7 @@ class ConstitutionalValidator:
         }
 
         total_penalty = sum(
-            severity_weights.get(v["severity"], 1.0) for v in violations
+            severity_weights.get(v.get("severity"), 1.0) for v in violations
         )
 
         # Normalize (max penalty = 10 per action)
