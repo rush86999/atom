@@ -1,0 +1,59 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for diff
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -e backend/[test]
+        pip install pytest-cov diff-cover
+
+    - name: Run tests with coverage
+      run: |
+        cd backend
+        pytest tests/ -v \
+          --cov=. \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          --cov-fail-under=25
+
+    - name: Check coverage diff
+      run: |
+        pip install diff-cover
+        diff-cover backend/coverage.xml --compare-branch=origin/main --fail-under=5
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: |
+          backend/htmlcov/
+          backend/coverage.xml
+
+    - name: Report coverage to PR
+      if: github.event_name == 'pull_request'
+      uses: py-cov-action/python-coverage-comment-action@v3
+      with:
+        GITHUB_TOKEN: ${{ github.token }}
+        MINIMUM_GREEN: 80
+        MINIMUM_ORANGE: 60
