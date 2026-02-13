@@ -29,24 +29,40 @@ from core.models import AgentRegistry, User, DeviceNode, DeviceSession
 
 
 # ============================================================================
+# Global test user storage
+# ============================================================================
+
+_current_test_user = None
+
+
+# ============================================================================
 # Fixtures
 # ============================================================================
 
 @pytest.fixture
 def client(db: Session):
     """Create TestClient for device routes with database override."""
+    global _current_test_user
+    _current_test_user = None
+
     app = FastAPI()
     app.include_router(router)
 
     from core.database import get_db
+    from core.security_dependencies import get_current_user
 
     def override_get_db():
         yield db
 
+    def override_get_current_user():
+        return _current_test_user
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     client = TestClient(app, raise_server_exceptions=False)
     yield client
     app.dependency_overrides.clear()
+    _current_test_user = None
 
 
 @pytest.fixture
@@ -191,10 +207,10 @@ def test_camera_snap_intern_agent(
             "file_path": "/tmp/camera_snap.jpg"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/camera/snap", json=request_data)
+    response = client.post("/api/devices/camera/snap", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -229,10 +245,10 @@ def test_screen_record_start_supervised_agent(
             "session_id": "record-session-123"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/screen/record/start", json=request_data)
+    response = client.post("/api/devices/screen/record/start", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -257,10 +273,10 @@ def test_screen_record_stop(
             "duration_seconds": 60
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/screen/record/stop", json=request_data)
+    response = client.post("/api/devices/screen/record/stop", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -293,10 +309,10 @@ def test_get_location_intern_agent(
             "accuracy": "high"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/location", json=request_data)
+    response = client.post("/api/devices/location", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -328,10 +344,10 @@ def test_send_notification_intern_agent(
             "success": True
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/notification", json=request_data)
+    response = client.post("/api/devices/notification", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -366,10 +382,10 @@ def test_execute_command_autonomous_agent(
             "stderr": ""
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/execute", json=request_data)
+    response = client.post("/api/devices/execute", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -395,10 +411,10 @@ def test_get_device_info_success(
             "platform": "ios"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.get(f"/api/devices/{mock_device_node.device_id}")
+    response = client.get(f"/api/devices/{mock_device_node.device_id}")
 
             assert response.status_code == 200
             data = response.json()
@@ -509,10 +525,10 @@ def test_camera_snap_device_not_found(
             "error": "Device not found"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/camera/snap", json=request_data)
+    response = client.post("/api/devices/camera/snap", json=request_data)
 
             # Should handle error gracefully
             assert response.status_code in [400, 404]
@@ -543,10 +559,10 @@ def test_response_format_camera_snap(
             "resolution": "1920x1080"
         }
 
-        with patch('core.security_dependencies.get_current_user') as mock_auth:
-            mock_auth.return_value = mock_user
+        global _current_test_user
+    _current_test_user = mock_user
 
-            response = client.post("/api/devices/camera/snap", json=request_data)
+    response = client.post("/api/devices/camera/snap", json=request_data)
 
             # Verify response is a dict with expected fields
             data = response.json()

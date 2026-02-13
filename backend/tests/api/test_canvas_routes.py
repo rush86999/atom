@@ -204,27 +204,27 @@ def test_submit_form_success_supervised_agent(
 
                 response = client.post("/api/canvas/submit", json=form_data)
 
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert data["success"] is True
-                    assert "submission_id" in data["data"]
-                    assert data["data"]["agent_id"] == mock_supervised_agent.id
-                    assert "governance_check" in data["data"]
+                assert response.status_code == 200
+                data = response.json()
+                assert data["success"] is True
+                assert "submission_id" in data["data"]
+                assert data["data"]["agent_id"] == mock_supervised_agent.id
+                assert "governance_check" in data["data"]
 
-                    # Verify WebSocket broadcast was called
-                    mock_ws.broadcast.assert_called_once()
+                # Verify WebSocket broadcast was called
+                mock_ws.broadcast.assert_called_once()
 
-                    # Verify governance check was performed
-                    mock_governance.can_perform_action.assert_called_once_with(
-                        agent_id=mock_supervised_agent.id,
-                        action_type="submit_form"
-                    )
+                # Verify governance check was performed
+                mock_governance.can_perform_action.assert_called_once_with(
+                    agent_id=mock_supervised_agent.id,
+                    action_type="submit_form"
+                )
 
-                    # Verify outcome was recorded
-                    mock_governance.record_outcome.assert_called_once_with(
-                        mock_supervised_agent.id,
-                        success=True
-                    )
+                # Verify outcome was recorded
+                mock_governance.record_outcome.assert_called_once_with(
+                    mock_supervised_agent.id,
+                    success=True
+                )
 
 
 def test_submit_form_success_autonomous_agent(
@@ -258,10 +258,10 @@ def test_submit_form_success_autonomous_agent(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('core.security_dependencies.get_current_user') as mock_auth:
-                    mock_auth.return_value = mock_user
+                global _current_test_user
+    _current_test_user = mock_user
 
-                    response = client.post("/api/canvas/submit", json=form_data)
+    response = client.post("/api/canvas/submit", json=form_data)
 
                     assert response.status_code == 200
                     data = response.json()
@@ -461,10 +461,10 @@ def test_submit_form_with_agent_execution_id(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('core.security_dependencies.get_current_user') as mock_auth:
-                    mock_auth.return_value = mock_user
+                global _current_test_user
+    _current_test_user = mock_user
 
-                    response = client.post("/api/canvas/submit", json=form_data)
+    response = client.post("/api/canvas/submit", json=form_data)
 
                     assert response.status_code == 200
                     data = response.json()
@@ -665,10 +665,10 @@ def test_submit_form_websocket_error(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('core.security_dependencies.get_current_user') as mock_auth:
-                    mock_auth.return_value = mock_user
+                global _current_test_user
+    _current_test_user = mock_user
 
-                    response = client.post("/api/canvas/submit", json=form_data)
+    response = client.post("/api/canvas/submit", json=form_data)
 
                     # Form submission should succeed even if WebSocket fails
                     assert response.status_code == 200
@@ -711,10 +711,10 @@ def test_submit_form_response_structure(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('core.security_dependencies.get_current_user') as mock_auth:
-                    mock_auth.return_value = mock_user
+                global _current_test_user
+    _current_test_user = mock_user
 
-                    response = client.post("/api/canvas/submit", json=form_data)
+    response = client.post("/api/canvas/submit", json=form_data)
 
                     # Verify response structure
                     assert "success" in response.json()
