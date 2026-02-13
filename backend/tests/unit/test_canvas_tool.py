@@ -455,5 +455,326 @@ class TestPresentSpecializedCanvas:
             assert "Invalid canvas type" in result["error"]
 
 
+# ============================================================================
+# Test: Canvas Type-Specific Operations
+# ============================================================================
+
+class TestCanvasTypeSpecificOperations:
+    """Tests for specialized canvas type operations"""
+
+    @pytest.mark.asyncio
+    async def test_create_sheets_canvas(self, mock_ws):
+        """Test creating a specialized sheets canvas"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="sheets",
+                    component_type="spreadsheet",
+                    data={
+                        "rows": [
+                            {"A1": "Name", "B1": "Value"},
+                            {"A2": "Item1", "B2": "100"}
+                        ]
+                    },
+                    title="Sales Data"
+                )
+
+                assert result["success"] is True
+                assert result["canvas_type"] == "sheets"
+                mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_email_canvas(self, mock_ws):
+        """Test creating a specialized email canvas"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="email",
+                    component_type="email_composer",
+                    data={
+                        "to": "recipient@example.com",
+                        "subject": "Test Email",
+                        "body": "Email content"
+                    },
+                    title="Compose Email"
+                )
+
+                assert result["success"] is True
+                assert result["canvas_type"] == "email"
+
+    @pytest.mark.asyncio
+    async def test_create_docs_canvas(self, mock_ws):
+        """Test creating a specialized documentation canvas"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="docs",
+                    component_type="rich_editor",
+                    data={"content": "# API Reference\n\nDocumentation here"},
+                    title="API Docs"
+                )
+
+                assert result["success"] is True
+                assert result["component_type"] == "rich_editor"
+
+    @pytest.mark.asyncio
+    async def test_create_terminal_canvas(self, mock_ws):
+        """Test creating a specialized terminal canvas"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="terminal",
+                    component_type="terminal_view",
+                    data={
+                        "command": "ls -la",
+                        "output": "file1.txt\nfile2.txt"
+                    },
+                    title="Terminal Output"
+                )
+
+                assert result["success"] is True
+                assert result["canvas_type"] == "terminal"
+
+    @pytest.mark.asyncio
+    async def test_create_orchestration_canvas(self, mock_ws):
+        """Test creating an orchestration workflow canvas"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                mock_registry.validate_canvas_type.return_value = True
+                mock_registry.validate_component.return_value = True
+                mock_registry.validate_layout.return_value = True
+
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="orchestration",
+                    component_type="workflow_view",
+                    data={
+                        "steps": [
+                            {"id": "step1", "name": "Fetch Data"},
+                            {"id": "step2", "name": "Process"}
+                        ]
+                    },
+                    title="Workflow Orchestration"
+                )
+
+                assert result["success"] is True
+                assert result["canvas_type"] == "orchestration"
+
+
+# ============================================================================
+# Test: Canvas Validation
+# ============================================================================
+
+class TestCanvasValidation:
+    """Tests for canvas schema and validation logic"""
+
+    @pytest.mark.asyncio
+    async def test_validate_canvas_schema(self, mock_ws):
+        """Test canvas schema validation via registry"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            # Mock registry with regular methods (not async)
+            mock_registry = Mock()
+            mock_registry.validate_canvas_type.return_value = True
+            mock_registry.validate_component.return_value = True
+            mock_registry.validate_layout.return_value = True
+
+            # Mock database session
+            mock_db = Mock()
+            mock_db_session = Mock()
+            mock_db_session.__enter__ = Mock(return_value=mock_db)
+            mock_db_session.__exit__ = Mock(return_value=False)
+
+            with patch('tools.canvas_tool.canvas_type_registry', mock_registry):
+                with patch('core.database.get_db_session', return_value=mock_db_session):
+                    result = await present_specialized_canvas(
+                        user_id="user-1",
+                        canvas_type="docs",
+                        component_type="rich_editor",
+                        data={},
+                        title="Valid Canvas"
+                    )
+
+                    assert result["success"] is True
+                    # Verify all validators were called
+                    mock_registry.validate_canvas_type.assert_called_once()
+                    mock_registry.validate_component.assert_called_once()
+                    mock_registry.validate_layout.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_validate_component_security(self, mock_ws):
+        """Test component security validation"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            # Mock registry with regular methods
+            mock_registry = Mock()
+            mock_registry.validate_canvas_type.return_value = True
+            mock_registry.validate_component.return_value = True
+            mock_registry.validate_layout.return_value = True
+
+            with patch('tools.canvas_tool.canvas_type_registry', mock_registry):
+                result = await present_specialized_canvas(
+                    user_id="user-1",
+                    canvas_type="coding",
+                    component_type="code_editor",
+                    data={"language": "python", "code": "print('hello')"},
+                    title="Code Editor"
+                )
+
+                assert result["success"] is True
+                # Security validation should occur for code components
+                mock_registry.validate_component.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_validation_error_handling(self, mock_ws):
+        """Test validation error handling when schema is invalid"""
+        # Mock registry that fails validation
+        mock_registry = Mock()
+        mock_registry.validate_canvas_type.return_value = False
+        mock_registry.get_all_types.return_value = {
+            "docs": {}, "sheets": {}, "email": {},
+            "orchestration": {}, "terminal": {}, "coding": {}
+        }
+
+        with patch('tools.canvas_tool.canvas_type_registry', mock_registry):
+            result = await present_specialized_canvas(
+                user_id="user-1",
+                canvas_type="invalid_type",
+                component_type="component",
+                data={}
+            )
+
+            assert result["success"] is False
+            assert "Invalid canvas type" in result["error"]
+
+
+# ============================================================================
+# Test: Canvas Error Handling
+# ============================================================================
+
+class TestCanvasErrorHandling:
+    """Tests for canvas error scenarios"""
+
+    @pytest.mark.asyncio
+    async def test_canvas_creation_failure(self, mock_ws):
+        """Test canvas creation failure handling"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            # Simulate broadcast failure
+            mock_ws.broadcast.side_effect = Exception("Broadcast failed")
+
+            result = await present_chart(
+                user_id="user-1",
+                chart_type="line_chart",
+                data=[{"x": 1, "y": 2}],
+                title="Test Chart"
+            )
+
+            # Should return error dict, not raise exception
+            assert result["success"] is False
+            assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_invalid_canvas_type(self, mock_ws):
+        """Test handling of invalid canvas type"""
+        with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+            mock_registry.validate_canvas_type.return_value = False
+            mock_registry.get_all_types.return_value = {
+                "docs": {}, "sheets": {}, "email": {}
+            }
+
+            result = await present_specialized_canvas(
+                user_id="user-1",
+                canvas_type="nonexistent_type",
+                component_type="component",
+                data={}
+            )
+
+            assert result["success"] is False
+            assert "Invalid canvas type" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_governance_block_handling(self, mock_ws):
+        """Test handling of governance blocks"""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            # Mock agent resolver
+            mock_resolver = Mock()
+            mock_agent = Mock()
+            mock_agent.id = "agent-123"
+            mock_agent.name = "TestAgent"
+            mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+
+            # Mock governance service that blocks the action
+            mock_governance = Mock()
+            mock_governance.can_perform_action = Mock(return_value={
+                "allowed": False,
+                "reason": "Agent maturity level insufficient"
+            })
+            mock_governance.record_outcome = AsyncMock()
+
+            mock_factory = Mock()
+            mock_factory.get_governance_service.return_value = mock_governance
+
+            # Mock database session
+            mock_db = Mock()
+            mock_db.add = Mock()
+            mock_db.commit = Mock()
+            mock_db.refresh = Mock()
+            mock_db.query = Mock()
+
+            mock_db_session = Mock()
+            mock_db_session.__enter__ = Mock(return_value=mock_db)
+            mock_db_session.__exit__ = Mock(return_value=False)
+
+            with patch('tools.canvas_tool.AgentContextResolver', return_value=mock_resolver):
+                with patch('tools.canvas_tool.ServiceFactory', return_value=mock_factory):
+                    with patch('core.database.get_db_session', return_value=mock_db_session):
+                        result = await present_chart(
+                            user_id="user-1",
+                            chart_type="line_chart",
+                            data=[{"x": 1, "y": 2}],
+                            title="Blocked Chart",
+                            agent_id="agent-123"
+                        )
+
+                        assert result["success"] is False
+                        assert "not permitted" in result["error"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
