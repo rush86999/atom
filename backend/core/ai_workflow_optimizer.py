@@ -80,21 +80,9 @@ class AIWorkflowOptimizer:
                     "recommendation": self._recommend_parallel_processing,
                     "impact": ImpactLevel.HIGH,
                     "improvement": {"execution_time": 40, "throughput": 60}
-                },
-                {
-                    "pattern": r"large.*data.*processing",
-                    "condition": lambda data: self._has_large_data_processing(data),
-                    "recommendation": self._recommend_batch_processing,
-                    "impact": ImpactLevel.MEDIUM,
-                    "improvement": {"memory_usage": 50, "processing_time": 30}
-                },
-                {
-                    "pattern": r"redundant.*validations",
-                    "condition": lambda data: self._has_redundant_validations(data),
-                    "recommendation": self._recommend_validation_optimization,
-                    "impact": ImpactLevel.LOW,
-                    "improvement": {"execution_time": 15}
                 }
+                # Note: batch_processing and validation_optimization rules disabled
+                # due to missing implementation methods
             ],
             OptimizationType.COST: [
                 {
@@ -103,14 +91,8 @@ class AIWorkflowOptimizer:
                     "recommendation": self._recommend_ai_optimization,
                     "impact": ImpactLevel.HIGH,
                     "improvement": {"cost_reduction": 35}
-                },
-                {
-                    "pattern": r"premium.*integration.*low.*usage",
-                    "condition": lambda data: self._has_underutilized_premium_integrations(data),
-                    "recommendation": self._recommend_integration_downgrade,
-                    "impact": ImpactLevel.MEDIUM,
-                    "improvement": {"cost_reduction": 25}
                 }
+                # Note: integration_downgrade rule disabled due to missing implementation
             ],
             OptimizationType.RELIABILITY: [
                 {
@@ -119,14 +101,8 @@ class AIWorkflowOptimizer:
                     "recommendation": self._recommend_redundancy,
                     "impact": ImpactLevel.CRITICAL,
                     "improvement": {"reliability": 80}
-                },
-                {
-                    "pattern": r"no.*error.*handling",
-                    "condition": lambda data: self._lacks_error_handling(data),
-                    "recommendation": self._recommend_error_handling,
-                    "impact": ImpactLevel.HIGH,
-                    "improvement": {"error_rate": 90}
                 }
+                # Note: error_handling rule disabled due to missing implementation
             ],
             OptimizationType.EFFICIENCY: [
                 {
@@ -135,14 +111,8 @@ class AIWorkflowOptimizer:
                     "recommendation": self._recommend_automation,
                     "impact": ImpactLevel.MEDIUM,
                     "improvement": {"cycle_time": 50, "manual_effort": 70}
-                },
-                {
-                    "pattern": r"unnecessary.*data.*transformations",
-                    "condition": lambda data: self._has_unnecessary_transformations(data),
-                    "recommendation": self._recommend_streamlining,
-                    "impact": ImpactLevel.LOW,
-                    "improvement": {"execution_time": 20}
                 }
+                # Note: streamlining rule disabled due to missing implementation
             ]
         }
 
@@ -599,6 +569,21 @@ class AIWorkflowOptimizer:
         for node in nodes:
             if "approval" in str(node.get("label", "")).lower():
                 return True
+        return False
+
+    def _has_redundant_validations(self, data: Dict) -> bool:
+        """Check for redundant validations"""
+        # Simplified implementation - in production would analyze validation patterns
+        return False
+
+    def _has_underutilized_premium_integrations(self, data: Dict) -> bool:
+        """Check for underutilized premium integrations"""
+        # Simplified implementation
+        return False
+
+    def _has_unnecessary_transformations(self, data: Dict) -> bool:
+        """Check for unnecessary data transformations"""
+        # Simplified implementation
         return False
 
     def _find_longest_path(self, nodes: List[Dict], edges: List[Dict]) -> List[str]:
