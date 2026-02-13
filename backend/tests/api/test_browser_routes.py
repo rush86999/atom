@@ -170,11 +170,14 @@ def test_create_session_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/session/create", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
             assert "session_id" in data
@@ -200,11 +203,14 @@ def test_create_session_with_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/session/create", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -234,11 +240,14 @@ def test_navigate_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/navigate", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -263,11 +272,14 @@ def test_navigate_invalid_url(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/navigate", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is False
 
@@ -297,11 +309,14 @@ def test_screenshot_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/screenshot", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -333,11 +348,14 @@ def test_fill_form_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/fill-form", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
             assert data["fields_filled"] == 2
@@ -367,11 +385,14 @@ def test_click_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/click", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -400,11 +421,14 @@ def test_extract_text_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/extract-text", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
             assert "text" in data
@@ -435,11 +459,14 @@ def test_execute_script_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/execute-script", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -466,11 +493,14 @@ def test_close_session_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/session/close", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -494,11 +524,14 @@ def test_get_session_info_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.get(f"/api/browser/session/{mock_browser_session.session_id}/info")
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is True
 
@@ -587,12 +620,15 @@ def test_navigate_session_not_found(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/navigate", json=request_data)
 
             # Should handle error gracefully
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert data["success"] is False
 
@@ -621,7 +657,10 @@ def test_response_format_structure(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/browser/navigate", json=request_data)
 

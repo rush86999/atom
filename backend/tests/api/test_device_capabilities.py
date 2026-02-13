@@ -208,11 +208,14 @@ def test_camera_snap_intern_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/camera/snap", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert isinstance(data, dict)
             assert "file_path" in data
@@ -246,11 +249,14 @@ def test_screen_record_start_supervised_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/screen/record/start", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert "session_id" in data
 
@@ -274,11 +280,14 @@ def test_screen_record_stop(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/screen/record/stop", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert "file_path" in data
 
@@ -310,11 +319,14 @@ def test_get_location_intern_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/location", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert "latitude" in data
             assert "longitude" in data
@@ -345,11 +357,14 @@ def test_send_notification_intern_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/notification", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert isinstance(data, dict)
 
@@ -383,11 +398,14 @@ def test_execute_command_autonomous_agent(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/execute", json=request_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert "exit_code" in data
 
@@ -412,11 +430,14 @@ def test_get_device_info_success(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.get(f"/api/devices/{mock_device_node.device_id}")
 
-            assert response.status_code == 200
+        assert response.status_code == 200
             data = response.json()
             assert "success" in data
 
@@ -526,12 +547,15 @@ def test_camera_snap_device_not_found(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/camera/snap", json=request_data)
 
             # Should handle error gracefully
-            assert response.status_code in [400, 404]
+        assert response.status_code in [400, 404]
 
 
 # ============================================================================
@@ -560,7 +584,10 @@ def test_response_format_camera_snap(
         }
 
         global _current_test_user
-    _current_test_user = mock_user
+        _current_test_user = mock_user
+
+
+        global _current_test_user
 
     response = client.post("/api/devices/camera/snap", json=request_data)
 
