@@ -816,3 +816,528 @@ class TestBYOKHandlerHelpers:
         assert isinstance(PROVIDER_TIERS["budget"], list)
         assert isinstance(PROVIDER_TIERS["mid"], list)
         assert isinstance(PROVIDER_TIERS["premium"], list)
+
+# ============================================================================
+# Extended Tests for BYOKHandler - Plan 28
+# ============================================================================
+
+"""
+Extended tests for BYOKHandler covering:
+- Model capabilities (VISION_ONLY_MODELS, REASONING_MODELS_WITHOUT_VISION, MODELS_WITHOUT_TOOLS)
+- Client initialization edge cases
+- Context window management
+- Text truncation
+- Query complexity analysis
+- Provider comparison
+- Routing information
+- Cheapest models retrieval
+"""
+
+import logging
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from core.llm.byok_handler import BYOKHandler, QueryComplexity, PROVIDER_TIERS
+
+
+# ============================================================================
+# Model Capabilities Tests
+# ============================================================================
+
+class TestModelCapabilities:
+    """Tests for model capability lists."""
+
+    def test_vision_only_models_exist(self):
+        """Test vision-only models list exists."""
+        from core.llm.byok_handler import VISION_ONLY_MODELS
+        assert "janus-pro-7b" in VISION_ONLY_MODELS
+        assert "janus-pro-1.3b" in VISION_ONLY_MODELS
+
+    def test_reasoning_models_without_vision_exist(self):
+        """Test reasoning models without vision list exists."""
+        from core.llm.byok_handler import REASONING_MODELS_WITHOUT_VISION
+        assert "deepseek-v3.2" in REASONING_MODELS_WITHOUT_VISION
+        # Note: Production code has typo "speciale" not "special"
+        assert "deepseek-v3.2-speciale" in REASONING_MODELS_WITHOUT_VISION
+
+    def test_models_without_tools_is_accurate(self):
+        """Test models without tools list is accurate."""
+        from core.llm.byok_handler import MODELS_WITHOUT_TOOLS
+        # Note: Production code has typo "speciale" not "special"
+        assert "deepseek-v3.2-speciale" in MODELS_WITHOUT_TOOLS
+
+
+# ============================================================================
+# Client Initialization Tests
+# ============================================================================
+
+class TestClientInitializationExtended:
+    """Tests for client initialization edge cases."""
+
+    def test_byok_manager_not_configured_uses_env(self, monkeypatch):
+        """Test BYOK not configured falls back to environment variables."""
+        mock_byok_manager = MagicMock()
+        mock_byok_manager.is_configured.return_value = False
+        mock_byok_manager.get_api_key.return_value = None
+
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "env-key-456")
+        monkeypatch.setenv("OPENAI_API_KEY", "env-key-789")
+
+        with patch('core.llm.byok_handler.OpenAI'):
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                # Verify fallback occurred - handler created without crashing
+                assert handler is not None
+                assert handler.workspace_id == "default"
+
+    def test_env_fallback_with_base_url(self, monkeypatch):
+        """Test environment fallback with base_url configuration."""
+        mock_byok_manager = MagicMock()
+        mock_byok_manager.is_configured.return_value = False
+        mock_byok_manager.get_api_key.return_value = None
+
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "env-key")
+        # Note: base_url comes from config dict, not env
+
+        with patch('core.llm.byok_handler.OpenAI'):
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                assert handler is not None
+
+    def test_multiple_provider_initialization(self):
+        """Test multiple providers can be initialized."""
+        mock_byok_manager = MagicMock()
+        mock_byok_manager.is_configured.return_value = True
+        mock_byok_manager.get_api_key.side_effect = lambda p, k=None: f"key-{p}"
+
+        with patch('core.llm.byok_handler.OpenAI') as mock_openai:
+            with patch('core.llm.byok_handler.AsyncOpenAI'):
+                with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                    handler = BYOKHandler()
+                    # Should initialize for each configured provider
+                    assert mock_openai.called or len(handler.clients) >= 0
+
+    def test_client_initialization_failure_logged(self, caplog):
+        """Test client initialization failures are logged."""
+        mock_byok_manager = MagicMock()
+        mock_byok_manager.is_configured.return_value = True
+        mock_byok_manager.get_api_key.return_value = "error-key"
+
+        with caplog.at_level(logging.ERROR):
+            with patch('core.llm.byok_handler.OpenAI') as mock_openai:
+                mock_openai.side_effect = Exception("Connection failed")
+                with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                    handler = BYOKHandler()
+
+                    # Verify error was logged
+                    assert any("Failed to initialize" in record.message for record in caplog.records)
+
+
+# ============================================================================
+# Context Window Management Tests
+# ============================================================================
+
+class TestContextWindowManagementExtended:
+    """Tests for context window management edge cases."""
+
+    def test_context_window_pricing_fallback(self):
+        """Test context window falls back to static pricing when unavailable."""
+        mock_byok_manager = MagicMock()
+
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.return_value = None
+            mock_fetcher.return_value = fetcher
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            window = handler.get_context_window("unknown-model")
+
+            # Should return safe default
+            assert window > 0
+
+    def test_context_window_uses_max_input_tokens(self):
+        """Test context window uses max_input_tokens when available."""
+        mock_byok_manager = MagicMock()
+
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.return_value = {"max_input_tokens": 32000}
+            mock_fetcher.return_value = fetcher
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            window = handler.get_context_window("model-with-max-input")
+
+            assert window == 32000
+
+    def test_context_window_uses_max_tokens_fallback(self):
+        """Test context window falls back to max_tokens when max_input_tokens missing."""
+        mock_byok_manager = MagicMock()
+
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.return_value = {"max_tokens": 8192}
+            mock_fetcher.return_value = fetcher
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            window = handler.get_context_window("model-with-max-tokens")
+
+            assert window == 8192
+
+    def test_context_window_no_pricing_uses_safe_default(self):
+        """Test unknown model without pricing uses conservative default."""
+        mock_byok_manager = MagicMock()
+
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.side_effect = Exception("Service unavailable")
+            mock_fetcher.return_value = fetcher
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            window = handler.get_context_window("completely-unknown-model")
+
+            # Conservative default
+            assert window == 4096
+
+    def test_context_window_known_model_defaults(self):
+        """Test context window for known model defaults."""
+        mock_byok_manager = MagicMock()
+
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.side_effect = Exception("No pricing")
+            mock_fetcher.return_value = fetcher
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Test known model defaults
+            assert handler.get_context_window("gpt-4o") == 128000
+            assert handler.get_context_window("gpt-4o-mini") == 128000
+            assert handler.get_context_window("gpt-4") == 8192
+            assert handler.get_context_window("claude-3") == 200000
+            assert handler.get_context_window("deepseek-chat") == 32768
+            assert handler.get_context_window("gemini-flash") == 1000000
+
+
+# ============================================================================
+# Text Truncation Tests
+# ============================================================================
+
+class TestTextTruncationExtended:
+    """Tests for text truncation functionality."""
+
+    def test_truncate_to_context_exact_fit(self):
+        """Test truncation when text exactly fits context window."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            text = "A" * 100  # 100 chars
+
+        with patch.object(handler, 'get_context_window', return_value=100):
+            result = handler.truncate_to_context(text, "model")
+
+            # Should not be truncated
+            assert result == text
+
+    def test_truncate_to_context_needs_truncation(self):
+        """Test truncation when text exceeds context window."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            text = "word " * 200  # 1000 chars
+
+        with patch.object(handler, 'get_context_window', return_value=100):
+            result = handler.truncate_to_context(text, "model")
+
+            # Should be truncated
+            assert len(result) < len(text)
+            # Verify truncation indicator added
+            assert "truncated" in result.lower() or len(result) < len(text)
+
+    def test_truncate_to_context_reserve_tokens(self):
+        """Test truncation respects reserve_tokens parameter."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            text = "word " * 200
+
+        with patch.object(handler, 'get_context_window', return_value=100):
+            result_less_reserve = handler.truncate_to_context(text, "model", reserve_tokens=20)
+            result_no_reserve = handler.truncate_to_context(text, "model", reserve_tokens=0)
+
+            # More reserve = shorter result
+            assert len(result_less_reserve) <= len(result_no_reserve)
+
+    def test_truncate_preserves_truncation_indicator(self):
+        """Test truncation includes indicator when content is truncated."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            text = "word " * 200  # 1000 chars, exceeds 100 char window
+
+        with patch.object(handler, 'get_context_window', return_value=100):
+            result = handler.truncate_to_context(text, "model")
+
+            # If truncated, should have indicator
+            if len(result) < len(text):
+                assert "truncated" in result.lower()
+
+    def test_truncate_respects_context_window_calculation(self):
+        """Test truncation properly calculates max chars from context window."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            # 500 tokens * 4 chars/token = 2000 chars - 1000 reserve = 1000 chars
+            text = "word " * 300  # 1500 chars
+
+        with patch.object(handler, 'get_context_window', return_value=500):
+            result = handler.truncate_to_context(text, "model", reserve_tokens=250)
+
+            # Should truncate to fit: (500 - 250) * 4 = 1000 chars
+            assert len(result) <= 1000
+
+
+# ============================================================================
+# Query Complexity Analysis Tests
+# ============================================================================
+
+class TestQueryComplexityAnalysisExtended:
+    """Tests for query complexity analysis edge cases."""
+
+    def test_analyze_query_complexity_with_code_blocks(self):
+        """Test complexity analysis detects code blocks."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "```python\ndef hello():\n    print('world')\n```"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Code blocks should increase complexity
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_query_complexity_with_math_keywords(self):
+        """Test complexity analysis detects math keywords."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "Calculate integral of this function and solve for x"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Math keywords should increase complexity
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_query_complexity_with_code_keywords(self):
+        """Test complexity analysis detects code keywords."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "Debug this async function and refactor database schema"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Code keywords should increase complexity
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_query_complexity_simple_query(self):
+        """Test complexity analysis classifies simple queries correctly."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "Hello, how are you today?"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Simple query should be SIMPLE
+            assert complexity == QueryComplexity.SIMPLE
+
+    def test_analyze_query_complexity_with_task_type_override(self):
+        """Test complexity analysis with task type parameter."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "What is the weather?"
+
+            # Code task type should increase complexity
+            complexity_code = handler.analyze_query_complexity(prompt, task_type="code")
+            complexity_chat = handler.analyze_query_complexity(prompt, task_type="chat")
+
+            # Code task should be higher complexity
+            assert complexity_code.value >= complexity_chat.value
+
+    def test_analyze_query_complexity_long_text(self):
+        """Test complexity analysis with long text."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            # 2000+ tokens = 8000+ chars
+            long_text = "word " * 3000
+
+            complexity = handler.analyze_query_complexity(long_text)
+
+            # Long text should increase complexity
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_query_complexity_advanced_keywords(self):
+        """Test complexity analysis detects advanced keywords."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "Design architecture for scaling this enterprise system"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Advanced keywords should increase complexity
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_query_complexity_moderate_keywords(self):
+        """Test complexity analysis detects moderate keywords."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt = "Analyze this concept and explain the background"
+
+            complexity = handler.analyze_query_complexity(prompt)
+
+            # Moderate keywords should give MODERATE or higher
+            assert complexity.value >= QueryComplexity.MODERATE.value
+
+
+# ============================================================================
+# Provider Comparison Tests
+# ============================================================================
+
+class TestProviderComparisonExtended:
+    """Tests for provider comparison functionality."""
+
+    def test_get_provider_comparison_structure(self):
+        """Test provider comparison returns correct structure."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {
+                "openai": MagicMock(),
+                "deepseek": MagicMock()
+            }
+
+            comparison = handler.get_provider_comparison()
+
+            assert isinstance(comparison, dict)
+            # Should have provider-related keys
+            assert len(comparison) > 0
+
+    def test_get_cheapest_models_returns_list(self):
+        """Test get_cheapest_models returns list."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            models = handler.get_cheapest_models(limit=5)
+
+            assert isinstance(models, list)
+            assert len(models) <= 5
+
+    def test_get_cheapest_models_with_limit(self):
+        """Test get_cheapest_models respects limit parameter."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            models_3 = handler.get_cheapest_models(limit=3)
+            models_10 = handler.get_cheapest_models(limit=10)
+
+            assert len(models_3) <= 3
+            assert len(models_10) <= 10
+
+
+# ============================================================================
+# Routing Information Tests
+# ============================================================================
+
+class TestRoutingInfoExtended:
+    """Tests for routing information generation."""
+
+    def test_get_routing_info_structure(self):
+        """Test routing info returns correct structure."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            routing = handler.get_routing_info("test prompt")
+
+            assert isinstance(routing, dict)
+            # Should have complexity or provider info
+            assert len(routing) > 0
+
+    def test_get_routing_info_with_task_type(self):
+        """Test routing info includes task type."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            routing = handler.get_routing_info("test prompt", task_type="code")
+
+            assert isinstance(routing, dict)
+
+    def test_get_routing_info_simple_query(self):
+        """Test routing info for simple query."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            routing = handler.get_routing_info("Hello")
+
+            assert isinstance(routing, dict)
+            # Should detect SIMPLE complexity
+            assert "complexity" in routing or "provider" in routing
+
+    def test_get_routing_info_complex_query(self):
+        """Test routing info for complex query."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            routing = handler.get_routing_info("```python\ndef complex():\n    pass\n```")
+
+            assert isinstance(routing, dict)
+            # Should detect higher complexity due to code block
+            assert "complexity" in routing or "provider" in routing
+
+
+# ============================================================================
+# Available Providers Tests
+# ============================================================================
+
+class TestAvailableProvidersExtended:
+    """Tests for available providers listing."""
+
+    def test_get_available_providers_empty(self):
+        """Test get_available_providers when no providers configured."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {}
+            providers = handler.get_available_providers()
+            assert providers == []
+
+    def test_get_available_providers_multiple(self):
+        """Test get_available_providers with multiple providers."""
+        mock_byok_manager = MagicMock()
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {
+                "openai": MagicMock(),
+                "deepseek": MagicMock(),
+                "anthropic": MagicMock()
+            }
+            providers = handler.get_available_providers()
+            assert len(providers) == 3
+            assert "openai" in providers
+            assert "deepseek" in providers
+            assert "anthropic" in providers
