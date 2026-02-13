@@ -176,9 +176,6 @@ def test_submit_form_success_supervised_agent(
     global _current_test_user
     _current_test_user = mock_user
 
-
-    global _current_test_user
-
     form_data = {
         "canvas_id": "test-canvas-123",
         "form_data": {
@@ -263,9 +260,6 @@ def test_submit_form_success_autonomous_agent(
 
                 global _current_test_user
                 _current_test_user = mock_user
-
-
-                global _current_test_user
 
                 response = client.post("/api/canvas/submit", json=form_data)
 
@@ -470,14 +464,11 @@ def test_submit_form_with_agent_execution_id(
                 global _current_test_user
                 _current_test_user = mock_user
 
+                response = client.post("/api/canvas/submit", json=form_data)
 
-                global _current_test_user
-
-    response = client.post("/api/canvas/submit", json=form_data)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
+                assert response.status_code == 200
+                data = response.json()
+                assert data["success"] is True
 
 
 # ============================================================================
@@ -677,15 +668,12 @@ def test_submit_form_websocket_error(
                 global _current_test_user
                 _current_test_user = mock_user
 
+                response = client.post("/api/canvas/submit", json=form_data)
 
-                global _current_test_user
-
-    response = client.post("/api/canvas/submit", json=form_data)
-
-        # Form submission should succeed even if WebSocket fails
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
+                # Form submission should succeed even if WebSocket fails
+                assert response.status_code == 200
+                data = response.json()
+                assert data["success"] is True
 
 
 # ============================================================================
@@ -726,20 +714,17 @@ def test_submit_form_response_structure(
                 global _current_test_user
                 _current_test_user = mock_user
 
+                response = client.post("/api/canvas/submit", json=form_data)
 
-                global _current_test_user
+                # Verify response structure
+                assert "success" in response.json()
+                assert "data" in response.json()
+                assert "message" in response.json()
 
-    response = client.post("/api/canvas/submit", json=form_data)
-
-        # Verify response structure
-        assert "success" in response.json()
-        assert "data" in response.json()
-        assert "message" in response.json()
-
-        data = response.json()["data"]
-        assert "submission_id" in data
-        assert isinstance(data["submission_id"], str)
-        assert "governance_check" in data
+                data = response.json()["data"]
+                assert "submission_id" in data
+                assert isinstance(data["submission_id"], str)
+                assert "governance_check" in data
 
 
 def test_get_status_response_structure(
