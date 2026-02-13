@@ -48,13 +48,18 @@ def test_get_ocr_status(client):
 
 def test_parse_document(client):
     from io import BytesIO
-    with patch('api.document_ingestion_routes.is_docling_available', return_value=False):
-        with patch('api.document_ingestion_routes.DocumentParser') as mock_parser:
-            mock_parser.parse_document = AsyncMock(return_value="Content")
-            file_content = b"Test content"
-            files = {"file": ("test.txt", BytesIO(file_content), "text/plain")}
-            response = client.post("/api/document-ingestion/parse", files=files)
-            assert response.status_code == 200
+    # Test that parse endpoint accepts file upload
+    # Note: We don't test actual parsing logic here, just endpoint functionality
+    file_content = b"Test content"
+    files = {"file": ("test.txt", BytesIO(file_content), "text/plain")}
+    response = client.post("/api/document-ingestion/parse", files=files)
+    # Should return 200 (even if docling is unavailable, it falls back gracefully)
+    assert response.status_code == 200
+    data = response.json()
+    # Check response has expected structure
+    assert "success" in data
+    assert "content" in data
+    assert "method" in data
 
 
 def test_unauthenticated_request(client):
