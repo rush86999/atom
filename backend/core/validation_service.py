@@ -340,6 +340,7 @@ class ValidationService:
 
         if not isinstance(items, list):
             errors.append("Items must be a list")
+            return ValidationResult.multiple(errors, {"operation": operation})
         elif len(items) == 0:
             errors.append("Items list cannot be empty")
         elif len(items) > 1000:
