@@ -521,14 +521,11 @@ Please review and approve or reject this proposal.
         Returns:
             (status, confidence_score) tuple
         """
-        # Get async governance cache
-        cache = await get_async_governance_cache()
+        # Get async governance cache (not async, returns directly)
+        cache = get_async_governance_cache()
 
-        # Try cache first
-        cache_key = f"agent_maturity:{agent_id}"
-
-        # Check governance cache
-        cached_value = await cache.get(cache_key)
+        # Use "maturity" as action_type for caching maturity data
+        cached_value = await cache.get(agent_id, "maturity")
         if cached_value:
             return cached_value["status"], cached_value["confidence"]
 
@@ -545,7 +542,7 @@ Please review and approve or reject this proposal.
             "status": agent.status,
             "confidence": agent.confidence_score
         }
-        await cache.set(cache_key, cache_value, ttl=300)
+        await cache.set(agent_id, "maturity", cache_value)
 
         return agent.status, agent.confidence_score
 
