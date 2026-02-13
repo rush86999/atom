@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 08-80-percent-coverage-push
-Plan: 28 (LLM BYOK Handler Tests)
+Plan: 27a (Agent Governance Service Tests)
 Status: Complete
-Last activity: 2026-02-13T17:02 — Plan 28 complete: Extended test_byok_handler.py with 34 new tests (total 84 tests, 1,341 lines), achieving 48.62% coverage on llm/byok_handler.py (549 stmts). Added tests for model capabilities, client initialization, context window management, text truncation, query complexity analysis, provider comparison, and routing information. Created SUMMARY.md documenting results.
+Last activity: 2026-02-13T17:05 — Plan 27a complete: Created 62 comprehensive unit tests (1,320 lines) for agent_governance_service.py achieving 77.68% coverage (exceeds 60% target). Tests cover registration, feedback, adjudication, confidence scoring, maturity transitions, action complexity, permissions, HITL actions, and data access control. Created SUMMARY.md documenting results.
 
-Progress: [█████████] 96.5% (Phase 08: 28 of 29 plans complete)
+Progress: [█████████] 93% (Phase 08: 27 of 29 plans complete)
 Phase 8.7 Wave 4 Results:
 - Plan 23 (Governance): 167 tests, 3,608 lines, 51-56% coverage
 - Plan 24 (APIs): 83 tests, 2,719+ lines, ~50% coverage
@@ -126,6 +126,7 @@ Phase 8.7 Wave 4 Results:
 | Phase 08-80-percent-coverage-push P26 | 90 | 3 tasks | 4 files |
 | Phase 08-80-percent-coverage-push P27b | 509 | 2 tasks | 2 files |
 | Phase 08-80-percent-coverage-push P28 | 737 | 1 tasks | 1 files |
+| Phase 08-80-percent-coverage-push P27a | 944 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -280,8 +281,8 @@ Resume file: None
 Last session: 2026-02-13T12:45
 Stopped at: Completed Phase 08.5 Plan 05 - Generated coverage reports showing 6.38 percentage point improvement (9.32% → 15.70%), created trending.json for historical tracking, analyzed 281 zero-coverage files, assessed 25% stretch goal as ACHIEVABLE with top 50 files
 Resume file: None
-Last session: 2026-02-13T14:54
-Stopped at: Completed Phase 08 Plan 22 - Created comprehensive Phase 8.7 testing plan (569 lines) with top 30 zero-coverage files by size (714-355 lines), calculated +3.2-4.0% coverage impact, documented testing strategy based on Phase 8.6 learnings, and created 4-plan breakdown with 15-16 files. Focused on governance, database, and API modules for maximum business impact
+Last session: 2026-02-13T17:05
+Stopped at: Completed Phase 08 Plan 27a - Created 62 comprehensive unit tests (1,320 lines) for agent_governance_service.py achieving 77.68% coverage (exceeds 60% target). Tests cover registration, feedback, adjudication, confidence scoring, maturity transitions, action complexity, permissions, HITL actions, and data access control. Created SUMMARY.md documenting results.
 Resume file: None
 
 ## Blockers
