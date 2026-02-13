@@ -102,7 +102,7 @@ class GovernanceHelper:
         try:
             # Step 1: Resolve agent context
             if agent_id:
-                agent = self.context_resolver.resolve_agent(agent_id)
+                agent = self.context_resolver._get_agent(agent_id)
                 if not agent:
                     raise AgentNotFoundError(agent_id)
 
@@ -111,6 +111,7 @@ class GovernanceHelper:
                 agent=agent,
                 user_id=user_id,
                 action_complexity=action_complexity,
+                action_name=action_name,
                 feature_enabled=feature_enabled,
                 emergency_bypass=emergency_bypass
             )
@@ -147,8 +148,7 @@ class GovernanceHelper:
             if agent and feature_enabled:
                 await self.governance_service.record_outcome(
                     agent.id,
-                    success=True,
-                    action_complexity=action_complexity
+                    success=True
                 )
 
                 if agent_execution:
@@ -203,6 +203,7 @@ class GovernanceHelper:
         agent: Optional[User],
         user_id: str,
         action_complexity: int,
+        action_name: str,
         feature_enabled: bool,
         emergency_bypass: bool
     ) -> Dict[str, Any]:
@@ -213,6 +214,7 @@ class GovernanceHelper:
             agent: Agent object (None if user-initiated)
             user_id: User ID
             action_complexity: Action complexity level
+            action_name: Name of the action being performed
             feature_enabled: Governance feature flag
             emergency_bypass: Emergency bypass flag
 
@@ -235,9 +237,9 @@ class GovernanceHelper:
 
         # Perform governance check
         try:
-            governance_check = await self.governance_service.check_agent_permission(
+            governance_check = self.governance_service.can_perform_action(
                 agent_id=agent.id,
-                action_complexity=action_complexity
+                action_type=action_name
             )
             return governance_check
         except Exception as e:
@@ -408,7 +410,7 @@ def create_audit_entry(
             execution = db.query(AgentExecution).filter(
                 AgentExecution.agent_id == agent_id,
                 AgentExecution.status == "running"
-            ).order_by(AgentExecution.created_at.desc()).first()
+            ).order_by(AgentExecution.started_at.desc()).first()
 
             if execution:
                 agent_execution_id = execution.id
