@@ -14,11 +14,13 @@ from core.database import SessionLocal
 def db():
     """Create a test database session.
 
-    Uses rollback pattern to isolate test data.
+    Uses transaction rollback pattern to isolate test data.
     """
     db = SessionLocal()
+    db.begin_nested()  # Begin transaction for test isolation
+
     try:
         yield db
-        db.rollback()
+        db.rollback()  # Rollback all changes, including committed data
     finally:
         db.close()

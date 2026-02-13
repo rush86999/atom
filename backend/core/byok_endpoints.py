@@ -282,7 +282,50 @@ class BYOKManager:
                 cost_per_token=0.00001, # Per search query (estimated)
                 model="search",
                 reasoning_level=1
+            ),
+            AIProviderConfig(
+                id="glm_5",
+                name="Zhipu GLM 5",
+                description="Next-generation GLM-5 model",
+                api_key_env_var="GLM_API_KEY",
+                base_url="https://open.bigmodel.cn/api/paas/v4",
+                supported_tasks=["general", "chat", "analysis"],
+                cost_per_token=0.0000021,
+                model="glm-5",
+                reasoning_level=4
+            ),
+            AIProviderConfig(
+                id="minimax_2_5",
+                name="MiniMax 2.5",
+                description="MiniMax M2.5 Fast Inference",
+                api_key_env_var="MINIMAX_API_KEY",
+                base_url="https://api.minimax.io/v1",
+                supported_tasks=["general", "chat", "code"],
+                cost_per_token=0.00000075,
+                model="minimax-m2.5",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="anthropic_opus_4_6",
+                name="Anthropic Claude Opus 4.6",
+                description="Advanced Reasoning and Analysis",
+                api_key_env_var="ANTHROPIC_API_KEY",
+                supported_tasks=["general", "chat", "analysis", "reasoning"],
+                cost_per_token=0.000015,
+                model="claude-3-opus-4-6",
+                reasoning_level=4
+            ),
+            AIProviderConfig(
+                id="openai_5_3",
+                name="OpenAI GPT 5.3",
+                description="State-of-the-art GPT 5.3 model",
+                api_key_env_var="OPENAI_API_KEY",
+                supported_tasks=["general", "chat", "code", "reasoning"],
+                cost_per_token=0.000007875,
+                model="gpt-5.3",
+                reasoning_level=4
             )
+
         ]
         
         for provider in defaults:
