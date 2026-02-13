@@ -1,0 +1,19 @@
+{
+  "history": [
+    {
+      "date": "2026-02-12T23:33:23.717003",
+      "overall_coverage": 4.4,
+      "lines_covered": 3007,
+      "lines_total": 55087
+    }
+  ],
+  "baseline": {
+    "date": "2026-02-13",
+    "overall_coverage": 4.4,
+    "target_overall": 80.0
+  },
+  "target": {
+    "overall_coverage": 80.0,
+    "date": "2026-02-28"
+  }
+}
