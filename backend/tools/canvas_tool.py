@@ -229,7 +229,7 @@ async def present_chart(
         logger.error(f"Failed to present chart: {e}")
 
         # Mark execution as failed
-        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+        if agent_execution and FeatureFlags.should_enforce_governance('canvas'):
             try:
                 with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
@@ -726,7 +726,7 @@ async def update_canvas(
         logger.error(f"Failed to update canvas: {e}")
 
         # Mark execution as failed
-        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+        if agent_execution and FeatureFlags.should_enforce_governance('canvas'):
             try:
                 with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
@@ -980,7 +980,7 @@ async def canvas_execute_javascript(
         logger.error(f"Failed to execute JavaScript: {e}")
 
         # Mark execution as failed
-        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+        if agent_execution and FeatureFlags.should_enforce_governance('canvas'):
             try:
                 with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
@@ -1116,13 +1116,24 @@ async def present_specialized_canvas(
 
                     # Check maturity requirements
                     min_maturity = canvas_type_registry.get_min_maturity(canvas_type)
-                    if agent.maturity_level < min_maturity.value:
+                    # Map agent.status to maturity level (string comparison)
+                    # Agent status values: "student", "intern", "supervised", "autonomous"
+                    maturity_order = {
+                        "student": 0,
+                        "intern": 1,
+                        "supervised": 2,
+                        "autonomous": 3
+                    }
+                    agent_maturity = maturity_order.get(agent.status, 0)
+                    required_maturity = maturity_order.get(min_maturity.value, 3)
+
+                    if agent_maturity < required_maturity:
                         logger.warning(
-                            f"Agent maturity {agent.maturity_level} below required {min_maturity.value} for {canvas_type}"
+                            f"Agent maturity {agent.status} below required {min_maturity.value} for {canvas_type}"
                         )
                         return {
                             "success": False,
-                            "error": f"Agent maturity {agent.maturity_level} insufficient for {canvas_type} canvas (requires {min_maturity.value})"
+                            "error": f"Agent maturity {agent.status} insufficient for {canvas_type} canvas (requires {min_maturity.value})"
                         }
 
                     # Create agent execution record
@@ -1217,7 +1228,7 @@ async def present_specialized_canvas(
         logger.error(f"Failed to present specialized canvas: {e}")
 
         # Mark execution as failed
-        if agent_execution and CANVAS_GOVERNANCE_ENABLED:
+        if agent_execution and FeatureFlags.should_enforce_governance('canvas'):
             try:
                 with get_db_session() as db:
                     execution = db.query(AgentExecution).filter(
