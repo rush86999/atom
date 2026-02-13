@@ -15,6 +15,7 @@ Coverage:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
+from fastapi import FastAPI
 from sqlalchemy.orm import Session
 
 from api.canvas_routes import router
@@ -25,10 +26,41 @@ from core.models import AgentRegistry, User
 # Fixtures
 # ============================================================================
 
+# Global storage for test user - modified by patches
+_current_test_user = None
+
+
 @pytest.fixture
-def client():
-    """Create TestClient for canvas routes."""
-    return TestClient(router)
+def app_with_overrides(db: Session):
+    """Create FastAPI app with dependency overrides for testing."""
+    global _current_test_user
+    _current_test_user = None
+
+    app = FastAPI()
+    app.include_router(router)
+
+    from core.database import get_db
+    from core.security_dependencies import get_current_user
+
+    def override_get_db():
+        yield db
+
+    def override_get_current_user():
+        return _current_test_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    yield app
+
+    app.dependency_overrides.clear()
+    _current_test_user = None
+
+
+@pytest.fixture
+def client(app_with_overrides: FastAPI):
+    """Create TestClient with overridden dependencies."""
+    return TestClient(app_with_overrides, raise_server_exceptions=False)
 
 
 @pytest.fixture
@@ -141,6 +173,9 @@ def test_submit_form_success_supervised_agent(
     mock_user: User
 ):
     """Test form submission with SUPERVISED agent (allowed)."""
+    global _current_test_user
+    _current_test_user = mock_user
+
     form_data = {
         "canvas_id": "test-canvas-123",
         "form_data": {
@@ -167,10 +202,7 @@ def test_submit_form_success_supervised_agent(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('api.canvas_routes.get_current_user') as mock_auth:
-                    mock_auth.return_value = mock_user
-
-                    response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                     assert response.status_code == 200
                     data = response.json()
@@ -226,10 +258,10 @@ def test_submit_form_success_autonomous_agent(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('api.canvas_routes.get_current_user') as mock_auth:
+                with patch('core.security_dependencies.get_current_user') as mock_auth:
                     mock_auth.return_value = mock_user
 
-                    response = client.post("/submit", json=form_data)
+                    response = client.post("/api/canvas/submit", json=form_data)
 
                     assert response.status_code == 200
                     data = response.json()
@@ -266,7 +298,7 @@ def test_submit_form_blocked_student_agent(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 # Should be blocked with 403 Forbidden
                 assert response.status_code == 403
@@ -304,7 +336,7 @@ def test_submit_form_blocked_intern_agent(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 assert response.status_code == 403
                 data = response.json()
@@ -335,7 +367,7 @@ def test_submit_form_no_agent(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 assert response.status_code == 200
                 data = response.json()
@@ -362,7 +394,7 @@ def test_submit_form_invalid_schema(
     with patch('api.canvas_routes.get_current_user') as mock_auth:
         mock_auth.return_value = mock_user
 
-        response = client.post("/submit", json=form_data)
+        response = client.post("/api/canvas/submit", json=form_data)
 
         # FastAPI validation error
         assert response.status_code == 422
@@ -388,7 +420,7 @@ def test_submit_form_empty_form_data(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 # Empty form data should still succeed
                 assert response.status_code == 200
@@ -429,10 +461,10 @@ def test_submit_form_with_agent_execution_id(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('api.canvas_routes.get_current_user') as mock_auth:
+                with patch('core.security_dependencies.get_current_user') as mock_auth:
                     mock_auth.return_value = mock_user
 
-                    response = client.post("/submit", json=form_data)
+                    response = client.post("/api/canvas/submit", json=form_data)
 
                     assert response.status_code == 200
                     data = response.json()
@@ -452,7 +484,7 @@ def test_get_canvas_status_authenticated(
     with patch('api.canvas_routes.get_current_user') as mock_auth:
         mock_auth.return_value = mock_user
 
-        response = client.get("/status")
+        response = client.get("/api/canvas/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -483,7 +515,7 @@ def test_get_canvas_status_features_list(
     with patch('api.canvas_routes.get_current_user') as mock_auth:
         mock_auth.return_value = mock_user
 
-        response = client.get("/status")
+        response = client.get("/api/canvas/status")
 
         assert response.status_code == 200
         data = response.json()
@@ -510,7 +542,7 @@ def test_submit_form_unauthenticated(
     }
 
     # Don't mock get_current_user - should fail auth
-    response = client.post("/submit", json=form_data)
+    response = client.post("/api/canvas/submit", json=form_data)
 
     # Should get authentication error (422 because dependency can't be resolved)
     assert response.status_code in [401, 403, 422]
@@ -556,7 +588,7 @@ def test_submit_form_governance_disabled(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 # Should succeed when governance disabled
                 assert response.status_code == 200
@@ -594,7 +626,7 @@ def test_submit_form_database_error(
             with patch('api.canvas_routes.get_current_user') as mock_auth:
                 mock_auth.return_value = mock_user
 
-                response = client.post("/submit", json=form_data)
+                response = client.post("/api/canvas/submit", json=form_data)
 
                 # Should handle error gracefully
                 assert response.status_code == 500
@@ -633,10 +665,10 @@ def test_submit_form_websocket_error(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('api.canvas_routes.get_current_user') as mock_auth:
+                with patch('core.security_dependencies.get_current_user') as mock_auth:
                     mock_auth.return_value = mock_user
 
-                    response = client.post("/submit", json=form_data)
+                    response = client.post("/api/canvas/submit", json=form_data)
 
                     # Form submission should succeed even if WebSocket fails
                     assert response.status_code == 200
@@ -679,10 +711,10 @@ def test_submit_form_response_structure(
                 mock_governance.record_outcome = AsyncMock()
                 mock_sf.get_governance_service.return_value = mock_governance
 
-                with patch('api.canvas_routes.get_current_user') as mock_auth:
+                with patch('core.security_dependencies.get_current_user') as mock_auth:
                     mock_auth.return_value = mock_user
 
-                    response = client.post("/submit", json=form_data)
+                    response = client.post("/api/canvas/submit", json=form_data)
 
                     # Verify response structure
                     assert "success" in response.json()
@@ -704,7 +736,7 @@ def test_get_status_response_structure(
     with patch('api.canvas_routes.get_current_user') as mock_auth:
         mock_auth.return_value = mock_user
 
-        response = client.get("/status")
+        response = client.get("/api/canvas/status")
 
         # Verify response structure
         data = response.json()
