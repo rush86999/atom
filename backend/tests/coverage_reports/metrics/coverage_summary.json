@@ -1,0 +1,69 @@
+{
+  "overall": {
+    "percent_covered": 8.1,
+    "num_statements": 55087,
+    "covered_lines": 4464,
+    "missing_lines": 50623
+  },
+  "phase_8_6_summary": {
+    "baseline_coverage": 4.4,
+    "current_coverage": 8.1,
+    "improvement": 3.7,
+    "files_tested": 16,
+    "tests_created": 256,
+    "tests_passing": 256,
+    "plans_completed": 4
+  },
+  "breakdown_by_plan": {
+    "plan_15": {
+      "baseline_coverage": 4.4,
+      "achieved_coverage": 5.5,
+      "improvement": 1.1,
+      "files_tested": 4,
+      "tests_created": 69,
+      "production_lines": 892,
+      "estimated_new_coverage": 625
+    },
+    "plan_16": {
+      "baseline_coverage": 5.5,
+      "achieved_coverage": 6.4,
+      "improvement": 0.9,
+      "files_tested": 4,
+      "tests_created": 62,
+      "production_lines": 704,
+      "estimated_new_coverage": 493
+    },
+    "plan_17": {
+      "baseline_coverage": 6.4,
+      "achieved_coverage": 7.3,
+      "improvement": 0.9,
+      "files_tested": 4,
+      "tests_created": 63,
+      "production_lines": 714,
+      "estimated_new_coverage": 500
+    },
+    "plan_18": {
+      "baseline_coverage": 7.3,
+      "achieved_coverage": 7.3,
+      "improvement": 0.0,
+      "files_tested": 0,
+      "tests_created": 0,
+      "production_lines": 0,
+      "estimated_new_coverage": 0,
+      "notes": "Source files did not exist"
+    }
+  },
+  "targets": {
+    "phase_8_6_goal": 25.0,
+    "phase_8_6_achieved": 8.1,
+    "overall_target": 80.0,
+    "next_phase_target": 30.0,
+    "next_phase": "08-80-percent-coverage-push-8.7"
+  },
+  "metadata": {
+    "generated_at": "2026-02-13T14:30:00Z",
+    "phase": "08-80-percent-coverage-push",
+    "wave": 2,
+    "plan_range": "15-18"
+  }
+}
