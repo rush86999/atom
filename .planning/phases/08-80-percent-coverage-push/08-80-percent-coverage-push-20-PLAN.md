@@ -54,7 +54,7 @@ must_haves:
 <objective>
 Generate comprehensive Phase 8.6 coverage report with detailed metrics, progression analysis, and recommendations for next phase.
 
-Purpose: Create a detailed coverage report documenting Phase 8.6 achievements, analyzing coverage progression from baseline (4.4%) through Phase 8.5 (7.34%) to Phase 8.6 (~8.1%), and providing actionable recommendations for reaching the 30% target.
+Purpose: Create a detailed coverage report documenting Phase 8.6 achievements, analyzing coverage progression from baseline (4.4%) through Phase 8.5 (7.34%) to Phase 8.6 (~8.1%), and providing actionable recommendations for reaching the 25% target.
 
 Output: Comprehensive coverage report (COVERAGE_PHASE_8_6_REPORT.md) and reusable report generation script.
 </objective>
@@ -225,7 +225,7 @@ Phase 8.6 context:
     2. If script execution fails, manually create the report with following sections:
 
        ## Executive Summary
-       - Current coverage: ~8.1% (from 4.4% baseline)
+       - Current coverage: ~8.1% (from 20.66% baseline)
        - Phase 8.6 improvement: +0.76 percentage points
        - Total improvement: +3.7 percentage points from baseline
        - Files tested in Phase 8.6: 16 files

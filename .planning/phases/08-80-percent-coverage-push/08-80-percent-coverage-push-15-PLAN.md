@@ -60,7 +60,7 @@ must_haves:
 <objective>
 Create comprehensive unit tests for 4 high-impact workflow and canvas zero-coverage files to achieve 70%+ coverage per file.
 
-Purpose: These files (333+212+183+164 = 892 lines) represent critical workflow analytics and canvas coordination functionality. Testing them will add ~625 lines of coverage and improve overall project coverage by ~1.1%.
+Purpose: These files (333+212+183+164 = 892 lines) represent critical workflow analytics and canvas coordination functionality. Testing them will add ~625 lines of coverage and contribute ~1.1% toward Phase 8.6's 25% overall coverage goal (from 20.66% baseline).
 
 Output: 4 test files with 69-75 total tests covering workflow analytics endpoints, analytics service, canvas coordinator, and audit service.
 </objective>
@@ -84,6 +84,12 @@ Test patterns from Phase 8.5:
 - Fixture-based test setup
 - Input validation tests
 - Error handling tests
+
+Phase 8.6 Context:
+- Baseline coverage: 20.66% (from Phase 8.5)
+- Target: 25% overall coverage
+- This plan contributes ~1.1% toward target
+- 16 files total across Plans 15-18
 </context>
 
 <tasks>
@@ -236,19 +242,19 @@ Test patterns from Phase 8.5:
            return CanvasCoordinator()
        ```
 
-    2. Test CanvasCoordinator coordinate_canvas_creation:
+    2. Test CanvasCoordinator.coordinate_canvas_creation:
        - test_coordinate_creation_success (valid canvas)
        - test_coordinate_creation_with_permissions (governance check)
        - test_coordinate_creation_invalid_type (400 error)
        - test_coordinate_creation_governance_denied (403 error)
 
-    3. Test CanvasCoordinator coordinate_multi_agent_canvas:
+    3. Test CanvasCoordinator.coordinate_multi_agent_canvas:
        - test_multi_agent_coordination_success (parallel agents)
        - test_multi_agent_coordination_sequential (sequential mode)
        - test_multi_agent_coordination_locked (locked mode)
        - test_multi_agent_coordination_conflict (conflict resolution)
 
-    4. Test CanvasCoordinator coordinate_canvas_update:
+    4. Test CanvasCoordinator.coordinate_canvas_update:
        - test_coordinate_update_success (valid update)
        - test_coordinate_update_version_check (version validation)
        - test_coordinate_update_concurrent (optimistic locking)
@@ -258,7 +264,7 @@ Test patterns from Phase 8.5:
        - test_coordinate_share_permissions (permission check)
        - test_coordinate_share_already_shared (idempotent)
 
-    6. Test CanvasCoordinator coordinate_canvas_favorites:
+    6. Test CanvasCoordinator.coordinate_canvas_favorites:
        - test_coordinate_add_favorite_success (add favorite)
        - test_coordinate_remove_favorite_success (remove favorite)
        - test_coordinate_list_favorites_success (list favorites)
@@ -360,7 +366,7 @@ After all tasks complete:
    - 69 tests total (20+18+16+15)
    - All tests pass
    - Each file achieves 70%+ coverage
-   - Overall project coverage increases by ~1.1%
+   - Overall project coverage increases by ~1.1% toward 25% target
 </verification>
 
 <success_criteria>
@@ -368,7 +374,7 @@ After all tasks complete:
 - 69 total tests (20+18+16+15)
 - 100% pass rate
 - Each target file achieves 70%+ coverage
-- Overall project coverage increases from 4.4% to ~5.5%
+- Overall project coverage progresses toward 25% target (from 20.66% baseline)
 - Tests use AsyncMock and TestClient patterns from Phase 8.5
 - All tests complete in under 60 seconds
 </success_criteria>

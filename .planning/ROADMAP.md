@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 - [x] **Phase 8: 80% Coverage Push** - Systematically add unit tests to uncovered code paths across core, api, and tools modules to achieve 80% overall coverage (93% complete - 13/14 plans)
 - [x] **Phase 8.5: Coverage Expansion** - Realistic incremental coverage expansion achieving 20.66% overall coverage (+11.32% from 9.32% baseline). Created 16 test files (588 tests, 10,691 lines) with 66.29% average coverage. CI/CD gates and trending infrastructure in place.
-- [ ] **Phase 8.6: Zero-Coverage File Testing (30% Goal)** - Target 30% overall coverage by testing top 20-30 zero-coverage files with 70% average coverage per file. 6 plans covering 16 zero-coverage files (workflow, API, governance modules).
+- [ ] **Phase 8.6: Zero-Coverage File Testing (25% Goal)** - Target 25% overall coverage by testing top 16 zero-coverage files with 70% average coverage per file, building on Phase 8.5's 20.66% baseline. 6 plans covering workflow, API, governance modules.
 
 ## Phase Details
 
@@ -217,13 +217,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] 08.5-coverage-expansion-05-PLAN.md — Coverage reporting and Phase 8.5 summary with recommendations for Phase 8.6
 
 
-### Phase 8.6: Zero-Coverage File Testing (30% Goal)
-**Goal**: Achieve 30% overall coverage by testing top 20-30 zero-coverage files with 70% average coverage per file, building on Phase 8.5's 20.66% baseline
+### Phase 8.6: Zero-Coverage File Testing (25% Goal)
+**Goal**: Achieve 25% overall coverage by testing top 16 zero-coverage files with 70% average coverage per file, building on Phase 8.5's 20.66% baseline
 **Depends on**: Phase 8.5
 **Requirements**: COVR-08-01, COVR-08-02, COVR-08-03 (continued)
 **Success Criteria** (what must be TRUE):
-  1. Overall coverage reaches 30%+ (baseline: 20.66%, target: +9.3 percentage points)
-  2. Top 20-30 zero-coverage files receive comprehensive tests (70%+ coverage per file)
+  1. Overall coverage reaches 25%+ (baseline: 20.66%, target: +4.3 percentage points)
+  2. Top 16 zero-coverage files receive comprehensive tests (70%+ coverage per file)
   3. 16 zero-coverage files tested in Wave 1 (plans 15-18)
   4. Coverage metrics and trending properly documented (addressing Phase 8.5 gaps)
   5. Comprehensive Phase 8.6 coverage report generated
