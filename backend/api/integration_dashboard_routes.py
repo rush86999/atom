@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+from fastapi import Query
 
 from core.base_routes import BaseAPIRouter
 from core.integration_dashboard import (
