@@ -268,21 +268,52 @@ Phase 8 achieved a 216% improvement - a massive success by any measure. The 80% 
 
 #### Coverage Journey Timeline to 80%
 
-Based on Phase 8.6 velocity (+1.42% per plan with high-impact file strategy):
+Based on Phase 8.6 velocity data (+1.42% per plan with high-impact file strategy), here is the realistic multi-phase journey to 80% coverage:
 
-| Milestone | Target Coverage | Increment | Plans Needed | Duration |
-|-----------|----------------|-----------|--------------|----------|
-| Current | 15.87% | - | - | - |
-| Phase 8.7 | 17-18% | +2-3% | 2-3 plans | 1-2 days |
-| Phase 8.8 | 19-20% | +2% | 2 plans | 1 day |
-| Phase 8.9 | 21-22% | +2% | 2 plans | 1 day |
-| Phase 9.0 | 25-27% | +3-5% | 3-4 plans | 2 days |
-| Phase 9.1-9.5 | 35% | +8-10% | 6-8 plans | 3-4 days |
-| Phase 10.x | 50% | +15% | 12-15 plans | 5-6 days |
-| Phase 11.x | 65% | +15% | 15-18 plans | 6-7 days |
-| Phase 12.x | 80% | +15% | 18-20 plans | 7-8 days |
+**Velocity-Based Timeline Calculation:**
 
-**Total to 80%**: ~45-60 plans, 15-20 days focused effort, 4-6 weeks calendar time
+- Early Phase 8 velocity: +0.42% per plan (scattershot approach, unfocused)
+- Phase 8.6 velocity: +1.42% per plan (high-impact file focus)
+- Acceleration factor: 3.38x improvement when focusing on files >150 lines
+- Realistic assumption: Continue Phase 8.6 velocity for future phases
+
+**Realistic Multi-Phase Milestones:**
+
+| Milestone | Target Coverage | Increment | Plans Needed | Duration | Focus |
+|-----------|----------------|-----------|--------------|----------|-------|
+| **Current** | 15.87% | - | - | - | Baseline after Phase 8 |
+| **Phase 8.7** | 17-18% | +2-3% | 2-3 plans | 1-2 days | Core workflow files (workflow_engine, scheduler, templates) |
+| **Phase 8.8** | 19-20% | +2% | 2 plans | 1 day | Agent governance & BYOK (agent_governance_service, byok_handler) |
+| **Phase 8.9** | 21-22% | +2% | 2 plans | 1 day | Canvas & browser tools (extend from 70% to 85%+) |
+| **Phase 9.0** | 25-27% | +3-5% | 3-4 plans | 2 days | API module expansion (zero-coverage API routes) |
+| **Phase 9.1-9.5** | 35% | +8-10% | 6-8 plans | 3-4 days | Enterprise & integration files (higher complexity) |
+| **Phase 10.x** | 50% | +15% | 12-15 plans | 5-6 days | Medium-impact files (100-200 lines) |
+| **Phase 11.x** | 65% | +15% | 15-18 plans | 6-7 days | Comprehensive coverage across all modules |
+| **Phase 12.x** | 80% | +15% | 18-20 plans | 7-8 days | Final polish, edge cases, diminishing returns |
+
+**Total Effort to Reach 80%:**
+
+- **Remaining coverage gap:** 64.13 percentage points (80% - 15.87%)
+- **At Phase 8.6 velocity:** ~45 additional plans required
+- **Focused testing time:** 15-20 days of concentrated coverage work
+- **Calendar time with other work:** 4-6 weeks (assuming 3-4 plans/day, 3-4 days/week)
+- **Total test count:** ~2,000-2,500 additional tests (building on 530 existing tests)
+
+**Key Assumptions:**
+
+1. **Maintain Phase 8.6 velocity:** Continue high-impact file strategy (>150 lines priority)
+2. **Sustained focus:** 3-4 plans per day dedicated to coverage (no major feature work)
+3. **Quality maintained:** 50% average coverage per file (not rushing to 100% per file)
+4. **No scope creep:** Focus on high-impact files first, defer low-impact utilities
+5. **Technical debt:** Fix test collection issues as encountered (API test mock refinements)
+
+**Alternative Scenarios:**
+
+- **Optimistic (accelerated):** If velocity improves to +2%/plan through better tooling → ~32 plans, 10-12 days
+- **Conservative (decelerated):** If velocity drops to +1%/plan due to file complexity → ~64 plans, 20-25 days
+- **Realistic (baseline):** Phase 8.6 velocity maintained (+1.42%/plan) → ~45 plans, 15-20 days
+
+**The 80% goal is achievable**, but requires sustained focus over multiple phases. Phase 8 built the foundation and proved the strategy. The remaining work is execution, not discovery.
 
 ### Phase 8.7: Core Workflow Focus
 **Goal**: Achieve 17-18% overall coverage (+2-3% from 15.87%) by testing top zero-coverage workflow files
