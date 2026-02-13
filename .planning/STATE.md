@@ -108,6 +108,7 @@ Progress: [███████▓▓▓▓] 60% (Phase 08.5: 3 of 5 plans comp
 | Phase 08-80-percent-coverage-push P14 | 1734 | 3 tasks | 3 files |
 | Phase 08.5-coverage-expansion P03 | 698 | 3 tasks | 4 files |
 | Phase 08.5-coverage-expansion P01 | 420 | 4 tasks | 8 files |
+| Phase 08.5-coverage-expansion P04 | 0 | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -216,6 +217,7 @@ Recent decisions affecting current work:
 - [Phase 08-80-percent-coverage-push]: Used patch-based authentication mocking instead of dependency override for router compatibility
 - [Phase 08-80-percent-coverage-push]: Created fixtures directly instead of using factories to avoid SQLAlchemy session attachment issues
 - [Phase 08-80-percent-coverage-push]: Set initial coverage threshold at 25% (realistic baseline, will increase gradually). Use diff-cover to prevent PRs from dropping coverage by more than 5%. Configure PR comments with color-coded coverage (green 80%+, orange 60-79%, red <60%). Track coverage history in trending.json (last 30 entries) for progress visualization.
+- [Phase 08.5-coverage-expansion]: Created baseline unit tests for validation/optimization files with 87% average coverage
 
 ### Pending Todos
 
