@@ -312,17 +312,24 @@ class TestSupervisedAgentRouting:
     @pytest.mark.asyncio
     async def test_supervised_requires_supervision(self, interceptor, mock_db, supervised_agent):
         """Test SUPERVISED agents require supervision for automated triggers."""
+        # Add user_id to supervised_agent for the test
+        supervised_agent.user_id = "user_123"
         mock_query = MagicMock()
         mock_query.filter.return_value.first.return_value = supervised_agent
         mock_db.query.return_value = mock_query
-        
-        # Mock user activity service
-        with patch('core.trigger_interceptor.UserActivityService') as mock_uas:
+
+        # Mock user activity service and supervised queue service
+        with patch('core.user_activity_service.UserActivityService') as mock_uas, \
+             patch('core.supervised_queue_service.SupervisedQueueService') as mock_sqs:
             mock_uas_instance = MagicMock()
             mock_uas_instance.get_user_state = AsyncMock(return_value="active")
             mock_uas_instance.should_supervise = Mock(return_value=True)
             mock_uas.return_value = mock_uas_instance
-            
+
+            mock_sqs_instance = MagicMock()
+            mock_sqs_instance.enqueue_execution = AsyncMock()
+            mock_sqs.return_value = mock_sqs_instance
+
             decision = await interceptor.intercept_trigger(
                 agent_id="supervised_agent",
                 trigger_source=TriggerSource.DATA_SYNC,
@@ -335,17 +342,23 @@ class TestSupervisedAgentRouting:
     @pytest.mark.asyncio
     async def test_supervised_for_all_automated_sources(self, interceptor, mock_db, supervised_agent):
         """Test SUPERVISED supervision for all automated trigger sources."""
+        supervised_agent.user_id = "user_123"
         mock_query = MagicMock()
         mock_query.filter.return_value.first.return_value = supervised_agent
         mock_db.query.return_value = mock_query
-        
-        # Mock user activity service
-        with patch('core.trigger_interceptor.UserActivityService') as mock_uas:
+
+        # Mock user activity service and supervised queue service
+        with patch('core.user_activity_service.UserActivityService') as mock_uas, \
+             patch('core.supervised_queue_service.SupervisedQueueService') as mock_sqs:
             mock_uas_instance = MagicMock()
             mock_uas_instance.get_user_state = AsyncMock(return_value="active")
             mock_uas_instance.should_supervise = Mock(return_value=True)
             mock_uas.return_value = mock_uas_instance
-            
+
+            mock_sqs_instance = MagicMock()
+            mock_sqs_instance.enqueue_execution = AsyncMock()
+            mock_sqs.return_value = mock_sqs_instance
+
             automated_sources = [
                 TriggerSource.DATA_SYNC,
                 TriggerSource.WORKFLOW_ENGINE,
@@ -497,9 +510,14 @@ class TestTriggerDecision:
         blocked = BlockedTriggerContext(
             id="blocked_123",
             agent_id="agent_123",
+            agent_name="Test Agent",
+            agent_maturity_at_block="student",
+            confidence_score_at_block=0.4,
             trigger_type="test",
             trigger_source="workflow",
-            reason="Test"
+            trigger_context={},
+            routing_decision="training",
+            block_reason="Test"
         )
 
         decision = TriggerDecision(
@@ -520,8 +538,12 @@ class TestTriggerDecision:
         proposal = AgentProposal(
             id="proposal_123",
             agent_id="agent_123",
+            agent_name="Test Agent",
             proposal_type="action",
-            title="Action Proposal"
+            title="Action Proposal",
+            description="Test proposal",
+            status=ProposalStatus.PROPOSED.value,
+            proposed_by="agent_123"
         )
 
         decision = TriggerDecision(
@@ -542,7 +564,11 @@ class TestTriggerDecision:
         supervision = SupervisionSession(
             id="supervision_123",
             agent_id="agent_123",
-            status=SupervisionStatus.ACTIVE.value
+            agent_name="Test Agent",
+            workspace_id="workspace_123",
+            trigger_context={},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="user_123"
         )
 
         decision = TriggerDecision(
@@ -572,17 +598,26 @@ class TestRouteToTraining:
         blocked_trigger = BlockedTriggerContext(
             id="blocked_123",
             agent_id="student_agent",
+            agent_name="Student Agent",
+            agent_maturity_at_block="student",
+            confidence_score_at_block=0.4,
             trigger_type="workflow",
             trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
-            reason="STUDENT blocked"
+            trigger_context={},
+            routing_decision="training",
+            block_reason="STUDENT blocked"
         )
 
         with patch.object(interceptor.training_service, 'create_training_proposal', new=AsyncMock()) as mock_create:
             mock_create.return_value = AgentProposal(
                 id="proposal_123",
                 agent_id="student_agent",
+                agent_name="Student Agent",
                 proposal_type="training",
-                title="Training Proposal"
+                title="Training Proposal",
+                description="Test training proposal",
+                status=ProposalStatus.PROPOSED.value,
+                proposed_by="system"
             )
 
             proposal = await interceptor.route_to_training(blocked_trigger)
@@ -698,8 +733,12 @@ class TestAllowExecution:
     """Tests for allowing execution."""
 
     @pytest.mark.asyncio
-    async def test_allow_execution_returns_context(self, interceptor, autonomous_agent):
+    async def test_allow_execution_returns_context(self, interceptor, mock_db, autonomous_agent):
         """Test allowing execution returns execution context."""
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = autonomous_agent
+        mock_db.query.return_value = mock_query
+
         trigger_context = {"action": "execute"}
 
         result = await interceptor.allow_execution(
@@ -708,7 +747,7 @@ class TestAllowExecution:
         )
 
         assert result["allowed"] is True
-        # The actual result depends on DB query
+        assert result["agent_id"] == "autonomous_agent"
 
     @pytest.mark.asyncio
     async def test_allow_execution_for_nonexistent_agent_raises(self, interceptor, mock_db):
