@@ -321,9 +321,25 @@ Based on Phase 8.6 velocity data (+1.42% per plan with high-impact file strategy
 **Requirements**: COVR-08-01 (zero-coverage baseline), COVR-08-02 (workflow tests)
 **Success Criteria** (what must be TRUE):
   1. Overall coverage reaches 17-18% (from 15.87%, +2-3 percentage points)
-  2. Top 10-15 zero-coverage workflow files receive baseline tests (50% average coverage)
+  2. Top 10 zero-coverage workflow files receive baseline tests (50% average coverage)
   3. Workflow engine core files tested (workflow_engine.py, workflow_scheduler.py, workflow_templates.py)
   4. Coverage trending updated with Phase 8.7 data
+
+**Focus Files** (Top 10 zero-coverage workflow files by impact):
+- workflow_engine.py (core orchestration, ~500 lines)
+- workflow_scheduler.py (scheduling logic, ~250 lines)
+- workflow_templates.py (template management, ~220 lines)
+- workflow_coordinator.py (coordination, ~197 lines)
+- workflow_parallel_executor.py (parallel execution, ~179 lines)
+- workflow_validation.py (validation logic, ~165 lines)
+- workflow_retrieval.py (retrieval operations, ~163 lines)
+- workflow_analytics_service.py (analytics, ~212 lines)
+- workflow_context.py (context management, ~157 lines)
+- workflow_executor.py (execution logic, ~180 lines)
+
+**Estimated Impact**: +2-3% overall coverage (150-180 tests across 10 files)
+**Estimated Duration**: 2-3 plans (1-2 days)
+
 **Plans**: 2-3 plans
 - [ ] 08-80-percent-coverage-push-23-PLAN.md — Core workflow infrastructure tests (workflow_engine, workflow_scheduler, workflow_templates, workflow_executor)
 - [ ] 08-80-percent-coverage-push-24-PLAN.md — Workflow orchestration tests (workflow_coordinator, workflow_parallel_executor, workflow_validation, workflow_retrieval)
@@ -338,6 +354,16 @@ Based on Phase 8.6 velocity data (+1.42% per plan with high-impact file strategy
   2. agent_governance_service.py tested to 60%+ coverage (critical path)
   3. llm/byok_handler.py tested to 50%+ coverage
   4. Agent context resolver and trigger interceptor tested
+
+**Focus Files** (High-impact governance and LLM files):
+- agent_governance_service.py (agent lifecycle, ~400 lines)
+- agent_context_resolver.py (context resolution, ~250 lines)
+- llm/byok_handler.py (multi-provider routing, ~350 lines)
+- llm/streaming_handler.py (streaming logic, ~200 lines)
+
+**Estimated Impact**: +2% overall coverage (80-100 tests across 4 files)
+**Estimated Duration**: 2 plans (1 day)
+
 **Plans**: 2 plans
 - [ ] 08-80-percent-coverage-push-26-PLAN.md — Agent governance service tests (agent_governance_service, agent_context_resolver, trigger_interceptor)
 - [ ] 08-80-percent-coverage-push-27-PLAN.md — LLM BYOK handler tests (byok_handler, streaming_handler)
@@ -352,6 +378,17 @@ Based on Phase 8.6 velocity data (+1.42% per plan with high-impact file strategy
   3. browser_tool.py extended from 76% to 85%+ coverage
   4. device_tool.py maintains 94% coverage
   5. Canvas coordinator and collaboration services tested
+
+**Focus Files** (Extend existing tool coverage):
+- canvas_tool.py (extend from 73% to 85%+, ~800 lines)
+- browser_tool.py (extend from 76% to 85%+, ~600 lines)
+- device_tool.py (maintain 94%, ~400 lines)
+- canvas_coordinator.py (coordination logic, ~183 lines)
+- canvas_collaboration_service.py (collaboration features, ~175 lines)
+
+**Estimated Impact**: +2% overall coverage (80-100 tests extending 5 files)
+**Estimated Duration**: 2 plans (1 day)
+
 **Plans**: 2 plans
 - [ ] 08-80-percent-coverage-push-28-PLAN.md — Canvas tool extended coverage (canvas_tool, canvas_coordinator, canvas_collaboration_service)
 - [ ] 08-80-percent-coverage-push-29-PLAN.md — Browser and device tool extended coverage (browser_tool, device_tool)
@@ -362,8 +399,19 @@ Based on Phase 8.6 velocity data (+1.42% per plan with high-impact file strategy
 **Requirements**: COVR-08-06 (API module coverage)
 **Success Criteria** (what must be TRUE):
   1. Overall coverage reaches 25-27% (from 21-22%, +3-5 percentage points)
-  2. Zero-coverage API routes tested: agent_guidance_routes (194 lines), integration_dashboard_routes (191 lines), dashboard_data_routes (182 lines), auth_routes (177 lines), document_ingestion_routes (168 lines)
+  2. Zero-coverage API routes tested (agent_guidance_routes, integration_dashboard_routes, dashboard_data_routes, auth_routes, document_ingestion_routes)
   3. API module coverage increases from 31.1% to 40%+
+
+**Focus Files** (Zero-coverage API routes by line count):
+- agent_guidance_routes.py (194 lines) - Agent guidance endpoints
+- integration_dashboard_routes.py (191 lines) - Integration dashboard
+- dashboard_data_routes.py (182 lines) - Dashboard data APIs
+- auth_routes.py (177 lines) - Authentication endpoints
+- document_ingestion_routes.py (168 lines) - Document ingestion
+
+**Estimated Impact**: +3-5% overall coverage (120-150 tests across 5 files)
+**Estimated Duration**: 3-4 plans (2 days)
+
 **Plans**: 3-4 plans
 - [ ] 08-80-percent-coverage-push-30-PLAN.md — API guidance and dashboard routes tests
 - [ ] 08-80-percent-coverage-push-31-PLAN.md — Auth and document ingestion routes tests
