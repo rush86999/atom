@@ -192,7 +192,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] 08-80-percent-coverage-push-09-PLAN.md — Gap closure: Document ingestion & proposal service tests
 - [ ] 08-80-percent-coverage-push-10-PLAN.md — Gap closure: Advanced workflow & marketplace tests
 - [ ] 08-80-percent-coverage-push-11-PLAN.md — Gap closure: Extend workflow engine and tools coverage
-- [ ] 08-80-percent-coverage-push-12-PLAN.md — Gap closure: Fix API test mocks for 100% pass rate
+- [x] 08-80-percent-coverage-push-12-PLAN.md — Gap closure: Fix API test mocks for 100% pass rate
 - [ ] 08-80-percent-coverage-push-13-PLAN.md — Gap closure: CI/CD coverage quality gates
 - [ ] 08-80-percent-coverage-push-14-PLAN.md — Gap closure: Database integration tests
 
