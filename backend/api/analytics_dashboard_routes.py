@@ -6,6 +6,8 @@ Provides endpoints for message analytics, cross-platform correlation, and predic
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from fastapi import Query
+
 from core.base_routes import BaseAPIRouter
 from core.cross_platform_correlation import (
     CrossPlatformCorrelationEngine,
