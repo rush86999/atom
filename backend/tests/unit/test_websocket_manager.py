@@ -215,6 +215,8 @@ async def test_send_personal_message(connection_manager, mock_websocket):
     message = {"type": "notification", "data": "test_message"}
 
     await connection_manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
     result = await connection_manager.send_personal(mock_websocket, message)
 
     # Verify sent
@@ -239,6 +241,8 @@ async def test_send_personal_message_serializes_json(connection_manager, mock_we
     }
 
     await connection_manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
     await connection_manager.send_personal(mock_websocket, message)
 
     # Verify JSON serialization
@@ -299,6 +303,10 @@ async def test_broadcast_to_stream(connection_manager):
 
     message = {"type": "broadcast", "data": "test_data"}
 
+    # Reset mocks to ignore welcome messages
+    for ws in connections:
+        ws.send_text.reset_mock()
+
     sent_count = await connection_manager.broadcast(stream_id, message)
 
     # Verify sent to all connections
@@ -354,6 +362,8 @@ async def test_broadcast_empty_message(connection_manager, mock_websocket):
     stream_id = "test_stream"
 
     await connection_manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     message = {}
     sent_count = await connection_manager.broadcast(stream_id, message)
@@ -459,6 +469,8 @@ async def test_broadcast_to_workspace(connection_manager, mock_websocket):
     workspace_id = "workspace_123"
 
     await connection_manager.connect(mock_websocket, f"workspace_{workspace_id}")
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     message = {"type": "workspace_update", "data": "test"}
 
@@ -474,6 +486,8 @@ async def test_broadcast_trace_update(connection_manager, mock_websocket):
     stream_id = "trace_stream"
 
     await connection_manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     trace_data = {"node_id": "node_1", "status": "running"}
 
@@ -496,6 +510,8 @@ async def test_broadcast_session_update(connection_manager, mock_websocket):
     session_id = "session_123"
 
     await connection_manager.connect(mock_websocket, f"debug_session_{session_id}")
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     update_type = "session_paused"
     data = {"reason": "user_action", "node_id": "node_1"}
@@ -535,6 +551,8 @@ async def test_stream_trace(debug_manager, mock_websocket):
 
     stream_id = f"trace_{execution_id}_{session_id}"
     await debug_manager.manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     sent_count = await debug_manager.stream_trace(
         execution_id, session_id, trace_data
@@ -554,6 +572,8 @@ async def test_notify_variable_changed(debug_manager, mock_websocket):
 
     stream_id = f"debug_session_{session_id}"
     await debug_manager.manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     sent_count = await debug_manager.notify_variable_changed(
         session_id, variable_name, new_value, previous_value
@@ -580,6 +600,8 @@ async def test_notify_variable_changed_no_previous(debug_manager, mock_websocket
 
     stream_id = f"debug_session_{session_id}"
     await debug_manager.manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     sent_count = await debug_manager.notify_variable_changed(
         session_id, variable_name, new_value
@@ -602,6 +624,8 @@ async def test_notify_breakpoint_hit(debug_manager, mock_websocket):
 
     stream_id = f"debug_session_{session_id}"
     await debug_manager.manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     sent_count = await debug_manager.notify_breakpoint_hit(
         session_id, breakpoint_id, node_id, hit_count
@@ -848,6 +872,8 @@ async def test_json_serialization_complex_data(connection_manager, mock_websocke
     stream_id = "test_stream"
 
     await connection_manager.connect(mock_websocket, stream_id)
+    # Reset mock to ignore welcome message
+    mock_websocket.send_text.reset_mock()
 
     complex_message = {
         "type": "complex",
