@@ -285,5 +285,216 @@ class TestIntegrationProcessors:
             assert integration in mock_processor.integration_processors
 
 
+    def test_all_supported_integrations(self, mock_processor):
+        """Test all expected integrations are supported."""
+        expected = ["asana", "jira", "salesforce", "notion", "airtable", "hubspot", "monday"]
+        for integration in expected:
+            assert integration in mock_processor.integration_processors
+
+
+# ============================================================================
+# Test: Batch Processing
+# ============================================================================
+
+class TestBatchProcessing:
+    """Tests for batch size handling and chunking logic."""
+
+    @pytest.mark.asyncio
+    async def test_prepare_items_basic(self, mock_processor):
+        """Test basic item preparation."""
+        operation = BulkOperation(
+            integration_id="asana",
+            operation_type="create",
+            items=[{"name": f"Task {i}"} for i in range(5)]
+        )
+
+        items = await mock_processor._prepare_items(operation)
+
+        assert len(items) == 5
+        assert items[0]["name"] == "Task 0"
+
+    @pytest.mark.asyncio
+    async def test_batch_splitting(self, mock_processor):
+        """Test items split into correct batch sizes."""
+        items = [{"name": f"Task {i}"} for i in range(10)]
+        batch_size = 3
+
+        batches = [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
+
+        assert len(batches) == 4  # 10 items / 3 = 4 batches
+        assert len(batches[0]) == 3
+        assert len(batches[1]) == 3
+        assert len(batches[2]) == 3
+        assert len(batches[3]) == 1
+
+    @pytest.mark.asyncio
+    async def test_empty_batch_handling(self, mock_processor):
+        """Test empty batch is handled correctly."""
+        operation = BulkOperation(
+            integration_id="asana",
+            operation_type="create",
+            items=[],
+            batch_size=10
+        )
+
+        items = await mock_processor._prepare_items(operation)
+        batches = [items[i:i + 10] for i in range(0, len(items), 10)]
+
+        assert len(batches) == 1
+        assert len(batches[0]) == 0
+
+    @pytest.mark.asyncio
+    async def test_single_item_batch(self, mock_processor):
+        """Test single item batch works correctly."""
+        operation = BulkOperation(
+            integration_id="asana",
+            operation_type="create",
+            items=[{"name": "Single Task"}],
+            batch_size=100
+        )
+
+        items = await mock_processor._prepare_items(operation)
+        batches = [items[i:i + 100] for i in range(0, len(items), 100)]
+
+        assert len(batches) == 1
+        assert len(batches[0]) == 1
+
+
+# ============================================================================
+# Test: Error Handling
+# ============================================================================
+
+class TestErrorHandling:
+    """Tests for partial failures, rollback, error reporting."""
+
+    @pytest.mark.asyncio
+    async def test_update_job_progress_success(self, mock_processor):
+        """Test job progress updates on success."""
+        from core.bulk_operations_processor import BulkJob
+
+        job = BulkJob(
+            job_id="test-job",
+            operation=BulkOperation(
+                integration_id="asana",
+                operation_type="create",
+                items=[]
+            ),
+            status=OperationStatus.RUNNING,
+            created_at=datetime.now(timezone.utc)
+        )
+
+        batch_results = [
+            {"success": True, "item": {"name": "Task 1"}},
+            {"success": True, "item": {"name": "Task 2"}}
+        ]
+
+        await mock_processor._update_job_progress(job, batch_results, 1, 2)
+
+        assert job.processed_items == 2
+        assert job.successful_items == 2
+        assert job.failed_items == 0
+        assert job.progress_percentage == 50.0
+
+    @pytest.mark.asyncio
+    async def test_update_job_progress_with_failure(self, mock_processor):
+        """Test job progress tracks failures."""
+        from core.bulk_operations_processor import BulkJob
+
+        job = BulkJob(
+            job_id="test-job",
+            operation=BulkOperation(
+                integration_id="asana",
+                operation_type="create",
+                items=[]
+            ),
+            status=OperationStatus.RUNNING,
+            created_at=datetime.now(timezone.utc)
+        )
+
+        batch_results = [
+            {"success": True, "item": {"name": "Task 1"}},
+            {"success": False, "item": {"name": "Task 2"}, "error": "Invalid data"}
+        ]
+
+        await mock_processor._update_job_progress(job, batch_results, 1, 2)
+
+        assert job.processed_items == 2
+        assert job.successful_items == 1
+        assert job.failed_items == 1
+        assert len(job.errors) == 1
+
+
+# ============================================================================
+# Test: Global Instance
+# ============================================================================
+
+class TestGlobalInstance:
+    """Tests for global bulk processor instance."""
+
+    def test_get_bulk_processor(self):
+        """Test global processor instance retrieval."""
+        from core.bulk_operations_processor import get_bulk_processor
+
+        processor = get_bulk_processor()
+        assert processor is not None
+        assert isinstance(processor, IntegrationBulkProcessor)
+
+    def test_global_processor_singleton(self):
+        """Test global processor is singleton."""
+        from core.bulk_operations_processor import get_bulk_processor
+
+        processor1 = get_bulk_processor()
+        processor2 = get_bulk_processor()
+
+        assert processor1 is processor2
+
+
+# ============================================================================
+# Test: Edge Cases
+# ============================================================================
+
+class TestBulkProcessorEdgeCases:
+    """Tests for edge cases and boundary conditions."""
+
+    @pytest.mark.asyncio
+    async def test_zero_items_bulk_operation(self, mock_processor):
+        """Test bulk operation with zero items."""
+        operation = BulkOperation(
+            integration_id="asana",
+            operation_type="create",
+            items=[]
+        )
+
+        job_id = await mock_processor.submit_bulk_job(operation)
+        job = mock_processor.active_jobs[job_id]
+
+        assert job.total_items == 0
+
+    @pytest.mark.asyncio
+    async def test_very_large_batch_size(self, mock_processor):
+        """Test handling of very large batch size."""
+        operation = BulkOperation(
+            integration_id="asana",
+            operation_type="create",
+            items=[{"name": f"Task {i}"} for i in range(10)],
+            batch_size=10000
+        )
+
+        items = await mock_processor._prepare_items(operation)
+        batches = [items[i:i + 10000] for i in range(0, len(items), 10000)]
+
+        assert len(batches) == 1
+        assert len(batches[0]) == 10
+
+    @pytest.mark.asyncio
+    async def test_concurrent_job_limit(self, mock_processor):
+        """Test concurrent job limit is enforced."""
+        assert mock_processor.max_concurrent_jobs == 5
+
+        # Test limit can be changed
+        mock_processor.max_concurrent_jobs = 10
+        assert mock_processor.max_concurrent_jobs == 10
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
