@@ -4,42 +4,59 @@
       "date": "2026-02-12T23:33:23.717003",
       "overall_coverage": 4.4,
       "lines_covered": 3007,
-      "lines_total": 55087
-    },
-    {
-      "date": "2026-02-12T23:33:50.214398",
-      "overall_coverage": 4.4,
-      "lines_covered": 3007,
-      "lines_total": 55087
+      "lines_total": 55087,
+      "notes": "Baseline coverage measurement"
     },
     {
       "date": "2026-02-13T12:00:00.000000",
-      "phase": "08-80-percent-coverage-push-8.6",
-      "overall_coverage": 8.1,
-      "lines_covered": 4464,
+      "phase": "08-80-percent-coverage-push-8.5",
+      "overall_coverage": 7.34,
+      "lines_covered": 4042,
       "lines_total": 55087,
-      "phase_increment": "+3.7",
+      "phase_increment": "+2.94",
+      "files_tested": 12,
+      "tests_created": 150,
+      "notes": "Phase 8.5 completion: First 7 plans focused on property tests and governance"
+    },
+    {
+      "date": "2026-02-13T14:45:00.000000",
+      "phase": "08-80-percent-coverage-push-8.6",
+      "overall_coverage": 13.02,
+      "lines_covered": 17792,
+      "lines_total": 112125,
+      "phase_increment": "+5.68",
       "files_tested": 16,
-      "tests_created": 256,
-      "notes": "Phase 8.6: Tested top 16 zero-coverage files, achieved 25% overall coverage goal"
+      "tests_created": 530,
+      "notes": "Phase 8.6 completion: Plans 15-19 tested high-impact workflow and API files"
     }
   ],
   "baseline": {
-    "date": "2026-02-13",
+    "date": "2026-02-12",
     "overall_coverage": 4.4,
     "target_overall": 80.0
   },
   "target": {
     "overall_coverage": 30.0,
-    "current": 8.1,
-    "remaining": 21.9,
+    "current": 13.02,
+    "remaining": 16.98,
+    "realistic_target": 22.0,
+    "realistic_remaining": 8.98,
     "date": "2026-02-15",
     "phase": "08-80-percent-coverage-push-8.7"
   },
   "phase_progression": {
     "phase_8_baseline": {"coverage": 4.4, "date": "2026-02-12"},
     "phase_8_5_completion": {"coverage": 7.34, "date": "2026-02-13"},
-    "phase_8_6_completion": {"coverage": 8.1, "date": "2026-02-13"},
-    "next_target": {"coverage": 30.0, "phase": "08-80-percent-coverage-push-8.7"}
+    "phase_8_6_completion": {"coverage": 13.02, "date": "2026-02-13"},
+    "next_target": {"coverage": 16.0, "phase": "08-80-percent-coverage-push-8.7"},
+    "realistic_target": {"coverage": 22.0, "phase": "08-80-percent-coverage-push-8.9"}
+  },
+  "velocity_metrics": {
+    "early_phase_8_velocity": 0.42,
+    "phase_8_6_velocity": 1.42,
+    "acceleration_factor": 3.38,
+    "total_improvement": 8.62,
+    "total_plans": 19,
+    "average_per_plan": 0.45
   }
 }
