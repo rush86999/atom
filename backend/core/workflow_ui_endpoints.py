@@ -220,9 +220,17 @@ async def get_templates(
     if complexity:
         query = query.filter(WorkflowTemplate.complexity == complexity)
 
-    # Order by rating and usage count
+    # Calculated rating sort
+    from sqlalchemy.sql import case
+    rating_expr = case(
+        (WorkflowTemplate.rating_count > 0, WorkflowTemplate.rating_sum / WorkflowTemplate.rating_count),
+        else_=0
+    )
+
+    # Order by rating (if requested) or default sort
     templates = query.order_by(
         WorkflowTemplate.is_featured.desc(),
+        rating_expr.desc(),
         WorkflowTemplate.usage_count.desc()
     ).limit(50).all()
 
@@ -250,6 +258,61 @@ async def get_templates(
         "success": True,
         "templates": result,
         "count": len(result)
+    }
+
+@router.post("/templates/{template_id}/import")
+async def import_template(template_id: str, db: Session = Depends(get_db)):
+    """Import a template as a private copy"""
+    # Use mock if feature flag is enabled
+    if WORKFLOW_MOCK_ENABLED:
+        found = next((t for t in MOCK_TEMPLATES if t.id == template_id), None)
+        if not found:
+             raise HTTPException(status_code=404, detail="Template not found")
+        return {"success": True, "workflow_id": f"imported_{template_id}"}
+
+    # Fetch source template
+    source = db.query(WorkflowTemplate).filter(
+        WorkflowTemplate.template_id == template_id
+    ).first()
+
+    if not source:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    # Create private copy
+    new_id = f"wf_{uuid.uuid4().hex[:8]}"
+    new_template = WorkflowTemplate(
+        template_id=new_id,
+        name=f"Copy of {source.name}",
+        description=source.description,
+        category=source.category,
+        complexity=source.complexity,
+        tags=source.tags,
+        is_public=False, # Private by default
+        is_featured=False,
+        author_id=None, # In real app, would be current user
+        template_json=source.template_json,
+        inputs_schema=source.inputs_schema,
+        steps_schema=source.steps_schema,
+        output_schema=source.output_schema,
+        version="1.0.0",
+        parent_template_id=source.template_id,
+        usage_count=0,
+        rating_sum=0,
+        rating_count=0
+    )
+
+    db.add(new_template)
+    
+    # Increment usage count on source
+    source.usage_count += 1
+    
+    db.commit()
+    db.refresh(new_template)
+
+    return {
+        "success": True,
+        "workflow_id": new_template.template_id,
+        "message": "Template imported successfully"
     }
 
 @router.get("/services")

@@ -51,7 +51,7 @@ const SearchPage: React.FC = () => {
     doc_type: [],
     tags: [],
     date_range: { start: "", end: "" },
-    min_score: 0.5,
+    min_score: -1.0,
   });
 
   // Mock user ID - in real app this would come from auth context
@@ -181,6 +181,16 @@ const SearchPage: React.FC = () => {
     return colors[docType] || "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
   };
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -252,7 +262,7 @@ const SearchPage: React.FC = () => {
                         </p>
                         {popularSearches.map((search, index) => (
                           <p
-                            key={index}
+                            key={search} // Changed from index to search string
                             className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                             onClick={() => handleSuggestionClick(search)}
                           >
@@ -263,7 +273,7 @@ const SearchPage: React.FC = () => {
                     )}
                     {suggestions.map((suggestion, index) => (
                       <p
-                        key={index}
+                        key={suggestion} // Changed from index to suggestion string
                         className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
@@ -310,7 +320,7 @@ const SearchPage: React.FC = () => {
                     onValueChange={(value) =>
                       handleFilterChange("min_score", value / 100)
                     }
-                    min={0}
+                    min={-100}
                     max={100}
                     step={5}
                     className="w-52"
