@@ -84,12 +84,21 @@ class MockEmbedder:
             import numpy as np
             np.random.seed(hash_val % 2**32)
             vec = np.random.rand(self.dim).astype(np.float32)
+            # Normalize vector to unit length
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec = vec / norm
             return vec if convert_to_numpy else vec.tolist()
         except ImportError:
             # Fallback for no numpy
             import random
+            import math
             random.seed(hash_val)
-            return [random.random() for _ in range(self.dim)]
+            vec = [random.random() for _ in range(self.dim)]
+            norm = math.sqrt(sum(x*x for x in vec))
+            if norm > 0:
+                vec = [x/norm for x in vec]
+            return vec
 
 class LanceDBHandler:
     """LanceDB vector database handler"""
@@ -188,12 +197,36 @@ class LanceDBHandler:
 
     def _init_local_embedder(self):
         """Initialize local sentence transformer or fallback to mock"""
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            self.embedder = SentenceTransformer(self.embedding_model)
-            logger.info(f"Local embedding model loaded: {self.embedding_model}")
-        else:
-            logger.warning("Sentence transformers not available. Using MockEmbedder for testing.")
+        try:
+            if SENTENCE_TRANSFORMERS_AVAILABLE:
+                # Add timeout/protection for import hanging
+                try:
+                    import signal
+                    def handler(signum, frame):
+                        raise TimeoutError("SentenceTransformer initialization timed out")
+                    
+                    # Only set alarm on Unix-like systems where signal.ALRM is available
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.signal(signal.SIGALRM, handler)
+                        signal.alarm(10) # 10 second timeout
+                    
+                    self.embedder = SentenceTransformer(self.embedding_model)
+                    
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.alarm(0) # Disable alarm
+                        
+                    logger.info(f"Local embedding model loaded: {self.embedding_model}")
+                    return
+                except Exception as e:
+                    logger.warning(f"Failed to load SentenceTransformer: {e}")
+                    # Fallthrough to mock
+            
+            logger.warning("Sentence transformers not available or failed to load. Using MockEmbedder.")
             self.embedder = MockEmbedder(384)
+            
+        except Exception as e:
+             logger.error(f"Critical error in _init_local_embedder: {e}")
+             self.embedder = MockEmbedder(384)
 
 
     def test_connection(self) -> Dict[str, Any]:
@@ -330,9 +363,15 @@ class LanceDBHandler:
                 return response.data[0].embedding
             
             elif self.embedder:
-                if NUMPY_AVAILABLE:
-                    return self.embedder.encode(text, convert_to_numpy=True)
-                return self.embedder.encode(text, convert_to_numpy=False)
+                try:
+                    if NUMPY_AVAILABLE:
+                        res = self.embedder.encode(text, convert_to_numpy=True)
+                    else:
+                        res = self.embedder.encode(text, convert_to_numpy=False)
+                    return res
+                except Exception as e:
+                    logger.error(f"embedder.encode failed: {e}")
+                    raise e
             
             else:
                 logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
@@ -404,10 +443,7 @@ class LanceDBHandler:
         
         try:
             table = self.get_table(table_name)
-            if table is None:
-                table = self.create_table(table_name)
-                if table is None:
-                    return False
+            # If table is None, we will create it later with data to infer schema
             
             # SECURITY: Redact secrets before storage
             # This ensures API keys, passwords, and PII are NEVER stored in Atom Memory
@@ -438,20 +474,27 @@ class LanceDBHandler:
             doc_id = str(datetime.utcnow().timestamp())
             
             # Record with user_id and workspace_id
+            # Record with user_id and workspace_id
             record = {
                 "id": doc_id,
                 "user_id": user_id,
                 "workspace_id": self.workspace_id,
                 "text": text,
                 "source": source,
-                "metadata": json.dumps(metadata) if metadata else "{}",
+                "metadata": metadata if metadata else {},
                 "created_at": datetime.utcnow().isoformat(),
                 "vector": embedding.tolist()
             }
             
             # Add to table
             try:
-                table.add([record])
+                table = self.get_table(table_name)
+                if table is None:
+                    # Infer schema from data
+                    table = self.db.create_table(table_name, data=[record])
+                    logger.info(f"Created table '{table_name}' with inferred schema")
+                else:
+                    table.add([record])
                 logger.info(f"Document added to '{table_name}': {doc_id}")
 
                 # Log user action for behavior analysis
@@ -523,20 +566,14 @@ class LanceDBHandler:
             return 0
         
         try:
-            table = self.get_table(table_name)
-            if not table:
-                table = self.create_table(table_name)
-                if not table:
-                    return 0
-            
-            # Prepare batch records
+            # Prepare batch records first to allow schema inference
             records = []
             for doc in documents:
                 text = doc.get("text", "")
                 source = doc.get("source", "")
                 metadata = doc.get("metadata", {})
                 doc_id = doc.get("id", str(datetime.utcnow().timestamp()))
-                user_id = doc.get("user_id", "default_user") # Assuming user_id can be in doc
+                user_id = doc.get("user_id", "default_user")
                 
                 # Generate embedding
                 embedding = self.embed_text(text)
@@ -550,18 +587,31 @@ class LanceDBHandler:
                     "workspace_id": self.workspace_id,
                     "text": text,
                     "source": source,
-                    "metadata": json.dumps(metadata),
+                    "metadata": metadata,
                     "created_at": datetime.utcnow().isoformat(),
                     "vector": embedding.tolist()
                 }
                 records.append(record)
             
-            if records:
-                table.add(records)
-                logger.info(f"Added {len(records)} documents to '{table_name}'")
-                return len(records)
-            else:
+            if not records:
                 return 0
+
+            # Get or Create Table
+            table = self.get_table(table_name)
+            if table is None:
+                # Infer schema from data to support Struct metadata
+                try:
+                    table = self.db.create_table(table_name, data=records)
+                    logger.info(f"Created table '{table_name}' with inferred schema")
+                    return len(records)
+                except Exception as create_err:
+                    logger.error(f"Failed to create table '{table_name}': {create_err}")
+                    return 0
+            
+            # Add to existing
+            table.add(records)
+            logger.info(f"Added {len(records)} documents to '{table_name}'")
+            return len(records)
                 
         except Exception as e:
             logger.error(f"Failed to add batch documents to '{table_name}': {e}")
@@ -575,7 +625,7 @@ class LanceDBHandler:
         
         try:
             table = self.get_table(table_name)
-            if not table:
+            if table is None:
                 return []
             
             # Generate embedding for query
@@ -617,7 +667,13 @@ class LanceDBHandler:
             results_list = []
             for _, row in results.iterrows():
                 try:
-                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    # Metadata is now a Struct (dict), no need to json.loads if it's already a dict
+                    metadata = row['metadata']
+                    if isinstance(metadata, str):
+                         metadata = json.loads(metadata)
+                    elif metadata is None:
+                         metadata = {}
+                    
                     result = {
                         "id": row['id'],
                         "text": row['text'],
@@ -731,12 +787,12 @@ class ChatHistoryManager:
         Returns list of messages with:
         - id, text, source, role, created_at, metadata
         """
-        if not self.db.db:
+        if self.db is None or self.db.db is None:
             return []
         
         try:
             table = self.db.get_table(self.table_name)
-            if not table:
+            if table is None:
                 return []
             
             # Query all messages for session (LanceDB doesn't have chronological sorting built-in)
@@ -752,7 +808,12 @@ class ChatHistoryManager:
             messages = []
             for _, row in results.iterrows():
                 try:
-                    metadata = json.loads(row['metadata']) if row['metadata'] else {}
+                    metadata = row['metadata']
+                    if isinstance(metadata, str):
+                        metadata = json.loads(metadata)
+                    elif metadata is None:
+                        metadata = {}
+
                     if metadata.get('session_id') == session_id:
                         messages.append({
                             "id": row['id'],
@@ -786,7 +847,7 @@ class ChatHistoryManager:
         If session_id provided, search within that session only.
         Otherwise, search across all sessions.
         """
-        if not self.db.db:
+        if self.db is None or self.db.db is None:
             return []
         
         try:
@@ -817,7 +878,7 @@ class ChatHistoryManager:
         """
         Find all messages mentioning a specific entity.
         """
-        if not self.db.db:
+        if self.db is None or self.db.db is None:
             return []
         
         try:
