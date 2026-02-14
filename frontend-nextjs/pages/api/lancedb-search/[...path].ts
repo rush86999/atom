@@ -9,7 +9,21 @@ export default async function handler(
 
   // Construct the full backend URL
   const apiPath = Array.isArray(path) ? path.join("/") : path || "";
-  const fullUrl = `${backendUrl}/api/lancedb-search/${apiPath}`;
+
+  // Extract query parameters excluding 'path'
+  const queryParams = new URLSearchParams();
+  Object.entries(req.query).forEach(([key, value]) => {
+    if (key !== "path" && value !== undefined) {
+      if (Array.isArray(value)) {
+        value.forEach((v) => queryParams.append(key, v));
+      } else {
+        queryParams.append(key, value as string);
+      }
+    }
+  });
+
+  const queryString = queryParams.toString();
+  const fullUrl = `${backendUrl}/api/lancedb-search/${apiPath}${queryString ? `?${queryString}` : ""}`;
 
   try {
     // Forward the request to the backend

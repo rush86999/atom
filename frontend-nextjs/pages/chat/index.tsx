@@ -1,10 +1,15 @@
 import React, { useState } from "react";
+import { useRouter } from 'next/router';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../../components/ui/resizable";
 import ChatHistorySidebar from "../../components/chat/ChatHistorySidebar";
 import ChatInterface from "../../components/chat/ChatInterface";
 import AgentWorkspace from "../../components/chat/AgentWorkspace";
 
 const ChatPage = () => {
+    const router = useRouter(); // Use router to get query params
+    const { agent_id } = router.query;
+    const initialAgentId = Array.isArray(agent_id) ? agent_id[0] : agent_id || null;
+
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
     return (
@@ -25,6 +30,7 @@ const ChatPage = () => {
                     <ChatInterface
                         sessionId={selectedSessionId}
                         onSessionCreated={setSelectedSessionId}
+                        initialAgentId={initialAgentId}
                     />
                 </ResizablePanel>
 
@@ -32,7 +38,10 @@ const ChatPage = () => {
 
                 {/* Right Pane: Agent Workspace */}
                 <ResizablePanel defaultSize={40} minSize={30} className="bg-muted/10">
-                    <AgentWorkspace sessionId={selectedSessionId} />
+                    <AgentWorkspace
+                        sessionId={selectedSessionId}
+                        initialAgentId={initialAgentId}
+                    />
                 </ResizablePanel>
             </ResizablePanelGroup>
         </div>

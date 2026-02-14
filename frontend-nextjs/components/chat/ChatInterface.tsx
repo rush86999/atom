@@ -19,9 +19,10 @@ import { marked } from "marked";
 interface ChatInterfaceProps {
     sessionId: string | null;
     onSessionCreated?: (sessionId: string) => void;
+    initialAgentId?: string | null;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreated, initialAgentId }) => {
     const [input, setInput] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
@@ -251,6 +252,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 user_id: "default_user",
                 context: {
                     current_page: "/chat",
+                    agent_id: initialAgentId, // Pass agent context
                     conversation_history: messages.slice(-5).map(m => ({
                         role: m.type === "user" ? "user" : "assistant",
                         content: m.content

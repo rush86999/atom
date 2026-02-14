@@ -22,7 +22,7 @@ class SearchFilters(BaseModel):
     doc_type: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     date_range: Optional[Dict[str, str]] = None
-    min_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    min_score: float = Field(default=-10.0, ge=-10.0, le=1.0)
 
 
 class SearchRequest(BaseModel):
@@ -73,11 +73,15 @@ async def hybrid_search(request: SearchRequest):
         handler = get_lancedb_handler(request.workspace_id)
         
         # Check if LanceDB is available
-        if not handler.db:
-             logger.error("LanceDB not available for search")
-             raise HTTPException(
-                 status_code=503, 
-                 detail="Search service is currently unavailable. Please ensure the database is initialized."
+        if handler.db is None:
+             logger.warning("LanceDB not available for search - returning empty results")
+             # Return empty success response instead of 503 error to prevent UI breakage
+             return SearchResponse(
+                 success=True,
+                 results=[],
+                 total_count=0,
+                 query=request.query,
+                 search_type=request.search_type
              )
 
         # Construct filter expression if needed
@@ -86,13 +90,20 @@ async def hybrid_search(request: SearchRequest):
             conditions = []
             if request.filters.doc_type:
                 types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
-                conditions.append(f"doc_type IN ({types})")
+                # Filter on metadata.doc_type since it's nested in the struct
+                conditions.append(f"metadata.doc_type IN ({types})")
             
             if conditions:
                 filter_expr = " AND ".join(conditions)
 
         # Perform vector search
-        results = handler.search("documents", request.query, limit=request.limit, filter_expression=filter_expr)
+        logger.info(f"DEBUG SEARCH: Query='{request.query}', User='{request.user_id}', Workspace='{request.workspace_id}'")
+        logger.info(f"DEBUG SEARCH: Filter Expr: {filter_expr}")
+        
+        results = handler.search("documents", request.query, limit=request.limit, filter_str=filter_expr, user_id=request.user_id)
+        logger.info(f"DEBUG SEARCH: Raw Results Count: {len(results)}")
+        if results:
+             logger.info(f"DEBUG SEARCH: First Result Metadata: {results[0].get('metadata')}")
         
         search_results = []
         for res in results:
@@ -119,7 +130,7 @@ async def hybrid_search(request: SearchRequest):
                 combined_score = keyword_score
             
             # Filter by min_score
-            min_score = request.filters.min_score if request.filters else 0.0
+            min_score = request.filters.min_score if request.filters else -10.0
             if combined_score < min_score:
                 continue
 

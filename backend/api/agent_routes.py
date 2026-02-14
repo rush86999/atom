@@ -36,6 +36,10 @@ router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 class AgentRunRequest(BaseModel):
     parameters: Dict[str, Any] = {}
 
+class AgentUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
 class AgentInfo(BaseModel):
     id: str
     name: str
@@ -143,6 +147,37 @@ async def run_agent(
     return router.success_response(
         data={"agent_id": agent_id},
         message="Agent execution started"
+    )
+
+
+
+@router.patch("/{agent_id}")
+async def update_agent(
+    agent_id: str,
+    update_data: AgentUpdateRequest,
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """Update agent details"""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    if update_data.name:
+        agent.name = update_data.name
+    if update_data.description is not None:
+        agent.description = update_data.description
+    
+    db.commit()
+    db.refresh(agent)
+    
+    return router.success_response(
+        data={
+            "id": agent.id,
+            "name": agent.name,
+            "description": agent.description
+        },
+        message="Agent updated successfully"
     )
 
 @router.post("/{agent_id}/feedback")
