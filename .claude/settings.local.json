@@ -44,7 +44,8 @@
       "Bash(git push:*)",
       "Bash(python:*)",
       "Bash(source:*)",
-      "Bash(PYTHONPATH=. python -m pytest:*)"
+      "Bash(PYTHONPATH=. python -m pytest:*)",
+      "Skill(gsd:execute-phase)"
     ],
     "deny": [],
     "ask": []

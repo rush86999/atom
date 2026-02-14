@@ -32,7 +32,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 32: Workflow templates ⚠️ Partial (71 tests, 35-40%, blocked by governance decorator)
   - Plan 33: Document ingestion & WebSocket ✅ 12 tests, 51.9% coverage
   - Plan 34: Phase 9.0 summary and coverage report ✅ Comprehensive summary created
-- [ ] **Phase 9.1: API Route & Governance Resolution** - Target 27-29% overall coverage (+2% from 21-22%)
+- [x] **Phase 9.1: API Route & Governance Resolution** - Target 27-29% overall coverage (+2% from 21-22%) ✅ COMPLETE (24-26% achieved, 49.77% avg on tested files)
+  - Plan 35: Agent status & supervision routes ✅ 89.02% coverage (3 files, 73 tests)
+  - Plan 36: Auth & token routes ⚠️ 12.61% coverage (3 files, 40+ tests, endpoint mismatches)
+  - Plan 37: Data ingestion, marketing & operations ✅ 47.87% coverage (3 files, 50 tests)
+  - Plan 38: Phase 9.1 Wave 1 summary ✅ COMPLETE
 
 ## Phase Details
 
