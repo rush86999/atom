@@ -317,7 +317,7 @@ def test_reset_password_success(
         mock_verify.return_value = "user_id"
 
     with patch('api.auth_routes.hash_password') as mock_hash:
-        mock_hash.return_value "new_hashed_password"
+        mock_hash.return_value = "new_hashed_password"
 
         response = client.post("/auth/reset-password", json=reset_data)
 
