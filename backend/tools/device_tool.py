@@ -1185,3 +1185,96 @@ async def list_devices(
         }
         for device in devices
     ]
+
+
+async def execute_device_command(
+    db: Session,
+    user_id: str,
+    agent_id: Optional[str],
+    device_id: str,
+    command_type: str,
+    parameters: Dict[str, Any],
+    execution_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generic wrapper for executing device commands.
+
+    Routes to the appropriate specialized device function based on command_type.
+    This provides a unified interface for the proposal service and other components.
+
+    Args:
+        db: Database session
+        user_id: User ID requesting the command
+        agent_id: Optional agent ID for governance
+        device_id: Device ID to execute command on
+        command_type: Type of command (camera, location, notification, command)
+        parameters: Command parameters (varies by command_type)
+        execution_id: Optional execution ID for tracking
+
+    Returns:
+        Dict with success status and command-specific data
+
+    Command Types and Parameters:
+        - camera: {"timeout": int}
+        - location: {"high_accuracy": bool}
+        - notification: {"title": str, "body": str}
+        - command: {"command": str, "working_dir": str, "timeout": int}
+    """
+    try:
+        if command_type == "camera":
+            # Camera capture
+            timeout = parameters.get("timeout", 10)
+            return await device_camera_snap(
+                db=db,
+                user_id=user_id,
+                agent_id=agent_id,
+                timeout_seconds=timeout
+            )
+
+        elif command_type == "location":
+            # Get location
+            high_accuracy = parameters.get("high_accuracy", True)
+            return await device_get_location(
+                db=db,
+                user_id=user_id,
+                agent_id=agent_id,
+                high_accuracy=high_accuracy
+            )
+
+        elif command_type == "notification":
+            # Send notification
+            title = parameters.get("title", "Notification")
+            body = parameters.get("body", "")
+            return await device_send_notification(
+                db=db,
+                user_id=user_id,
+                agent_id=agent_id,
+                title=title,
+                body=body
+            )
+
+        elif command_type == "command":
+            # Execute shell command
+            command = parameters.get("command")
+            working_dir = parameters.get("working_dir")
+            timeout = parameters.get("timeout", 30)
+            return await device_execute_command(
+                db=db,
+                user_id=user_id,
+                device_node_id=device_id,
+                command=command,
+                agent_id=agent_id,
+                working_dir=working_dir,
+                timeout_seconds=timeout
+            )
+
+        else:
+            logger.warning(f"Unknown device command type: {command_type}")
+            return {
+                "success": False,
+                "error": f"Unknown command type: {command_type}. Supported types: camera, location, notification, command"
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to execute device command: {e}")
+        return {"success": False, "error": str(e)}

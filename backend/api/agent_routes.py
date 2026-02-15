@@ -87,6 +87,108 @@ async def list_agents(
 # --- Endpoints ---
 
 
+@router.get("/{agent_id}")
+async def get_agent(
+    agent_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    db: Session = Depends(get_db)
+):
+    """Get a specific agent by ID"""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    # Get last run time
+    from sqlalchemy import func
+    latest_job = db.query(func.max(AgentJob.start_time))\
+        .filter(AgentJob.agent_id == agent_id)\
+        .scalar()
+
+    return router.success_response(
+        data={
+            "id": agent.id,
+            "name": agent.name,
+            "description": agent.description,
+            "category": agent.category,
+            "status": agent.status,
+            "confidence_score": agent.confidence_score,
+            "module_path": agent.module_path,
+            "class_name": agent.class_name,
+            "configuration": agent.configuration,
+            "schedule_config": agent.schedule_config,
+            "version": agent.version,
+            "last_run": latest_job.isoformat() if latest_job else None
+        },
+        message="Agent retrieved successfully"
+    )
+
+
+@router.get("/{agent_id}/status")
+async def get_agent_status(
+    agent_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_VIEW)),
+    db: Session = Depends(get_db)
+):
+    """Get the current status of an agent"""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    # Check for running tasks
+    from core.agent_task_registry import agent_task_registry
+    try:
+        running_tasks = await agent_task_registry.get_active_tasks(agent_id)
+    except Exception:
+        running_tasks = []
+
+    return router.success_response(
+        data={
+            "agent_id": agent.id,
+            "name": agent.name,
+            "status": agent.status,
+            "confidence_score": agent.confidence_score,
+            "is_running": len(running_tasks) > 0,
+            "active_tasks": len(running_tasks)
+        },
+        message="Agent status retrieved successfully"
+    )
+
+
+@router.delete("/{agent_id}")
+async def delete_agent(
+    agent_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
+    db: Session = Depends(get_db)
+):
+    """Delete an agent"""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.not_found_error("Agent", agent_id)
+
+    # Check if agent has running tasks
+    from core.agent_task_registry import agent_task_registry
+    try:
+        running_tasks = await agent_task_registry.get_active_tasks(agent_id)
+    except Exception:
+        running_tasks = []
+
+    if running_tasks:
+        raise router.error_response(
+            error_code="AGENT_HAS_RUNNING_TASKS",
+            message=f"Cannot delete agent with {len(running_tasks)} running task(s)",
+            status_code=400
+        )
+
+    agent_name = agent.name
+    db.delete(agent)
+    db.commit()
+
+    return router.success_response(
+        data={"agent_id": agent_id},
+        message=f"Agent {agent_name} deleted successfully"
+    )
+
+
 
 
 @router.post("/{agent_id}/run")

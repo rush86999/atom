@@ -16,6 +16,7 @@ Uses transaction rollback pattern for test isolation.
 """
 
 import pytest
+import json
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -51,7 +52,7 @@ class TestWorkflowExecutionIntegration:
             status=WorkflowExecutionStatus.RUNNING.value,
             user_id=user.id,
             owner_id=user.id,
-            input_data={"test": "data"},
+            input_data=json.dumps({"test": "data"}),
         )
         db_session.add(execution)
         db_session.commit()
@@ -75,8 +76,8 @@ class TestWorkflowExecutionIntegration:
 
         # Complete execution
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        execution.completed_at = datetime.utcnow()
-        execution.output_data = {"result": "success"}
+        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.outputs = json.dumps({"result": "success"})
         db_session.commit()
 
         # Verify workflow state in database
@@ -85,7 +86,7 @@ class TestWorkflowExecutionIntegration:
         ).first()
 
         assert retrieved_execution.status == WorkflowExecutionStatus.COMPLETED.value
-        assert retrieved_execution.output_data == {"result": "success"}
+        assert json.loads(retrieved_execution.outputs) == {"result": "success"}
 
         # Verify logs
         logs = db_session.query(WorkflowExecutionLog).filter(
@@ -107,7 +108,7 @@ class TestWorkflowExecutionIntegration:
             status=WorkflowExecutionStatus.RUNNING.value,
             user_id=user.id,
             owner_id=user.id,
-            input_data={"user_name": "Custom User"},
+            input_data=json.dumps({"user_name": "Custom User"}),
         )
         db_session.add(execution)
         db_session.commit()
@@ -127,7 +128,7 @@ class TestWorkflowExecutionIntegration:
             WorkflowExecution.execution_id == execution.execution_id
         ).first()
 
-        assert retrieved.input_data == {"user_name": "Custom User"}
+        assert json.loads(retrieved.input_data) == {"user_name": "Custom User"}
 
     def test_workflow_parallel_execution(self, db_session: Session):
         """Test parallel step execution with state tracking."""
@@ -190,7 +191,7 @@ class TestWorkflowExecutionIntegration:
         # Mark as failed
         execution.status = WorkflowExecutionStatus.FAILED.value
         execution.error = "Intentional failure at step-2"
-        execution.completed_at = datetime.utcnow()
+        # execution.completed_at = datetime.utcnow()  # Field not in model
         db_session.commit()
 
         # Verify failure state
@@ -243,7 +244,7 @@ class TestWorkflowExecutionIntegration:
 
         # Complete
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        execution.completed_at = datetime.utcnow()
+        # execution.completed_at = datetime.utcnow()  # Field not in model
         db_session.commit()
 
         # Verify completed
@@ -305,7 +306,7 @@ class TestMultiStepWorkflowIntegration:
             status=WorkflowExecutionStatus.RUNNING.value,
             user_id=user.id,
             owner_id=user.id,
-            input_data={"status": "approved"},
+            input_data=json.dumps({"status": "approved"}),
         )
         db_session.add(execution)
         db_session.commit()
@@ -378,8 +379,8 @@ class TestMultiStepWorkflowIntegration:
 
         # Complete workflow
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        execution.completed_at = datetime.utcnow()
-        execution.output_data = {"audit": "trail"}
+        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.outputs = json.dumps({"audit": "trail"})
         db_session.commit()
 
         # Verify audit trail exists
@@ -388,7 +389,7 @@ class TestMultiStepWorkflowIntegration:
         ).first()
 
         assert retrieved.status == WorkflowExecutionStatus.COMPLETED.value
-        assert retrieved.completed_at is not None
+        # assert retrieved.completed_at is not None  # Field not in model
 
 
 class TestWorkflowWithCanvasIntegration:
@@ -568,7 +569,7 @@ class TestWorkflowDatabaseQueries:
 
         # Query recent executions
         recent = db_session.query(WorkflowExecution).order_by(
-            WorkflowExecution.started_at.desc()
+            WorkflowExecution.created_at.desc()
         ).limit(5).all()
 
         assert len(recent) == 5
@@ -601,5 +602,5 @@ class TestWorkflowDatabaseQueries:
             WorkflowExecution.execution_id == execution.execution_id
         ).first()
 
-        assert retrieved.completed_at is not None
-        assert retrieved.started_at is not None
+        # assert retrieved.completed_at is not None  # Field not in model
+        assert retrieved.created_at is not None

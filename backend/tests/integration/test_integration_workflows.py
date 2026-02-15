@@ -27,7 +27,8 @@ class TestAgentLifecycleIntegration:
         # Create agent
         agent = AgentFactory(
             name="Test Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -51,7 +52,8 @@ class TestAgentLifecycleIntegration:
         # Create SUPERVISED agent
         agent = SupervisedAgentFactory(
             name="Test Supervised Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -64,7 +66,8 @@ class TestAgentLifecycleIntegration:
         # Create autonomous agent for collaboration
         agent = AutonomousAgentFactory(
             name="Collaboration Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -77,11 +80,13 @@ class TestAgentLifecycleIntegration:
         # Create multiple agents for cross-API workflow
         agent1 = AgentFactory(
             name="Cross API Agent 1",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         agent2 = SupervisedAgentFactory(
             name="Cross API Agent 2",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -100,7 +105,8 @@ class TestAgentLifecycleIntegration:
         # Create agent with initial status
         agent = AgentFactory(
             name="Status Tracking Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -111,7 +117,7 @@ class TestAgentLifecycleIntegration:
     def test_multi_agent_coordination(self, client: TestClient, db_session: Session):
         """Test multiple agents coordinating across workflows."""
         # Create agents at different maturity levels using list comprehension
-        agents = [AgentFactory(name=f"Coordinator Agent {i}", category="testing") for i in range(3)]
+        agents = [AgentFactory(name=f"Coordinator Agent {i}", category="testing", _session=db_session) for i in range(3)]
         for agent in agents:
             db_session.commit()
 
@@ -131,7 +137,8 @@ class TestAgentLifecycleIntegration:
         agent = AgentFactory(
             name="Configured Agent",
             category="testing",
-            config={"monitoring_enabled": True, "learning_enabled": False}
+            configuration={"monitoring_enabled": True, "learning_enabled": False},
+            _session=db_session
         )
         db_session.commit()
 
@@ -141,13 +148,19 @@ class TestAgentLifecycleIntegration:
 
     def test_cross_api_error_handling(self, client: TestClient, db_session: Session):
         """Test error handling across API boundaries."""
+        # Use a valid UUID format that doesn't exist
+        fake_uuid = "00000000-0000-0000-0000-000000000000"
+
         # Try to get non-existent agent
-        response = client.get("/api/agents/nonexistent-agent-id")
+        response = client.get(f"/api/agents/{fake_uuid}")
         assert response.status_code == 404
 
-        # Try to update non-existent agent
-        response = client.put("/api/agents/nonexistent-agent-id", json={
-            "name": "Updated Name"
+        # Try to update non-existent agent with all required fields
+        response = client.put(f"/api/agents/{fake_uuid}", json={
+            "name": "Updated Name",
+            "description": "Updated Description",
+            "category": "testing",
+            "configuration": {}
         })
         assert response.status_code == 404
 
@@ -159,7 +172,8 @@ class TestSupervisionWorkflowIntegration:
         """Test supervision session start → monitor → terminate."""
         agent = SupervisedAgentFactory(
             name="Supervision Session Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -171,7 +185,8 @@ class TestSupervisionWorkflowIntegration:
         """Test supervision intervention: detect → intervene → correct."""
         agent = SupervisedAgentFactory(
             name="Intervention Agent",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -185,7 +200,7 @@ class TestCollaborationWorkflowIntegration:
 
     def test_workflow_sharing_integration(self, client: TestClient, db_session: Session):
         """Test workflow sharing across multiple agents."""
-        agents = [AutonomousAgentFactory(name=f"Collaborator {i}", category="testing") for i in range(2)]
+        agents = [AutonomousAgentFactory(name=f"Collaborator {i}", category="testing", _session=db_session) for i in range(2)]
         for agent in agents:
             db_session.commit()
 
@@ -197,7 +212,8 @@ class TestCollaborationWorkflowIntegration:
         """Test collaborative session lifecycle."""
         agent = AutonomousAgentFactory(
             name="Session Manager",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -213,7 +229,8 @@ class TestCrossAPIWorkflowIntegration:
         """Test agent creation → supervision session."""
         agent = SupervisedAgentFactory(
             name="Agent to Supervision",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -225,7 +242,8 @@ class TestCrossAPIWorkflowIntegration:
         """Test agent creation → workflow collaboration."""
         agent = AutonomousAgentFactory(
             name="Agent to Collaboration",
-            category="testing"
+            category="testing",
+            _session=db_session
         )
         db_session.commit()
 
@@ -236,8 +254,8 @@ class TestCrossAPIWorkflowIntegration:
     def test_supervision_to_collaboration_workflow(self, client: TestClient, db_session: Session):
         """Test supervision session → collaborative workflow."""
         agents = [
-            SupervisedAgentFactory(name="Supervised to Collaborate", category="testing"),
-            AutonomousAgentFactory(name="Collaborator", category="testing")
+            SupervisedAgentFactory(name="Supervised to Collaborate", category="testing", _session=db_session),
+            AutonomousAgentFactory(name="Collaborator", category="testing", _session=db_session)
         ]
         for agent in agents:
             db_session.commit()
@@ -249,9 +267,9 @@ class TestCrossAPIWorkflowIntegration:
     def test_complete_cross_api_orchestration(self, client: TestClient, db_session: Session):
         """Test full orchestration: agent → supervision → collaboration."""
         agents = [
-            AgentFactory(name="Orchestrator 1", category="testing"),
-            SupervisedAgentFactory(name="Orchestrator 2", category="testing"),
-            AutonomousAgentFactory(name="Orchestrator 3", category="testing")
+            AgentFactory(name="Orchestrator 1", category="testing", _session=db_session),
+            SupervisedAgentFactory(name="Orchestrator 2", category="testing", _session=db_session),
+            AutonomousAgentFactory(name="Orchestrator 3", category="testing", _session=db_session)
         ]
         for agent in agents:
             db_session.commit()

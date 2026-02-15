@@ -22,7 +22,7 @@ must_haves:
       to: "api/browser_routes.py"
       via: "Browser endpoint coverage"
       pattern: "50%+"
-status: pending
+status: complete
 created: 2026-02-14
 gap_closure: false
 ---

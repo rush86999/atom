@@ -91,12 +91,21 @@ def db_session():
     if '_tables_warning_logged' not in globals():
         _tables_warning_logged = False
 
-    # Use in-memory SQLite for fast, isolated tests
+    # Use file-based temp SQLite for tests to ensure all connections see the same database
+    # In-memory SQLite (:memory:) creates a separate database for each connection
+    import tempfile
+    import os
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)  # Close the file descriptor, we just need the path
+
     engine = create_engine(
-        "sqlite:///:memory:",
+        f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
         echo=False
     )
+
+    # Store path for cleanup
+    engine._test_db_path = db_path
 
     # Create all tables, handling missing foreign key references from optional modules
     # Optional modules (accounting, service_delivery, saas, ecommerce) may have
@@ -145,6 +154,13 @@ def db_session():
     # Cleanup
     session.close()
     engine.dispose()
+    # Delete temp database file
+    if hasattr(engine, '_test_db_path'):
+        import os
+        try:
+            os.unlink(engine._test_db_path)
+        except Exception:
+            pass  # File might already be deleted
 
 
 @pytest.fixture(scope="function")
