@@ -14,15 +14,17 @@ from core.config import SecurityConfig, get_config
 class TestSecurityConfig:
     """Test cases for SecurityConfig"""
 
-    def test_default_secret_key_in_development(self):
+    def test_default_secret_key_in_development(self, monkeypatch):
         """Test that default SECRET_KEY is allowed in development"""
-        with patch.dict(os.environ, {'ENVIRONMENT': 'development'}, clear=False):
-            config = SecurityConfig()
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        monkeypatch.delenv('SECRET_KEY', raising=False)
 
-            # In development without SECRET_KEY env var, it generates a random key
-            # So we should check that we get a key, not the default
-            assert config.secret_key is not None
-            assert len(config.secret_key) > 20
+        config = SecurityConfig()
+
+        # In development without SECRET_KEY env var, it generates a random key
+        # So we should check that we get a key, not the default
+        assert config.secret_key is not None
+        assert len(config.secret_key) > 20
 
     def test_custom_secret_key(self):
         """Test that custom SECRET_KEY can be set"""
@@ -46,30 +48,18 @@ class TestSecurityConfig:
                 for call in mock_logger.error.call_args_list
             )
 
-    @patch('core.config.logger')
-    def test_automatic_key_generation_in_development(self, mock_logger):
+    def test_automatic_key_generation_in_development(self, monkeypatch):
         """Test automatic key generation in development when SECRET_KEY not set"""
         # Just verify the behavior without mocking internals
         # The actual implementation uses secrets module directly
-        with patch.dict(os.environ, {'ENVIRONMENT': 'development'}, clear=False):
-            # Ensure SECRET_KEY is not set
-            original_key = os.environ.get('SECRET_KEY')
-            if 'SECRET_KEY' in os.environ:
-                del os.environ['SECRET_KEY']
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        monkeypatch.delenv('SECRET_KEY', raising=False)
 
-            try:
-                config = SecurityConfig()
+        config = SecurityConfig()
 
-                # Should have generated a random key (not default)
-                assert config.secret_key != "atom-secret-key-change-in-production"
-                assert len(config.secret_key) > 20  # Generated keys are long
-
-                # Should log warning (check logger was called)
-                # We can't easily test this without complex mocking
-            finally:
-                # Restore original env var
-                if original_key:
-                    os.environ['SECRET_KEY'] = original_key
+        # Should have generated a random key (not default)
+        assert config.secret_key != "atom-secret-key-change-in-production"
+        assert len(config.secret_key) > 20  # Generated keys are long
 
     def test_allow_dev_temp_users_default(self):
         """Test default value of allow_dev_temp_users"""
