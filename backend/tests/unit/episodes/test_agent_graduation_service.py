@@ -541,23 +541,19 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_promote_invalid_status_key(self, graduation_service, sample_agent):
         """Test promotion with invalid maturity status key."""
-        sample_agent.status = Mock()
-
-        # Mock KeyError on status assignment
-        def side_effect(key, value):
-            if key == "status":
-                raise KeyError("Invalid status")
-
-        sample_agent.__setattr__ = side_effect
         graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
 
-        result = await graduation_service.promote_agent(
-            agent_id="agent-123",
-            new_maturity="INVALID",
-            validated_by="admin"
-        )
+        # Patch AgentStatus to raise KeyError for invalid key
+        with patch('core.agent_graduation_service.AgentStatus.__getitem__') as mock_getitem:
+            mock_getitem.side_effect = KeyError("Invalid status")
 
-        assert result is False
+            result = await graduation_service.promote_agent(
+                agent_id="agent-123",
+                new_maturity="INVALID",
+                validated_by="admin"
+            )
+
+            assert result is False
 
     @pytest.mark.asyncio
     async def test_audit_trail_with_episodes_by_maturity(self, graduation_service, sample_agent):
