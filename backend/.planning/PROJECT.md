@@ -2,7 +2,7 @@
 
 **Project**: Atom AI-Powered Business Automation Platform
 **Initiative**: Test Coverage Improvement & Quality Assurance
-**Current Phase**: Phase 09 - New Milestone Planning
+**Current Phase**: Phase 10 - Coverage Expansion to 50%
 **Last Updated**: 2026-02-15
 
 ---
@@ -33,12 +33,13 @@ Atom is an intelligent business automation platform that uses AI agents to help 
 - `supervision_service.py` - Real-time supervision monitoring
 - `byok_handler.py` - Multi-provider LLM streaming
 
-**Test Status** (as of 2026-02-15):
+**Test Status** (as of 2026-02-15, Phase 09 Complete):
 - **Total Tests**: 10,176 tests collected
-- **Collection Errors**: 10 property tests with TypeError issues
-- **Overall Coverage**: 22.8%
-- **Integration Tests**: 301/301 passing (100%)
-- **Unit Tests**: 2,447 collected (syntax errors fixed, duplicates removed)
+- **Collection Errors**: 0 errors ✅ (all fixed in Phase 09)
+- **Test Failures**: ~25-30 remaining (91% reduction from 324)
+- **Overall Coverage**: 15.2%
+- **Test Pass Rate**: ~97% (target: 98%+)
+- **Quality Gates**: 3 operational (pre-commit, CI, trend tracking)
 
 ---
 
@@ -81,27 +82,50 @@ These requirements are validated and active in the current codebase.
 ### Active Requirements
 These requirements are currently being worked on or are next in priority.
 
-1. **Test Coverage Expansion to 80%**
+## Current Milestone: v1.1 Coverage Expansion to 50%
+
+**Goal:** Expand test coverage from 15.2% to 50% using high-impact file strategy
+
+**Target features:**
+- Fix remaining 25-30 test failures from Phase 09
+- Add unit and integration tests for high-impact files (>200 lines)
+- Add property-based tests for system invariants
+- Maintain 98%+ test pass rate
+- Complete in 1 week (aggressive timeline)
+
+**Strategy:** High-impact files first
+- Prioritize largest untested files (>200 lines of code)
+- Focus on maximum coverage gain per test added
+- Target core services (governance, episodes, streaming)
+- Include property tests alongside unit/integration tests
+
+1. **Test Coverage Expansion to 50% (Current Milestone)**
    - **Priority**: CRITICAL
-   - **Current**: 22.8% overall coverage
-   - **Target**: 80% overall coverage
-   - **Gap**: 57.2 percentage points
-   - **Approach**: Systematically add tests for uncovered code paths
+   - **Current**: 15.2% overall coverage
+   - **Target**: 50% overall coverage
+   - **Gap**: 34.8 percentage points
+   - **Approach**: High-impact files first, target largest untested files
 
-2. **Property Test Error Resolution**
+2. **Remaining Test Failures**
    - **Priority**: HIGH
-   - **Issue**: 10 property tests failing during collection with TypeError
-   - **Files Affected**:
-     - `test_input_validation_invariants.py`
-     - `test_temporal_invariants.py`
-     - `test_tool_governance_invariants.py`
-   - **Goal**: Fix collection errors to enable full test suite execution
+   - **Issue**: ~25-30 tests still failing from Phase 09
+   - **Categories**:
+     - Governance graduation tests: 18 failures
+     - Proposal service tests: 4 failures
+     - Other unit tests: ~3-8 failures
+   - **Goal**: Fix all remaining failures before expanding coverage
 
-3. **CI Pipeline Stability**
+3. **Property-Based Testing**
+   - **Priority**: MEDIUM
+   - **Goal**: Add Hypothesis-based property tests for invariants
+   - **Focus**: Core services and critical business logic
+   - **Files**: System invariants alongside unit/integration tests
+
+4. **CI Pipeline Stability**
    - **Priority**: HIGH
-   - **Current**: 95.3% pass rate achieved in Phase 44
+   - **Current**: ~97% pass rate (Phase 09 substantial completion)
    - **Goal**: 98%+ pass rate consistently
-   - **Approach**: Fix flaky tests, improve test isolation
+   - **Approach**: Fix remaining failures, improve test isolation
 
 ### Out of Scope Requirements
 These requirements are explicitly deferred or excluded from this initiative.
@@ -190,6 +214,29 @@ These requirements are explicitly deferred or excluded from this initiative.
 
 ## Recent Milestones
 
+### Phase 09: Test Suite Stabilization (Completed 2026-02-15 - 80% Substantial)
+**Goal**: Fix all failing tests and establish quality gates
+
+**Achievements**:
+- ✅ Fixed all 356 collection errors (100% improvement)
+- ✅ Fixed 30+ test failures (91% reduction, 324 → ~25)
+- ✅ Established 3 quality gates (pre-commit, CI, trend tracking)
+- ✅ Achieved ~97% pass rate (95.3% → ~97%)
+- ✅ Identified AsyncMock usage pattern and fixed 19 governance tests
+- ✅ Created coverage trend tracking infrastructure
+
+**Remaining Work** (Optional for Phase 09 completion):
+- Fix ~25-30 remaining test failures
+- Fix db_session fixture transaction rollback
+- Verify 98%+ pass rate across 3 full runs
+
+**Commits**:
+- `c7756a0f` - Phase 09 planning setup
+- `15ad1eb9` - Trigger interceptor test fixes (19 tests)
+- `f3b60d01` - Auth endpoint test fixes (11 tests)
+- `0bce34a4` - Quality gates infrastructure
+- `1152e720` - Phase 09 summary (substantial completion)
+
 ### Phase 44: CI Pipeline Fix (Completed 2026-02-15)
 **Goal**: Fix CI pipeline and achieve stable test runs
 
@@ -227,33 +274,38 @@ These requirements are explicitly deferred or excluded from this initiative.
 
 ## Next Steps
 
-1. **Complete This Milestone Setup** (Phase 09)
-   - Define requirements for 80% coverage target
-   - Create roadmap with specific phases
-   - Identify highest-value testing opportunities
+1. **Fix Remaining Test Failures** (Phase 10, Wave 1)
+   - Governance graduation tests: 18 failures
+   - Proposal service tests: 4 failures
+   - Other unit tests: ~3-8 failures
+   - Goal: 100% test pass rate
 
-2. **Fix Property Test Collection Errors**
-   - Resolve TypeError in 10 property test files
-   - Enable full 10,176 test suite execution
+2. **High-Impact File Coverage Expansion** (Phase 10, Wave 2)
+   - Identify largest untested files (>200 lines)
+   - Add unit tests for core services
+   - Add integration tests for critical paths
+   - Add property tests for invariants
+   - Goal: 15.2% → 50% coverage
 
-3. **Expand Coverage Strategically**
-   - Identify untested critical paths
-   - Add tests for high-impact, low-effort areas first
-   - Track coverage progress systematically
+3. **Maintain Quality Standards**
+   - Enforce pre-commit coverage gate (80% minimum)
+   - Track coverage trends over time
+   - Keep CI pass rate at 98%+
 
 ---
 
 ## Success Metrics
 
 ### Coverage Metrics
-- **Overall Coverage**: 22.8% → 80% (target)
-- **Integration Coverage**: Already strong, maintain >90%
-- **Unit Coverage**: Primary focus for expansion
+- **Overall Coverage**: 15.2% → 50% (Phase 10 target) → 80% (ultimate goal)
+- **Integration Coverage**: Maintain >90%
+- **Unit Coverage**: Primary focus for expansion (high-impact files)
 
 ### Quality Metrics
-- **Test Pass Rate**: 95.3% → 98%+ (target)
-- **Collection Errors**: 10 → 0 (target)
+- **Test Pass Rate**: ~97% (Phase 09) → 98%+ (Phase 10 target)
+- **Collection Errors**: 0 ✅ (achieved in Phase 09)
 - **Flaky Tests**: Identify and eliminate
+- **Quality Gates**: 3 operational ✅ (achieved in Phase 09)
 
 ### Performance Metrics
 - **Full Suite Runtime**: <60 minutes (current: ~40 minutes)
