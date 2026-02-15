@@ -38,25 +38,21 @@ from core.models import (
     TriggerSource,
     User,
     UserRole,
-    AgentStatus
+    AgentStatus as AgentStatusEnum
 )
 
-# Maturity levels as strings
-class AgentMaturity:
-    STUDENT = "student"
-    INTERN = "intern"
-    SUPERVISED = "supervised"
-    AUTONOMOUS = "autonomous"
-
-# Agent status as strings
-class AgentStatus:
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    ARCHIVED = "archived"
+# Use the AgentStatus enum from models
+AgentStatus = AgentStatusEnum
 from core.agent_governance_service import AgentGovernanceService
 from core.governance_cache import GovernanceCache
 from core.trigger_interceptor import TriggerInterceptor
-from tests.factories.agent_factory import AgentFactory, StudentAgentFactory
+from tests.factories.agent_factory import (
+    AgentFactory,
+    StudentAgentFactory,
+    InternAgentFactory,
+    SupervisedAgentFactory,
+    AutonomousAgentFactory
+)
 from tests.factories.user_factory import UserFactory
 
 
@@ -69,11 +65,12 @@ class TestAgentGovernanceIntegration:
         agent = AgentRegistry(
             name="TestAgent",
             description="Test agent for governance",
-            maturity_level=AgentMaturity.INTERN,
-            status=AgentStatus.ACTIVE,
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
             confidence_score=0.6,
-            capabilities=["test_capability"],
-            owner_id="test-user"
+            user_id="test-user"
         )
         db_session.add(agent)
         db_session.commit()
@@ -86,7 +83,7 @@ class TestAgentGovernanceIntegration:
 
         assert retrieved is not None
         assert retrieved.name == "TestAgent"
-        assert retrieved.maturity_level == AgentMaturity.INTERN
+        assert retrieved.status == AgentStatus.INTERN.value
 
     def test_update_agent_maturity(self, db_session: Session):
         """Test updating agent maturity and verifying persistence."""
@@ -95,7 +92,7 @@ class TestAgentGovernanceIntegration:
         db_session.commit()
 
         # Update maturity
-        agent.maturity_level = AgentMaturity.SUPERVISED
+        agent.status = AgentStatus.SUPERVISED.value
         agent.confidence_score = 0.8
         db_session.commit()
 
@@ -104,7 +101,7 @@ class TestAgentGovernanceIntegration:
             AgentRegistry.id == agent.id
         ).first()
 
-        assert retrieved.maturity_level == AgentMaturity.SUPERVISED
+        assert retrieved.status == AgentStatus.SUPERVISED.value
         assert retrieved.confidence_score == 0.8
 
     def test_agent_execution_record_creation(self, db_session: Session):
@@ -144,24 +141,9 @@ class TestAgentGovernanceIntegration:
         """Test permission checks using database agent data."""
         # Create agents with different maturity levels
         student = StudentAgentFactory(name="StudentAgent", _session=db_session)
-        intern = AgentFactory(
-            name="InternAgent",
-            maturity_level=AgentMaturity.INTERN,
-            confidence_score=0.6,
-            _session=db_session
-        )
-        supervised = AgentFactory(
-            name="SupervisedAgent",
-            maturity_level=AgentMaturity.SUPERVISED,
-            confidence_score=0.8,
-            _session=db_session
-        )
-        autonomous = AgentFactory(
-            name="AutonomousAgent",
-            maturity_level=AgentMaturity.AUTONOMOUS,
-            confidence_score=0.95,
-            _session=db_session
-        )
+        intern = InternAgentFactory(name="InternAgent", _session=db_session)
+        supervised = SupervisedAgentFactory(name="SupervisedAgent", _session=db_session)
+        autonomous = AutonomousAgentFactory(name="AutonomousAgent", _session=db_session)
         db_session.commit()
 
         # Query and check permissions
@@ -169,25 +151,25 @@ class TestAgentGovernanceIntegration:
         student_agent = db_session.query(AgentRegistry).filter(
             AgentRegistry.id == student.id
         ).first()
-        assert student_agent.maturity_level == AgentMaturity.STUDENT
+        assert student_agent.status == AgentStatus.STUDENT.value
 
         # INTERN agents can stream presentations
         intern_agent = db_session.query(AgentRegistry).filter(
             AgentRegistry.id == intern.id
         ).first()
-        assert intern_agent.maturity_level == AgentMaturity.INTERN
+        assert intern_agent.status == AgentStatus.INTERN.value
 
         # SUPERVISED agents can execute state changes
         supervised_agent = db_session.query(AgentRegistry).filter(
             AgentRegistry.id == supervised.id
         ).first()
-        assert supervised_agent.maturity_level == AgentMaturity.SUPERVISED
+        assert supervised_agent.status == AgentStatus.SUPERVISED.value
 
         # AUTONOMOUS agents can do critical operations
         autonomous_agent = db_session.query(AgentRegistry).filter(
             AgentRegistry.id == autonomous.id
         ).first()
-        assert autonomous_agent.maturity_level == AgentMaturity.AUTONOMOUS
+        assert autonomous_agent.status == AgentStatus.AUTONOMOUS.value
 
     def test_audit_trail_persistence(self, db_session: Session):
         """Test audit trail creation and querying."""
@@ -289,12 +271,14 @@ class TestTriggerInterceptorIntegration:
         # Create blocked trigger context
         blocked_context = BlockedTriggerContext(
             agent_id=agent.id,
-            user_id=user.id,
-            trigger_source=TriggerSource.SCHEDULE.value,
-            trigger_reason="STUDENT maturity blocks automated triggers",
-            original_trigger_data={"workflow_id": "test-workflow"},
-            status="blocked",
-            created_at=datetime.utcnow()
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=agent.confidence_score,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"workflow_id": "test-workflow"},
+            routing_decision="training",
+            block_reason="STUDENT maturity blocks automated triggers"
         )
         db_session.add(blocked_context)
         db_session.commit()
@@ -305,8 +289,8 @@ class TestTriggerInterceptorIntegration:
         ).first()
 
         assert retrieved is not None
-        assert retrieved.status == "blocked"
-        assert "STUDENT" in retrieved.trigger_reason
+        assert retrieved.resolved == False
+        assert "STUDENT" in retrieved.block_reason
 
     def test_query_blocked_triggers_by_agent(self, db_session: Session):
         """Test querying blocked triggers for a specific agent."""
@@ -319,11 +303,14 @@ class TestTriggerInterceptorIntegration:
         for i in range(3):
             blocked = BlockedTriggerContext(
                 agent_id=agent.id,
-                user_id=user.id,
-                trigger_source=TriggerSource.WEBSOCKET.value,
-                trigger_reason=f"STUDENT maturity blocks trigger {i}",
-                original_trigger_data={"index": i},
-                status="blocked"
+                agent_name=agent.name,
+                agent_maturity_at_block=AgentStatus.STUDENT.value,
+                confidence_score_at_block=agent.confidence_score,
+                trigger_source=TriggerSource.MANUAL.value,
+                trigger_type=f"trigger_{i}",
+                trigger_context={"index": i},
+                routing_decision="training",
+                block_reason=f"STUDENT maturity blocks trigger {i}"
             )
             db_session.add(blocked)
         db_session.commit()
@@ -347,11 +334,14 @@ class TestTriggerInterceptorIntegration:
         # Create blocked context at specific time
         blocked = BlockedTriggerContext(
             agent_id=agent.id,
-            user_id=user.id,
-            trigger_source=TriggerSource.EVENT.value,
-            trigger_reason="Test time range query",
-            original_trigger_data={},
-            status="blocked",
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=agent.confidence_score,
+            trigger_source=TriggerSource.DATA_SYNC.value,
+            trigger_type="test_trigger",
+            trigger_context={},
+            routing_decision="training",
+            block_reason="Test time range query",
             created_at=now
         )
         db_session.add(blocked)
@@ -374,11 +364,7 @@ class TestProposalWorkflowIntegration:
     def test_proposal_creation_and_approval(self, db_session: Session):
         """Test full proposal lifecycle from creation to approval."""
         # Create intern agent
-        agent = AgentFactory(
-            name="ProposalAgent",
-            maturity_level=AgentMaturity.INTERN,
-            _session=db_session
-        )
+        agent = InternAgentFactory(name="ProposalAgent", _session=db_session)
         user = UserFactory(email="proposal@test.com", _session=db_session)
         db_session.commit()
 
@@ -413,11 +399,7 @@ class TestProposalWorkflowIntegration:
     def test_query_pending_proposals(self, db_session: Session):
         """Test querying pending proposals."""
         # Create agent and user
-        agent = AgentFactory(
-            name="PendingProposalAgent",
-            maturity_level=AgentMaturity.INTERN,
-            _session=db_session
-        )
+        agent = InternAgentFactory(name="PendingProposalAgent", _session=db_session)
         user = UserFactory(email="pending@test.com", _session=db_session)
         db_session.commit()
 
@@ -448,11 +430,7 @@ class TestProposalWorkflowIntegration:
     def test_proposal_rejection(self, db_session: Session):
         """Test proposal rejection."""
         # Create agent and user
-        agent = AgentFactory(
-            name="RejectAgent",
-            maturity_level=AgentMaturity.INTERN,
-            _session=db_session
-        )
+        agent = InternAgentFactory(name="RejectAgent", _session=db_session)
         user = UserFactory(email="reject@test.com", _session=db_session)
         db_session.commit()
 
@@ -552,11 +530,7 @@ class TestTrainingSessionIntegration:
     def test_supervision_session_tracking(self, db_session: Session):
         """Test supervision session database operations."""
         # Create supervised agent
-        agent = AgentFactory(
-            name="SupervisedAgent",
-            maturity_level=AgentMaturity.SUPERVISED,
-            _session=db_session
-        )
+        agent = SupervisedAgentFactory(name="SupervisedAgent", _session=db_session)
         user = UserFactory(email="supervision@test.com", _session=db_session)
         db_session.commit()
 
@@ -596,18 +570,18 @@ class TestGovernanceDatabaseQueries:
         # Create agents with different maturity levels
         StudentAgentFactory(name="CountStudent1", _session=db_session)
         StudentAgentFactory(name="CountStudent2", _session=db_session)
-        AgentFactory(name="CountIntern", maturity_level=AgentMaturity.INTERN, _session=db_session)
-        AgentFactory(name="CountSupervised", maturity_level=AgentMaturity.SUPERVISED, _session=db_session)
+        InternAgentFactory(name="CountIntern", _session=db_session)
+        SupervisedAgentFactory(name="CountSupervised", _session=db_session)
         db_session.commit()
 
         # Count by maturity
         result = db_session.query(
-            AgentRegistry.maturity_level,
+            AgentRegistry.status,
             func.count(AgentRegistry.id)
-        ).group_by(AgentRegistry.maturity_level).all()
+        ).group_by(AgentRegistry.status).all()
 
         maturity_counts = {row[0]: row[1] for row in result}
-        assert maturity_counts.get(AgentMaturity.STUDENT, 0) >= 2
+        assert maturity_counts.get(AgentStatus.STUDENT.value, 0) >= 2
 
     def test_query_recent_executions(self, db_session: Session):
         """Test querying recent executions across all agents."""
