@@ -1,8 +1,8 @@
 # Atom Test Coverage Initiative - State Management
 
 **Last Updated**: 2026-02-15
-**Current Phase**: Phase 10 - Coverage Expansion to 50%
-**Current Status**: Defining requirements for v1.1 milestone
+**Current Phase**: Phase 10 - Fix Remaining Test Failures
+**Current Status**: ROADMAP CREATED - Ready for execution planning
 
 ---
 
@@ -30,16 +30,24 @@
 
 ## Current Position
 
-**Phase**: Not started (defining requirements)
-**Plan**: —
-**Status**: Defining requirements for v1.1 milestone
-**Last activity**: 2026-02-15 — Phase 09 substantially completed (80%)
+**Phase**: Phase 10 - Fix Remaining Test Failures
+**Plan**: Ready to create execution plans (10-01, 10-02)
+**Status**: ROADMAP CREATED - 6 phases defined for v1.1 milestone
+**Last activity**: 2026-02-15 — Phase 09 substantially completed (80%), Roadmap created for Phase 10-15
+
+**Roadmap Structure**:
+- Phase 10: Fix remaining test failures (~25-30 tests)
+- Phase 11: Coverage analysis and prioritization
+- Phase 12: Unit test expansion for core services
+- Phase 13: Integration & API test expansion
+- Phase 14: Property-based testing implementation
+- Phase 15: Verification & infrastructure updates
 
 ---
 
 ## Pending Todos
 
-### High Priority (Phase 10)
+### High Priority (Phase 10 - Wave 1)
 1. **[CRITICAL] Fix Remaining Test Failures**
    - **Status**: BLOCKING - Must fix before expanding coverage
    - **Failures**:
@@ -47,33 +55,34 @@
      - Proposal service tests: 4 failures
      - Other unit tests: ~3-8 failures
    - **Impact**: Prevents 98%+ pass rate goal
-   - **Next Action**: Fix failures, then expand coverage
+   - **Next Action**: Create execution plans 10-01 and 10-02
 
-2. **[CRITICAL] Expand Coverage from 15.2% to 50%**
-   - **Status**: PENDING - Main Phase 10 goal
-   - **Strategy**: High-impact files first (>200 lines)
-   - **Progress**: 15.2% → 50% (34.8 percentage point gap)
-   - **Timeline**: 1 week (aggressive)
-   - **Approach**:
-     - Identify largest untested files
-     - Add unit tests for core services
-     - Add integration tests for critical paths
-     - Add property tests for invariants
-   - **Next Action**: Coverage analysis to identify high-impact files
-
-### Medium Priority
-3. **[IMPROVEMENT] Achieve 98%+ Test Pass Rate**
+2. **[CRITICAL] Achieve 98%+ Test Pass Rate**
    - **Status**: ACTIVE
    - **Current**: ~97% pass rate (Phase 09)
    - **Goal**: 98%+ pass rate
    - **Approach**: Fix remaining ~25-30 failures, improve test isolation
    - **Next Action**: Fix governance graduation and proposal service tests
 
-4. **[ENHANCEMENT] Add Property-Based Tests**
+### Medium Priority (Phase 10 - Waves 2-6)
+3. **[CRITICAL] Expand Coverage from 15.2% to 50%**
+   - **Status**: PENDING - Main Phase 10 goal
+   - **Strategy**: High-impact files first (>200 lines)
+   - **Progress**: 15.2% → 50% (34.8 percentage point gap)
+   - **Timeline**: 1 week (aggressive)
+   - **Approach**:
+     - Wave 2: Coverage analysis (identify high-impact files)
+     - Wave 3: Add unit tests for core services
+     - Wave 4: Add integration tests for critical paths
+     - Wave 5: Add property tests for invariants
+     - Wave 6: Verify 50% coverage achieved
+   - **Next Action**: Coverage analysis after test failures fixed
+
+4. **[IMPROVEMENT] Add Property-Based Tests**
    - **Status**: PLANNED
    - **Goal**: Hypothesis-based property tests for invariants
    - **Focus**: Core services and critical business logic
-   - **Timeline**: During Phase 10 coverage expansion
+   - **Timeline**: During Phase 10 coverage expansion (Wave 5)
    - **Next Action**: Identify invariant opportunities alongside unit tests
 
 ### Low Priority
@@ -96,7 +105,7 @@
      - Proposal service tests: 4 failures
      - Other unit tests: ~3-8 failures
    - **Root Cause**: Various (test logic, fixture issues, UNIQUE constraints)
-   - **Resolution**: Fix failures first (Wave 1 of Phase 10)
+   - **Resolution**: Fix failures first (Phase 10, Wave 1)
 
 ### Recent Blockers (Resolved in Phase 09)
 1. ✅ **356 Collection Errors** - RESOLVED
@@ -142,10 +151,10 @@
 **Goal**: Fix CI pipeline and achieve stable test runs
 
 **Completed Tasks**:
-- ✅ Fixed all integration test failures (301/303 passing)
+- ✅ Fixed all integration test failures (301/301 passing)
 - ✅ Fixed all unit test syntax errors (2,447 tests collecting)
-- ✅ Removed 31 duplicate test files
-- ✅ Configured pytest.ini ignore patterns
+- ✅ Removed 31 duplicate test files causing import conflicts
+- ✅ Configured pytest.ini to ignore problematic external dependencies
 - ✅ Achieved 95.3% pass rate
 
 ---
@@ -154,13 +163,13 @@
 
 ### Current Coverage: 15.2%
 
-**Coverage Expansion Strategy (Phase 10)**:
-1. **Wave 1**: Fix remaining test failures (~25-30 tests)
-2. **Wave 2**: Coverage analysis - identify high-impact files (>200 lines)
-3. **Wave 3**: Add unit tests for largest untested files
-4. **Wave 4**: Add integration tests for critical paths
-5. **Wave 5**: Add property tests for invariants
-6. **Wave 6**: Verify 50% coverage target achieved
+**Coverage Expansion Strategy (Phase 10 - 6 Waves)**:
+1. **Wave 1** (Phase 10): Fix remaining test failures (~25-30 tests)
+2. **Wave 2** (Phase 11): Coverage analysis - identify high-impact files (>200 lines)
+3. **Wave 3** (Phase 12): Add unit tests for largest untested files
+4. **Wave 4** (Phase 13): Add integration tests for critical paths
+5. **Wave 5** (Phase 14): Add property tests for invariants
+6. **Wave 6** (Phase 15): Verify 50% coverage target achieved
 
 **High-Impact File Categories** (need investigation):
 - Core services (governance, episodes, streaming)
@@ -221,43 +230,38 @@
 ## Next Actions
 
 ### Immediate (Phase 10 Kickoff)
-1. **Define Requirements for v1.1 Milestone**
-   - Gather requirements for coverage expansion to 50%
-   - Scope high-impact files (>200 lines)
-   - Identify property test opportunities
+1. **Create Execution Plans for Wave 1**
+   - Plan 10-01: Fix governance graduation test failures (18 tests)
+   - Plan 10-02: Fix proposal service and other test failures (7-12 tests)
 
-2. **Create Phase 10 Roadmap**
-   - Break into waves (failures, analysis, expansion, verification)
-   - Set milestones and success criteria
-   - Identify dependencies and blockers
-
-3. **Fix Remaining Test Failures** (Wave 1)
-   - Governance graduation tests: 18 failures
-   - Proposal service tests: 4 failures
-   - Other unit tests: ~3-8 failures
+2. **Execute Wave 1: Fix Test Failures**
+   - Fix governance graduation tests
+   - Fix proposal service tests
+   - Fix other unit test failures
+   - Verify 98%+ pass rate achieved
 
 ### Short Term (Phase 10 Execution - 1 week)
-4. **Coverage Analysis** (Wave 2)
+3. **Coverage Analysis** (Wave 2 - Phase 11)
    - Run coverage report with detailed breakdown
    - Identify lowest-coverage, largest files (>200 lines)
    - Prioritize high-impact, low-effort testing opportunities
 
-5. **Add Unit Tests** (Wave 3)
+4. **Add Unit Tests** (Wave 3 - Phase 12)
    - Target largest untested files first
    - Focus on core services (governance, episodes, streaming)
    - Track progress with coverage reports
 
-6. **Add Integration Tests** (Wave 4)
+5. **Add Integration Tests** (Wave 4 - Phase 13)
    - Focus on untested critical paths
    - API endpoints and service interactions
    - Maintain test isolation
 
-7. **Add Property Tests** (Wave 5)
+6. **Add Property Tests** (Wave 5 - Phase 14)
    - Identify system invariants
    - Hypothesis-based property tests
    - Focus on business logic and data validation
 
-8. **Verify 50% Coverage** (Wave 6)
+7. **Verify 50% Coverage** (Wave 6 - Phase 15)
    - Run full coverage report
    - Verify all quality gates passing
    - Document lessons learned
@@ -287,10 +291,11 @@
 ## Notes
 
 ### Key Insights
-1. **Test suite stable**: 0 collection errors, ~97% pass rate
-2. **Quality gates operational**: Pre-commit, CI, trend tracking all working
-3. **Coverage gap clear**: 34.8 percentage points to Phase 10 target
-4. **Strategy defined**: High-impact files first, aggressive 1-week timeline
+1. **Roadmap created**: 6 phases (10-15) for v1.1 milestone
+2. **Test suite stable**: 0 collection errors, ~97% pass rate
+3. **Quality gates operational**: Pre-commit, CI, trend tracking all working
+4. **Coverage gap clear**: 34.8 percentage points to Phase 10 target
+5. **Strategy defined**: High-impact files first, aggressive 1-week timeline
 
 ### Risks
 1. **Timeline aggressive**: 1 week for 34.8 percentage points ambitious
@@ -332,6 +337,48 @@ with patch('core.trigger_interceptor.get_async_governance_cache', new_callable=A
 - **db_session fixture**: Lacks transaction rollback, causes UNIQUE constraint violations
 - **Impact**: 7 auth tests failing with cross-test pollution
 - **Solution**: Documented for future implementation (deferred to maintain timeline)
+
+---
+
+## Roadmap Summary
+
+### Phase 10: Fix Remaining Test Failures (Wave 1)
+**Goal**: Achieve 98%+ pass rate
+**Plans**: 2 plans
+- 10-01: Fix governance graduation test failures (18 tests)
+- 10-02: Fix proposal service and other test failures (7-12 tests)
+
+### Phase 11: Coverage Analysis & Prioritization (Wave 2)
+**Goal**: Identify high-impact files
+**Plans**: 1 plan
+- 11-01: Analyze coverage and prioritize high-impact files
+
+### Phase 12: Unit Test Expansion for Core Services (Wave 3)
+**Goal**: Core services achieve >60% coverage
+**Plans**: 3 plans
+- 12-01: Add unit tests for agent governance services
+- 12-02: Add unit tests for episodic memory services
+- 12-03: Add unit tests for LLM streaming services
+
+### Phase 13: Integration & API Test Expansion (Wave 4)
+**Goal**: API routes and tools achieve >50% coverage
+**Plans**: 3 plans
+- 13-01: Add integration tests for canvas API routes
+- 13-02: Add integration tests for browser and device API routes
+- 13-03: Add integration tests for canvas, browser, and device tools
+
+### Phase 14: Property-Based Testing Implementation (Wave 5)
+**Goal**: Property tests validate system invariants
+**Plans**: 3 plans
+- 14-01: Add property tests for governance system invariants
+- 14-02: Add property tests for episodic memory invariants
+- 14-03: Add property tests for streaming LLM invariants
+
+### Phase 15: Verification & Infrastructure Updates (Wave 6)
+**Goal**: 50% coverage achieved, infrastructure operational
+**Plans**: 2 plans
+- 15-01: Verify 50% coverage target achieved
+- 15-02: Update test infrastructure (trend tracking, CI metrics, reporting)
 
 ---
 
