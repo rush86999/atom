@@ -1,6 +1,6 @@
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
 
 from core.agent_governance_service import AgentGovernanceService
@@ -9,8 +9,9 @@ from core.generic_agent import GenericAgent
 from core.models import AgentRegistry, AgentStatus
 
 
+@patch('core.llm.byok_handler.BYOKHandler.__init__', return_value=None)
 @pytest.mark.asyncio
-async def test_agent_governance_gating():
+async def test_agent_governance_gating(mock_byok_init):
     db = SessionLocal()
     try:
         # 1. Create a "Student" agent registry model in DB
@@ -41,9 +42,10 @@ async def test_agent_governance_gating():
         db.commit()
         db.close()
 
+@patch('core.llm.byok_handler.BYOKHandler.__init__', return_value=None)
 @pytest.mark.asyncio
-async def test_agent_learning_progression():
-    # Note: This test requires a real DB entry because GenericAgent.execute 
+async def test_agent_learning_progression(mock_byok_init):
+    # Note: This test requires a real DB entry because GenericAgent.execute
     # creates its own DB sessions to update registry via GovernanceService
     db = SessionLocal()
     try:
