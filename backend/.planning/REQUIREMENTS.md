@@ -1,361 +1,151 @@
-# Phase 09 - Test Suite Stabilization Requirements
+# Requirements: v1.1 Coverage Expansion to 50%
 
-**Milestone**: Test Suite Stabilization & Quality Gates
-**Timeline**: 1 week (aggressive - 2026-02-15 to 2026-02-22)
-**Last Updated**: 2026-02-15
-
----
-
-## Milestone Overview
-
-**Goal**: Stabilize the test suite by fixing all failing tests and errors, then establish quality gates to prevent regression.
-
-**Success Criteria**:
-- ✅ 0 test collection errors (currently 356 errors)
-- ✅ 0 test failures (currently 324 failed)
-- ✅ 98%+ test pass rate
-- ✅ Quality gates established and enforced
-- ✅ Property tests fixed and passing
-
-**Approach**: Fix-first strategy - stabilize existing test suite before expanding coverage.
+**Defined:** 2026-02-15
+**Core Value:** Reliable AI Automation - Deliver a robust, well-tested multi-agent AI platform where every feature has comprehensive test coverage, ensuring production reliability and enabling confident rapid iteration.
 
 ---
 
-## Requirements
+## v1.1 Requirements
 
-### REQ-1: Fix All Test Collection Errors
-**Priority**: CRITICAL (BLOCKING)
-**Status**: PENDING
-**Estimated Effort**: 2 days
+Requirements for Phase 10 milestone - Coverage expansion to 50% using high-impact file strategy.
 
-**Description**:
-Resolve all 356 test collection errors that prevent tests from running. These are primarily import errors, missing dependencies, and fixture issues.
+### Test Quality & Stability
 
-**Acceptance Criteria**:
-- [ ] `pytest --collect-only` completes with 0 errors
-- [ ] All 10,176+ tests collect successfully
-- [ ] No import errors in any test file
-- [ ] All fixtures properly defined and accessible
+- [ ] **TQ-01**: All remaining test failures are fixed (~25-30 tests)
+  - Governance graduation tests: 18 failures
+  - Proposal service tests: 4 failures
+  - Other unit tests: ~3-8 failures
+- [ ] **TQ-02**: Test suite achieves 98%+ pass rate consistently
+- [ ] **TQ-03**: Test suite runs successfully in <60 minutes
+- [ ] **TQ-04**: No flaky tests across 3 consecutive runs
 
-**Files to Fix**:
-- `tests/unit/governance/test_supervision_service.py` - 5 errors
-- `tests/unit/governance/test_trigger_interceptor.py` - 20 errors
-- `tests/unit/security/test_auth_endpoints.py` - 5 errors
-- Property tests with TypeErrors - 10 errors
-- Any additional files with collection errors
+### Coverage Expansion
 
-**Implementation Notes**:
-- Focus on import statements and fixture availability
-- Ensure all mock patches have correct paths
-- Verify test factory dependencies are properly imported
+- [ ] **COV-01**: Overall test coverage increases from 15.2% to 50%
+- [ ] **COV-02**: High-impact files (>200 lines) receive comprehensive test coverage
+- [ ] **COV-03**: Core services (governance, episodes, streaming) achieve >60% coverage
+- [ ] **COV-04**: API routes (canvas, browser, device, deeplinks) achieve >50% coverage
+- [ ] **COV-05**: Tools (canvas_tool, browser_tool, device_tool) achieve >50% coverage
 
-**Testing**:
-- Run `pytest --collect-only -q` to verify 0 errors
-- Confirm all tests can be collected without failures
+### Property-Based Testing
 
----
+- [ ] **PROP-01**: Property tests added for governance system invariants
+- [ ] **PROP-02**: Property tests added for episodic memory invariants
+- [ ] **PROP-03**: Property tests added for streaming LLM invariants
+- [ ] **PROP-04**: Property tests use Hypothesis framework with clear invariant definitions
+- [ ] **PROP-05**: Property tests run alongside unit/integration tests without regression
 
-### REQ-2: Fix All Test Failures
-**Priority**: CRITICAL (BLOCKING)
-**Status**: PENDING
-**Estimated Effort**: 2 days
+### Test Infrastructure
 
-**Description**:
-Resolve all 324 test failures to achieve stable test suite. Failures include assertion errors, incorrect expectations, and logic bugs.
-
-**Acceptance Criteria**:
-- [ ] Full test suite runs with 0 failures
-- [ ] 98%+ pass rate achieved (allowing for known skips)
-- [ ] All integration tests passing (currently 301/303, need 303/303)
-- [ ] All unit tests passing
-- [ ] Property tests passing
-
-**Known Failure Categories**:
-1. **Governance Tests** (test_supervision_service.py, test_trigger_interceptor.py)
-   - Missing fixtures
-   - Incorrect mock setup
-   - Wrong assertion expectations
-
-2. **Auth Endpoint Tests** (test_auth_endpoints.py)
-   - Missing database fixtures
-   - Incorrect request/response expectations
-   - Authentication/authorization setup issues
-
-3. **Property Tests**
-   - TypeError in hypothesis/property test setup
-   - Missing strategy definitions
-   - Incorrect test data generation
-
-**Implementation Notes**:
-- Run tests with `-v` flag to see detailed failure output
-- Use `-x` flag to stop at first failure for debugging
-- Fix failures systematically by module/feature area
-- Ensure proper test isolation (no shared state)
-
-**Testing**:
-- Run `pytest tests/ -v` to verify all tests pass
-- Run `pytest tests/unit/` and `pytest tests/integration/` separately
-- Verify property tests run successfully
+- [ ] **INF-01**: Coverage trend tracking updates after each test run
+- [ ] **INF-02**: Pre-commit coverage hook enforces 80% minimum for new code
+- [ ] **INF-03**: CI pass rate check provides detailed metrics (not just informational)
+- [ ] **INF-04**: Coverage reports include HTML, JSON, and trend analysis
 
 ---
 
-### REQ-3: Fix Property Test TypeErrors
-**Priority**: HIGH (Included in REQ-1/REQ-2)
-**Status**: PENDING
-**Estimated Effort**: 1 day
+## v2 Requirements (Future Milestones)
 
-**Description**:
-Fix TypeError issues in property tests that prevent collection. Property tests provide strong correctness guarantees and are valuable for catching edge cases.
+Deferred to Phase 11+ (Coverage expansion to 65% and beyond).
 
-**Acceptance Criteria**:
-- [ ] All property tests collect successfully
-- [ ] Property tests run without TypeError
-- [ ] Property tests pass with meaningful assertions
-- [ ] Hypothesis strategies properly defined
+### Advanced Coverage
 
-**Files to Fix**:
-- `tests/property_tests/input_validation/test_input_validation_invariants.py`
-- `tests/property_tests/temporal/test_temporal_invariants.py`
-- `tests/property_tests/tools/test_tool_governance_invariants.py`
-- Any other property test files with errors
+- **COV-11**: Overall test coverage increases from 50% to 65%
+- **COV-12**: Edge case and error handling coverage >80%
+- **COV-13**: Performance and load testing coverage established
 
-**Implementation Notes**:
-- Check hypothesis strategy definitions (@given decorators)
-- Verify custom strategies are properly typed
-- Ensure property test functions have correct signatures
-- Review hypothesis settings for timeouts and examples
+### Test Automation
 
-**Testing**:
-- Run `pytest tests/property_tests/ -v` to verify all property tests pass
-- Run `pytest tests/property_tests/ --hypothesis-seed=0` for reproducibility
-
----
-
-### REQ-4: Establish Coverage Quality Gates
-**Priority**: HIGH (Enforcement)
-**Status**: PENDING
-**Estimated Effort**: 0.5 days
-
-**Description**:
-Implement quality gates to prevent coverage regression and ensure test quality standards are maintained.
-
-**Acceptance Criteria**:
-- [ ] Pre-commit hook enforces minimum coverage for new code
-- [ ] CI pipeline requires 98%+ test pass rate
-- [ ] Coverage trend tracking implemented
-- [ ] Automated coverage reports generated
-- [ ] Coverage decreases block merges
-
-**Implementation**:
-
-**4.1 Pre-commit Coverage Hook**
-```yaml
-# .pre-commit-config.yaml
-- repo: local
-  hooks:
-    - id: pytest-cov
-      name: pytest with coverage
-      entry: pytest tests/ --cov=core --cov=api --cov=tools --cov-fail-under=80
-      language: system
-      pass_filenames: false
-      always_run: true
-```
-
-**4.2 CI Pass Rate Threshold**
-```yaml
-# .github/workflows/test.yml
-- name: Run tests
-  run: |
-    pytest tests/ --cov --cov-report=json
-    pass_rate=$(python -c "import json; print(json.load(open('coverage.json'))['test_pass_rate'])")
-    if (( $(echo "$pass_rate < 98" | bc -l) )); then
-      echo "Test pass rate $pass_rate% is below 98% threshold"
-      exit 1
-    fi
-```
-
-**4.3 Coverage Trend Tracking**
-- Create `tests/coverage_reports/trends.json` to track coverage over time
-- Add script to generate trend reports
-- Update trend data on each CI run
-
-**4.4 Coverage Report in CI**
-- Generate HTML coverage report in CI
-- Upload as artifact for review
-- Add coverage comment to PRs
-
-**Testing**:
-- Test pre-commit hook with low-coverage code
-- Verify CI fails on test failures
-- Confirm coverage trend tracking updates
-
----
-
-### REQ-5: Achieve 98%+ Test Pass Rate
-**Priority**: CRITICAL (Success Metric)
-**Status**: PENDING
-**Estimated Effort**: Included in REQ-2
-
-**Description**:
-Achieve and maintain 98%+ test pass rate across the entire test suite.
-
-**Acceptance Criteria**:
-- [ ] Full test suite runs with 98%+ pass rate
-- [ ] No flaky tests (tests that pass/fail intermittently)
-- [ ] Test isolation verified (tests can run in any order)
-- [ ] Consistent results across multiple runs
-
-**Implementation Notes**:
-- Fix flaky tests by improving isolation
-- Use pytest-rerun for known flaky tests (document why)
-- Ensure proper cleanup in test fixtures
-- Avoid shared state between tests
-
-**Testing**:
-- Run full test suite 3 times to verify consistency
-- Run tests in random order: `pytest tests/ --random-order`
-- Verify no tests depend on execution order
+- **AUTO-01**: Automated test generation for repetitive patterns
+- **AUTO-02**: Mutation testing to validate test quality
+- **AUTO-03**: Visual regression testing for canvas components
 
 ---
 
 ## Out of Scope
 
-### Explicitly Excluded
-1. **New Feature Tests**: Adding tests for untested features (deferred to Phase 10)
-2. **Coverage Expansion**: Increasing coverage percentage (deferred to Phase 10)
-3. **Performance Tests**: Load testing and benchmarking (separate initiative)
-4. **Frontend Tests**: Next.js/React Native tests (separate test suite)
+Explicitly excluded from Phase 10 to prevent scope creep.
 
-### Rationale
-This milestone focuses on **stabilization** - fixing existing broken tests. Coverage expansion is deferred to Phase 10 to ensure we have a solid foundation.
-
----
-
-## Dependencies
-
-### Internal Dependencies
-- **REQ-1 must complete before REQ-2**: Tests must collect before they can run
-- **REQ-2 must complete before REQ-5**: Can't measure pass rate with failing tests
-- **REQ-1, REQ-2, REQ-3 can run in parallel**: Different test files
-
-### External Dependencies
-- **Python 3.11+**: Test framework requires Python 3.11 or higher
-- **pytest, pytest-cov, pytest-asyncio**: Must be installed
-- **hypothesis**: Property testing framework
-- **factory-boy**: Test data factories
+| Feature | Reason |
+|---------|--------|
+| Frontend (Next.js) testing | Separate frontend test suite with different tooling |
+| Mobile (React Native) testing | Mobile implementation in progress, separate test infrastructure |
+| Performance/benchmark testing | Separate performance testing initiative |
+| LanceDB integration tests | Requires external LanceDB dependency, not in CI environment |
+| End-to-end UI testing | Too complex for this phase, focus on backend coverage |
+| 80% coverage target | Too aggressive for 1-week timeline, target 50% first |
 
 ---
 
-## Risk Assessment
+## Traceability
 
-### High Risk
-1. **Property Test Complexity**: Property tests may require significant refactoring
-   - **Mitigation**: Focus on unit/integration tests first if property tests prove too complex
+Which phases cover which requirements. Updated during roadmap creation.
 
-2. **Test Isolation Issues**: Tests may have hidden dependencies
-   - **Mitigation**: Use pytest fixtures with proper scope, run tests in random order
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TQ-01 | Phase 10 | Pending |
+| TQ-02 | Phase 10 | Pending |
+| TQ-03 | Phase 10 | Pending |
+| TQ-04 | Phase 10 | Pending |
+| COV-01 | Phase 10 | Pending |
+| COV-02 | Phase 10 | Pending |
+| COV-03 | Phase 10 | Pending |
+| COV-04 | Phase 10 | Pending |
+| COV-05 | Phase 10 | Pending |
+| PROP-01 | Phase 10 | Pending |
+| PROP-02 | Phase 10 | Pending |
+| PROP-03 | Phase 10 | Pending |
+| PROP-04 | Phase 10 | Pending |
+| PROP-05 | Phase 10 | Pending |
+| INF-01 | Phase 10 | Pending |
+| INF-02 | Phase 10 | Pending (Done in Phase 09) |
+| INF-03 | Phase 10 | Pending |
+| INF-04 | Phase 10 | Pending (Done in Phase 09) |
 
-### Medium Risk
-1. **Time Pressure**: 1 week is aggressive for 356 errors + 324 failures
-   - **Mitigation**: Focus on highest-impact fixes first, defer edge cases
-
-2. **Fixture Complexity**: Some tests may require complex fixture setup
-   - **Mitigation**: Reuse existing fixtures, create helper functions
-
-### Low Risk
-1. **CI Pipeline Changes**: Quality gates may break CI
-   - **Mitigation**: Test quality gates in fork before enforcing
-
----
-
-## Success Metrics
-
-### Quantitative Metrics
-- **Collection Errors**: 356 → 0
-- **Test Failures**: 324 → 0
-- **Pass Rate**: 95.3% → 98%+
-- **Property Tests**: 10 errors → 0 errors, all passing
-- **Flaky Tests**: Identify and fix all flaky tests
-
-### Qualitative Metrics
-- **Test Suite Stability**: Tests pass consistently across multiple runs
-- **Developer Confidence**: Team trusts test results
-- **CI Reliability**: Green builds mean working code
-- **Quality Gates**: All gates enforced and functional
+**Coverage:**
+- v1.1 requirements: 18 total
+- Mapped to phases: 0 (roadmap not yet created)
+- Unmapped: 18 ⚠️
 
 ---
 
-## Timeline
+## Success Criteria
 
-### Day 1-2: Fix Collection Errors (REQ-1, REQ-3)
-- Fix import errors and fixture issues
-- Fix property test TypeErrors
-- Verify all tests collect successfully
+Phase 10 is **SUCCESSFUL** when:
 
-### Day 3-4: Fix Test Failures (REQ-2)
-- Fix governance test failures
-- Fix auth endpoint test failures
-- Fix any remaining test failures
+### Quantitative
+- [ ] Overall coverage: 15.2% → 50% (+34.8 percentage points)
+- [ ] Test pass rate: ~97% → 98%+ (+1 percentage point)
+- [ ] Test failures: ~25-30 → 0
+- [ ] Property tests: 0 → 15+ invariants
 
-### Day 5: Quality Gates (REQ-4) & Pass Rate Verification (REQ-5)
-- Implement pre-commit coverage hook
-- Implement CI pass rate threshold
-- Implement coverage trend tracking
-- Verify 98%+ pass rate
-
-### Day 6-7: Buffer & Finalization
-- Run full test suite multiple times
-- Fix any remaining issues
-- Document lessons learned
-- Prepare for Phase 10 (Coverage Expansion)
+### Qualitative
+- [ ] High-impact files identified and prioritized
+- [ ] Test suite stable across multiple runs
+- [ ] Quality gates enforced throughout expansion
+- [ ] Coverage trend tracking shows consistent progress
+- [ ] Team confident in test results and coverage metrics
 
 ---
 
 ## Definition of Done
 
-A requirement is considered **DONE** when:
-- [ ] Acceptance criteria met
-- [ ] Tests passing locally
-- [ ] Code committed to git
-- [ ] Changes documented in commit message
-- [ ] No regressions in other areas
+A requirement is **DONE** when:
+- [ ] Feature is implemented (tests added)
+- [ ] Feature is verified (tests pass locally)
+- [ ] Feature is committed (git commit with clear message)
+- [ ] Coverage report shows improvement
 
-A milestone is considered **DONE** when:
-- [ ] All critical requirements (REQ-1, REQ-2, REQ-5) complete
-- [ ] All high-priority requirements (REQ-3, REQ-4) complete
-- [ ] Success metrics met
+Phase 10 is **DONE** when:
+- [ ] All 18 requirements met
+- [ ] 50% coverage achieved
+- [ ] 98%+ pass rate achieved
 - [ ] Quality gates enforced
-- [ ] Test suite stable at 98%+ pass rate
-- [ ] Documentation updated
+- [ ] Phase 10 documented and archived
+- [ ] Phase 11 planning initiated
 
 ---
 
-## Open Questions
-
-### To Be Resolved
-1. **Property Test Strategy**: If property tests prove too complex to fix in 1 day, should we defer to Phase 10?
-2. **Flaky Test Tolerance**: Should we use pytest-rerun for known flaky tests or fix them outright?
-3. **Coverage Gate Threshold**: Is 80% minimum coverage for new code appropriate or should it be higher/lower?
-
----
-
-## References
-
-**Project Documentation**:
-- `.planning/PROJECT.md` - Project overview and context
-- `.planning/STATE.md` - Current state and pending work
-- `CLAUDE.md` - Development guidelines
-
-**Testing Documentation**:
-- `docs/TESTING.md` - Testing patterns and best practices
-- `pytest.ini` - Test configuration
-- `tests/conftest.py` - Shared test fixtures
-
-**Related Work**:
-- Phase 44: CI Pipeline Fix (completed 2026-02-15)
-- Phase 43: Integration Tests (completed 2026-02-14)
-
----
-
-*Last Updated: 2026-02-15*
-*Requirements Author: GSD New-Milestone Workflow*
+*Requirements defined: 2026-02-15*
+*Milestone: v1.1 Coverage Expansion to 50%*
+*Last updated: 2026-02-15 after initial definition*
