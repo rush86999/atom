@@ -186,11 +186,11 @@ class TestAgentGovernanceIntegration:
         # Create audit trail (feedback)
         feedback = AgentFeedback(
             agent_id=agent.id,
-            execution_id=execution.id,
+            agent_execution_id=execution.id,
             user_id="test-user",
             rating=5,
-            feedback="Excellent performance",
-            category="accuracy"
+            original_output="Excellent performance",
+            user_correction="Great work"
         )
         db_session.add(feedback)
         db_session.commit()
@@ -202,7 +202,7 @@ class TestAgentGovernanceIntegration:
 
         assert len(audit_records) > 0
         assert audit_records[0].rating == 5
-        assert "Excellent" in audit_records[0].feedback
+        assert "Excellent" in audit_records[0].original_output
 
     def test_multiple_executions_query(self, db_session: Session):
         """Test querying multiple executions for an agent."""
@@ -234,28 +234,28 @@ class TestAgentGovernanceIntegration:
         # Create agents with different statuses
         active = AgentFactory(
             name="ActiveAgent",
-            status=AgentStatus.ACTIVE,
+            status=AgentStatus.AUTONOMOUS,
             _session=db_session
         )
         inactive = AgentFactory(
             name="InactiveAgent",
-            status=AgentStatus.INACTIVE,
+            status=AgentStatus.PAUSED,
             _session=db_session
         )
         archived = AgentFactory(
             name="ArchivedAgent",
-            status=AgentStatus.ARCHIVED,
+            status=AgentStatus.DEPRECATED,
             _session=db_session
         )
         db_session.commit()
 
-        # Query active agents
-        active_agents = db_session.query(AgentRegistry).filter(
-            AgentRegistry.status == AgentStatus.ACTIVE
+        # Query autonomous agents
+        autonomous_agents = db_session.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.AUTONOMOUS
         ).all()
 
-        assert len(active_agents) >= 1
-        assert any(a.name == "ActiveAgent" for a in active_agents)
+        assert len(autonomous_agents) >= 1
+        assert any(a.name == "ActiveAgent" for a in autonomous_agents)
 
 
 class TestTriggerInterceptorIntegration:
@@ -371,19 +371,19 @@ class TestProposalWorkflowIntegration:
         # Create proposal
         proposal = AgentProposal(
             agent_id=agent.id,
-            user_id=user.id,
-            proposal_type=ProposalType.ACTION_EXECUTION.value,
-            proposed_action="delete_record",
-            action_params={"record_id": "test-123"},
-            justification="Test proposal for integration",
-            status=ProposalStatus.PENDING,
-            created_at=datetime.utcnow()
+            agent_name=agent.name,
+            proposal_type=ProposalType.ACTION.value,
+            title="Delete record proposal",
+            description="Test proposal for integration",
+            proposed_action={"record_id": "test-123"},
+            reasoning="Test proposal for integration",
+            proposed_by=agent.id
         )
         db_session.add(proposal)
         db_session.commit()
 
         # Update proposal status
-        proposal.status = ProposalStatus.APPROVED
+        proposal.status = ProposalStatus.APPROVED.value
         proposal.reviewed_at = datetime.utcnow()
         proposal.review_comments="Approved for testing"
         db_session.commit()
@@ -393,7 +393,7 @@ class TestProposalWorkflowIntegration:
             AgentProposal.id == proposal.id
         ).first()
 
-        assert retrieved.status == ProposalStatus.APPROVED
+        assert retrieved.status == ProposalStatus.APPROVED.value
         assert retrieved.review_comments == "Approved for testing"
 
     def test_query_pending_proposals(self, db_session: Session):
@@ -407,12 +407,13 @@ class TestProposalWorkflowIntegration:
         for i in range(3):
             proposal = AgentProposal(
                 agent_id=agent.id,
-                user_id=user.id,
-                proposal_type=ProposalType.ACTION_EXECUTION.value,
-                proposed_action=f"action_{i}",
-                action_params={},
-                justification="Test pending proposal",
-                status=ProposalStatus.PENDING
+                agent_name=agent.name,
+                proposal_type=ProposalType.ACTION.value,
+                title=f"Action {i}",
+                description="Test pending proposal",
+                proposed_action={"action": f"action_{i}"},
+                reasoning="Test pending proposal",
+                proposed_by=agent.id
             )
             db_session.add(proposal)
         db_session.commit()
@@ -421,7 +422,7 @@ class TestProposalWorkflowIntegration:
         pending = db_session.query(AgentProposal).filter(
             and_(
                 AgentProposal.agent_id == agent.id,
-                AgentProposal.status == ProposalStatus.PENDING
+                AgentProposal.status == ProposalStatus.PROPOSED
             )
         ).all()
 
@@ -437,18 +438,19 @@ class TestProposalWorkflowIntegration:
         # Create and reject proposal
         proposal = AgentProposal(
             agent_id=agent.id,
-            user_id=user.id,
-            proposal_type=ProposalType.TRIGGER_EXECUTION.value,
-            proposed_action="risky_action",
-            action_params={},
-            justification="Test rejection",
-            status=ProposalStatus.PENDING
+            agent_name=agent.name,
+            proposal_type=ProposalType.ACTION.value,
+            title="Risky action",
+            description="Test rejection",
+            proposed_action={"action": "risky_action"},
+            reasoning="Test rejection",
+            proposed_by=agent.id
         )
         db_session.add(proposal)
         db_session.commit()
 
         # Reject proposal
-        proposal.status = ProposalStatus.REJECTED
+        proposal.status = ProposalStatus.REJECTED.value
         proposal.reviewed_at = datetime.utcnow()
         proposal.review_comments="Too risky"
         db_session.commit()
@@ -458,7 +460,7 @@ class TestProposalWorkflowIntegration:
             AgentProposal.id == proposal.id
         ).first()
 
-        assert retrieved.status == ProposalStatus.REJECTED
+        assert retrieved.status == ProposalStatus.REJECTED.value
         assert "Too risky" in retrieved.review_comments
 
 
@@ -472,12 +474,25 @@ class TestTrainingSessionIntegration:
         user = UserFactory(email="training@test.com", _session=db_session)
         db_session.commit()
 
+        # Create a proposal first (required for TrainingSession)
+        proposal = AgentProposal(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            proposal_type=ProposalType.TRAINING.value,
+            title="Basic Workflow Execution",
+            description="Scenario based training",
+            reasoning="Test training session",
+            proposed_by=agent.id
+        )
+        db_session.add(proposal)
+        db_session.commit()
+
         # Create training session
         session = TrainingSession(
+            proposal_id=proposal.id,
             agent_id=agent.id,
-            user_id=user.id,
-            training_type="scenario_based",
-            scenario_name="Basic Workflow Execution",
+            agent_name=agent.name,
+            supervisor_id=user.id,
             status="in_progress",
             started_at=datetime.utcnow()
         )
@@ -487,7 +502,7 @@ class TestTrainingSessionIntegration:
         # Update session
         session.status = "completed"
         session.completed_at = datetime.utcnow()
-        session.score = 0.95
+        session.performance_score = 0.95
         db_session.commit()
 
         # Verify training session
@@ -496,7 +511,7 @@ class TestTrainingSessionIntegration:
         ).first()
 
         assert retrieved.status == "completed"
-        assert retrieved.score == 0.95
+        assert retrieved.performance_score == 0.95
 
     def test_query_training_sessions_by_agent(self, db_session: Session):
         """Test querying training sessions for an agent."""
@@ -507,13 +522,26 @@ class TestTrainingSessionIntegration:
 
         # Create multiple training sessions
         for i in range(3):
-            session = TrainingSession(
+            # Create proposal first
+            proposal = AgentProposal(
                 agent_id=agent.id,
-                user_id=user.id,
-                training_type="scenario_based",
-                scenario_name=f"Scenario {i}",
+                agent_name=agent.name,
+                proposal_type=ProposalType.TRAINING.value,
+                title=f"Scenario {i}",
+                description=f"Training scenario {i}",
+                reasoning="Test training session",
+                proposed_by=agent.id
+            )
+            db_session.add(proposal)
+            db_session.commit()
+
+            session = TrainingSession(
+                proposal_id=proposal.id,
+                agent_id=agent.id,
+                agent_name=agent.name,
+                supervisor_id=user.id,
                 status="completed",
-                score=0.8 + (i * 0.05),
+                performance_score=0.8 + (i * 0.05),
                 started_at=datetime.utcnow(),
                 completed_at=datetime.utcnow()
             )
@@ -537,16 +565,18 @@ class TestTrainingSessionIntegration:
         # Create supervision session
         supervision = SupervisionSession(
             agent_id=agent.id,
-            user_id=user.id,
-            workflow_id="test-workflow",
-            status=SupervisionStatus.ACTIVE,
+            agent_name=agent.name,
+            supervisor_id=user.id,
+            workspace_id="test-workspace",
+            trigger_context={"workflow_id": "test-workflow"},
+            status=SupervisionStatus.RUNNING.value,
             started_at=datetime.utcnow()
         )
         db_session.add(supervision)
         db_session.commit()
 
         # Update supervision
-        supervision.status = SupervisionStatus.COMPLETED
+        supervision.status = SupervisionStatus.COMPLETED.value
         supervision.completed_at = datetime.utcnow()
         supervision.intervention_count = 2
         db_session.commit()
@@ -620,7 +650,8 @@ class TestGovernanceDatabaseQueries:
                 agent_id=agent.id,
                 user_id="test-user",
                 rating=rating,
-                feedback="Test feedback"
+                original_output="Test feedback",
+                user_correction="No correction needed"
             )
             db_session.add(feedback)
         db_session.commit()
