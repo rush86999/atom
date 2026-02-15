@@ -53,11 +53,14 @@ Plans:
   2. Test suite achieves 98%+ pass rate across 3 consecutive runs
   3. Test suite completes successfully in under 60 minutes
   4. No flaky tests detected across multiple runs
-**Plans**: 2 plans
+**Plans**: 5 plans (Wave 1: fixes, Wave 2: verification)
 
 Plans:
-- [ ] 10-01: Fix governance graduation test failures (18 tests)
-- [ ] 10-02: Fix proposal service and other test failures (7-12 tests)
+- [ ] 10-01: Fix Hypothesis TypeError blocking property test collection
+- [ ] 10-02: Fix governance graduation and proposal service test failures
+- [ ] 10-03: Fix graduation governance test flakiness (metadata_json -> configuration)
+- [ ] 10-04: Verify 98%+ pass rate (TQ-02) across 3 runs
+- [ ] 10-05: Performance and stability verification (TQ-03, TQ-04)
 
 #### Phase 11: Coverage Analysis & Prioritization
 **Goal**: Identify high-impact files for maximum coverage gain
