@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 8 - 80% Coverage Push
+**Current focus:** Phase 10 - Fix Remaining Test Failures
 
 ## Current Position
 
-Phase: 08-80-percent-coverage-push
-Plan: 44 (Fix CI Pipeline in Remote Repository)
+Phase: 10-fix-tests
+Plan: 01 (Fix Hypothesis TypeError in Property Tests)
 Status: Complete
-Last activity: 2025-02-15 — Plan 44 complete: Fixed CI pipeline by resolving test collection errors and configuring ignore patterns for LanceDB/async-dependent tests. Achieved 95.3% pass rate (287/301 tests passing). Zero collection errors. CI pipeline now runs successfully. Ignored 63 tests temporarily (LanceDB + graduation exams) for follow-up fixes.
+Last activity: 2025-02-15 — Plan 01 complete: Fixed Hypothesis TypeError in 10 property test modules by replacing st.just() with st.sampled_from(). Resolved isinstance() errors caused by pytest's bloated symbol table during full suite collection. All 10,513 tests now collect successfully (0 errors, down from 10). 117 property tests pass.
 
-Progress: [█████████] 100% (Phase 09.1: 4 of 4 plans complete)
+Progress: [█] 20% (Phase 10: 1 of 5 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -131,6 +131,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 08-80-percent-coverage-push P30 | 286 | 3 tasks | 3 files |
 | Phase 08-80-percent-coverage-push P42 | 780 | 2 tasks | 2 files |
 | Phase 08-80-percent-coverage-push P33 | 600 | 2 tasks | 2 files |
+| Phase 10-fix-tests P01 | 1672s | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 10-fix-tests-01]: Fixed Hypothesis TypeError in property tests during full suite collection by replacing st.just() with st.sampled_from(). Root cause: pytest's bloated symbol table (10,000+ tests) interferes with Hypothesis 6.151.5's isinstance() checks in JustStrategy initialization. Solution: Use st.sampled_from([value]) instead of st.just(value) to bypass problematic code path. Fixed 10 property test modules, reduced collection errors from 10 to 0, made 337 previously blocked tests accessible.
 - [Phase 08-80-percent-coverage-push-22]: Created comprehensive Phase 8.7 testing plan with top 30 zero-coverage files prioritized by size (714-355 lines). Calculated realistic +3.2-4.0% coverage impact achievable with 15-16 files across 4 plans. Applied Phase 8.6 learnings: prioritize largest files (3.38x velocity), target 50% average coverage per file, organize into 4 plans with 3-4 files each. Focused on governance (constitutional_validator, websocket_manager), database (database_helper), and API (maturity_routes, agent_guidance_routes) modules for maximum business impact. Established tiered coverage targets: 60% for critical governance, 50% for standard files, 40% for complex orchestration.
 - [Phase 08-80-percent-coverage-push-21]: Generated comprehensive Phase 8.6 coverage report documenting 13.02% coverage achievement (+8.62 percentage points from baseline, 196% improvement), created reusable report generation script (346 lines), updated coverage metrics with accurate data. Documented 3.38x velocity acceleration in Phase 8.6 (+1.42%/plan vs +0.42%/plan early Phase 8). Recommended adjusting Phase 8 target from 30% to 20-22% based on realistic trajectory analysis and diminishing returns on smaller files. Provided 5 priority recommendations for next phase focusing on high-impact files (>200 lines) for maximum coverage gain.
 - [Phase 08.5-coverage-expansion-05]: Generated updated coverage reports showing 6.38 percentage point improvement (9.32% → 15.70%), created trending.json for historical coverage tracking, analyzed 281 zero-coverage files by size for Phase 8.6 prioritization, assessed 25% stretch goal as ACHIEVABLE with top 50 files. Established file size prioritization pattern: largest files first for maximum coverage impact. Recommended Phase 8.6 test top 20-50 zero-coverage files by size to reach 20-25% overall coverage.
@@ -288,6 +290,9 @@ Stopped at: Completed Phase 08.5 Plan 05 - Generated coverage reports showing 6.
 Resume file: None
 Last session: 2026-02-15T11:43
 Stopped at: Completed Phase 08 Plan 44 - Fixed CI pipeline by resolving test collection errors and configuring ignore patterns for LanceDB/async-dependent tests. Achieved 95.3% pass rate (287/301 tests passing). Zero collection errors. CI pipeline now runs successfully. Created SUMMARY.md documenting results.
+Resume file: None
+Last session: 2026-02-15T18:40
+Stopped at: Completed Phase 10-fix-tests Plan 01 - Fixed Hypothesis TypeError in 10 property test modules by replacing st.just() with st.sampled_from(). Resolved isinstance() errors caused by pytest's bloated symbol table during full suite collection. All 10,513 tests now collect successfully (0 errors, down from 10). 117 property tests pass.
 Resume file: None
 
 ## Blockers
