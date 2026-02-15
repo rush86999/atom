@@ -207,7 +207,7 @@ class TestReportGenerationInvariants:
         status_and_size=st.one_of(
             # COMPLETED status requires file_size_bytes > 0
             st.tuples(
-                st.just('COMPLETED'),
+                st.sampled_from(['COMPLETED']),
                 st.integers(min_value=1, max_value=100_000_000)
             ),
             # GENERATING and FAILED can have file_size_bytes >= 0

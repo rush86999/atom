@@ -610,8 +610,8 @@ class TestStatisticsAccuracyInvariants:
     @given(
         operations=st.lists(
             st.one_of(
-                st.tuples(st.just("hit"), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')),
-                st.tuples(st.just("miss"), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'))
+                st.tuples(st.sampled_from(["hit"]), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')),
+                st.tuples(st.sampled_from(["miss"]), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'))
             ),
             min_size=10,
             max_size=100

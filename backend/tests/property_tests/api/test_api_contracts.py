@@ -570,7 +570,7 @@ class TestAPIVersioningInvariants:
             max_size=3,
             unique=True
         ),
-        current_version=st.just("v2")
+        current_version=st.sampled_from(["v2"])
     )
     @settings(max_examples=50)
     def test_deprecation_warnings(self, deprecated_versions, current_version):
@@ -592,7 +592,7 @@ class TestAPIVersioningInvariants:
 
     @given(
         client_version=st.sampled_from(["v1", "v1.1", "v2", "v2.1"]),
-        server_version=st.just("v2")
+        server_version=st.sampled_from(["v2"])
     )
     @settings(max_examples=50)
     def test_version_compatibility(self, client_version, server_version):
@@ -791,7 +791,7 @@ class TestAPISortingContracts:
             max_size=100,
             unique=True
         ),
-        sort_field=st.just("value"),
+        sort_field=st.sampled_from(["value"]),
         sort_order=st.sampled_from(["asc", "desc"])
     )
     @settings(max_examples=50)

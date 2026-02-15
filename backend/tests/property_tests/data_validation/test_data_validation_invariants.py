@@ -132,9 +132,7 @@ class TestNumericValidationInvariants:
 
     @given(
         number=st.one_of(
-            st.just(float('nan')),
-            st.just(float('inf')),
-            st.just(float('-inf')),
+            st.sampled_from([float('nan'), float('inf'), float('-inf')]),
             st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False)
         ),
         reject_special=st.booleans()
@@ -849,9 +847,7 @@ class TestValidationErrorHandlingInvariants:
 
     @given(
         invalid_inputs=st.lists(st.one_of(
-            st.just(None),
-            st.just(""),
-            st.just("   "),
+            st.sampled_from([None, "", "   "]),
             st.integers(min_value=-1000000, max_value=1000000)
         ), min_size=1, max_size=10)
     )

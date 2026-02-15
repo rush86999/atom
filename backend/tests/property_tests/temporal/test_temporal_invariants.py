@@ -91,7 +91,7 @@ class TestTimezoneInvariants:
     """Property-based tests for timezone invariants."""
 
     @given(
-        utc_datetime=st.datetimes(timezones=st.just(timezone.utc))
+        utc_datetime=st.datetimes(timezones=st.sampled_from([timezone.utc]))
     )
     @settings(max_examples=50)
     def test_utc_conversion_roundtrip(self, utc_datetime):

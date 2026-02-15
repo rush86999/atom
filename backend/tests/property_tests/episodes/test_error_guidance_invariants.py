@@ -422,7 +422,7 @@ class TestErrorCategorizationEdgeCasesInvariants:
         assert len(ambiguous_message) <= 50, "Ambiguous message should be reasonable length"
 
     @given(
-        empty_message=st.one_of(st.just(''), st.just('   '), st.just(None))
+        empty_message=st.sampled_from(['', '   ', None])
     )
     @settings(max_examples=20)
     def test_empty_error_message_handling(self, empty_message):

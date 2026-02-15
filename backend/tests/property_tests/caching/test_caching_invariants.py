@@ -715,12 +715,12 @@ class TestCacheSecurityInvariants:
             assert True  # Should check permissions
 
     @given(
-        injection_attempt=st.one_of(
-            st.just("'; DROP TABLE cache; --"),
-            st.just("' OR '1'='1"),
-            st.just("../../../etc/passwd"),
-            st.just("<script>alert(1)</script>")
-        )
+        injection_attempt=st.sampled_from([
+            "'; DROP TABLE cache; --",
+            "' OR '1'='1",
+            "../../../etc/passwd",
+            "<script>alert(1)</script>"
+        ])
     )
     @settings(max_examples=50)
     def test_cache_injection_prevention(self, injection_attempt):
