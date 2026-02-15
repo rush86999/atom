@@ -37,11 +37,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 36: Auth & token routes ⚠️ 12.61% coverage (3 files, 40+ tests, endpoint mismatches)
   - Plan 37: Data ingestion, marketing & operations ✅ 47.87% coverage (3 files, 50 tests)
   - Plan 38: Phase 9.1 Wave 1 summary ✅ COMPLETE
-- [ ] **Phase 10: Test Failure Fixes** - Fix all remaining test failures (property tests, proposal service, graduation governance, performance verification)
-  - Plan 01: Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from issues)
-  - Plan 02: Fix proposal service test failures (5 tests with incorrect mock targets)
-  - Plan 03: Fix graduation governance test failures (6 tests with invalid factory parameters)
-  - Plan 04: Verify test suite performance and stability (TQ-03: <60 min, TQ-04: no flaky tests)
+- [ ] **Phase 10: Test Failure Fixes** - Fix all remaining test failures and verify quality requirements (TQ-02, TQ-03, TQ-04)
+  - Plan 01: Fix Hypothesis TypeError in property tests during full suite collection (10 modules with st.just/st.sampled_from issues)
+  - Plan 02: Fix proposal service test failures (6 tests with incorrect mock targets)
+  - Plan 03: Verify 98%+ test pass rate (TQ-02: run full suite 3 times)
+  - Plan 04: Fix graduation governance test failures (3 tests with metadata_json factory parameter issue)
+  - Plan 05: Verify test suite performance and stability (TQ-03: <60 min, TQ-04: no flaky tests)
+- [ ] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13
+  - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities
 
 ## Phase Details
 
@@ -513,6 +516,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8.9. Canvas & Browser Tools | 2/2 | **Complete** | 2026-02-14 | 21-22% |
 | 9.0. API Module Expansion | 4/4 | **Complete** | 2026-02-14 | 25-27% |
 | 9.1. API Route & Governance | 4/4 | **Complete** | 2026-02-14 | 24-26% |
-| 10. Test Failure Fixes | 0/4 | **Pending** | - | Fix all failures |
+| 10. Test Failure Fixes | 0/5 | **Pending** | - | Fix all failures, verify quality requirements |
+| 11. Coverage Analysis & Prioritization | 0/1 | **Pending** | - | High-impact file identification for Phases 12-13 |
 
-**Overall Progress**: 79 plans completed out of ~90-105 estimated for 80% coverage (+4 Phase 10 plans pending)
+**Overall Progress**: 79 plans completed out of ~90-105 estimated for 80% coverage (+5 Phase 10-11 plans pending)
