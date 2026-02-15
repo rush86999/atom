@@ -7,7 +7,7 @@
 
 ## v1.1 Requirements
 
-Requirements for Phase 10 milestone - Coverage expansion to 50% using high-impact file strategy.
+Requirements for Phase 10-15 milestone - Coverage expansion to 50% using high-impact file strategy.
 
 ### Test Quality & Stability
 
@@ -46,7 +46,7 @@ Requirements for Phase 10 milestone - Coverage expansion to 50% using high-impac
 
 ## v2 Requirements (Future Milestones)
 
-Deferred to Phase 11+ (Coverage expansion to 65% and beyond).
+Deferred to Phase 16+ (Coverage expansion to 65% and beyond).
 
 ### Advanced Coverage
 
@@ -64,7 +64,7 @@ Deferred to Phase 11+ (Coverage expansion to 65% and beyond).
 
 ## Out of Scope
 
-Explicitly excluded from Phase 10 to prevent scope creep.
+Explicitly excluded from Phase 10-15 to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
@@ -87,31 +87,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TQ-02 | Phase 10 | Pending |
 | TQ-03 | Phase 10 | Pending |
 | TQ-04 | Phase 10 | Pending |
-| COV-01 | Phase 10 | Pending |
-| COV-02 | Phase 10 | Pending |
-| COV-03 | Phase 10 | Pending |
-| COV-04 | Phase 10 | Pending |
-| COV-05 | Phase 10 | Pending |
-| PROP-01 | Phase 10 | Pending |
-| PROP-02 | Phase 10 | Pending |
-| PROP-03 | Phase 10 | Pending |
-| PROP-04 | Phase 10 | Pending |
-| PROP-05 | Phase 10 | Pending |
-| INF-01 | Phase 10 | Pending |
-| INF-02 | Phase 10 | Pending (Done in Phase 09) |
-| INF-03 | Phase 10 | Pending |
-| INF-04 | Phase 10 | Pending (Done in Phase 09) |
+| COV-01 | Phases 12, 13, 14, 15 | Pending |
+| COV-02 | Phase 11 | Pending |
+| COV-03 | Phase 12 | Pending |
+| COV-04 | Phase 13 | Pending |
+| COV-05 | Phase 13 | Pending |
+| PROP-01 | Phase 14 | Pending |
+| PROP-02 | Phase 14 | Pending |
+| PROP-03 | Phase 14 | Pending |
+| PROP-04 | Phase 14 | Pending |
+| PROP-05 | Phase 14 | Pending |
+| INF-01 | Phase 15 | Pending |
+| INF-02 | Phase 15 | Pending (Done in Phase 09) |
+| INF-03 | Phase 15 | Pending |
+| INF-04 | Phase 15 | Pending (Done in Phase 09) |
 
 **Coverage:**
 - v1.1 requirements: 18 total
-- Mapped to phases: 0 (roadmap not yet created)
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18 (100%) ✅
+- Unmapped: 0
+
+**Phase Distribution:**
+- Phase 10: 4 requirements (TQ-01, TQ-02, TQ-03, TQ-04)
+- Phase 11: 1 requirement (COV-02)
+- Phase 12: 2 requirements (COV-01, COV-03)
+- Phase 13: 2 requirements (COV-04, COV-05)
+- Phase 14: 5 requirements (PROP-01, PROP-02, PROP-03, PROP-04, PROP-05)
+- Phase 15: 4 requirements (INF-01, INF-02, INF-03, INF-04)
 
 ---
 
 ## Success Criteria
 
-Phase 10 is **SUCCESSFUL** when:
+Phase 10-15 milestone is **SUCCESSFUL** when:
 
 ### Quantitative
 - [ ] Overall coverage: 15.2% → 50% (+34.8 percentage points)
@@ -136,16 +144,16 @@ A requirement is **DONE** when:
 - [ ] Feature is committed (git commit with clear message)
 - [ ] Coverage report shows improvement
 
-Phase 10 is **DONE** when:
+Phase 10-15 milestone is **DONE** when:
 - [ ] All 18 requirements met
 - [ ] 50% coverage achieved
 - [ ] 98%+ pass rate achieved
 - [ ] Quality gates enforced
-- [ ] Phase 10 documented and archived
-- [ ] Phase 11 planning initiated
+- [ ] Phase 10-15 documented and archived
+- [ ] Phase 16 planning initiated
 
 ---
 
 *Requirements defined: 2026-02-15*
 *Milestone: v1.1 Coverage Expansion to 50%*
-*Last updated: 2026-02-15 after initial definition*
+*Last updated: 2026-02-15 after roadmap creation*
