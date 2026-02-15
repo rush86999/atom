@@ -445,11 +445,11 @@ class AgentGraduationService:
 
         agent.updated_at = datetime.now()
 
-        # Add promotion metadata
-        if not agent.metadata_json:
-            agent.metadata_json = {}
-        agent.metadata_json["promoted_at"] = datetime.now().isoformat()
-        agent.metadata_json["promoted_by"] = validated_by
+        # Add promotion metadata to configuration
+        if not agent.configuration:
+            agent.configuration = {}
+        agent.configuration["promoted_at"] = datetime.now().isoformat()
+        agent.configuration["promoted_by"] = validated_by
 
         self.db.commit()
         logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")

@@ -245,7 +245,7 @@ class TestPermissionMatrixValidation:
     @pytest.mark.asyncio
     async def test_promote_agent_updates_maturity_level(self, graduation_service, db_session):
         """Test promoting agent updates maturity level in database."""
-        agent = StudentAgentFactory(_session=db_session, metadata_json={})
+        agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
 
         # Store original status
@@ -279,7 +279,7 @@ class TestPermissionMatrixValidation:
     @pytest.mark.asyncio
     async def test_promote_with_invalid_maturity_returns_false(self, graduation_service, db_session):
         """Test promoting with invalid maturity level returns False."""
-        agent = StudentAgentFactory(_session=db_session, metadata_json={})
+        agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
 
         success = await graduation_service.promote_agent(
@@ -293,7 +293,7 @@ class TestPermissionMatrixValidation:
     @pytest.mark.asyncio
     async def test_promotion_metadata_updated(self, graduation_service, db_session):
         """Test promotion updates agent metadata."""
-        agent = StudentAgentFactory(_session=db_session, metadata_json={})
+        agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
 
         validated_by = "admin_user"
@@ -303,12 +303,12 @@ class TestPermissionMatrixValidation:
             validated_by=validated_by
         )
 
-        # Refresh and check metadata
+        # Refresh and check configuration metadata
         db_session.refresh(agent)
-        assert agent.metadata_json is not None
-        assert "promoted_at" in agent.metadata_json
-        assert "promoted_by" in agent.metadata_json
-        assert agent.metadata_json["promoted_by"] == validated_by
+        assert agent.configuration is not None
+        assert "promoted_at" in agent.configuration
+        assert "promoted_by" in agent.configuration
+        assert agent.configuration["promoted_by"] == validated_by
 
 
 # ========================================================================
@@ -480,13 +480,17 @@ class TestSupervisionMetricsIntegration:
         # Create sessions with different ratings
         sessions = []
         base_time = datetime.now()
+        import uuid
 
         for i in range(15):
             # Create sessions with improving trend (lower to higher index)
             session = SupervisionSession(
-                id=f"session_{i}",
+                id=str(uuid.uuid4()),  # Use UUID to avoid collisions
                 agent_id=agent.id,
-                user_id="test_user",
+                agent_name=agent.name,  # Required field
+                supervisor_id="test_user",  # Not user_id
+                workspace_id="default",  # Required field
+                trigger_context={},  # Required field
                 status="completed",
                 started_at=base_time - timedelta(days=15-i),
                 duration_seconds=3600,
@@ -558,13 +562,16 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_promote_agent_updates_timestamp(self, graduation_service, db_session):
         """Test promotion updates agent timestamp."""
-        agent = StudentAgentFactory(_session=db_session, metadata_json={})
-        original_updated = agent.updated_at
+        agent = StudentAgentFactory(_session=db_session)
         db_session.commit()
 
         # Small delay to ensure timestamp difference
         import asyncio
         await asyncio.sleep(0.01)
+
+        # Get original timestamp after commit
+        db_session.refresh(agent)
+        original_updated = agent.updated_at
 
         await graduation_service.promote_agent(
             agent_id=agent.id,
@@ -574,7 +581,9 @@ class TestEdgeCases:
 
         db_session.refresh(agent)
         # updated_at should be more recent or equal (same transaction)
-        assert agent.updated_at >= original_updated
+        assert agent.updated_at is not None
+        if original_updated:
+            assert agent.updated_at >= original_updated
 
     @pytest.mark.asyncio
     async def test_readiness_with_zero_episodes(self, graduation_service, db_session):
@@ -612,10 +621,11 @@ class TestEdgeCases:
         """Test readiness calculation handles None constitutional scores."""
         # Create episodes with None constitutional scores
         agent = StudentAgentFactory(_session=db_session)
+        import uuid
 
         for i in range(5):
             episode = Episode(
-                id=f"episode_{i}",
+                id=str(uuid.uuid4()),  # Use UUID to avoid collisions
                 agent_id=agent.id,
                 user_id="test_user",
                 workspace_id="default",
