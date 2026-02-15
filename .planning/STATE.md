@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 10-fix-tests
-Plan: 02 (Fix Proposal Service Test Failures)
+Plan: 04 (Fix Graduation Governance Test Failures)
 Status: Complete
-Last activity: 2026-02-15 — Plan 02 complete: Fixed 6 proposal service test failures by correcting mock targets to use internal service methods instead of non-existent external module functions. Improved topic extraction to prioritize proposal_type and action_type. All 40 proposal service tests now pass.
+Last activity: 2026-02-15 — Plan 04 complete: Fixed 3 flaky graduation governance tests by correcting invalid parameter usage (metadata_json → configuration) in AgentGraduationService and test code. Also fixed test isolation issues with hardcoded IDs. All 28 graduation governance tests now pass consistently (no flaky reruns).
 
-Progress: [██] 40% (Phase 10: 2 of 5 plans complete)
+Progress: [███] 60% (Phase 10: 3 of 5 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -132,6 +132,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 08-80-percent-coverage-push P42 | 780 | 2 tasks | 2 files |
 | Phase 08-80-percent-coverage-push P33 | 600 | 2 tasks | 2 files |
 | Phase 10-fix-tests P01 | 1672s | 2 tasks | 10 files |
+| Phase 10-fix-tests P04 | 540 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 10-fix-tests-04]: Fixed graduation governance test failures by correcting invalid parameter usage in both production code and tests. Root cause: AgentGraduationService.promote_agent() used agent.metadata_json (non-existent field) instead of agent.configuration. Tests also passed metadata_json={} to factories. Solution: Changed service code to use configuration field, removed metadata_json from tests, fixed SupervisionSession initialization (user_id → supervisor_id), and replaced hardcoded IDs with UUIDs for test isolation. Fixed 3 flaky tests, +40.75% coverage on AgentGraduationService (12.83% → 53.58%).
 - [Phase 10-fix-tests-02]: Fixed 6 proposal service test failures by mocking internal service methods (_execute_browser_action, _execute_integration_action, _execute_workflow_action, _execute_agent_action) instead of non-existent external module functions. Improved topic extraction to prioritize proposal_type and action_type first (critical metadata). All 40 proposal service tests now pass. Pattern: Mock internal methods for better test isolation and reliability.
 - [Phase 10-fix-tests-01]: Fixed Hypothesis TypeError in property tests during full suite collection by replacing st.just() with st.sampled_from(). Root cause: pytest's bloated symbol table (10,000+ tests) interferes with Hypothesis 6.151.5's isinstance() checks in JustStrategy initialization. Solution: Use st.sampled_from([value]) instead of st.just(value) to bypass problematic code path. Fixed 10 property test modules, reduced collection errors from 10 to 0, made 337 previously blocked tests accessible.
 - [Phase 08-80-percent-coverage-push-22]: Created comprehensive Phase 8.7 testing plan with top 30 zero-coverage files prioritized by size (714-355 lines). Calculated realistic +3.2-4.0% coverage impact achievable with 15-16 files across 4 plans. Applied Phase 8.6 learnings: prioritize largest files (3.38x velocity), target 50% average coverage per file, organize into 4 plans with 3-4 files each. Focused on governance (constitutional_validator, websocket_manager), database (database_helper), and API (maturity_routes, agent_guidance_routes) modules for maximum business impact. Established tiered coverage targets: 60% for critical governance, 50% for standard files, 40% for complex orchestration.
@@ -292,8 +294,8 @@ Resume file: None
 Last session: 2026-02-15T11:43
 Stopped at: Completed Phase 08 Plan 44 - Fixed CI pipeline by resolving test collection errors and configuring ignore patterns for LanceDB/async-dependent tests. Achieved 95.3% pass rate (287/301 tests passing). Zero collection errors. CI pipeline now runs successfully. Created SUMMARY.md documenting results.
 Resume file: None
-Last session: 2026-02-15T19:29
-Stopped at: Completed Phase 10-fix-tests Plan 02 - Fixed 6 proposal service test failures by correcting mock targets to use internal service methods instead of non-existent external module functions. Improved topic extraction to prioritize proposal_type and action_type. All 40 proposal service tests now pass.
+Last session: 2026-02-15T19:35
+Stopped at: Completed Phase 10-fix-tests Plan 04 - Fixed graduation governance test failures by correcting invalid parameter usage (metadata_json → configuration) in AgentGraduationService and test code. Fixed production bug (service used non-existent field), test isolation issues (hardcoded IDs), and model schema mismatches (SupervisionSession). All 28 graduation governance tests now pass consistently (no flaky reruns).
 Resume file: None
 
 ## Blockers
