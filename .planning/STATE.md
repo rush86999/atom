@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 10-fix-tests
-Plan: 06 (Fix Flaky Agent Task Cancellation Tests)
+Plan: 07 (Fix Flaky Tests: Environment Isolation and BYOK Mocking)
 Status: Complete
-Last activity: 2026-02-15 — Plan 06 complete: Fixed all 15 flaky tests in test_agent_cancellation.py by adding AgentTaskRegistry._reset() method, autouse pytest fixture for registry cleanup, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio markers to tests using asyncio.create_task(). Eliminated 100% of RERUN loops with 0% variance across 3 consecutive runs.
+Last activity: 2026-02-15 — Plan 07 complete: Fixed 2 flaky tests (test_default_secret_key_in_development, test_agent_governance_gating) by implementing proper environment isolation with monkeypatch fixture and mocking BYOK client initialization to prevent slow external service connections. Added autouse environment isolation fixture to conftest.py preventing test pollution. Eliminated 100% of RERUN loops in security config tests.
 
-Progress: [████████] 75% (Phase 10: 6 of 8 plans complete)
+Progress: [█████████] 87.5% (Phase 10: 7 of 8 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -136,6 +136,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 10-fix-tests P05 | 1500 | 3 tasks | 1 files |
 | Phase 10-fix-tests P03 | 4127 | 1 tasks | 1 files |
 | Phase 10-fix-tests P06 | 780 | 3 tasks | 3 files |
+| Phase 10-fix-tests P07 | 1307 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -263,6 +264,7 @@ Recent decisions affecting current work:
 - [Phase 08-80-percent-coverage-push]: Enhanced Phase 8.7-9.0 with concrete file lists and impact estimates
 - [Phase 10-fix-tests]: Test suite requires optimization for practical execution - 10,513 tests take 1-2+ hours per run, preventing TQ-02 verification
 - [Phase 10-fix-tests]: Fixed agent task cancellation test flakiness by adding AgentTaskRegistry._reset() method and autouse pytest fixture, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio to tests using asyncio.create_task(). Eliminated 100% of RERUN loops (15/15 tests pass, 0 variance).
+- [Phase 10-fix-tests]: Used monkeypatch fixture instead of patch.dict for environment isolation (proper pytest pattern). Added autouse fixture to save/restore critical environment variables automatically. Mocked BYOKHandler.__init__ to prevent external service initialization during tests.
 
 ### Pending Todos
 
