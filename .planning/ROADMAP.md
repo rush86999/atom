@@ -37,6 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 36: Auth & token routes ⚠️ 12.61% coverage (3 files, 40+ tests, endpoint mismatches)
   - Plan 37: Data ingestion, marketing & operations ✅ 47.87% coverage (3 files, 50 tests)
   - Plan 38: Phase 9.1 Wave 1 summary ✅ COMPLETE
+- [ ] **Phase 10: Test Failure Fixes** - Fix all remaining test failures (property tests, proposal service, graduation governance, performance verification)
+  - Plan 01: Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from issues)
+  - Plan 02: Fix proposal service test failures (5 tests with incorrect mock targets)
+  - Plan 03: Fix graduation governance test failures (6 tests with invalid factory parameters)
+  - Plan 04: Verify test suite performance and stability (TQ-03: <60 min, TQ-04: no flaky tests)
 
 ## Phase Details
 
@@ -503,9 +508,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Production Hardening | 6/6 | **Complete** | 2026-02-12 | - |
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 | - |
 | 8. 80% Coverage Push | 22/22 | **Complete** | 2026-02-13 | 15.87% |
-| 8.7. Core Workflow Focus | 0/3 | **Pending** | - | Target: 17-18% |
-| 8.8. Agent Governance & BYOK | 0/3 | **Pending** | - | Target: 19-20% |
-| 8.9. Canvas & Browser Tools | 0/2 | **Pending** | - | Target: 21-22% |
-| 9.0. API Module Expansion | 0/4 | **Pending** | - | Target: 25-27% |
+| 8.7. Core Workflow Focus | 4/4 | **Complete** | 2026-02-13 | 17-18% |
+| 8.8. Agent Governance & BYOK | 0/3 | **Skipped** | - | Target: 19-20% |
+| 8.9. Canvas & Browser Tools | 2/2 | **Complete** | 2026-02-14 | 21-22% |
+| 9.0. API Module Expansion | 4/4 | **Complete** | 2026-02-14 | 25-27% |
+| 9.1. API Route & Governance | 4/4 | **Complete** | 2026-02-14 | 24-26% |
+| 10. Test Failure Fixes | 0/4 | **Pending** | - | Fix all failures |
 
-**Overall Progress**: 75 plans completed out of ~90-105 estimated for 80% coverage
+**Overall Progress**: 79 plans completed out of ~90-105 estimated for 80% coverage (+4 Phase 10 plans pending)
