@@ -529,14 +529,14 @@ class TestBrowserToolGovernanceInvariants:
             max_size=20
         ),
         # Generate valid URLs only
-        target_url=st.one_of(
-            st.just("http://example.com"),
-            st.just("https://example.com"),
-            st.just("http://example.com/form"),
-            st.just("https://example.com/form"),
-            st.just("http://example.com:8080"),
-            st.just("https://example.com:8443")
-        )
+        target_url=st.sampled_from([
+            "http://example.com",
+            "https://example.com",
+            "http://example.com/form",
+            "https://example.com/form",
+            "http://example.com:8080",
+            "https://example.com:8443"
+        ])
     )
     @settings(max_examples=50)
     def test_browser_form_filling_validation(self, form_data, target_url):
@@ -647,16 +647,16 @@ class TestBrowserToolGovernanceInvariants:
 
     @given(
         urls=st.lists(
-            st.one_of(
-                st.just("http://example.com"),
-                st.just("https://example.com"),
-                st.just("http://example.com/page"),
-                st.just("https://example.com/page"),
-                st.just("http://example.com:8080"),
-                st.just("https://example.com:8443"),
-                st.just("ftp://example.com"),  # Invalid for browser
-                st.just("javascript:alert(1)")  # Invalid for browser
-            ),
+            st.sampled_from([
+                "http://example.com",
+                "https://example.com",
+                "http://example.com/page",
+                "https://example.com/page",
+                "http://example.com:8080",
+                "https://example.com:8443",
+                "ftp://example.com",  # Invalid for browser
+                "javascript:alert(1)"  # Invalid for browser
+            ]),
             min_size=1,
             max_size=20
         )

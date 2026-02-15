@@ -451,18 +451,18 @@ class TestSQLInjectionPreventionInvariants:
     """Property-based tests for SQL injection prevention invariants."""
 
     @given(
-        input_string=st.one_of(
-            st.just("' OR '1'='1"),
-            st.just("'; DROP TABLE users--"),
-            st.just("' UNION SELECT * FROM users--"),
-            st.just("1' AND 1=1--"),
-            st.just("' OR 1=1#"),
-            st.just("admin'--"),
-            st.just("' or 1=1--"),
-            st.just("' and 1=1--"),
-            st.just("x' or 'x'='x"),
-            st.just("'; EXEC xp_cmdshell('dir')--")
-        )
+        input_string=st.sampled_from([
+            "' OR '1'='1",
+            "'; DROP TABLE users--",
+            "' UNION SELECT * FROM users--",
+            "1' AND 1=1--",
+            "' OR 1=1#",
+            "admin'--",
+            "' or 1=1--",
+            "' and 1=1--",
+            "x' or 'x'='x",
+            "'; EXEC xp_cmdshell('dir')--"
+        ])
     )
     @settings(max_examples=10)
     def test_sql_injection_detection(self, input_string):
@@ -499,18 +499,18 @@ class TestXSSPreventionInvariants:
     """Property-based tests for XSS prevention invariants."""
 
     @given(
-        input_string=st.one_of(
-            st.just("<script>alert('XSS')</script>"),
-            st.just("<img src=x onerror=alert(1)>"),
-            st.just("javascript:alert('XSS')"),
-            st.just("<svg onload=alert(1)>"),
-            st.just("<iframe src='javascript:alert(1)'>"),
-            st.just("<body onload=alert(1)>"),
-            st.just("<input onfocus=alert(1) autofocus>"),
-            st.just("<select onfocus=alert(1) autofocus>"),
-            st.just("<textarea onfocus=alert(1) autofocus>"),
-            st.just("'><script>alert(String.fromCharCode(88,83,83))</script>")
-        )
+        input_string=st.sampled_from([
+            "<script>alert('XSS')</script>",
+            "<img src=x onerror=alert(1)>",
+            "javascript:alert('XSS')",
+            "<svg onload=alert(1)>",
+            "<iframe src='javascript:alert(1)'>",
+            "<body onload=alert(1)>",
+            "<input onfocus=alert(1) autofocus>",
+            "<select onfocus=alert(1) autofocus>",
+            "<textarea onfocus=alert(1) autofocus>",
+            "'><script>alert(String.fromCharCode(88,83,83))</script>"
+        ])
     )
     @settings(max_examples=10)
     def test_xss_pattern_detection(self, input_string):
@@ -595,17 +595,17 @@ class TestPathTraversalPreventionInvariants:
     """Property-based tests for path traversal prevention invariants."""
 
     @given(
-        path=st.one_of(
-            st.just("../../../etc/passwd"),
-            st.just("..\\..\\..\\windows\\system32\\config\\sam"),
-            st.just("....//....//....//etc/passwd"),
-            st.just("%2e%2e%2fetc%2fpasswd"),
-            st.just("..%252f..%252f..%252fetc%2fpasswd"),
-            st.just("/var/www/../../etc/passwd"),
-            st.just("....\\\\....\\\\....\\\\windows\\\\system32"),
-            st.just("http://evil.com/path"),
-            st.just("\\\\evil-server\\share\\file")
-        )
+        path=st.sampled_from([
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "....//....//....//etc/passwd",
+            "%2e%2e%2fetc%2fpasswd",
+            "..%252f..%252f..%252fetc%2fpasswd",
+            "/var/www/../../etc/passwd",
+            "....\\\\....\\\\....\\\\windows\\\\system32",
+            "http://evil.com/path",
+            "\\\\evil-server\\share\\file"
+        ])
     )
     @settings(max_examples=10)
     def test_path_traversal_detection(self, path):
@@ -629,7 +629,7 @@ class TestPathTraversalPreventionInvariants:
 
     @given(
         requested_path=st.text(min_size=1, max_size=1000),
-        allowed_base_path=st.just("/var/www/html")
+        allowed_base_path=st.sampled_from(["/var/www/html"])
     )
     @settings(max_examples=50)
     def test_path_canonicalization(self, requested_path, allowed_base_path):
@@ -642,17 +642,17 @@ class TestContentTypeValidationInvariants:
     """Property-based tests for content-type validation invariants."""
 
     @given(
-        content_type=st.one_of(
-            st.just("application/json"),
-            st.just("text/html"),
-            st.just("application/xml"),
-            st.just("text/plain"),
-            st.just("application/octet-stream"),
-            st.just("image/png"),
-            st.just("image/jpeg"),
-            st.just("video/mp4"),
-            st.just("application/pdf")
-        )
+        content_type=st.sampled_from([
+            "application/json",
+            "text/html",
+            "application/xml",
+            "text/plain",
+            "application/octet-stream",
+            "image/png",
+            "image/jpeg",
+            "video/mp4",
+            "application/pdf"
+        ])
     )
     @settings(max_examples=50)
     def test_content_type_validation(self, content_type):

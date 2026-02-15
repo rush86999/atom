@@ -712,18 +712,18 @@ class TestActionComplexitySecurity:
     """Property-based tests for action complexity security."""
 
     @given(
-        injection_attempt=st.one_of(
-            st.just("'; drop table users"),
-            st.just("../etc/passwd"),
-            st.just("<script>alert(1)</script>"),
-            st.just("javascript:alert(1)"),
-            st.just("../../../etc/shadow"),
-            st.just("cmd.exe /c dir"),
-            st.just("'; union select"),
-            st.just("<img src=x onerror=alert(1)>"),
-            st.just("${@print(eval($_GET[cmd]))}"),
-            st.just("%3Cscript%3Ealert%281%29%3C%2Fscript%3E")
-        )
+        injection_attempt=st.sampled_from([
+            "'; drop table users",
+            "../etc/passwd",
+            "<script>alert(1)</script>",
+            "javascript:alert(1)",
+            "../../../etc/shadow",
+            "cmd.exe /c dir",
+            "'; union select",
+            "<img src=x onerror=alert(1)>",
+            "${@print(eval($_GET[cmd]))}",
+            "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+        ])
     )
     @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_injection_attack_resistance(
