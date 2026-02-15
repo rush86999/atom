@@ -471,12 +471,16 @@ class TestEdgeCases:
             min_episodes=25,
             intervention_rate=0.1,  # 50% of 0.2
             max_intervention=0.2,
-            constitutional_score=0.9,  # ~50% above 0.85
+            constitutional_score=0.9,  # ~50% above 0.85 (exceeds minimum, gets full points)
             min_constitutional=0.85
         )
 
-        # Should be approximately 50 (actually the weighted sum)
-        assert 40 <= score <= 60  # Allow for rounding
+        # Should be approximately 65-66:
+        # - Episode: 13/25 * 40 = 20.8
+        # - Intervention: (1 - 0.1/0.2) * 30 = 15.0
+        # - Constitutional: min(0.9/0.85, 1.0) * 30 = 30.0 (exceeds minimum)
+        # Total: 65.8
+        assert 65 <= score <= 67
 
     @pytest.mark.asyncio
     async def test_recommendation_by_score_range(self, graduation_service):
