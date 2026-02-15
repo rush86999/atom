@@ -747,6 +747,116 @@ async def update_canvas(
         return {"success": False, "error": str(e)}
 
 
+async def present_to_canvas(
+    db: Session,
+    user_id: str,
+    canvas_type: str,
+    content: Dict[str, Any],
+    title: str = None,
+    agent_id: Optional[str] = None,
+    agent_execution_id: Optional[str] = None,
+    session_id: Optional[str] = None
+):
+    """
+    Generic wrapper for presenting content to canvas.
+
+    Routes to the appropriate specialized canvas presentation function based on canvas_type.
+    This provides a unified interface for the proposal service and other components.
+
+    Args:
+        db: Database session (for audit purposes, may not be used by all canvas types)
+        user_id: User ID to present content to
+        canvas_type: Type of canvas (chart, form, markdown, status_panel, docs, email, sheets, etc.)
+        content: Content dict (structure varies by canvas_type)
+        title: Content title
+        agent_id: Optional agent ID for governance
+        agent_execution_id: Optional agent execution ID for tracking
+        session_id: Optional session ID for session isolation
+
+    Returns:
+        Dict with success status and canvas_id
+
+    Canvas Types and Content Structure:
+        - chart: {"chart_type": "line_chart", "data": [...]}
+        - form: {"fields": [...], "validation": {...}}
+        - markdown: {"content": "markdown text"}
+        - status_panel: {"items": [...]}
+        - docs, email, sheets, orchestration, terminal, coding: Specialized canvas data
+    """
+    try:
+        # Route to appropriate specialized function
+        if canvas_type == "chart":
+            # Extract chart-specific parameters
+            chart_type = content.get("chart_type", "line_chart")
+            data = content.get("data", [])
+            return await present_chart(
+                user_id=user_id,
+                chart_type=chart_type,
+                data=data,
+                title=title,
+                agent_id=agent_id,
+                session_id=session_id
+            )
+
+        elif canvas_type == "form":
+            # Extract form-specific parameters
+            form_schema = content
+            return await present_form(
+                user_id=user_id,
+                form_schema=form_schema,
+                title=title,
+                agent_id=agent_id,
+                session_id=session_id
+            )
+
+        elif canvas_type == "markdown":
+            # Extract markdown-specific parameters
+            markdown_content = content.get("content", "")
+            return await present_markdown(
+                user_id=user_id,
+                content=markdown_content,
+                title=title,
+                agent_id=agent_id,
+                session_id=session_id
+            )
+
+        elif canvas_type == "status_panel":
+            # Extract status panel-specific parameters
+            items = content.get("items", [])
+            return await present_status_panel(
+                user_id=user_id,
+                items=items,
+                title=title,
+                agent_id=agent_id,
+                session_id=session_id
+            )
+
+        elif canvas_type in ["docs", "email", "sheets", "orchestration", "terminal", "coding"]:
+            # Use specialized canvas for domain-specific types
+            component_type = content.get("component_type", "generic")
+            data = content
+            return await present_specialized_canvas(
+                user_id=user_id,
+                canvas_type=canvas_type,
+                component_type=component_type,
+                data=data,
+                title=title,
+                agent_id=agent_id,
+                session_id=session_id
+            )
+
+        else:
+            logger.warning(f"Unknown canvas type: {canvas_type}")
+            return {
+                "success": False,
+                "error": f"Unknown canvas type: {canvas_type}. Supported types: chart, form, markdown, status_panel, docs, email, sheets, orchestration, terminal, coding"
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to present to canvas: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def close_canvas(user_id: str, session_id: Optional[str] = None):
     """
     Close the canvas for a user.

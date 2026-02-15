@@ -6,6 +6,7 @@ Includes proposal creation, approval workflow, and execution.
 """
 
 from datetime import datetime
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -371,13 +372,13 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
-                user_id=user_id,
-                agent_name=proposal.agent_name,
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -395,7 +396,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
-            execution.output_data = result
+            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
 
@@ -443,13 +444,13 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
-                user_id=user_id,
-                agent_name=proposal.agent_name,
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -468,7 +469,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed"
-            execution.output_data = {"canvas_id": canvas_id}
+            execution.output_summary = json.dumps({"canvas_id": canvas_id}) if isinstance({"canvas_id": canvas_id}, dict) else str({"canvas_id": canvas_id})
             execution.completed_at = datetime.now()
             self.db.commit()
 
@@ -509,13 +510,13 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
-                user_id=user_id,
-                agent_name=proposal.agent_name,
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -530,7 +531,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
-            execution.output_data = result
+            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
 
@@ -575,13 +576,13 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
-                user_id=user_id,
-                agent_name=proposal.agent_name,
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -598,7 +599,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
-            execution.output_data = result
+            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
 
@@ -639,13 +640,13 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
-                user_id=user_id,
-                agent_name=proposal.agent_name,
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -663,7 +664,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
-            execution.output_data = result
+            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
 
@@ -704,14 +705,14 @@ Please review and approve or reject this proposal.
             execution = AgentExecution(
                 id=str(uuid.uuid4()),
                 agent_id=target_agent_id or agent_id,
-                user_id=user_id,
-                agent_name=action.get("agent_name", proposal.agent_name),
+                workspace_id="default",
                 status="running",
-                input_data={
+                input_summary=json.dumps({
                     "proposal_id": proposal.id,
                     "action": action,
                     "triggered_by": agent_id
-                }
+                }),
+                triggered_by="proposal"
             )
             self.db.add(execution)
             self.db.commit()
@@ -728,7 +729,7 @@ Please review and approve or reject this proposal.
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
-            execution.output_data = result
+            execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
 

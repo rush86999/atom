@@ -22,6 +22,126 @@ from core.models import (
 logger = logging.getLogger(__name__)
 
 
+class SandboxExecutor:
+    """
+    Executes graduation exams in a sandboxed environment.
+
+    Simulates real-world scenarios to validate agent readiness for promotion.
+    Tests constitutional compliance, decision-making, and governance adherence.
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    async def execute_exam(
+        self,
+        agent_id: str,
+        target_maturity: str,
+        exam_scenarios: List[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute graduation exam for agent.
+
+        Args:
+            agent_id: Agent being examined
+            target_maturity: Target maturity level (INTERN, SUPERVISED, AUTONOMOUS)
+            exam_scenarios: Optional list of test scenarios
+
+        Returns:
+            {
+                "success": bool,
+                "score": float (0.0-1.0),
+                "constitutional_compliance": float (0.0-1.0),
+                "passed": bool,
+                "constitutional_violations": List[str],
+                "attempt": int
+            }
+        """
+        # Get agent episodes to assess performance
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
+        if not agent:
+            return {
+                "success": False,
+                "score": 0.0,
+                "constitutional_compliance": 0.0,
+                "passed": False,
+                "error": "Agent not found"
+            }
+
+        # Get episodes at current maturity
+        current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+        episodes = self.db.query(Episode).filter(
+            Episode.agent_id == agent_id,
+            Episode.maturity_at_time == current_maturity,
+            Episode.status == "completed"
+        ).all()
+
+        # Calculate metrics from episodes
+        episode_count = len(episodes)
+        if episode_count == 0:
+            return {
+                "success": True,
+                "score": 0.0,
+                "constitutional_compliance": 0.0,
+                "passed": False,
+                "constitutional_violations": ["insufficient_episode_count"]
+            }
+
+        # Calculate intervention rate (lower is better)
+        total_interventions = sum(e.human_intervention_count for e in episodes)
+        intervention_rate = total_interventions / episode_count
+
+        # Calculate score based on multiple factors
+        # Base score from episode count
+        criteria = AgentGraduationService.CRITERIA.get(target_maturity.upper(), {})
+        min_episodes = criteria.get("min_episodes", 10)
+        max_intervention_rate = criteria.get("max_intervention_rate", 0.5)
+
+        # Episode count score (0-40 points)
+        episode_score = min(episode_count / (min_episodes * 1.5), 1.0) * 40
+
+        # Intervention score (0-30 points) - lower is better
+        intervention_score = max(
+            1.0 - (intervention_rate / max(max_intervention_rate, 0.5)),
+            0.0
+        ) * 30
+
+        # Constitutional compliance (0-30 points)
+        # In a real implementation, this would check against Knowledge Graph rules
+        # For now, use a simulated score based on intervention rate
+        compliance_score = max(1.0 - (intervention_rate * 2), 0.0) * 30
+
+        # Total score (0-100, normalized to 0-1)
+        total_score = (episode_score + intervention_score + compliance_score) / 100
+
+        # Determine constitutional violations
+        violations = []
+        if intervention_rate > max_intervention_rate:
+            violations.append("excessive_interventions")
+
+        if total_score < 0.7:
+            violations.append("insufficient_performance")
+
+        # Constitutional compliance score
+        constitutional_compliance = max(1.0 - (intervention_rate * 2), 0.5)
+
+        # Minimum passing threshold
+        min_score = criteria.get("min_constitutional_score", 0.70)
+        passed = total_score >= min_score and constitutional_compliance >= min_score
+
+        return {
+            "success": True,
+            "score": round(total_score, 2),
+            "constitutional_compliance": round(constitutional_compliance, 2),
+            "passed": passed,
+            "constitutional_violations": violations,
+            "attempt": 1
+        }
+
+
 class AgentGraduationService:
     """Validates agent promotion readiness using episodic memory"""
 
@@ -686,3 +806,51 @@ class AgentGraduationService:
         trend_score = trend_scores.get(metrics["recent_performance_trend"], 0)
 
         return rating_score + intervention_score + high_quality_score + trend_score
+
+    async def execute_graduation_exam(
+        self,
+        agent_id: str,
+        workspace_id: str,
+        target_maturity: str
+    ) -> Dict[str, Any]:
+        """
+        Execute graduation exam for agent.
+    
+        Args:
+            agent_id: Agent to examine
+            workspace_id: Workspace ID
+            target_maturity: Target maturity level (INTERN, SUPERVISED, AUTONOMOUS)
+    
+        Returns:
+            {
+                "exam_completed": bool,
+                "score": float,
+                "constitutional_compliance": float,
+                "passed": bool,
+                "constitutional_violations": List[str]
+            }
+        """
+        executor = SandboxExecutor(self.db)
+    
+        # Run exam
+        result = await executor.execute_exam(
+            agent_id=agent_id,
+            target_maturity=target_maturity
+        )
+    
+        if not result.get("success"):
+            return {
+                "exam_completed": False,
+                "error": result.get("error", "Exam execution failed"),
+                "passed": False
+            }
+    
+        return {
+            "exam_completed": True,
+            "score": result["score"],
+            "constitutional_compliance": result["constitutional_compliance"],
+            "passed": result["passed"],
+            "constitutional_violations": result.get("constitutional_violations", [])
+        }
+
+

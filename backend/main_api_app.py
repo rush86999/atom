@@ -59,6 +59,9 @@ logger.info(f"DEBUG: Startup DEEPSEEK_API_KEY present: {bool(deepseek_status)}")
 # Environment settings
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# Add testserver for integration tests
+if "testserver" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("testserver")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 DISABLE_DOCS = ENVIRONMENT == "production"
 

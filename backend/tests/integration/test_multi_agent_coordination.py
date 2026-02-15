@@ -28,9 +28,8 @@ class TestAgentHandoffs:
 
     def test_handoff_student_to_intern_blocked(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff from STUDENT to INTERN is blocked without graduation."""
-        student = StudentAgentFactory()
-        intern = InternAgentFactory()
-        db_session.add_all([student, intern])
+        student = StudentAgentFactory(_session=db_session)
+        intern = InternAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -47,9 +46,8 @@ class TestAgentHandoffs:
 
     def test_handoff_supervised_to_autonomous_requires_approval(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff from SUPERVISED to AUTONOMOUS requires approval."""
-        supervised = SupervisedAgentFactory()
-        autonomous = AutonomousAgentFactory()
-        db_session.add_all([supervised, autonomous])
+        supervised = SupervisedAgentFactory(_session=db_session)
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -66,9 +64,8 @@ class TestAgentHandoffs:
 
     def test_handoff_with_shared_context(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff transfers shared context correctly."""
-        agent1 = AutonomousAgentFactory(name="Agent1")
-        agent2 = AutonomousAgentFactory(name="Agent2")
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(name="Agent1", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="Agent2", _session=db_session)
         db_session.commit()
 
         shared_context = {
@@ -93,9 +90,8 @@ class TestAgentHandoffs:
 
     def test_handoff_preserves_governance_rules(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff preserves governance rules."""
-        agent1 = AutonomousAgentFactory(name="Agent1")
-        agent2 = InternAgentFactory(name="Agent2")
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(name="Agent1", _session=db_session)
+        agent2 = InternAgentFactory(name="Agent2", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -112,9 +108,8 @@ class TestAgentHandoffs:
 
     def test_handoff_creates_audit_entry(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff creates audit trail entry."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -130,7 +125,7 @@ class TestAgentHandoffs:
 
     def test_handoff_to_nonexistent_agent_fails(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff to non-existent agent fails."""
-        agent = AutonomousAgentFactory()
+        agent = AutonomousAgentFactory(_session=db_session)
         db_session.add(agent)
         db_session.commit()
 
@@ -147,9 +142,8 @@ class TestAgentHandoffs:
 
     def test_handoff_invalid_context_rejected(self, client: TestClient, admin_token: str, db_session: Session):
         """Test handoff with invalid context is rejected."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -169,10 +163,9 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_independent_agents(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution of independent agents."""
-        agent1 = AutonomousAgentFactory(name="Parallel1")
-        agent2 = AutonomousAgentFactory(name="Parallel2")
-        agent3 = AutonomousAgentFactory(name="Parallel3")
-        db_session.add_all([agent1, agent2, agent3])
+        agent1 = AutonomousAgentFactory(name="Parallel1", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="Parallel2", _session=db_session)
+        agent3 = AutonomousAgentFactory(name="Parallel3", _session=db_session)
         db_session.commit()
 
         # Execute agents in parallel
@@ -193,9 +186,8 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_with_dependency_blocks(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution respects agent dependencies."""
-        agent1 = AutonomousAgentFactory(name="Dependent1")
-        agent2 = SupervisedAgentFactory(name="Dependent2")
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(name="Dependent1", _session=db_session)
+        agent2 = SupervisedAgentFactory(name="Dependent2", _session=db_session)
         db_session.commit()
 
         # agent2 depends on agent1 result
@@ -222,9 +214,8 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_governance_enforcement(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution enforces governance for all agents."""
-        student = StudentAgentFactory()
-        autonomous = AutonomousAgentFactory()
-        db_session.add_all([student, autonomous])
+        student = StudentAgentFactory(_session=db_session)
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -243,9 +234,8 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_timeout_handling(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution timeout handling."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -264,9 +254,8 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_partial_failure(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution with partial failures."""
-        agent1 = AutonomousAgentFactory(name="Success")
-        agent2 = AutonomousAgentFactory(name="Failure")
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(name="Success", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="Failure", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -285,9 +274,8 @@ class TestParallelAgentExecution:
 
     def test_parallel_execution_with_shared_resources(self, client: TestClient, admin_token: str, db_session: Session):
         """Test parallel execution with shared resource contention."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -310,10 +298,9 @@ class TestSequentialAgentWorkflows:
 
     def test_sequential_workflow_execution(self, client: TestClient, admin_token: str, db_session: Session):
         """Test sequential agent workflow."""
-        agent1 = AutonomousAgentFactory(name="Step1")
-        agent2 = AutonomousAgentFactory(name="Step2")
-        agent3 = AutonomousAgentFactory(name="Step3")
-        db_session.add_all([agent1, agent2, agent3])
+        agent1 = AutonomousAgentFactory(name="Step1", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="Step2", _session=db_session)
+        agent3 = AutonomousAgentFactory(name="Step3", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -332,10 +319,9 @@ class TestSequentialAgentWorkflows:
 
     def test_sequential_workflow_stops_on_error(self, client: TestClient, admin_token: str, db_session: Session):
         """Test sequential workflow stops when an agent fails."""
-        agent1 = AutonomousAgentFactory(name="SuccessAgent")
-        agent2 = AutonomousAgentFactory(name="FailingAgent")
-        agent3 = AutonomousAgentFactory(name="SkippedAgent")
-        db_session.add_all([agent1, agent2, agent3])
+        agent1 = AutonomousAgentFactory(name="SuccessAgent", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="FailingAgent", _session=db_session)
+        agent3 = AutonomousAgentFactory(name="SkippedAgent", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -355,9 +341,8 @@ class TestSequentialAgentWorkflows:
 
     def test_sequential_workflow_passes_context(self, client: TestClient, admin_token: str, db_session: Session):
         """Test sequential workflow passes context between steps."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -383,10 +368,9 @@ class TestSequentialAgentWorkflows:
 
     def test_sequential_workflow_with_conditional_branching(self, client: TestClient, admin_token: str, db_session: Session):
         """Test sequential workflow with conditional steps."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        agent3 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2, agent3])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
+        agent3 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -413,7 +397,7 @@ class TestSequentialAgentWorkflows:
 
     def test_sequential_workflow_retry_logic(self, client: TestClient, admin_token: str, db_session: Session):
         """Test sequential workflow with retry logic."""
-        agent = AutonomousAgentFactory()
+        agent = AutonomousAgentFactory(_session=db_session)
         db_session.add(agent)
         db_session.commit()
 
@@ -440,10 +424,9 @@ class TestAgentCoordinationPatterns:
 
     def test_coordinator_agent_pattern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test coordinator agent delegating to worker agents."""
-        coordinator = AutonomousAgentFactory(name="Coordinator")
-        worker1 = AutonomousAgentFactory(name="Worker1")
-        worker2 = AutonomousAgentFactory(name="Worker2")
-        db_session.add_all([coordinator, worker1, worker2])
+        coordinator = AutonomousAgentFactory(name="Coordinator", _session=db_session)
+        worker1 = AutonomousAgentFactory(name="Worker1", _session=db_session)
+        worker2 = AutonomousAgentFactory(name="Worker2", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -461,10 +444,9 @@ class TestAgentCoordinationPatterns:
     def test_ensemble_agent_pattern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test ensemble pattern where multiple agents contribute."""
         agents = [
-            AutonomousAgentFactory(name=f"Ensemble{i}")
+            AutonomousAgentFactory(name=f"Ensemble{i}", _session=db_session)
             for i in range(3)
         ]
-        db_session.add_all(agents)
         db_session.commit()
 
         response = client.post(
@@ -481,10 +463,9 @@ class TestAgentCoordinationPatterns:
 
     def test_peer_review_agent_pattern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test peer review pattern where agents review each other."""
-        reviewer1 = AutonomousAgentFactory(name="Reviewer1")
-        reviewer2 = AutonomousAgentFactory(name="Reviewer2")
-        author = AutonomousAgentFactory(name="Author")
-        db_session.add_all([reviewer1, reviewer2, author])
+        reviewer1 = AutonomousAgentFactory(name="Reviewer1", _session=db_session)
+        reviewer2 = AutonomousAgentFactory(name="Reviewer2", _session=db_session)
+        author = AutonomousAgentFactory(name="Author", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -501,10 +482,9 @@ class TestAgentCoordinationPatterns:
 
     def test_hierarchical_agent_pattern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test hierarchical coordination with superior and subordinate agents."""
-        supervisor = AutonomousAgentFactory(name="Supervisor")
-        subordinate1 = AutonomousAgentFactory(name="Subordinate1")
-        subordinate2 = AutonomousAgentFactory(name="Subordinate2")
-        db_session.add_all([supervisor, subordinate1, subordinate2])
+        supervisor = AutonomousAgentFactory(name="Supervisor", _session=db_session)
+        subordinate1 = AutonomousAgentFactory(name="Subordinate1", _session=db_session)
+        subordinate2 = AutonomousAgentFactory(name="Subordinate2", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -522,10 +502,9 @@ class TestAgentCoordinationPatterns:
     def test_round_robin_agent_pattern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test round-robin load balancing among agents."""
         agents = [
-            AutonomousAgentFactory(name=f"RoundRobin{i}")
+            AutonomousAgentFactory(name=f"RoundRobin{i}", _session=db_session)
             for i in range(3)
         ]
-        db_session.add_all(agents)
         db_session.commit()
 
         response = client.post(
@@ -549,9 +528,8 @@ class TestConflictResolution:
 
     def test_conflicting_actions_resolution(self, client: TestClient, admin_token: str, db_session: Session):
         """Test resolution when agents propose conflicting actions."""
-        agent1 = AutonomousAgentFactory(name="AgentA")
-        agent2 = AutonomousAgentFactory(name="AgentB")
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(name="AgentA", _session=db_session)
+        agent2 = AutonomousAgentFactory(name="AgentB", _session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -570,9 +548,8 @@ class TestConflictResolution:
 
     def test_resource_contention_resolution(self, client: TestClient, admin_token: str, db_session: Session):
         """Test resolution when agents contend for same resource."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -589,9 +566,8 @@ class TestConflictResolution:
 
     def test_concurrent_write_conflict(self, client: TestClient, admin_token: str, db_session: Session):
         """Test concurrent write conflict resolution."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -612,10 +588,9 @@ class TestConflictResolution:
     def test_consensus_building(self, client: TestClient, admin_token: str, db_session: Session):
         """Test consensus building among agents."""
         agents = [
-            AutonomousAgentFactory(name=f"Voter{i}")
+            AutonomousAgentFactory(name=f"Voter{i}", _session=db_session)
             for i in range(3)
         ]
-        db_session.add_all(agents)
         db_session.commit()
 
         response = client.post(
@@ -632,9 +607,8 @@ class TestConflictResolution:
 
     def test_arbitration_for_deadlock(self, client: TestClient, admin_token: str, db_session: Session):
         """Test arbitration when agents deadlock."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -655,10 +629,9 @@ class TestMultiAgentGovernance:
 
     def test_mixed_maturity_execution(self, client: TestClient, admin_token: str, db_session: Session):
         """Test execution with agents of different maturity levels."""
-        student = StudentAgentFactory()
-        intern = InternAgentFactory()
-        autonomous = AutonomousAgentFactory()
-        db_session.add_all([student, intern, autonomous])
+        student = StudentAgentFactory(_session=db_session)
+        intern = InternAgentFactory(_session=db_session)
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -677,9 +650,8 @@ class TestMultiAgentGovernance:
 
     def test_action_complexity_filtering(self, client: TestClient, admin_token: str, db_session: Session):
         """Test actions filtered by agent maturity level."""
-        intern = InternAgentFactory()
-        autonomous = AutonomousAgentFactory()
-        db_session.add_all([intern, autonomous])
+        intern = InternAgentFactory(_session=db_session)
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -698,7 +670,7 @@ class TestMultiAgentGovernance:
 
     def test_supervision_required_for_intern(self, client: TestClient, admin_token: str, db_session: Session):
         """Test INTERN agent actions require supervision."""
-        intern = InternAgentFactory()
+        intern = InternAgentFactory(_session=db_session)
         db_session.add(intern)
         db_session.commit()
 
@@ -716,10 +688,9 @@ class TestMultiAgentGovernance:
     def test_multi_agent_audit_trail(self, client: TestClient, admin_token: str, db_session: Session):
         """Test multi-agent execution creates complete audit trail."""
         agents = [
-            AutonomousAgentFactory(name=f"AuditAgent{i}")
+            AutonomousAgentFactory(name=f"AuditAgent{i}", _session=db_session)
             for i in range(3)
         ]
-        db_session.add_all(agents)
         db_session.commit()
 
         response = client.post(
@@ -740,9 +711,8 @@ class TestMultiAgentStateManagement:
 
     def test_shared_state_between_agents(self, client: TestClient, admin_token: str, db_session: Session):
         """Test shared state management between agents."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         response = client.post(
@@ -762,9 +732,8 @@ class TestMultiAgentStateManagement:
 
     def test_state_isolation_between_workflows(self, client: TestClient, admin_token: str, db_session: Session):
         """Test state isolation between different workflows."""
-        agent1 = AutonomousAgentFactory()
-        agent2 = AutonomousAgentFactory()
-        db_session.add_all([agent1, agent2])
+        agent1 = AutonomousAgentFactory(_session=db_session)
+        agent2 = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
 
         # Create two separate workflows
@@ -799,7 +768,7 @@ class TestMultiAgentStateManagement:
 
     def test_state_persistence_and_recovery(self, client: TestClient, admin_token: str, db_session: Session):
         """Test state persistence and recovery after failure."""
-        agent = AutonomousAgentFactory()
+        agent = AutonomousAgentFactory(_session=db_session)
         db_session.add(agent)
         db_session.commit()
 
@@ -818,10 +787,9 @@ class TestMultiAgentStateManagement:
     def test_distributed_state_sync(self, client: TestClient, admin_token: str, db_session: Session):
         """Test distributed state synchronization."""
         agents = [
-            AutonomousAgentFactory(name=f"Distributed{i}")
+            AutonomousAgentFactory(name=f"Distributed{i}", _session=db_session)
             for i in range(3)
         ]
-        db_session.add_all(agents)
         db_session.commit()
 
         response = client.post(

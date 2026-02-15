@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Integration tests for SUPERVISED agent operations with supervision integration.
 
@@ -8,6 +9,7 @@ and cross-API integration between agent lifecycle and supervision systems.
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, AsyncMock, MagicMock
+from main_api_app import app
 from core.agent_lifecycle_service import AgentLifecycleService
 from core.agent_service import AgentService
 from core.supervision_service import SupervisionService
@@ -20,7 +22,7 @@ class TestSupervisionIntegration:
     """Test SUPERVISED agent operations with supervision integration."""
 
     def test_complete_supervised_agent_lifecycle(self):
-        """Test complete SUPERVISED agent lifecycle: create → configure → execute → monitor → delete."""
+        """Test complete SUPERVISED agent lifecycle: create -> configure -> execute -> monitor -> delete."""
         db = get_db()
         agent_service = Mock(spec=AgentLifecycleService)
         supervision_service = Mock(spec=SupervisionService)
@@ -460,17 +462,17 @@ def test_agent_guidance_integration(db, mock_agent_service, mock_guidance_servic
 
     assert response.status_code == 200
 
-        # Verify agent configured with guidance
-        agent_config = agent_data["config"]
-        assert agent_config["monitoring_enabled"] == True
-        assert agent_config["guidance"]["enabled"] == True
+    # Verify agent configured with guidance
+    agent_config = agent_data["config"]
+    assert agent_config["monitoring_enabled"] == True
+    assert agent_config["guidance"]["enabled"] == True
 
-    # Cleanup
-    mock_agent_service.reset_mock()
-    mock_supervision_service.reset_mock()
-    mock_guidance_service.reset_mock()
+        # Cleanup
+        mock_agent_service.reset_mock()
+        mock_supervision_service.reset_mock()
+        mock_guidance_service.reset_mock()
 
-    return created_agent_id
+        return created_agent_id
 
 
 class TestCrossAPIIntegration:
