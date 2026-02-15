@@ -16,6 +16,10 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+# Critical environment variables to isolate between tests
+_CRITICAL_ENV_VARS = ['SECRET_KEY', 'ENVIRONMENT', 'DATABASE_URL', 'ALLOW_DEV_TEMP_USERS']
+
+
 # CRITICAL: This code runs when conftest.py is first imported by pytest.
 # It restores numpy/pandas/lancedb/pyarrow modules that may have been
 # set to None by previously imported test modules (like test_proactive_messaging_simple.py).
@@ -58,7 +62,32 @@ def ensure_numpy_available(request):
 
 
 @pytest.fixture(autouse=True)
-def reset_agent_task_registry():
+def isolate_environment():
+    """
+    Isolate environment variables between tests.
+
+    Prevents test pollution from environment modifications by saving and restoring
+    critical environment variables (SECRET_KEY, ENVIRONMENT, DATABASE_URL, etc.)
+    before and after each test.
+    """
+    # Save critical env vars
+    saved = {}
+    for var in _CRITICAL_ENV_VARS:
+        if var in os.environ:
+            saved[var] = os.environ[var]
+
+    yield
+
+    # Restore saved env vars, delete ones that weren't set before
+    for var in _CRITICAL_ENV_VARS:
+        if var in saved:
+            os.environ[var] = saved[var]
+        else:
+            os.environ.pop(var, None)
+
+
+@pytest.fixture(autouse=True)
+def reset_agent_task_registry(request):
     """
     Reset agent task registry before each test for isolation.
 
