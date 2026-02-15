@@ -400,7 +400,6 @@ class TestSystemDefaultResolution:
         mock_first1 = MagicMock()
 
         def mock_first_side_effect():
-            nonlocal created_agent
             if created_agent[0]:
                 return created_agent[0]
             else:
@@ -460,7 +459,6 @@ class TestSystemDefaultResolution:
         mock_first1 = MagicMock()
 
         def mock_first_side_effect():
-            nonlocal created_agent
             if created_agent[0]:
                 return created_agent[0]
             else:
@@ -494,7 +492,6 @@ class TestSystemDefaultResolution:
         mock_first1 = MagicMock()
 
         def mock_first_side_effect():
-            nonlocal created_agent
             if created_agent[0]:
                 return created_agent[0]
             else:
@@ -1023,8 +1020,11 @@ class TestEdgeCases:
         mock_filter1 = MagicMock()
         mock_first1 = MagicMock()
 
+        call_count = 0
+
         def mock_first_side_effect():
             nonlocal call_count
+            call_count += 1
             if call_count < 2:
                 return None
             else:
