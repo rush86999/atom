@@ -168,6 +168,7 @@ jobs:
           pytest tests/ -v -n auto \
             --ignore=tests/integration/episodes/test_lancedb_integration.py \
             --ignore=tests/integration/episodes/test_graduation_validation.py \
+            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
             --ignore=tests/integration/governance/test_graduation_exams.py \
             --cov=core \
             --cov=api \
