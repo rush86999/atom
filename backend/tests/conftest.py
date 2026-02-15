@@ -57,6 +57,24 @@ def ensure_numpy_available(request):
     # No cleanup needed
 
 
+@pytest.fixture(autouse=True)
+def reset_agent_task_registry():
+    """
+    Reset agent task registry before each test for isolation.
+
+    This prevents task ID collisions between tests by ensuring each test
+    starts with a clean registry state. The AgentTaskRegistry is a singleton
+    that persists across test runs, so we need to explicitly reset it.
+
+    This is an autouse fixture, so it runs automatically before every test
+    without requiring explicit reference in test signatures.
+    """
+    from core.agent_task_registry import agent_task_registry
+    agent_task_registry._reset()
+    yield
+    # No cleanup needed - each test gets fresh state at start
+
+
 @pytest.fixture(scope="function")
 def unique_resource_name():
     """
