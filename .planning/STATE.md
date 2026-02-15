@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 10-fix-tests
-Plan: 04 (Fix Graduation Governance Test Failures)
+Plan: 05 (Test Suite Performance and Stability Analysis)
 Status: Complete
-Last activity: 2026-02-15 — Plan 04 complete: Fixed 3 flaky graduation governance tests by correcting invalid parameter usage (metadata_json → configuration) in AgentGraduationService and test code. Also fixed test isolation issues with hardcoded IDs. All 28 graduation governance tests now pass consistently (no flaky reruns).
+Last activity: 2026-02-15 — Plan 05 complete: Documented test suite performance and flakiness issues preventing TQ-03 (<60 min execution) and TQ-04 (no flaky tests) validation. Identified 10,513 tests with 5+ flaky tests causing RERUN loops and slow execution (0-23% in >10 minutes). Recommended fixes for test_agent_cancellation, test_security_config, and test_agent_governance_runtime flaky tests with proper isolation and mocking.
 
-Progress: [███] 60% (Phase 10: 3 of 5 plans complete)
+Progress: [████] 80% (Phase 10: 4 of 5 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -25,9 +25,9 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
+- Total plans completed: 44
 - Average duration: 11 min
-- Total execution time: 7.6 hours
+- Total execution time: 7.9 hours
 
 **By Phase:**
 
@@ -133,6 +133,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 08-80-percent-coverage-push P33 | 600 | 2 tasks | 2 files |
 | Phase 10-fix-tests P01 | 1672s | 2 tasks | 10 files |
 | Phase 10-fix-tests P04 | 540 | 3 tasks | 2 files |
+| Phase 10-fix-tests P05 | 1500 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 10-fix-tests-05]: Documented severe test suite performance and flakiness issues preventing TQ-03 (<60 min execution) and TQ-04 (no flaky tests) validation. Identified 10,513 tests with 5+ flaky tests causing RERUN loops (test_agent_cancellation, test_security_config, test_agent_governance_runtime). Execution stuck at 0-23% in >10 minutes due to pytest-rerunfailures masking underlying issues. Root causes: race conditions in task registry, missing test isolation, external service dependencies not mocked, environment variable leakage. Recommended fixes: database transaction rollback, unique IDs (uuid4), mock BYOK client and governance cache, isolate environment variables with monkeypatch fixture. Optimize pytest config: use -q instead of -v, remove --reruns 3, add --maxfail 10, separate test suites by tier. Next phase needed to fix flaky tests before TQ-03/TQ-04 validation.
 - [Phase 10-fix-tests-04]: Fixed graduation governance test failures by correcting invalid parameter usage in both production code and tests. Root cause: AgentGraduationService.promote_agent() used agent.metadata_json (non-existent field) instead of agent.configuration. Tests also passed metadata_json={} to factories. Solution: Changed service code to use configuration field, removed metadata_json from tests, fixed SupervisionSession initialization (user_id → supervisor_id), and replaced hardcoded IDs with UUIDs for test isolation. Fixed 3 flaky tests, +40.75% coverage on AgentGraduationService (12.83% → 53.58%).
 - [Phase 10-fix-tests-02]: Fixed 6 proposal service test failures by mocking internal service methods (_execute_browser_action, _execute_integration_action, _execute_workflow_action, _execute_agent_action) instead of non-existent external module functions. Improved topic extraction to prioritize proposal_type and action_type first (critical metadata). All 40 proposal service tests now pass. Pattern: Mock internal methods for better test isolation and reliability.
 - [Phase 10-fix-tests-01]: Fixed Hypothesis TypeError in property tests during full suite collection by replacing st.just() with st.sampled_from(). Root cause: pytest's bloated symbol table (10,000+ tests) interferes with Hypothesis 6.151.5's isinstance() checks in JustStrategy initialization. Solution: Use st.sampled_from([value]) instead of st.just(value) to bypass problematic code path. Fixed 10 property test modules, reduced collection errors from 10 to 0, made 337 previously blocked tests accessible.
