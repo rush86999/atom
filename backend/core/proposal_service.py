@@ -922,10 +922,11 @@ Please review and approve or reject this proposal.
 
     def _extract_proposal_topics(self, proposal: AgentProposal) -> List[str]:
         """Extract topics from proposal"""
+        important_topics = []
         topics = set()
 
-        # Add proposal type
-        topics.add(proposal.proposal_type)
+        # Add proposal type (important - always include first)
+        important_topics.append(proposal.proposal_type)
 
         # Extract from title
         if proposal.title:
@@ -937,13 +938,15 @@ Please review and approve or reject this proposal.
             words = proposal.reasoning.lower().split()
             topics.update([w for w in words if len(w) > 4][:3])
 
-        # Extract from action type
+        # Extract from action type (important - always include second)
         if proposal.proposed_action:
             action_type = proposal.proposed_action.get("action_type", "")
             if action_type:
-                topics.add(action_type)
+                important_topics.append(action_type)
 
-        return list(topics)[:5]
+        # Combine important topics with extracted topics, limit to 5 total
+        all_topics = important_topics + list(topics)
+        return all_topics[:5]
 
     def _extract_proposal_entities(self, proposal: AgentProposal) -> List[str]:
         """Extract entities from proposal"""
