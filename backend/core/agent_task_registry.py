@@ -201,6 +201,18 @@ class AgentTaskRegistry:
             for agent_id, task_ids in self._agent_tasks.items()
         }
 
+    def _reset(self) -> None:
+        """
+        Reset the registry to initial state.
+
+        WARNING: This method is only for test use. It clears all registry state.
+        Do not call this in production code.
+        """
+        self._tasks.clear()
+        self._agent_tasks.clear()
+        self._run_tasks.clear()
+        self._initialized = False
+
 
 # Global registry instance
 agent_task_registry = AgentTaskRegistry()
