@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 10-fix-tests
-Plan: 03 (Verify 98%+ Test Pass Rate)
+Plan: 06 (Fix Flaky Agent Task Cancellation Tests)
 Status: Complete
-Last activity: 2026-02-15 — Plan 03 complete: Attempted TQ-02 pass rate verification but unable to complete due to test suite execution challenges. Test suite has 10,513 tests requiring 1-2+ hours per run, making 3-run verification impractical. Documented root causes (test scale, external dependencies, fixture overhead) and created recommendations for test infrastructure optimization in Phase 11. Current coverage: 24.85% across 405 files.
+Last activity: 2026-02-15 — Plan 06 complete: Fixed all 15 flaky tests in test_agent_cancellation.py by adding AgentTaskRegistry._reset() method, autouse pytest fixture for registry cleanup, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio markers to tests using asyncio.create_task(). Eliminated 100% of RERUN loops with 0% variance across 3 consecutive runs.
 
-Progress: [████████] 100% (Phase 10: 5 of 5 plans complete)
+Progress: [████████] 75% (Phase 10: 6 of 8 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -135,6 +135,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 10-fix-tests P04 | 540 | 3 tasks | 2 files |
 | Phase 10-fix-tests P05 | 1500 | 3 tasks | 1 files |
 | Phase 10-fix-tests P03 | 4127 | 1 tasks | 1 files |
+| Phase 10-fix-tests P06 | 780 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -261,6 +262,7 @@ Recent decisions affecting current work:
 - [Phase 08-80-percent-coverage-push]: Created realistic multi-phase journey: Phase 8.7 (17-18%) through Phase 12.x (80%)
 - [Phase 08-80-percent-coverage-push]: Enhanced Phase 8.7-9.0 with concrete file lists and impact estimates
 - [Phase 10-fix-tests]: Test suite requires optimization for practical execution - 10,513 tests take 1-2+ hours per run, preventing TQ-02 verification
+- [Phase 10-fix-tests]: Fixed agent task cancellation test flakiness by adding AgentTaskRegistry._reset() method and autouse pytest fixture, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio to tests using asyncio.create_task(). Eliminated 100% of RERUN loops (15/15 tests pass, 0 variance).
 
 ### Pending Todos
 
