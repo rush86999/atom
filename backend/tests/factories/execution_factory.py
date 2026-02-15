@@ -27,7 +27,7 @@ class AgentExecutionFactory(BaseFactory):
     # Input/Output
     input_summary = factory.Faker('text', max_nb_chars=200)
     output_summary = factory.LazyAttribute(
-        lambda o: str(factory.Faker('text', max_nb_chars=500)) if o.status in ['completed', 'running'] else None
+        lambda o: f"Output summary for {o.status}" if o.status in ['completed', 'running'] else None
     )
 
     # Timing
@@ -39,10 +39,10 @@ class AgentExecutionFactory(BaseFactory):
 
     # Results
     result_summary = factory.LazyAttribute(
-        lambda o: str(factory.Faker('text', max_nb_chars=500)) if o.status == 'completed' else None
+        lambda o: f"Result summary for {o.id}" if o.status == 'completed' else None
     )
     error_message = factory.LazyAttribute(
-        lambda o: factory.Faker('sentence') if o.status == 'failed' else None
+        lambda o: "Test error message" if o.status == 'failed' else None
     )
 
     # Resource tracking

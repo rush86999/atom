@@ -196,7 +196,7 @@ class TestWorkflowDebuggerIntegration:
 
         # Verify trace in database
         traces = db_session.query(ExecutionTrace).filter(
-            ExecutionTrace.session_id == session.id
+            ExecutionTrace.debug_session_id == session.id
         ).all()
 
         assert len(traces) > 0, "Should have trace record"
@@ -229,10 +229,10 @@ class TestWorkflowDebuggerIntegration:
         db_session.commit()
 
         # Get traces
-        traces = debugger.get_execution_traces(session_id=session.id)
+        traces = debugger.get_execution_traces(execution_id=execution.id, debug_session_id=session.id)
 
         assert len(traces) > 0, "Should find traces"
-        assert traces[0].session_id == session.id
+        assert traces[0].debug_session_id == session.id
 
 
 class TestAgentExecutionDatabaseCoverage:
