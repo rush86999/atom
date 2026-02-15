@@ -738,10 +738,11 @@ class TestActionExecution:
         db_session.add(proposal)
         db_session.commit()
 
-        # Mock browser tool at import location
-        with patch('tools.browser_tool.execute_browser_automation', new=AsyncMock(
-            return_value={"success": True, "url": "https://example.com"}
-        )), patch.object(
+        # Mock the internal execution method directly
+        with patch.object(
+            proposal_service, '_execute_browser_action',
+            new=AsyncMock(return_value={"success": True, "action_type": "browser_automate"})
+        ), patch.object(
             proposal_service, '_create_proposal_episode',
             new=AsyncMock()
         ):
@@ -814,13 +815,14 @@ class TestActionExecution:
         db_session.add(proposal)
         db_session.commit()
 
-        # Mock integration service
-        with patch('core.integrations.get_integration_service') as mock_get_service, \
-             patch.object(proposal_service, '_create_proposal_episode', new=AsyncMock()):
-            mock_service_instance = MagicMock()
-            mock_service_instance.execute_operation = AsyncMock(return_value={"success": True})
-            mock_get_service.return_value = mock_service_instance
-
+        # Mock the internal execution method directly
+        with patch.object(
+            proposal_service, '_execute_integration_action',
+            new=AsyncMock(return_value={"success": True, "action_type": "integration_connect"})
+        ), patch.object(
+            proposal_service, '_create_proposal_episode',
+            new=AsyncMock()
+        ):
             result = await proposal_service.approve_proposal(
                 proposal_id=proposal.id,
                 user_id="test_user"
@@ -851,10 +853,11 @@ class TestActionExecution:
         db_session.add(proposal)
         db_session.commit()
 
-        # Mock workflow engine at import location
-        with patch('core.workflow_engine.trigger_workflow', new=AsyncMock(
-            return_value={"success": True}
-        )), patch.object(
+        # Mock the internal execution method directly
+        with patch.object(
+            proposal_service, '_execute_workflow_action',
+            new=AsyncMock(return_value={"success": True, "action_type": "workflow_trigger"})
+        ), patch.object(
             proposal_service, '_create_proposal_episode',
             new=AsyncMock()
         ):
@@ -927,10 +930,11 @@ class TestActionExecution:
         db_session.add(proposal)
         db_session.commit()
 
-        # Mock agent executor at import location
-        with patch('core.generic_agent.execute_agent', new=AsyncMock(
-            return_value={"success": True}
-        )), patch.object(
+        # Mock the internal execution method directly
+        with patch.object(
+            proposal_service, '_execute_agent_action',
+            new=AsyncMock(return_value={"success": True, "action_type": "agent_execute"})
+        ), patch.object(
             proposal_service, '_create_proposal_episode',
             new=AsyncMock()
         ):
@@ -1157,11 +1161,11 @@ class TestEpisodeCreation:
         proposal = MagicMock()
         proposal.approved_by = "user123"
         proposal.approved_at = datetime.now()
-        proposal.modifications = {"key": "value"}
+        proposal.modifications = ["key: value"]
 
         outcome = proposal_service._format_proposal_outcome(
             proposal, "approved",
-            modifications={"key": "value"},
+            modifications=["key: value"],
             execution_result={"success": True}
         )
 
