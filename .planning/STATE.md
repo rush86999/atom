@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 01-im-adapters
-Plan: 02 (WhatsApp Webhook Route and IMGovernanceService Integration)
+Plan: 03 (IMGovernanceService Security Testing)
 Status: Complete
-Last activity: 2026-02-16 — Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge and IMGovernanceService three-stage security pipeline. Integrated IMGovernanceService into Telegram webhook for message updates (callback/inline queries bypass governance). Registered both routers in main FastAPI app. Database session dependency injection via get_db(). All verification checks passed.
+Last activity: 2026-02-16 — Created comprehensive TDD test suite with 32 tests (21 unit + 11 property-based) achieving 84.94% coverage on IMGovernanceService. Validated webhook signature verification, rate limiting invariants (10 req/min never exceeded), governance checks (STUDENT blocked, AUTONOMOUS allowed), and audit trail logging. Fixed 2 bugs discovered through property-based testing (UnicodeDecodeError, AttributeError in sender ID extraction). Used Hypothesis for invariant testing with 700 total test cases across all property tests.
 
-Progress: [██] 50% (Phase 01: 2 of 4 plans complete)
+Progress: [███] 75% (Phase 01: 3 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -144,6 +144,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 12-tier-1-coverage-push P03 | 480 | 3 tasks | 3 files |
 | Phase 12-tier-1-coverage-push P04 | 798 | 3 tasks | 2 files |
 | Phase 01-im-adapters P02 | 268s | 3 tasks | 3 files |
+| Phase 01-im-adapters P03 | 589 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 01-im-adapters-03]: Created comprehensive TDD test suite with 32 tests (21 unit + 11 property-based) achieving 84.94% coverage on IMGovernanceService. Validated webhook signature verification, rate limiting invariants (10 req/min never exceeded), governance checks (STUDENT blocked, AUTONOMOUS allowed), and audit trail logging. Used Hypothesis for property-based testing to validate security invariants that cannot be covered by example-based tests alone. Fixed 2 bugs discovered through property-based testing: UnicodeDecodeError not caught in sender ID extraction (json.loads() on malformed binary payloads), and AttributeError on unexpected payload types (payload.get() returning non-dict values). Created service instances inside Hypothesis tests to avoid health check errors with function-scoped fixtures. Used AsyncMock pattern for mocking async adapter methods. All 32 tests passing with 700 total Hypothesis test cases across all property tests.
 - [Phase 01-im-adapters-02]: Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge endpoint and IMGovernanceService three-stage security pipeline integration. Enhanced Telegram webhook to apply governance to message updates only (callback/inline queries bypass governance as they're UI interactions). Used FastAPI dependency injection pattern (db: Session = Depends(get_db)) for per-request IMGovernanceService instances. Registered both routers in main FastAPI app. Database session dependency injection resolves audit logging requirements. Async fire-and-forget audit logging via BackgroundTasks prevents blocking webhook responses.
 - [Phase 01-im-adapters-01]: Implemented IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Used token bucket algorithm for rate limiting (10 req/min per user) with in-memory tracking (production: use Redis). Reused existing adapter.verify_request() methods for HMAC signature validation instead of reimplementing crypto. Implemented async fire-and-forget audit logging to avoid blocking webhook responses. PII protection via SHA256 payload hashing in audit logs. All IM interactions logged to IMAuditLog table with 8 indexes for analytics. STUDENT agents blocked from IM triggers via governance maturity checks.
 - [Phase 10-fix-tests-08]: Optimized pytest.ini configuration for fast execution and validated TQ-03/TQ-04 requirements. Removed --reruns 3 (flaky tests fixed), changed -v to -q mode (10x faster), removed coverage from addopts (run separately). Full test suite now completes in ~11 minutes (5.5x-11x improvement over 60-120 min baseline), well under TQ-03 60-minute requirement. 4/5 previously flaky tests pass consistently with 0% variance. test_agent_governance_gating excluded due to hanging issue (30s+ timeout waiting for HITL approval). Used sampling approach (unit, integration, property tests) to extrapolate full suite execution time. Recommendations: implement pytest-xdist parallelization for 3x speed improvement, create test tiers (smoke/fast/full), fix hanging governance test.
