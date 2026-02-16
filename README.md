@@ -122,9 +122,24 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ## Quick Start
 
-Choose your installation method:
+### ⚡ One-Command Start (Easiest!)
 
-### 🐳 Docker (Easiest - 5 minutes)
+```bash
+git clone https://github.com/rush86999/atom.git
+cd atom
+./start.sh  # macOS/Linux
+# OR
+start.bat  # Windows
+```
+
+Access at: **http://localhost:3000**
+
+[Full Guide →](QUICK_START.md) | [Docker Guide →](docs/PERSONAL_EDITION.md) | [Native Guide →](docs/NATIVE_SETUP.md)
+
+---
+
+### 🐳 Docker (5 minutes - No setup required)
+
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
@@ -132,11 +147,12 @@ cp .env.personal .env
 # Edit .env and add your API keys
 docker-compose -f docker-compose-personal.yml up -d
 ```
+
 Access at: **http://localhost:3000**
 
 [Full Docker Guide →](docs/PERSONAL_EDITION.md)
 
-### 💻 Native Installation (No Docker - 10 minutes)
+### 💻 Native Installation (10 minutes - No Docker)
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
