@@ -4209,6 +4209,61 @@ class GovernanceAuditLog(Base):
     )
 
 
+class IMAuditLog(Base):
+    """
+    Audit trail for all IM platform interactions.
+
+    Purpose:
+    - Compliance (SOC2, HIPAA, GDPR)
+    - Security forensics (detect abuse patterns)
+    - Analytics (platform usage, user activity)
+
+    Tracks:
+    - Webhook receipts and signature verification
+    - Rate limiting events
+    - Governance checks and maturity levels
+    - Command execution results
+    """
+    __tablename__ = "im_audit_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who
+    platform = Column(String, nullable=False, index=True)  # telegram, whatsapp, etc.
+    sender_id = Column(String, nullable=False, index=True)  # User/platform-specific ID
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)  # Atom user (if linked)
+
+    # What
+    action = Column(String, nullable=False)  # webhook_received, command_run, etc.
+    payload_hash = Column(String, nullable=True)  # SHA256 of payload (PII protection)
+    metadata_json = Column(JSON, default=dict)  # Non-sensitive metadata (command, agent, etc.)
+
+    # When
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Outcome
+    success = Column(Boolean, nullable=False)
+    error_message = Column(Text, nullable=True)
+    rate_limited = Column(Boolean, default=False)  # True if request was rate limited
+    signature_valid = Column(Boolean, default=True)  # False if signature verification failed
+
+    # Governance
+    governance_check_passed = Column(Boolean, nullable=True)  # NULL if not checked
+    agent_maturity_level = Column(String, nullable=True)  # STUDENT, INTERN, etc.
+
+    # Relationships
+    user = relationship("User", backref="im_audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_im_audit_logs_platform_sender", "platform", "sender_id", "timestamp"),
+        Index("ix_im_audit_logs_platform_time", "platform", "timestamp"),
+        Index("ix_im_audit_logs_sender_time", "sender_id", "timestamp"),
+        Index("ix_im_audit_logs_rate_limited", "rate_limited", "timestamp"),
+        Index("ix_im_audit_logs_success", "success", "timestamp"),
+    )
+
+
 class SocialPostHistory(Base):
     """
     Social Media Post History
