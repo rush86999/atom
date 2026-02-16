@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 01-im-adapters
-Plan: 04 (IM Adapter Documentation)
+Plan: 05 (Gap Closure: Security Fixes)
 Status: Complete
-Last activity: 2026-02-16 — Created comprehensive IM adapter documentation with 633 lines covering complete Telegram and WhatsApp webhook integration. Produced IM_ADAPTER_SETUP.md (256 lines) with step-by-step setup instructions, troubleshooting guide, and security checklist. Produced IM_SECURITY_BEST_PRACTICES.md (377 lines) with webhook signature verification, rate limiting configuration, governance checks, audit trail logging, 5 common security pitfalls, production deployment checklist, and incident response procedures. Updated README.md with IM Adapters section and documentation links. All documentation follows security-first architecture with production-ready guidance.
+Last activity: 2026-02-16 — Fixed two critical security vulnerabilities in IM adapters. Gap 2 (HIGH): Telegram timing attack vulnerability - replaced == with hmac.compare_digest() for constant-time comparison. Gap 3 (MEDIUM): WhatsApp hardcoded verify token - replaced with os.getenv("WHATSAPP_VERIFY_TOKEN"). Added comprehensive test coverage (test_telegram_constant_time_comparison, test_whatsapp_env_var_loading). Enhanced IM_SECURITY_BEST_PRACTICES.md with timing attack prevention section, environment variables table, and detailed code examples. All 23 tests passing.
 
-Progress: [████] 100% (Phase 01: 4 of 4 plans complete)
+Progress: [████░░] 83% (Phase 01: 5 of 6 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -146,6 +146,8 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 01-im-adapters P02 | 268s | 3 tasks | 3 files |
 | Phase 01-im-adapters P03 | 589 | 2 tasks | 3 files |
 | Phase 01-im-adapters P04 | 230 | 3 tasks | 3 files |
+| Phase 01-im-adapters P05 | 196s | 3 tasks | 4 files |
+| Phase 01-im-adapters P06 | 157 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -153,6 +155,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 01-im-adapters-05]: Fixed two critical security vulnerabilities in IM adapters. Gap 2 (HIGH): Telegram timing attack vulnerability - replaced == with hmac.compare_digest() for constant-time comparison, preventing attackers from measuring response times to guess valid tokens. Gap 3 (MEDIUM): WhatsApp hardcoded verify token - replaced with os.getenv("WHATSAPP_VERIFY_TOKEN", "default_random_token_change_in_prod"). Added comprehensive test coverage with TestSecurityFixes class (test_telegram_constant_time_comparison, test_whatsapp_env_var_loading). Enhanced IM_SECURITY_BEST_PRACTICES.md with timing attack prevention section, environment variables table, and detailed vulnerable/secure code examples. Established security patterns: constant-time comparison mandatory for all secret token validation, environment-based secrets configuration with secure defaults, security test coverage to prevent regressions. All 23 tests passing.
 - [Phase 01-im-adapters-03]: Created comprehensive TDD test suite with 32 tests (21 unit + 11 property-based) achieving 84.94% coverage on IMGovernanceService. Validated webhook signature verification, rate limiting invariants (10 req/min never exceeded), governance checks (STUDENT blocked, AUTONOMOUS allowed), and audit trail logging. Used Hypothesis for property-based testing to validate security invariants that cannot be covered by example-based tests alone. Fixed 2 bugs discovered through property-based testing: UnicodeDecodeError not caught in sender ID extraction (json.loads() on malformed binary payloads), and AttributeError on unexpected payload types (payload.get() returning non-dict values). Created service instances inside Hypothesis tests to avoid health check errors with function-scoped fixtures. Used AsyncMock pattern for mocking async adapter methods. All 32 tests passing with 700 total Hypothesis test cases across all property tests.
 - [Phase 01-im-adapters-02]: Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge endpoint and IMGovernanceService three-stage security pipeline integration. Enhanced Telegram webhook to apply governance to message updates only (callback/inline queries bypass governance as they're UI interactions). Used FastAPI dependency injection pattern (db: Session = Depends(get_db)) for per-request IMGovernanceService instances. Registered both routers in main FastAPI app. Database session dependency injection resolves audit logging requirements. Async fire-and-forget audit logging via BackgroundTasks prevents blocking webhook responses.
 - [Phase 01-im-adapters-01]: Implemented IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Used token bucket algorithm for rate limiting (10 req/min per user) with in-memory tracking (production: use Redis). Reused existing adapter.verify_request() methods for HMAC signature validation instead of reimplementing crypto. Implemented async fire-and-forget audit logging to avoid blocking webhook responses. PII protection via SHA256 payload hashing in audit logs. All IM interactions logged to IMAuditLog table with 8 indexes for analytics. STUDENT agents blocked from IM triggers via governance maturity checks.
@@ -309,8 +312,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16T01:55
-Stopped at: Completed Phase 01-im-adapters Plan 02 - Created WhatsApp webhook routes with IMGovernanceService integration, enhanced Telegram webhook with governance for message updates, registered both routers in main FastAPI app
+Last session: 2026-02-16T02:22
+Stopped at: Completed Phase 01-im-adapters Plan 05 - Fixed two critical security vulnerabilities: Telegram timing attack with hmac.compare_digest(), WhatsApp hardcoded token with os.getenv(), added tests and documentation
 Resume file: None
 Last session: 2026-02-13T11:50
 Stopped at: Completed Phase 08.5 Plan 01 - Created 4 baseline unit test files with 2,272 lines, 188 tests (all passing), achieving 55.30% average coverage on workflow template management, parameter validation, and API endpoints
