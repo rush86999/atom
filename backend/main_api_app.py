@@ -1213,6 +1213,23 @@ except Exception as e:
     logger.warning(f"WhatsApp setup error: {e}")
 
 # ============================================================================
+# IM ADAPTER ROUTES (Telegram & WhatsApp with IMGovernanceService)
+# ============================================================================
+try:
+    from integrations.telegram_routes import router as telegram_router
+    app.include_router(telegram_router)
+    logger.info("✓ Telegram Routes Loaded (with IMGovernanceService)")
+except ImportError as e:
+    logger.warning(f"Telegram routes not found: {e}")
+
+try:
+    from integrations.whatsapp_routes import router as whatsapp_router
+    app.include_router(whatsapp_router)
+    logger.info("✓ WhatsApp Routes Loaded (with IMGovernanceService)")
+except ImportError as e:
+    logger.warning(f"WhatsApp routes not found: {e}")
+
+# ============================================================================
 # USER MANAGEMENT API ROUTES (Frontend to Backend Migration)
 # ============================================================================
 try:
