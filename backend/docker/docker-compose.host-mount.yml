@@ -1,0 +1,34 @@
+# Docker Compose configuration for host filesystem mount
+# OpenClaw Integration: AUTONOMOUS agents can access host directories
+#
+# SECURITY WARNING: This gives container write access to host filesystem.
+# Only use with AUTONOMOUS maturity gate + command whitelist + audit trail.
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.host-mount.yml up
+
+version: '3.8'
+
+services:
+  atom-api:
+    volumes:
+      # Host project directories (read-write)
+      - /Users/${USER}/projects:/host/projects:rw
+      - /Users/${USER}/Desktop:/host/desktop:rw
+      - /Users/${USER}/Documents:/host/documents:rw
+      - /tmp:/host/tmp:rw
+
+    environment:
+      # Configure allowed mount directories
+      - ATOM_HOST_MOUNT_DIRS=/tmp:/Users/${USER}/projects:/Users/${USER}/Desktop:/Users/${USER}/Documents
+      - ATOM_HOST_MOUNT_ENABLED=true
+
+    # Capabilities for filesystem access
+    cap_add:
+      - SYS_ADMIN  # Required for some filesystem operations
+
+    # Security notes
+    # - volumes: Explicitly list only required directories
+    # - environment: ATOM_HOST_MOUNT_DIRS must match volumes
+    # - governance: AUTONOMOUS gate enforced in HostShellService
+    # - audit: All commands logged to ShellSession table
