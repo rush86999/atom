@@ -41,6 +41,23 @@ Without signature verification, attackers can:
 result = await im_governance.verify_and_rate_limit(request, body_bytes)
 ```
 
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TELEGRAM_SECRET_TOKEN` | None | Secret token for Telegram webhook verification |
+| `TELEGRAM_BOT_TOKEN` | None | Bot API token for sending messages |
+| `WHATSAPP_VERIFY_TOKEN` | `default_random_token_change_in_prod` | Verify token for WhatsApp webhook setup |
+| `WHATSAPP_APP_SECRET` | None | App secret for HMAC signature verification |
+| `IM_RATE_LIMIT_REQUESTS` | 10 | Max requests per window per user |
+| `IM_RATE_LIMIT_WINDOW_SECONDS` | 60 | Time window in seconds |
+
+**Security Notes:**
+- Generate secrets with: `openssl rand -hex 16` or `openssl rand -base64 32`
+- Never commit secrets to Git
+- Rotate secrets every 90 days
+- Use different secrets for dev/staging/production
+
 ### Security Rules
 
 1. **ALWAYS** verify signatures before processing webhook payload
@@ -131,13 +148,6 @@ Examples:
 - **Memory-efficient**: Old timestamps automatically cleaned up
 - **Single-worker**: In-memory store doesn't share across workers
 - **Latency**: <1ms per check (in-memory lookup)
-
-#### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `IM_RATE_LIMIT_REQUESTS` | 10 | Max requests per window |
-| `IM_RATE_LIMIT_WINDOW_SECONDS` | 60 | Time window in seconds |
 
 ### Tuning Rate Limits
 
@@ -288,23 +298,7 @@ session.commit()
 
 ## Common Security Pitfalls
 
-### 1. Timing Attacks on Signature Verification
-
-**Problem**: Using `==` for HMAC comparison allows attackers to guess valid signatures by measuring response times.
-
-**Wrong**:
-```python
-if signature == expected_signature:  # VULNERABLE
-    return True
-```
-
-**Correct**:
-```python
-if hmac.compare_digest(signature, expected_signature):  # SAFE
-    return True
-```
-
-### 2. Logging Sensitive Data
+### 1. Logging Sensitive Data
 
 **Problem**: Logging raw webhook payloads exposes PII (phone numbers, message content).
 
@@ -319,7 +313,7 @@ payload_hash = hashlib.sha256(str(payload).encode()).hexdigest()
 logger.info(f"Received payload hash: {payload_hash}")  # SAFE
 ```
 
-### 3. Skipping Rate Limiting for "Trusted" Platforms
+### 2. Skipping Rate Limiting for "Trusted" Platforms
 
 **Problem**: All platforms should be rate limited, even if "trusted."
 
@@ -335,7 +329,7 @@ if platform == "slack":
 # Use whitelist for specific trusted users if needed
 ```
 
-### 4. Synchronous Audit Logging
+### 3. Synchronous Audit Logging
 
 **Problem**: Blocking request processing on database writes increases latency.
 
@@ -352,7 +346,7 @@ asyncio.create_task(write_audit_log(...))  # NON-BLOCKING
 return response
 ```
 
-### 5. Hardcoded Secrets
+### 4. Hardcoded Secrets
 
 **Problem**: Secrets in code can be exposed via Git history.
 
