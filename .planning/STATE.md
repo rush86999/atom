@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 12-tier-1-coverage-push
-Plan: 04 (Debugger + Completion)
+Phase: 01-im-adapters
+Plan: 01 (IMGovernanceService Implementation)
 Status: Complete
-Last activity: 2026-02-15 — Phase 12 COMPLETE: Achieved 55.53% average coverage on all 6 Tier 1 files (>500 lines), exceeding 50% target by 5.53 percentage points. Created 191 tests across unit, integration, and property test types. Validated 3.38x velocity acceleration from file-size prioritization. Coverage highlights: models.py 97.30%, atom_agent_endpoints.py 55.32%, workflow_debugger.py 46.02%, workflow_analytics_engine.py 27.77%, byok_handler.py 11.27%, workflow_engine.py 9.17%. Overall coverage increase: +5.5 percentage points (target: +5.2%). Phase 12 summary document created with Phase 13 recommendations targeting Tier 2 files (300-500 lines).
+Last activity: 2026-02-15 — Created IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Implemented token bucket rate limiting (10 req/min), webhook signature verification reusing existing adapters, governance maturity checks via GovernanceCache, and comprehensive audit trail with IMAuditLog model. Database migration applied successfully with 8 indexes. All verification checks passed.
 
-Progress: [██████████] 100% (Phase 12: 4 of 4 plans complete)
+Progress: [█] 25% (Phase 01: 1 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -25,7 +25,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
+- Total plans completed: 45
 - Average duration: 11 min
 - Total execution time: 7.9 hours
 
@@ -150,6 +150,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 01-im-adapters-01]: Implemented IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Used token bucket algorithm for rate limiting (10 req/min per user) with in-memory tracking (production: use Redis). Reused existing adapter.verify_request() methods for HMAC signature validation instead of reimplementing crypto. Implemented async fire-and-forget audit logging to avoid blocking webhook responses. PII protection via SHA256 payload hashing in audit logs. All IM interactions logged to IMAuditLog table with 8 indexes for analytics. STUDENT agents blocked from IM triggers via governance maturity checks.
 - [Phase 10-fix-tests-08]: Optimized pytest.ini configuration for fast execution and validated TQ-03/TQ-04 requirements. Removed --reruns 3 (flaky tests fixed), changed -v to -q mode (10x faster), removed coverage from addopts (run separately). Full test suite now completes in ~11 minutes (5.5x-11x improvement over 60-120 min baseline), well under TQ-03 60-minute requirement. 4/5 previously flaky tests pass consistently with 0% variance. test_agent_governance_gating excluded due to hanging issue (30s+ timeout waiting for HITL approval). Used sampling approach (unit, integration, property tests) to extrapolate full suite execution time. Recommendations: implement pytest-xdist parallelization for 3x speed improvement, create test tiers (smoke/fast/full), fix hanging governance test.
 - [Phase 10-fix-tests-03]: Test suite requires optimization for practical execution. Unable to complete TQ-02 verification (98% pass rate across 3 runs) due to test suite scale (10,513 tests) and execution time (1-2+ hours per run). Documented findings and recommendations including test parallelization infrastructure, suite segmentation (smoke/full/critical), performance optimization (aggressive mocking, in-memory databases), and test pruning. Status: BLOCKED - requires Phase 11 infrastructure work.
 - [Phase 10-fix-tests-05]: Documented severe test suite performance and flakiness issues preventing TQ-03 (<60 min execution) and TQ-04 (no flaky tests) validation. Identified 10,513 tests with 5+ flaky tests causing RERUN loops (test_agent_cancellation, test_security_config, test_agent_governance_runtime). Execution stuck at 0-23% in >10 minutes due to pytest-rerunfailures masking underlying issues. Root causes: race conditions in task registry, missing test isolation, external service dependencies not mocked, environment variable leakage. Recommended fixes: database transaction rollback, unique IDs (uuid4), mock BYOK client and governance cache, isolate environment variables with monkeypatch fixture. Optimize pytest config: use -q instead of -v, remove --reruns 3, add --maxfail 10, separate test suites by tier. Next phase needed to fix flaky tests before TQ-03/TQ-04 validation.
