@@ -404,6 +404,329 @@ class AgentSocialLayer:
 
         return trending[:10]  # Top 10
 
+    async def add_reply(
+        self,
+        post_id: str,
+        sender_type: str,
+        sender_id: str,
+        sender_name: str,
+        content: str,
+        sender_maturity: Optional[str] = None,
+        sender_category: Optional[str] = None,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Add reply to post (feedback loop to agents).
+
+        Users can reply to agent posts. Agents can respond to replies.
+        Creates new post with reply_to_id set.
+
+        Args:
+            post_id: Parent post ID
+            sender_type: "agent" or "human"
+            sender_id: Agent or user ID
+            sender_name: Display name
+            content: Reply content
+            sender_maturity: For agents (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+            sender_category: For agents (engineering, sales, support, etc.)
+            db: Database session
+
+        Returns:
+            Created reply post data
+
+        Raises:
+            ValueError: If post not found
+            PermissionError: If STUDENT agent tries to reply
+        """
+        if not db:
+            raise ValueError("Database session required")
+
+        parent_post = db.query(AgentPost).filter(AgentPost.id == post_id).first()
+        if not parent_post:
+            raise ValueError(f"Post {post_id} not found")
+
+        # Check maturity for agent senders
+        if sender_type == "agent":
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == sender_id).first()
+            if not agent:
+                raise PermissionError(f"Agent {sender_id} not found")
+
+            sender_maturity = agent.status
+            sender_category = agent.category
+
+            # STUDENT agents cannot reply
+            if sender_maturity == "STUDENT":
+                raise PermissionError(
+                    f"STUDENT agents cannot reply to posts. "
+                    f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"
+                )
+
+        # Create reply post
+        reply = await self.create_post(
+            sender_type=sender_type,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            post_type="response",
+            content=content,
+            sender_maturity=sender_maturity,
+            sender_category=sender_category,
+            db=db
+        )
+
+        # Link to parent post
+        reply_obj = db.query(AgentPost).filter(AgentPost.id == reply["id"]).first()
+        if reply_obj:
+            reply_obj.reply_to_id = post_id
+            db.commit()
+
+        # Increment parent reply count
+        parent_post.reply_count += 1
+        db.commit()
+
+        self.logger.info(
+            f"{sender_type} {sender_id} replied to post {post_id}: {content[:50]}..."
+        )
+
+        return reply
+
+    async def get_feed_cursor(
+        self,
+        sender_id: str,
+        cursor: Optional[str] = None,
+        limit: int = 50,
+        post_type: Optional[str] = None,
+        sender_filter: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        is_public: Optional[bool] = None,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Get feed with cursor-based pagination.
+
+        Uses cursor (timestamp) instead of offset for stable ordering
+        in real-time feeds (no duplicates when new posts arrive).
+
+        Args:
+            sender_id: Requester ID (for logging)
+            cursor: ISO timestamp of last post (get posts before this time)
+            limit: Max posts to return
+            post_type: Filter by post_type (optional)
+            sender_filter: Filter by specific sender
+            channel_id: Filter by channel
+            is_public: Filter by public/private
+            db: Database session
+
+        Returns:
+            Feed with next_cursor for pagination
+        """
+        if not db:
+            return {"posts": [], "next_cursor": None, "has_more": False}
+
+        query = db.query(AgentPost)
+
+        # Apply filters
+        if post_type:
+            query = query.filter(AgentPost.post_type == post_type)
+        if sender_filter:
+            query = query.filter(AgentPost.sender_id == sender_filter)
+        if channel_id:
+            query = query.filter(AgentPost.channel_id == channel_id)
+        if is_public is not None:
+            query = query.filter(AgentPost.is_public == is_public)
+
+        # Apply cursor (get posts before this timestamp)
+        if cursor:
+            try:
+                cursor_time = datetime.fromisoformat(cursor)
+                query = query.filter(AgentPost.created_at < cursor_time)
+            except ValueError:
+                self.logger.warning(f"Invalid cursor format: {cursor}")
+
+        # Order by created_at DESC
+        query = query.order_by(desc(AgentPost.created_at))
+
+        # Fetch one extra to check has_more
+        posts = query.limit(limit + 1).all()
+        has_more = len(posts) > limit
+        posts = posts[:limit]
+
+        # Generate next cursor (last post's created_at)
+        next_cursor = None
+        if posts and has_more:
+            next_cursor = posts[-1].created_at.isoformat()
+
+        return {
+            "posts": [
+                {
+                    "id": p.id,
+                    "sender_type": p.sender_type,
+                    "sender_id": p.sender_id,
+                    "sender_name": p.sender_name,
+                    "sender_maturity": p.sender_maturity,
+                    "sender_category": p.sender_category,
+                    "recipient_type": p.recipient_type,
+                    "recipient_id": p.recipient_id,
+                    "is_public": p.is_public,
+                    "channel_id": p.channel_id,
+                    "channel_name": p.channel_name,
+                    "post_type": p.post_type,
+                    "content": p.content,
+                    "mentioned_agent_ids": p.mentioned_agent_ids,
+                    "mentioned_user_ids": p.mentioned_user_ids,
+                    "mentioned_episode_ids": p.mentioned_episode_ids,
+                    "mentioned_task_ids": p.mentioned_task_ids,
+                    "reactions": p.reactions,
+                    "reply_count": p.reply_count,
+                    "reply_to_id": p.reply_to_id,
+                    "read_at": p.read_at.isoformat() if p.read_at else None,
+                    "auto_generated": p.auto_generated,
+                    "created_at": p.created_at.isoformat()
+                }
+                for p in posts
+            ],
+            "next_cursor": next_cursor,
+            "has_more": has_more
+        }
+
+    async def create_channel(
+        self,
+        channel_id: str,
+        channel_name: str,
+        creator_id: str,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+        channel_type: str = "general",
+        is_public: bool = True,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Create new channel for contextual conversations.
+
+        Channels: project, support, engineering, general
+
+        Args:
+            channel_id: Unique channel ID
+            channel_name: Unique channel name (e.g., "project-xyz", "support")
+            creator_id: User creating the channel
+            display_name: Human-readable display name
+            description: Optional description
+            channel_type: Type of channel (project, support, engineering, general)
+            is_public: Whether channel is public or private
+            db: Database session
+
+        Returns:
+            Created channel data
+        """
+        if not db:
+            raise ValueError("Database session required")
+
+        from core.models import Channel
+
+        # Check if channel exists
+        existing = db.query(Channel).filter(Channel.id == channel_id).first()
+        if existing:
+            return {"id": existing.id, "name": existing.name, "exists": True}
+
+        channel = Channel(
+            id=channel_id,
+            name=channel_name,
+            display_name=display_name or channel_name,
+            description=description,
+            channel_type=channel_type,
+            is_public=is_public,
+            created_by=creator_id,
+            created_at=datetime.utcnow()
+        )
+        db.add(channel)
+        db.commit()
+
+        await agent_event_bus.publish({
+            "type": "channel_created",
+            "channel_id": channel_id,
+            "channel_name": channel_name,
+            "display_name": display_name or channel_name
+        }, ["global"])
+
+        self.logger.info(f"Channel created: {channel_id} ({channel_name}) by {creator_id}")
+
+        return {"id": channel.id, "name": channel.name, "created": True}
+
+    async def get_channels(self, db: Session = None) -> List[Dict[str, Any]]:
+        """
+        Get all available channels.
+
+        Args:
+            db: Database session
+
+        Returns:
+            List of channels
+        """
+        if not db:
+            return []
+
+        from core.models import Channel
+
+        channels = db.query(Channel).all()
+        return [
+            {
+                "id": c.id,
+                "name": c.name,
+                "display_name": c.display_name,
+                "description": c.description,
+                "channel_type": c.channel_type,
+                "is_public": c.is_public,
+                "created_by": c.created_by,
+                "created_at": c.created_at.isoformat()
+            }
+            for c in channels
+        ]
+
+    async def get_replies(
+        self,
+        post_id: str,
+        limit: int = 50,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Get all replies to a post.
+
+        Returns posts sorted by created_at ASC (conversation order).
+
+        Args:
+            post_id: Parent post ID
+            limit: Max replies to return
+            db: Database session
+
+        Returns:
+            Replies with total count
+        """
+        if not db:
+            return {"replies": [], "total": 0}
+
+        # Query posts that reply to this post
+        replies = db.query(AgentPost).filter(
+            AgentPost.reply_to_id == post_id
+        ).order_by(AgentPost.created_at).limit(limit).all()
+
+        return {
+            "replies": [
+                {
+                    "id": r.id,
+                    "sender_type": r.sender_type,
+                    "sender_id": r.sender_id,
+                    "sender_name": r.sender_name,
+                    "sender_maturity": r.sender_maturity,
+                    "sender_category": r.sender_category,
+                    "content": r.content,
+                    "post_type": r.post_type,
+                    "created_at": r.created_at.isoformat(),
+                    "reactions": r.reactions
+                }
+                for r in replies
+            ],
+            "total": len(replies)
+        }
+
 
 # Global service instance
 agent_social_layer = AgentSocialLayer()

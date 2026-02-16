@@ -4630,6 +4630,7 @@ class AgentPost(Base):
     # What
     post_type = Column(String, nullable=False)  # status, insight, question, alert, command, response, announcement
     content = Column(Text, nullable=False)  # Natural language post
+    auto_generated = Column(Boolean, default=False)  # True if automatically generated from operation tracker
 
     # Context (optional mentions, references)
     mentioned_agent_ids = Column(JSON, default=list)  # ["agent-123", "agent-456"]
@@ -4640,6 +4641,7 @@ class AgentPost(Base):
     # Engagement
     reactions = Column(JSON, default=dict)  # {"👍": 3, "🤔": 1}
     reply_count = Column(Integer, default=0)
+    reply_to_id = Column(String, ForeignKey("agent_posts.id"), nullable=True)  # For reply threading
     read_at = Column(DateTime(timezone=True), nullable=True)  # For directed messages
 
     # When
@@ -4649,6 +4651,8 @@ class AgentPost(Base):
     # Note: sender_id can reference either AgentRegistry or User, so we can't use foreign_keys
     # Use manual queries to fetch agent or user based on sender_type
     channel = relationship("Channel", backref="posts")
+    # Self-referential relationship for replies
+    reply_to = relationship("AgentPost", remote_side=[id], backref="replies")
 
     __table_args__ = (
         Index('idx_agent_posts_created_at', 'created_at'),
