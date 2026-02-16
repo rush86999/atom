@@ -2,7 +2,7 @@
 phase: 10-fix-tests
 plan: 07
 type: execute
-wave: 1
+wave: 2
 depends_on:
   - phase: 10-fix-tests
     plan: 06
@@ -18,8 +18,8 @@ must_haves:
   truths:
     - "test_default_secret_key_in_development passes without RERUN loops (environment isolated)"
     - "test_agent_governance_gating completes without continuous RERUN (external dependencies mocked)"
-    - "Security config tests use monkeypatch for environment variable isolation"
-    - "Governance runtime tests mock BYOK client and governance cache"
+    - "Environment variable changes in one test don't affect other tests"
+    - "Governance runtime tests complete without external service connections"
   artifacts:
     - path: "tests/test_security_config.py"
       provides: "Isolated security configuration tests"

@@ -2,37 +2,45 @@
 phase: 10-fix-tests
 plan: 04
 type: execute
-wave: 2
-depends_on: ["10-fix-tests-01", "10-fix-tests-02", "10-fix-tests-03"]
+wave: 1
+depends_on: []
 files_modified:
-  - .planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md
+  - tests/unit/governance/test_agent_graduation_governance.py
+  - tests/factories/agent_factory.py
 autonomous: true
 
 must_haves:
   truths:
-    - Full test suite executes in <60 minutes (TQ-03 requirement)
-    - No flaky tests detected across 3 consecutive runs (TQ-04 requirement)
-    - Test execution time is documented and measured
+    - Agent factories use correct parameters for AgentRegistry model (configuration field, not metadata_json)
+    - Graduation governance tests pass without TypeError or flaky reruns
+    - Tests correctly verify agent promotion and maturity level updates
   artifacts:
-    - path: ".planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md"
-      provides: "Test suite execution time and flakiness report"
-      contains: "execution_time"
+    - path: "tests/unit/governance/test_agent_graduation_governance.py"
+      provides: "Graduation governance unit tests"
+      contains: "TestPermissionMatrixValidation"
+    - path: "tests/factories/agent_factory.py"
+      provides: "Test data factories for agents"
+      contains: "AgentRegistry"
   key_links:
-    - from: "pytest"
-      to: "test suite"
-      via: "test execution"
-      pattern: "pytest tests/"
+    - from: "tests/factories/agent_factory.py"
+      to: "core.models.AgentRegistry"
+      via: "factory_boy"
+      pattern: "class .*AgentFactory"
 ---
 
 <objective>
-Verify test suite performance and stability (TQ-03 and TQ-04)
+Fix graduation governance test failures due to invalid factory parameters
 
-**Purpose**: Phase 10 requirements state that (TQ-03) the test suite must run in <60 minutes and (TQ-04) have no flaky tests across 3 consecutive runs. This plan measures and verifies both requirements.
+**Purpose**: 3 graduation governance tests fail with flaky reruns because test factories pass `metadata_json={}` parameter to AgentRegistry, but the model uses `configuration` field instead. Additionally, tests may be timing-dependent causing flaky behavior.
 
-**TQ-03**: Test suite runs successfully in <60 minutes
-**TQ-04**: No flaky tests across 3 consecutive runs
+**Actual failures** (from test run with 3 reruns):
+1. test_promote_agent_updates_maturity_level - flaky, fails on reruns
+2. test_promote_with_invalid_maturity_returns_false - flaky, fails on reruns
+3. test_promotion_metadata_updated - flaky, fails on reruns
 
-**Output**: Documented test execution time and flakiness report
+**Root Cause**: Factory Boy configurations use `metadata_json={}` parameter but AgentRegistry model has `configuration` field (JSON). This causes test instability and flaky behavior.
+
+**Output**: All 3 graduation governance tests pass consistently (no flaky reruns)
 </objective>
 
 <execution_context>
@@ -42,132 +50,136 @@ Verify test suite performance and stability (TQ-03 and TQ-04)
 
 <context>
 @.planning/ROADMAP.md
+@backend/core/models.py
+@backend/tests/factories/agent_factory.py
+@backend/tests/unit/governance/test_agent_graduation_governance.py
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Measure full test suite execution time (TQ-03)</name>
-  <files>tests/</files>
+  <name>Task 1: Verify AgentRegistry model fields and identify issue</name>
+  <files>core/models.py</files>
   <action>
-Run the full test suite and measure execution time:
+Check AgentRegistry model definition to confirm field names:
 
-1. Start timer
-2. Run: `PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v --tb=short`
-3. Record execution time from pytest output (look for "X.XXs" or similar timing)
-4. Count total tests passed/failed/skipped
+1. Read `class AgentRegistry` in `core/models.py` (around line 562)
+2. List all JSON/Column fields
+3. Confirm: The model has `configuration` JSON field, NOT `metadata_json`
 
-**Command**:
-```bash
-time PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v --tb=short --maxfail=50 2>&1 | tee /tmp/test_run_1.txt
-```
+Expected findings:
+- `configuration = Column(JSON, default={})` exists
+- `metadata_json` does NOT exist
+- `schedule_config = Column(JSON, default={})` exists
 
-**Expected**: All tests complete, execution time recorded
-**Acceptance**: Time < 60 minutes (3600 seconds)
-
-**If >60 minutes**:
-- Note which test modules take longest
-- Identify potential optimizations (e.g., better parallelization, skipping slow tests)
-- Document findings for future improvement
+The tests pass `metadata_json={}` to factories but the model doesn't have this field.
 </action>
   <verify>
-# Check execution time from pytest output
-grep -E "collected|passed|failed|in [0-9]" /tmp/test_run_1.txt | tail -5
-Expected: "in XXX.XXs" where XXX < 60.00 (minutes) or total time < 3600 seconds
+grep -A 30 "class AgentRegistry" /Users/rushiparikh/projects/atom/backend/core/models.py | grep -E "Column|JSON|configuration"
+Expected output should show `configuration` as JSON field, no `metadata_json`
 </verify>
   <done>
-Full test suite execution measured and documented. Time is <60 minutes or optimization plan documented.
+Confirmed: AgentRegistry has `configuration` field, not `metadata_json`.
 </done>
 </task>
 
 <task type="auto">
-  <name>Task 2: Run test suite 3 times to detect flaky tests (TQ-04)</name>
-  <files>tests/</files>
+  <name>Task 2: Fix agent factory configurations</name>
+  <files>tests/factories/agent_factory.py</files>
   <action>
-Run the test suite 3 times and compare results to detect flakiness:
+Update agent factory classes to remove invalid `metadata_json` parameter:
 
-1. **Run 1**: Already completed in Task 1, save results
-2. **Run 2**: `PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --tb=no -q 2>&1 | tee /tmp/test_run_2.txt`
-3. **Run 3**: `PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --tb=no -q 2>&1 | tee /tmp/test_run_3.txt`
+**Problem**: Factories pass `metadata_json={}` but AgentRegistry doesn't have this field.
 
-**Compare results**:
-```bash
-# Extract test counts
-echo "Run 1:" && grep -E "passed|failed" /tmp/test_run_1.txt | tail -1
-echo "Run 2:" && grep -E "passed|failed" /tmp/test_run_2.txt | tail -1
-echo "Run 3:" && grep -E "passed|failed" /tmp/test_run_3.txt | tail -1
+**Fix**: Remove `metadata_json` from all agent factory classes:
+- StudentAgentFactory
+- InternAgentFactory
+- SupervisedAgentFactory
+- AutonomousAgentFactory
+
+**Action**:
+1. Find all occurrences of `metadata_json` in agent_factory.py
+2. Remove the parameter from factory class definitions
+3. If factories need default configuration, use `configuration={}` instead (matches AgentRegistry model)
+
+**Example**:
+```python
+# Before (broken):
+class StudentAgentFactory(BaseFactory):
+    class Meta:
+        model = AgentRegistry
+    metadata_json = {}
+
+# After (fixed):
+class StudentAgentFactory(BaseFactory):
+    class Meta:
+        model = AgentRegistry
+    # Remove metadata_json entirely or use:
+    configuration = {}  # This matches the actual model field
 ```
-
-**Flaky test definition**:
-- Test passes in some runs but fails in others
-- Test fails intermittently with same code
-
-**If flaky tests found**:
-- List which tests are flaky
-- Identify the pattern (timing, resource contention, etc.)
-- Document for resolution
-
-**Acceptance**: All 3 runs have identical pass/fail counts
 </action>
   <verify>
-# Compare results across 3 runs
-grep -h "passed.*failed" /tmp/test_run_*.txt | sort | uniq -c
-Expected: All 3 runs show identical results (3 occurrences of same count)
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend python -c "from tests.factories import StudentAgentFactory; print('Factory OK')" 2>&1
+Expected: "Factory OK" with no TypeError about invalid keyword argument
 </verify>
   <done>
-Test suite run 3 times with consistent results. No flaky tests detected, or flaky tests documented.
+Agent factory classes use correct AgentRegistry parameters. No `metadata_json` errors.
 </done>
 </task>
 
 <task type="auto">
-  <name>Task 3: Document test suite performance and stability report</name>
-  <files>.planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md</files>
+  <name>Task 3: Fix test code that uses metadata_json parameter</name>
+  <files>tests/unit/governance/test_agent_graduation_governance.py</files>
   <action>
-Create summary report with execution time and flakiness findings:
+Find and remove `metadata_json={}` from test code:
 
-**Report contents**:
-1. **Execution Time** (TQ-03):
-   - Total time for full test suite
-   - Pass/fail/skip counts
-   - Meets <60 minute requirement: YES/NO
+1. Search for `metadata_json` in test_agent_graduation_governance.py
+2. Remove the parameter from all factory calls
+3. Don't replace with `configuration={}` unless tests specifically need it
 
-2. **Flakiness Analysis** (TQ-04):
-   - Results from 3 consecutive runs
-   - Consistent results: YES/NO
-   - Flaky tests identified (if any): list
+**Tests to fix** (from flaky failures):
+- Line 248: `test_promote_agent_updates_maturity_level` has `metadata_json={}`
+- Line 282: `test_promote_with_invalid_maturity_returns_false` has `metadata_json={}`
+- Line 296: `test_promotion_metadata_updated` has `metadata_json={}`
 
-3. **Recommendations**:
-   - If >60 minutes: suggestions for optimization
-   - If flaky tests found: suggestions for fixing
+**Fix**:
+```python
+# Before:
+agent = StudentAgentFactory(_session=db_session, metadata_json={})
 
-4. **Test Suite Health**: Overall assessment (HEALTHY/NEEDS ATTENTION)
+# After:
+agent = StudentAgentFactory(_session=db_session)
+```
+
+The flaky behavior (reruns) likely comes from pytest rerunfailures plugin detecting test instability caused by the invalid parameter.
 </action>
   <verify>
-cat .planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md | grep -E "Execution Time|Flakiness|HEALTHY"
-Expected: Report exists with all required sections
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_agent_graduation_governance.py::TestPermissionMatrixValidation -v 2>&1 | grep -E "passed|failed|RERUN"
+Expected: "10 passed" with 0 RERUN indicators (all tests pass consistently)
 </verify>
   <done>
-Test suite performance and stability report created with clear TQ-03 and TQ-04 status.
+All 3 graduation governance tests pass consistently without flaky reruns. No `metadata_json` in test code.
 </done>
 </task>
 
 </tasks>
 
 <verification>
-1. Execution time measured and <60 minutes confirmed (or optimization plan documented)
-2. 3 test runs completed with consistent results (no flakiness)
-3. Summary report documents all findings clearly
+1. All graduation governance tests pass: `pytest tests/unit/governance/test_agent_graduation_governance.py -v` shows 28/28 passed
+2. No flaky reruns (RERUN markers in output)
+3. No `TypeError: 'metadata_json' is an invalid keyword argument for AgentRegistry`
+4. Factories create valid agent instances for all maturity levels
 </verification>
 
 <success_criteria>
-- TQ-03: Test suite runs in <60 minutes OR clear path to <60 minutes documented
-- TQ-04: No flaky tests across 3 runs OR all flaky tests identified and documented
-- Report created with clear PASS/FAIL status for each requirement
+- All 28 graduation governance tests pass (3 were failing/flaky, now fixed)
+- Factory Boy configurations match current AgentRegistry model schema
+- Tests run consistently without rerunfailures plugin triggering
 </success_criteria>
 
 <output>
-After completion, `.planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md` contains:
-- TQ-03 status: PASS/FAIL with execution time
-- TQ-04 status: PASS/FAIL with flakiness analysis
-- Recommendations for any failures
+After completion, create `.planning/phases/10-fix-tests/10-fix-tests-04-SUMMARY.md` with:
+- Fixed parameter (metadata_json removed from factories and tests)
+- Number of factories updated
+- Final test count (28/28 passed, no flaky behavior)
 </output>

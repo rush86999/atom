@@ -2,40 +2,38 @@
 phase: 10-fix-tests
 plan: 03
 type: execute
-wave: 1
-depends_on: []
+wave: 2
+depends_on: ["10-fix-tests-01", "10-fix-tests-02"]
 files_modified:
-  - tests/unit/governance/test_agent_graduation_governance.py
-  - tests/factories/agent_factory.py
+  - .planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md
 autonomous: true
 
 must_haves:
   truths:
-    - Agent factories use correct parameters for AgentRegistry model
-    - Graduation governance tests pass without TypeError
-    - Tests correctly verify agent promotion and maturity level updates
+    - Full test suite run 3 times with >= 98% pass rate each time (TQ-02 requirement)
+    - Pass rate calculated as (passed / (passed + failed)) * 100
+    - Skipped tests excluded from pass rate calculation
   artifacts:
-    - path: "tests/unit/governance/test_agent_graduation_governance.py"
-      provides: "Graduation governance unit tests"
-      contains: "TestPermissionMatrixValidation"
-    - path: "tests/factories/agent_factory.py"
-      provides: "Test data factories for agents"
-      contains: "AgentRegistry"
+    - path: ".planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md"
+      provides: "Pass rate verification report"
+      contains: "pass_rate"
   key_links:
-    - from: "tests/factories/agent_factory.py"
-      to: "core.models.AgentRegistry"
-      via: "factory_boy"
-      pattern: "class .*AgentFactory"
+    - from: "pytest"
+      to: "test suite"
+      via: "test execution"
+      pattern: "pytest tests/"
 ---
 
 <objective>
-Fix graduation governance test failures due to invalid factory parameters
+Verify 98%+ test pass rate (TQ-02)
 
-**Purpose**: 6 graduation governance tests fail because test factories pass `metadata_json={}` parameter to AgentRegistry, but the model doesn't accept this parameter.
+**Purpose**: Phase 10 requirement TQ-02 states the test suite must achieve >= 98% pass rate. This plan runs the full test suite 3 times and verifies the pass rate meets the requirement.
 
-**Root Cause**: Factory Boy configurations use outdated AgentRegistry model signature. The `metadata_json` field may have been removed or renamed in the model.
+**TQ-02**: Test suite achieves >= 98% pass rate across 3 consecutive runs
 
-**Output**: All 6 graduation governance tests pass
+**Calculation**: pass_rate = (passed / (passed + failed)) * 100
+
+**Output**: Documented pass rate verification report
 </objective>
 
 <execution_context>
@@ -45,124 +43,148 @@ Fix graduation governance test failures due to invalid factory parameters
 
 <context>
 @.planning/ROADMAP.md
-@backend/core/models.py
-@backend/tests/factories/agent_factory.py
-@backend/tests/unit/governance/test_agent_graduation_governance.py
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Identify correct AgentRegistry parameters</name>
-  <files>core/models.py</files>
+  <name>Task 1: Run full test suite 3 times and collect pass/fail counts</name>
+  <files>tests/</files>
   <action>
-Check AgentRegistry model definition to find valid parameters:
+Run the full test suite 3 times to measure consistent pass rate:
 
-1. Search for `class AgentRegistry` in `core/models.py`
-2. List all Column and field definitions
-3. Identify which fields are writable vs computed
-4. Check if `metadata_json` exists under a different name (e.g., `metadata`, `config`)
+**Note**: Property test collection errors (from Plan 01) and other test fixes (from Plan 02) must be complete first.
 
-Command: `grep -A 50 "class AgentRegistry" core/models.py | grep -E "Column|metadata|json"`
+**Commands**:
+```bash
+# Run 1
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --tb=no -q 2>&1 | tee /tmp/pass_rate_run_1.txt
 
-Expected output: List of valid field names for AgentRegistry
-</action>
-  <verify>
-# After inspection, the correct field name should be identified
-# Common alternatives: metadata, configuration, settings
-</verify>
-  <done>
-Identified valid AgentRegistry field names. Confirmed whether metadata_json exists or needs replacement.
-</done>
-</task>
+# Run 2
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --tb=no -q 2>&1 | tee /tmp/pass_rate_run_2.txt
 
-<task type="auto">
-  <name>Task 2: Fix agent factory configurations</name>
-  <files>tests/factories/agent_factory.py</files>
-  <action>
-Update agent factory classes to use correct parameters:
+# Run 3
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --tb=no -q 2>&1 | tee /tmp/pass_rate_run_3.txt
+```
 
-**If `metadata_json` doesn't exist**:
-1. Remove `metadata_json` from all factory class definitions
-2. Update factory `Meta.model` if needed
-3. Check for any other outdated parameters
-
-**If `metadata_json` was renamed**:
-1. Replace `metadata_json` with correct field name
-2. Update all factory classes: StudentAgentFactory, InternAgentFactory, etc.
-
-**Classes to check**:
-- StudentAgentFactory
-- InternAgentFactory
-- SupervisedAgentFactory
-- AutonomousAgentFactory
-
-**Pattern**: Find and replace `metadata_json` occurrences or remove entirely if not valid.
-</action>
-  <verify>
-PYTHONPATH=/Users/rushiparikh/projects/atom/backend python -c "from tests.factories import StudentAgentFactory; print('Factory imports successfully')" 2>&1
-Expected: No ImportError or TypeError
-</verify>
-  <done>
-Agent factory classes use correct AgentRegistry parameters. No `metadata_json` errors.
-</done>
-</task>
-
-<task type="auto">
-  <name>Task 3: Fix test code that uses metadata_json parameter</name>
-  <files>tests/unit/governance/test_agent_graduation_governance.py</files>
-  <action>
-Find and fix test code that directly passes `metadata_json`:
-
-1. Search for `metadata_json` in the test file
-2. Remove or replace the parameter in test code
-3. Update test assertions if they depend on metadata values
-
-**Tests to fix** (from failures):
-- test_promote_agent_updates_maturity_level
-- test_promote_with_invalid_maturity_returns_false
-- test_promotion_metadata_updated
-- test_performance_trend_calculation
-- test_promote_agent_updates_timestamp
-- test_constitutional_score_with_none_values
-
-**Example fix**:
-```python
-# Before (broken):
-agent = StudentAgentFactory(_session=db_session, metadata_json={})
-
-# After (fixed):
-agent = StudentAgentFactory(_session=db_session)
-# or if metadata field exists with different name:
-agent = StudentAgentFactory(_session=db_session, metadata={})
+**Extract metrics**:
+```bash
+# Get counts from each run
+for i in 1 2 3; do
+  echo "Run $i:"
+  grep -E "passed|failed|skipped" /tmp/pass_rate_run_$i.txt | tail -1
+done
 ```
 </action>
   <verify>
-PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_agent_graduation_governance.py -v 2>&1 | grep -E "passed|failed"
-Expected: "28 passed" (all tests, currently 22 passed, 6 failed)
+# Verify we have 3 complete test runs
+ls -la /tmp/pass_rate_run_*.txt 2>&1 | wc -l
+Expected: 3 files exist
 </verify>
   <done>
-All 6 graduation governance tests pass. Factory creates valid AgentRegistry instances.
+Full test suite run 3 times with results saved to /tmp/pass_rate_run_*.txt
+</done>
+</task>
+
+<task type="auto">
+  <name>Task 2: Calculate pass rate for each run</name>
+  <files>.planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md</files>
+  <action>
+Calculate pass rate for each run using the formula:
+pass_rate = (passed / (passed + failed)) * 100
+
+**Parse each run output**:
+```bash
+# Example output: "10176 passed, 50 failed, 100 skipped"
+# Extract counts and calculate:
+# pass_rate = 10176 / (10176 + 50) * 100 = 99.51%
+```
+
+**For each run**:
+1. Extract passed count (e.g., 10176)
+2. Extract failed count (e.g., 50)
+3. Calculate: (passed / (passed + failed)) * 100
+4. Document result
+
+**Acceptance criteria**:
+- Each run must have pass_rate >= 98.0%
+- If any run is below 98%, the requirement fails
+</action>
+  <verify>
+# Manual calculation check:
+# If run has 10176 passed, 50 failed:
+# echo "scale=2; 10176 / (10176 + 50) * 100" | bc
+# Expected: ~99.51% (above 98% threshold)
+</verify>
+  <done>
+Pass rates calculated for all 3 runs. Each run verified against 98% threshold.
+</done>
+</task>
+
+<task type="auto">
+  <name>Task 3: Document pass rate verification report</name>
+  <files>.planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md</files>
+  <action>
+Create pass rate verification report with:
+
+**Report contents**:
+1. **Run 1 Results**:
+   - Passed: X
+   - Failed: Y
+   - Skipped: Z
+   - Pass Rate: XX.XX%
+
+2. **Run 2 Results**:
+   - Passed: X
+   - Failed: Y
+   - Skipped: Z
+   - Pass Rate: XX.XX%
+
+3. **Run 3 Results**:
+   - Passed: X
+   - Failed: Y
+   - Skipped: Z
+   - Pass Rate: XX.XX%
+
+4. **Overall Assessment**:
+   - Average Pass Rate: XX.XX%
+   - Meets 98% threshold: YES/NO
+   - Consistency: Variance between runs
+
+5. **If below 98%**:
+   - List failing tests
+   - Identify patterns (module, test type)
+   - Recommend fixes
+
+6. **TQ-02 Status**: PASS/FAIL
+</action>
+  <verify>
+cat .planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md | grep -E "Pass Rate|TQ-02|PASS|FAIL"
+Expected: Report exists with pass rates for all 3 runs and final TQ-02 status
+</verify>
+  <done>
+Pass rate verification report created with clear TQ-02 PASS/FAIL status.
 </done>
 </task>
 
 </tasks>
 
 <verification>
-1. All graduation governance tests pass: `pytest tests/unit/governance/test_agent_graduation_governance.py -v` shows 28/28 passed
-2. No `TypeError: 'metadata_json' is an invalid keyword argument for AgentRegistry`
-3. Factories create valid agent instances for all maturity levels
+1. All 3 test runs completed successfully
+2. Pass rate calculated for each run using formula: (passed / (passed + failed)) * 100
+3. Report documents TQ-02 status clearly
 </verification>
 
 <success_criteria>
-- All 28 graduation governance tests pass (6 were failing, now fixed)
-- Factory Boy configurations match current AgentRegistry model schema
-- Tests use correct field names when creating test agents
+- TQ-02: PASS if all 3 runs have >= 98% pass rate
+- TQ-02: FAIL if any run has < 98% pass rate (with failing tests documented)
+- Report created with detailed breakdown
 </success_criteria>
 
 <output>
-After completion, create `.planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md` with:
-- Corrected field name (metadata_json → correct_name or removed)
-- Number of factories updated
-- Final test count (28/28 passed)
+After completion, `.planning/phases/10-fix-tests/10-fix-tests-03-SUMMARY.md` contains:
+- Pass rate for each of 3 runs
+- Average pass rate
+- TQ-02 status: PASS or FAIL
+- List of failing tests if below threshold
 </output>

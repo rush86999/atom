@@ -10,9 +10,9 @@ autonomous: true
 
 must_haves:
   truths:
-    - Proposal service tests mock correct function names from browser_tool and canvas_tool
-    - All 5 failing proposal service tests pass
-    - Tests correctly verify execute_proposed_action behavior
+    - Proposal service tests mock correct function names from actual implementations
+    - All 6 failing proposal service tests pass (4 action execution + 2 episode creation)
+    - Tests correctly verify proposal approval and action execution behavior
   artifacts:
     - path: "tests/unit/governance/test_proposal_service.py"
       provides: "Proposal service unit tests"
@@ -27,11 +27,19 @@ must_haves:
 <objective>
 Fix proposal service test failures due to incorrect mock targets
 
-**Purpose**: 5 proposal service tests fail because they mock non-existent functions (`execute_browser_automation`, `execute_canvas_presentation`, `execute_workflow_action`, `execute_agent_action`). The actual functions in these modules have different names.
+**Purpose**: 6 proposal service tests fail because they mock non-existent functions or mock at wrong import locations. The tests mock functions like `execute_browser_automation`, `execute_workflow_action`, etc. that don't exist or aren't called directly by proposal_service.py.
 
-**Root Cause**: Tests were written assuming function names that don't exist in the actual implementations. Need to update mock targets to match real function names.
+**Actual failures** (from test run):
+1. test_execute_browser_action - mocks wrong function
+2. test_execute_integration_action - mocks wrong function
+3. test_execute_workflow_action - mocks wrong function
+4. test_execute_agent_action - mocks wrong function
+5. test_extract_proposal_topics - NLP function issue
+6. test_format_proposal_outcome_approved - method signature issue
 
-**Output**: All 5 proposal service tests pass with correct mocks
+**Root Cause**: Tests were written assuming function names that don't match actual implementations or mock at wrong import path.
+
+**Output**: All 6 proposal service tests pass (40/40 total)
 </objective>
 
 <execution_context>
@@ -50,125 +58,110 @@ Fix proposal service test failures due to incorrect mock targets
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Fix browser action test mock target</name>
+  <name>Task 1: Fix action execution test mocks (4 tests)</name>
   <files>tests/unit/governance/test_proposal_service.py</files>
   <action>
-Fix `test_execute_browser_action` (around line 742):
+Fix all 4 failing action execution tests. These tests mock functions that don't exist or are called differently:
 
-**Current (broken)**:
-```python
-with patch('tools.browser_tool.execute_browser_automation', new=AsyncMock(...))
+**Test failures:**
+1. `test_execute_browser_action` - mocks `tools.browser_tool.execute_browser_automation` (doesn't exist)
+2. `test_execute_integration_action` - mocks non-existent integration function
+3. `test_execute_workflow_action` - mocks non-existent workflow function
+4. `test_execute_agent_action` - mocks non-existent agent function
+
+**Root cause**: Tests patch at `tools.browser_tool.execute_browser_automation` but proposal_service.py doesn't directly import/execute these functions.
+
+**Fix approach:**
+
+1. **Read proposal_service.py** to find actual import and execution pattern:
+   - Search for `browser_automate`, `integration_connect`, `workflow_trigger`, `agent_execute`
+   - Find what the service actually calls when approving proposals
+   - Check if it uses a dispatcher, orchestrator, or direct imports
+
+2. **Update mock targets** to match actual code:
+   - If proposal_service imports: `from tools.browser_tool import browser_navigate`
+   - Mock at: `core.proposal_service.browser_navigate` (where it's imported)
+   - NOT at: `tools.browser_tool.browser_navigate` (source module)
+
+3. **Alternative approaches:**
+   - If action execution is complex, mock the entire action executor object
+   - Use `patch.object(proposal_service, 'action_executor')` if applicable
+   - Mock the proposal approval result directly if execution is external
+
+**Commands to run:**
+```bash
+# Find actual imports in proposal_service.py
+grep -n "browser_tool\|integration\|workflow\|agent" core/proposal_service.py
+
+# Find actual action execution code
+grep -n "execute_action\|approve_proposal" core/proposal_service.py
 ```
-
-**Problem**: `execute_browser_automation` doesn't exist in `tools/browser_tool.py`
-
-**Available functions** (from grep of browser_tool.py):
-- `browser_create_session`
-- `browser_navigate`
-- `browser_screenshot`
-- `browser_fill_form`
-- `browser_click`
-- `browser_close_session`
-- etc.
-
-**Solution**: The test should mock at the proposal_service import location, not directly at browser_tool. Check how `proposal_service.py` imports and calls browser functions:
-
-1. Read `core/proposal_service.py` to find the actual import and function call
-2. Update the mock to target the correct location
-3. If the function is called differently, update both the mock and test expectations
-
-**Alternative**: If the proposal service doesn't directly call browser_tool but uses an orchestration layer, mock that layer instead.
-</action>
-  <verify>
-PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_proposal_service.py::TestActionExecution::test_execute_browser_action -v 2>&1 | grep -E "PASSED|FAILED"
-Expected: "PASSED"
-</verify>
-  <done>
-test_execute_browser_action passes with correct mock target.
-</done>
-</task>
-
-<task type="auto">
-  <name>Task 2: Fix integration, workflow, and agent action test mocks</name>
-  <files>tests/unit/governance/test_proposal_service.py</files>
-  <action>
-Fix the remaining 4 failing tests with same approach:
-
-1. **test_execute_integration_action** - Mock the correct integration execution function
-   - Check how proposal_service executes integration actions
-   - Mock at the correct import location
-
-2. **test_execute_workflow_action** - Mock the correct workflow execution function
-   - Check how proposal_service executes workflow actions
-   - Functions available: `workflow_engine.execute_workflow()` or similar
-
-3. **test_execute_agent_action** - Mock the correct agent execution function
-   - Check how proposal_service executes agent actions
-   - Likely uses `agent_governance_service` or similar
-
-4. **test_format_proposal_outcome_approved** - Check proposal outcome formatting
-   - May need to verify the actual method name and signature
-   - Update test assertions to match real behavior
-
-**For each test**:
-1. Read `core/proposal_service.py` to find how actions are executed
-2. Identify the actual function being called
-3. Update mock target to use correct import path
-4. Update return value if needed to match actual function signature
 </action>
   <verify>
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_proposal_service.py::TestActionExecution -v 2>&1 | grep -E "passed|failed"
-Expected: "4 passed" (all TestActionExecution tests)
+Expected: "6 passed" (all TestActionExecution tests including canvas action)
 </verify>
   <done>
-All 4 action execution tests pass with correct mock targets.
+All 4 action execution tests pass with correct mock targets matching actual proposal_service.py imports.
 </done>
 </task>
 
 <task type="auto">
-  <name>Task 3: Fix test_format_proposal_outcome_approved</name>
+  <name>Task 2: Fix episode creation tests (2 tests)</name>
   <files>tests/unit/governance/test_proposal_service.py</files>
   <action>
-Fix `test_format_proposal_outcome_approved` test:
+Fix the 2 failing episode creation tests:
 
-**Issue**: The test expects a specific method name or format that may not match implementation.
+**Test failures:**
+1. `test_extract_proposal_topics` - NLP topic extraction issue
+2. `test_format_proposal_outcome_approved` - Proposal outcome formatting issue
 
-**Steps**:
-1. Read the test to understand expected behavior
-2. Check actual implementation in `proposal_service.py`
-3. Update test to match actual method signature and return value
-4. Ensure assertions verify correct formatting
+**For test_extract_proposal_topics:**
+- Check if proposal_service actually calls NLP for topic extraction
+- May need to mock the NLP service if it's external
+- Verify test expectations match actual implementation behavior
 
-**Common issues**:
-- Method renamed: `format_proposal_outcome` → `format_outcome` or similar
-- Return format differs: expects dict but returns object, or vice versa
-- Missing field: test checks for field that doesn't exist
+**For test_format_proposal_outcome_approved:**
+- Check actual method name in proposal_service.py
+- May be `format_proposal_outcome` vs `format_outcome` vs different name
+- Verify return format (dict vs object, field names)
+- Update assertions to match actual behavior
+
+**Debug commands:**
+```bash
+# Find topic extraction code
+grep -n "extract.*topic\|topic.*extract" core/proposal_service.py
+
+# Find outcome formatting code
+grep -n "format.*outcome\|outcome.*format" core/proposal_service.py
+```
 </action>
   <verify>
-PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_proposal_service.py::TestEpisodeCreation::test_format_proposal_outcome_approved -v 2>&1 | grep -E "PASSED|FAILED"
-Expected: "PASSED"
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/unit/governance/test_proposal_service.py::TestEpisodeCreation::test_extract_proposal_topics tests/unit/governance/test_proposal_service.py::TestEpisodeCreation::test_format_proposal_outcome_approved -v 2>&1 | grep -E "PASSED|FAILED"
+Expected: "2 passed"
 </verify>
   <done>
-test_format_proposal_outcome_approved passes with correct assertions.
+Both episode creation tests pass with correct method names and assertions.
 </done>
 </task>
 
 </tasks>
 
 <verification>
-1. All 5 proposal service tests pass: `pytest tests/unit/governance/test_proposal_service.py -v` shows 40/40 passed
+1. All 6 failing tests pass: `pytest tests/unit/governance/test_proposal_service.py -v` shows 40/40 passed
 2. No `AttributeError` or `TypeError` related to missing functions
 3. Tests verify actual behavior of proposal_service, not stub implementations
 </verification>
 
 <success_criteria>
-- All 40 proposal service tests pass (5 were failing, now fixed)
-- Mock targets use correct function names from actual implementations
-- Tests maintain their original intent (verifying proposal execution behavior)
+- All 40 proposal service tests pass (6 were failing: 4 action execution + 2 episode creation)
+- Mock targets use correct import paths matching proposal_service.py
+- Tests maintain their original intent (verifying proposal approval and execution)
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/10-fix-tests/10-fix-tests-02-SUMMARY.md` with:
 - List of corrected mock targets (old → new)
+- Fixed method signatures
 - Final test count (40/40 passed)
 </output>
