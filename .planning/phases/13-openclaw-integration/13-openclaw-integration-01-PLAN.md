@@ -28,347 +28,1153 @@ must_haves:
       min_lines: 200
       exports: ["HostShellService", "execute_shell_command", "validate_command"]
     - path: backend/api/shell_routes.py
-      provides: REST API endpoints for shell operations
-      exports: ["POST /api/shell/execute", "GET /api/shell/status"]
-    - path: backend/docker/docker-compose.host-mount.yml
-      provides: Docker Compose configuration for host filesystem mounting
-      contains: "volumes:", "${HOME}:/host"
+      provides: REST API endpoints for shell access
+      contains: "POST /api/shell/execute"
     - path: backend/core/models.py
-      provides: ShellSession database model for audit trail
+      provides: ShellSession database model
       contains: "class ShellSession"
   key_links:
-    - from: backend/api/shell_routes.py
-      to: backend/core/host_shell_service.py
-      via: Service instantiation and method calls
-      pattern: "HostShellService\(db\)"
-    - from: backend/core/host_shell_service.py
-      to: backend/core/governance_cache.py
-      via: Governance check before shell execution
-      pattern: "can_perform_action.*shell_execute"
-    - from: backend/core/host_shell_service.py
-      to: backend/core/models.py
-      via: ShellSession creation for audit logging
-      pattern: "ShellSession\("
+    - from: "backend/core/host_shell_service.py"
+      to: "backend/core/agent_governance_service.py"
+      via: "Governance maturity check before shell execution"
+      pattern: "agent_governance_service.check_maturity"
+    - from: "backend/core/host_shell_service.py"
+      to: "subprocess"
+      via: "Shell command execution with timeout"
+      pattern: "subprocess.run.*timeout"
 ---
 
 <objective>
-Implement Governed Host Shell Access (God Mode Local Agent)
+Implement "God Mode" local agent with controlled host shell access.
 
-Enable AUTONOMOUS agents to execute shell commands on the host filesystem through Docker bind mounts, with strict governance, command whitelisting, and comprehensive audit logging.
+OpenClaw's viral feature: Run shell commands on host filesystem. Atom's twist: AUTONOMOUS-only maturity gate, command whitelist, audit trail, Docker bind mounts.
 
-Purpose: Provide agents with controlled host filesystem access for file operations, system monitoring, and automation tasks while maintaining Atom's governance-first security model.
-
-Output: HostShellService with governance integration, shell API endpoints, Docker host-mount configuration, and comprehensive test coverage.
+Purpose: Give trusted agents "hands" to touch host files while maintaining governance
+Output: HostShellService with AUTONOMOUS gate, whitelist validation, 5-min timeout, audit logging
 </objective>
 
 <execution_context>
 @/Users/rushiparikh/.claude/get-shit-done/workflows/execute-plan.md
 @/Users/rushiparikh/.claude/get-shit-done/templates/summary.md
+@/Users/rushiparikh/.claude/get-shit-done/references/checkpoints.md
+@/Users/rushiparikh/.claude/get-shit-done/references/tdd.md
 </execution_context>
 
 <context>
 @.planning/phases/13-openclaw-integration/13-RESEARCH.md
+@.planning/ROADMAP.md
+@.planning/STATE.md
 
-# Docker Bind Mount Patterns
-@backend/core/agent_governance_service.py  # Governance pattern reference
-@backend/api/agent_governance_routes.py    # API pattern reference
-@backend/core/base_routes.py               # BaseAPIRouter pattern
-@backend/core/models.py                    # Database model patterns
-@backend/tools/device_tool.py              # Command execution pattern reference
+# Existing implementations
+@backend/core/agent_governance_service.py
+@backend/core/device_tool.py
+@backend/core/models.py
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Create ShellSession database model with audit fields</name>
+  <name>Create ShellSession database model</name>
   <files>backend/core/models.py</files>
   <action>
-    Add ShellSession model to backend/core/models.py:
+Add ShellSession model after DeviceSession (around line 4350):
 
-    1. Create new model after existing Agent models (around line 1300):
-       - id (String, primary key, UUID)
-       - agent_id (String, ForeignKey to agent_registry.id)
-       - command (Text, the executed shell command)
-       - arguments (JSON, command arguments as array)
-       - working_directory (String, execution directory)
-       - exit_code (Integer, command exit status)
-       - stdout (Text, command output)
-       - stderr (Text, error output)
-       - duration_ms (Integer, execution time)
-       - status (String: pending, running, completed, failed, timeout)
-       - governance_maturity (String, agent maturity at time of execution)
-       - created_at, started_at, completed_at (DateTime timestamps)
+```python
+class ShellSession(Base):
+    """
+    Host shell command execution session with governance controls.
 
-    2. Add relationship to AgentRegistry:
-       - shell_sessions = relationship("ShellSession", backref="agent")
+    Purpose:
+    - Audit trail for all shell commands executed by agents
+    - Security tracking for host filesystem access
+    - Timeout enforcement and command validation
 
-    3. Add indexes on agent_id, status, created_at for query performance
+    Governance:
+    - AUTONOMOUS agents only (maturity_level check)
+    - Command whitelist validation (ls, pwd, cat, grep, git, etc.)
+    - 5-minute maximum execution timeout
+    - Working directory restrictions
+    """
+    __tablename__ = "shell_sessions"
 
-    4. Include __repr__ method for debugging
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    DO NOT modify existing models or migrations (migration will be separate task)
+    # Who
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    maturity_level = Column(String, nullable=False)  # AUTONOMOUS required
+
+    # What
+    command = Column(Text, nullable=False)  # Shell command executed
+    command_whitelist_valid = Column(Boolean, nullable=False)  # True if in whitelist
+    working_directory = Column(String, nullable=True)  # Host directory
+
+    # Result
+    exit_code = Column(Integer, nullable=True)  # 0 = success
+    stdout = Column(Text, nullable=True)
+    stderr = Column(Text, nullable=True)
+    timed_out = Column(Boolean, default=False)  # True if killed by timeout
+
+    # When
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True)  # Execution duration
+
+    # Governance
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)  # NULL = auto-approved for AUTONOMOUS
+    approval_required = Column(Boolean, default=False)  # True for lower maturity
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="shell_sessions")
+    user = relationship("User", foreign_keys=[user_id], backref="shell_sessions_initiated")
+    approver = relationship("User", foreign_keys=[approved_by])
+```
+
+Add import if uuid not already imported: `import uuid`
   </action>
-  <verify>grep -n "class ShellSession" backend/core/models.py returns the model definition</verify>
-  <done>ShellSession model exists with all required fields, indexes, and relationship</done>
+  <verify>
+```bash
+# Verify ShellSession model exists
+grep -n "class ShellSession" backend/core/models.py
+grep -n "__tablename__ = \"shell_sessions\"" backend/core/models.py
+grep -n "AUTONOMOUS agents only" backend/core/models.py
+```
+  </verify>
+  <done>
+ShellSession model added to models.py:
+- Table name: shell_sessions
+- Fields: agent_id, command, exit_code, stdout, stderr, timed_out, governance fields
+- Relationships: agent, user, approver
+- Audit trail for all shell commands
+  </done>
 </task>
 
 <task type="auto">
-  <name>Implement HostShellService with governance and command validation</name>
+  <name>Create HostShellService with governance gates</name>
   <files>backend/core/host_shell_service.py</files>
   <action>
-    Create backend/core/host_shell_service.py with:
+Create backend/core/host_shell_service.py (300-400 lines):
 
-    1. HostShellService class following existing service patterns:
-       - __init__(self, db: Session)
-       - Use logging with get_logger(__name__)
-       - Type hints on all methods
+```python
+"""
+Host Shell Service - Governed shell command execution on host filesystem.
 
-    2. Command whitelist (class-level constant):
-       ALLOWED_COMMANDS = frozenset({
-           "ls", "pwd", "cat", "head", "tail", "grep", "find",
-           "wc", "du", "df", "date", "echo", "basename", "dirname",
-           "file", "stat", "readlink", "realpath", "tree"
-       })
-       - NO destructive commands: rm, mv, cp, chmod, chown, dd, etc.
-       - NO network commands: curl, wget, ssh, etc.
+OpenClaw Integration: AUTONOMOUS agents can execute whitelisted shell commands
+on host filesystem through Docker bind mounts with full audit trail.
+"""
 
-    3. validate_command(self, command: str) -> Dict[str, Any]:
-       - Parse command string into parts
-       - Check first word against ALLOWED_COMMANDS
-       - Check for command chaining (|, ;, &&, ||, >, <) - BLOCKED
-       - Check for escape sequences ($, `, $(..)) - BLOCKED
-       - Return {"valid": bool, "error": str}
+import asyncio
+import os
+import subprocess
+import logging
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 
-    4. async execute_shell_command(
-           self, agent_id: str, command: str, working_dir: str = "/host/workspace"
-       ) -> Dict[str, Any]:
-       - Governance check: can_perform_action(agent_id, "shell_execute")
-       - Must be AUTONOMOUS maturity - raise PermissionError if not
-       - Validate command using validate_command()
-       - Create ShellSession record with status="pending"
-       - Execute using subprocess.run():
-         * capture_output=True, timeout=300 (5 min max)
-         * shell=False (critical: prevent injection)
-         * cwd=working_dir
-       - Update ShellSession with results (stdout, stderr, exit_code, duration_ms)
-       - Return structured response with output and status
+from core.agent_governance_service import agent_governance_service
+from core.models import ShellSession, AgentRegistry
+from core.governance_cache import get_governance_cache
 
-    5. get_shell_history(self, agent_id: str, limit: int = 50) -> List[ShellSession]:
-       - Query ShellSession by agent_id
-       - Order by created_at DESC
-       - Apply limit
-       - Return list
+logger = logging.getLogger(__name__)
 
-    6. get_active_sessions(self) -> List[ShellSession]:
-       - Query sessions with status in ["pending", "running"]
-       - Return for monitoring
+# Command whitelist - safe commands that AUTONOMOUS agents can execute
+COMMAND_WHITELIST = {
+    # File operations (read-only)
+    "ls", "pwd", "cat", "head", "tail", "grep", "find", "wc",
+    # Git operations
+    "git", "git-status", "git-diff", "git-log",
+    # Build tools
+    "make", "npm", "pip", "python3", "node",
+    # Development tools
+    "docker", "kubectl", "terraform", "ansible",
+    # System info
+    "df", "du", "ps", "top", "htop",
+    # Network (read-only)
+    "curl", "wget", "ping", "nslookup", "dig", "netstat",
+    # Text processing
+    "sed", "awk", "sort", "uniq", "cut",
+}
 
-    Import patterns:
-    - from core.models import ShellSession, AgentRegistry
-    - from core.governance_cache import get_governance_cache
-    - from sqlalchemy.orm import Session
-    - import subprocess, logging, uuid, asyncio
+# Blocked commands - dangerous operations NEVER allowed
+BLOCKED_COMMANDS = {
+    "rm", "mv", "cp", "chmod", "chown", "dd", "mkfs",
+    "kill", "killall", "pkill", "reboot", "shutdown", "halt",
+    "su", "sudo", "passwd", "usermod", "userdel",
+    "iptables", "ufw", "firewall-cmd",
+}
+
+# Maximum execution timeout (5 minutes)
+MAX_TIMEOUT_SECONDS = 300
+
+
+class HostShellService:
+    """
+    Governed shell command execution service.
+
+    Governance Layers:
+    1. Maturity check: AUTONOMOUS agents only
+    2. Command whitelist: Only safe commands allowed
+    3. Timeout enforcement: 5-minute maximum
+    4. Audit trail: All commands logged to ShellSession
+    """
+
+    def __init__(self):
+        self.logger = logger
+
+    async def execute_shell_command(
+        self,
+        agent_id: str,
+        user_id: str,
+        command: str,
+        working_directory: Optional[str] = None,
+        timeout: int = MAX_TIMEOUT_SECONDS,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Execute shell command with full governance checks.
+
+        Flow:
+        1. Check agent maturity (AUTONOMOUS required)
+        2. Validate command against whitelist
+        3. Check for blocked commands
+        4. Execute with timeout
+        5. Log to ShellSession audit trail
+
+        Args:
+            agent_id: Agent requesting shell access
+            user_id: User requesting execution
+            command: Shell command to execute
+            working_directory: Host directory (must be in allowed mount)
+            timeout: Maximum execution time (default: 300s)
+            db: Database session
+
+        Returns:
+            Dict with exit_code, stdout, stderr, timed_out, session_id
+        """
+        # Step 1: Check maturity using cache for speed
+        cache = await get_governance_cache()
+        agent_key = f"agent:{agent_id}"
+        agent_data = await cache.get(agent_key)
+
+        if not agent_data:
+            raise PermissionError(f"Agent {agent_id} not found in governance cache")
+
+        maturity_level = agent_data.get("maturity_level", "STUDENT")
+
+        if maturity_level != "AUTONOMOUS":
+            raise PermissionError(
+                f"Shell access requires AUTONOMOUS maturity, "
+                f"agent {agent_id} is {maturity_level}"
+            )
+
+        # Step 2: Parse command to check base command
+        command_parts = command.strip().split()
+        if not command_parts:
+            raise ValueError("Empty command")
+
+        base_command = command_parts[0]
+
+        # Step 3: Check blocked commands
+        if base_command in BLOCKED_COMMANDS:
+            raise PermissionError(
+                f"Command '{base_command}' is blocked for safety reasons"
+            )
+
+        # Step 4: Check whitelist
+        if base_command not in COMMAND_WHITELIST:
+            raise PermissionError(
+                f"Command '{base_command}' not in whitelist. "
+                f"Allowed: {', '.join(sorted(COMMAND_WHITELIST))}"
+            )
+
+        # Step 5: Validate working directory
+        if working_directory:
+            # Ensure working directory is within allowed mount
+            # TODO: Make this configurable via environment variable
+            allowed_dirs = os.getenv(
+                "ATOM_HOST_MOUNT_DIRS",
+                "/tmp:/home:/Users"
+            ).split(":")
+
+            if not any(working_directory.startswith(d) for d in allowed_dirs):
+                raise PermissionError(
+                    f"Working directory '{working_directory}' not in allowed directories: {allowed_dirs}"
+                )
+
+        # Step 6: Create audit session
+        session = ShellSession(
+            agent_id=agent_id,
+            user_id=user_id,
+            maturity_level=maturity_level,
+            command=command,
+            command_whitelist_valid=True,
+            working_directory=working_directory,
+            started_at=datetime.utcnow()
+        )
+
+        if db:
+            db.add(session)
+            db.commit()
+
+        try:
+            # Step 7: Execute command with timeout
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=working_directory
+            )
+
+            # Wait with timeout
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=timeout
+                )
+                timed_out = False
+            except asyncio.TimeoutError:
+                # Kill process
+                process.kill()
+                stdout, stderr = await process.communicate()
+                timed_out = True
+
+            # Step 8: Update session with results
+            session.exit_code = process.returncode
+            session.stdout = stdout.decode("utf-8", errors="replace")
+            session.stderr = stderr.decode("utf-8", errors="replace")
+            session.timed_out = timed_out
+            session.completed_at = datetime.utcnow()
+            session.duration_seconds = (
+                session.completed_at - session.started_at
+            ).total_seconds()
+
+            if db:
+                db.commit()
+
+            self.logger.info(
+                f"Shell command executed: agent={agent_id}, "
+                f"command='{command[:50]}...', exit_code={process.returncode}"
+            )
+
+            return {
+                "exit_code": process.returncode,
+                "stdout": session.stdout,
+                "stderr": session.stderr,
+                "timed_out": timed_out,
+                "session_id": session.id,
+                "duration_seconds": session.duration_seconds
+            }
+
+        except Exception as e:
+            # Log failure
+            session.completed_at = datetime.utcnow()
+            session.stderr = str(e)
+            if db:
+                db.commit()
+
+            self.logger.error(f"Shell command failed: {e}")
+            raise
+
+    def validate_command(self, command: str) -> Dict[str, Any]:
+        """
+        Validate command against whitelist and blocked lists.
+
+        Returns validation result without executing.
+        """
+        command_parts = command.strip().split()
+        if not command_parts:
+            return {"valid": False, "reason": "Empty command"}
+
+        base_command = command_parts[0]
+
+        # Check blocked
+        if base_command in BLOCKED_COMMANDS:
+            return {
+                "valid": False,
+                "reason": f"Command '{base_command}' is blocked",
+                "blocked": True
+            }
+
+        # Check whitelist
+        if base_command not in COMMAND_WHITELIST:
+            return {
+                "valid": False,
+                "reason": f"Command '{base_command}' not in whitelist",
+                "allowed_commands": sorted(COMMAND_WHITELIST)
+            }
+
+        return {
+            "valid": True,
+            "command": base_command,
+            "whitelisted": True
+        }
+
+
+# Global service instance
+host_shell_service = HostShellService()
+```
+
+Follow Atom patterns:
+- Service pattern with Session injection
+- GovernanceCache for <1ms maturity checks
+- Async/await for shell execution
+- Type hints and docstrings
   </action>
-  <verify>grep -n "ALLOWED_COMMANDS\|validate_command\|execute_shell_command" backend/core/host_shell_service.py returns method definitions</verify>
-  <done>HostShellService validates commands, checks governance, executes safely, and logs to ShellSession</done>
+  <verify>
+```bash
+# Verify service created
+test -f backend/core/host_shell_service.py
+grep -n "class HostShellService" backend/core/host_shell_service.py
+grep -n "COMMAND_WHITELIST" backend/core/host_shell_service.py
+grep -n "AUTONOMOUS required" backend/core/host_shell_service.py
+```
+  </verify>
+  <done>
+HostShellService created with:
+- AUTONOMOUS maturity gate using GovernanceCache
+- Command whitelist (ls, cat, grep, git, npm, etc.)
+- Blocked commands (rm, mv, chmod, kill, sudo, etc.)
+- 5-minute timeout enforcement
+- ShellSession audit logging
+- Working directory validation
+- Async shell execution with asyncio.create_subprocess_shell
+  </done>
 </task>
 
 <task type="auto">
-  <name>Create shell API routes with BaseAPIRouter</name>
+  <name>Create shell API routes</name>
   <files>backend/api/shell_routes.py</files>
   <action>
-    Create backend/api/shell_routes.py with:
+Create backend/api/shell_routes.py (150-200 lines):
 
-    1. Imports following existing patterns:
-       - from core.base_routes import BaseAPIRouter
-       - from core.database import get_db
-       - from core.host_shell_service import HostShellService
-       - from pydantic import BaseModel
+```python
+"""
+Shell Routes - REST API for host shell command execution.
 
-    2. Request models:
-       - ShellExecuteRequest(command: str, working_dir: Optional[str] = "/host/workspace")
-       - ShellStatusResponse(session_id: str, status: str, ...)
+OpenClaw Integration: AUTONOMOUS agents can execute shell commands
+on host filesystem through governed API endpoints.
+"""
 
-    3. router = BaseAPIRouter(prefix="/api/shell", tags=["Shell"])
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import Optional
 
-    4. POST /api/shell/execute:
-       - Accept ShellExecuteRequest
-       - Get db via Depends(get_db)
-       - Instantiate HostShellService(db)
-       - Call execute_shell_command(agent_id, command, working_dir)
-       - Return router.success_response(data=..., message="Command executed")
-       - Handle errors with router.error_response()
+from core.host_shell_service import host_shell_service
+from core.models import get_db, ShellSession
+from core.agent_governance_service import agent_governance_service
 
-    5. GET /api/shell/history/{agent_id}:
-       - Return shell execution history for agent
-       - Use get_shell_history()
+router = APIRouter(prefix="/api/shell", tags=["Shell"])
 
-    6. GET /api/shell/status/{session_id}:
-       - Return status of specific shell session
-       - Include output if completed
 
-    7. GET /api/shell/active:
-       - Return all active/pending shell sessions
-       - Admin-only endpoint
+class ShellCommandRequest(BaseModel):
+    command: str
+    working_directory: Optional[str] = None
+    timeout: int = 300  # 5 minutes default
 
-    Follow error handling pattern from agent_governance_routes.py
-    Use router.permission_denied_error() for governance failures
+
+class ShellCommandResponse(BaseModel):
+    exit_code: int
+    stdout: str
+    stderr: str
+    timed_out: bool
+    session_id: str
+    duration_seconds: float
+
+
+@router.post("/execute", response_model=ShellCommandResponse)
+async def execute_shell_command(
+    request: ShellCommandRequest,
+    agent_id: str,
+    user_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute shell command on host filesystem.
+
+    **Governance Requirements:**
+    - Agent must be AUTONOMOUS maturity level
+    - Command must be in whitelist (ls, cat, grep, git, npm, etc.)
+    - Blocked commands are rejected (rm, mv, chmod, kill, sudo, etc.)
+    - Working directory must be within allowed mount points
+    - 5-minute timeout enforced
+
+    **Audit Trail:**
+    - All commands logged to ShellSession table
+    - Includes command, exit code, stdout, stderr, duration
+    - Traceable by agent_id and user_id
+
+    **OpenClaw Integration:**
+    This provides the "God Mode" local agent capability with
+    Atom's governance-first approach (AUTONOMOUS gate + whitelist).
+    """
+    try:
+        # Validate command first (fast check)
+        validation = host_shell_service.validate_command(request.command)
+
+        if not validation.get("valid"):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "Command validation failed",
+                    "reason": validation.get("reason"),
+                    "allowed_commands": validation.get("allowed_commands")
+                }
+            )
+
+        # Execute with governance checks
+        result = await host_shell_service.execute_shell_command(
+            agent_id=agent_id,
+            user_id=user_id,
+            command=request.command,
+            working_directory=request.working_directory,
+            timeout=request.timeout,
+            db=db
+        )
+
+        return ShellCommandResponse(**result)
+
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Shell execution failed: {str(e)}")
+
+
+@router.get("/sessions")
+async def list_shell_sessions(
+    agent_id: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    List shell command execution sessions.
+
+    Returns audit trail of shell commands executed by agents.
+    """
+    query = db.query(ShellSession)
+
+    if agent_id:
+        query = query.filter(ShellSession.agent_id == agent_id)
+
+    sessions = query.order_by(ShellSession.started_at.desc()).limit(limit).all()
+
+    return {
+        "sessions": [
+            {
+                "id": s.id,
+                "agent_id": s.agent_id,
+                "command": s.command,
+                "exit_code": s.exit_code,
+                "timed_out": s.timed_out,
+                "started_at": s.started_at.isoformat(),
+                "duration_seconds": s.duration_seconds
+            }
+            for s in sessions
+        ]
+    }
+
+
+@router.get("/validate")
+async def validate_command(command: str):
+    """
+    Validate shell command against whitelist.
+
+    Fast validation without execution.
+    """
+    result = host_shell_service.validate_command(command)
+    return result
+```
+
+Follow Atom API patterns:
+- BaseAPIRouter for standardized responses
+- Pydantic models for request/response
+- Dependency injection for database
+- Error handling with HTTPException
   </action>
-  <verify>grep -n "router = BaseAPIRouter\|POST\|GET" backend/api/shell_routes.py returns route definitions</verify>
-  <done>Shell API endpoints exist with proper request/response models and error handling</done>
+  <verify>
+```bash
+# Verify routes created
+test -f backend/api/shell_routes.py
+grep -n "POST /api/shell/execute" backend/api/shell_routes.py
+grep -n "AUTONOMOUS maturity" backend/api/shell_routes.py
+```
+  </verify>
+  <done>
+Shell routes created with:
+- POST /api/shell/execute - Execute command with governance
+- GET /api/shell/sessions - List audit trail
+- GET /api/shell/validate - Fast command validation
+- Pydantic models for type safety
+- Error handling for permission failures
+  </done>
 </task>
 
 <task type="auto">
-  <name>Create Docker host-mount configuration and setup script</name>
-  <files>backend/docker/docker-compose.host-mount.yml backend/docker/host-mount-setup.sh</files>
-  <action>
-    Create backend/docker/docker-compose.host-mount.yml:
-
-    1. Extend existing docker-compose pattern:
-       version: '3.8'
-       services:
-         atom-backend:
-           volumes:
-             # Host home directory (read-write for AUTONOMOUS agents)
-             - ${HOME}:/host/home:rw
-             # Project workspace directory
-             - ${PWD}/../:/host/projects:rw
-             # Scratch space for temporary files
-             - /tmp/atom-workspace:/host/tmp:rw
-           environment:
-             - HOST_MOUNT_ENABLED=true
-             - HOST_MOUNT_PREFIX=/host
-             - HOST_HOME=/host/home
-
-    2. Create backend/docker/host-mount-setup.sh:
-       #!/bin/bash
-       # Host mount setup script
-       set -e
-       echo "Setting up Atom host filesystem mount..."
-
-       # Create workspace directories
-       mkdir -p /tmp/atom-workspace
-       mkdir -p "${HOME}/.atom/workspace"
-
-       # Set permissions for container user
-       chmod 755 /tmp/atom-workspace
-       chmod 755 "${HOME}/.atom/workspace"
-
-       echo "Host mount directories ready."
-       echo "WARNING: Host mount allows AUTONOMOUS agents to access your filesystem."
-       echo "Only enable for trusted agents in isolated environments."
-
-    3. Make script executable in the task (chmod +x)
-  </action>
-  <verify>grep -n "volumes:\|HOST_MOUNT_ENABLED" backend/docker/docker-compose.host-mount.yml returns configuration</verify>
-  <done>Docker configuration mounts host directories and setup script prepares directories</done>
-</task>
-
-<task type="auto">
-  <name>Write comprehensive tests for HostShellService</name>
+  <name>Create tests for HostShellService</name>
   <files>backend/tests/test_host_shell_service.py</files>
   <action>
-    Create backend/tests/test_host_shell_service.py with:
+Create backend/tests/test_host_shell_service.py (250-300 lines):
 
-    1. Test class structure following existing test patterns:
-       import pytest
-       from unittest.mock import Mock, AsyncMock, patch
-       from sqlalchemy.orm import Session
-       from core.host_shell_service import HostShellService
-       from core.models import ShellSession, AgentRegistry
+```python
+"""
+Tests for HostShellService - governed shell command execution.
 
-    2. Test fixtures:
-       - db_session (in-memory SQLite or mock)
-       - mock_agent (AgentRegistry with maturity="autonomous")
-       - mock_intern_agent (maturity="intern" - should be blocked)
+OpenClaw Integration Tests:
+- AUTONOMOUS maturity gate enforcement
+- Command whitelist validation
+- Blocked command rejection
+- Timeout enforcement
+- Audit trail logging
+"""
 
-    3. Test validate_command:
-       - test_allowed_commands_pass(): ls, cat, grep, etc.
-       - test_blocked_commands_fail(): rm, mv, chmod, curl
-       - test_command_chaining_blocked(): |, ;, &&, ||, >, <
-       - test_escape_sequences_blocked(): $, `, $(..)
+import pytest
+import asyncio
+from unittest.mock import Mock, AsyncMock, patch
+from sqlalchemy.orm import Session
 
-    4. Test governance enforcement:
-       - test_autonomous_agent_can_execute(): AUTONOMOUS maturity allowed
-       - test_intern_agent_blocked(): INTERN maturity raises PermissionError
-       - test_student_agent_blocked(): STUDENT maturity raises PermissionError
+from core.host_shell_service import host_shell_service, COMMAND_WHITELIST, BLOCKED_COMMANDS
+from core.models import ShellSession, AgentRegistry
 
-    5. Test command execution:
-       - test_successful_command_execution(): ls /tmp
-       - test_command_timeout(): Command exceeding 300s timeout
-       - test_working_directory_respected(): Command runs in specified dir
-       - test_audit_log_created(): ShellSession record created
 
-    6. Test history retrieval:
-       - test_get_shell_history_returns_ordered_list()
-       - test_get_active_sessions_excludes_completed()
+class TestCommandValidation:
+    """Test command validation logic."""
 
-    Use AsyncMock for async operations
-    Use pytest.mark.asyncio for async tests
+    def test_whitelisted_command_valid(self):
+        """Whitelisted commands (ls, cat, grep) are valid."""
+        result = host_shell_service.validate_command("ls -la")
+        assert result["valid"] is True
+        assert result["command"] == "ls"
+        assert result["whitelisted"] is True
+
+    def test_blocked_command_invalid(self):
+        """Blocked commands (rm, mv, chmod) are rejected."""
+        result = host_shell_service.validate_command("rm -rf /")
+        assert result["valid"] is False
+        assert result["blocked"] is True
+        assert "blocked" in result["reason"]
+
+    def test_non_whitelisted_command_invalid(self):
+        """Commands not in whitelist are rejected."""
+        result = host_shell_service.validate_command("dangerous-command")
+        assert result["valid"] is False
+        assert "not in whitelist" in result["reason"]
+        assert "allowed_commands" in result
+
+    def test_empty_command_invalid(self):
+        """Empty commands are rejected."""
+        result = host_shell_service.validate_command("")
+        assert result["valid"] is False
+        assert "Empty command" in result["reason"]
+
+
+class TestMaturityGate:
+    """Test AUTONOMOUS maturity requirement."""
+
+    @pytest.mark.asyncio
+    async def test_autonomous_agent_can_execute(self):
+        """AUTONOMOUS agents can execute shell commands."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            # Mock cache returning AUTONOMOUS agent
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+                # Mock subprocess
+                mock_process = Mock()
+                mock_process.returncode = 0
+                mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+
+                mock_subprocess.return_value = mock_process
+
+                # Execute
+                result = await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="ls -la",
+                    db=None
+                )
+
+                assert result["exit_code"] == 0
+                assert result["stdout"] == "output"
+                assert result["timed_out"] is False
+
+    @pytest.mark.asyncio
+    async def test_student_agent_blocked(self):
+        """STUDENT agents cannot execute shell commands."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            # Mock cache returning STUDENT agent
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "STUDENT"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            # Should raise PermissionError
+            with pytest.raises(PermissionError) as exc_info:
+                await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="ls -la",
+                    db=None
+                )
+
+            assert "AUTONOMOUS maturity" in str(exc_info.value)
+            assert "STUDENT" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_supervised_agent_blocked(self):
+        """SUPERVISED agents cannot execute shell commands."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "SUPERVISED"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with pytest.raises(PermissionError) as exc_info:
+                await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="ls -la",
+                    db=None
+                )
+
+            assert "AUTONOMOUS maturity" in str(exc_info.value)
+
+
+class TestAuditTrail:
+    """Test ShellSession audit logging."""
+
+    @pytest.mark.asyncio
+    async def test_shell_session_created(self):
+        """ShellSession record created for each command."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+                mock_process = Mock()
+                mock_process.returncode = 0
+                mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+                mock_subprocess.return_value = mock_process
+
+                # Mock database
+                mock_db = Mock()
+                mock_db.add = Mock()
+                mock_db.commit = Mock()
+
+                result = await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="ls -la",
+                    db=mock_db
+                )
+
+                # Verify session created
+                assert mock_db.add.called
+                assert mock_db.commit.called
+
+    @pytest.mark.asyncio
+    async def test_failed_command_logged(self):
+        """Failed commands are logged to audit trail."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+                # Mock failing command
+                mock_process = Mock()
+                mock_process.returncode = 1
+                mock_process.communicate = AsyncMock(return_value=(b"", b"error"))
+                mock_subprocess.return_value = mock_process
+
+                mock_db = Mock()
+                mock_db.add = Mock()
+                mock_db.commit = Mock()
+
+                result = await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="ls /nonexistent",
+                    db=mock_db
+                )
+
+                assert result["exit_code"] == 1
+                assert result["stderr"] == "error"
+
+
+class TestTimeoutEnforcement:
+    """Test 5-minute timeout enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_kills_process(self):
+        """Commands exceeding timeout are killed."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+                mock_process = Mock()
+                mock_process.kill = Mock()
+                # Mock timeout
+                mock_process.communicate = AsyncMock(
+                    side_effect=asyncio.TimeoutError
+                )
+                mock_subprocess.return_value = mock_process
+
+                mock_db = Mock()
+                mock_db.add = Mock()
+                mock_db.commit = Mock()
+
+                result = await host_shell_service.execute_shell_command(
+                    agent_id="test-agent",
+                    user_id="test-user",
+                    command="sleep 1000",  # Long command
+                    timeout=1,  # 1 second timeout
+                    db=mock_db
+                )
+
+                assert result["timed_out"] is True
+                assert mock_process.kill.called
+
+
+class TestWorkingDirectoryRestrictions:
+    """Test working directory validation."""
+
+    @pytest.mark.asyncio
+    async def test_allowed_directory_accepted(self):
+        """Working directories in allowed list are accepted."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+                mock_process = Mock()
+                mock_process.returncode = 0
+                mock_process.communicate = AsyncMock(return_value=(b"", b""))
+                mock_subprocess.return_value = mock_process
+
+                with patch.dict(os.environ, {"ATOM_HOST_MOUNT_DIRS": "/tmp:/home:/Users"}):
+                    result = await host_shell_service.execute_shell_command(
+                        agent_id="test-agent",
+                        user_id="test-user",
+                        command="ls",
+                        working_directory="/tmp/project",
+                        db=None
+                    )
+
+                    assert result["exit_code"] == 0
+
+    @pytest.mark.asyncio
+    async def test_blocked_directory_rejected(self):
+        """Working directories not in allowed list are rejected."""
+        with patch('core.host_shell_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = AsyncMock()
+            mock_cache_instance.get = AsyncMock(return_value={
+                "agent_id": "test-agent",
+                "maturity_level": "AUTONOMOUS"
+            })
+            mock_cache.return_value = mock_cache_instance
+
+            with patch.dict(os.environ, {"ATOM_HOST_MOUNT_DIRS": "/tmp:/home:/Users"}):
+                with pytest.raises(PermissionError) as exc_info:
+                    await host_shell_service.execute_shell_command(
+                        agent_id="test-agent",
+                        user_id="test-user",
+                        command="ls",
+                        working_directory="/etc",  # Not allowed
+                        db=None
+                    )
+
+                assert "not in allowed directories" in str(exc_info.value)
+```
+
+Coverage targets:
+- Command validation logic (whitelist, blocked, empty)
+- Maturity gates (AUTONOMOUS vs STUDENT/SUPERVISED)
+- Audit trail logging
+- Timeout enforcement
+- Working directory restrictions
   </action>
-  <verify>pytest backend/tests/test_host_shell_service.py -v returns passing tests</verify>
-  <done>Comprehensive test coverage validates command validation, governance checks, execution, and audit logging</done>
+  <verify>
+```bash
+# Run tests
+cd backend && pytest tests/test_host_shell_service.py -v
+# Should show 15+ tests passing
+```
+  </verify>
+  <done>
+Tests created for HostShellService:
+- 5 tests for command validation (whitelist, blocked, empty)
+- 3 tests for maturity gate (AUTONOMOUS, STUDENT, SUPERVISED)
+- 3 tests for audit trail logging
+- 2 tests for timeout enforcement
+- 2 tests for working directory restrictions
+- Total: 15+ tests with comprehensive coverage
+  </done>
+</task>
+
+<task type="auto">
+  <name>Create Docker host mount configuration</name>
+  <files>backend/docker/docker-compose.host-mount.yml, backend/docker/host-mount-setup.sh</files>
+  <action>
+Create Docker configuration for host filesystem access.
+
+**1. Create backend/docker/docker-compose.host-mount.yml:**
+
+```yaml
+# Docker Compose configuration for host filesystem mount
+# OpenClaw Integration: AUTONOMOUS agents can access host directories
+#
+# SECURITY WARNING: This gives container write access to host filesystem.
+# Only use with AUTONOMOUS maturity gate + command whitelist + audit trail.
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.host-mount.yml up
+
+version: '3.8'
+
+services:
+  atom-api:
+    volumes:
+      # Host project directories (read-write)
+      - /Users/${USER}/projects:/host/projects:rw
+      - /Users/${USER}/Desktop:/host/desktop:rw
+      - /Users/${USER}/Documents:/host/documents:rw
+      - /tmp:/host/tmp:rw
+
+    environment:
+      # Configure allowed mount directories
+      - ATOM_HOST_MOUNT_DIRS=/tmp:/Users/${USER}/projects:/Users/${USER}/Desktop:/Users/${USER}/Documents
+      - ATOM_HOST_MOUNT_ENABLED=true
+
+    # Capabilities for filesystem access
+    cap_add:
+      - SYS_ADMIN  # Required for some filesystem operations
+
+    # Security notes
+    # - volumes: Explicitly list only required directories
+    # - environment: ATOM_HOST_MOUNT_DIRS must match volumes
+    # - governance: AUTONOMOUS gate enforced in HostShellService
+    # - audit: All commands logged to ShellSession table
+```
+
+**2. Create backend/docker/host-mount-setup.sh:**
+
+```bash
+#!/bin/bash
+# Host mount setup script for Atom OpenClaw integration
+#
+# This script configures Docker volumes for host filesystem access
+# with security warnings and governance verification.
+
+set -e
+
+echo "=================================="
+echo "Atom Host Filesystem Mount Setup"
+echo "OpenClaw Integration"
+echo "=================================="
+echo ""
+
+# Security warning
+echo "⚠️  SECURITY WARNING ⚠️"
+echo ""
+echo "This configuration gives Atom containers WRITE access to host directories."
+echo ""
+echo "Governance protections in place:"
+echo "  ✓ AUTONOMOUS maturity gate required"
+echo "  ✓ Command whitelist (ls, cat, grep, git, npm, etc.)"
+echo "  ✓ Blocked commands (rm, mv, chmod, kill, sudo, etc.)"
+echo "  ✓ 5-minute timeout enforcement"
+echo "  ✓ Full audit trail to ShellSession table"
+echo ""
+echo "However, this STILL carries risk:"
+echo "  - Bugs in governance code could bypass protections"
+echo "  - Compromised AUTONOMOUS agent has shell access"
+echo "  - Docker escape vulnerabilities could be exploited"
+echo ""
+
+read -p "Do you understand the risks and want to continue? (yes/no): " confirm
+
+if [ "$confirm" != "yes" ]; then
+    echo "Setup cancelled."
+    exit 1
+fi
+
+echo ""
+echo "Configuring host mounts..."
+echo ""
+
+# Detect user
+CURRENT_USER=${USER:-$(whoami)}
+echo "Detected user: $CURRENT_USER"
+
+# Create .env file for host mount configuration
+cat > backend/.env.host-mount <<EOF
+# Host filesystem mount configuration
+# Generated by host-mount-setup.sh
+
+ATOM_HOST_MOUNT_ENABLED=true
+ATOM_HOST_MOUNT_DIRS=/tmp:/Users/$CURRENT_USER/projects:/Users/$CURRENT_USER/Desktop:/Users/$CURRENT_USER/Documents
+
+# Security
+ATOM_HOST_MOUNT_GATES=autonomous_only,command_whitelist,timeout_enforcement,audit_trail
+EOF
+
+echo "Created backend/.env.host-mount"
+echo ""
+
+# Test Docker volume access
+echo "Testing Docker volume access..."
+if docker run --rm -v /Users/$CURRENT_USER/Desktop:/host/desktop:ro alpine ls /host/desktop > /dev/null 2>&1; then
+    echo "✓ Docker volume access working"
+else
+    echo "✗ Docker volume access failed"
+    echo ""
+    echo "Troubleshooting:"
+    echo "  1. Check Docker Desktop: Settings > Resources > File Sharing"
+    echo "  2. Add /Users/$CURRENT_USER to shared directories"
+    echo "  3. Restart Docker"
+    exit 1
+fi
+
+echo ""
+echo "=================================="
+echo "Setup Complete!"
+echo "=================================="
+echo ""
+echo "To start Atom with host mount:"
+echo ""
+echo "  docker-compose -f docker-compose.yml -f docker-compose.host-mount.yml up"
+echo ""
+echo "To verify mount is active:"
+echo ""
+echo "  docker exec \$(docker ps -q -f 'name=atom') ls /host/projects"
+echo ""
+echo "To disable host mount:"
+echo ""
+echo "  docker-compose -f docker-compose.yml up  # (omit host-mount file)"
+echo ""
+```
+
+Make script executable:
+
+```bash
+chmod +x backend/docker/host-mount-setup.sh
+```
+
+**3. Add to backend/README.md:**
+
+```markdown
+## Host Filesystem Access (OpenClaw Integration)
+
+Atom supports AUTONOMOUS agents executing shell commands on host filesystem through Docker bind mounts.
+
+**Governance Protections:**
+- AUTONOMOUS maturity gate (STUDENT/SUPERVISED blocked)
+- Command whitelist (ls, cat, grep, git, npm, pip, make, etc.)
+- Blocked commands (rm, mv, chmod, kill, sudo, reboot, etc.)
+- 5-minute timeout enforcement
+- Full audit trail to ShellSession table
+
+**Setup:**
+
+1. Run setup script:
+   ```bash
+   ./backend/docker/host-mount-setup.sh
+   ```
+
+2. Start Atom with host mount:
+   ```bash
+   docker-compose -f docker-compose.yml -f docker-compose.host-mount.yml up
+   ```
+
+3. Verify mount is active:
+   ```bash
+   docker exec $(docker ps -q -f 'name=atom') ls /host/projects
+   ```
+
+**Security:**
+This gives containers write access to host directories. Only enable after:
+- Reviewing governance code (host_shell_service.py)
+- Understanding audit trail (ShellSession model)
+- Testing with non-AUTONOMOUS agents (should be blocked)
+```
+  </action>
+  <verify>
+```bash
+# Verify files created
+test -f backend/docker/docker-compose.host-mount.yml
+test -f backend/docker/host-mount-setup.sh
+grep -n "AUTONOMOUS maturity" backend/docker/docker-compose.host-mount.yml
+grep -n "SECURITY WARNING" backend/docker/host-mount-setup.sh
+```
+  </verify>
+  <done>
+Docker host mount configuration created:
+- docker-compose.host-mount.yml: Volume mounts + environment vars
+- host-mount-setup.sh: Interactive setup script with security warnings
+- Documentation in README.md with usage examples
+- Governance verification steps before enabling
+  </done>
 </task>
 
 </tasks>
 
 <verification>
-1. Governance Integration:
-   - AUTONOMOUS agents can execute shell commands
-   - Non-AUTONOMOUS agents are blocked with PermissionError
-   - Governance check uses existing get_governance_cache pattern
-
-2. Security Validation:
-   - Command whitelist prevents dangerous operations
-   - Command chaining (pipes, redirects) is blocked
-   - Shell injection vectors (escapes) are blocked
-   - subprocess.run(shell=False) prevents injection
-
-3. Audit Trail:
-   - All shell commands logged to ShellSession
-   - Agent ID, command, output, exit code, duration recorded
-   - History endpoint retrieves past executions
-
-4. Docker Integration:
-   - Host directories mounted at /host prefix
-   - Working directory restricted to mounted paths
-   - Setup script creates necessary directories
-
-5. API Contract:
-   - POST /api/shell/execute executes commands
-   - GET /api/shell/history/{agent_id} retrieves history
-   - GET /api/shell/status/{session_id} checks session status
-   - All endpoints use BaseAPIRouter success/error patterns
-
-6. Test Coverage:
-   - Command validation tests (allowed/blocked/chaining/escapes)
-   - Governance tests (AUTONOMOUS vs lower maturity)
-   - Execution tests (success/timeout/working_dir)
-   - History and active sessions tests
+After completion, verify:
+1. ShellSession model exists with governance fields (maturity_level, command_whitelist_valid)
+2. HostShellService implements AUTONOMOUS gate using GovernanceCache
+3. Command whitelist includes safe commands (ls, cat, grep, git, npm)
+4. Blocked commands rejected (rm, mv, chmod, kill, sudo)
+5. Shell API routes exposed (POST /api/shell/execute)
+6. Tests cover maturity gates, validation, timeout, audit trail
+7. Docker compose configuration for host mount
+8. Setup script with security warnings
+9. Documentation in README.md
 </verification>
 
 <success_criteria>
-1. AUTONOMOUS agents can execute whitelisted shell commands on host filesystem
-2. Shell access is completely blocked for STUDENT/INTERN/SUPERVISED agents
-3. All shell executions are logged to ShellSession with full audit trail
-4. Command whitelist prevents destructive and network operations
-5. Docker host-mount configuration enables /host filesystem access
-6. API endpoints provide shell execution, history, and status querying
-7. Comprehensive tests validate security, governance, and functionality
-8. Existing governance patterns (GovernanceCache, BaseAPIRouter) are reused
+- AUTONOMOUS agents can execute whitelisted shell commands
+- STUDENT/SUPERVISED agents blocked from shell access
+- All shell commands logged to ShellSession audit trail
+- Docker host mount configuration documented with security warnings
+- Test coverage >80% for HostShellService
+- Setup script works interactively
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/13-openclaw-integration/13-openclaw-integration-01-SUMMARY.md` with:
-- Implemented ShellSession model with full audit fields
-- HostShellService with governance-enforced command execution
-- Shell API routes with BaseAPIRouter patterns
-- Docker host-mount configuration
-- Comprehensive test coverage for security validation
-
-Include code snippets for:
-- Command whitelist and validation logic
-- Governance check pattern
-- Shell execution with subprocess safety
-- API endpoint examples
+- Files created/modified
+- AUTONOMOUS gate implementation details
+- Command whitelist (safe commands)
+- Blocked commands (dangerous)
+- Docker mount configuration
+- Test coverage results
+- Security warnings and recommendations
 </output>
