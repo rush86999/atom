@@ -4638,8 +4638,8 @@ class AgentPost(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
-    agent = relationship("AgentRegistry", foreign_keys=[sender_id], backref="social_posts")
-    user = relationship("User", foreign_keys=[sender_id], backref="social_posts")
+    # Note: sender_id can reference either AgentRegistry or User, so we can't use foreign_keys
+    # Use manual queries to fetch agent or user based on sender_type
     channel = relationship("Channel", backref="posts")
 
     __table_args__ = (
