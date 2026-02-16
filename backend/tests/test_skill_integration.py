@@ -21,10 +21,18 @@ from core.models import SkillExecution
 @pytest.fixture
 def skill_service(db_session):
     """Create SkillRegistryService with mocked dependencies."""
-    with patch('core.skill_registry_service.SkillParser'), \
-         patch('core.skill_registry_service.SkillSecurityScanner'), \
-         patch('core.skill_registry_service.HazardSandbox'), \
-         patch('core.skill_registry_service.AgentGovernanceService'):
+    with patch('core.skill_registry_service.HazardSandbox') as mock_sandbox, \
+         patch('core.skill_registry_service.AgentGovernanceService') as mock_governance:
+
+        # Mock sandbox to avoid Docker requirement
+        mock_sandbox_instance = Mock()
+        mock_sandbox_instance.execute_python = Mock(return_value="mocked result")
+        mock_sandbox.return_value = mock_sandbox_instance
+
+        # Mock governance service
+        mock_governance_instance = Mock()
+        mock_governance_instance.get_agent = Mock(return_value={"maturity_level": "INTERN"})
+        mock_governance.return_value = mock_governance_instance
 
         service = SkillRegistryService(db_session)
         return service
@@ -57,12 +65,6 @@ Add two numbers together.
             "findings": []
         })
 
-        # Mock database query
-        mock_query = Mock()
-        mock_record = Mock()
-        mock_record.id = "test-skill-id"
-        db_session.query.return_value = mock_query
-
         result = skill_service.import_skill(
             source="raw_content",
             content=skill_content,
@@ -92,10 +94,6 @@ os.system('rm -rf /')
             "findings": ["Detected malicious pattern: os.system"]
         })
 
-        mock_query = Mock()
-        mock_record = Mock()
-        mock_record.id = "malicious-skill-id"
-        db_session.query.return_value = mock_query
 
         result = skill_service.import_skill(
             source="raw_content",
@@ -120,10 +118,6 @@ def execute():
         skill_service._parser._detect_skill_type = Mock(return_value="python_code")
         skill_service._scanner.scan_skill = Mock(return_value={"safe": True, "risk_level": "LOW", "findings": []})
 
-        mock_query = Mock()
-        mock_record = Mock()
-        mock_record.id = "python-skill-id"
-        db_session.query.return_value = mock_query
 
         result = skill_service.import_skill(source="raw_content", content=skill_content)
 
@@ -141,7 +135,6 @@ class TestSkillList:
     def test_list_skills_all(self, skill_service, db_session):
         """List all skills without filtering."""
         # Mock database query
-        mock_query = Mock()
         mock_skill = Mock()
         mock_skill.id = "skill-1"
         mock_skill.status = "Active"
@@ -158,7 +151,6 @@ class TestSkillList:
         mock_query.order_by.return_value = mock_query
         mock_query.limit.return_value = [mock_skill]
 
-        db_session.query.return_value = mock_query
 
         skills = skill_service.list_skills()
 
@@ -168,12 +160,10 @@ class TestSkillList:
 
     def test_list_skills_filters_by_status(self, skill_service, db_session):
         """Filter skills by status."""
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.order_by.return_value = mock_query
         mock_query.limit.return_value = []
 
-        db_session.query.return_value = mock_query
 
         # Should apply status filter
         skills = skill_service.list_skills(status="Active")
@@ -197,10 +187,8 @@ class TestSkillList:
         mock_skill.created_at = Mock()
         mock_skill.created_at.isoformat.return_value = "2026-02-16T10:00:00"
 
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = mock_skill
-        db_session.query.return_value = mock_query
 
         skill = skill_service.get_skill("skill-123")
 
@@ -210,10 +198,8 @@ class TestSkillList:
 
     def test_get_skill_not_found(self, skill_service, db_session):
         """Return None for non-existent skill."""
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = None
-        db_session.query.return_value = mock_query
 
         skill = skill_service.get_skill("nonexistent")
 
@@ -227,7 +213,8 @@ class TestSkillList:
 class TestSkillExecution:
     """Test skill execution with governance."""
 
-    def test_execute_prompt_only_skill(self, skill_service, db_session):
+    @pytest.mark.asyncio
+    async def test_execute_prompt_only_skill(self, skill_service, db_session):
         """Execute prompt-only skill directly."""
         # Mock skill retrieval
         skill_service.get_skill = Mock(return_value={
@@ -254,9 +241,8 @@ class TestSkillExecution:
             # Mock database add
             mock_execution = Mock()
             mock_execution.id = "exec-1"
-            db_session.add.return_value = None
 
-            result = skill_service.execute_skill(
+            result = await skill_service.execute_skill(
                 skill_id="skill-1",
                 inputs={"query": "2+2"},
                 agent_id="agent-1"
@@ -266,7 +252,8 @@ class TestSkillExecution:
             assert "Calculate" in result["result"]
             assert result["execution_id"] == "exec-1"
 
-    def test_execute_python_skill_in_sandbox(self, skill_service, db_session):
+    @pytest.mark.asyncio
+    async def test_execute_python_skill_in_sandbox(self, skill_service, db_session):
         """Execute Python skill in sandbox."""
         skill_service.get_skill = Mock(return_value={
             "skill_id": "skill-1",
@@ -290,9 +277,8 @@ class TestSkillExecution:
 
         mock_execution = Mock()
         mock_execution.id = "exec-1"
-        db_session.add.return_value = None
 
-        result = skill_service.execute_skill(
+        result = await skill_service.execute_skill(
             skill_id="skill-1",
             inputs={},
             agent_id="agent-1"
@@ -341,10 +327,8 @@ class TestSkillPromotion:
         mock_skill.status = "Untrusted"
         mock_skill.input_params = {"skill_name": "My Skill"}
 
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = mock_skill
-        db_session.query.return_value = mock_query
 
         result = skill_service.promote_skill("skill-123")
 
@@ -357,10 +341,8 @@ class TestSkillPromotion:
         mock_skill = Mock()
         mock_skill.status = "Active"
 
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = mock_skill
-        db_session.query.return_value = mock_query
 
         result = skill_service.promote_skill("skill-123")
 
@@ -370,10 +352,8 @@ class TestSkillPromotion:
 
     def test_promote_nonexistent_skill(self, skill_service, db_session):
         """Promoting non-existent skill should raise error."""
-        mock_query = Mock()
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = None
-        db_session.query.return_value = mock_query
 
         with pytest.raises(ValueError) as exc_info:
             skill_service.promote_skill("nonexistent")
@@ -402,10 +382,6 @@ Calculate {{query}}
         skill_service._parser._detect_skill_type = Mock(return_value="prompt_only")
         skill_service._scanner.scan_skill = Mock(return_value={"safe": True, "risk_level": "LOW", "findings": []})
 
-        mock_record = Mock()
-        mock_record.id = "safe-skill-id"
-        mock_query = Mock()
-        db_session.query.return_value = mock_query
 
         import_result = skill_service.import_skill(source="raw_content", content=skill_content)
 
@@ -445,10 +421,6 @@ Calculate {{query}}
             "findings": ["Detected: os.system"]
         })
 
-        mock_record = Mock()
-        mock_record.id = "malicious-id"
-        mock_query = Mock()
-        db_session.query.return_value = mock_query
 
         import_result = skill_service.import_skill(source="raw_content", content=skill_content)
 
