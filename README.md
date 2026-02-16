@@ -132,7 +132,34 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ## Quick Start
 
-### ⚡ One-Command Start (Easiest!)
+```bash
+# Install Atom
+pip install atom-os
+
+# Initialize
+atom init
+
+# Add your API keys to .env
+# OPENAI_API_KEY=sk-...
+
+# Start Atom
+atom start
+
+# Open dashboard
+open http://localhost:8000
+```
+
+That's it! 🚀
+
+**Choose your edition:**
+- **Personal Edition** - Free, single-user, SQLite (default)
+- **Enterprise Edition** - Multi-user, PostgreSQL, monitoring → `pip install atom-os[enterprise]`
+
+[Full Installation Guide →](docs/INSTALLATION.md)
+
+---
+
+### ⚡ One-Command Start (Alternative)
 
 ```bash
 git clone https://github.com/rush86999/atom.git
@@ -145,6 +172,52 @@ start.bat  # Windows
 Access at: **http://localhost:3000**
 
 [Full Guide →](QUICK_START.md) | [Docker Guide →](docs/PERSONAL_EDITION.md) | [Native Guide →](docs/NATIVE_SETUP.md)
+
+---
+
+## Personal Edition
+
+Atom offers a **Personal Edition** that's free and perfect for:
+
+- Personal productivity automation
+- AI agent experimentation
+- Local development
+- Privacy-focused automation (data never leaves your machine)
+
+**What's included:**
+- Local agent execution
+- Workflow automation
+- Canvas presentations
+- Browser automation
+- Episodic memory
+- Agent governance
+- Community skills (5,000+ OpenClaw/ClawHub)
+
+**What's NOT included** (Enterprise features):
+- Multi-user support
+- PostgreSQL database
+- SSO (Okta, Auth0, SAML)
+- Advanced monitoring
+- Audit trail
+- Rate limiting
+
+[Full Feature Matrix →](docs/FEATURE_MATRIX.md)
+
+### Install Personal Edition
+
+```bash
+pip install atom-os
+atom init
+atom start
+```
+
+### Upgrade to Enterprise
+
+```bash
+atom enable enterprise
+```
+
+[Personal Edition Guide →](docs/PERSONAL_EDITION.md)
 
 ---
 
@@ -177,15 +250,6 @@ cp .env.personal .env
 Access at: **http://localhost:3000**
 
 [Full Native Guide →](docs/NATIVE_SETUP.md)
-
-### 📦 pip Installer (Fastest - 2 minutes)
-```bash
-pip3 install atom-os
-atom-os start --port 8000
-```
-Access at: **http://localhost:8000**
-
-[Full CLI Guide →](backend/README.md)
 
 ---
 
