@@ -1,5 +1,6 @@
 import logging
 import os
+import hmac
 from typing import Any, Dict, Optional
 from fastapi import Request
 import httpx
@@ -18,15 +19,19 @@ class TelegramAdapter(PlatformAdapter):
         self.api_base = f"https://api.telegram.org/bot{self.bot_token}"
 
     async def verify_request(self, request: Request, body_bytes: bytes) -> bool:
+        """
+        Verify Telegram webhook request using constant-time comparison.
+
+        Uses hmac.compare_digest() to prevent timing attacks where attackers
+        measure response times to guess valid tokens character-by-character.
+        """
         if not self.secret_token:
              # If no secret token configured, we skip verification (Dev) or fail (Prod)
              # Ideally Telegram sets X-Telegram-Bot-Api-Secret-Token
              return True
-             
+
         header_token = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        if header_token == self.secret_token:
-            return True
-        return False
+        return hmac.compare_digest(header_token, self.secret_token)
 
     async def normalize_payload(self, request: Request, body_bytes: bytes) -> Dict[str, Any]:
         """
