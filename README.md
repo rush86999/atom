@@ -108,6 +108,16 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 - Skill Runner UI to test and execute agent skills
 - Real-time streaming execution
 
+### 🔄 Agent-to-Agent Execution ✨ NEW
+- **Universal agent control**: Any agent can install and run Atom (OpenClaw, Claude, custom agents)
+- **Background service mode**: Run Atom as daemon with PID tracking
+- **On-demand execution**: Execute Atom commands temporarily
+- **REST API control**: Programmatic start/stop/status for agent integration
+- **CLI commands**: Simple terminal commands for easy control
+- **Systemd service**: Auto-start on system boot
+
+[Usage Guide →](#agent-to-agent-execution)
+
 ---
 
 ## Quick Start
@@ -190,6 +200,175 @@ Access at: **http://localhost:3000**
 - **Learning loop**: Successful/failed patterns feed into world model
 - **Confidence scoring**: Approved actions increase confidence, failures decrease it
 - Full audit trail for compliance
+
+---
+
+## Agent-to-Agent Execution
+
+Atom OS can be controlled by any agent (OpenClaw, Claude, custom agents) through CLI or REST API. This allows other AI agents to easily install, run, and control Atom as a background service or on-demand execution.
+
+### Quick Start for Agents
+
+**1. Install Atom:**
+```bash
+pip install atom-os
+```
+
+**2. Start as background service:**
+```bash
+atom-os daemon --port 8000
+```
+
+**3. Check status:**
+```bash
+atom-os status
+```
+
+**4. Stop service:**
+```bash
+atom-os stop
+```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `atom-os daemon [--port] [--host-mount]` | Start as background daemon |
+| `atom-os daemon --foreground` | Run in foreground (for debugging) |
+| `atom-os status` | Check daemon status (PID, memory, CPU) |
+| `atom-os stop` | Stop daemon gracefully |
+| `atom-os execute <command>` | Execute single command (on-demand) |
+| `atom-os config` | Show configuration details |
+
+### REST API Control
+
+Start Atom programmatically:
+```bash
+curl -X POST http://localhost:8000/api/agent/start \
+  -H "Content-Type: application/json" \
+  -d '{"port": 8000, "host": "0.0.0.0"}'
+```
+
+Check status:
+```bash
+curl http://localhost:8000/api/agent/status
+```
+
+Stop Atom:
+```bash
+curl -X POST http://localhost:8000/api/agent/stop
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agent/start` | POST | Start Atom as background service |
+| `/api/agent/stop` | POST | Stop Atom service |
+| `/api/agent/status` | GET | Get status and running info |
+| `/api/agent/restart` | POST | Restart Atom service |
+| `/api/agent/execute` | POST | Execute single command |
+
+### Systemd Service (Auto-start on Boot)
+
+Enable Atom OS to start on system boot:
+```bash
+# Install service file
+sudo cp backend/atom-os.service /etc/systemd/system/
+
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable auto-start
+sudo systemctl enable atom-os
+
+# Start service now
+sudo systemctl start atom-os
+
+# Check status
+sudo systemctl status atom-os
+```
+
+### Examples
+
+**OpenClaw Agent:**
+```python
+# Start Atom before using tools
+import subprocess
+subprocess.run(["atom-os", "daemon"])
+
+# Use Atom tools via API
+import requests
+response = requests.get("http://localhost:8000/api/skills/list")
+skills = response.json()["skills"]
+```
+
+**Claude Agent:**
+```python
+# Check if Atom is running
+import requests
+status = requests.get("http://localhost:8000/api/agent/status")
+if not status.json()["status"]["running"]:
+    # Start Atom
+    import subprocess
+    subprocess.run(["atom-os", "daemon"])
+
+# Execute workflow
+response = requests.post(
+    "http://localhost:8000/api/workflows/execute",
+    json={"workflow_name": "monthly_report"}
+)
+result = response.json()
+```
+
+**Custom Agent:**
+```python
+import requests
+import time
+
+class AtomClient:
+    """Simple client for controlling Atom OS."""
+
+    def __init__(self, base_url="http://localhost:8000"):
+        self.base_url = base_url
+
+    def start(self, port=8000):
+        """Start Atom as background service."""
+        response = requests.post(
+            f"{self.base_url}/api/agent/start",
+            json={"port": port}
+        )
+        return response.json()
+
+    def status(self):
+        """Check Atom status."""
+        response = requests.get(f"{self.base_url}/api/agent/status")
+        return response.json()["status"]
+
+    def stop(self):
+        """Stop Atom service."""
+        response = requests.post(f"{self.base_url}/api/agent/stop")
+        return response.json()
+
+# Usage
+client = AtomClient()
+client.start(port=8000)
+print(f"Running: {client.status()['running']}")
+client.stop()
+```
+
+### Daemon Status Output
+
+```bash
+$ atom-os status
+
+Status: RUNNING
+  PID: 12345
+  Memory: 256.5 MB
+  CPU: 5.2%
+  Uptime: 3600s
+  Dashboard: http://localhost:8000
+```
 
 ---
 
