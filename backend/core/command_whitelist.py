@@ -262,7 +262,7 @@ def validate_command(
             category_config = config
             break
 
-    if not category_category:
+    if not command_category:
         return {
             "valid": False,
             "category": None,
