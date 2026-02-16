@@ -191,6 +191,7 @@ class OperationTrackerHooks:
                     content=redacted_content,
                     sender_maturity=agent.status,
                     sender_category=agent.category,
+                    auto_generated=True,
                     db=db
                 )
 
@@ -273,6 +274,3 @@ def register_auto_post_hooks() -> None:
 
     logger.info("OperationTrackerHooks: Registered auto-post hooks with AgentOperationTracker")
 
-
-# Register hooks on module load
-register_auto_post_hooks()
