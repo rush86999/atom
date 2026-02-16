@@ -19,11 +19,10 @@ class WorkspaceFactory(BaseFactory):
     name = factory.Faker('company')
     description = factory.Faker('text', max_nb_chars=500)
 
-    # Business info
-    industry = fuzzy.FuzzyChoice(['Technology', 'Healthcare', 'Finance', 'Retail', 'Other'])
-    company_size = fuzzy.FuzzyChoice(['1-10', '11-50', '51-200', '201-500', '500+'])
-
     # Metadata
+    status = factory.LazyAttribute(lambda o: WorkspaceStatus.ACTIVE.value)
+    plan_tier = factory.LazyAttribute(lambda o: "standard")
+    satellite_api_key = factory.LazyAttribute(lambda o: None)
     is_startup = fuzzy.FuzzyChoice([True, False])
     learning_phase_completed = fuzzy.FuzzyChoice([True, False])
 

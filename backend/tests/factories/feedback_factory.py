@@ -33,5 +33,5 @@ class AgentFeedbackFactory(BaseFactory):
     status = fuzzy.FuzzyChoice([s.value for s in FeedbackStatus])
     ai_reasoning = factory.Faker('text', max_nb_chars=300)
     adjudicated_at = factory.LazyAttribute(
-        lambda o: datetime.now() if o.status == FeedbackStatus.ADJUDICATED.value else None
+        lambda o: datetime.now() if o.status in [FeedbackStatus.ACCEPTED.value, FeedbackStatus.REJECTED.value] else None
     )

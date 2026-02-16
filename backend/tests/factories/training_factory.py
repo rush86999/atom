@@ -68,7 +68,8 @@ class AgentProposalFactory(BaseFactory):
 
     # Status
     status = fuzzy.FuzzyChoice([s.value for s in ProposalStatus])
-    human_review = factory.Faker('text', max_nb_chars=300)
-    reviewed_at = factory.LazyAttribute(
+    proposed_by = factory.Faker('uuid4')  # agent_id or "atom_meta_agent"
+    approved_by = factory.LazyAttribute(lambda o: None)  # Foreign key to users.id
+    approved_at = factory.LazyAttribute(
         lambda o: datetime.now() if o.status in ['approved', 'rejected'] else None
     )
