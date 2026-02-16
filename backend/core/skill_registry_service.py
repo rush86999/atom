@@ -8,6 +8,7 @@ Reference: Phase 14 Plan 03 - Skills Registry & Security
 """
 
 import datetime
+import hashlib
 import logging
 import uuid
 from pathlib import Path
@@ -16,7 +17,8 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
-from core.models import SkillExecution
+from core.episode_segmentation_service import EpisodeSegmentationService
+from core.models import EpisodeSegment, SkillExecution
 from core.skill_adapter import create_community_tool
 from core.skill_parser import SkillParser
 from core.skill_sandbox import HazardSandbox
@@ -64,6 +66,7 @@ class SkillRegistryService:
         self._scanner = SkillSecurityScanner()
         self._sandbox = HazardSandbox()
         self._governance = AgentGovernanceService(db)
+        self._segmentation_service = EpisodeSegmentationService(db)
 
     def import_skill(
         self,
@@ -313,6 +316,10 @@ class SkillRegistryService:
         self.db.add(execution)
         self.db.commit()
 
+        start_time = datetime.datetime.now(datetime.timezone.utc)
+        error = None
+        result = None
+
         try:
             # Execute based on skill type
             if skill_type == "prompt_only":
@@ -323,18 +330,31 @@ class SkillRegistryService:
                 raise ValueError(f"Unknown skill type: {skill_type}")
 
             # Update execution record
-            execution.status = "completed"
+            execution.status = "success"
             execution.output_result = {"result": result}
             execution.completed_at = datetime.datetime.now(datetime.timezone.utc)
             self.db.commit()
 
+            # Create episode segment for successful execution
+            execution_time = (datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds()
+            episode_id = await self._create_execution_episode(
+                skill_name=skill_name,
+                agent_id=agent_id,
+                inputs=inputs,
+                result=result,
+                error=None,
+                execution_time=execution_time
+            )
+
             return {
                 "success": True,
                 "result": result,
-                "execution_id": execution.id
+                "execution_id": execution.id,
+                "episode_id": episode_id
             }
 
         except Exception as e:
+            error = e
             # Update execution record with error
             execution.status = "failed"
             execution.error_message = str(e)
@@ -342,10 +362,23 @@ class SkillRegistryService:
             self.db.commit()
 
             logger.error(f"Skill execution failed: {e}")
+
+            # Create episode segment for failed execution
+            execution_time = (datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds()
+            episode_id = await self._create_execution_episode(
+                skill_name=skill_name,
+                agent_id=agent_id,
+                inputs=inputs,
+                result=None,
+                error=e,
+                execution_time=execution_time
+            )
+
             return {
                 "success": False,
                 "error": str(e),
-                "execution_id": execution.id
+                "execution_id": execution.id,
+                "episode_id": episode_id
             }
 
     def _execute_prompt_skill(self, skill: Dict[str, Any], inputs: Dict[str, Any]) -> str:
@@ -401,6 +434,91 @@ class SkillRegistryService:
         result = self._sandbox.execute_python(code, inputs)
 
         return result
+
+    def _summarize_inputs(self, inputs: Dict[str, Any]) -> str:
+        """
+        Summarize input parameters for episode context.
+
+        Args:
+            inputs: Input parameters
+
+        Returns:
+            Summarized string representation
+        """
+        if not inputs:
+            return "{}"
+
+        # Truncate long values
+        summarized = {}
+        for key, value in inputs.items():
+            value_str = str(value)
+            if len(value_str) > 100:
+                value_str = value_str[:97] + "..."
+            summarized[key] = value_str
+
+        return str(summarized)
+
+    async def _create_execution_episode(
+        self,
+        skill_name: str,
+        agent_id: str,
+        inputs: dict,
+        result: Any,
+        error: Optional[Exception],
+        execution_time: float
+    ) -> Optional[str]:
+        """
+        Create an episode segment for skill execution.
+
+        Args:
+            skill_name: Name of the executed skill
+            agent_id: Agent ID that executed the skill
+            inputs: Input parameters
+            result: Execution result
+            error: Exception if execution failed
+            execution_time: Execution time in seconds
+
+        Returns:
+            Episode segment ID or None if creation failed
+        """
+        try:
+            segment_type = "skill_success" if error is None else "skill_failure"
+
+            # Extract skill metadata
+            skill_context = {
+                "skill_name": skill_name,
+                "skill_source": "community",
+                "execution_time": execution_time,
+                "input_summary": self._summarize_inputs(inputs),
+                "result_summary": str(result)[:200] if result else None,
+                "error_type": type(error).__name__ if error else None,
+                "error_message": str(error)[:200] if error else None
+            }
+
+            # Create episode segment directly without full episode
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=f"skill_{skill_name}_{agent_id[:8]}_{int(datetime.datetime.now().timestamp())}",
+                segment_type=segment_type,
+                sequence_order=0,
+                content=f"Skill execution: {skill_name}",
+                content_summary=f"Executed {skill_name} - {'Success' if error is None else 'Failed'}",
+                source_type="skill_execution",
+                source_id=str(uuid.uuid4()),
+                metadata=skill_context
+            )
+
+            self.db.add(segment)
+            self.db.commit()
+            self.db.refresh(segment)
+
+            logger.info(f"Created episode segment {segment.id} for skill execution: {skill_name}")
+            return segment.id
+
+        except Exception as e:
+            logger.error(f"Failed to create episode segment for skill execution: {e}")
+            self.db.rollback()
+            return None
 
     def promote_skill(self, skill_id: str) -> Dict[str, Any]:
         """
