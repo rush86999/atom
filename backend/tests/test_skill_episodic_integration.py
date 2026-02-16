@@ -13,7 +13,7 @@ Reference: Phase 14 Plan 03 - Gap Closure 01
 
 import pytest
 from sqlalchemy.orm import Session
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime, timedelta
 
 from core.skill_registry_service import SkillRegistryService
@@ -23,24 +23,33 @@ from core.models import EpisodeSegment, SkillExecution, AgentRegistry, AgentStat
 
 
 @pytest.fixture
-def db():
-    """Create a test database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def skill_service_with_mocks(db_session):
+    """Create SkillRegistryService with mocked dependencies to avoid Docker requirement."""
+    with patch('core.skill_registry_service.HazardSandbox') as mock_sandbox, \
+         patch('core.skill_registry_service.AgentGovernanceService') as mock_governance:
+
+        # Mock sandbox instance
+        mock_sandbox_instance = Mock()
+        mock_sandbox_instance.execute_python = Mock(return_value="mocked result")
+        mock_sandbox.return_value = mock_sandbox_instance
+
+        # Mock governance service
+        mock_governance_instance = Mock()
+        mock_governance_instance.get_agent = Mock(return_value={"maturity_level": "INTERN"})
+        mock_governance.return_value = mock_governance_instance
+
+        service = SkillRegistryService(db_session)
+        return service
 
 
 class TestSkillEpisodicIntegration:
     """Test episodic memory integration with community skills."""
 
     @pytest.mark.asyncio
-    async def test_skill_execution_creates_episode(self, db_session):
+    async def test_skill_execution_creates_episode(self, db_session, skill_service_with_mocks):
         """Verify successful skill execution creates episode segment."""
         # Setup
-        service = SkillRegistryService(db_session)
+        service = skill_service_with_mocks
         service._segmentation_service = Mock()
 
         # Mock episode creation
@@ -64,7 +73,7 @@ Calculate: {{query}}
         skill_id = result["skill_id"]
 
         # Execute skill
-        execution_result = service.execute_skill(
+        execution_result = await service.execute_skill(
             skill_id=skill_id,
             inputs={"query": "2+2"},
             agent_id="test-agent"
@@ -85,9 +94,9 @@ Calculate: {{query}}
         assert call_args[1]["execution_time"] >= 0
 
     @pytest.mark.asyncio
-    async def test_skill_failure_creates_error_episode(self, db_session):
+    async def test_skill_failure_creates_error_episode(self, db_session, skill_service_with_mocks):
         """Verify failed skill execution creates error episode."""
-        service = SkillRegistryService(db_session)
+        service = skill_service_with_mocks
         service._segmentation_service = Mock()
 
         # Mock episode creation
@@ -112,7 +121,7 @@ This skill will fail
         service._execute_prompt_skill = Mock(side_effect=Exception("Test error"))
 
         # Execute skill (should fail)
-        execution_result = service.execute_skill(
+        execution_result = await service.execute_skill(
             skill_id=skill_id,
             inputs={"query": "test"},
             agent_id="test-agent"
@@ -132,9 +141,9 @@ This skill will fail
         assert isinstance(call_args[1]["error"], Exception)
 
     @pytest.mark.asyncio
-    async def test_skill_metadata_extracted_correctly(self, db_session):
+    async def test_skill_metadata_extracted_correctly(self, db_session, skill_service_with_mocks):
         """Verify skill metadata (name, source, execution time) is captured."""
-        service = SkillRegistryService(db_session)
+        service = skill_service_with_mocks
 
         # Test metadata extraction
         inputs = {"query": "What is 2+2?", "context": "math help"}
@@ -146,7 +155,7 @@ This skill will fail
         assert "math help" in summary
 
     @pytest.mark.asyncio
-    async def test_graduation_service_tracks_skill_usage(self, db_session):
+    async def test_graduation_service_tracks_skill_usage(self, db_session, skill_service_with_mocks):
         """Verify graduation service calculates skill usage metrics."""
         service = AgentGraduationService(db_session)
 
@@ -283,19 +292,3 @@ This skill will fail
         assert metadata["execution_successful"] is True
         assert metadata["execution_time"] == 2.5
         assert "input_hash" in metadata
-
-    @pytest.mark.asyncio
-    async def test_get_skill_episodes_endpoint(self, test_client):
-        """Verify API endpoint returns skill execution episodes."""
-        # This would require setting up a full FastAPI test client
-        # and creating test data in the database
-        # For now, we'll skip this as it requires more complex setup
-        pytest.skip("Requires FastAPI TestClient setup")
-
-    @pytest.mark.asyncio
-    async def test_learning_progress_endpoint(self, test_client):
-        """Verify API endpoint returns learning trends over time."""
-        # This would require setting up a full FastAPI test client
-        # and creating test data in the database
-        # For now, we'll skip this as it requires more complex setup
-        pytest.skip("Requires FastAPI TestClient setup")

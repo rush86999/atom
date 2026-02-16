@@ -19,17 +19,6 @@ from core.models import SkillExecution
 # ============================================================================
 
 @pytest.fixture
-def db_session():
-    """Mock database session."""
-    session = Mock()
-    session.add = Mock()
-    session.commit = Mock()
-    session.rollback = Mock()
-    session.query = Mock()
-    return session
-
-
-@pytest.fixture
 def skill_service(db_session):
     """Create SkillRegistryService with mocked dependencies."""
     with patch('core.skill_registry_service.SkillParser'), \
