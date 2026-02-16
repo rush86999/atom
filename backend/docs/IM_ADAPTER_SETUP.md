@@ -208,8 +208,43 @@ Send these messages to your bot:
 
 **Solutions**:
 1. Current limit: 10 req/min per user_id
-2. Increase by modifying `IMGovernanceService` (not recommended for production)
+2. Configure via environment variables (see below)
 3. Add user to whitelist: `IM_RATE_LIMIT_WHITELIST=user@example.com`
+
+### Rate Limiting Configuration
+
+IMGovernanceService implements rate limiting using a **sliding window algorithm**:
+
+- **Limit**: 10 requests per minute per user (platform:sender_id key)
+- **Window**: 60 second sliding window
+- **Burst behavior**: All 10 requests can arrive instantly (not throttled)
+- **Enforcement**: 11th request returns HTTP 429 with Retry-After header
+
+#### Algorithm Details
+
+```
+1. Extract sender_id from webhook payload
+2. Check rate limit store for {platform}:{sender_id}
+3. Remove timestamps older than 60 seconds
+4. If >= 10 timestamps remain → return 429
+5. Otherwise, add current timestamp and allow request
+```
+
+#### Configuration
+
+Environment variables for rate limiting (optional, defaults shown):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IM_RATE_LIMIT_REQUESTS` | 10 | Max requests per window |
+| `IM_RATE_LIMIT_WINDOW_SECONDS` | 60 | Time window in seconds |
+
+#### Production Considerations
+
+The current implementation uses in-memory storage. For multi-worker deployments:
+- Consider Redis for distributed rate limiting
+- Use a single rate limit worker if continuing in-memory approach
+- Each worker maintains its own rate limit store (requests = workers * 10)
 
 ### Governance Blocking
 
