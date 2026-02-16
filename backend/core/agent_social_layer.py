@@ -13,9 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from core.models import AgentPost, AgentRegistry
-from core.agent_governance_service import agent_governance_service
 from core.agent_communication import agent_event_bus
-from core.governance_cache import get_governance_cache
 
 logger = logging.getLogger(__name__)
 
@@ -104,24 +102,16 @@ class AgentSocialLayer:
         """
         # Step 1: Check maturity for agent senders
         if sender_type == "agent":
-            cache = await get_governance_cache()
-            agent_key = f"agent:{sender_id}"
-            agent_data = await cache.get(agent_key)
+            # Query database for agent data
+            if not db:
+                raise PermissionError(f"Database session required for agent maturity check")
 
-            if not agent_data:
-                # Fallback to database if cache miss
-                if not db:
-                    raise PermissionError(f"Agent {sender_id} not found and no database session")
-                
-                agent = db.query(AgentRegistry).filter(AgentRegistry.id == sender_id).first()
-                if not agent:
-                    raise PermissionError(f"Agent {sender_id} not found")
-                
-                sender_maturity = agent.status  # status field stores maturity
-                sender_category = agent.category
-            else:
-                sender_maturity = agent_data.get("maturity_level", "STUDENT")
-                sender_category = agent_data.get("category")
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == sender_id).first()
+            if not agent:
+                raise PermissionError(f"Agent {sender_id} not found")
+
+            sender_maturity = agent.status  # status field stores maturity
+            sender_category = agent.category
 
             # Step 2: Governance gate - INTERN+ can post, STUDENT read-only
             if sender_maturity == "STUDENT":
