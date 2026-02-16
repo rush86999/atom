@@ -95,6 +95,14 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 [Platform Guide →](docs/MESSAGING_PLATFORMS.md) | [Messaging Features →](docs/MESSAGING_GUIDE.md)
 
+### 📱 IM Adapters ✨ NEW
+- **Telegram & WhatsApp Webhook Integration**: Interact with agents via IM platforms
+- **Webhook Signature Verification**: All incoming webhooks verified via HMAC
+- **Rate Limiting**: 10 requests/minute per user (configurable)
+- **Governance Integration**: STUDENT agents blocked, INTERN+ allowed with checks
+- **Audit Trail**: All interactions logged to `im_audit_logs` table
+- [Setup Guide →](backend/docs/IM_ADAPTER_SETUP.md) | [Security Best Practices →](backend/docs/IM_SECURITY_BEST_PRACTICES.md)
+
 ### 🛠️ Dynamic Skills
 - Agents build new tools on-the-fly
 - Skill Runner UI to test and execute agent skills
@@ -195,6 +203,8 @@ Access at: **http://localhost:3000**
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
 - [Recording System](docs/CANVAS_RECORDING_IMPLEMENTATION.md) - Recording and playback
 - [Review Integration](docs/RECORDING_REVIEW_INTEGRATION.md) - Governance & learning
+- [IM Adapter Setup](backend/docs/IM_ADAPTER_SETUP.md) - Telegram & WhatsApp integration
+- [IM Security Best Practices](backend/docs/IM_SECURITY_BEST_PRACTICES.md) - Security guidelines
 - [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
 
 ---
