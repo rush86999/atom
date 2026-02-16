@@ -5147,3 +5147,53 @@ class SupervisedExecutionQueue(Base):
         Index('ix_supervised_queue_priority_created', 'priority', 'created_at'),
         Index('ix_supervised_queue_expires', 'expires_at'),
     )
+
+
+class ShellSession(Base):
+    """
+    Host shell command execution session with governance controls.
+
+    Purpose:
+    - Audit trail for all shell commands executed by agents
+    - Security tracking for host filesystem access
+    - Timeout enforcement and command validation
+
+    Governance:
+    - AUTONOMOUS agents only (maturity_level check)
+    - Command whitelist validation (ls, pwd, cat, grep, git, etc.)
+    - 5-minute maximum execution timeout
+    - Working directory restrictions
+    """
+    __tablename__ = "shell_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    maturity_level = Column(String, nullable=False)  # AUTONOMOUS required
+
+    # What
+    command = Column(Text, nullable=False)  # Shell command executed
+    command_whitelist_valid = Column(Boolean, nullable=False)  # True if in whitelist
+    working_directory = Column(String, nullable=True)  # Host directory
+
+    # Result
+    exit_code = Column(Integer, nullable=True)  # 0 = success
+    stdout = Column(Text, nullable=True)
+    stderr = Column(Text, nullable=True)
+    timed_out = Column(Boolean, default=False)  # True if killed by timeout
+
+    # When
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True)  # Execution duration
+
+    # Governance
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)  # NULL = auto-approved for AUTONOMOUS
+    approval_required = Column(Boolean, default=False)  # True for lower maturity
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="shell_sessions")
+    user = relationship("User", foreign_keys=[user_id], backref="shell_sessions_initiated")
+    approver = relationship("User", foreign_keys=[approved_by])
