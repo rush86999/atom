@@ -3,6 +3,7 @@ Agent Social Layer - Moltbook-style agent feed service.
 
 OpenClaw Integration: Natural language agent-to-agent communication.
 INTERN+ agents can post, STUDENT read-only. Typed posts (status/insight/question/alert).
+Expanded to full communication matrix: human↔agent, agent↔agent, directed messages, channels.
 """
 
 import logging
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from core.models import AgentPost, AgentRegistry
+from core.agent_governance_service import agent_governance_service
 from core.agent_communication import agent_event_bus
 from core.governance_cache import get_governance_cache
 
@@ -20,11 +22,12 @@ logger = logging.getLogger(__name__)
 
 class AgentSocialLayer:
     """
-    Social feed service for agent-to-agent communication.
+    Social feed service for agent-to-agent and human-to-agent communication.
 
     Governance:
-    - INTERN+ maturity required to post
+    - INTERN+ maturity required for agents to post
     - STUDENT agents are read-only
+    - Humans can post with no maturity restriction
     - All agents can read feed
 
     Post Types:
@@ -32,6 +35,14 @@ class AgentSocialLayer:
     - insight: "Just discovered Y"
     - question: "How do I Z?"
     - alert: "Important: W happened"
+    - command: Human → Agent directive
+    - response: Agent → Human reply
+    - announcement: Human public post
+
+    Communication Matrix:
+    - Public feed: All posts visible globally
+    - Directed messages: 1:1 communication (sender_type, recipient_id, is_public=false)
+    - Channels: Context-specific conversations (channel_id)
     """
 
     def __init__(self):
@@ -39,26 +50,47 @@ class AgentSocialLayer:
 
     async def create_post(
         self,
-        agent_id: str,
+        sender_type: str,
+        sender_id: str,
+        sender_name: str,
         post_type: str,
         content: str,
+        sender_maturity: Optional[str] = None,
+        sender_category: Optional[str] = None,
+        recipient_type: Optional[str] = None,
+        recipient_id: Optional[str] = None,
+        is_public: bool = True,
+        channel_id: Optional[str] = None,
+        channel_name: Optional[str] = None,
         mentioned_agent_ids: List[str] = None,
+        mentioned_user_ids: List[str] = None,
         mentioned_episode_ids: List[str] = None,
         mentioned_task_ids: List[str] = None,
         db: Session = None
     ) -> Dict[str, Any]:
         """
-        Create new agent post and broadcast to feed.
+        Create new post and broadcast to feed.
 
         Governance Check:
-        - Agent must be INTERN+ maturity to post
+        - Agent senders must be INTERN+ maturity to post
         - STUDENT agents are rejected with PermissionError
+        - Human senders have no maturity restriction
 
         Args:
-            agent_id: Agent creating post
-            post_type: Type (status, insight, question, alert)
+            sender_type: "agent" or "human"
+            sender_id: agent_id or user_id
+            sender_name: Display name
+            post_type: Type (status, insight, question, alert, command, response, announcement)
             content: Natural language content
+            sender_maturity: For agents (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+            sender_category: For agents (engineering, sales, support, etc.)
+            recipient_type: For directed messages ("agent" or "human")
+            recipient_id: For directed messages
+            is_public: True=public feed, False=directed message
+            channel_id: Optional channel for contextual posts
+            channel_name: Denormalized channel name
             mentioned_agent_ids: Optional agent mentions
+            mentioned_user_ids: Optional user mentions
             mentioned_episode_ids: Optional episode references
             mentioned_task_ids: Optional task references
             db: Database session
@@ -70,25 +102,36 @@ class AgentSocialLayer:
             PermissionError: If agent is STUDENT maturity
             ValueError: If post_type is invalid
         """
-        # Step 1: Check maturity using cache for speed
-        cache = get_governance_cache()
-        agent_key = f"agent:{agent_id}"
-        agent_data = await cache.get(agent_key)
+        # Step 1: Check maturity for agent senders
+        if sender_type == "agent":
+            cache = await get_governance_cache()
+            agent_key = f"agent:{sender_id}"
+            agent_data = await cache.get(agent_key)
 
-        if not agent_data:
-            raise PermissionError(f"Agent {agent_id} not found")
+            if not agent_data:
+                # Fallback to database if cache miss
+                if not db:
+                    raise PermissionError(f"Agent {sender_id} not found and no database session")
+                
+                agent = db.query(AgentRegistry).filter(AgentRegistry.id == sender_id).first()
+                if not agent:
+                    raise PermissionError(f"Agent {sender_id} not found")
+                
+                sender_maturity = agent.status  # status field stores maturity
+                sender_category = agent.category
+            else:
+                sender_maturity = agent_data.get("maturity_level", "STUDENT")
+                sender_category = agent_data.get("category")
 
-        maturity_level = agent_data.get("maturity_level", "STUDENT")
-
-        # Step 2: Governance gate - INTERN+ can post, STUDENT read-only
-        if maturity_level == "STUDENT":
-            raise PermissionError(
-                f"STUDENT agents cannot post to social feed. "
-                f"Agent {agent_id} is {maturity_level}, requires INTERN+ maturity"
-            )
+            # Step 2: Governance gate - INTERN+ can post, STUDENT read-only
+            if sender_maturity == "STUDENT":
+                raise PermissionError(
+                    f"STUDENT agents cannot post to social feed. "
+                    f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"
+                )
 
         # Step 3: Validate post_type
-        valid_types = ["status", "insight", "question", "alert"]
+        valid_types = ["status", "insight", "question", "alert", "command", "response", "announcement"]
         if post_type not in valid_types:
             raise ValueError(
                 f"Invalid post_type '{post_type}'. Must be one of: {', '.join(valid_types)}"
@@ -96,13 +139,20 @@ class AgentSocialLayer:
 
         # Step 4: Create post
         post = AgentPost(
-            agent_id=agent_id,
-            agent_name=agent_data.get("name", agent_id),
-            agent_maturity=maturity_level,
-            agent_category=agent_data.get("category"),
+            sender_type=sender_type,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            sender_maturity=sender_maturity,
+            sender_category=sender_category,
+            recipient_type=recipient_type,
+            recipient_id=recipient_id,
+            is_public=is_public,
+            channel_id=channel_id,
+            channel_name=channel_name,
             post_type=post_type,
             content=content,
             mentioned_agent_ids=mentioned_agent_ids or [],
+            mentioned_user_ids=mentioned_user_ids or [],
             mentioned_episode_ids=mentioned_episode_ids or [],
             mentioned_task_ids=mentioned_task_ids or [],
             created_at=datetime.utcnow()
@@ -116,13 +166,20 @@ class AgentSocialLayer:
         # Step 5: Broadcast to event bus
         post_data = {
             "id": post.id,
-            "agent_id": post.agent_id,
-            "agent_name": post.agent_name,
-            "agent_maturity": post.agent_maturity,
-            "agent_category": post.agent_category,
+            "sender_type": post.sender_type,
+            "sender_id": post.sender_id,
+            "sender_name": post.sender_name,
+            "sender_maturity": post.sender_maturity,
+            "sender_category": post.sender_category,
+            "recipient_type": post.recipient_type,
+            "recipient_id": post.recipient_id,
+            "is_public": post.is_public,
+            "channel_id": post.channel_id,
+            "channel_name": post.channel_name,
             "post_type": post.post_type,
             "content": post.content,
             "mentioned_agent_ids": post.mentioned_agent_ids,
+            "mentioned_user_ids": post.mentioned_user_ids,
             "mentioned_episode_ids": post.mentioned_episode_ids,
             "mentioned_task_ids": post.mentioned_task_ids,
             "reactions": post.reactions,
@@ -133,7 +190,7 @@ class AgentSocialLayer:
         await agent_event_bus.broadcast_post(post_data)
 
         self.logger.info(
-            f"Agent {agent_id} posted {post_type}: {content[:50]}... "
+            f"{sender_type} {sender_id} posted {post_type}: {content[:50]}... "
             f"(broadcast to feed)"
         )
 
@@ -141,24 +198,28 @@ class AgentSocialLayer:
 
     async def get_feed(
         self,
-        agent_id: str,
+        sender_id: str,
         limit: int = 50,
         offset: int = 0,
         post_type: Optional[str] = None,
-        agent_filter: Optional[str] = None,
+        sender_filter: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        is_public: Optional[bool] = None,
         db: Session = None
     ) -> Dict[str, Any]:
         """
-        Get activity feed for agent.
+        Get activity feed.
 
-        All agents can read feed (no maturity check).
+        All agents and humans can read feed (no maturity check).
 
         Args:
-            agent_id: Agent requesting feed (for logging)
+            sender_id: Requester ID (for logging)
             limit: Max posts to return
             offset: Pagination offset
             post_type: Filter by post_type (optional)
-            agent_filter: Filter by specific agent (optional)
+            sender_filter: Filter by specific sender
+            channel_id: Filter by channel
+            is_public: Filter by public/private
             db: Database session
 
         Returns:
@@ -174,8 +235,14 @@ class AgentSocialLayer:
         if post_type:
             query = query.filter(AgentPost.post_type == post_type)
 
-        if agent_filter:
-            query = query.filter(AgentPost.agent_id == agent_filter)
+        if sender_filter:
+            query = query.filter(AgentPost.sender_id == sender_filter)
+
+        if channel_id:
+            query = query.filter(AgentPost.channel_id == channel_id)
+
+        if is_public is not None:
+            query = query.filter(AgentPost.is_public == is_public)
 
         # Count total
         total = query.count()
@@ -187,17 +254,25 @@ class AgentSocialLayer:
             "posts": [
                 {
                     "id": p.id,
-                    "agent_id": p.agent_id,
-                    "agent_name": p.agent_name,
-                    "agent_maturity": p.agent_maturity,
-                    "agent_category": p.agent_category,
+                    "sender_type": p.sender_type,
+                    "sender_id": p.sender_id,
+                    "sender_name": p.sender_name,
+                    "sender_maturity": p.sender_maturity,
+                    "sender_category": p.sender_category,
+                    "recipient_type": p.recipient_type,
+                    "recipient_id": p.recipient_id,
+                    "is_public": p.is_public,
+                    "channel_id": p.channel_id,
+                    "channel_name": p.channel_name,
                     "post_type": p.post_type,
                     "content": p.content,
                     "mentioned_agent_ids": p.mentioned_agent_ids,
+                    "mentioned_user_ids": p.mentioned_user_ids,
                     "mentioned_episode_ids": p.mentioned_episode_ids,
                     "mentioned_task_ids": p.mentioned_task_ids,
                     "reactions": p.reactions,
                     "reply_count": p.reply_count,
+                    "read_at": p.read_at.isoformat() if p.read_at else None,
                     "created_at": p.created_at.isoformat()
                 }
                 for p in posts
@@ -210,7 +285,7 @@ class AgentSocialLayer:
     async def add_reaction(
         self,
         post_id: str,
-        agent_id: str,
+        sender_id: str,
         emoji: str,
         db: Session = None
     ) -> Dict[str, Any]:
@@ -219,7 +294,7 @@ class AgentSocialLayer:
 
         Args:
             post_id: Post to react to
-            agent_id: Agent reacting
+            sender_id: Agent or user reacting
             emoji: Emoji reaction
             db: Database session
 
@@ -247,7 +322,7 @@ class AgentSocialLayer:
         await agent_event_bus.publish({
             "type": "reaction_added",
             "post_id": post_id,
-            "agent_id": agent_id,
+            "sender_id": sender_id,
             "emoji": emoji,
             "reactions": post.reactions
         }, [f"post:{post_id}", "global"])
@@ -282,6 +357,10 @@ class AgentSocialLayer:
             # Count agent mentions
             for mentioned_id in post.mentioned_agent_ids:
                 topic_counts[f"agent:{mentioned_id}"] = topic_counts.get(f"agent:{mentioned_id}", 0) + 1
+
+            # Count user mentions
+            for mentioned_id in post.mentioned_user_ids:
+                topic_counts[f"user:{mentioned_id}"] = topic_counts.get(f"user:{mentioned_id}", 0) + 1
 
             # Count episode mentions
             for episode_id in post.mentioned_episode_ids:
