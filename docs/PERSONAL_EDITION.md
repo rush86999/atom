@@ -87,6 +87,26 @@ Open your browser: **http://localhost:3000**
 
 That's it! 🎉 Atom is now running on your local machine.
 
+### 5. (Optional) Verify Vector Embeddings
+
+Test that vector embeddings are working properly:
+
+```bash
+# Run embeddings test
+python3 test-embeddings.py
+```
+
+Expected output:
+```
+✅ Provider: fastembed
+✅ Model: BAAI/bge-small-en-v1.5
+✅ Generated 384-dimensional vector
+✅ Semantic similarity working correctly!
+✅ Vector storage ready
+```
+
+**Learn more:** [Vector Embeddings Guide](VECTOR_EMBEDDINGS.md)
+
 ---
 
 ## Setup Instructions
