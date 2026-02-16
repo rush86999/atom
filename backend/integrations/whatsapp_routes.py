@@ -5,12 +5,14 @@ Exposes WhatsApp webhook endpoints with IMGovernanceService integration
 
 import logging
 from typing import Any, Dict
-from fastapi import APIRouter, Request, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException, Query, BackgroundTasks, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from core.im_governance_service import im_governance_service
+from core.im_governance_service import IMGovernanceService
 from integrations.universal_webhook_bridge import universal_webhook_bridge
 from core.communication.adapters.whatsapp import WhatsAppAdapter
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,11 @@ async def whatsapp_webhook_verify(
 
 
 @router.post("/webhook")
-async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
+async def whatsapp_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
     WhatsApp webhook endpoint for incoming messages (POST).
 
@@ -59,6 +65,9 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     import hashlib
     import hmac
+
+    # Initialize IMGovernanceService with database session
+    im_governance_service = IMGovernanceService(db)
 
     # Get raw body bytes for signature verification
     body_bytes = await request.body()
