@@ -963,6 +963,14 @@ try:
     except ImportError as e:
         logger.warning(f"Health monitoring routes not found: {e}")
 
+    # 15.1.e Production Health Check Routes (Kubernetes/ECS probes)
+    try:
+        from api.health_routes import router as health_check_router
+        app.include_router(health_check_router, tags=["Health Checks"])
+        logger.info("✓ Production Health Check Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Production health check routes not found: {e}")
+
     # 15.1.e Mobile Canvas Routes (Mobile-optimized canvas access and offline sync)
     try:
         from api.mobile_canvas_routes import router as mobile_router
