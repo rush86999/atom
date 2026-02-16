@@ -211,6 +211,64 @@ python3 backend/run_tests.py
 - Task queue: 85%
 - Unified search: 90%
 
+## 🔄 CI/CD
+
+### GitHub Actions
+
+Atom uses GitHub Actions for continuous integration. The CI pipeline runs on every push and pull request to the `main` and `develop` branches.
+
+**Workflow File:** `.github/workflows/ci.yml`
+
+### CI Jobs
+
+1. **Backend Import Verification** - Verifies all Python modules can be imported
+2. **Backend Test Suite** - Runs full pytest with coverage reporting
+3. **Frontend Build** - Type checks, lints, and builds Next.js frontend
+4. **Docker Build** - Validates Docker images can be built
+5. **Tauri Build** - Multi-platform desktop app build validation (macOS, Linux, Windows)
+
+### Environment Variables (CI)
+
+```bash
+DATABASE_URL="sqlite:///:memory:"
+BYOK_ENCRYPTION_KEY="test_key_for_ci_only"
+ENVIRONMENT="test"
+ATOM_DISABLE_LANCEDB="true"
+ATOM_MOCK_DATABASE="true"
+```
+
+### Recent CI Fixes (Feb 16, 2026)
+
+Fixed critical CI failures preventing tests from running:
+
+1. **Typo Fix**: Corrected `BYOV_ENCRYPTION_KEY` → `BYOK_ENCRYPTION_KEY` in CI workflow
+2. **Missing Dependencies**: Added `jsonschema` and `responses` packages to requirements.txt
+3. **Syntax Errors**: Fixed indentation errors in 3 core files that prevented coverage.py from parsing
+
+**See Also:** [docs/CI_FIXES.md](CI_FIXES.md) for detailed breakdown of fixes
+
+### Running CI Locally
+
+```bash
+# Install CI dependencies
+pip install -r backend/requirements.txt -r backend/requirements-testing.txt
+
+# Run CI test command
+cd backend
+pytest tests/ -v -n auto \
+  --ignore=tests/integration/episodes/test_lancedb_integration.py \
+  --cov=core \
+  --cov-report=html:tests/coverage_reports/html \
+  --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+  --maxfail=10
+```
+
+### Coverage Reports
+
+- **HTML Report**: `backend/tests/coverage_reports/html/index.html`
+- **JSON Metrics**: `backend/tests/coverage_reports/metrics/coverage.json`
+- **Target**: 28% overall coverage (Phase 12 goal, ongoing)
+
 ## 📡 New API Endpoints (February 2026)
 
 ### Security Endpoints

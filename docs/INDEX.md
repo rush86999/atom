@@ -137,6 +137,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
