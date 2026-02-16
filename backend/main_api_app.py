@@ -406,6 +406,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load tool discovery routes (skipping): {e}")
 
+    # Local Agent Routes (NEW)
+    try:
+        from api.local_agent_routes import router as local_agent_router
+        app.include_router(local_agent_router)
+        logger.info("✓ Local Agent Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load local agent routes (skipping): {e}")
+
     try:
         from api.workflow_template_routes import router as template_router
         app.include_router(template_router, prefix="/api/workflow-templates", tags=["workflow-templates"])
