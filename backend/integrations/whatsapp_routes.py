@@ -36,9 +36,13 @@ async def whatsapp_webhook_verify(
     - hub.challenge: Random string to echo back
     - hub.verify_token: Token you set in Meta dashboard
 
+    Environment Variables:
+    - WHATSAPP_VERIFY_TOKEN: Random string set in Meta dashboard
+      Generate with: openssl rand -hex 16
+
     Returns the hub.challenge to verify the webhook.
     """
-    expected_token = "YOUR_VERIFY_TOKEN"  # TODO: Move to env var
+    expected_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "default_random_token_change_in_prod")
 
     if hub_mode == "subscribe" and hub_verify_token == expected_token:
         logger.info("WhatsApp webhook verified successfully")
