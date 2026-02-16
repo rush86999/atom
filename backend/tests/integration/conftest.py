@@ -5,10 +5,16 @@ Provides database sessions, TestClient with dependency overrides,
 and authentication fixtures for API testing.
 """
 
+import os
 import pytest
 import uuid
+import tempfile
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+# Set TESTING environment variable BEFORE any imports
+os.environ["TESTING"] = "1"
 
 # Add parent directory to path for imports
 import sys
@@ -17,10 +23,60 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from main_api_app import app
 from core.auth import create_access_token
-from core.database import get_db
+from core.database import get_db, Base
 from core.models import User
 from tests.factories.user_factory import AdminUserFactory
-from tests.property_tests.conftest import db_session
+
+
+@pytest.fixture(scope="function")
+def db_session():
+    """
+    Create a fresh in-memory database for each test.
+
+    Simplified version that avoids sorted_tables to prevent NoReferencedTableError
+    when running multiple tests in sequence.
+    """
+    # Use file-based temp SQLite for tests
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+
+    # Store path for cleanup
+    engine._test_db_path = db_path
+
+    # Create tables using create_all with checkfirst
+    # This handles missing foreign key references gracefully
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+    except Exception:
+        # If create_all fails, create tables individually
+        for table in Base.metadata.tables.values():
+            try:
+                table.create(engine, checkfirst=True)
+            except Exception:
+                # Skip tables that can't be created (missing FK refs, etc.)
+                continue
+
+    # Create session
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+
+    yield session
+
+    # Cleanup
+    session.close()
+    engine.dispose()
+    # Delete temp database file
+    if hasattr(engine, '_test_db_path'):
+        try:
+            os.unlink(engine._test_db_path)
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="function")
