@@ -11,9 +11,18 @@
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
 | [PERSONAL_EDITION.md](PERSONAL_EDITION.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
+| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
 | [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
+
+---
+
+## 🌐 Community Skills
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 16, 2026 |
 
 ---
 
@@ -280,6 +289,7 @@
 ### By Date (Most Recent)
 
 **February 2026**:
+- [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](PERSONAL_EDITION.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
 - [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) - **Comprehensive API docs** (Feb 16)

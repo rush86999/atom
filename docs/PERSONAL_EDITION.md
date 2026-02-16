@@ -216,6 +216,7 @@ Open your browser and navigate to:
 4. **Browser Automation** - Web scraping and form filling
 5. **Episodic Memory** - Agents remember past interactions
 6. **Agent Governance** - Agents progress from Student → Autonomous
+7. **Community Skills** ✨ NEW - Import 5,000+ OpenClaw/ClawHub skills with enterprise security
 
 ---
 
@@ -291,6 +292,38 @@ tar -czf atom-backup-$(date +%Y%m%d).tar.gz data/
 # Restore from backup
 tar -xzf atom-backup-20240216.tar.gz
 ```
+
+### Import Community Skills ✨ NEW
+
+Atom Personal Edition supports importing 5,000+ community skills from OpenClaw/ClawHub:
+
+**Via GitHub URL:**
+```bash
+curl -X POST http://localhost:8000/api/skills/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "github_url",
+    "url": "https://github.com/openclaw/skills/tree/main/skill-name"
+  }'
+```
+
+**List Imported Skills:**
+```bash
+curl http://localhost:8000/api/skills/list
+```
+
+**Execute a Skill:**
+```bash
+curl -X POST http://localhost:8000/api/skills/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill_id": "skill-name",
+    "agent_id": "your-agent-id",
+    "inputs": {...}
+  }'
+```
+
+[Full Documentation →](COMMUNITY_SKILLS.md)
 
 ---
 

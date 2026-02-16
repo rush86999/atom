@@ -108,6 +108,16 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 - Skill Runner UI to test and execute agent skills
 - Real-time streaming execution
 
+### 🌐 Community Skills Integration ✨ NEW
+- **5,000+ OpenClaw/ClawHub skills** - Import and use community-built skills directly in Atom
+- **Enterprise-grade security** - LLM-powered security scanning with 21+ malicious pattern detection
+- **Hazard Sandbox** - Isolated Docker containers prevent skills from accessing host filesystem
+- **Skills Registry** - Easy import via GitHub URL, status tracking (Untrusted → Active → Banned)
+- **Governance integration** - STUDENT agents blocked from Python skills, INTERN+ require approval
+- **Automatic learning** - Skill executions create episodic memories and track toward agent graduation
+
+[Community Skills Guide →](docs/COMMUNITY_SKILLS.md) | [Import Skills →](#importing-community-skills)
+
 ### 🔄 Agent-to-Agent Execution ✨ NEW
 - **Universal agent control**: Any agent can install and run Atom (OpenClaw, Claude, custom agents)
 - **Background service mode**: Run Atom as daemon with PID tracking
@@ -204,6 +214,7 @@ Access at: **http://localhost:8000**
 
 ✅ Complete backend (FastAPI) + frontend (Next.js) + desktop app (Tauri)
 ✅ 46+ pre-built integrations
+✅ 5,000+ community skills via OpenClaw/ClawHub integration
 ✅ Multi-platform communication bridge (12+ platforms)
 ✅ Agent governance and maturity system
 ✅ Episodic memory and graduation framework
@@ -214,6 +225,15 @@ Access at: **http://localhost:8000**
 ---
 
 ## Recent Features (February 2026)
+
+### Community Skills Integration ✨ NEW
+- **5,000+ OpenClaw/ClawHub skills**: Import and use community-built skills directly in Atom
+- **Enterprise security**: LLM-powered scanning with 21+ malicious pattern detection
+- **Hazard Sandbox**: Isolated Docker containers prevent host access
+- **Skills Registry**: Import via GitHub URL, status tracking (Untrusted → Active → Banned)
+- **Governance integration**: STUDENT blocked from Python skills, maturity-based approvals
+- **Episodic learning**: Skill executions create memories and track toward graduation
+- [Full Documentation →](.planning/phases/14-community-skills-integration/14-VERIFICATION.md)
 
 ### Episodic Memory & Graduation Framework ✨ NEW
 - **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
@@ -416,8 +436,58 @@ Status: RUNNING
 
 ---
 
+## Importing Community Skills ✨ NEW
+
+Atom can import and use 5,000+ community skills from OpenClaw/ClawHub while maintaining enterprise security.
+
+### Quick Import
+
+**Via GitHub URL:**
+```bash
+curl -X POST http://localhost:8000/api/skills/import \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "github_url",
+    "url": "https://github.com/openclaw/skills/tree/main/email-sorter"
+  }'
+```
+
+**Via File Upload:**
+```bash
+curl -X POST http://localhost:8000/api/skills/import \
+  -F "file=@SKILL.md" \
+  -F "source=file_upload"
+```
+
+### Security Workflow
+
+1. **Import** → Skills marked as "Untrusted" automatically
+2. **Security Scan** → LLM + static analysis for malicious patterns
+3. **Activate** → Promote to "Active" status for agent use
+4. **Execute** → Agents run skills in isolated Docker sandbox
+
+### List Imported Skills
+
+```bash
+curl http://localhost:8000/api/skills/list?status=Active
+```
+
+### Governance
+
+| Agent Level | Prompt Skills | Python Skills |
+|-------------|---------------|---------------|
+| STUDENT | ✅ Yes | ❌ Blocked |
+| INTERN | ✅ Yes | ⚠️ Approval Required |
+| SUPERVISED | ✅ Yes | ✅ Yes (Monitored) |
+| AUTONOMOUS | ✅ Yes | ✅ Yes |
+
+[Full Documentation →](docs/COMMUNITY_SKILLS.md)
+
+---
+
 ## Documentation
 
+- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - Import 5,000+ OpenClaw/ClawHub skills
 - [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
 - [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Experience-based learning system
 - [Agent Graduation Guide](docs/AGENT_GRADUATION_GUIDE.md) - Promotion validation framework
