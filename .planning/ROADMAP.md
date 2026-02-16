@@ -570,14 +570,18 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 **Depends on**: Nothing (feature development, not coverage-related)
 **Requirements**: OPENCLAW-01 (Host shell access with governance), OPENCLAW-02 (Agent social layer), OPENCLAW-03 (Simplified pip installer)
 **Success Criteria** (what must be TRUE):
-  1. AUTONOMOUS agents can execute whitelisted shell commands on host filesystem
-  2. Shell access is completely blocked for STUDENT/INTERN/SUPERVISED agents
-  3. All shell executions are logged to ShellSession with full audit trail
-  4. Agents can post natural language updates to social feed (INTERN+ only)
-  5. Activity feed is paginated, filterable, and includes agent context
-  6. AgentEventBus provides event-driven pub/sub for real-time updates
-  7. Users can install Atom with `pip install atom-os` and start with `atom-os` command
-  8. CLI provides host-mount option with security warnings
+  1. ✅ AUTONOMOUS agents can execute whitelisted shell commands on host filesystem
+  2. ✅ Shell access is completely blocked for STUDENT/INTERN/SUPERVISED agents
+  3. ✅ All shell executions are logged to ShellSession with full audit trail
+  4. ✅ Agents can post natural language updates to social feed (INTERN+ only)
+  5. ✅ Activity feed is paginated, filterable, and includes agent context
+  6. ✅ AgentEventBus provides event-driven pub/sub for real-time updates
+  7. ✅ Users can install Atom with `pip install atom-os` and start with `atom-os` command
+  8. ✅ CLI provides host-mount option with security warnings
+  9. ✅ Full communication matrix: Human ↔ Agent, Agent ↔ Human, Agent ↔ Agent
+  10. ✅ Directed messaging and channels/rooms supported
+  11. ✅ Shell timeout enforcement prevents runaway commands
+  12. ✅ Docker host mount configuration with security warnings
 
 **Features**:
 1. **Host Shell Access (God Mode Local Agent)**:
@@ -587,12 +591,16 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
    - ShellSession audit trail
    - 5-minute timeout enforcement
 
-2. **Agent Social Layer (Agent Feed/Watercooler)**:
-   - Natural language status updates (status, insight, question, alert)
-   - Event-driven architecture with AgentEventBus
-   - INTERN+ maturity required to post, STUDENT read-only
+2. **Agent Social Layer (Full Communication Matrix)**:
+   - Human ↔ Agent: Directed messages, commands, public announcements
+   - Agent ↔ Human: Responses, status updates, requests
+   - Agent ↔ Agent: Social feed with INTERN+ gate, STUDENT read-only
+   - Natural language posts: status, insight, question, alert, command, response, announcement
+   - Event-driven architecture with AgentEventBus for WebSocket pub/sub
+   - Public feed (global visibility) and directed messaging (1:1)
+   - Channels/rooms: project, support, engineering (context-specific conversations)
    - Real-time WebSocket broadcasting
-   - Trending topics and reactions
+   - Trending topics and emoji reactions
 
 3. **Simplified Installer (pip install atom-os)**:
    - setup.py with console_scripts entry point
@@ -604,9 +612,9 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 **Estimated Duration**: 3 plans (1-2 days)
 
 **Plans**: 3 plans
-- [x] 13-openclaw-integration-01-PLAN.md — Host shell access with governance ✅ PLANNED
-- [x] 13-openclaw-integration-02-PLAN.md — Agent social layer and event bus ✅ PLANNED
-- [x] 13-openclaw-integration-03-PLAN.md — Simplified pip installer ✅ PLANNED
+- [x] 13-openclaw-integration-01-PLAN.md — Host shell access with governance ✅ COMPLETE
+- [x] 13-openclaw-integration-02-PLAN.md — Agent social layer and event bus ✅ COMPLETE
+- [x] 13-openclaw-integration-03-PLAN.md — Simplified pip installer ✅ COMPLETE
 
 ## Progress
 
@@ -631,6 +639,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Test Failure Fixes | 8/8 | **Complete** | 2026-02-15 | Fixed 5 flaky tests, optimized pytest.ini, validated TQ-03/TQ-04 |
 | 11. Coverage Analysis & Prioritization | 1/1 | **Complete** | 2026-02-16 | Coverage analysis script, Phase 12-13 strategy |
 | 12. Tier 1 Coverage Push | 0/4-5 | **Pending** | - | Target: 28% coverage (+5.2%) |
-| 13. OpenClaw Integration | 0/3 | **Pending** | - | Host shell, social layer, installer |
+| 13. OpenClaw Integration | 3/3 | **Complete** | 2026-02-16 | Host shell, social layer, installer |
 
-**Overall Progress**: 88 plans completed out of ~105-125 estimated (+7-8 Phase 12-13 plans pending)
+**Overall Progress**: 91 plans completed out of ~105-125 estimated (+7-8 Phase 12 plans pending)
