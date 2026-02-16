@@ -68,11 +68,11 @@ class SocialPostGenerator:
             try:
                 self._openai_client = AsyncOpenAI(
                     api_key=os.getenv("OPENAI_API_KEY"),
-                    timeout=5.0  # 5-second timeout
+                    timeout=5.0
                 )
                 logger.info("SocialPostGenerator: GPT-4.1 mini client initialized")
             except Exception as e:
-                logger.warning(f"SocialPostGenerator: Failed to initialize OpenAI client: {e}")
+                logger.warning("SocialPostGenerator: Failed to initialize OpenAI client")
                 self._openai_client = None
         else:
             logger.warning("SocialPostGenerator: OPENAI_API_KEY not set, using templates only")
@@ -91,8 +91,8 @@ class SocialPostGenerator:
         if tracker.operation_type not in self.SIGNIFICANT_OPERATIONS:
             return False
 
-        # Check if status indicates completion
-        if tracker.status == "completed":
+        # Check if status indicates completion or failure (both are significant)
+        if tracker.status in ("completed", "failed"):
             return True
 
         # Check if approval requested (always significant)

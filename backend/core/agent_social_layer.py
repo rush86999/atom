@@ -66,6 +66,7 @@ class AgentSocialLayer:
         mentioned_episode_ids: List[str] = None,
         mentioned_task_ids: List[str] = None,
         skip_pii_redaction: bool = False,
+        auto_generated: bool = False,
         db: Session = None
     ) -> Dict[str, Any]:
         """
@@ -100,6 +101,7 @@ class AgentSocialLayer:
             mentioned_episode_ids: Optional episode references
             mentioned_task_ids: Optional task references
             skip_pii_redaction: If True, skip PII redaction (admin/debug only)
+            auto_generated: True if automatically generated from operation tracker
             db: Database session
 
         Returns:
@@ -176,6 +178,7 @@ class AgentSocialLayer:
             mentioned_user_ids=mentioned_user_ids or [],
             mentioned_episode_ids=mentioned_episode_ids or [],
             mentioned_task_ids=mentioned_task_ids or [],
+            auto_generated=auto_generated,
             created_at=datetime.utcnow()
         )
 
@@ -205,6 +208,7 @@ class AgentSocialLayer:
             "mentioned_task_ids": post.mentioned_task_ids,
             "reactions": post.reactions,
             "reply_count": post.reply_count,
+            "auto_generated": post.auto_generated,
             "created_at": post.created_at.isoformat()
         }
 
@@ -403,3 +407,16 @@ class AgentSocialLayer:
 
 # Global service instance
 agent_social_layer = AgentSocialLayer()
+
+# Register auto-post hooks (deferred to avoid circular import)
+def register_hooks_if_needed():
+    """Register auto-post hooks if not already registered"""
+    try:
+        from core.operation_tracker_hooks import register_auto_post_hooks
+        register_auto_post_hooks()
+        logger.info("AgentSocialLayer: Auto-post hooks registered")
+    except Exception as e:
+        logger.warning(f"AgentSocialLayer: Failed to register auto-post hooks: {e}")
+
+# Call this after all modules are loaded to avoid circular import
+# (e.g., in main.py or app initialization)
