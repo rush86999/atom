@@ -20,6 +20,7 @@ psycopg2-binary>=2.9.0,<3.0.0
 aiosqlite>=0.19.0,<1.0.0
 lancedb>=0.5.3,<1.0.0
 redis>=4.5.0,<5.0.0
+docker>=7.0.0,<8.0.0
 
 # AI & Machine Learning
 fastembed>=0.2.0  # Fast, local embeddings (default: BAAI/bge-small-en-v1.5)
