@@ -12,6 +12,7 @@ Reference: Phase 14 Plan 03 - Gap Closure 01
 """
 
 import pytest
+from sqlalchemy.orm import Session
 from unittest.mock import AsyncMock, MagicMock, Mock
 from datetime import datetime, timedelta
 
@@ -19,6 +20,17 @@ from core.skill_registry_service import SkillRegistryService
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.agent_graduation_service import AgentGraduationService
 from core.models import EpisodeSegment, SkillExecution, AgentRegistry, AgentStatus
+
+
+@pytest.fixture
+def db():
+    """Create a test database session."""
+    from core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 class TestSkillEpisodicIntegration:
