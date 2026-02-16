@@ -643,6 +643,20 @@ try:
         logger.warning(f"Social media routes not found: {e}")
 
     try:
+        from api.social_routes import router as social_router
+        app.include_router(social_router)
+        logger.info("✓ Social Feed Routes Loaded (OpenClaw)")
+    except ImportError as e:
+        logger.warning(f"Social feed routes not found: {e}")
+
+    try:
+        from api.channel_routes import router as channel_router
+        app.include_router(channel_router)
+        logger.info("✓ Channel Routes Loaded (OpenClaw)")
+    except ImportError as e:
+        logger.warning(f"Channel routes not found: {e}")
+
+    try:
         from api.competitor_analysis_routes import router as competitor_analysis_router
         app.include_router(competitor_analysis_router)
         logger.info("✓ Competitor Analysis Routes Loaded")
