@@ -26,7 +26,7 @@ from functools import wraps
 from typing import List, Dict, Callable, Any, Optional
 from sqlalchemy.orm import Session
 
-from core.models import AgentRegistry
+from core.models import AgentRegistry, AgentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -162,8 +162,17 @@ def whitelisted_command(
 
             agent_maturity = agent.status
 
+            # Convert maturity_levels strings to AgentStatus enums for comparison
+            maturity_level_enums = []
+            for level_str in maturity_levels:
+                try:
+                    maturity_level_enums.append(AgentStatus[level_str])
+                except KeyError:
+                    # Invalid maturity level string - skip
+                    pass
+
             # Check if maturity level is permitted
-            if agent_maturity not in maturity_levels:
+            if agent_maturity not in maturity_level_enums:
                 # Get minimum required maturity
                 allowed_maturities = category_config["maturity_levels"]
                 min_maturity = allowed_maturities[0] if allowed_maturities else "BLOCKED"
