@@ -154,7 +154,7 @@ class WorkflowEngine:
                 return True
         return False
 
-    async def _execute_workflow_graph(self, execution_id: str, workflow: Dict[str, Any], state: Dict[str, Any], ws_manager, user_id: str, start_time: datetime):
+    async def _execute_workflow_graph(self, execution_id: str, workflow: Dict[str, Any], state: Dict[str, Any], ws_manager, user_id: str, start_time: datetime) -> None:
         """
         Execute workflow using graph traversal with conditional branching and parallel execution.
         """
@@ -457,7 +457,7 @@ class WorkflowEngine:
         await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
-    async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]):
+    async def _run_execution(self, execution_id: str, workflow: Dict[str, Any]) -> None:
         """Main execution loop"""
         ws_manager = get_connection_manager()
         # Import here to avoid circular imports if any

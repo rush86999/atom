@@ -107,7 +107,7 @@ class BYOKHandler:
         self.byok_manager = get_byok_manager()
         self._initialize_clients()
 
-    def _initialize_clients(self):
+    def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
         if not OpenAI:
             logger.warning("OpenAI package not installed. LLM features may be limited.")

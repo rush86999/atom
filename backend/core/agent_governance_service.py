@@ -93,7 +93,7 @@ class AgentGovernanceService:
         
         return feedback
 
-    async def _adjudicate_feedback(self, feedback: AgentFeedback):
+    async def _adjudicate_feedback(self, feedback: AgentFeedback) -> None:
         """
         Judge the validity of the user's correction.
         """
@@ -158,7 +158,7 @@ class AgentGovernanceService:
  
         self.db.commit()
 
-    async def record_outcome(self, agent_id: str, success: bool):
+    async def record_outcome(self, agent_id: str, success: bool) -> None:
         """
         Record a successful or failed task outcome and update confidence.
         """
@@ -166,7 +166,7 @@ class AgentGovernanceService:
         self._update_confidence_score(agent_id, positive=success, impact_level=impact)
         logger.info(f"Recorded outcome for agent {agent_id}: success={success}")
 
-    def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high"):
+    def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high") -> None:
         """
         Update confidence and manage maturity transitions.
         Impact: high (0.05/0.1), low (0.01/0.02)
