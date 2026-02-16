@@ -358,9 +358,20 @@ class IMGovernanceService:
 
     def _check_rate_limit(self, key: str) -> bool:
         """
-        Check if request is within rate limit using token bucket algorithm.
+        Check if request is within rate limit using sliding window algorithm.
+
+        Algorithm:
+        - Maintains a list of request timestamps for each key
+        - Removes timestamps older than the rate limit window (60 seconds)
+        - Allows request if fewer than rate_limit_requests (10) in window
+        - Adds current timestamp and allows request
 
         Rate limit: 10 requests per minute per key (platform:sender_id)
+        Window: 60 seconds sliding window
+        Burst behavior: All 10 requests can arrive instantly (not true token bucket)
+
+        Note: This is a fixed window with timestamp cleanup, not a true token bucket.
+        For production with multiple workers, consider Redis-based rate limiting.
 
         Args:
             key: Rate limit key (platform:sender_id)
