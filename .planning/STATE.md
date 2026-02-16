@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 01-im-adapters
-Plan: 03 (IMGovernanceService Security Testing)
+Plan: 04 (IM Adapter Documentation)
 Status: Complete
-Last activity: 2026-02-16 — Created comprehensive TDD test suite with 32 tests (21 unit + 11 property-based) achieving 84.94% coverage on IMGovernanceService. Validated webhook signature verification, rate limiting invariants (10 req/min never exceeded), governance checks (STUDENT blocked, AUTONOMOUS allowed), and audit trail logging. Fixed 2 bugs discovered through property-based testing (UnicodeDecodeError, AttributeError in sender ID extraction). Used Hypothesis for invariant testing with 700 total test cases across all property tests.
+Last activity: 2026-02-16 — Created comprehensive IM adapter documentation with 633 lines covering complete Telegram and WhatsApp webhook integration. Produced IM_ADAPTER_SETUP.md (256 lines) with step-by-step setup instructions, troubleshooting guide, and security checklist. Produced IM_SECURITY_BEST_PRACTICES.md (377 lines) with webhook signature verification, rate limiting configuration, governance checks, audit trail logging, 5 common security pitfalls, production deployment checklist, and incident response procedures. Updated README.md with IM Adapters section and documentation links. All documentation follows security-first architecture with production-ready guidance.
 
-Progress: [███] 75% (Phase 01: 3 of 4 plans complete)
+Progress: [████] 100% (Phase 01: 4 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -145,6 +145,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 12-tier-1-coverage-push P04 | 798 | 3 tasks | 2 files |
 | Phase 01-im-adapters P02 | 268s | 3 tasks | 3 files |
 | Phase 01-im-adapters P03 | 589 | 2 tasks | 3 files |
+| Phase 01-im-adapters P04 | 230 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -281,6 +282,7 @@ Recent decisions affecting current work:
 - [Phase 12-tier-1-coverage-push]: Unit tests for models.py ORM relationships provide excellent coverage - 97.30% achieved
 - [Phase 12-tier-1-coverage-push]: Property tests for workflow_engine.py need expansion for async execution paths
 - [Phase 12-tier-1-coverage-push]: Session management issues in some tests require transaction rollback pattern
+- [Phase 01-im-adapters]: Created comprehensive IM adapter documentation with 633 lines covering complete Telegram and WhatsApp webhook integration. Split documentation into IM_ADAPTER_SETUP.md (developer-focused) and IM_SECURITY_BEST_PRACTICES.md (security-focused). Emphasized security-first approach with production checklist, common pitfalls, and incident response procedures. Documentation links to existing IMGovernanceService implementation and webhook endpoints.
 
 ### Pending Todos
 
