@@ -1,0 +1,1492 @@
+{
+  "generated_at": "2026-02-16T00:15:27.264098Z",
+  "total_zero_coverage_files": 212,
+  "total_lines_uncovered": 44895,
+  "estimated_total_gain": 22447.5,
+  "files": [
+    {
+      "file": "core/models.py",
+      "lines": 2351,
+      "estimated_gain_lines": 1176,
+      "recommended_test_type": "unit",
+      "complexity": "high"
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "lines": 1163,
+      "estimated_gain_lines": 582,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "lines": 736,
+      "estimated_gain_lines": 368,
+      "recommended_test_type": "integration",
+      "complexity": "high"
+    },
+    {
+      "file": "core/workflow_analytics_engine.py",
+      "lines": 593,
+      "estimated_gain_lines": 296,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "lines": 549,
+      "estimated_gain_lines": 274,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/workflow_debugger.py",
+      "lines": 527,
+      "estimated_gain_lines": 264,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/byok_endpoints.py",
+      "lines": 498,
+      "estimated_gain_lines": 249,
+      "recommended_test_type": "integration",
+      "complexity": "high"
+    },
+    {
+      "file": "core/lancedb_handler.py",
+      "lines": 494,
+      "estimated_gain_lines": 247,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/auto_document_ingestion.py",
+      "lines": 479,
+      "estimated_gain_lines": 240,
+      "recommended_test_type": "unit",
+      "complexity": "high"
+    },
+    {
+      "file": "core/workflow_versioning_system.py",
+      "lines": 476,
+      "estimated_gain_lines": 238,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/advanced_workflow_system.py",
+      "lines": 473,
+      "estimated_gain_lines": 236,
+      "recommended_test_type": "property",
+      "complexity": "high"
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "lines": 422,
+      "estimated_gain_lines": 211,
+      "recommended_test_type": "unit",
+      "complexity": "high"
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "lines": 406,
+      "estimated_gain_lines": 203,
+      "recommended_test_type": "unit",
+      "complexity": "high"
+    },
+    {
+      "file": "core/workflow_template_system.py",
+      "lines": 355,
+      "estimated_gain_lines": 178,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_marketplace.py",
+      "lines": 354,
+      "estimated_gain_lines": 177,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/proposal_service.py",
+      "lines": 342,
+      "estimated_gain_lines": 171,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/integration_data_mapper.py",
+      "lines": 338,
+      "estimated_gain_lines": 169,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_analytics_endpoints.py",
+      "lines": 333,
+      "estimated_gain_lines": 166,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/atom_meta_agent.py",
+      "lines": 331,
+      "estimated_gain_lines": 166,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/hybrid_data_ingestion.py",
+      "lines": 314,
+      "estimated_gain_lines": 157,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/formula_extractor.py",
+      "lines": 313,
+      "estimated_gain_lines": 156,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_ui_endpoints.py",
+      "lines": 312,
+      "estimated_gain_lines": 156,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "tools/browser_tool.py",
+      "lines": 299,
+      "estimated_gain_lines": 150,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/user_templates_endpoints.py",
+      "lines": 298,
+      "estimated_gain_lines": 149,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/agent_world_model.py",
+      "lines": 298,
+      "estimated_gain_lines": 149,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/bulk_operations_processor.py",
+      "lines": 292,
+      "estimated_gain_lines": 146,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/collaboration_service.py",
+      "lines": 291,
+      "estimated_gain_lines": 146,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/agent_integration_gateway.py",
+      "lines": 290,
+      "estimated_gain_lines": 145,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/enhanced_execution_state_manager.py",
+      "lines": 286,
+      "estimated_gain_lines": 143,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/agent_routes.py",
+      "lines": 282,
+      "estimated_gain_lines": 141,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/graphrag_engine.py",
+      "lines": 282,
+      "estimated_gain_lines": 141,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_parameter_validator.py",
+      "lines": 282,
+      "estimated_gain_lines": 141,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "tools/device_tool.py",
+      "lines": 280,
+      "estimated_gain_lines": 140,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_template_endpoints.py",
+      "lines": 276,
+      "estimated_gain_lines": 138,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/advanced_workflow_endpoints.py",
+      "lines": 275,
+      "estimated_gain_lines": 138,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/unified_message_processor.py",
+      "lines": 272,
+      "estimated_gain_lines": 136,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_endpoints.py",
+      "lines": 269,
+      "estimated_gain_lines": 134,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/enterprise_auth_service.py",
+      "lines": 268,
+      "estimated_gain_lines": 134,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/cross_platform_correlation.py",
+      "lines": 265,
+      "estimated_gain_lines": 132,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/validation_service.py",
+      "lines": 264,
+      "estimated_gain_lines": 132,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/governance_cache.py",
+      "lines": 262,
+      "estimated_gain_lines": 131,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/ai_workflow_optimizer.py",
+      "lines": 261,
+      "estimated_gain_lines": 130,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/workflow_versioning_endpoints.py",
+      "lines": 259,
+      "estimated_gain_lines": 130,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/exceptions.py",
+      "lines": 258,
+      "estimated_gain_lines": 129,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/workflow_collaboration.py",
+      "lines": 253,
+      "estimated_gain_lines": 126,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/integration_dashboard.py",
+      "lines": 252,
+      "estimated_gain_lines": 126,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/device_capabilities.py",
+      "lines": 248,
+      "estimated_gain_lines": 124,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/social_media_routes.py",
+      "lines": 242,
+      "estimated_gain_lines": 121,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/generic_agent.py",
+      "lines": 242,
+      "estimated_gain_lines": 121,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/integration_health_stubs.py",
+      "lines": 241,
+      "estimated_gain_lines": 120,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "lines": 240,
+      "estimated_gain_lines": 120,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/agent_governance_routes.py",
+      "lines": 232,
+      "estimated_gain_lines": 116,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/predictive_insights.py",
+      "lines": 231,
+      "estimated_gain_lines": 116,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/chat_session_manager.py",
+      "lines": 230,
+      "estimated_gain_lines": 115,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/browser_routes.py",
+      "lines": 228,
+      "estimated_gain_lines": 114,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/learning_plan_routes.py",
+      "lines": 228,
+      "estimated_gain_lines": 114,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/health_monitoring_service.py",
+      "lines": 228,
+      "estimated_gain_lines": 114,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/mobile_agent_routes.py",
+      "lines": 225,
+      "estimated_gain_lines": 112,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/auto_invoicer.py",
+      "lines": 224,
+      "estimated_gain_lines": 112,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/competitor_analysis_routes.py",
+      "lines": 223,
+      "estimated_gain_lines": 112,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/mobile_workflows.py",
+      "lines": 222,
+      "estimated_gain_lines": 111,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/feedback_service.py",
+      "lines": 219,
+      "estimated_gain_lines": 110,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/message_analytics_engine.py",
+      "lines": 219,
+      "estimated_gain_lines": 110,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/menubar_routes.py",
+      "lines": 216,
+      "estimated_gain_lines": 108,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/supervision_service.py",
+      "lines": 216,
+      "estimated_gain_lines": 108,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/unified_task_endpoints.py",
+      "lines": 216,
+      "estimated_gain_lines": 108,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/custom_components_service.py",
+      "lines": 215,
+      "estimated_gain_lines": 108,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/webhook_handlers.py",
+      "lines": 214,
+      "estimated_gain_lines": 107,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/enterprise_user_management.py",
+      "lines": 213,
+      "estimated_gain_lines": 106,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/enterprise_security.py",
+      "lines": 212,
+      "estimated_gain_lines": 106,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/supervisor_learning_service.py",
+      "lines": 212,
+      "estimated_gain_lines": 106,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/agent_graduation_service.py",
+      "lines": 209,
+      "estimated_gain_lines": 104,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/maturity_routes.py",
+      "lines": 208,
+      "estimated_gain_lines": 104,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/recording_review_service.py",
+      "lines": 206,
+      "estimated_gain_lines": 103,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/workflow_debugging.py",
+      "lines": 204,
+      "estimated_gain_lines": 102,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/mobile_canvas_routes.py",
+      "lines": 200,
+      "estimated_gain_lines": 100,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/analytics_dashboard_endpoints.py",
+      "lines": 197,
+      "estimated_gain_lines": 98,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/device_websocket.py",
+      "lines": 196,
+      "estimated_gain_lines": 98,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/agent_guidance_routes.py",
+      "lines": 194,
+      "estimated_gain_lines": 97,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/google_chat_enhanced_routes.py",
+      "lines": 194,
+      "estimated_gain_lines": 97,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/ai_accounting_engine.py",
+      "lines": 194,
+      "estimated_gain_lines": 97,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/canvas_collaboration_service.py",
+      "lines": 194,
+      "estimated_gain_lines": 97,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/database_manager.py",
+      "lines": 194,
+      "estimated_gain_lines": 97,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/student_training_service.py",
+      "lines": 193,
+      "estimated_gain_lines": 96,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/integration_dashboard_routes.py",
+      "lines": 192,
+      "estimated_gain_lines": 96,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/event_sourced_architecture.py",
+      "lines": 191,
+      "estimated_gain_lines": 96,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/embedding_service.py",
+      "lines": 190,
+      "estimated_gain_lines": 95,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/byok_cost_optimizer.py",
+      "lines": 188,
+      "estimated_gain_lines": 94,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/error_guidance_engine.py",
+      "lines": 187,
+      "estimated_gain_lines": 94,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/integration_enhancement_endpoints.py",
+      "lines": 187,
+      "estimated_gain_lines": 94,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/condition_monitoring_service.py",
+      "lines": 186,
+      "estimated_gain_lines": 93,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/deeplinks.py",
+      "lines": 186,
+      "estimated_gain_lines": 93,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/dashboard_data_routes.py",
+      "lines": 182,
+      "estimated_gain_lines": 91,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/industry_workflow_endpoints.py",
+      "lines": 181,
+      "estimated_gain_lines": 90,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/reconciliation_engine.py",
+      "lines": 181,
+      "estimated_gain_lines": 90,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/business_agents.py",
+      "lines": 180,
+      "estimated_gain_lines": 90,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/oauth_routes.py",
+      "lines": 179,
+      "estimated_gain_lines": 90,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/auth_routes.py",
+      "lines": 177,
+      "estimated_gain_lines": 88,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/agent_governance_service.py",
+      "lines": 177,
+      "estimated_gain_lines": 88,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/admin_routes.py",
+      "lines": 175,
+      "estimated_gain_lines": 88,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/project_health_routes.py",
+      "lines": 175,
+      "estimated_gain_lines": 88,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/connection_service.py",
+      "lines": 173,
+      "estimated_gain_lines": 86,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/reasoning_chain.py",
+      "lines": 173,
+      "estimated_gain_lines": 86,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/cron_parser.py",
+      "lines": 172,
+      "estimated_gain_lines": 86,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/financial_routes.py",
+      "lines": 170,
+      "estimated_gain_lines": 85,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/canvas_docs_service.py",
+      "lines": 169,
+      "estimated_gain_lines": 84,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/document_ingestion_routes.py",
+      "lines": 168,
+      "estimated_gain_lines": 84,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/api_routes.py",
+      "lines": 168,
+      "estimated_gain_lines": 84,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/feedback_enhanced.py",
+      "lines": 167,
+      "estimated_gain_lines": 84,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/docling_processor.py",
+      "lines": 167,
+      "estimated_gain_lines": 84,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/offline_sync_service.py",
+      "lines": 165,
+      "estimated_gain_lines": 82,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/expression_parser.py",
+      "lines": 164,
+      "estimated_gain_lines": 82,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/error_handlers.py",
+      "lines": 162,
+      "estimated_gain_lines": 81,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/local_ocr_service.py",
+      "lines": 159,
+      "estimated_gain_lines": 80,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/scheduled_messaging_service.py",
+      "lines": 159,
+      "estimated_gain_lines": 80,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/feedback_batch.py",
+      "lines": 158,
+      "estimated_gain_lines": 79,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/canvas_recording_service.py",
+      "lines": 156,
+      "estimated_gain_lines": 78,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/workflow_template_manager.py",
+      "lines": 155,
+      "estimated_gain_lines": 78,
+      "recommended_test_type": "property",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/jwt_verifier.py",
+      "lines": 153,
+      "estimated_gain_lines": 76,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/user_activity_service.py",
+      "lines": 151,
+      "estimated_gain_lines": 76,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/episode_routes.py",
+      "lines": 150,
+      "estimated_gain_lines": 75,
+      "recommended_test_type": "integration",
+      "complexity": "medium"
+    },
+    {
+      "file": "core/proactive_messaging_service.py",
+      "lines": 150,
+      "estimated_gain_lines": 75,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "tools/registry.py",
+      "lines": 150,
+      "estimated_gain_lines": 75,
+      "recommended_test_type": "unit",
+      "complexity": "medium"
+    },
+    {
+      "file": "api/monitoring_routes.py",
+      "lines": 149,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/dynamic_pricing_fetcher.py",
+      "lines": 149,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/financial_ops_engine.py",
+      "lines": 149,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/push_notification_service.py",
+      "lines": 149,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/ab_testing_service.py",
+      "lines": 148,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/logging_config.py",
+      "lines": 148,
+      "estimated_gain_lines": 74,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/communication_service.py",
+      "lines": 145,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/competitive_advantage_dashboard.py",
+      "lines": 145,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/formula_memory.py",
+      "lines": 145,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/ai_trigger_coordinator.py",
+      "lines": 144,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/debug_insights/performance.py",
+      "lines": 143,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/feedback_advanced_analytics.py",
+      "lines": 143,
+      "estimated_gain_lines": 72,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/enterprise_auth_endpoints.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/ai_workflow_optimization_endpoints.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/analytics_endpoints.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/business_intelligence.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/meta_agent_training_orchestrator.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/oauth_user_context.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/pm_engine.py",
+      "lines": 142,
+      "estimated_gain_lines": 71,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "api/task_monitoring_routes.py",
+      "lines": 140,
+      "estimated_gain_lines": 70,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/local_llm_secrets_detector.py",
+      "lines": 140,
+      "estimated_gain_lines": 70,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/trigger_interceptor.py",
+      "lines": 140,
+      "estimated_gain_lines": 70,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/byok_competitive_endpoints.py",
+      "lines": 137,
+      "estimated_gain_lines": 68,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/error_middleware.py",
+      "lines": 137,
+      "estimated_gain_lines": 68,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/resource_guards.py",
+      "lines": 136,
+      "estimated_gain_lines": 68,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/supervised_queue_service.py",
+      "lines": 135,
+      "estimated_gain_lines": 68,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/supervisor_performance_service.py",
+      "lines": 135,
+      "estimated_gain_lines": 68,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/agent_status_endpoints.py",
+      "lines": 134,
+      "estimated_gain_lines": 67,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/condition_checkers.py",
+      "lines": 134,
+      "estimated_gain_lines": 67,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/constitutional_validator.py",
+      "lines": 134,
+      "estimated_gain_lines": 67,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/canvas_recording_routes.py",
+      "lines": 133,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/deeplinks.py",
+      "lines": 133,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/email_verification_routes.py",
+      "lines": 132,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/auth.py",
+      "lines": 132,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/auth_helpers.py",
+      "lines": 132,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/error_handler_decorator.py",
+      "lines": 132,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/governance_config.py",
+      "lines": 132,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/base_routes.py",
+      "lines": 131,
+      "estimated_gain_lines": 66,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/canvas_type_routes.py",
+      "lines": 130,
+      "estimated_gain_lines": 65,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/analytics_engine.py",
+      "lines": 130,
+      "estimated_gain_lines": 65,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "api/recording_review_routes.py",
+      "lines": 129,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/workflow_debugging_advanced.py",
+      "lines": 129,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/agent_request_manager.py",
+      "lines": 129,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/canvas_orchestration_service.py",
+      "lines": 129,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/agent_promotion_service.py",
+      "lines": 128,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/view_coordinator.py",
+      "lines": 128,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "api/user_activity_routes.py",
+      "lines": 127,
+      "estimated_gain_lines": 64,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/database.py",
+      "lines": 126,
+      "estimated_gain_lines": 63,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/task_queue.py",
+      "lines": 126,
+      "estimated_gain_lines": 63,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/websockets.py",
+      "lines": 126,
+      "estimated_gain_lines": 63,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/line_routes.py",
+      "lines": 125,
+      "estimated_gain_lines": 62,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/governance_decorator.py",
+      "lines": 125,
+      "estimated_gain_lines": 62,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/document_routes.py",
+      "lines": 123,
+      "estimated_gain_lines": 62,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/communication_intelligence.py",
+      "lines": 122,
+      "estimated_gain_lines": 61,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/workforce_analytics.py",
+      "lines": 121,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/canvas_collaboration.py",
+      "lines": 120,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/health_monitoring_routes.py",
+      "lines": 119,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/workflow_template_routes.py",
+      "lines": 119,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "api/workspace_routes.py",
+      "lines": 119,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/agent_execution_service.py",
+      "lines": 119,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/autonomous_supervisor_service.py",
+      "lines": 119,
+      "estimated_gain_lines": 60,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/unified_calendar_endpoints.py",
+      "lines": 118,
+      "estimated_gain_lines": 59,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/apar_engine.py",
+      "lines": 117,
+      "estimated_gain_lines": 58,
+      "recommended_test_type": "property",
+      "complexity": "low"
+    },
+    {
+      "file": "core/debug_insights/error_causality.py",
+      "lines": 117,
+      "estimated_gain_lines": 58,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/custom_components.py",
+      "lines": 116,
+      "estimated_gain_lines": 58,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/scheduled_messaging_routes.py",
+      "lines": 115,
+      "estimated_gain_lines": 58,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/analytics_dashboard_routes.py",
+      "lines": 114,
+      "estimated_gain_lines": 57,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/secrets_redactor.py",
+      "lines": 114,
+      "estimated_gain_lines": 57,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/health_monitor.py",
+      "lines": 113,
+      "estimated_gain_lines": 56,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/supervision_routes.py",
+      "lines": 112,
+      "estimated_gain_lines": 56,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/active_intervention_service.py",
+      "lines": 112,
+      "estimated_gain_lines": 56,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "tools/agent_guidance_canvas_tool.py",
+      "lines": 112,
+      "estimated_gain_lines": 56,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/governance_wrapper.py",
+      "lines": 111,
+      "estimated_gain_lines": 56,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/reconciliation_routes.py",
+      "lines": 110,
+      "estimated_gain_lines": 55,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "api/supervised_queue_routes.py",
+      "lines": 109,
+      "estimated_gain_lines": 54,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/feedback_analytics.py",
+      "lines": 107,
+      "estimated_gain_lines": 54,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/token_refresher.py",
+      "lines": 107,
+      "estimated_gain_lines": 54,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/messenger_routes.py",
+      "lines": 106,
+      "estimated_gain_lines": 53,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/agent_learning_enhanced.py",
+      "lines": 106,
+      "estimated_gain_lines": 53,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/canvas_email_service.py",
+      "lines": 106,
+      "estimated_gain_lines": 53,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/unified_search_endpoints.py",
+      "lines": 106,
+      "estimated_gain_lines": 53,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/websocket_manager.py",
+      "lines": 106,
+      "estimated_gain_lines": 53,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/circuit_breaker.py",
+      "lines": 104,
+      "estimated_gain_lines": 52,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/condition_evaluator.py",
+      "lines": 104,
+      "estimated_gain_lines": 52,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/pm_swarm.py",
+      "lines": 103,
+      "estimated_gain_lines": 52,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "api/data_ingestion_routes.py",
+      "lines": 102,
+      "estimated_gain_lines": 51,
+      "recommended_test_type": "integration",
+      "complexity": "low"
+    },
+    {
+      "file": "core/database_helper.py",
+      "lines": 102,
+      "estimated_gain_lines": 51,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/user_context_manager.py",
+      "lines": 102,
+      "estimated_gain_lines": 51,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    },
+    {
+      "file": "core/chat_process_manager.py",
+      "lines": 101,
+      "estimated_gain_lines": 50,
+      "recommended_test_type": "unit",
+      "complexity": "low"
+    }
+  ]
+}

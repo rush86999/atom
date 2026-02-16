@@ -1,0 +1,605 @@
+{
+  "generated_at": "2026-02-16T00:15:27.263435Z",
+  "current_coverage": {
+    "percent": 0.85,
+    "covered_lines": 219,
+    "total_lines": 25768
+  },
+  "target_coverage": {
+    "percent": 80,
+    "required_lines": 20614,
+    "gap_lines": 5154
+  },
+  "phases": {
+    "12": {
+      "target_percent": 28,
+      "target_gain": 5.2,
+      "files": [
+        {
+          "rank": 1,
+          "file": "core/models.py",
+          "lines": 2351,
+          "current_percent": 0.0,
+          "uncovered_lines": 2351,
+          "estimated_tests_needed": 117,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 2,
+          "file": "core/workflow_engine.py",
+          "lines": 1163,
+          "current_percent": 0.0,
+          "uncovered_lines": 1163,
+          "estimated_tests_needed": 58,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 3,
+          "file": "core/atom_agent_endpoints.py",
+          "lines": 736,
+          "current_percent": 0.0,
+          "uncovered_lines": 736,
+          "estimated_tests_needed": 36,
+          "recommended_test_type": "integration",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 4,
+          "file": "core/workflow_analytics_engine.py",
+          "lines": 593,
+          "current_percent": 0.0,
+          "uncovered_lines": 593,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 5,
+          "file": "core/llm/byok_handler.py",
+          "lines": 549,
+          "current_percent": 0.0,
+          "uncovered_lines": 549,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 6,
+          "file": "core/workflow_debugger.py",
+          "lines": 527,
+          "current_percent": 0.0,
+          "uncovered_lines": 527,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        }
+      ]
+    },
+    "13": {
+      "target_percent": 35,
+      "target_gain": 7.0,
+      "files": [
+        {
+          "rank": 1,
+          "file": "core/byok_endpoints.py",
+          "lines": 498,
+          "current_percent": 0.0,
+          "uncovered_lines": 498,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "integration",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 2,
+          "file": "core/lancedb_handler.py",
+          "lines": 494,
+          "current_percent": 0.0,
+          "uncovered_lines": 494,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 3,
+          "file": "core/auto_document_ingestion.py",
+          "lines": 479,
+          "current_percent": 0.0,
+          "uncovered_lines": 479,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 4,
+          "file": "core/workflow_versioning_system.py",
+          "lines": 476,
+          "current_percent": 0.0,
+          "uncovered_lines": 476,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 5,
+          "file": "core/advanced_workflow_system.py",
+          "lines": 473,
+          "current_percent": 0.0,
+          "uncovered_lines": 473,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 6,
+          "file": "core/episode_segmentation_service.py",
+          "lines": 422,
+          "current_percent": 0.0,
+          "uncovered_lines": 422,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 7,
+          "file": "tools/canvas_tool.py",
+          "lines": 406,
+          "current_percent": 0.0,
+          "uncovered_lines": 406,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 8,
+          "file": "core/workflow_template_system.py",
+          "lines": 355,
+          "current_percent": 0.0,
+          "uncovered_lines": 355,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 9,
+          "file": "core/workflow_marketplace.py",
+          "lines": 354,
+          "current_percent": 0.0,
+          "uncovered_lines": 354,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 10,
+          "file": "core/proposal_service.py",
+          "lines": 342,
+          "current_percent": 0.0,
+          "uncovered_lines": 342,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 11,
+          "file": "core/integration_data_mapper.py",
+          "lines": 338,
+          "current_percent": 0.0,
+          "uncovered_lines": 338,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 12,
+          "file": "core/workflow_analytics_endpoints.py",
+          "lines": 333,
+          "current_percent": 0.0,
+          "uncovered_lines": 333,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 13,
+          "file": "core/atom_meta_agent.py",
+          "lines": 331,
+          "current_percent": 0.0,
+          "uncovered_lines": 331,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 14,
+          "file": "core/hybrid_data_ingestion.py",
+          "lines": 314,
+          "current_percent": 0.0,
+          "uncovered_lines": 314,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 15,
+          "file": "core/formula_extractor.py",
+          "lines": 313,
+          "current_percent": 0.0,
+          "uncovered_lines": 313,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 16,
+          "file": "core/workflow_ui_endpoints.py",
+          "lines": 312,
+          "current_percent": 0.0,
+          "uncovered_lines": 312,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "medium",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 17,
+          "file": "tools/browser_tool.py",
+          "lines": 299,
+          "current_percent": 0.0,
+          "uncovered_lines": 299,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 3"
+        },
+        {
+          "rank": 18,
+          "file": "api/user_templates_endpoints.py",
+          "lines": 298,
+          "current_percent": 0.0,
+          "uncovered_lines": 298,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "integration",
+          "coverage_complexity": "medium",
+          "tier": "Tier 3"
+        },
+        {
+          "rank": 19,
+          "file": "core/agent_world_model.py",
+          "lines": 298,
+          "current_percent": 0.0,
+          "uncovered_lines": 298,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 3"
+        },
+        {
+          "rank": 20,
+          "file": "core/bulk_operations_processor.py",
+          "lines": 292,
+          "current_percent": 0.0,
+          "uncovered_lines": 292,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "medium",
+          "tier": "Tier 3"
+        },
+        {
+          "rank": 21,
+          "file": "core/models.py",
+          "lines": 2351,
+          "current_percent": 0.0,
+          "uncovered_lines": 2351,
+          "estimated_tests_needed": 117,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 22,
+          "file": "core/workflow_engine.py",
+          "lines": 1163,
+          "current_percent": 0.0,
+          "uncovered_lines": 1163,
+          "estimated_tests_needed": 58,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 23,
+          "file": "core/atom_agent_endpoints.py",
+          "lines": 736,
+          "current_percent": 0.0,
+          "uncovered_lines": 736,
+          "estimated_tests_needed": 36,
+          "recommended_test_type": "integration",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 24,
+          "file": "core/workflow_analytics_engine.py",
+          "lines": 593,
+          "current_percent": 0.0,
+          "uncovered_lines": 593,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 25,
+          "file": "core/llm/byok_handler.py",
+          "lines": 549,
+          "current_percent": 0.0,
+          "uncovered_lines": 549,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 26,
+          "file": "core/workflow_debugger.py",
+          "lines": 527,
+          "current_percent": 0.0,
+          "uncovered_lines": 527,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 1"
+        },
+        {
+          "rank": 27,
+          "file": "core/byok_endpoints.py",
+          "lines": 498,
+          "current_percent": 0.0,
+          "uncovered_lines": 498,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "integration",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 28,
+          "file": "core/lancedb_handler.py",
+          "lines": 494,
+          "current_percent": 0.0,
+          "uncovered_lines": 494,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 29,
+          "file": "core/auto_document_ingestion.py",
+          "lines": 479,
+          "current_percent": 0.0,
+          "uncovered_lines": 479,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "unit",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        },
+        {
+          "rank": 30,
+          "file": "core/workflow_versioning_system.py",
+          "lines": 476,
+          "current_percent": 0.0,
+          "uncovered_lines": 476,
+          "estimated_tests_needed": 30,
+          "recommended_test_type": "property",
+          "coverage_complexity": "high",
+          "tier": "Tier 2"
+        }
+      ]
+    }
+  },
+  "zero_coverage_quick_wins": [
+    {
+      "file": "core/models.py",
+      "lines": 2351,
+      "estimated_gain_lines": 1176,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "lines": 1163,
+      "estimated_gain_lines": 582,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "lines": 736,
+      "estimated_gain_lines": 368,
+      "recommended_test_type": "integration"
+    },
+    {
+      "file": "core/workflow_analytics_engine.py",
+      "lines": 593,
+      "estimated_gain_lines": 296,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "lines": 549,
+      "estimated_gain_lines": 274,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/workflow_debugger.py",
+      "lines": 527,
+      "estimated_gain_lines": 264,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/byok_endpoints.py",
+      "lines": 498,
+      "estimated_gain_lines": 249,
+      "recommended_test_type": "integration"
+    },
+    {
+      "file": "core/lancedb_handler.py",
+      "lines": 494,
+      "estimated_gain_lines": 247,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/auto_document_ingestion.py",
+      "lines": 479,
+      "estimated_gain_lines": 240,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/workflow_versioning_system.py",
+      "lines": 476,
+      "estimated_gain_lines": 238,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/advanced_workflow_system.py",
+      "lines": 473,
+      "estimated_gain_lines": 236,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "lines": 422,
+      "estimated_gain_lines": 211,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "lines": 406,
+      "estimated_gain_lines": 203,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/workflow_template_system.py",
+      "lines": 355,
+      "estimated_gain_lines": 178,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/workflow_marketplace.py",
+      "lines": 354,
+      "estimated_gain_lines": 177,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/proposal_service.py",
+      "lines": 342,
+      "estimated_gain_lines": 171,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/integration_data_mapper.py",
+      "lines": 338,
+      "estimated_gain_lines": 169,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/workflow_analytics_endpoints.py",
+      "lines": 333,
+      "estimated_gain_lines": 166,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "core/atom_meta_agent.py",
+      "lines": 331,
+      "estimated_gain_lines": 166,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/hybrid_data_ingestion.py",
+      "lines": 314,
+      "estimated_gain_lines": 157,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/formula_extractor.py",
+      "lines": 313,
+      "estimated_gain_lines": 156,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/workflow_ui_endpoints.py",
+      "lines": 312,
+      "estimated_gain_lines": 156,
+      "recommended_test_type": "property"
+    },
+    {
+      "file": "tools/browser_tool.py",
+      "lines": 299,
+      "estimated_gain_lines": 150,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "api/user_templates_endpoints.py",
+      "lines": 298,
+      "estimated_gain_lines": 149,
+      "recommended_test_type": "integration"
+    },
+    {
+      "file": "core/agent_world_model.py",
+      "lines": 298,
+      "estimated_gain_lines": 149,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/bulk_operations_processor.py",
+      "lines": 292,
+      "estimated_gain_lines": 146,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/collaboration_service.py",
+      "lines": 291,
+      "estimated_gain_lines": 146,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/agent_integration_gateway.py",
+      "lines": 290,
+      "estimated_gain_lines": 145,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "core/enhanced_execution_state_manager.py",
+      "lines": 286,
+      "estimated_gain_lines": 143,
+      "recommended_test_type": "unit"
+    },
+    {
+      "file": "api/agent_routes.py",
+      "lines": 282,
+      "estimated_gain_lines": 141,
+      "recommended_test_type": "integration"
+    }
+  ]
+}
