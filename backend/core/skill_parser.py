@@ -72,8 +72,8 @@ class SkillParser:
 
             return metadata, body
 
-        except frontmatter.FrontmatterError as e:
-            logger.warning(f"Frontmatter parsing failed for {file_path}: {e}")
+        except FileNotFoundError:
+            logger.warning(f"File not found: {file_path}")
             # Return minimal metadata to allow import to continue
             return {"name": "Unnamed Skill", "description": "", "skill_type": "prompt_only"}, ""
         except Exception as e:
@@ -128,8 +128,9 @@ class SkillParser:
         Returns:
             "prompt_only" or "python_code"
         """
-        # Check for ```python fence blocks
-        if "```python" in body or "``` Python" in body:
+        # Check for ```python fence blocks (case insensitive)
+        body_lower = body.lower()
+        if "```python" in body_lower:
             return "python_code"
 
         # Check for explicit Python code indicator in metadata
