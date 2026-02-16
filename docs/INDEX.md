@@ -1,6 +1,6 @@
 # Atom Documentation Index
 
-> **Last Updated**: February 6, 2026
+> **Last Updated**: February 16, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 ---
@@ -10,8 +10,10 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
+| [PERSONAL_EDITION.md](PERSONAL_EDITION.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
+| [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
 
 ---
 
@@ -133,6 +135,36 @@
 
 ---
 
+## ✨ Phase 15: Production Readiness (Feb 16, 2026)
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
+| [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
+| [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
+| [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) | **Production troubleshooting guide** | Feb 16, 2026 |
+| [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
+
+### Monitoring & Observability
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
+| [HEALTH_MONITORING_SYSTEM.md](HEALTH_MONITORING_SYSTEM.md) | Health monitoring system | Feb 2, 2026 |
+| [MONITORING_GUIDE.md](MONITORING_GUIDE.md) | Monitoring guide | Feb 2, 2026 |
+
+### CI/CD Pipeline
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) | **CI/CD pipeline (test, build, deploy)** | Feb 16, 2026 |
+| [.github/workflows/ci.yml](../.github/workflows/ci.yml) | **CI pipeline with type checking** | Feb 16, 2026 |
+
+---
+
+---
+
 ## 🧪 Testing
 
 | Document | Description | Last Updated |
@@ -248,6 +280,15 @@
 ### By Date (Most Recent)
 
 **February 2026**:
+- [PERSONAL_EDITION.md](PERSONAL_EDITION.md) - **Personal Edition guide** (Feb 16)
+- [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
+- [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) - **Comprehensive API docs** (Feb 16)
+- [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) - **Deployment runbook** (Feb 16)
+- [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) - **Operations guide** (Feb 16)
+- [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) - **Troubleshooting** (Feb 16)
+- [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
+- [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) - **Code quality** (Feb 16)
+- [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Updated with security, testing, task queue (Feb 6)
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
@@ -278,6 +319,13 @@
 | [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | API standards | Feb 4, 2026 |
 | [BYOK_LLM_INTEGRATION_COMPLETE.md](../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md) | LLM integration | Feb 5, 2026 |
 | [FINAL_IMPLEMENTATION_SUMMARY.md](../backend/docs/FINAL_IMPLEMENTATION_SUMMARY.md) | Final implementation summary | Feb 5, 2026 |
+| [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) | **Comprehensive API docs** | Feb 16, 2026 |
+| [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) | **Deployment runbook** | Feb 16, 2026 |
+| [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
+| [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) | **Troubleshooting guide** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) | **Code quality standards** | Feb 16, 2026 |
+| [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 
 ---
 
