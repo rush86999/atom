@@ -174,25 +174,32 @@ class TestPythonSkillExecution:
     """Test Python skill execution behavior."""
 
     def test_python_skill_raises_without_sandbox(self, python_skill):
-        """Test that Python skills raise NotImplementedError without sandbox."""
+        """Test that Python skills raise RuntimeError without sandbox."""
         tool = create_community_tool(python_skill)
 
-        with pytest.raises(NotImplementedError) as exc_info:
+        with pytest.raises(RuntimeError) as exc_info:
             tool._run("test query")
 
         assert "sandbox" in str(exc_info.value).lower()
-        assert "Plan 02" in str(exc_info.value)
+        assert "security" in str(exc_info.value).lower()
 
-    def test_python_skill_with_sandbox_enabled_raises(self, python_skill):
-        """Test that Python skills still raise NotImplementedError even with sandbox=True."""
+    @patch('core.skill_adapter.HazardSandbox')
+    def test_python_skill_with_sandbox_enabled_executes(self, mock_sandbox_class, python_skill):
+        """Test that Python skills execute with sandbox when enabled."""
+        # Mock the sandbox instance
+        mock_sandbox = Mock()
+        mock_sandbox.execute_python.return_value = "Execution result: Hello test query"
+        mock_sandbox_class.return_value = mock_sandbox
+
         python_skill["sandbox_enabled"] = True
+        python_skill["skill_content"] = "def execute(query: str) -> str:\n    return f'Hello {query}'"
         tool = create_community_tool(python_skill)
 
-        with pytest.raises(NotImplementedError) as exc_info:
-            tool._run("test query")
+        result = tool._run("test query")
 
-        # Should mention Plan 02 (Hazard Sandbox)
-        assert "Plan 02" in str(exc_info.value)
+        # Verify sandbox was called
+        mock_sandbox.execute_python.assert_called_once()
+        assert "Hello" in result
 
     def test_unknown_skill_type_raises_value_error(self):
         """Test that unknown skill type raises ValueError."""

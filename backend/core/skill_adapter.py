@@ -131,20 +131,62 @@ class CommunitySkillTool(BaseTool):
             Execution result or error message
 
         Raises:
-            NotImplementedError: If sandbox is not enabled (Plan 02)
+            RuntimeError: If sandbox execution fails
         """
         if self.sandbox_enabled:
-            # Sandbox execution will be implemented in Plan 02
-            raise NotImplementedError(
-                f"Python skill execution requires sandbox. "
-                f"See Phase 14 Plan 02 (Hazard Sandbox)"
-            )
+            # Import HazardSandbox for isolated execution
+            from skill_sandbox import HazardSandbox
+
+            try:
+                sandbox = HazardSandbox()
+
+                # Extract function entry point from skill content
+                # Format: ```python\ndef execute(query: str) -> str:\n...
+                code = self._extract_function_code()
+
+                # Execute in sandbox with timeout and resource limits
+                result = sandbox.execute_python(
+                    code=code,
+                    inputs={"query": query},
+                    timeout_seconds=300,  # 5 minute timeout
+                    memory_limit="256m",
+                    cpu_limit=0.5
+                )
+
+                return result
+
+            except RuntimeError as e:
+                if "Docker daemon is not running" in str(e):
+                    return f"SANDBOX_ERROR: Docker is not running. Please start Docker to execute Python skills."
+                raise
+            except Exception as e:
+                return f"EXECUTION_ERROR: {str(e)}"
         else:
             # UNSAFE: Direct execution not allowed
-            raise NotImplementedError(
+            raise RuntimeError(
                 f"Direct Python execution is not allowed for security reasons. "
-                f"Skill '{self.skill_id}' requires sandbox execution (Plan 02)."
+                f"Skill '{self.skill_id}' requires sandbox execution. "
+                f"Enable sandbox by setting sandbox_enabled=True."
             )
+
+    def _extract_function_code(self) -> str:
+        """
+        Extract Python function code from skill content.
+
+        Returns:
+            Complete Python code with function and execution call
+
+        Example:
+            Input: "def execute(query: str) -> str:\n    return f'Hello {query}'"
+            Output: "def execute(query: str) -> str:\n    return f'Hello {query}'\n\nresult = execute(query)\nprint(result)"
+        """
+        code = self.skill_content.strip()
+
+        # Add execution wrapper if not present
+        if "result = execute(query)" not in code:
+            code += "\n\n# Execute skill function\nresult = execute(query)\nprint(result)"
+
+        return code
 
 
 def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
