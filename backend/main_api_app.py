@@ -1027,7 +1027,15 @@ try:
     except ImportError as e:
         logger.warning(f"Deep link routes not found: {e}")
 
-    # 15.5 Enhanced Feedback Routes (NEW)
+    # 15.5 Edition Routes (Personal/Enterprise Management)
+    try:
+        from api.edition_routes import register_edition_routes
+        register_edition_routes(app)
+        logger.info("✓ Edition Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Edition routes not found: {e}")
+
+    # 15.6 Enhanced Feedback Routes (NEW)
     try:
         from api.feedback_enhanced import router as feedback_enhanced_router
         app.include_router(feedback_enhanced_router, prefix="/api/feedback", tags=["Feedback"])
