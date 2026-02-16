@@ -18,6 +18,10 @@ from tests.factories.episode_factory import EpisodeFactory, EpisodeSegmentFactor
 from tests.factories.execution_factory import AgentExecutionFactory
 from tests.factories.canvas_factory import CanvasAuditFactory
 from tests.factories.chat_session_factory import ChatSessionFactory
+from tests.factories.workspace_factory import WorkspaceFactory, TeamFactory
+from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
+from tests.factories.feedback_factory import AgentFeedbackFactory
+from tests.factories.training_factory import BlockedTriggerContextFactory, AgentProposalFactory
 
 __all__ = [
     'BaseFactory',
@@ -34,4 +38,11 @@ __all__ = [
     'AgentExecutionFactory',
     'CanvasAuditFactory',
     'ChatSessionFactory',
+    'WorkspaceFactory',
+    'TeamFactory',
+    'WorkflowExecutionFactory',
+    'WorkflowStepExecutionFactory',
+    'AgentFeedbackFactory',
+    'BlockedTriggerContextFactory',
+    'AgentProposalFactory',
 ]
