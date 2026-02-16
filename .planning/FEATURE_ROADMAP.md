@@ -26,23 +26,25 @@ Inject the "essence" of OpenClaw (formerly Moltbot) into Atom Agent OS without l
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: "Everywhere" Interface (IM Adapters)** - WhatsApp, Telegram adapters that treat the user as a "contact" with governance routing
-- [ ] **Phase 2: "God Mode" Local Agent** - Controlled shell/file access outside Docker with maturity-based permissions
-- [ ] **Phase 3: "Moltbook" Social Layer** - Agent-to-agent communication feed with observable thoughts and status updates
-- [ ] **Phase 4: Simplified Entry Point** - Single-line installer (pip install atom-os) with Personal/Enterprise editions
-- [ ] **Phase 5: Community Skills Integration** - Import 5,000+ OpenClaw/ClawHub skills via Markdown+YAML adapters with Docker sandbox security
+- [x] **Phase 1: "Everywhere" Interface (IM Adapters)** - WhatsApp, Telegram adapters that treat the user as a "contact" with governance routing ✅
+- [x] **Phase 2: "God Mode" Local Agent** - Controlled shell/file access outside Docker with maturity-based permissions ✅
+- [x] **Phase 3: "Moltbook" Social Layer** - Agent-to-agent communication feed with observable thoughts and status updates ✅
+- [x] **Phase 4: Simplified Entry Point** - Single-line installer (pip install atom-os) with Personal/Enterprise editions ✅
+- [x] **Phase 5: Community Skills Integration** - Import 5,000+ OpenClaw/ClawHub skills via Markdown+YAML adapters with Docker sandbox security ✅
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. IM Adapters | 4/4 + 2 gap closure | **Gap Closure** | Plans 01-04 complete, verification found 3 gaps |
+| 1. IM Adapters | 6/6 | **Complete** | February 15, 2026 (incl. gap closure) |
 | 2. God Mode Local Agent | 4/4 | **Complete** | February 16, 2026 |
 | 3. Moltbook Social Layer | 3/3 | **Complete** | February 16, 2026 |
-| 4. Simplified Installer | 0/3 | **Pending** | - |
-| 5. Community Skills Integration | 0/3 | **Pending** | - |
+| 4. Simplified Installer | 3/3 | **Complete** | February 16, 2026 |
+| 5. Community Skills Integration | 5/5 | **Complete** | February 16, 2026 |
 
-**Overall Progress**: 11/17 plans complete (65%)
+**Overall Progress**: 21/21 plans complete (100%) ✅
+
+**Note**: Phase 5 (Community Skills Integration) is implemented as Phase 14 in the planning directory structure. All gap closure plans completed.
 
 ---
 
@@ -313,7 +315,7 @@ POST_VISIBILITY = {
 **Libraries** (from research):
 - **Package Building**: `pyproject.toml` with setuptools (2026 standard)
 - **Feature Flags**: Custom `PackageFeatureService` (centralize feature availability)
-- **CLI**: `typer` (type-safe CLI, already in Atom for some tools)
+- **CLI**: Click (already in Atom, used for all CLI commands)
 
 **Architecture**:
 ```toml
@@ -427,9 +429,14 @@ atom-os/
 - **Private Index** (enterprise): `pip install --index-url https://pypi.atom.ai atom-os[enterprise]`
 
 **Plans**: 3 plans
-- [ ] 04-simplified-installer-01-PLAN.md — pyproject.toml setup (setuptools, feature flags, package structure)
-- [ ] 04-simplified-installer-02-PLAN.md — CLI implementation (typer, init/start/enable commands)
-- [ ] 04-simplified-installer-03-PLAN.md — Documentation & PyPI publishing (installation guides, feature matrix)
+- [x] 04-installer-01-PLAN.md — pyproject.toml setup (PackageFeatureService, optional dependencies, Personal/Enterprise editions) ✅ COMPLETE
+- [x] 04-installer-02-PLAN.md — CLI implementation (init/enable commands, edition API routes, Personal → Enterprise upgrade) ✅ COMPLETE
+- [x] 04-installer-03-PLAN.md — Documentation & PyPI publishing (installation guide, feature matrix, Trusted Publishing workflow) ✅ COMPLETE
+
+**Wave Structure**:
+- Wave 1: Plan 01 (pyproject.toml + PackageFeatureService) ✅
+- Wave 1: Plan 02 (CLI init/enable + edition API) ✅
+- Wave 2: Plan 03 (Documentation + PyPI workflow) ✅
 
 ---
 
