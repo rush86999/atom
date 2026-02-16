@@ -19,10 +19,10 @@ autonomous: true
 
 must_haves:
   truths:
-    - Property tests collect successfully with no TypeError from Hypothesis
-    - st.just() and st.sampled_from() work correctly in all property tests
-    - All 10 property test modules can be imported and collected by pytest
-    - Property tests run with Hypothesis 6.151.5 without AttributeError
+    - Property tests collect successfully during full test suite collection (no ERROR messages)
+    - st.just() and st.sampled_from() work correctly in all property tests when pytest symbol table is large
+    - All 10 property test modules can be imported and collected by pytest with 10,000+ other tests
+    - Property tests run with Hypothesis 6.151.5 without AttributeError during full suite collection
   artifacts:
     - path: "tests/property_tests/analytics/test_analytics_invariants.py"
       provides: "Analytics property tests"
@@ -41,13 +41,13 @@ must_haves:
 ---
 
 <objective>
-Fix Hypothesis TypeError in property tests that prevents test collection
+Fix Hypothesis TypeError in property tests during full test suite collection
 
-**Purpose**: 10 property test modules fail during collection with `AttributeError: 'JustStrategy' object has no attribute '_transformations'`. This is a Hypothesis version compatibility issue with st.just() and st.sampled_from() usage.
+**Purpose**: 10 property test modules fail during collection with `AttributeError: 'JustStrategy' object has no attribute '_transformations'` when collected as part of the full test suite (10,000+ tests). Tests pass individually but fail during full collection due to pytest symbol table conflicts with Hypothesis internals.
 
-**Root Cause**: Hypothesis 6.151.5 changed internal implementation. The pattern `st.sampled_from(['single_value'])` creates a SampledFromStrategy wrapping a JustStrategy, but the check `isinstance(value, type)` fails because JustStrategy no longer has `_transformations` attribute.
+**Root Cause**: When pytest collects 10,000+ tests, its symbol table becomes very large. Hypothesis's st.just(), st.sampled_from(), and st.one_of() strategies trigger isinstance() checks that fail against Hypothesis 6.151.5's internal JustStrategy class when the symbol table is bloated. The tests pass individually (smaller symbol table) but fail during full collection.
 
-**Output**: All property tests collect and run successfully
+**Output**: All property tests collect successfully as part of full test suite
 </objective>
 
 <execution_context>
@@ -64,7 +64,7 @@ Fix Hypothesis TypeError in property tests that prevents test collection
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Fix st.just() and st.sampled_from() usage in property tests</name>
+  <name>Task 1: Fix Hypothesis st.just() strategy issues in property tests</name>
   <files>tests/property_tests/analytics/test_analytics_invariants.py</files>
   <files>tests/property_tests/api/test_api_contracts.py</files>
   <files>tests/property_tests/caching/test_caching_invariants.py</files>
@@ -76,38 +76,63 @@ Fix Hypothesis TypeError in property tests that prevents test collection
   <files>tests/property_tests/temporal/test_temporal_invariants.py</files>
   <files>tests/property_tests/tools/test_tool_governance_invariants.py</files>
   <action>
-Fix Hypothesis compatibility issue in all 10 property test files:
+Fix Hypothesis compatibility issue in all 10 property test files. The issue occurs when pytest's symbol table is large (10,000+ tests). Hypothesis's st.just() and st.one_of() trigger isinstance() checks that fail against Hypothesis 6.151.5's internal JustStrategy class.
 
-1. **Replace `st.sampled_from(['single_value'])` with `st.just('single_value')`**
-   - When sampling from a list with one element, use st.just() directly
-   - Example: `st.sampled_from(['hit'])` → `st.just('hit')`
-   - Example: `st.sampled_from([timezone.utc])` → `st.just(timezone.utc)`
+**Problem patterns to fix:**
 
-2. **Replace `st.one_of(st.just(''), st.just('   '), st.just(None))` with proper strategy**
-   - Use `st.one_of(st.none(), st.text())` or `st.text(min_size=0)` instead
-   - The error happens with st.just() inside st.one_of()
+1. **st.one_of() with multiple st.just() calls** - This triggers isinstance() failures:
+   ```python
+   # BROKEN:
+   st.one_of(st.just(''), st.just('   '), st.just(None))
 
-3. **For `st.tuples(st.just(...), ...)` patterns**:
-   - Replace with direct value strategies where possible
-   - Example: `st.tuples(st.just("hit"), st.text(...))` → `st.tuples(st.just("hit"), st.text(...))`
-   - If the first value is constant, consider a composite strategy
+   # FIXED: Use st.sampled_from() instead:
+   st.sampled_from(['', '   ', None])
+   # OR use st.none() + st.text():
+   st.one_of(st.none(), st.text())
+   ```
 
-**Files to modify** (check each for problematic patterns):
-- test_error_guidance_invariants.py: Line ~56 has `st.one_of(st.just(''), st.just('   '), st.just(None))`
-- test_governance_cache_invariants.py: Multiple `st.sampled_from(['single_value'])` patterns
-- test_input_validation_invariants.py: `st.just("' OR '1'='1")` pattern
-- test_temporal_invariants.py: `st.just(timezone.utc)` pattern
-- test_tool_governance_invariants.py: `st.sampled_from(['http://example.com'])` pattern
-- Other files: Check for similar patterns
+2. **st.sampled_from() with single value** - Inefficient but triggers same issue:
+   ```python
+   # BROKEN:
+   st.sampled_from(['hit'])
+   st.sampled_from([timezone.utc])
+   st.sampled_from(['http://example.com'])
 
-**Verification pattern**: After fix, running `pytest tests/property_tests/ --collect-only` should show 0 errors.
+   # FIXED: Use st.just() directly:
+   st.just('hit')
+   st.just(timezone.utc)
+   st.just('http://example.com')
+   ```
+
+3. **st.tuples() with st.just() first element** - May trigger issue:
+   ```python
+   # Check if this pattern causes issues, if so restructure:
+   st.tuples(st.just("value"), st.other_strategy())
+   ```
+
+**Files with known issues** (from collection errors):
+- test_error_guidance_invariants.py: Has st.one_of() with st.just() pattern
+- test_governance_cache_invariants.py: Has st.sampled_from() with single values
+- test_input_validation_invariants.py: Has st.just() with SQL string
+- test_temporal_invariants.py: Has st.just(timezone.utc)
+- test_tool_governance_invariants.py: Has st.sampled_from() with URLs
+- test_api_contracts.py: May have similar patterns
+- test_caching_invariants.py: May have similar patterns
+- test_data_validation_invariants.py: May have similar patterns
+
+**Verification**: After fixes, run full suite collection to verify no errors.
 </action>
   <verify>
-PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/property_tests/ --collect-only -q 2>&1 | grep -E "errors collected|ERROR"
-Expected: "0 errors collected" or no ERROR output
+# Test individual collection first (should pass):
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/property_tests/analytics/test_analytics_invariants.py --collect-only -q 2>&1 | grep -E "collected|ERROR"
+Expected: "31 tests collected" (no ERROR)
+
+# Then test full suite collection:
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ --collect-only -q 2>&1 | grep -E "collected|errors collected"
+Expected: "10176 tests collected" with "0 errors collected" (not "10 errors")
 </verify>
   <done>
-Property tests collect successfully with no Hypothesis TypeErrors. `pytest tests/property_tests/ --collect-only` completes without errors.
+Property tests collect successfully during full test suite collection. `pytest tests/ --collect-only` shows 10176 tests collected with 0 errors.
 </done>
 </task>
 

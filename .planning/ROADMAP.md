@@ -1,5 +1,11 @@
 # Roadmap: Atom Test Coverage Initiative
 
+## 📋 Additional Roadmap
+
+**Feature Development**: See [FEATURE_ROADMAP.md](./FEATURE_ROADMAP.md) for OpenClaw integration (IM adapters, local shell access, agent social layer, simplified installer).
+
+---
+
 ## Overview
 
 A comprehensive testing initiative to achieve 80% code coverage across the Atom AI-powered business automation platform. The roadmap follows a foundation-first approach: establish test infrastructure to prevent coverage churn, implement property-based tests for critical system invariants, build integration and security tests, extend coverage to mobile and desktop platforms, and systematically increase coverage through realistic multi-phase milestones.

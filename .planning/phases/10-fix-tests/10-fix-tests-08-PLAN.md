@@ -2,7 +2,7 @@
 phase: 10-fix-tests
 plan: 08
 type: execute
-wave: 2
+wave: 3
 depends_on:
   - phase: 10-fix-tests
     plan: 06
@@ -20,7 +20,7 @@ must_haves:
   truths:
     - "Test suite completes in <60 minutes (TQ-03 requirement)"
     - "Test suite has no flaky tests across 3 consecutive runs (TQ-04 requirement)"
-    - "pytest.ini optimized for execution speed (removed --reruns, -q instead of -v)"
+    - "Test suite executes with minimal overhead (quiet mode, no retry delays)"
     - "All 5 previously flaky tests pass consistently without RERUN loops"
   artifacts:
     - path: "pytest.ini"
