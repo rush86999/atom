@@ -258,7 +258,7 @@ class SkillRegistryService:
             "created_at": skill.created_at.isoformat()
         }
 
-    def execute_skill(
+    async def execute_skill(
         self,
         skill_id: str,
         inputs: Dict[str, Any],

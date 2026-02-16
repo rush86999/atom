@@ -157,7 +157,7 @@ This skill will fail
                 workspace_id="default",
                 status="success" if i < 4 else "failed",
                 skill_source="community",
-                executed_at=datetime.utcnow() - timedelta(days=i)
+                created_at=datetime.utcnow() - timedelta(days=i)
             )
             db_session.add(execution)
 
@@ -201,7 +201,7 @@ This skill will fail
                 workspace_id="default",
                 status="success",
                 skill_source="community",
-                executed_at=datetime.utcnow()
+                created_at=datetime.utcnow()
             )
             db_session.add(execution)
 
