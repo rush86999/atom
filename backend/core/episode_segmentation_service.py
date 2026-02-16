@@ -10,6 +10,7 @@ Archives episodes to LanceDB for semantic search.
 """
 
 from datetime import datetime, timedelta
+import hashlib
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -1021,3 +1022,115 @@ Topics: {', '.join(episode.topics)}
 
         except Exception as e:
             logger.error(f"Failed to archive supervision episode to LanceDB: {e}")
+
+    # ========================================================================
+    # Skill-Aware Episode Segmentation (NEW)
+    # ========================================================================
+
+    def extract_skill_metadata(self, context_data: dict) -> dict:
+        """
+        Extract relevant metadata from skill execution context.
+
+        Args:
+            context_data: Skill execution context data
+
+        Returns:
+            Extracted metadata dict
+        """
+        return {
+            "skill_name": context_data.get("skill_name"),
+            "skill_source": context_data.get("skill_source", "community"),
+            "execution_successful": context_data.get("error_type") is None,
+            "execution_time": context_data.get("execution_time", 0),
+            "input_hash": hashlib.sha256(
+                str(context_data.get("input_summary", "")).encode()
+            ).hexdigest()[:8]
+        }
+
+    async def create_skill_episode(
+        self,
+        agent_id: str,
+        skill_name: str,
+        inputs: dict,
+        result: Any,
+        error: Optional[Exception],
+        execution_time: float
+    ) -> Optional[str]:
+        """
+        Create episode with skill-specific segmentation.
+
+        Args:
+            agent_id: Agent ID executing the skill
+            skill_name: Name of the skill
+            inputs: Input parameters
+            result: Execution result
+            error: Exception if execution failed
+            execution_time: Execution time in seconds
+
+        Returns:
+            Episode segment ID or None
+        """
+        try:
+            context_data = {
+                "skill_name": skill_name,
+                "skill_source": "community",
+                "execution_time": execution_time,
+                "input_summary": self._summarize_skill_inputs(inputs),
+                "result_summary": str(result)[:200] if result else None,
+                "error_type": type(error).__name__ if error else None,
+                "error_message": str(error)[:200] if error else None
+            }
+
+            # Create skill episode segment
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=f"skill_{skill_name}_{agent_id[:8]}_{int(datetime.utcnow().timestamp())}",
+                segment_type="skill_execution",
+                sequence_order=0,
+                content=self._format_skill_content(skill_name, result, error),
+                content_summary=f"Skill '{skill_name}' execution - {'Success' if error is None else 'Failed'}",
+                source_type="skill_execution",
+                source_id=str(uuid.uuid4()),
+                metadata=self.extract_skill_metadata(context_data)
+            )
+
+            self.db.add(segment)
+            self.db.commit()
+            self.db.refresh(segment)
+
+            logger.info(f"Created skill episode segment {segment.id} for skill '{skill_name}'")
+            return segment.id
+
+        except Exception as e:
+            logger.error(f"Failed to create skill episode: {e}")
+            self.db.rollback()
+            return None
+
+    def _summarize_skill_inputs(self, inputs: dict) -> str:
+        """Summarize skill inputs for episode context."""
+        if not inputs:
+            return "{}"
+
+        summarized = {}
+        for key, value in inputs.items():
+            value_str = str(value)
+            if len(value_str) > 100:
+                value_str = value_str[:97] + "..."
+            summarized[key] = value_str
+
+        return str(summarized)
+
+    def _format_skill_content(self, skill_name: str, result: Any, error: Optional[Exception]) -> str:
+        """Format skill execution content for episode."""
+        parts = [f"Skill: {skill_name}"]
+
+        if error:
+            parts.append(f"Status: Failed")
+            parts.append(f"Error: {type(error).__name__}: {str(error)[:200]}")
+        else:
+            parts.append(f"Status: Success")
+            if result:
+                result_str = str(result)[:300]
+                parts.append(f"Result: {result_str}")
+
+        return "\n".join(parts)
