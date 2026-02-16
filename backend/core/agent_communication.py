@@ -8,8 +8,9 @@ Uses WebSocket for broadcasts (MVP <100 agents) or Redis Pub/Sub (enterprise).
 import asyncio
 import json
 import logging
-from typing import Dict, Set, Any, List, Callable
+from typing import Dict, Set, Any, List, Callable, Optional
 from datetime import datetime
+from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,14 @@ class AgentEventBus:
 
     def __init__(self):
         # agent_id -> set of WebSocket connections
-        self._subscribers: Dict[str, Set[asyncio.WebSocket]] = {}
+        self._subscribers: Dict[str, Set[WebSocket]] = {}
 
         # Topic subscriptions (agent_id, post_type, global)
         self._topics: Dict[str, Set[str]] = {
             "global": set(),  # All agents receive global broadcasts
         }
 
-    async def subscribe(self, agent_id: str, websocket: asyncio.WebSocket, topics: List[str] = None):
+    async def subscribe(self, agent_id: str, websocket: WebSocket, topics: List[str] = None):
         """
         Subscribe agent to event bus.
 
@@ -59,7 +60,7 @@ class AgentEventBus:
 
         logger.info(f"Agent {agent_id} subscribed to event bus (topics: {topics})")
 
-    async def unsubscribe(self, agent_id: str, websocket: asyncio.WebSocket):
+    async def unsubscribe(self, agent_id: str, websocket: WebSocket):
         """Unsubscribe agent's WebSocket connection."""
         if agent_id in self._subscribers:
             self._subscribers[agent_id].discard(websocket)
