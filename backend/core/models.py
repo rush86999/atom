@@ -3771,60 +3771,6 @@ class EpisodeAccessLog(Base):
 
 
 # ============================================================================
-# Agent Social Layer Models (OpenClaw Integration)
-# ============================================================================
-
-class AgentPost(Base):
-    """
-    Agent social feed - natural language posts from agents to agents.
-
-    OpenClaw Integration (Moltbook-style social layer):
-    - Agents post status updates, insights, questions, alerts
-    - Other agents can read feed and react
-    - WebSocket broadcasts for real-time updates
-    - INTERN+ can post, STUDENT read-only
-
-    Purpose:
-    - Gamify agent observation (watch agents "talk")
-    - Enable agent-to-agent communication
-    - Provide transparency into agent operations
-    """
-    __tablename__ = "agent_posts"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    # Who
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
-    agent_name = Column(String, nullable=False)  # Denormalized for queries
-    agent_maturity = Column(String, nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
-    agent_category = Column(String, nullable=True)  # engineering, sales, support, etc.
-
-    # What
-    post_type = Column(String, nullable=False)  # status, insight, question, alert
-    content = Column(Text, nullable=False)  # Natural language post
-
-    # Context (optional mentions, references)
-    mentioned_agent_ids = Column(JSON, default=list)  # ["agent-123", "agent-456"]
-    mentioned_episode_ids = Column(JSON, default=list)  # ["episode-789"]
-    mentioned_task_ids = Column(JSON, default=list)  # ["task-101"]
-
-    # Engagement
-    reactions = Column(JSON, default=dict)  # {"👍": 3, "🤔": 1}
-    reply_count = Column(Integer, default=0)
-
-    # When
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-
-    # Relationships
-    agent = relationship("AgentRegistry", backref="social_posts")
-
-    __table_args__ = (
-        Index('idx_agent_posts_created_at', 'created_at'),
-        Index('idx_agent_posts_agent_id', 'agent_id'),
-    )
-
-
-# ============================================================================
 # Messaging Feature Parity Models
 # ============================================================================
 
@@ -4576,6 +4522,132 @@ class MenuBarAudit(Base):
         Index("ix_menu_bar_audit_user", "user_id", "timestamp"),
         Index("ix_menu_bar_audit_device", "device_id", "timestamp"),
         Index("ix_menu_bar_audit_maturity", "agent_maturity", "governance_check_passed"),
+    )
+
+
+class Channel(Base):
+    """
+    Communication channels/rooms for contextual conversations.
+
+    OpenClaw Integration:
+    Channels allow organizing conversations by context:
+    - project: Project-specific discussions
+    - support: Customer support coordination
+    - engineering: Technical discussions
+    - general: Default public channel
+
+    Governance:
+    - Humans can create channels
+    - INTERN+ agents can post to channels
+    - STUDENT agents are read-only
+    """
+    __tablename__ = "channels"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Channel metadata
+    name = Column(String, nullable=False, unique=True)  # project-xyz, support, engineering
+    display_name = Column(String, nullable=False)  # "Project XYZ", "Support", "Engineering"
+    description = Column(Text, nullable=True)
+    channel_type = Column(String, nullable=False)  # project, support, engineering, general
+
+    # Access control
+    is_public = Column(Boolean, default=True)  # False = private channel
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+
+    # Members
+    agent_members = Column(JSON, default=list)  # ["agent-123", "agent-456"]
+    user_members = Column(JSON, default=list)  # ["user-789"]
+
+    # When
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    creator = relationship("User", backref="channels_created")
+
+    __table_args__ = (
+        Index('idx_channels_name', 'name'),
+        Index('idx_channels_type', 'channel_type'),
+    )
+
+
+class AgentPost(Base):
+    """
+    Full communication matrix - human ↔ agent, agent ↔ agent, public feed, directed messages, channels.
+
+    OpenClaw Integration (Moltbook-style social layer with expansion):
+    - Human → Agent: Direct messages, commands, public announcements
+    - Agent → Human: Responses, status updates, requests for approval
+    - Agent ↔ Agent: Social feed (INTERN+ gate, STUDENT read-only)
+    - Public feed: Global visibility for all participants
+    - Directed messaging: 1:1 communication
+    - Channels/rooms: Context-specific conversations (project, support, engineering)
+    - WebSocket broadcasts for real-time updates
+
+    Communication types:
+    - status: Agent status update
+    - insight: Agent discovery/learning
+    - question: Agent asks for help
+    - alert: Important notification
+    - command: Human → Agent directive
+    - response: Agent → Human reply
+    - announcement: Human public post
+
+    Purpose:
+    - Gamify agent observation (watch agents "talk")
+    - Enable human-agent collaboration
+    - Provide transparency into agent operations
+    - Support directed messaging and channels
+    """
+    __tablename__ = "agent_posts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who sent it
+    sender_type = Column(String, nullable=False)  # "agent" or "human"
+    sender_id = Column(String, nullable=False)  # agent_id or user_id
+    sender_name = Column(String, nullable=False)  # Denormalized for queries
+    sender_maturity = Column(String, nullable=True)  # For agents: STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    sender_category = Column(String, nullable=True)  # For agents: engineering, sales, support, etc.
+
+    # Who receives it (for directed messages)
+    recipient_type = Column(String, nullable=True)  # "agent", "human", or null (public)
+    recipient_id = Column(String, nullable=True)  # agent_id or user_id (null if public)
+    is_public = Column(Boolean, default=True)  # True = public feed, False = directed message
+
+    # Channel/room (optional, for contextual conversations)
+    channel_id = Column(String, ForeignKey("channels.id"), nullable=True)  # project, support, engineering
+    channel_name = Column(String, nullable=True)  # Denormalized for queries
+
+    # What
+    post_type = Column(String, nullable=False)  # status, insight, question, alert, command, response, announcement
+    content = Column(Text, nullable=False)  # Natural language post
+
+    # Context (optional mentions, references)
+    mentioned_agent_ids = Column(JSON, default=list)  # ["agent-123", "agent-456"]
+    mentioned_user_ids = Column(JSON, default=list)  # ["user-789"]
+    mentioned_episode_ids = Column(JSON, default=list)  # ["episode-101"]
+    mentioned_task_ids = Column(JSON, default=list)  # ["task-202"]
+
+    # Engagement
+    reactions = Column(JSON, default=dict)  # {"👍": 3, "🤔": 1}
+    reply_count = Column(Integer, default=0)
+    read_at = Column(DateTime(timezone=True), nullable=True)  # For directed messages
+
+    # When
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[sender_id], backref="social_posts")
+    user = relationship("User", foreign_keys=[sender_id], backref="social_posts")
+    channel = relationship("Channel", backref="posts")
+
+    __table_args__ = (
+        Index('idx_agent_posts_created_at', 'created_at'),
+        Index('idx_agent_posts_sender_id', 'sender_id'),
+        Index('idx_agent_posts_recipient_id', 'recipient_id'),
+        Index('idx_agent_posts_channel_id', 'channel_id'),
+        Index('idx_agent_posts_is_public', 'is_public'),
     )
 
 
