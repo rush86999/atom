@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 11 - Coverage Analysis and Prioritization
+**Current focus:** Phase 13 - OpenClaw Integration
 
 ## Current Position
 
-Phase: 01-im-adapters
-Plan: 05 (Gap Closure: Security Fixes)
+Phase: 13-openclaw-integration
+Plan: 01 (Host Shell Access with Governance)
 Status: Complete
-Last activity: 2026-02-16 — Fixed two critical security vulnerabilities in IM adapters. Gap 2 (HIGH): Telegram timing attack vulnerability - replaced == with hmac.compare_digest() for constant-time comparison. Gap 3 (MEDIUM): WhatsApp hardcoded verify token - replaced with os.getenv("WHATSAPP_VERIFY_TOKEN"). Added comprehensive test coverage (test_telegram_constant_time_comparison, test_whatsapp_env_var_loading). Enhanced IM_SECURITY_BEST_PRACTICES.md with timing attack prevention section, environment variables table, and detailed code examples. All 23 tests passing.
+Last activity: 2026-02-16 — Implemented AUTONOMOUS-only shell command execution with whitelist validation, timeout enforcement, and audit trail. Created HostShellService (256 lines) with database maturity checks, 40+ command whitelist (ls, cat, grep, git, npm, docker, etc.), blocked commands (rm, mv, chmod, kill, sudo, etc.), 5-minute timeout, and ShellSession audit logging. Shell API routes (POST /api/shell/execute) for governed shell access. Docker host mount configuration with security warnings. Comprehensive test coverage (12 tests, all passing). Deviations: 3 auto-fixed (GovernanceCache API mismatch → direct AgentRegistry query, timeout error handling, async test mocking). Duration: 9 minutes.
 
 Progress: [████░░] 83% (Phase 01: 5 of 6 plans complete)
 Phase 9.0 Wave 7 Results:
@@ -155,7 +155,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
-- [Phase 01-im-adapters-05]: Fixed two critical security vulnerabilities in IM adapters. Gap 2 (HIGH): Telegram timing attack vulnerability - replaced == with hmac.compare_digest() for constant-time comparison, preventing attackers from measuring response times to guess valid tokens. Gap 3 (MEDIUM): WhatsApp hardcoded verify token - replaced with os.getenv("WHATSAPP_VERIFY_TOKEN", "default_random_token_change_in_prod"). Added comprehensive test coverage with TestSecurityFixes class (test_telegram_constant_time_comparison, test_whatsapp_env_var_loading). Enhanced IM_SECURITY_BEST_PRACTICES.md with timing attack prevention section, environment variables table, and detailed vulnerable/secure code examples. Established security patterns: constant-time comparison mandatory for all secret token validation, environment-based secrets configuration with secure defaults, security test coverage to prevent regressions. All 23 tests passing.
+- [Phase 13-openclaw-integration-01]: Implemented AUTONOMOUS-only shell command execution with governance gates. Created HostShellService (256 lines) with database maturity checks (AgentRegistry.status field), 40+ command whitelist (ls, cat, grep, git, npm, docker, kubectl, terraform, ansible, curl, wget, ping, etc.), blocked commands (rm, mv, chmod, kill, sudo, reboot, iptables, etc.), 5-minute timeout enforcement with process.kill(), and ShellSession audit trail. Shell API routes (POST /api/shell/execute, GET /api/shell/sessions, GET /api/shell/validate) for governed shell access. Docker host mount configuration with security warnings and interactive setup script. Comprehensive test coverage (12 tests, all passing) covering command validation, maturity gates (AUTONOMOUS vs STUDENT/SUPERVISED), audit trail logging, timeout enforcement, and working directory restrictions. Deviations fixed: GovernanceCache API mismatch (cache stores decisions not agent data) → direct AgentRegistry query, timeout error handling (process.kill() communication failures), async test mocking (Mock vs AsyncMock for sync operations). Established pattern: AUTONOMOUS maturity gates enforced via database queries, not cache. Duration: 9 minutes.
 - [Phase 01-im-adapters-03]: Created comprehensive TDD test suite with 32 tests (21 unit + 11 property-based) achieving 84.94% coverage on IMGovernanceService. Validated webhook signature verification, rate limiting invariants (10 req/min never exceeded), governance checks (STUDENT blocked, AUTONOMOUS allowed), and audit trail logging. Used Hypothesis for property-based testing to validate security invariants that cannot be covered by example-based tests alone. Fixed 2 bugs discovered through property-based testing: UnicodeDecodeError not caught in sender ID extraction (json.loads() on malformed binary payloads), and AttributeError on unexpected payload types (payload.get() returning non-dict values). Created service instances inside Hypothesis tests to avoid health check errors with function-scoped fixtures. Used AsyncMock pattern for mocking async adapter methods. All 32 tests passing with 700 total Hypothesis test cases across all property tests.
 - [Phase 01-im-adapters-02]: Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge endpoint and IMGovernanceService three-stage security pipeline integration. Enhanced Telegram webhook to apply governance to message updates only (callback/inline queries bypass governance as they're UI interactions). Used FastAPI dependency injection pattern (db: Session = Depends(get_db)) for per-request IMGovernanceService instances. Registered both routers in main FastAPI app. Database session dependency injection resolves audit logging requirements. Async fire-and-forget audit logging via BackgroundTasks prevents blocking webhook responses.
 - [Phase 01-im-adapters-01]: Implemented IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Used token bucket algorithm for rate limiting (10 req/min per user) with in-memory tracking (production: use Redis). Reused existing adapter.verify_request() methods for HMAC signature validation instead of reimplementing crypto. Implemented async fire-and-forget audit logging to avoid blocking webhook responses. PII protection via SHA256 payload hashing in audit logs. All IM interactions logged to IMAuditLog table with 8 indexes for analytics. STUDENT agents blocked from IM triggers via governance maturity checks.
@@ -312,9 +312,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16T02:22
-Stopped at: Completed Phase 01-im-adapters Plan 05 - Fixed two critical security vulnerabilities: Telegram timing attack with hmac.compare_digest(), WhatsApp hardcoded token with os.getenv(), added tests and documentation
+Last session: 2026-02-16T10:45
+Stopped at: Completed Phase 13-openclaw-integration Plan 01 - Host Shell Access with Governance: AUTONOMOUS-only shell execution with whitelist validation, timeout enforcement, audit trail. HostShellService, Shell API routes, Docker host mount config, 12 tests passing.
 Resume file: None
+Last session: 2026-02-16T02:22
 Last session: 2026-02-13T11:50
 Stopped at: Completed Phase 08.5 Plan 01 - Created 4 baseline unit test files with 2,272 lines, 188 tests (all passing), achieving 55.30% average coverage on workflow template management, parameter validation, and API endpoints
 Resume file: None
