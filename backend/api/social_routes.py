@@ -1,7 +1,7 @@
 """
 Social Routes - REST API and WebSocket for agent social feed.
 
-OpenClaw Integration: Moltbook-style agent-to-agent communication.
+OpenClaw Integration: Moltbook-style agent-to-agent communication with full communication matrix.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
@@ -17,17 +17,29 @@ router = APIRouter(prefix="/api/social", tags=["Social"])
 
 
 class CreatePostRequest(BaseModel):
-    post_type: str  # status, insight, question, alert
+    sender_type: str  # "agent" or "human"
+    sender_id: str
+    sender_name: str
+    post_type: str  # status, insight, question, alert, command, response, announcement
     content: str
+    sender_maturity: Optional[str] = None
+    sender_category: Optional[str] = None
+    recipient_type: Optional[str] = None
+    recipient_id: Optional[str] = None
+    is_public: bool = True
+    channel_id: Optional[str] = None
+    channel_name: Optional[str] = None
     mentioned_agent_ids: List[str] = []
+    mentioned_user_ids: List[str] = []
     mentioned_episode_ids: List[str] = []
     mentioned_task_ids: List[str] = []
 
 
 class CreatePostResponse(BaseModel):
     id: str
-    agent_id: str
-    agent_name: str
+    sender_type: str
+    sender_id: str
+    sender_name: str
     post_type: str
     content: str
     created_at: str
@@ -36,21 +48,29 @@ class CreatePostResponse(BaseModel):
 @router.post("/posts", response_model=CreatePostResponse)
 async def create_post(
     request: CreatePostRequest,
-    agent_id: str,
     db: Session = Depends(get_db)
 ):
     """
-    Create new agent post and broadcast to feed.
+    Create new post and broadcast to feed.
 
     **Governance Requirements:**
-    - Agent must be INTERN+ maturity level
+    - Agent senders must be INTERN+ maturity level
     - STUDENT agents are read-only (403 Forbidden)
+    - Human senders have no maturity restriction
 
     **Post Types:**
     - status: "I'm working on X"
     - insight: "Just discovered Y"
     - question: "How do I Z?"
     - alert: "Important: W happened"
+    - command: Human → Agent directive
+    - response: Agent → Human reply
+    - announcement: Human public post
+
+    **Communication Matrix:**
+    - Public feed: Set is_public=true for global visibility
+    - Directed messages: Set is_public=false, recipient_type, recipient_id
+    - Channels: Set channel_id for contextual posts
 
     **Broadcast:**
     - WebSocket broadcast to all feed subscribers
@@ -58,10 +78,20 @@ async def create_post(
     """
     try:
         post = await agent_social_layer.create_post(
-            agent_id=agent_id,
+            sender_type=request.sender_type,
+            sender_id=request.sender_id,
+            sender_name=request.sender_name,
             post_type=request.post_type,
             content=request.content,
+            sender_maturity=request.sender_maturity,
+            sender_category=request.sender_category,
+            recipient_type=request.recipient_type,
+            recipient_id=request.recipient_id,
+            is_public=request.is_public,
+            channel_id=request.channel_id,
+            channel_name=request.channel_name,
             mentioned_agent_ids=request.mentioned_agent_ids,
+            mentioned_user_ids=request.mentioned_user_ids,
             mentioned_episode_ids=request.mentioned_episode_ids,
             mentioned_task_ids=request.mentioned_task_ids,
             db=db
@@ -77,29 +107,35 @@ async def create_post(
 
 @router.get("/feed")
 async def get_feed(
-    agent_id: str,
+    sender_id: str,
     limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0),
     post_type: Optional[str] = None,
-    agent_filter: Optional[str] = None,
+    sender_filter: Optional[str] = None,
+    channel_id: Optional[str] = None,
+    is_public: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Get activity feed for agent.
+    Get activity feed.
 
-    All agents can read feed (no maturity gate).
+    All agents and humans can read feed (no maturity gate).
 
     **Filters:**
-    - post_type: Filter by post type (status, insight, question, alert)
-    - agent_filter: Filter by specific agent
+    - post_type: Filter by post type (status, insight, question, alert, command, response, announcement)
+    - sender_filter: Filter by specific sender
+    - channel_id: Filter by channel
+    - is_public: Filter by public/private
     - Pagination: limit + offset
     """
     feed = await agent_social_layer.get_feed(
-        agent_id=agent_id,
+        sender_id=sender_id,
         limit=limit,
         offset=offset,
         post_type=post_type,
-        agent_filter=agent_filter,
+        sender_filter=sender_filter,
+        channel_id=channel_id,
+        is_public=is_public,
         db=db
     )
 
@@ -109,7 +145,7 @@ async def get_feed(
 @router.post("/posts/{post_id}/reactions")
 async def add_reaction(
     post_id: str,
-    agent_id: str,
+    sender_id: str,
     emoji: str,
     db: Session = Depends(get_db)
 ):
@@ -120,7 +156,7 @@ async def add_reaction(
     """
     reactions = await agent_social_layer.add_reaction(
         post_id=post_id,
-        agent_id=agent_id,
+        sender_id=sender_id,
         emoji=emoji,
         db=db
     )
@@ -136,7 +172,7 @@ async def get_trending_topics(
     """
     Get trending topics from recent posts.
 
-    Returns top 10 mentioned agents, episodes, tasks.
+    Returns top 10 mentioned agents, users, episodes, tasks.
     """
     trending = await agent_social_layer.get_trending_topics(
         hours=hours,
@@ -149,27 +185,33 @@ async def get_trending_topics(
 @router.websocket("/ws/feed")
 async def websocket_feed_endpoint(
     websocket: WebSocket,
-    agent_id: str,
+    sender_id: str,
     topics: List[str] = ["global"]
 ):
     """
     WebSocket endpoint for real-time feed updates.
 
-    Agents subscribe to receive instant updates when:
+    Agents and humans subscribe to receive instant updates when:
     - New posts are created
     - Reactions are added
     - Alerts are broadcast
 
     **Topics:**
     - global: All feed updates
-    - agent:{id}: Updates from specific agent
+    - sender:{id}: Updates from specific sender
     - alerts: Alert posts only
     - category:{name}: Category-specific posts
+    - post:{id}: Updates to specific post
+
+    **Usage:**
+    ```
+    ws://localhost:8000/api/social/ws/feed?sender_id=agent-123&topics=global&topics=alerts
+    ```
     """
     await websocket.accept()
 
     # Subscribe to event bus
-    await agent_event_bus.subscribe(agent_id, websocket, topics)
+    await agent_event_bus.subscribe(sender_id, websocket, topics)
 
     try:
         while True:
@@ -181,4 +223,4 @@ async def websocket_feed_endpoint(
                 await websocket.send_text("pong")
 
     except WebSocketDisconnect:
-        await agent_event_bus.unsubscribe(agent_id, websocket)
+        await agent_event_bus.unsubscribe(sender_id, websocket)
