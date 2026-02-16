@@ -35,8 +35,11 @@ class BaseFactory(SQLAlchemyModelFactory):
         if session:
             # Use provided session (from test fixture)
             cls._meta.sqlalchemy_session = session
+            # Don't commit when using test session - let rollback handle it
+            cls._meta.sqlalchemy_session_persistence = "flush"
         else:
             # Use default session
             if cls._meta.sqlalchemy_session is None:
                 cls._meta.sqlalchemy_session = get_session()
+            cls._meta.sqlalchemy_session_persistence = "commit"
         return super()._create(model_class, *args, **kwargs)
