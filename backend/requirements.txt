@@ -3,6 +3,7 @@ fastapi>=0.104.0,<1.0.0
 uvicorn>=0.24.0,<1.0.0
 pydantic>=2.0.0,<3.0.0
 pydantic-settings>=2.0.0,<3.0.0
+email-validator>=2.1.0,<3.0.0
 
 # Web Framework & HTTP
 requests>=2.28.0,<3.0.0
