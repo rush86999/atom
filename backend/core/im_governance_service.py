@@ -315,24 +315,44 @@ class IMGovernanceService:
             if platform == "telegram":
                 # Telegram: message.from.id or callback_query.from.id
                 message = payload.get("message", {})
-                if not message:
+                if not message or not isinstance(message, dict):
                     message = payload.get("callback_query", {})
+                if not isinstance(message, dict):
+                    return None
                 from_info = message.get("from", {})
+                if not isinstance(from_info, dict):
+                    return None
                 return str(from_info.get("id", ""))
 
             elif platform == "whatsapp":
                 # WhatsApp: entry[0].changes[0].value.messages[0].from
-                entry = payload.get("entry", [{}])[0]
-                changes = entry.get("changes", [{}])[0]
-                value = changes.get("value", {})
-                messages = value.get("messages", [{}])
-                if messages:
-                    return str(messages[0].get("from", ""))
+                entry = payload.get("entry", [{}])
+                if not isinstance(entry, list) or not entry:
+                    return None
+                entry_data = entry[0]
+                if not isinstance(entry_data, dict):
+                    return None
+                changes = entry_data.get("changes", [{}])
+                if not isinstance(changes, list) or not changes:
+                    return None
+                changes_data = changes[0]
+                if not isinstance(changes_data, dict):
+                    return None
+                value = changes_data.get("value", {})
+                if not isinstance(value, dict):
+                    return None
+                messages = value.get("messages", [])
+                if not isinstance(messages, list) or not messages:
+                    return None
+                message_data = messages[0]
+                if not isinstance(message_data, dict):
+                    return None
+                return str(message_data.get("from", ""))
 
             logger.warning(f"Could not extract sender_id for platform {platform}")
             return None
 
-        except (json.JSONDecodeError, KeyError, IndexError) as e:
+        except (json.JSONDecodeError, KeyError, IndexError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error extracting sender_id: {e}")
             return None
 
