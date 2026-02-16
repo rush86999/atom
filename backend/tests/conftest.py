@@ -22,13 +22,21 @@ _CRITICAL_ENV_VARS = ['SECRET_KEY', 'ENVIRONMENT', 'DATABASE_URL', 'ALLOW_DEV_TE
 
 # CRITICAL: This code runs when conftest.py is first imported by pytest.
 # It restores numpy/pandas/lancedb/pyarrow modules that may have been
-# set to None by previously imported test modules (like test_proactive_messaging_simple.py).
+# set to None or mocked as MagicMock by previously imported test modules
+# (like test_webhook_bridge.py and test_browser_agent_ai.py).
 #
 # This must happen at module level, not in a function, to ensure it runs
 # before test collection begins.
+#
+# Hypothesis's check_sample() fails with TypeError: isinstance() arg 2 must be a type
+# when these modules are mocked, because MagicMock().ndarray is also a MagicMock, not a type.
 for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
-    if mod in sys.modules and sys.modules[mod] is None:
-        sys.modules.pop(mod, None)
+    if mod in sys.modules:
+        module = sys.modules[mod]
+        # Remove if set to None OR mocked as MagicMock
+        # MagicMock has _spec_class attribute that real modules don't have
+        if module is None or hasattr(module, '_spec_class'):
+            sys.modules.pop(mod, None)
 
 
 def pytest_configure(config):
@@ -49,12 +57,16 @@ def ensure_numpy_available(request):
     Auto-use fixture that ensures numpy/pandas/lancedb/pyarrow are available
     before each test runs.
 
-    This is a safety net in case any test sets these to None.
+    This is a safety net in case any test sets these to None or mocks them as MagicMock.
     """
     # Restore modules before each test
     for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
-        if mod in sys.modules and sys.modules[mod] is None:
-            sys.modules.pop(mod, None)
+        if mod in sys.modules:
+            module = sys.modules[mod]
+            # Remove if set to None OR mocked as MagicMock
+            # MagicMock has _spec_class attribute that real modules don't have
+            if module is None or hasattr(module, '_spec_class'):
+                sys.modules.pop(mod, None)
 
     yield
 
