@@ -54,10 +54,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 08: Validate TQ-03 and TQ-04 after flaky test fixes (optimized pytest.ini, 3-run verification)
 - [x] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13 ✅ COMPLETE
   - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities ✅
-- [ ] **Phase 12: Tier 1 Coverage Push** - Target 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage)
+- [ ] **Phase 12: Tier 1 Coverage Push** - Target 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage) ⚠️ GAPS FOUND
   - Focus Files: models.py (2351 lines), workflow_engine.py (1163 lines), atom_agent_endpoints.py (736 lines), workflow_analytics_engine.py (593 lines), byok_handler.py (549 lines), workflow_debugger.py (527 lines)
   - Test Strategy: Property tests for stateful logic (workflow engines, BYOK handler), integration tests for API endpoints, unit tests for models
   - Estimated Plans: 4-5 plans (3-4 files per plan, 50% coverage target per file)
+  - Status: 4/4 plans complete, 3 gaps identified (32 failing ORM tests, 4/6 files below 50% target, coverage cannot be verified)
+  - Gap Closure Plans: 3 plans (GAP-01: Fix ORM tests, GAP-02: Add integration tests, GAP-03: Verify coverage)
 
 ## Phase Details
 
