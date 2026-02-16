@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 14 - Community Skills Integration
+**Current focus:** Phase 15 - Codebase Completion & Quality Assurance
 
 ## Current Position
 
-Phase: 14-community-skills-integration
-Plan: GAPCLOSURE-01 (Episodic Memory & Graduation Integration)
+Phase: 15-codebase-completion
+Plan: 02 (Production Monitoring Infrastructure)
 Status: Complete
-Last activity: 2026-02-16 — Integrated community skill executions with episodic memory and graduation systems. Skill executions now create EpisodeSegments with metadata (skill_name, source, execution_time, inputs, results, errors). Added skill-aware episode segmentation with extract_skill_metadata and create_skill_episode methods. Graduation service tracks skill usage metrics (total_executions, success_rate, unique_skills_used, learning_velocity) and applies skill diversity bonus up to +5% to readiness scores. API endpoints added for retrieving skill episodes (/api/skills/{skill_id}/episodes) and learning progress (/api/skills/{skill_id}/learning-progress). Created 9 integration tests (7 active, 2 skipped pending FastAPI setup). Deviations: 4 auto-fixed (async/await syntax, SkillExecution field name executed_at→created_at, EpisodeSegment agent_id filter by metadata, db fixture). Duration: 9 minutes.
+Last activity: 2026-02-16 — Implemented production monitoring infrastructure with health check endpoints for Kubernetes/ECS orchestration, Prometheus metrics collection, and structured logging with performance benchmarks documented. Created health check endpoints (/health/live, /health/ready, /health/metrics) with database and disk space dependency checks. Implemented Prometheus metrics for HTTP requests, agent executions, skill executions, and DB queries with counters and histograms. Configured structlog for JSON-formatted structured logging with context binding. Created comprehensive test suite (13 tests, all passing) for health routes with performance validation. Documented monitoring setup, usage, and performance benchmarks in MONITORING_SETUP.md. Deviations: None. Duration: 15 minutes.
 
-Progress: [████░░] 100% (Phase 14: 3 of 3 plans complete)
+Progress: [██░░░] 40% (Phase 15: 2 of 5 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -25,9 +25,9 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45
+- Total plans completed: 46
 - Average duration: 11 min
-- Total execution time: 7.9 hours
+- Total execution time: 8.0 hours
 
 **By Phase:**
 
@@ -152,6 +152,8 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 12-tier-1-coverage-push PGAP-02 | 840 | 3 tasks | 4 files |
 | Phase 14-community-skills-integration P02 | 7min | 3 tasks | 4 files |
 | Phase 14-community-skills-integration PGAPCLOSURE-01 | 540 | 5 tasks | 5 files |
+| Phase 15-codebase-completion P04 | 5min | 3 tasks | 4 files |
+| Phase 15 P02 | 900 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -159,6 +161,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 15-codebase-completion-04]: Created comprehensive deployment documentation and CI/CD pipeline for production operations. Deployment runbook (603 lines) with 46 sections covering pre-deployment checklist, step-by-step deployment procedures (prepare release, run migrations, build Docker image, update deployment, rolling restart, verify health checks, monitor metrics), rollback procedures (identify bad version, revert deployment, rolling restart, verify health, database rollback, post-mortem), and post-deployment verification (health checks, error rate, latency, database, smoke tests). Operations guide (517 lines) with daily operations (morning checklist, end-of-day checklist), 8 common tasks (graceful restarts, database migrations, agent status checks, skill execution logs, user permissions, episodic memory management), monitoring alerts (5 Prometheus configurations), performance tuning (database optimization, cache optimization, application profiling), and security operations (certificate management, security audits). Troubleshooting guide (511 lines) documenting 5 common issues with detailed diagnostics and resolutions: database connection errors (4 causes), high memory usage (4 causes), slow agent execution (4 causes), WebSocket connection failures (4 causes), skill execution failures (4 causes). CI/CD pipeline (.github/workflows/deploy.yml, 322 lines) with 6 jobs: test (unit tests, integration tests, coverage checks), build (Docker image with metadata and caching), deploy-staging (automatic on push to main with health checks and smoke tests), deploy-production (manual approval with database backup, migrations, health checks, smoke tests, metrics monitoring, automatic rollback on failure), and verify (post-deployment verification and summary report). Key features: Slack notifications, one-line rollback (kubectl rollout undo deployment/atom), 25% coverage threshold, staging automatic deployment, production manual approval. Deviations: None - plan executed exactly as written. Duration: 5 minutes.
 - [Phase 14-community-skills-integration-GAPCLOSURE-01]: Integrated community skill executions with episodic memory and graduation systems for agent learning tracking. Skill executions now create EpisodeSegments with metadata (skill_name, source, execution_time, inputs, results, errors) for learning and retrieval. Added skill-aware episode segmentation with extract_skill_metadata and create_skill_episode methods. Graduation service tracks skill usage metrics (total_executions, success_rate, unique_skills_used, learning_velocity) and applies skill diversity bonus up to +5% to readiness scores to encourage varied skill adoption. API endpoints added for retrieving skill episodes (/api/skills/{skill_id}/episodes) and learning progress (/api/skills/{skill_id}/learning-progress) with success rate and learning trend analytics. Created 9 integration tests (7 active, 2 skipped pending FastAPI setup) verifying episode creation, graduation tracking, and API endpoints. Deviations: 4 auto-fixed (async/await syntax for execute_skill, SkillExecution field name executed_at→created_at, EpisodeSegment agent_id filter by metadata, db fixture for tests). Duration: 9 minutes.
 - [Phase 14-community-skills-integration-01]: Created SkillParser service with lenient YAML frontmatter parsing using python-frontmatter library for robust extraction of SKILL.md metadata. Implemented auto-fix capabilities for missing required fields (name defaults to Unnamed Skill, description auto-generated from first line of body and truncated to 100 chars). Auto-detects skill type (prompt_only vs python_code) based on ```python code blocks with case-insensitive matching. Extracts Python code blocks from markdown body and function signatures using AST parsing. Created CommunitySkillTool as LangChain BaseTool subclass with Pydantic args_schema validation using ConfigDict extra='allow' for flexible inputs (per RESEARCH.md pitfall 5). Implemented prompt-only skill execution with template interpolation supporting both {{query}} and {query} placeholders. Python code skills raise NotImplementedError with clear message pointing to Plan 02 (Hazard Sandbox). Extended SkillExecution model with skill_source, security_scan_result, sandbox_enabled, and container_id columns for community skills tracking. Created comprehensive test coverage with 34 tests (all passing) covering lenient parsing, auto-fix logic, skill type detection, BaseTool wrapping, and error handling. Fixed 5 issues during testing: removed frontmatter.FrontmatterError (does not exist), fixed FileNotFoundError to return minimal metadata, added type annotation for Pydantic 2 args_schema compatibility, made skill type detection case-insensitive, and stripped markdown headers from auto-generated descriptions. Deviations: None - plan executed exactly as written. Duration: 6 minutes.
 - [Phase 12-tier-1-coverage-push-GAP-01]: Fixed ORM test session management by creating 5 new factories (WorkspaceFactory, TeamFactory, WorkflowExecutionFactory, WorkflowStepExecutionFactory, AgentFeedbackFactory, BlockedTriggerContextFactory, AgentProposalFactory) and updating 51 tests to use factories with _session=db parameter instead of manual constructors. Added transaction rollback pattern to unit test db fixture. Test pass rate improved from 37% to 47% (24/51 passing). 27 tests still failing due to database state isolation - factories commit data to atom_dev.db which persists across test runs despite transaction rollback. Root cause: SQLAlchemy + factory_boy + SQLite transaction complexity requires architectural solution (in-memory test database or comprehensive cleanup). Fixed factory field mismatches by verifying model definitions in core/models.py (removed non-existent fields: triggered_by, action_description, proposed_action). Documented GAP-02 requirement: implement in-memory test database following property_tests pattern. Deviations: Factory field definitions corrected, database isolation issue identified as architectural blocker. Duration: 17 minutes.
@@ -295,6 +298,7 @@ Recent decisions affecting current work:
 - [Phase 12-tier-1-coverage-push]: Property tests for workflow_engine.py need expansion for async execution paths
 - [Phase 12-tier-1-coverage-push]: Session management issues in some tests require transaction rollback pattern
 - [Phase 01-im-adapters]: Created comprehensive IM adapter documentation with 633 lines covering complete Telegram and WhatsApp webhook integration. Split documentation into IM_ADAPTER_SETUP.md (developer-focused) and IM_SECURITY_BEST_PRACTICES.md (security-focused). Emphasized security-first approach with production checklist, common pitfalls, and incident response procedures. Documentation links to existing IMGovernanceService implementation and webhook endpoints.
+- [Phase 15]: Implemented production monitoring infrastructure with health check endpoints (Kubernetes/ECS probes), Prometheus metrics (HTTP, agent, skill, DB), and structured logging (structlog with JSON output). Health check latency targets: /health/live <10ms, /health/ready <100ms, /health/metrics <50ms. All 13 tests passing with performance validation.
 
 ### Pending Todos
 
