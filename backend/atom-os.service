@@ -1,0 +1,18 @@
+[Unit]
+Description=Atom OS - AI Automation Platform
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=%h/.atom/pids/atom-os.pid
+ExecStart=/usr/local/bin/atom-os daemon --port 8000
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/usr/local/bin/atom-os stop
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atom-os
+
+[Install]
+WantedBy=multi-user.target
