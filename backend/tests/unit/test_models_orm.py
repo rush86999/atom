@@ -210,7 +210,7 @@ class TestAgentExecutionModel:
         """Test execution creation with default values."""
         # FIXED (GAP-01): Use _session=db parameter
         agent = AgentFactory(_session=db)
-        execution = AgentExecutionFactory(_session=db, agent_id=agent.id)
+        execution = AgentExecutionFactory(_session=db, agent_id=agent.id, status="running")
 
         assert execution.id is not None
         assert execution.agent_id == agent.id
@@ -290,7 +290,7 @@ class TestAgentFeedbackModel:
 
         statuses = [
             FeedbackStatus.PENDING.value,
-            FeedbackStatus.ADJUDICATED.value,
+            FeedbackStatus.ACCEPTED.value,
             FeedbackStatus.REJECTED.value,
         ]
 
@@ -351,13 +351,13 @@ class TestWorkflowExecutionModel:
 
         step1 = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=1,
             status=WorkflowExecutionStatus.PENDING.value
         )
         step2 = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=2,
             status=WorkflowExecutionStatus.PENDING.value
         )
@@ -369,7 +369,7 @@ class TestWorkflowExecutionModel:
 
         # Should have 2 steps
         steps = db.query(WorkflowStepExecution).filter_by(
-            workflow_execution_id=workflow.execution_id
+            execution_id=workflow.execution_id
         ).all()
         assert len(steps) == 2
         assert steps[0].sequence_order == 1
@@ -411,7 +411,7 @@ class TestWorkflowStepExecutionModel:
 
         step = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=1,
             status=WorkflowExecutionStatus.PENDING.value,
             step_id="step_1"
@@ -431,22 +431,22 @@ class TestWorkflowStepExecutionModel:
 
         step1 = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=1,
             status=WorkflowExecutionStatus.PENDING.value
         )
         step2 = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=1,  # Duplicate sequence order
             status=WorkflowExecutionStatus.PENDING.value
         )
 
-        # Both should be added (no unique constraint on sequence_order + workflow_execution_id)
+        # Both should be added (no unique constraint on sequence_order + execution_id)
         # This tests the current schema behavior
 
         steps = db.query(WorkflowStepExecution).filter_by(
-            workflow_execution_id=workflow.execution_id
+            execution_id=workflow.execution_id
         ).all()
         assert len(steps) == 2
 
@@ -964,7 +964,7 @@ class TestCascadeBehaviors:
 
         step = WorkflowStepExecutionFactory(
             _session=db,
-            workflow_execution_id=workflow.execution_id,
+            execution_id=workflow.execution_id,
             sequence_order=1,
             status=WorkflowExecutionStatus.PENDING.value
         )
