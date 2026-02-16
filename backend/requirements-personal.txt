@@ -1,0 +1,47 @@
+# Atom Personal Edition - Minimal dependencies
+# Install: pip install -r requirements-personal.txt
+# Or: pip install atom-os
+
+# Core framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
+python-multipart>=0.0.5
+
+# Database (SQLite for Personal)
+sqlalchemy>=2.0.0
+alembic>=1.8.0
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Configuration
+python-dotenv>=1.0.0
+
+# LLM providers
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Websockets
+websockets>=11.0
+
+# HTTP client
+httpx>=0.24.0
+
+# CLI (already installed with pip)
+click>=8.0.0
+
+# Vector embeddings (Personal Edition - local)
+fastembed>=0.2.0
+# Note: fastembed uses local models, no API key needed
+
+# Basic logging
+structlog>=23.1.0
+
+# NOTE: Enterprise dependencies excluded:
+# - PostgreSQL drivers (psycopg2-binary)
+# - Redis (for pub/sub in multi-user)
+# - Monitoring (prometheus-client)
+# - SSO providers (authlib, python-okta)
+# - Advanced analytics
