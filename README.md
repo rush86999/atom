@@ -122,16 +122,44 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ## Quick Start
 
-**Fastest way (Docker)**:
+Choose your installation method:
+
+### 🐳 Docker (Easiest - 5 minutes)
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-docker-compose up -d
+cp .env.personal .env
+# Edit .env and add your API keys
+docker-compose -f docker-compose-personal.yml up -d
 ```
-
 Access at: **http://localhost:3000**
 
-[Detailed Setup →](docs/DEVELOPMENT.md)
+[Full Docker Guide →](docs/PERSONAL_EDITION.md)
+
+### 💻 Native Installation (No Docker - 10 minutes)
+```bash
+git clone https://github.com/rush86999/atom.git
+cd atom
+cd backend && python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cd ../frontend-nextjs && npm install
+cp .env.personal .env
+# Edit .env and add your API keys
+# Start backend: cd backend && python -m uvicorn main_api_app:app --reload
+# Start frontend (new terminal): cd frontend-nextjs && npm run dev
+```
+Access at: **http://localhost:3000**
+
+[Full Native Guide →](docs/NATIVE_SETUP.md)
+
+### 📦 pip Installer (Fastest - 2 minutes)
+```bash
+pip3 install atom-os
+atom-os start --port 8000
+```
+Access at: **http://localhost:8000**
+
+[Full CLI Guide →](backend/README.md)
 
 ---
 
