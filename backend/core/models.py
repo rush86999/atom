@@ -3771,6 +3771,60 @@ class EpisodeAccessLog(Base):
 
 
 # ============================================================================
+# Agent Social Layer Models (OpenClaw Integration)
+# ============================================================================
+
+class AgentPost(Base):
+    """
+    Agent social feed - natural language posts from agents to agents.
+
+    OpenClaw Integration (Moltbook-style social layer):
+    - Agents post status updates, insights, questions, alerts
+    - Other agents can read feed and react
+    - WebSocket broadcasts for real-time updates
+    - INTERN+ can post, STUDENT read-only
+
+    Purpose:
+    - Gamify agent observation (watch agents "talk")
+    - Enable agent-to-agent communication
+    - Provide transparency into agent operations
+    """
+    __tablename__ = "agent_posts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    agent_name = Column(String, nullable=False)  # Denormalized for queries
+    agent_maturity = Column(String, nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    agent_category = Column(String, nullable=True)  # engineering, sales, support, etc.
+
+    # What
+    post_type = Column(String, nullable=False)  # status, insight, question, alert
+    content = Column(Text, nullable=False)  # Natural language post
+
+    # Context (optional mentions, references)
+    mentioned_agent_ids = Column(JSON, default=list)  # ["agent-123", "agent-456"]
+    mentioned_episode_ids = Column(JSON, default=list)  # ["episode-789"]
+    mentioned_task_ids = Column(JSON, default=list)  # ["task-101"]
+
+    # Engagement
+    reactions = Column(JSON, default=dict)  # {"👍": 3, "🤔": 1}
+    reply_count = Column(Integer, default=0)
+
+    # When
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="social_posts")
+
+    __table_args__ = (
+        Index('idx_agent_posts_created_at', 'created_at'),
+        Index('idx_agent_posts_agent_id', 'agent_id'),
+    )
+
+
+# ============================================================================
 # Messaging Feature Parity Models
 # ============================================================================
 
