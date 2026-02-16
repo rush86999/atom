@@ -28,506 +28,760 @@ must_haves:
       provides: Python package configuration
       contains: "setup(", "entry_points", "console_scripts"
     - path: backend/cli/main.py
-      provides: CLI entry point for atom-os command
+      provides: CLI entry point with Click framework
       min_lines: 100
-      exports: ["main", "start_atom"]
+      exports: ["main_cli"]
     - path: backend/pyproject.toml
-      provides: Modern Python packaging configuration
-      contains: "[project]", "[project.scripts]"
+      provides: Modern Python packaging metadata
+      contains: "[project.console_scripts]"
   key_links:
-    - from: backend/setup.py
-      to: backend/main_api_app.py
-      via: Import and start of FastAPI app
-      pattern: "from main_api_app import app"
-    - from: backend/cli/main.py
-      to: backend/main_api_app.py
-      via: uvicorn.run() to start server
-      pattern: "uvicorn.run\(app"
-    - from: backend/setup.py
-      to: backend/requirements.txt
-      via: install_requires list
-      pattern: "install_requires="
+    - from: "backend/setup.py"
+      to: "backend/cli/main.py"
+      via: "console_scripts entry point"
+      pattern: "console_scripts.*atom-os"
+    - from: "backend/cli/main.py"
+      to: "backend/main_api_app.py"
+      via: "Import and initialize FastAPI app"
+      pattern: "from.*main_api_app.*import.*app"
 ---
 
 <objective>
-Implement Simplified Python Installer (pip install atom-os)
+Create simplified installer for Atom - "pip install atom-os".
 
-Create a single-command installer using Python packaging standards (setuptools + console_scripts) that enables `pip install atom-os` followed by `atom-os` to start the platform, with optional host filesystem mount support.
+OpenClaw's viral feature: Single-line installer (`npm install -g openclaw`). Atom's twist: Full-featured Atom with optional host mount, security warnings, governance-first defaults.
 
-Purpose: Simplify Atom installation and startup for personal edition users while maintaining compatibility with existing development workflow. Provide clear warnings about security implications of host mount feature.
-
-Output: setup.py package configuration, CLI entry point (cli/main.py), pyproject.toml for modern packaging, updated README with installation instructions, and tests for CLI functionality.
+Purpose: Reduce friction for "vibe coder" entry while maintaining enterprise features
+Output: pip-installable package with `atom-os` CLI command
 </objective>
 
 <execution_context>
 @/Users/rushiparikh/.claude/get-shit-done/workflows/execute-plan.md
 @/Users/rushiparikh/.claude/get-shit-done/templates/summary.md
+@/Users/rushiparikh/.claude/get-shit-done/references/checkpoints.md
+@/Users/rushikhar/.claude/get-shit-done/references/tdd.md
 </execution_context>
 
 <context>
 @.planning/phases/13-openclaw-integration/13-RESEARCH.md
+@.planning/ROADMAP.md
+@.planning/STATE.md
 
-# Python Packaging Standards
-@backend/main_api_app.py            # FastAPI application entry point
-@backend/requirements.txt           # Existing dependencies
-@README.md                          # Documentation (root level)
-@backend/Dockerfile                 # Container setup reference
+# Existing implementations
+@backend/main_api_app.py
+@backend/docker/docker-compose.yml
+@backend/requirements.txt
 </context>
 
 <tasks>
 
 <task type="auto">
-  <name>Create setup.py package configuration</name>
+  <name>Create CLI entry point with Click</name>
+  <files>backend/cli/main.py</files>
+  <action>
+Create backend/cli/main.py (150-200 lines):
+
+```python
+#!/usr/bin/env python3
+"""
+Atom OS CLI - Command-line interface for Atom AI automation platform.
+
+OpenClaw Integration: Single-command installer for "vibe coder" entry.
+Full-featured Atom with optional host mount (governance-first).
+
+Usage:
+    pip install atom-os
+    atom-os --help
+"""
+
+import os
+import sys
+import click
+import logging
+from pathlib import Path
+
+# Add backend to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+logger = logging.getLogger(__name__)
+
+
+@click.group()
+@click.version_option(version="0.1.0")
+def main_cli():
+    """
+    Atom OS - AI-powered business automation platform.
+
+    Governance-first architecture with multi-agent system.
+    """
+    pass
+
+
+@main_cli.command()
+@click.option('--port', default=8000, help='Port for web server')
+@click.option('--host', default='0.0.0.0', help='Host to bind to')
+@click.option('--workers', default=1, help='Number of worker processes')
+@click.option('--host-mount', is_flag=True, help='Enable host filesystem mount (Docker)')
+@click.option('--dev', is_flag=True, help='Enable development mode (auto-reload)')
+def start(port: int, host: str, workers: int, host_mount: bool, dev: bool):
+    """
+    Start Atom OS server.
+
+    Starts FastAPI server with optional host filesystem mount.
+
+    **Host Mount Warning:**
+    This gives containers write access to host directories.
+    Only enable after reviewing governance protections:
+      - AUTONOMOUS maturity gate required for shell access
+      - Command whitelist (ls, cat, grep, git, npm, etc.)
+      - Blocked commands (rm, mv, chmod, kill, sudo, etc.)
+      - 5-minute timeout enforcement
+      - Full audit trail to ShellSession table
+
+    **Examples:**
+        atom-os                                    # Start on localhost:8000
+        atom-os --port 3000 --dev                # Development mode with reload
+        atom-os --host-mount                     # With host mount (requires confirmation)
+    """
+    # Import after CLI to avoid slow startup
+    from main_api_app import app
+
+    if host_mount:
+        _confirm_host_mount()
+        os.environ["ATOM_HOST_MOUNT_ENABLED"] = "true"
+
+        # Configure host mount directories
+        current_user = os.getenv("USER", "unknown")
+        os.environ.setdefault(
+            "ATOM_HOST_MOUNT_DIRS",
+            f"/tmp:/Users/{current_user}/projects:/Users/{current_user}/Desktop:/Users/{current_user}/Documents"
+        )
+
+        click.echo(click.style("⚠️  Host filesystem mount ENABLED", fg="yellow", bold=True))
+        click.echo("Governance protections active:")
+        click.echo("  ✓ AUTONOMOUS maturity gate")
+        click.echo("  ✓ Command whitelist")
+        click.echo("  ✓ Blocked commands")
+        click.echo("  ✓ 5-minute timeout")
+        click.echo("  ✓ Audit trail")
+        click.echo("")
+
+    # Start server
+    import uvicorn
+
+    click.echo(click.style("🚀 Starting Atom OS...", fg="green", bold=True))
+    click.echo(f"  Host: {host}")
+    click.echo(f"  Port: {port}")
+    click.echo(f"  Workers: {workers}")
+    click.echo(f"  Dev mode: {dev}")
+    click.echo(f"  Host mount: {host_mount}")
+    click.echo("")
+    click.echo(f"  Dashboard: http://{host}:{port}")
+    click.echo(f"  API docs: http://{host}:{port}/docs")
+    click.echo("")
+
+    if dev:
+        # Development mode with auto-reload
+        uvicorn.run(
+            "main_api_app:app",
+            host=host,
+            port=port,
+            reload=True,
+            log_level="info"
+        )
+    else:
+        # Production mode
+        uvicorn.run(
+            "main_api_app:app",
+            host=host,
+            port=port,
+            workers=workers,
+            log_level="info",
+            access_log=True
+        )
+
+
+@main_cli.command()
+def status():
+    """Show Atom OS status and configuration."""
+    # Import after CLI to avoid slow startup
+    from main_api_app import app
+    from core.governance_cache import get_governance_cache
+
+    click.echo(click.style("Atom OS Status", bold=True))
+    click.echo("=" * 40)
+
+    # Check host mount
+    host_mount_enabled = os.getenv("ATOM_HOST_MOUNT_ENABLED", "false").lower() == "true"
+    click.echo(f"Host mount: {click.style('ENABLED' if host_mount_enabled else 'disabled', fg='yellow' if host_mount_enabled else 'dim')}")
+
+    # Check governance cache
+    try:
+        cache = get_governance_cache()
+        click.echo(f"Governance cache: {click.style('connected', fg='green')}")
+    except Exception as e:
+        click.echo(f"Governance cache: {click.style('disconnected', fg='red')} ({e})")
+
+    # Check database
+    try:
+        from core.models import engine
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        click.echo(f"Database: {click.style('connected', fg='green')}")
+    except Exception as e:
+        click.echo(f"Database: {click.style('disconnected', fg='red')} ({e})")
+
+    # Show configuration
+    click.echo("")
+    click.echo("Environment:")
+    port = os.getenv("PORT", "8000")
+    click.echo(f"  PORT: {port}")
+
+    if host_mount_enabled:
+        mount_dirs = os.getenv("ATOM_HOST_MOUNT_DIRS", "not configured")
+        click.echo(f"  Host mount dirs: {mount_dirs}")
+
+
+@main_cli.command()
+def config():
+    """Show configuration details and environment variables."""
+    click.echo(click.style("Atom OS Configuration", bold=True))
+    click.echo("=" * 40)
+    click.echo("")
+    click.echo("Environment Variables:")
+    click.echo("")
+    click.echo("Server:")
+    click.echo("  PORT              - Server port (default: 8000)")
+    click.echo("  HOST             - Server host (default: 0.0.0.0)")
+    click.echo("  WORKERS          - Worker processes (default: 1)")
+    click.echo("")
+    click.echo("Host Mount (SECURITY WARNING):")
+    click.echo("  ATOM_HOST_MOUNT_ENABLED  - Enable host filesystem mount")
+    click.echo("  ATOM_HOST_MOUNT_DIRS     - Allowed directories (colon-separated)")
+    click.echo("")
+    click.echo("Database:")
+    click.echo("  DATABASE_URL      - Database connection string")
+    click.echo("")
+    click.echo("LLM Providers:")
+    click.echo("  OPENAI_API_KEY    - OpenAI API key")
+    click.echo("  ANTHROPIC_API_KEY - Anthropic API key")
+    click.echo("  DEEPSEEK_API_KEY  - DeepSeek API key")
+    click.echo("")
+    click.echo("See .env file for full configuration.")
+
+
+def _confirm_host_mount():
+    """Interactive confirmation for host mount."""
+    click.echo(click.style("⚠️  HOST FILESYSTEM MOUNT", fg="yellow", bold=True))
+    click.echo("")
+    click.echo("You are about to enable host filesystem access for Atom containers.")
+    click.echo("")
+    click.echo("This gives containers WRITE access to host directories.")
+    click.echo("")
+    click.echo("Governance protections in place:")
+    click.echo("  ✓ AUTONOMOUS maturity gate required for shell access")
+    click.echo("  ✓ Command whitelist (ls, cat, grep, git, npm, etc.)")
+    click.echo("  ✓ Blocked commands (rm, mv, chmod, kill, sudo, etc.)")
+    click.echo("  ✓ 5-minute timeout enforcement")
+    click_echo("  ✓ Full audit trail to ShellSession table")
+    click.echo("")
+    click.echo("However, this STILL carries risk:")
+    click.echo("  - Bugs in governance code could bypass protections")
+    click.echo("  - Compromised AUTONOMOUS agent has shell access")
+    click.echo("  - Docker escape vulnerabilities could be exploited")
+    click.echo("")
+
+    if not click.confirm("Do you understand the risks and want to continue?"):
+        click.echo("Host mount cancelled.")
+        raise SystemExit(1)
+
+    click.echo("")
+    click.echo("✓ Host mount confirmed")
+
+
+if __name__ == "__main__":
+    main_cli()
+```
+
+Follow Atom patterns:
+- Click framework for CLI (better UX than argparse)
+- Type hints and docstrings
+- Security warnings for dangerous features
+- Helpful startup messages
+  </action>
+  <verify>
+```bash
+# Verify CLI created
+test -f backend/cli/main.py
+grep -n "click.group" backend/cli/main.py
+grep -n "def start" backend/cli/main.py
+grep -n "def status" backend/cli/main.py
+```
+  </verify>
+  <done>
+CLI entry point created with:
+- Click framework for CLI commands
+- atom-os start command with options (port, host, workers, host-mount, dev)
+- atom-os status command for system status
+- atom-os config command for environment variables
+- Host mount confirmation with security warnings
+- Helpful startup messages and colors
+  </done>
+</task>
+
+<task type="auto">
+  <name>Create setup.py for pip packaging</name>
   <files>backend/setup.py</files>
   <action>
-    Create backend/setup.py with:
+Create backend/setup.py (100-150 lines):
 
-    1. Standard setuptools configuration:
-       from setuptools import setup, find_packages
+```python
+"""
+Setup configuration for pip installable Atom OS package.
 
-       setup(
-           name="atom-os",
-           version="1.0.0",
-           description="Atom - AI-Powered Business Automation Platform (Personal Edition)",
-           long_description=open("README.md").read() if exists else description,
-           long_description_content_type="text/markdown",
-           author="Atom Team",
-           author_email="hello@atom-platform.com",
-           url="https://github.com/atom-platform/atom",
-           packages=find_packages(exclude=["tests*", "docs*"]),
-           include_package_data=True,
-           python_requires=">=3.11",
+OpenClaw Integration: Single-command installer ("pip install atom-os").
+Full-featured Atom with governance-first architecture.
+"""
 
-    2. Dependencies from requirements.txt:
-       install_requires=[
-           "fastapi>=0.104.0",
-           "uvicorn[standard]>=0.24.0",
-           "sqlalchemy>=2.0.0",
-           "pydantic>=2.0.0",
-           "python-multipart>=0.0.6",
-           "python-jose[cryptography]>=3.3.0",
-           "passlib[bcrypt]>=1.7.4",
-           "alembic>=1.12.0",
-           "click>=8.1.0",
-           # Add other core dependencies from requirements.txt
-           # Exclude: development tools (pytest, black, etc.)
-       ],
+from setuptools import setup, find_packages
+from pathlib import Path
+import os
 
-    3. Console scripts entry point:
-       entry_points={
-           "console_scripts": [
-               "atom-os=cli.main:main",
-           ],
-       },
+# Read README for long description
+readme_file = Path(__file__).parent / "README.md"
+long_description = readme_file.read_text() if readme_file.exists() else ""
 
-    4. Classifiers:
-       - Development Status :: 4 - Beta
-       - Intended Audience :: Developers
-       - License :: OSI Approved :: MIT License
-       - Programming Language :: Python :: 3.11
-       - Programming Language :: Python :: 3.12
+# Read requirements
+requirements_file = Path(__file__).parent / "requirements.txt"
+requirements = []
+if requirements_file.exists():
+    with open(requirements_file) as "r" as f:
+        requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
-    5. Optional: extras_require for development:
-       extras_require={
-           "dev": [
-               "pytest>=7.4.0",
-               "pytest-asyncio>=0.21.0",
-               "black>=23.0.0",
-               "ruff>=0.1.0",
-           ],
-       }
+setup(
+    name="atom-os",
+    version="0.1.0",
+    description="AI-powered business automation platform with multi-agent governance",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author="Atom Platform",
+    author_email="contact@atom-platform.dev",
+    url="https://github.com/rush86999/atom",
+    project_urls={
+        "Bug Tracker": "https://github.com/rush86999/atom/issues",
+        "Documentation": "https://github.com/rush86999/atom/tree/main/docs",
+        "Source Code": "https://github.com/rush86999/atom",
+    },
 
-    DO NOT include test files or documentation in package
-    DO include all core modules, API routes, tools
+    packages=find_packages(exclude=["tests.*", "tests", "*.tests", "*.tests.*"]),
+    include_package_data=True,
+
+    # Python version requirement
+    python_requires=">=3.11",
+
+    # Dependencies
+    install_requires=requirements + [
+        # CLI dependencies
+        "click>=8.0.0",
+
+        # Core dependencies (from requirements.txt, ensuring minimum versions)
+        "fastapi>=0.100.0",
+        "uvicorn[standard]>=0.20.0",
+        "sqlalchemy>=2.0.0",
+        "pydantic>=2.0.0",
+        "python-multipart>=0.0.5",
+        "python-jose[cryptography]>=3.3.0",
+        "passlib[bcrypt]>=1.7.4",
+        "python-dotenv>=1.0.0",
+        "alembic>=1.8.0",
+        "pytest>=7.0.0",
+        "pytest-asyncio>=0.21.0",
+        "pytest-cov>=4.0.0",
+        "httpx>=0.24.0",
+        "websockets>=11.0",
+
+        # LLM providers
+        "openai>=1.0.0",
+        "anthropic>=0.18.0",
+    ],
+
+    # Console script entry points
+    entry_points={
+        "console_scripts": [
+            "atom-os=cli.main:main_cli",
+        ],
+    },
+
+    # Package metadata
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Environment :: Console",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Software Development :: Libraries :: Application Frameworks",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    ],
+
+    # Keywords for PyPI
+    keywords="automation ai agents governance multi-agent llm business workflow",
+
+    # Zip safe
+    zip_safe=False,
+
+    # Include data files
+    package_data={
+        "atom_os": ["templates/*", "static/*"],
+    },
+)
+```
+
+Follow Python packaging best practices:
+- setuptools for compatibility
+- console_scripts for CLI entry point
+- Automatic dependency discovery from requirements.txt
+- Version requirement (Python 3.11+)
+- PyPI classifiers for discoverability
   </action>
-  <verify>grep -n "name=\|entry_points=\|install_requires=" backend/setup.py returns configuration</verify>
-  <done>setup.py defines atom-os package with console_scripts entry point</done>
+  <verify>
+```bash
+# Verify setup.py created
+test -f backend/setup.py
+grep -n "name=\"atom-os\"" backend/setup.py
+grep -n "entry_points" backend/setup.py
+grep -n "atom-os=cli.main:main_cli" backend/setup.py
+```
+  </verify>
+  <done>
+setup.py created with:
+- Package name: atom-os
+- Entry point: atom-os command
+- Dependencies from requirements.txt
+- CLI dependencies (click)
+- Python 3.11+ requirement
+- PyPI classifiers for discoverability
+  </done>
 </task>
 
 <task type="auto">
-  <name>Create CLI entry point with Click</name>
-  <files>backend/cli/__init__.py backend/cli/main.py</files>
-  <action>
-    Create backend/cli/__init__.py (empty file with docstring)
-
-    Create backend/cli/main.py with:
-
-    1. Imports:
-       import click
-       import sys
-       import os
-       from pathlib import Path
-
-    2. Version constant:
-       __version__ = "1.0.0"
-
-    3. @click.command()
-    4. @click.option("--port", default=8000, help="Port to run on", show_default=True)
-    5. @click.option("--host", default="0.0.0.0", help="Host to bind to", show_default=True)
-    6. @click.option("--host-mount", is_flag=True, help="Enable host filesystem mount (AUTONOMOUS agents only)")
-    7. @click.option("--reload", is_flag=True, help="Enable auto-reload for development")
-    8. @click.option("--workers", default=1, help="Number of worker processes", show_default=True)
-    9. @click.option("--log-level", default="info", help="Log level", show_default=True,
-                    type=click.Choice(["debug", "info", "warning", "error"], case_sensitive=False))
-    10. @click.version_option(version=__version__)
-
-    11. def main(port, host, host_mount, reload, workers, log_level):
-        """
-        Atom OS - Personal Edition
-
-        Start your local AI agent workforce with governance-first security.
-
-        Example:
-            atom-os --port 8000
-
-        For host filesystem access (AUTONOMOUS agents only):
-            atom-os --host-mount --port 8000
-        """
-        # Validate host mount option
-        if host_mount:
-            click.echo(click.style("WARNING: Host filesystem mount enabled!", fg="yellow", bold=True))
-            click.echo("AUTONOMOUS agents will have access to:")
-            click.echo(f"  - {os.getenv('HOME', '~')} (home directory)")
-            click.echo(f"  - {os.getcwd()} (current directory)")
-            click.echo()
-            if not click.confirm("Continue with host mount enabled?", default=False):
-                click.echo("Startup cancelled. Run without --host-mount for safer operation.")
-                sys.exit(0)
-
-        # Display startup banner
-        click.echo(click.style("=" * 60, fg="blue"))
-        click.echo(click.style(f"  Atom OS v{__version__} - Personal Edition", fg="blue", bold=True))
-        click.echo(click.style("  AI-Powered Business Automation Platform", fg="blue"))
-        click.echo(click.style("=" * 60, fg="blue"))
-        click.echo()
-
-        # Show configuration
-        click.echo(f"Starting on http://{host}:{port}")
-        if host_mount:
-            click.echo(click.style("  Host mount: ENABLED", fg="yellow"))
-        else:
-            click.echo("  Host mount: DISABLED (safer)")
-        click.echo(f"  Workers: {workers}")
-        click.echo(f"  Log level: {log_level}")
-        click.echo()
-
-        # Import and run uvicorn
-        try:
-            import uvicorn
-            from main_api_app import app
-
-            # Configure environment for host mount
-            if host_mount:
-                os.environ["HOST_MOUNT_ENABLED"] = "true"
-                os.environ["HOST_MOUNT_PREFIX"] = "/host"
-
-            # Start server
-            uvicorn.run(
-                app,
-                host=host,
-                port=port,
-                reload=reload,
-                workers=1 if reload else workers,
-                log_level=log_level
-            )
-        except ImportError as e:
-            click.echo(click.style(f"Error: {e}", fg="red"))
-            click.echo("Please ensure all dependencies are installed:")
-            click.echo("  pip install atom-os")
-            sys.exit(1)
-        except Exception as e:
-            click.echo(click.style(f"Failed to start: {e}", fg="red"))
-            sys.exit(1)
-
-    12. if __name__ == "__main__":
-        main()
-
-    Import click for CLI framework
-    Use click.style() for colored output
-    Use click.confirm() for host mount confirmation
-  </action>
-  <verify>grep -n "@click.command\|def main\|atom-os" backend/cli/main.py returns CLI definition</verify>
-  <done>CLI entry point provides atom-os command with configurable options</done>
-</task>
-
-<task type="auto">
-  <name>Create pyproject.toml for modern Python packaging</name>
+  <name>Create pyproject.toml for modern packaging</name>
   <files>backend/pyproject.toml</files>
   <action>
-    Create backend/pyproject.toml with:
+Create backend/pyproject.toml (50-80 lines):
 
-    1. Build system configuration:
-       [build-system]
-       requires = ["setuptools>=61.0", "wheel"]
-       build-backend = "setuptools.build_meta"
+```toml
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-    2. Project metadata (modern alternative to setup.py fields):
-       [project]
-       name = "atom-os"
-       version = "1.0.0"
-       description = "Atom - AI-Powered Business Automation Platform"
-       readme = "README.md"
-       requires-python = ">=3.11"
-       license = {text = "MIT"}
-       authors = [
-           {name = "Atom Team", email = "hello@atom-platform.com"},
-       ]
-       keywords = ["ai", "automation", "agents", "business", "governance"]
-       classifiers = [
-           "Development Status :: 4 - Beta",
-           "Intended Audience :: Developers",
-           "License :: OSI Approved :: MIT License",
-           "Programming Language :: Python :: 3.11",
-           "Programming Language :: Python :: 3.12",
-       ]
+[project]
+name = "atom-os"
+version = "0.1.0"
+description = "AI-powered business automation platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Atom Platform", email = "contact@atom-platform.dev"},
+]
+keywords = ["automation", "ai", "agents", "governance", "llm", "workflow"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
-    3. Dependencies (reference setup.py for consistency):
-       [project.optional-dependencies]
-       dev = ["pytest>=7.4.0", "pytest-asyncio>=0.21.0", "black>=23.0.0"]
+[project.urls]
+Homepage = "https://github.com/rush86999/atom"
+Documentation = "https://github.com/rush86999/atom/tree/main/docs"
+Repository = "https://github.com/rush86999/atom"
+"Bug Tracker" = "https://github.com/rush86999/atom/issues"
 
-    4. Console scripts (modern alternative to entry_points):
-       [project.scripts]
-       atom-os = "cli.main:main"
+[project.scripts]
+atom-os = "cli.main:main_cli"
 
-    5. Tool configurations:
-       [tool.black]
-       line-length = 88
-       target-version = ["py311"]
+[tool.setuptools]
+zip_safe = false
+```
 
-       [tool.ruff]
-       line-length = 88
-       select = ["E", "F"]
-
-       [tool.pytest.ini_options]
-       testpaths = ["tests"]
-       python_files = ["test_*.py"]
-       asyncio_mode = "auto"
-
-    Note: Keep setup.py for backwards compatibility with older pip versions
-    pyproject.toml is the modern standard but setup.py still works
+This provides modern Python packaging alongside setup.py for compatibility.
   </action>
-  <verify>grep -n "\\[build-system\\]\\|\\[project\\]\\|\\[project.scripts\\]" backend/pyproject.toml returns sections</verify>
-  <done>pyproject.toml provides modern Python packaging configuration</done>
+  <verify>
+```bash
+# Verify pyproject.toml created
+test -f backend/pyproject.toml
+grep -n "\[project.scripts\]" backend/pyproject.toml
+grep -n "atom-os = " backend/pyproject.toml
+```
+  </verify>
+  <done>
+pyproject.toml created with:
+- Modern Python packaging metadata
+- Project scripts entry point
+- Build system configuration
+- URLs for homepage, docs, repository, issues
+- Zip safe disabled (correct for CLI apps)
+  </done>
 </task>
 
 <task type="auto">
-  <name>Update README with installation instructions</name>
-  <files>README.md</files>
+  <name>Create CLI package init file</name>
+  <files>backend/cli/__init__.py</files>
   <action>
-    Update README.md (root level) with:
+Create backend/cli/__init__.py:
 
-    1. Add Quick Start section at top:
-       ## Quick Start (Personal Edition)
+```python
+"""
+Atom OS CLI package.
 
-       ### Install via pip
-       ```bash
-       pip install atom-os
-       ```
+Provides command-line interface for Atom OS platform.
+"""
 
-       ### Start Atom OS
-       ```bash
-       atom-os
-       ```
+__version__ = "0.1.0"
+```
 
-       Atom will start on http://localhost:8000
-
-       ### With Host Filesystem Access (Optional)
-       For AUTONOMOUS agents to access your files:
-       ```bash
-       atom-os --host-mount
-       ```
-
-       WARNING: Host mount allows AUTONOMOUS agents to read/write your filesystem.
-       Only enable in isolated environments with trusted agents.
-
-    2. Add CLI Options section:
-       ## CLI Options
-
-       ```bash
-       atom-os [OPTIONS]
-
-       Options:
-         --port TEXT          Port to run on [default: 8000]
-         --host TEXT          Host to bind to [default: 0.0.0.0]
-         --host-mount         Enable host filesystem mount
-         --reload             Enable auto-reload (development)
-         --workers INTEGER    Number of workers [default: 1]
-         --log-level TEXT     Log level: debug, info, warning, error [default: info]
-         --help               Show help message
-         --version            Show version
-       ```
-
-    3. Update Development section (preserve existing):
-       Keep existing development setup instructions for contributors
-       Add note about editable install for development:
-       ```bash
-       # For development (editable install)
-       cd backend
-       pip install -e .
-       ```
-
-    DO NOT remove existing content
-    DO reorganize sections: Quick Start first, then Development, then full documentation
-    PRESERVE all existing README content
+This makes the cli directory a Python package for imports.
   </action>
-  <verify>grep -n "Quick Start\|pip install atom-os\|CLI Options" README.md returns new sections</verify>
-  <done>README includes Quick Start with pip install and CLI options documentation</done>
+  <verify>
+```bash
+# Verify init file created
+test -f backend/cli/__init__.py
+grep -n "__version__" backend/cli/__init__.py
+```
+  </verify>
+  <done>
+CLI package init created with:
+- Package version metadata
+- Docstring explaining CLI purpose
+  </done>
 </task>
 
 <task type="auto">
-  <name>Write tests for CLI installer</name>
+  <name>Create installation tests</name>
   <files>backend/tests/test_cli_installer.py</files>
-  <action>
-    Create backend/tests/test_cli_installer.py with:
+< <action>
+Create backend/tests/test_cli_installer.py (150-200 lines):
 
-    1. Test imports:
-       import pytest
-       from click.testing import CliRunner
-       from unittest.mock import patch, Mock
-       from cli.main import main, __version__
+```python
+"""
+Tests for Atom OS CLI installer.
 
-    2. Test runner fixture:
-       @pytest.fixture
-       def runner():
-           return CliRunner()
+OpenClaw Integration Tests:
+- pip install atom-os works correctly
+- atom-os command is available
+- CLI shows helpful status and config
+- Host mount confirmation works
+"""
 
-    3. Test version option:
-       def test_version_option(runner):
-           result = runner.invoke(main, ["--version"])
-           assert result.exit_code == 0
-           assert __version__ in result.output
+import pytest
+import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import patch
 
-    4. Test help option:
-       def test_help_option(runner):
-           result = runner.invoke(main, ["--help"])
-           assert result.exit_code == 0
-           assert "Atom OS" in result.output
-           assert "--port" in result.output
-           assert "--host-mount" in result.output
 
-    5. Test host mount confirmation:
-       @patch("cli.main.click.confirm")
-       def test_host_mount_requires_confirmation(mock_confirm, runner):
-           mock_confirm.return_value = False
-           result = runner.invoke(main, ["--host-mount"])
-           assert "cancelled" in result.output.lower()
+class TestCLIInstallation:
+    """Test pip installation and CLI availability."""
 
-       @patch("cli.main.click.confirm")
-       @patch("cli.main.uvicorn.run")
-       def test_host_mount_confirmed_starts_server(mock_run, mock_confirm, runner):
-           mock_confirm.return_value = True
-           result = runner.invoke(main, ["--host-mount"])
-           assert result.exit_code == 0
-           mock_run.assert_called_once()
+    def test_setup_py_exists(self):
+        """setup.py exists with correct configuration."""
+        setup_file = Path(__file__).parent.parent / "setup.py"
+        assert setup_file.exists()
 
-    6. Test startup banner:
-       @patch("cli.main.uvicorn.run")
-       def test_startup_banner_displayed(mock_run, runner):
-           result = runner.invoke(main, [])
-           assert "Atom OS" in result.output
-           assert "=" in result.output
+        content = setup_file.read_text()
+        assert 'name="atom-os"' in content
+        assert 'entry_points' in content
+        assert 'atom-os=cli.main:main_cli' in content
 
-    7. Test port configuration:
-       @patch("cli.main.uvicorn.run")
-       def test_custom_port_passed_to_uvicorn(mock_run, runner):
-           runner.invoke(main, ["--port", "9000"])
-           call_kwargs = mock_run.call_args[1]
-           assert call_kwargs["port"] == 9000
+    def test_pyproject_toml_exists(self):
+        """pyproject.toml exists with modern packaging."""
+        pyproject_file = Path(__file__).parent.parent / "pyproject.toml"
+        assert pyproject_file.exists()
 
-    8. Test log level configuration:
-       @patch("cli.main.uvicorn.run")
-       def test_log_level_passed_to_uvicorn(mock_run, runner):
-           runner.invoke(main, ["--log-level", "debug"])
-           call_kwargs = mock_run.call_args[1]
-           assert call_kwargs["log_level"] == "debug"
+        content = pyproject_file.read_text()
+        assert '[project.scripts]' in content
+        assert 'atom-os = ' in content
 
-    9. Test environment variables set for host mount:
-       @patch("cli.main.uvicorn.run")
-       @patch.dict("os.environ", {}, clear=True)
-       def test_host_mount_sets_environment(mock_run, runner):
-           runner.invoke(main, ["--host-mount"])
-           import os
-           assert os.environ.get("HOST_MOUNT_ENABLED") == "true"
+    def test_cli_module_exists(self):
+        """CLI module exists with main function."""
+        cli_file = Path(__file__).parent.parent / "cli" / "main.py"
+        assert cli_file.exists()
 
-    10. Test import error handling:
-        @patch("cli.main.uvicorn", side_effect=ImportError("No module named 'uvicorn'"))
-        def test_import_error_shows_helpful_message(mock_uvicorn, runner):
-            result = runner.invoke(main, [])
-            assert "Error" in result.output
-            assert "pip install" in result.output
+        content = cli_file.read_text()
+        assert 'def main_cli()' in content
+        assert 'click.group' in content
+        assert '@main_cli.command()' in content
 
-    Use CliRunner from Click testing utilities
-    Mock uvicorn.run to prevent actual server startup
-    Mock click.confirm to test host mount flow
+
+class TestCLICommands:
+    """Test CLI command execution."""
+
+    def test_cli_help_command(self):
+        """atom-os --help shows help message."""
+        result = subprocess.run(
+            [sys.executable, "-m", "cli.main", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+
+        assert result.returncode == 0
+        assert "Atom OS" in result.stdout
+        assert "start" in result.stdout
+        assert "status" in result.stdout
+
+    def test_cli_status_command(self):
+        """atom-os status shows configuration."""
+        # Mock database and cache for status check
+        with patch('cli.main.get_governance_cache') as mock_cache:
+            result = subprocess.run(
+                [sys.executable, "-m", "cli.main", "status"],
+                capture_output=True,
+                text=True,
+                cwd=Path(__file__).parent.parent
+            )
+
+            assert "Atom OS Status" in result.stdout
+
+    def test_cli_config_command(self):
+        """atom-os config shows environment variables."""
+        result = subprocess.run(
+            [sys.executable, "-m", "cli.main", "config"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+
+        assert result.returncode == 0
+        assert "Configuration" in result.stdout
+        assert "PORT" in result.stdout
+        assert "DATABASE_URL" in result.stdout
+
+
+class TestHostMountConfirmation:
+    """Test host mount interactive confirmation."""
+
+    def test_host_mount_requires_confirmation(self):
+        """Host mount requires user confirmation."""
+        with patch('click.confirm') as mock_confirm:
+            mock_confirm.return_value = False
+
+            # Should raise SystemExit when user declines
+            with pytest.raises(SystemExit):
+                from cli.main import _confirm_host_mount
+                _confirm_host_mount()
+
+            # Verify confirm was called
+            assert mock_confirm.called
+
+    def test_host_mount_confirmation_message(self):
+        """Confirmation message includes security warnings."""
+        with patch('click.echo') as mock_echo:
+            with patch('click.confirm') as mock_confirm:
+                mock_confirm.return_value = False
+
+                from cli.main import _confirm_host_mount
+                try:
+                    _confirm_host_mount()
+                except SystemExit:
+                    pass
+
+            # Verify security warnings were displayed
+            calls = [call[0][0] for call in mock_echo.call_args_list]
+            security_calls = [call for call in calls if "⚠️" in call or "risk" in call.lower()]
+            assert len(security_calls) > 0
+
+
+class TestDependencyInstallation:
+    """Test dependencies are correctly installed."""
+
+    def test_click_available(self):
+        """Click framework is available."""
+        import click
+        assert click.__version__ >= "8.0.0"
+
+    def test_fastapi_available(self):
+        """FastAPI is available for import."""
+        try:
+            from main_api_app import app
+            assert app is not None
+        except ImportError:
+            pytest.fail("FastAPI not available")
+
+    def test_governance_cache_available(self):
+        """Governance cache is available."""
+        try:
+            from core.governance_cache import get_governance_cache
+            assert callable(get_governance_cache)
+        except ImportError:
+            pytest.fail("Governance cache not available")
+```
+
+Coverage targets:
+- Installation files exist (setup.py, pyproject.toml)
+- CLI commands work (help, status, config)
+- Host mount confirmation flow
+- Dependencies available
+- Integration with main_api_app
   </action>
-  <verify>pytest backend/tests/test_cli_installer.py -v returns passing tests</verify>
-  <done>CLI tests validate version, help, host mount confirmation, startup banner, and configuration</done>
+  <verify>
+```bash
+# Run tests
+cd backend && pytest tests/test_cli_installer.py -v
+# Should show 10+ tests passing
+```
+  </verify>
+  <done>
+CLI installer tests created:
+- 3 tests for installation files (setup.py, pyproject.toml, CLI module)
+- 3 tests for CLI commands (help, status, config)
+- 2 tests for host mount confirmation
+- 2 tests for dependency availability
+- Total: 10+ tests with comprehensive coverage
+  </done>
 </task>
 
 </tasks>
 
 <verification>
-1. Package Configuration:
-   - setup.py defines atom-os package with proper metadata
-   - console_scripts entry point creates atom-os command
-   - Dependencies include FastAPI, Uvicorn, SQLAlchemy, etc.
-   - Python version requires 3.11+
-
-2. CLI Entry Point:
-   - Click framework provides command parsing
-   - atom-os command starts FastAPI application
-   - Options: port, host, host-mount, reload, workers, log-level
-   - Host mount requires confirmation with warning
-   - Startup banner displays configuration
-
-3. Modern Packaging:
-   - pyproject.toml provides [build-system], [project], [project.scripts]
-   - Tool configurations for Black, Ruff, Pytest
-   - Compatible with both setup.py and pyproject.toml
-
-4. Documentation:
-   - README updated with Quick Start section
-   - pip install atom-os instructions
-   - CLI options documented
-   - Host mount security warning
-
-5. Error Handling:
-   - Import errors show helpful message
-   - Host mount cancellation exits gracefully
-   - Invalid options rejected by Click
-
-6. Test Coverage:
-   - Version option test
-   - Help option test
-   - Host mount confirmation flow
-   - Startup banner display
-   - Port/log-level configuration
-   - Environment variable setting
-   - Import error handling
+After completion, verify:
+1. setup.py exists with atom-os package and console_scripts entry point
+2. pyproject.toml exists with [project.scripts] entry
+3. CLI main.py exists with Click framework and commands
+4. atom-os --help works and shows help message
+5. atom-os status shows Atom OS status
+6. atom-os config shows environment variables
+7. Host mount confirmation shows security warnings
+8. Tests cover installation, CLI commands, host mount
+9. README.md updated with installation instructions
 </verification>
 
 <success_criteria>
-1. User can run `pip install atom-os` to install Atom
-2. User can run `atom-os` to start the platform
-3. CLI options configure port, host, workers, log level
-4. --host-mount flag requires confirmation with security warning
-5. pyproject.toml provides modern Python packaging
-6. README includes Quick Start and CLI documentation
-7. Tests validate CLI functionality
-8. Installation works on Python 3.11+
+- `pip install atom-os` installs Atom OS package
+- `atom-os` command is available after installation
+- CLI provides helpful startup messages
+- Host mount option requires interactive confirmation
+- Installation works on Python 3.11+
+- All dependencies included in package
+- Security warnings displayed for host mount
+- Test coverage >80% for installer
 </success_criteria>
 
 <output>
 After completion, create `.planning/phases/13-openclaw-integration/13-openclaw-integration-03-SUMMARY.md` with:
-- Implemented setup.py package configuration with console_scripts
-- Created CLI entry point (cli/main.py) with Click framework
-- Added pyproject.toml for modern Python packaging
-- Updated README with installation instructions
-- Comprehensive CLI tests for validation
-
-Include code snippets for:
-- setup.py entry_points configuration
-- Click command with options
-- Host mount confirmation flow
-- pyproject.toml [project.scripts] configuration
+- Files created/modified
+- Installation instructions
+- CLI commands available
+- Host mount confirmation details
+- Security warnings included
+- Test coverage results
 </output>

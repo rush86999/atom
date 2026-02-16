@@ -149,6 +149,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 01-im-adapters P05 | 196s | 3 tasks | 4 files |
 | Phase 01-im-adapters P06 | 157 | 3 tasks | 4 files |
 | Phase 13-openclaw-integration P03 | 300 | 5 tasks | 6 files |
+| Phase 12-tier-1-coverage-push PGAP-02 | 840 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -393,3 +394,5 @@ Resume file: None
 
 **Time spent:** 45+ minutes debugging
 
+
+| Phase 12-tier-1-coverage-push GAP-03 | 650 | 3 tasks | 3 files |

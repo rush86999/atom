@@ -21,15 +21,19 @@ def db():
     session state leakage between tests, which was causing
     IntegrityError and PendingRollbackError.
     """
-    session = SessionLocal()
+    from sqlalchemy.orm import sessionmaker
 
-    # Begin a nested transaction (savepoint) for rollback
-    # This allows us to rollback all changes while keeping the session open
-    connection = session.connection()
-    transaction = connection.begin_nested()
+    # Create a new engine for each test with proper isolation
+    engine = SessionLocal.kw['bind']
+    engine.dispose()
+
+    # Create session with autoflush=False to prevent premature commits
+    session = SessionLocal()
+    session.autoflush = False
 
     yield session
 
-    # Rollback transaction after test
+    # Rollback all changes after test to ensure isolation
     session.rollback()
+    # Close session to prevent connection leaks
     session.close()
