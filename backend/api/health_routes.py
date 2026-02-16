@@ -207,8 +207,6 @@ async def prometheus_metrics():
     Returns:
         Response with content-type: text/plain; version=0.0.4; charset=utf-8
     """
+    from fastapi.responses import Response
     metrics = generate_latest()
-    return {
-        "media_type": CONTENT_TYPE_LATEST,
-        "content": metrics.decode('utf-8'),
-    }
+    return Response(content=metrics, media_type=CONTENT_TYPE_LATEST)
