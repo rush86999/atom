@@ -167,6 +167,12 @@ npm install
 - Browser automation
 - Device capabilities
 
+✅ **Community Skills** ✨ NEW
+- 5,000+ OpenClaw/ClawHub skills
+- Import via GitHub URL
+- Enterprise security with sandboxed execution
+- Automatic governance integration
+
 ✅ **Vector Embeddings**
 - Local generation (FastEmbed, 10-20ms)
 - Semantic search
@@ -219,6 +225,7 @@ start.bat    # Windows
 
 **Features ready:**
 - ✅ Multi-agent automation
+- ✅ 5,000+ community skills (OpenClaw/ClawHub)
 - ✅ Semantic search
 - ✅ Vector embeddings
 - ✅ Episodic memory
