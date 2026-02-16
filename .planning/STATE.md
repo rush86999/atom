@@ -157,6 +157,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 15 P01 | 17min | 3 tasks | 9 files |
 | Phase 15 P05 | 5 | 3 tasks | 6 files |
 | Phase 02-local-agent P01 | 18min | 3 tasks | 5 files |
+| Phase 02-local-agent P02 | 3min | 3 tasks | 3 files |
 | Phase 02-local-agent P03 | 240 | 3 tasks | 3 files |
 
 ## Accumulated Context
