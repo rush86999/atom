@@ -5,7 +5,7 @@ Factory for Workspace and Team models.
 import factory
 from factory import fuzzy
 from tests.factories.base import BaseFactory
-from core.models import Workspace, Team
+from core.models import Workspace, Team, WorkspaceStatus
 
 
 class WorkspaceFactory(BaseFactory):
