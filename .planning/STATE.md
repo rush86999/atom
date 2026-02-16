@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 01-im-adapters
-Plan: 01 (IMGovernanceService Implementation)
+Plan: 02 (WhatsApp Webhook Route and IMGovernanceService Integration)
 Status: Complete
-Last activity: 2026-02-15 — Created IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Implemented token bucket rate limiting (10 req/min), webhook signature verification reusing existing adapters, governance maturity checks via GovernanceCache, and comprehensive audit trail with IMAuditLog model. Database migration applied successfully with 8 indexes. All verification checks passed.
+Last activity: 2026-02-16 — Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge and IMGovernanceService three-stage security pipeline. Integrated IMGovernanceService into Telegram webhook for message updates (callback/inline queries bypass governance). Registered both routers in main FastAPI app. Database session dependency injection via get_db(). All verification checks passed.
 
-Progress: [█] 25% (Phase 01: 1 of 4 plans complete)
+Progress: [██] 50% (Phase 01: 2 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -143,6 +143,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 12-tier-1-coverage-push P02 | 884 | 3 tasks | 3 files |
 | Phase 12-tier-1-coverage-push P03 | 480 | 3 tasks | 3 files |
 | Phase 12-tier-1-coverage-push P04 | 798 | 3 tasks | 2 files |
+| Phase 01-im-adapters P02 | 268s | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 01-im-adapters-02]: Created WhatsApp webhook routes (/api/whatsapp/webhook GET/POST) with Meta verification challenge endpoint and IMGovernanceService three-stage security pipeline integration. Enhanced Telegram webhook to apply governance to message updates only (callback/inline queries bypass governance as they're UI interactions). Used FastAPI dependency injection pattern (db: Session = Depends(get_db)) for per-request IMGovernanceService instances. Registered both routers in main FastAPI app. Database session dependency injection resolves audit logging requirements. Async fire-and-forget audit logging via BackgroundTasks prevents blocking webhook responses.
 - [Phase 01-im-adapters-01]: Implemented IMGovernanceService with three-stage security pipeline (verify_and_rate_limit → check_permissions → log_to_audit_trail). Used token bucket algorithm for rate limiting (10 req/min per user) with in-memory tracking (production: use Redis). Reused existing adapter.verify_request() methods for HMAC signature validation instead of reimplementing crypto. Implemented async fire-and-forget audit logging to avoid blocking webhook responses. PII protection via SHA256 payload hashing in audit logs. All IM interactions logged to IMAuditLog table with 8 indexes for analytics. STUDENT agents blocked from IM triggers via governance maturity checks.
 - [Phase 10-fix-tests-08]: Optimized pytest.ini configuration for fast execution and validated TQ-03/TQ-04 requirements. Removed --reruns 3 (flaky tests fixed), changed -v to -q mode (10x faster), removed coverage from addopts (run separately). Full test suite now completes in ~11 minutes (5.5x-11x improvement over 60-120 min baseline), well under TQ-03 60-minute requirement. 4/5 previously flaky tests pass consistently with 0% variance. test_agent_governance_gating excluded due to hanging issue (30s+ timeout waiting for HITL approval). Used sampling approach (unit, integration, property tests) to extrapolate full suite execution time. Recommendations: implement pytest-xdist parallelization for 3x speed improvement, create test tiers (smoke/fast/full), fix hanging governance test.
 - [Phase 10-fix-tests-03]: Test suite requires optimization for practical execution. Unable to complete TQ-02 verification (98% pass rate across 3 runs) due to test suite scale (10,513 tests) and execution time (1-2+ hours per run). Documented findings and recommendations including test parallelization infrastructure, suite segmentation (smoke/full/critical), performance optimization (aggressive mocking, in-memory databases), and test pruning. Status: BLOCKED - requires Phase 11 infrastructure work.
@@ -303,6 +305,9 @@ None yet.
 
 ## Session Continuity
 
+Last session: 2026-02-16T01:55
+Stopped at: Completed Phase 01-im-adapters Plan 02 - Created WhatsApp webhook routes with IMGovernanceService integration, enhanced Telegram webhook with governance for message updates, registered both routers in main FastAPI app
+Resume file: None
 Last session: 2026-02-13T11:50
 Stopped at: Completed Phase 08.5 Plan 01 - Created 4 baseline unit test files with 2,272 lines, 188 tests (all passing), achieving 55.30% average coverage on workflow template management, parameter validation, and API endpoints
 Resume file: None
