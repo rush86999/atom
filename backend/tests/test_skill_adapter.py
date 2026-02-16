@@ -5,12 +5,13 @@ Tests cover:
 - BaseTool subclass verification
 - Factory function functionality
 - Prompt-only skill execution with template interpolation
-- Python skill execution (NotImplementedError without sandbox)
+- Python skill execution with sandbox integration
 - Pydantic args_schema validation
 - Async execution delegation
 """
 
 import pytest
+from unittest.mock import patch, Mock
 
 from core.skill_adapter import CommunitySkillTool, CommunitySkillInput, create_community_tool
 
@@ -183,7 +184,7 @@ class TestPythonSkillExecution:
         assert "sandbox" in str(exc_info.value).lower()
         assert "security" in str(exc_info.value).lower()
 
-    @patch('core.skill_adapter.HazardSandbox')
+    @patch('core.skill_sandbox.HazardSandbox')
     def test_python_skill_with_sandbox_enabled_executes(self, mock_sandbox_class, python_skill):
         """Test that Python skills execute with sandbox when enabled."""
         # Mock the sandbox instance
@@ -235,11 +236,14 @@ class TestAsyncExecution:
 
     @pytest.mark.asyncio
     async def test_async_python_skill_raises(self, python_skill):
-        """Test that async Python skill execution also raises."""
+        """Test that async Python skill execution also raises without sandbox."""
         tool = create_community_tool(python_skill)
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(RuntimeError) as exc_info:
             await tool._arun("test query")
+
+        assert "sandbox" in str(exc_info.value).lower()
+        assert "security" in str(exc_info.value).lower()
 
 
 class TestErrorHandling:

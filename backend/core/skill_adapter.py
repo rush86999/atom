@@ -135,7 +135,7 @@ class CommunitySkillTool(BaseTool):
         """
         if self.sandbox_enabled:
             # Import HazardSandbox for isolated execution
-            from skill_sandbox import HazardSandbox
+            from core.skill_sandbox import HazardSandbox
 
             try:
                 sandbox = HazardSandbox()
@@ -218,6 +218,7 @@ def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
     skill_type = parsed_skill.get("skill_type", "prompt_only")
     skill_content = parsed_skill.get("skill_content", "")
     skill_id = parsed_skill.get("skill_id", parsed_skill.get("name", "unknown"))
+    sandbox_enabled = parsed_skill.get("sandbox_enabled", False)
 
     # Create tool instance
     tool = CommunitySkillTool(
@@ -226,7 +227,7 @@ def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
         skill_id=skill_id,
         skill_type=skill_type,
         skill_content=skill_content,
-        sandbox_enabled=False  # Will be enabled in Plan 02
+        sandbox_enabled=sandbox_enabled
     )
 
     logger.info(
