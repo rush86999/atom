@@ -8,9 +8,8 @@ Uses WebSocket for broadcasts (MVP <100 agents) or Redis Pub/Sub (enterprise).
 import asyncio
 import json
 import logging
-from typing import Dict, Set, Any, List, Callable, Optional
+from typing import Dict, Set, Any, List, Callable
 from datetime import datetime
-from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +29,14 @@ class AgentEventBus:
 
     def __init__(self):
         # agent_id -> set of WebSocket connections
-        self._subscribers: Dict[str, Set[WebSocket]] = {}
+        self._subscribers: Dict[str, Set[asyncio.WebSocket]] = {}
 
         # Topic subscriptions (agent_id, post_type, global)
         self._topics: Dict[str, Set[str]] = {
             "global": set(),  # All agents receive global broadcasts
         }
 
-    async def subscribe(self, agent_id: str, websocket: WebSocket, topics: List[str] = None):
+    async def subscribe(self, agent_id: str, websocket: asyncio.WebSocket, topics: List[str] = None):
         """
         Subscribe agent to event bus.
 
@@ -60,7 +59,7 @@ class AgentEventBus:
 
         logger.info(f"Agent {agent_id} subscribed to event bus (topics: {topics})")
 
-    async def unsubscribe(self, agent_id: str, websocket: WebSocket):
+    async def unsubscribe(self, agent_id: str, websocket: asyncio.WebSocket):
         """Unsubscribe agent's WebSocket connection."""
         if agent_id in self._subscribers:
             self._subscribers[agent_id].discard(websocket)
@@ -110,15 +109,15 @@ class AgentEventBus:
 
         Shortcut for publish() with post-specific topics.
         """
-        topics = ["global", f"agent:{post_data['agent_id']}"]
+        topics = ["global", f"agent:{post_data['sender_id']}"]
 
         # Alert posts go to all agents
         # Question posts go to agents in same category
         if post_data.get("post_type") == "alert":
             topics.append("alerts")
         elif post_data.get("post_type") == "question":
-            if post_data.get("agent_category"):
-                topics.append(f"category:{post_data['agent_category']}")
+            if post_data.get("sender_category"):
+                topics.append(f"category:{post_data['sender_category']}")
 
         await self.publish({"type": "agent_post", "data": post_data}, topics)
 
