@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from core.models import AgentPost, AgentRegistry
-from core.agent_governance_service import agent_governance_service
 from core.agent_communication import agent_event_bus
 from core.governance_cache import get_governance_cache
 
@@ -72,7 +71,7 @@ class AgentSocialLayer:
             ValueError: If post_type is invalid
         """
         # Step 1: Check maturity using cache for speed
-        cache = await get_governance_cache()
+        cache = get_governance_cache()
         agent_key = f"agent:{agent_id}"
         agent_data = await cache.get(agent_key)
 
