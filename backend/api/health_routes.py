@@ -33,7 +33,33 @@ MIN_DISK_GB = 1.0  # Minimum 1GB free space required
 DB_TIMEOUT_SECONDS = 5.0  # Database query timeout
 
 
-@router.get("/health/live")
+@router.get(
+    "/health/live",
+    summary="Liveness Probe",
+    description=(
+        "Kubernetes/ECS liveness probe - checks if the application process is alive. "
+        "Orchestration platforms use this to detect if the container needs restart. "
+        "This endpoint should return 200 if the process is running."
+    ),
+    tags=["Health"],
+    responses={
+        200: {
+            "description": "Application is alive",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "alive",
+                        "timestamp": "2026-02-16T10:00:00Z"
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-kubernetes-probe": "liveness"
+    }
+)
 async def liveness_probe() -> Dict[str, Any]:
     """
     Liveness probe - checks if the application process is alive.
@@ -53,7 +79,64 @@ async def liveness_probe() -> Dict[str, Any]:
     }
 
 
-@router.get("/health/ready")
+@router.get(
+    "/health/ready",
+    summary="Readiness Probe",
+    description=(
+        "Kubernetes/ECS readiness probe - checks if the application can handle traffic. "
+        "Orchestration platforms use this to determine if the pod should receive requests. "
+        "This endpoint checks critical dependencies: database connectivity and disk space."
+    ),
+    tags=["Health"],
+    responses={
+        200: {
+            "description": "Application is ready to accept traffic",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "ready",
+                        "timestamp": "2026-02-16T10:00:00Z",
+                        "checks": {
+                            "database": {
+                                "healthy": True,
+                                "message": "Database accessible",
+                                "latency_ms": 5.23
+                            },
+                            "disk": {
+                                "healthy": True,
+                                "message": "25.5GB free",
+                                "free_gb": 25.5
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "Application not ready - dependency check failed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "not_ready",
+                        "timestamp": "2026-02-16T10:00:00Z",
+                        "checks": {
+                            "database": {
+                                "healthy": False,
+                                "message": "Database timeout after 5.0s",
+                                "latency_ms": 5000.0
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-kubernetes-probe": "readiness",
+        "x-dependency-checks": ["database", "disk"]
+    }
+)
 async def readiness_probe() -> Dict[str, Any]:
     """
     Readiness probe - checks if the application can handle traffic.
@@ -196,7 +279,32 @@ async def _check_disk_space() -> Dict[str, Any]:
         }
 
 
-@router.get("/health/metrics")
+@router.get(
+    "/health/metrics",
+    summary="Prometheus Metrics",
+    description=(
+        "Prometheus metrics endpoint for monitoring and alerting. "
+        "Returns metrics in Prometheus text format for scraping by Prometheus server "
+        "or compatible monitoring systems. Includes application performance, "
+        "request counts, error rates, and custom business metrics."
+    ),
+    tags=["Health", "Monitoring"],
+    responses={
+        200: {
+            "description": "Prometheus metrics in text format",
+            "content": {
+                "text/plain": {
+                    "example": "# HELP http_requests_total Total HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total{method=\"post\",endpoint=\"/api/atom-agent/chat\"} 1234\n"
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-prometheus-scrape": True,
+        "x-content-type": "text/plain; version=0.0.4; charset=utf-8"
+    }
+)
 async def prometheus_metrics():
     """
     Prometheus metrics endpoint.

@@ -126,7 +126,36 @@ def save_chat_interaction(
     except Exception as e:
         logger.error(f"Failed to save chat interaction: {e}")
 
-@router.get("/sessions")
+@router.get(
+    "/sessions",
+    summary="List Chat Sessions",
+    description="Retrieve all chat sessions for a user with preview information. Returns session IDs, titles, last activity timestamps, and message previews.",
+    tags=["Agent", "Sessions"],
+    responses={
+        200: {
+            "description": "List of sessions retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "sessions": [
+                            {
+                                "id": "session_abc123",
+                                "title": "Workflow Creation",
+                                "date": "2026-02-16T10:00:00Z",
+                                "preview": "Create a workflow for daily reports"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": True,
+        "x-rate-limit": "100/minute"
+    }
+)
 async def list_sessions(user_id: str = "default_user", limit: int = 50):
     """List all chat sessions for a user"""
     try:
@@ -148,7 +177,29 @@ async def list_sessions(user_id: str = "default_user", limit: int = 50):
         logger.error(f"Failed to list sessions: {e}")
         return {"success": False, "error": str(e)}
 
-@router.post("/sessions")
+@router.post(
+    "/sessions",
+    summary="Create Chat Session",
+    description="Create a new chat session for conversation history tracking. Returns a unique session ID for subsequent chat requests.",
+    tags=["Agent", "Sessions"],
+    responses={
+        200: {
+            "description": "Session created successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "session_id": "session_abc123"
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": True,
+        "x-rate-limit": "100/minute"
+    }
+)
 async def create_new_session(user_id: str = Body(..., embed=True)):
     """Create a new chat session"""
     try:
@@ -159,7 +210,51 @@ async def create_new_session(user_id: str = Body(..., embed=True)):
         logger.error(f"Failed to create session: {e}")
         return {"success": False, "error": str(e)}
 
-@router.get("/sessions/{session_id}/history")
+@router.get(
+    "/sessions/{session_id}/history",
+    summary="Get Session History",
+    description="Retrieve complete conversation history for a specific session. Returns all messages in chronological order with metadata including intents and entity information.",
+    tags=["Agent", "Sessions"],
+    responses={
+        200: {
+            "description": "Session history retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "session": {
+                            "session_id": "session_abc123",
+                            "user_id": "user_123",
+                            "created_at": "2026-02-16T10:00:00Z"
+                        },
+                        "messages": [
+                            {
+                                "id": "msg_001",
+                                "role": "user",
+                                "content": "Create a workflow",
+                                "timestamp": "2026-02-16T10:00:01Z",
+                                "metadata": {}
+                            },
+                            {
+                                "id": "msg_002",
+                                "role": "assistant",
+                                "content": "I'll help you create a workflow.",
+                                "timestamp": "2026-02-16T10:00:02Z",
+                                "metadata": {"intent": "CREATE_WORKFLOW", "workflow_id": "wf_new_123"}
+                            }
+                        ],
+                        "count": 2
+                    }
+                }
+            }
+        },
+        404: {"description": "Session not found"}
+    },
+    openapi_extra={
+        "x-auth-required": True,
+        "x-rate-limit": "100/minute"
+    }
+)
 async def get_session_history(session_id: str):
     """
     Retrieve conversation history for a specific session.
@@ -221,7 +316,45 @@ async def get_session_history(session_id: str):
             "error": str(e)
         }
 
-@router.post("/chat")
+@router.post(
+    "/chat",
+    summary="Chat with AI Agent",
+    description=(
+        "Send a message to an AI agent and receive an intelligent response. "
+        "The agent uses LLM to interpret intent and interact with platform features "
+        "including workflow creation, task management, calendar events, email, and more. "
+        "Supports conversational context with automatic session management."
+    ),
+    tags=["Agent", "Chat"],
+    responses={
+        200: {
+            "description": "Successful agent response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "response": {
+                            "message": "I'll create a workflow for daily reports.",
+                            "intent": "CREATE_WORKFLOW",
+                            "entities": {"workflow_name": "Daily Reports", "frequency": "daily"},
+                            "workflow_id": "wf_new_123",
+                            "session_id": "session_abc123"
+                        }
+                    }
+                }
+            }
+        },
+        400: {"description": "Invalid request body"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Agent maturity too low for requested action"},
+        500: {"description": "Server error"}
+    },
+    openapi_extra={
+        "x-auth-required": True,
+        "x-governance": "INTERN+ for streaming responses",
+        "x-rate-limit": "60/minute"
+    }
+)
 async def chat_with_agent(request: ChatRequest):
     """
     Handle chat messages from the Universal ATOM Assistant.
