@@ -1064,6 +1064,8 @@ class SkillExecution(Base):
 
     Container skills (cloud execution) track compute usage in ACUs.
     Docker skills (local only) do NOT incur ACU charges.
+
+    Extended for community skills with security scanning and sandbox support.
     """
     __tablename__ = "skill_executions"
 
@@ -1088,6 +1090,12 @@ class SkillExecution(Base):
 
     # Legacy timing (ms for non-compute skills)
     execution_time_ms = Column(Integer, nullable=True)
+
+    # Community skills extensions (Phase 14)
+    skill_source = Column(String, default="cloud", index=True)  # "cloud", "community", "custom"
+    security_scan_result = Column(JSON, nullable=True)  # {safe: bool, risk_level: str, findings: []}
+    sandbox_enabled = Column(Boolean, default=False, index=True)
+    container_id = Column(String, nullable=True)  # Docker container ID for sandbox execution
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
