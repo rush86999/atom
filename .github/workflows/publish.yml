@@ -1,0 +1,153 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  # Required for Trusted Publishing
+  id-token: write
+
+jobs:
+  build:
+    name: Build distribution packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Build package
+        run: |
+          cd backend
+          python -m build
+
+      - name: Check package
+        run: |
+          twine check backend/dist/*
+
+      - name: Store distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: backend/dist/
+
+  publish-test:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Download distribution packages
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: backend/dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: backend/dist/
+
+  publish-production:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Only publish tags on main branch
+    if: |
+      github.event_name == 'push' &&
+      github.ref_type == 'tag' &&
+      startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download distribution packages
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: backend/dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: backend/dist/
+          skip-existing: true
+
+  verify:
+    name: Verify installation
+    needs: publish-production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install from PyPI
+        run: |
+          # Wait for package to be available (PyPI can take a few minutes)
+          sleep 120
+          pip install atom-os
+
+      - name: Verify CLI
+        run: |
+          atom-os --version
+          atom-os --help
+
+      - name: Verify imports
+        run: |
+          python -c "from core.package_feature_service import get_package_feature_service; print('✓ PackageFeatureService')"
+          python -c "from cli.main import main_cli; print('✓ CLI main')"
+
+      - name: Test init command
+        run: |
+          atom init --no-input
+          test -f .env
+
+      - name: Check edition
+        run: |
+          python -c "
+          from core.package_feature_service import get_package_feature_service
+          service = get_package_feature_service()
+          print(f'Edition: {service.edition.value}')
+          print(f'Features: {len(service.get_available_features())}')
+          "
+
+  notify:
+    name: Notify on success/failure
+    needs: [build, publish-production, verify]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check job statuses
+        run: |
+          if [ "${{ needs.publish-production.result }}" == "success" ]; then
+            echo "✓ Published successfully to PyPI"
+          else
+            echo "✗ Publishing failed"
+            exit 1
+          fi
