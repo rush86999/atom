@@ -186,7 +186,7 @@ class UptimeTracker:
         close_db = False
         if db is None:
             with get_db_session() as db:
-            close_db = True
+                close_db = True
 
         try:
             # Measure response time

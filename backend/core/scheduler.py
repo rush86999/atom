@@ -93,14 +93,14 @@ class AgentScheduler:
         Execution wrapper that creates AgentJob record.
         """
         with get_db_session() as db:
-        with get_db_session() as db:
-            id=str(uuid.uuid4()),
-            agent_id=agent_id,
-            status=AgentJobStatus.RUNNING.value,
-            logs=""
-        )
-        db.add(job_record)
-        db.commit()
+            job_record = AgentJob(
+                id=str(uuid.uuid4()),
+                agent_id=agent_id,
+                status=AgentJobStatus.RUNNING.value,
+                logs=""
+            )
+            db.add(job_record)
+            db.commit()
         
         try:
             # We need to run async function in sync ThreadPool
@@ -136,14 +136,14 @@ class AgentScheduler:
             
             with get_db_session() as db:
                 try:
-                agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-                if agent_model:
-                    runner = GenericAgent(agent_model)
-                    # For scheduled tasks, we might need a default prompt or check config
-                    task_input = agent_model.configuration.get("scheduled_task", "Perform scheduled check.")
-                    await runner.execute(task_input, context={"trigger": "schedule"})
-            finally:
-                db.close()
+                    agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                    if agent_model:
+                        runner = GenericAgent(agent_model)
+                        # For scheduled tasks, we might need a default prompt or check config
+                        task_input = agent_model.configuration.get("scheduled_task", "Perform scheduled check.")
+                        await runner.execute(task_input, context={"trigger": "schedule"})
+                finally:
+                    db.close()
 
         # 2. Extract Cron details
         cron_expr = schedule_config.get("cron_expression")
@@ -159,13 +159,13 @@ class AgentScheduler:
         Load all agents with active schedules from DB.
         """
         with get_db_session() as db:
-        try:
-            agents = db.query(AgentRegistry).all() # In prod, filter by active schedule
-            count = 0
-            for agent in agents:
-                if agent.schedule_config and agent.schedule_config.get("active"):
-                    self.schedule_agent(agent.id, agent.schedule_config)
-                    count += 1
-            logger.info(f"Loaded {count} agents into scheduler.")
-        finally:
-            db.close()
+            try:
+                agents = db.query(AgentRegistry).all() # In prod, filter by active schedule
+                count = 0
+                for agent in agents:
+                    if agent.schedule_config and agent.schedule_config.get("active"):
+                        self.schedule_agent(agent.id, agent.schedule_config)
+                        count += 1
+                logger.info(f"Loaded {count} agents into scheduler.")
+            finally:
+                db.close()
