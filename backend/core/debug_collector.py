@@ -146,8 +146,10 @@ class DebugCollector:
         This adds debug-specific fields (correlation_id, component_type, operation_id)
         to the logging context.
         """
-        # TODO: Integrate with StructuredLogger to automatically capture logs
-        # For now, components will need to call collect_event explicitly
+        # TODO (evaluated: Future) - Integrate with StructuredLogger to automatically capture logs
+        # Currently components must call collect_event explicitly
+        # Would require StructuredLogger hook integration
+        # See: backend/docs/FUTURE_WORK.md
         pass
 
     async def collect_event(

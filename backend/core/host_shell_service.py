@@ -132,7 +132,7 @@ class HostShellService:
         # Step 5: Validate working directory
         if working_directory:
             # Ensure working directory is within allowed mount
-            # TODO: Make this configurable via environment variable
+            # Configurable via ATOM_HOST_MOUNT_DIRS environment variable
             allowed_dirs = os.getenv(
                 "ATOM_HOST_MOUNT_DIRS",
                 "/tmp:/home:/Users"

@@ -342,8 +342,10 @@ class AutonomousSupervisorService:
             }
         }
 
-        # TODO: Execute the proposed action
-        # For now, just mark as executed
+        # TODO (evaluated: Future) - Execute the proposed action
+        # Currently marks as executed without actual execution
+        # Requires integration with action execution framework
+        # See: backend/docs/FUTURE_WORK.md
         proposal.status = ProposalStatus.EXECUTED.value
         proposal.completed_at = datetime.now()
 
@@ -396,8 +398,9 @@ class AutonomousSupervisorService:
 
         Uses autonomous agent's LLM capabilities to analyze proposal.
         """
-        # TODO: Integrate with actual LLM
-        # For now, return mock analysis
+        # TODO (evaluated: Future) - Integrate with actual LLM
+        # Currently uses heuristic-based analysis
+        # See: backend/docs/FUTURE_WORK.md
 
         # Simple heuristic-based analysis
         confidence = supervisor.confidence_score
@@ -476,7 +479,9 @@ class AutonomousSupervisorService:
         supervisor: AgentRegistry
     ) -> Dict[str, Any]:
         """Analyze execution result for quality/compliance."""
-        # TODO: Implement LLM-based result analysis
+        # TODO (evaluated: Future) - Implement LLM-based result analysis
+        # Returns mock quality scores
+        # See: backend/docs/FUTURE_WORK.md
         return {
             "success": execution.status == "completed",
             "quality_score": 0.8,
@@ -489,7 +494,9 @@ class AutonomousSupervisorService:
         supervisor: AgentRegistry
     ) -> Dict[str, Any]:
         """Analyze execution error for root cause."""
-        # TODO: Implement LLM-based error analysis
+        # TODO (evaluated: Future) - Implement LLM-based error analysis
+        # Returns mock error categorization
+        # See: backend/docs/FUTURE_WORK.md
         return {
             "error_type": "execution_error",
             "root_cause": "unknown",
@@ -502,7 +509,9 @@ class AutonomousSupervisorService:
         supervisor: AgentRegistry
     ) -> Dict[str, Any]:
         """Check for concerning patterns during execution."""
-        # TODO: Implement concern detection
+        # TODO (evaluated: Future) - Implement concern detection
+        # Returns mock concern data
+        # See: backend/docs/FUTURE_WORK.md
         return {
             "has_concerns": False,
             "concerns": [],
