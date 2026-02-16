@@ -55,6 +55,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13 ✅ COMPLETE
   - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities ✅
 - [ ] **Phase 12: Tier 1 Coverage Push** - Target 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage) ⚠️ GAPS FOUND
+- [ ] **Phase 13: OpenClaw Integration** - Integrate viral features (host shell access, agent social layer, simplified installer) with governance-first architecture ✅ PLANNED
+  - Plan 01: Host shell access with AUTONOMOUS-only governance ✅ PLANNED
+  - Plan 02: Agent social layer with event-driven pub/sub ✅ PLANNED
+  - Plan 03: Simplified pip installer (atom-os CLI) ✅ PLANNED
   - Focus Files: models.py (2351 lines), workflow_engine.py (1163 lines), atom_agent_endpoints.py (736 lines), workflow_analytics_engine.py (593 lines), byok_handler.py (549 lines), workflow_debugger.py (527 lines)
   - Test Strategy: Property tests for stateful logic (workflow engines, BYOK handler), integration tests for API endpoints, unit tests for models
   - Estimated Plans: 4-5 plans (3-4 files per plan, 50% coverage target per file)
@@ -561,6 +565,49 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 - [x] 12-tier-1-coverage-push-03-PLAN.md — BYOK handler and workflow analytics property tests ✅ PLANNED
 - [x] 12-tier-1-coverage-push-04-PLAN.md — Workflow debugger and Phase 12 summary ✅ PLANNED
 
+### Phase 13: OpenClaw Integration
+**Goal**: Integrate OpenClaw's viral features (host-level shell access, agent social layer, simplified installer) while maintaining Atom's governance-first architecture
+**Depends on**: Nothing (feature development, not coverage-related)
+**Requirements**: OPENCLAW-01 (Host shell access with governance), OPENCLAW-02 (Agent social layer), OPENCLAW-03 (Simplified pip installer)
+**Success Criteria** (what must be TRUE):
+  1. AUTONOMOUS agents can execute whitelisted shell commands on host filesystem
+  2. Shell access is completely blocked for STUDENT/INTERN/SUPERVISED agents
+  3. All shell executions are logged to ShellSession with full audit trail
+  4. Agents can post natural language updates to social feed (INTERN+ only)
+  5. Activity feed is paginated, filterable, and includes agent context
+  6. AgentEventBus provides event-driven pub/sub for real-time updates
+  7. Users can install Atom with `pip install atom-os` and start with `atom-os` command
+  8. CLI provides host-mount option with security warnings
+
+**Features**:
+1. **Host Shell Access (God Mode Local Agent)**:
+   - Docker bind mounts for host filesystem access
+   - Command whitelist (ls, cat, grep, etc.) - no destructive commands
+   - AUTONOMOUS-only governance enforcement
+   - ShellSession audit trail
+   - 5-minute timeout enforcement
+
+2. **Agent Social Layer (Agent Feed/Watercooler)**:
+   - Natural language status updates (status, insight, question, alert)
+   - Event-driven architecture with AgentEventBus
+   - INTERN+ maturity required to post, STUDENT read-only
+   - Real-time WebSocket broadcasting
+   - Trending topics and reactions
+
+3. **Simplified Installer (pip install atom-os)**:
+   - setup.py with console_scripts entry point
+   - CLI with Click framework (--port, --host-mount options)
+   - pyproject.toml for modern Python packaging
+   - Security warnings for host mount feature
+
+**Estimated Impact**: 3 major features (not coverage-focused)
+**Estimated Duration**: 3 plans (1-2 days)
+
+**Plans**: 3 plans
+- [x] 13-openclaw-integration-01-PLAN.md — Host shell access with governance ✅ PLANNED
+- [x] 13-openclaw-integration-02-PLAN.md — Agent social layer and event bus ✅ PLANNED
+- [x] 13-openclaw-integration-03-PLAN.md — Simplified pip installer ✅ PLANNED
+
 ## Progress
 
 **Execution Order:**
@@ -584,5 +631,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Test Failure Fixes | 8/8 | **Complete** | 2026-02-15 | Fixed 5 flaky tests, optimized pytest.ini, validated TQ-03/TQ-04 |
 | 11. Coverage Analysis & Prioritization | 1/1 | **Complete** | 2026-02-16 | Coverage analysis script, Phase 12-13 strategy |
 | 12. Tier 1 Coverage Push | 0/4-5 | **Pending** | - | Target: 28% coverage (+5.2%) |
+| 13. OpenClaw Integration | 0/3 | **Pending** | - | Host shell, social layer, installer |
 
-**Overall Progress**: 88 plans completed out of ~100-120 estimated for 80% coverage (+4-5 Phase 12 plans pending)
+**Overall Progress**: 88 plans completed out of ~105-125 estimated (+7-8 Phase 12-13 plans pending)
