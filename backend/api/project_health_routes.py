@@ -66,7 +66,8 @@ async def calculate_notion_health(
 
     Measures: Task completion rate, overdue tasks, task velocity.
 
-    TODO: Integrate with actual Notion API
+    TODO (evaluated: Future) - Integrate with actual Notion API
+    See: backend/docs/FUTURE_WORK.md
     """
     # Simulated data for development
     # In production, query Notion API for actual task data
@@ -114,7 +115,8 @@ async def calculate_github_health(
 
     Measures: Commit activity, PR status, code review speed, issues.
 
-    TODO: Integrate with actual GitHub API
+    TODO (evaluated: Future) - Integrate with actual GitHub API
+    See: backend/docs/FUTURE_WORK.md
     """
     # Simulated data for development
     # In production, query GitHub API for actual repository data
@@ -164,7 +166,8 @@ async def calculate_slack_health(
 
     Measures: Message volume, response time, sentiment.
 
-    TODO: Integrate with actual Slack API
+    TODO (evaluated: Future) - Integrate with actual Slack API
+    See: backend/docs/FUTURE_WORK.md
     """
     # Simulated data for development
     # In production, query Slack API for actual message data
@@ -211,7 +214,8 @@ async def calculate_meeting_health(time_range_days: int) -> HealthMetric:
 
     Measures: Meeting load, meeting effectiveness, focus time.
 
-    TODO: Integrate with Google Calendar API
+    TODO (evaluated: Future) - Integrate with Google Calendar API
+    See: backend/docs/FUTURE_WORK.md
     """
     # Simulated data for development
 
@@ -330,9 +334,12 @@ async def check_project_health(
 
     Returns overall score, individual metrics, and recommendations.
 
-    TODO: Integrate with actual APIs (Notion, GitHub, Slack, Calendar)
-    TODO: Implement time-series tracking for trends
-    TODO: Add alerting thresholds
+    TODO (evaluated: Future) - Integrate with actual APIs (Notion, GitHub, Slack, Calendar)
+    See: backend/docs/FUTURE_WORK.md
+    TODO (evaluated: Future) - Implement time-series tracking for trends
+    See: backend/docs/FUTURE_WORK.md
+    TODO (evaluated: Future) - Add alerting thresholds
+    See: backend/docs/FUTURE_WORK.md
     """
     try:
 

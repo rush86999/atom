@@ -18,6 +18,120 @@ The following incomplete implementations have been fixed:
 
 ---
 
+## Autonomous Supervisor LLM Integration
+
+**File**: `backend/core/autonomous_supervisor_service.py`
+
+**Status**: Evaluated (2026-02-16)
+
+**TODOs Evaluated**:
+1. **Line 345**: Execute proposed actions (currently marks as executed without actual execution)
+   - **Decision**: Future work - requires integration with action execution framework
+   - **Est. Effort**: 3-5 days
+   - **Priority**: P2 (Medium)
+
+2. **Line 399**: Integrate with actual LLM for proposal analysis
+   - **Decision**: Future work - currently uses heuristic-based analysis
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P2 (Medium)
+
+3. **Line 479**: Implement LLM-based result analysis
+   - **Decision**: Future work - returns mock quality scores
+   - **Est. Effort**: 1-2 days
+   - **Priority**: P3 (Low)
+
+4. **Line 492**: Implement LLM-based error analysis
+   - **Decision**: Future work - returns mock error categorization
+   - **Est. Effort**: 1-2 days
+   - **Priority**: P3 (Low)
+
+5. **Line 505**: Implement concern detection for execution monitoring
+   - **Decision**: Future work - returns mock concern data
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P2 (Medium)
+
+**Notes**: Current heuristic-based approach provides basic autonomous supervision capabilities. LLM integration would enhance accuracy and enable more sophisticated analysis. All TODOs have been evaluated and documented.
+
+---
+
+## Supervised Queue Agent Execution
+
+**File**: `backend/core/supervised_queue_service.py`
+
+**Status**: Evaluated (2026-02-16)
+
+**TODO Evaluated**:
+1. **Line 447**: Actually execute the agent (currently marks as completed without execution)
+   - **Decision**: **Critical** - Requires implementation for production functionality
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P1 (Critical)
+
+**Notes**: This is a critical gap - the supervised queue processes entries but doesn't actually execute agents. This should be implemented before production deployment.
+
+---
+
+## Debug Collector StructuredLogger Integration
+
+**File**: `backend/core/debug_collector.py`
+
+**Status**: Evaluated (2026-02-16)
+
+**TODO Evaluated**:
+1. **Line 149**: Integrate with StructuredLogger to automatically capture logs
+   - **Decision**: Future work - nice to have for automatic log capture
+   - **Est. Effort**: 1-2 days
+   - **Priority**: P3 (Low)
+
+**Notes**: Current implementation requires explicit calls to `collect_event()`. Automatic integration would improve usability but is not critical.
+
+---
+
+## Project Health API Integrations
+
+**File**: `backend/api/project_health_routes.py`
+
+**Status**: Evaluated (2026-02-16)
+
+**TODOs Evaluated**:
+1. **Line 69**: Integrate with actual Notion API
+   - **Decision**: Future work - currently uses simulated data
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P3 (Low)
+
+2. **Line 117**: Integrate with actual GitHub API
+   - **Decision**: Future work - currently uses simulated data
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P3 (Low)
+
+3. **Line 167**: Integrate with actual Slack API
+   - **Decision**: Future work - currently uses simulated data
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P3 (Low)
+
+4. **Line 214**: Integrate with Google Calendar API
+   - **Decision**: Future work - currently uses simulated data
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P3 (Low)
+
+5. **Line 334**: Integrate with actual APIs (Notion, GitHub, Slack, Calendar)
+   - **Decision**: Future work - comprehensive API integration
+   - **Est. Effort**: 5-7 days
+   - **Priority**: P3 (Low)
+
+6. **Line 334**: Implement time-series tracking for trends
+   - **Decision**: Future work - requires database schema changes
+   - **Est. Effort**: 3-4 days
+   - **Priority**: P3 (Low)
+
+7. **Line 335**: Add alerting thresholds
+   - **Decision**: Future work - notification system integration
+   - **Est. Effort**: 2-3 days
+   - **Priority**: P3 (Low)
+
+**Notes**: Project health endpoints provide simulated data for development. Production deployment requires integration with external APIs.
+
+---
+
 ## SendGrid Integration
 
 **File**: `backend/integrations/sendgrid_routes.py`
