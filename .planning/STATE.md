@@ -139,6 +139,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 10-fix-tests P07 | 1307 | 3 tasks | 3 files |
 | Phase 10-fix-tests P08 | 3067 | 3 tasks | 2 files |
 | Phase 11-coverage-analysis-and-prioritization P01 | 1 | 3 tasks | 5 files |
+| Phase 12-tier-1-coverage-push P01 | 471 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -269,6 +270,9 @@ Recent decisions affecting current work:
 - [Phase 10-fix-tests]: Fixed agent task cancellation test flakiness by adding AgentTaskRegistry._reset() method and autouse pytest fixture, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio to tests using asyncio.create_task(). Eliminated 100% of RERUN loops (15/15 tests pass, 0 variance).
 - [Phase 10-fix-tests]: Used monkeypatch fixture instead of patch.dict for environment isolation (proper pytest pattern). Added autouse fixture to save/restore critical environment variables automatically. Mocked BYOKHandler.__init__ to prevent external service initialization during tests.
 - [Phase 11-coverage-analysis-and-prioritization]: File size tiering for coverage prioritization: Tier 1 (>500 lines) first based on Phase 8.6 validation showing 3.38x velocity acceleration vs. unfocused testing. Target 50% coverage per file (not 100%) - proven sustainable from Phase 8.6. Test type recommendations by file characteristics: property tests for stateful logic, integration for API endpoints, unit for isolated services. 3-4 files per plan for focused execution.
+- [Phase 12-tier-1-coverage-push]: Unit tests for models.py ORM relationships provide excellent coverage - 97.30% achieved
+- [Phase 12-tier-1-coverage-push]: Property tests for workflow_engine.py need expansion for async execution paths
+- [Phase 12-tier-1-coverage-push]: Session management issues in some tests require transaction rollback pattern
 
 ### Pending Todos
 
