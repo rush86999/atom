@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.models import EpisodeSegment, SkillExecution
 from core.skill_registry_service import SkillRegistryService
 
 logger = logging.getLogger(__name__)
@@ -398,4 +399,155 @@ async def delete_skill(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete skill: {str(e)}"
+        )
+
+
+# ============================================================================
+# Episodic Memory Integration Endpoints (NEW)
+# ============================================================================
+
+@router.get("/{skill_id}/episodes")
+async def get_skill_execution_episodes(
+    skill_id: str,
+    agent_id: str,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get episodic memories for skill executions.
+
+    Query Parameters:
+        - skill_id: Skill ID to retrieve episodes for
+        - agent_id: Agent ID that executed the skill
+        - limit: Maximum number of episodes to return (default: 50)
+
+    Returns:
+        Dict with:
+            - episodes: List of episode segments
+            - total: Total count
+
+    Example:
+        GET /api/skills/abc-123-def/episodes?agent_id=agent-456&limit=20
+    """
+    try:
+        # Query EpisodeSegment for skill executions
+        episodes = db.query(EpisodeSegment).filter(
+            EpisodeSegment.metadata["skill_name"].astext == skill_id,
+            EpisodeSegment.source_id == agent_id,
+            EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"])
+        ).order_by(EpisodeSegment.created_at.desc()).limit(limit).all()
+
+        return router.success_response(
+            data={
+                "episodes": [
+                    {
+                        "episode_id": e.id,
+                        "segment_type": e.segment_type,
+                        "context": e.metadata,
+                        "created_at": e.created_at.isoformat() if e.created_at else None,
+                        "content_summary": e.content_summary
+                    }
+                    for e in episodes
+                ],
+                "total": len(episodes)
+            },
+            message=f"Retrieved {len(episodes)} episodes for skill '{skill_id}'"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get skill episodes: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get skill episodes: {str(e)}"
+        )
+
+
+@router.get("/{skill_id}/learning-progress")
+async def get_skill_learning_progress(
+    skill_id: str,
+    agent_id: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get learning progress for a specific skill.
+
+    Shows:
+    - Total executions
+    - Success rate
+    - Learning trend (improving, stable, learning)
+    - Last execution time
+
+    Args:
+        skill_id: Skill ID to analyze
+        agent_id: Agent ID that executed the skill
+
+    Returns:
+        Dict with learning progress metrics
+
+    Example:
+        GET /api/skills/abc-123-def/learning-progress?agent_id=agent-456
+    """
+    try:
+        # Get all skill executions for this skill and agent
+        executions = db.query(SkillExecution).filter(
+            SkillExecution.skill_id == skill_id,
+            SkillExecution.agent_id == agent_id
+        ).all()
+
+        if not executions:
+            return router.success_response(
+                data={
+                    "skill_id": skill_id,
+                    "message": "No executions found for this skill"
+                },
+                message="No learning data available"
+            )
+
+        # Calculate learning curve
+        total = len(executions)
+        successful = len([e for e in executions if e.status == "success"])
+        failed = total - successful
+        success_rate = successful / total if total > 0 else 0
+
+        # Get trend over time
+        execution_dates = [e.executed_at for e in executions if e.executed_at]
+        if len(execution_dates) > 1:
+            # Calculate improvement rate
+            recent_success_rate = success_rate
+
+            # Determine learning trend
+            if recent_success_rate >= 0.8:
+                learning_trend = "improving"
+            elif recent_success_rate >= 0.5:
+                learning_trend = "learning"
+            else:
+                learning_trend = "struggling"
+
+            return router.success_response(
+                data={
+                    "skill_id": skill_id,
+                    "total_executions": total,
+                    "successful_executions": successful,
+                    "failed_executions": failed,
+                    "success_rate": round(success_rate, 3),
+                    "learning_trend": learning_trend,
+                    "last_execution": execution_dates[-1].isoformat() if execution_dates[-1] else None
+                },
+                message=f"Learning progress for skill '{skill_id}'"
+            )
+        else:
+            return router.success_response(
+                data={
+                    "skill_id": skill_id,
+                    "total_executions": total,
+                    "message": "Not enough data to determine trend"
+                },
+                message="Insufficient learning data"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to get learning progress: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get learning progress: {str(e)}"
         )
