@@ -7,11 +7,14 @@ Enhanced with interactive keyboards, callback queries, inline mode, and chat act
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from integrations.atom_telegram_integration import atom_telegram_integration
 from integrations.universal_webhook_bridge import universal_webhook_bridge
+from core.im_governance_service import IMGovernanceService
+from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +25,34 @@ router = APIRouter(prefix="/api/telegram", tags=["Telegram"])
 # ============================================================================
 
 @router.post("/webhook")
-async def telegram_webhook(update: Dict[str, Any]):
+async def telegram_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
     Telegram webhook endpoint for incoming updates.
 
     Handles:
-    - Messages
+    - Messages (with IMGovernanceService security)
     - Callback queries (inline keyboard button presses)
     - Inline queries
     - Chat actions
     """
+    import json
+
+    # Get raw body for signature verification and message parsing
+    body_bytes = await request.body()
+
+    try:
+        update = json.loads(body_bytes)
+    except Exception as e:
+        logger.error(f"Failed to parse Telegram webhook: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
     logger.info(f"Received Telegram webhook update: {update.get('update_id')}")
 
-    # Check for callback query (button press)
+    # Check for callback query (button press) - no governance needed
     callback_query = update.get("callback_query")
     if callback_query:
         # Route to callback handler
@@ -42,7 +60,7 @@ async def telegram_webhook(update: Dict[str, Any]):
         asyncio.create_task(atom_telegram_integration.handle_callback_query(callback_query))
         return {"status": "ok", "callback_query_id": callback_query.get("id")}
 
-    # Check for inline query
+    # Check for inline query - no governance needed
     inline_query = update.get("inline_query")
     if inline_query:
         # Route to inline handler
@@ -50,12 +68,74 @@ async def telegram_webhook(update: Dict[str, Any]):
         asyncio.create_task(atom_telegram_integration.handle_inline_query(inline_query))
         return {"status": "ok", "inline_query_id": inline_query.get("id")}
 
-    # Check if it's a message
+    # Check if it's a message - apply governance
     message = update.get("message")
     if message:
-        # Route to Universal Webhook Bridge
-        import asyncio
-        asyncio.create_task(universal_webhook_bridge.process_incoming_message("telegram", message))
+        # Initialize IMGovernanceService with database session
+        im_governance_service = IMGovernanceService(db)
+
+        # Stage 1: Verify signature and rate limit
+        try:
+            verification_result = await im_governance_service.verify_and_rate_limit(
+                request, body_bytes, platform="telegram"
+            )
+        except HTTPException as e:
+            logger.warning(f"Telegram webhook rejected: {e.detail}")
+            raise
+
+        # Stage 2: Check permissions
+        try:
+            await im_governance_service.check_permissions(
+                sender_id=verification_result.get("sender_id", "unknown"),
+                platform="telegram"
+            )
+        except HTTPException as e:
+            logger.warning(f"Telegram permission check failed: {e.detail}")
+            # Log to audit trail
+            background_tasks.add_task(
+                im_governance_service.log_to_audit_trail,
+                platform="telegram",
+                sender_id=verification_result.get("sender_id", "unknown"),
+                payload=update,
+                action="webhook_received",
+                success=False,
+                error_message=e.detail
+            )
+            raise
+
+        # Stage 3: Route to Universal Webhook Bridge
+        try:
+            result = asyncio.create_task(
+                universal_webhook_bridge.process_incoming_message("telegram", message)
+            )
+
+            # Log to audit trail (async, non-blocking)
+            background_tasks.add_task(
+                im_governance_service.log_to_audit_trail,
+                platform="telegram",
+                sender_id=verification_result.get("sender_id", "unknown"),
+                payload=update,
+                action="webhook_received",
+                success=True
+            )
+
+            return {"status": "ok"}
+
+        except Exception as e:
+            logger.error(f"Telegram webhook processing failed: {e}")
+
+            # Log failure to audit trail
+            background_tasks.add_task(
+                im_governance_service.log_to_audit_trail,
+                platform="telegram",
+                sender_id=verification_result.get("sender_id", "unknown"),
+                payload=update,
+                action="webhook_received",
+                success=False,
+                error_message=str(e)
+            )
+
+            raise HTTPException(status_code=500, detail="Processing failed")
 
     return {"status": "ok"}
 
