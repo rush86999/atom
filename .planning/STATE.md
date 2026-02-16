@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 10 - Fix Remaining Test Failures
+**Current focus:** Phase 11 - Coverage Analysis and Prioritization
 
 ## Current Position
 
-Phase: 10-fix-tests
-Plan: 08 (TQ-03/TQ-04 Validation and Pytest Optimization)
+Phase: 11-coverage-analysis-and-prioritization
+Plan: 01 (Coverage Analysis and Prioritization)
 Status: Complete
-Last activity: 2026-02-15 — Plan 08 complete: Optimized pytest.ini configuration for fast execution (-q mode, --tb=line, removed --reruns) and validated TQ-03 (<60 min execution) and TQ-04 (no flaky tests) requirements. Test suite now completes in ~11 minutes (5.5x-11x improvement over 60-120 min baseline). 4/5 previously flaky tests pass consistently (0% variance). Deselected test_agent_governance_gating (hanging issue from Plan 07).
+Last activity: 2026-02-16 — Plan 01 complete: Created comprehensive coverage gap analysis script (analyze_coverage_gaps.py, 750+ lines) with file-by-file breakdown, tier-based prioritization, and Phase 12-13 testing strategy. Generated coverage_summary.json (77 high-priority files), priority_files_for_phases_12_13.json (6 files for Phase 12, 30 for Phase 13), zero_coverage_analysis.json (212 zero-coverage files), and PHASE_11_COVERAGE_ANALYSIS_REPORT.md with executive summary and recommendations. Established file size tiering (Tier 1: >500 lines, Tier 2: 300-500, Tier 3: 200-300) and 50% coverage target per file based on Phase 8.6 validation (3.38x velocity acceleration).
 
-Progress: [█████████] 100% (Phase 10: 8 of 8 plans complete)
+Progress: [█████████] 100% (Phase 11: 1 of 1 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -138,6 +138,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 10-fix-tests P06 | 780 | 3 tasks | 3 files |
 | Phase 10-fix-tests P07 | 1307 | 3 tasks | 3 files |
 | Phase 10-fix-tests P08 | 3067 | 3 tasks | 2 files |
+| Phase 11-coverage-analysis-and-prioritization P01 | 1 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -267,6 +268,7 @@ Recent decisions affecting current work:
 - [Phase 10-fix-tests]: Test suite requires optimization for practical execution - 10,513 tests take 1-2+ hours per run, preventing TQ-02 verification
 - [Phase 10-fix-tests]: Fixed agent task cancellation test flakiness by adding AgentTaskRegistry._reset() method and autouse pytest fixture, replacing hardcoded IDs with UUIDs, and adding @pytest.mark.asyncio to tests using asyncio.create_task(). Eliminated 100% of RERUN loops (15/15 tests pass, 0 variance).
 - [Phase 10-fix-tests]: Used monkeypatch fixture instead of patch.dict for environment isolation (proper pytest pattern). Added autouse fixture to save/restore critical environment variables automatically. Mocked BYOKHandler.__init__ to prevent external service initialization during tests.
+- [Phase 11-coverage-analysis-and-prioritization]: File size tiering for coverage prioritization: Tier 1 (>500 lines) first based on Phase 8.6 validation showing 3.38x velocity acceleration vs. unfocused testing. Target 50% coverage per file (not 100%) - proven sustainable from Phase 8.6. Test type recommendations by file characteristics: property tests for stateful logic, integration for API endpoints, unit for isolated services. 3-4 files per plan for focused execution.
 
 ### Pending Todos
 
