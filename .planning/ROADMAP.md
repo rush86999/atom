@@ -55,15 +55,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13 ✅ COMPLETE
   - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities ✅
 - [ ] **Phase 12: Tier 1 Coverage Push** - Target 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage) ⚠️ GAPS FOUND
-- [ ] **Phase 13: OpenClaw Integration** - Integrate viral features (host shell access, agent social layer, simplified installer) with governance-first architecture ✅ PLANNED
-  - Plan 01: Host shell access with AUTONOMOUS-only governance ✅ PLANNED
-  - Plan 02: Agent social layer with event-driven pub/sub ✅ PLANNED
-  - Plan 03: Simplified pip installer (atom-os CLI) ✅ PLANNED
+- [x] **Phase 13: OpenClaw Integration** - Integrate viral features (host shell access, agent social layer, simplified installer) with governance-first architecture ✅ COMPLETE
+  - Plan 01: Host shell access with AUTONOMOUS-only governance ✅ COMPLETE
+  - Plan 02: Agent social layer with event-driven pub/sub ✅ COMPLETE
+  - Plan 03: Simplified pip installer (atom-os CLI) ✅ COMPLETE
   - Focus Files: models.py (2351 lines), workflow_engine.py (1163 lines), atom_agent_endpoints.py (736 lines), workflow_analytics_engine.py (593 lines), byok_handler.py (549 lines), workflow_debugger.py (527 lines)
   - Test Strategy: Property tests for stateful logic (workflow engines, BYOK handler), integration tests for API endpoints, unit tests for models
   - Estimated Plans: 4-5 plans (3-4 files per plan, 50% coverage target per file)
-  - Status: 4/4 plans complete, 3 gaps identified (32 failing ORM tests, 4/6 files below 50% target, coverage cannot be verified)
-  - Gap Closure Plans: 3 plans (GAP-01: Fix ORM tests, GAP-02: Add integration tests, GAP-03: Verify coverage)
+  - Status: 3/3 plans complete (shell service 256 lines, 20 tests, social layer 4 files, installer CLI 219 lines, 11 tests)
+- [ ] **Phase 14: Community Skills Integration** - Import 5,000+ OpenClaw/ClawHub community skills via Markdown+YAML adapters with Docker sandbox security while maintaining enterprise governance
+  - Plan 01: Skill Adapter (parse SKILL.md files, YAML frontmatter, wrap in Atom BaseTool)
+  - Plan 02: Hazard Sandbox (Docker container for untrusted skill execution)
+  - Plan 03: Skills Registry (import GitHub URLs, tag as Untrusted, LLM security scan before Active)
+  - Estimated Plans: 3 plans (1-2 days)
+  - Status: Pending
 
 ## Phase Details
 
@@ -620,6 +625,71 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 - [x] 13-openclaw-integration-02-PLAN.md — Agent social layer and event bus ✅ COMPLETE
 - [x] 13-openclaw-integration-03-PLAN.md — Simplified pip installer ✅ COMPLETE
 
+### Phase 14: Community Skills Integration
+**Goal**: Enable Atom agents to use 5,000+ community skills from OpenClaw/ClawHub ecosystem while maintaining enterprise-grade security and governance
+**Depends on**: Phase 13 (OpenClaw integration patterns established)
+**Requirements**: SKILLS-01 (Skill Adapter parser), SKILLS-02 (Hazard Sandbox), SKILLS-03 (Skills Registry)
+**Success Criteria** (what must be TRUE):
+  1. Atom can parse OpenClaw SKILL.md files with YAML frontmatter and natural language/Python instructions
+  2. Skills are wrapped as Atom BaseTool classes with proper Pydantic validation
+  3. Imported skills run in isolated Docker sandbox ("atom-sandbox-python") to prevent governance bypass
+  4. Sandbox cannot access host filesystem or network (only controlled API)
+  5. Users can import skills via GitHub URL (e.g., from VoltAgent/awesome-openclaw-skills)
+  6. Imported skills are tagged as "Untrusted" until LLM security scan approves them
+  7. GovernanceService reviews skill code for malicious patterns before promoting to "Active"
+  8. AUTONOMOUS agents can use Active skills; STUDENT/INTERN/SUPERVISED require approval
+  9. All skill executions are logged to audit trail with skill metadata
+  10. Skills registry UI shows all imported skills with status (Untrusted/Active/Banned)
+
+**Features**:
+1. **Skill Adapter (Technical Implementation)**:
+   - Parse OpenClaw SKILL.md files (YAML frontmatter + instructions)
+   - Extract metadata: name, description, input_schema, output_schema
+   - Detect skill type: prompt-based (map to PromptTemplate) or Python code (extract ```python block)
+   - Wrap skills in Atom BaseTool class with Pydantic input validation
+   - Map OpenClaw arguments to Atom tool parameters
+   - Capture stdout/return value from skill execution
+
+2. **Hazard Sandbox (Crucial Security Layer)**:
+   - Separate ephemeral Docker container ("atom-sandbox-python")
+   - Skills run in sandbox, NOT in atom-core container
+   - Sandbox cannot access host filesystem (no bind mounts)
+   - Network access disabled (except controlled Atom API)
+   - If skill attempts malicious action (rm -rf /), only sandbox is destroyed
+   - 5-minute timeout enforcement (kill container if exceeds)
+   - Resource limits: 512MB RAM, 1 CPU core
+   - Automatic container cleanup after execution
+
+3. **Skills Registry (Discovery & Governance)**:
+   - "Community Skills" tab in Atom Dashboard
+   - Import via GitHub URL (paste URL → fetch → parse → import)
+   - Skills tagged as "Untrusted" on import (cannot execute)
+   - LLM security scan (GPT-4) analyzes code for malicious patterns:
+     - File system operations (open, os.path, shutil)
+     - Network requests (requests, urllib, httpx)
+     - System commands (subprocess, os.system)
+     - Crypto/mining operations
+     - Data exfiltration attempts
+   - GovernanceAgent promotes Untrusted → Active if scan passes
+   - Banned skills: detected malware, governance bypass attempts
+   - Skills metadata: source URL, version, author, import date, scan results
+   - Audit trail: all skill imports, promotions, executions
+
+**Security Considerations**:
+- **Command Injection**: Validate skill inputs with Pydantic, never shell=True
+- **Sandbox Escape**: No Docker socket access, no privileged mode, no host mounts
+- **Malicious Code**: LLM static analysis before execution, runtime monitoring
+- **Data Leakage**: Skills cannot access Atom database or file system directly
+- **Resource Exhaustion**: Memory/CPU limits, timeout enforcement
+
+**Estimated Impact**: 5,000+ community skills accessible to Atom agents
+**Estimated Duration**: 3 plans (1-2 days)
+
+**Plans**: 3 plans
+- [ ] 14-community-skills-integration-01-PLAN.md — Skill Adapter implementation (parse SKILL.md, wrap in BaseTool)
+- [ ] 14-community-skills-integration-02-PLAN.md — Hazard Sandbox (Docker isolation, resource limits, timeout)
+- [ ] 14-community-skills-integration-03-PLAN.md — Skills Registry (import UI, LLM security scan, governance)
+
 ## Progress
 
 **Execution Order:**
@@ -644,5 +714,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. Coverage Analysis & Prioritization | 1/1 | **Complete** | 2026-02-16 | Coverage analysis script, Phase 12-13 strategy |
 | 12. Tier 1 Coverage Push | 7/7 | **Complete** | 2026-02-16 | 15.70% coverage (3/6 files at 50%+, gap closure done) |
 | 13. OpenClaw Integration | 3/3 | **Complete** | 2026-02-16 | Host shell, social layer, installer |
+| 14. Community Skills Integration | 0/3 | **Pending** | - | Skill adapter, sandbox, registry |
 
-**Overall Progress**: 104 plans completed out of ~105-125 estimated
+**Overall Progress**: 104 plans completed out of ~108-128 estimated
