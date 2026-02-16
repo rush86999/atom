@@ -690,14 +690,65 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 **Estimated Duration**: 3 plans (1-2 days)
 
 **Plans**: 3 plans
-- [ ] 14-community-skills-integration-01-PLAN.md — Skill Adapter implementation (parse SKILL.md, wrap in BaseTool)
-- [ ] 14-community-skills-integration-02-PLAN.md — Hazard Sandbox (Docker isolation, resource limits, timeout)
-- [ ] 14-community-skills-integration-03-PLAN.md — Skills Registry (import UI, LLM security scan, governance)
+- [x] 14-community-skills-integration-01-PLAN.md — Skill Adapter implementation (parse SKILL.md, wrap in BaseTool) ✅
+- [x] 14-community-skills-integration-02-PLAN.md — Hazard Sandbox (Docker isolation, resource limits, timeout) ✅
+- [x] 14-community-skills-integration-03-PLAN.md — Skills Registry (import UI, LLM security scan, governance) ✅
+
+### Phase 15: Codebase Completion & Quality Assurance
+**Goal**: Complete remaining minor issues, enhance test infrastructure, and ensure production readiness across all components
+**Depends on**: Phase 14 (all features implemented)
+**Requirements**: QA-01 (Test infrastructure), QA-02 (Production hardening), QA-03 (Documentation completion)
+**Success Criteria** (what must be TRUE):
+  1. All test suites pass with >=90% pass rate (currently 82/90 skill tests, fix async/await issues)
+  2. No NotImplementedError or placeholder code in production codebase
+  3. Test fixtures standardized (db_session vs db inconsistencies resolved)
+  4. Optional TODO comments evaluated and either implemented or documented as future work
+  5. Production monitoring and logging configurations in place
+  6. API documentation complete and verified
+  7. Performance benchmarks established for critical paths
+  8. Deployment and rollback procedures documented
+
+**Features**:
+1. **Test Infrastructure Improvements**:
+   - Fix async/await issues in integration tests (test_skill_integration.py, test_skill_episodic_integration.py)
+   - Standardize test fixtures (db_session vs db, test_client setup)
+   - Add FastAPI TestClient setup for endpoint tests
+   - Improve test isolation and reduce flakiness
+
+2. **Code Quality Enhancements**:
+   - Evaluate and address remaining TODO comments in production code
+   - Add type hints to untyped functions for better IDE support
+   - Standardize error handling patterns across all modules
+   - Improve logging consistency and structured output
+
+3. **Production Readiness**:
+   - Set up application performance monitoring (APM) integration points
+   - Configure health check endpoints with dependency checks
+   - Add rate limiting configurations for production API
+   - Implement graceful shutdown handling
+   - Document deployment procedures and environment variables
+
+4. **Documentation Completion**:
+   - Complete API documentation for all REST endpoints
+   - Add architecture decision records (ADRs) for major patterns
+   - Update developer onboarding guide
+   - Document troubleshooting procedures
+   - Create runbooks for common operational tasks
+
+**Estimated Impact**: Production-ready codebase with 95%+ test pass rate
+**Estimated Duration**: 4-5 plans (1-2 days)
+
+**Plans**: 5 plans
+- [ ] 15-codebase-completion-01-PLAN.md — Test infrastructure fixes (async/await, fixtures, isolation)
+- [ ] 15-codebase-completion-02-PLAN.md — Code quality enhancements (type hints, error handling, logging)
+- [ ] 15-codebase-completion-03-PLAN.md — Production hardening (monitoring, health checks, rate limiting)
+- [ ] 15-codebase-completion-04-PLAN.md — Documentation completion (API docs, runbooks, troubleshooting)
+- [ ] 15-codebase-completion-05-PLAN.md — Performance benchmarks and optimization (critical paths, caching)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0 → 9.1 → 10 → 11 → 12 → 13 → 14 → 15
 
 | Phase | Plans Complete | Status | Completed | Coverage |
 |-------|----------------|--------|-----------|----------|
@@ -718,6 +769,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. Coverage Analysis & Prioritization | 1/1 | **Complete** | 2026-02-16 | Coverage analysis script, Phase 12-13 strategy |
 | 12. Tier 1 Coverage Push | 7/7 | **Complete** | 2026-02-16 | 15.70% coverage (3/6 files at 50%+, gap closure done) |
 | 13. OpenClaw Integration | 3/3 | **Complete** | 2026-02-16 | Host shell, social layer, installer |
-| 14. Community Skills Integration | 0/3 | **Pending** | - | Skill adapter, sandbox, registry |
+| 14. Community Skills Integration | 6/6 | **Complete** | 2026-02-16 | Skill adapter, sandbox, registry, episodic integration, daemon mode, Python execution |
+| 15. Codebase Completion & Quality Assurance | 0/5 | **Pending** | - | Test infrastructure, code quality, production hardening, docs |
 
-**Overall Progress**: 104 plans completed out of ~108-128 estimated
+**Overall Progress**: 110 plans completed out of ~115 estimated
