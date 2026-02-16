@@ -55,6 +55,10 @@ class GovernanceCache:
         self._evictions = 0
         self._invalidations = 0
 
+        # Directory-specific statistics
+        self._directory_hits = 0
+        self._directory_misses = 0
+
         # Start background cleanup task
         self._cleanup_task = None
         self._start_cleanup_task()
@@ -110,7 +114,7 @@ class GovernanceCache:
 
         Args:
             agent_id: Agent ID
-            action_type: Action type (e.g., "stream_chat", "present_chart")
+            action_type: Action type (e.g., "stream_chat", "present_chart", "dir:/tmp")
 
         Returns:
             Cached decision dict or None if not found/expired
@@ -120,6 +124,9 @@ class GovernanceCache:
         with self._lock:
             if key not in self._cache:
                 self._misses += 1
+                # Track directory-specific misses
+                if action_type.startswith("dir:"):
+                    self._directory_misses += 1
                 return None
 
             entry = self._cache[key]
@@ -130,11 +137,17 @@ class GovernanceCache:
             if age_seconds > self.ttl_seconds:
                 del self._cache[key]
                 self._misses += 1
+                # Track directory-specific misses
+                if action_type.startswith("dir:"):
+                    self._directory_misses += 1
                 return None
 
             # Move to end (mark as recently used)
             self._cache.move_to_end(key)
             self._hits += 1
+            # Track directory-specific hits
+            if action_type.startswith("dir:"):
+                self._directory_hits += 1
 
             return entry["data"]
 
@@ -220,6 +233,48 @@ class GovernanceCache:
             self._cache.clear()
             logger.info(f"Cleared {count} cache entries")
 
+    def check_directory(
+        self,
+        agent_id: str,
+        directory: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check directory permission from cache.
+
+        Wrapper for directory permission cache with specialized key format.
+
+        Args:
+            agent_id: Agent ID
+            directory: Directory path to check
+
+        Returns:
+            Cached directory permission dict or None if not found/expired
+        """
+        # Use special "dir:" prefix to avoid collision with action_type keys
+        action_type = f"dir:{directory}"
+        return self.get(agent_id, action_type)
+
+    def cache_directory(
+        self,
+        agent_id: str,
+        directory: str,
+        permission_data: Dict[str, Any]
+    ) -> bool:
+        """
+        Cache directory permission result.
+
+        Args:
+            agent_id: Agent ID
+            directory: Directory path
+            permission_data: Permission decision data to cache
+
+        Returns:
+            True if cached successfully
+        """
+        # Use special "dir:" prefix to avoid collision with action_type keys
+        action_type = f"dir:{directory}"
+        return self.set(agent_id, action_type, permission_data)
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get cache statistics.
@@ -231,12 +286,19 @@ class GovernanceCache:
             total_requests = self._hits + self._misses
             hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0
 
+            # Directory-specific hit rate
+            dir_total = self._directory_hits + self._directory_misses
+            dir_hit_rate = (self._directory_hits / dir_total * 100) if dir_total > 0 else 0
+
             return {
                 "size": len(self._cache),
                 "max_size": self.max_size,
                 "hits": self._hits,
                 "misses": self._misses,
                 "hit_rate": round(hit_rate, 2),
+                "directory_hits": self._directory_hits,
+                "directory_misses": self._directory_misses,
+                "directory_hit_rate": round(dir_hit_rate, 2),
                 "evictions": self._evictions,
                 "invalidations": self._invalidations,
                 "ttl_seconds": self.ttl_seconds
