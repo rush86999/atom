@@ -38,6 +38,3 @@ class TeamFactory(BaseFactory):
     name = factory.Faker('company')
     workspace_id = factory.Faker('uuid4')  # Will be overridden in tests
     description = factory.Faker('text', max_nb_chars=300)
-
-    # Team type
-    team_type = fuzzy.FuzzyChoice(['operations', 'sales', 'marketing', 'finance', 'general'])
