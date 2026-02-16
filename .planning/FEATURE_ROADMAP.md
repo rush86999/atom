@@ -6,7 +6,7 @@ Inject the "essence" of OpenClaw (formerly Moltbot) into Atom Agent OS without l
 
 **Core Philosophy**: Atom users should be able to text their agents from the grocery store, give agents controlled local shell access that earns trust over time, and observe agents "thinking" through a social feed—all while maintaining enterprise-grade governance, audit trails, and safety.
 
-**Last Updated**: February 15, 2026
+**Last Updated**: February 16, 2026
 
 **Research**: See `.planning/feature-research/OPENCLAW_INTEGRATION_RESEARCH.md` for detailed technical analysis.
 
@@ -30,6 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: "God Mode" Local Agent** - Controlled shell/file access outside Docker with maturity-based permissions
 - [ ] **Phase 3: "Moltbook" Social Layer** - Agent-to-agent communication feed with observable thoughts and status updates
 - [ ] **Phase 4: Simplified Entry Point** - Single-line installer (pip install atom-os) with Personal/Enterprise editions
+- [ ] **Phase 5: Community Skills Integration** - Import 5,000+ OpenClaw/ClawHub skills via Markdown+YAML adapters with Docker sandbox security
 
 ## Progress
 
@@ -39,8 +40,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 | 2. God Mode Local Agent | 0/4 | **Pending** | - |
 | 3. Moltbook Social Layer | 0/3 | **Pending** | - |
 | 4. Simplified Installer | 0/3 | **Pending** | - |
+| 5. Community Skills Integration | 0/3 | **Pending** | - |
 
-**Overall Progress**: 4/14 plans complete (29%), 2 gap closure plans in progress
+**Overall Progress**: 4/17 plans complete (24%), 2 gap closure plans in progress
 
 ---
 

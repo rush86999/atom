@@ -158,6 +158,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 
 ## Recent Major Changes
 
+### Phase 14: Community Skills Integration (Feb 16, 2026) ✨ NEW
+- **Purpose**: Enable Atom agents to use 5,000+ OpenClaw/ClawHub community skills while maintaining enterprise security
+- **Three Major Components**:
+  1. **Skill Adapter** - Parse SKILL.md files (YAML + Markdown), auto-detect prompt/Python skills, wrap in BaseTool
+  2. **Hazard Sandbox** - Isolated Docker container for safe skill execution (no host access, resource limits, 5-min timeout)
+  3. **Skills Registry** - Import UI, LLM security scanning, governance workflow (Untrusted → Active → Banned)
+- **Context Decisions**: Lenient parsing, auto-fix metadata, version-agnostic, skip & log errors
+- **Status**: Context captured, planning pending
+- **Roadmap**: Phase 14 with 3 plans (1-2 days estimated)
+- **See**: `.planning/phases/14-community-skills-integration/14-CONTEXT.md`
+
 ### Documentation Fixes (Feb 6, 2026) ✨ NEW
 - **Created**: CONTRIBUTING.md with comprehensive contribution guidelines
 - **Fixed**: 5 broken links across docs/INDEX.md, MOBILE_QUICK_START.md, and MULTI_INTEGRATION_WORKFLOW_ENGINE.md
