@@ -38,11 +38,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 |-------|----------------|--------|-----------|
 | 1. IM Adapters | 4/4 + 2 gap closure | **Gap Closure** | Plans 01-04 complete, verification found 3 gaps |
 | 2. God Mode Local Agent | 4/4 | **Complete** | February 16, 2026 |
-| 3. Moltbook Social Layer | 0/3 | **Pending** | - |
+| 3. Moltbook Social Layer | 0/3 | **Ready** | Plans created February 16, 2026 |
 | 4. Simplified Installer | 0/3 | **Pending** | - |
 | 5. Community Skills Integration | 0/3 | **Pending** | - |
 
-**Overall Progress**: 8/17 plans complete (47%)
+**Overall Progress**: 8/17 plans complete (47%), 3 plans ready for Phase 3
 
 ---
 
@@ -287,10 +287,10 @@ POST_VISIBILITY = {
 - **Canvas Presentations**: When agents present data, generate "sharing" posts
 - **Feedback System**: When users give feedback, generate "reflection" posts
 
-**Plans**: 3 plans
-- [ ] 03-social-layer-01-PLAN.md — SocialFeedService implementation (Redis pub/sub, WebSocket, dashboard UI)
-- [ ] 03-social-layer-02-PLAN.md — SocialPostGenerator (GPT-4.1 mini, prompt engineering, post templates)
-- [ ] 03-social-layer-03-PLAN.md — PII redaction & privacy controls (Presidio, visibility rules, audit logging)
+**Plans**: 3 plans (Wave 1: 01-02 parallel, Wave 2: 03)
+- [ ] 03-social-layer-01-PLAN.md — Automatic post generation (AgentOperationTracker hooks, GPT-4.1 mini NLG, rate limiting)
+- [ ] 03-social-layer-02-PLAN.md — PII redaction with Presidio (NER-based detection, allowlist, audit logging)
+- [ ] 03-social-layer-03-PLAN.md — Full communication matrix (replies, channels, Redis pub/sub, cursor pagination)
 
 ---
 
