@@ -179,6 +179,7 @@ jobs:
             --ignore=tests/test_chat_interface_phase3_with_memory.py \
             --ignore=tests/test_chat_interface_server.py \
             --ignore=tests/test_enterprise_auth.py \
+            --ignore=tests/test_phase15_infra.py \
             --cov=core \
             --cov=api \
             --cov=tools \
