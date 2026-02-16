@@ -42,11 +42,15 @@ DIRECTORY_PERMISSIONS = {
 }
 
 # Blocked directories for all agents (critical system paths)
+# Note: These need to be resolved at runtime because /etc -> /private/etc on macOS
 BLOCKED_DIRECTORIES = [
     "/etc",
     "/root",
     "/sys",
     "/System",
+    "/System",
+    "/private/etc",  # macOS canonicalization of /etc
+    "/private/var/root",  # macOS canonicalization of /root
     "C:\\Windows",
     "C:\\Program Files",
     "C:\\Program Files (x86)"
@@ -190,8 +194,14 @@ class DirectoryPermissionService:
         directory_str = str(directory)
 
         for blocked in BLOCKED_DIRECTORIES:
+            # Resolve blocked directory for comparison (handles /etc -> /private/etc on macOS)
+            try:
+                blocked_resolved = str(Path(blocked).resolve())
+            except:
+                blocked_resolved = blocked
+
             # Check if directory starts with blocked path
-            if directory_str.startswith(blocked):
+            if directory_str.startswith(blocked) or directory_str.startswith(blocked_resolved):
                 self.logger.warning(f"Blocked directory access attempt: {directory_str}")
                 return True
 
