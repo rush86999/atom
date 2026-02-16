@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atom-os"
+version = "0.1.0"
+description = "AI-powered business automation platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Atom Platform", email = "contact@atom-platform.dev"},
+]
+keywords = ["automation", "ai", "agents", "governance", "llm", "workflow"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/rush86999/atom"
+Documentation = "https://github.com/rush86999/atom/tree/main/docs"
+Repository = "https://github.com/rush86999/atom"
+"Bug Tracker" = "https://github.com/rush86999/atom/issues"
+
+[project.scripts]
+atom-os = "cli.main:main_cli"
+
+[tool.setuptools]
+zip_safe = false
