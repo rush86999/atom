@@ -58,9 +58,9 @@ class IMGovernanceService:
             "whatsapp": WhatsAppAdapter(),
         }
 
-        # Rate limiting configuration
-        self.rate_limit_requests = 10  # requests per minute per user
-        self.rate_limit_window = 60  # seconds
+        # Rate limiting configuration (with env var overrides)
+        self.rate_limit_requests = int(os.getenv("IM_RATE_LIMIT_REQUESTS", "10"))
+        self.rate_limit_window = int(os.getenv("IM_RATE_LIMIT_WINDOW_SECONDS", "60"))
 
         # In-memory rate limit tracking (production: use Redis)
         self._rate_limit_store: Dict[str, list] = {}
