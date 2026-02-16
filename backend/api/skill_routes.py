@@ -509,8 +509,8 @@ async def get_skill_learning_progress(
         failed = total - successful
         success_rate = successful / total if total > 0 else 0
 
-        # Get trend over time
-        execution_dates = [e.executed_at for e in executions if e.executed_at]
+        # Get trend over time using created_at
+        execution_dates = [e.created_at for e in executions if e.created_at]
         if len(execution_dates) > 1:
             # Calculate improvement rate
             recent_success_rate = success_rate

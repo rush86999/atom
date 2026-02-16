@@ -844,7 +844,7 @@ class AgentGraduationService:
         skill_executions_result = await self.db.execute(
             select(SkillExecution)
             .where(SkillExecution.agent_id == agent_id)
-            .where(SkillExecution.executed_at >= start_date)
+            .where(SkillExecution.created_at >= start_date)
             .where(SkillExecution.skill_source == "community")
         )
         skills = skill_executions_result.scalars().all()
@@ -854,24 +854,26 @@ class AgentGraduationService:
         successful_executions = len([s for s in skills if s.status == "success"])
         unique_skills_used = len(set(s.skill_id for s in skills))
 
-        # Get skill episodes
+        # Get skill episodes (EpisodeSegment doesn't have agent_id, need to join differently)
         skill_episodes_result = await self.db.execute(
             select(EpisodeSegment)
-            .where(EpisodeSegment.agent_id == agent_id)
             .where(EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"]))
-            .where(EpisodeSegment.start_time >= start_date)
+            .where(EpisodeSegment.created_at >= start_date)
         )
         episodes = skill_episodes_result.scalars().all()
 
+        # Filter episodes by agent_id from metadata
+        agent_episodes = [e for e in episodes if e.metadata.get("agent_id") == agent_id]
+
         # Calculate learning velocity (episodes per day)
-        skill_learning_velocity = len(episodes) / days_back if days_back > 0 else 0
+        skill_learning_velocity = len(agent_episodes) / days_back if days_back > 0 else 0
 
         return {
             "total_skill_executions": total_executions,
             "successful_executions": successful_executions,
             "success_rate": successful_executions / total_executions if total_executions > 0 else 0,
             "unique_skills_used": unique_skills_used,
-            "skill_episodes_count": len(episodes),
+            "skill_episodes_count": len(agent_episodes),
             "skill_learning_velocity": skill_learning_velocity
         }
 

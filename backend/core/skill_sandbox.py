@@ -62,10 +62,15 @@ class HazardSandbox:
         """Check if Docker daemon is running and accessible."""
         try:
             self.client.ping()
-        except docker.errors.DockerException as e:
-            msg = "Docker daemon is not running or not accessible. "
-            msg += "Start Docker with: 'docker start' or Docker Desktop"
-            raise RuntimeError(msg) from e
+        except Exception as e:
+            # Check if it's a DockerException (daemon not running)
+            error_type = type(e).__name__
+            if error_type == 'DockerException' or 'docker' in error_type.lower():
+                msg = "Docker daemon is not running or not accessible. "
+                msg += "Start Docker with: 'docker start' or Docker Desktop"
+                raise RuntimeError(msg) from e
+            else:
+                raise
 
     def execute_python(
         self,
@@ -130,20 +135,25 @@ class HazardSandbox:
 
             return result
 
-        except docker.errors.ContainerError as e:
-            error_msg = f"Container execution failed: {e.stderr.decode('utf-8') if e.stderr else str(e)}"
-            logger.error(f"Container {container_id} error: {error_msg}")
-            return f"EXECUTION_ERROR: {error_msg}"
-
-        except docker.errors.APIError as e:
-            error_msg = f"Docker API error: {str(e)}"
-            logger.error(f"Container {container_id} API error: {error_msg}")
-            return f"DOCKER_ERROR: {error_msg}"
-
         except Exception as e:
-            error_msg = f"Sandbox execution failed: {str(e)}"
-            logger.error(f"Container {container_id} unexpected error: {error_msg}")
-            return f"SANDBOX_ERROR: {error_msg}"
+            error_type = type(e).__name__
+
+            if error_type == 'ContainerError':
+                # ContainerError has stderr attribute
+                stderr_msg = e.stderr.decode('utf-8') if hasattr(e, 'stderr') and e.stderr else str(e)
+                error_msg = f"Container execution failed: {stderr_msg}"
+                logger.error(f"Container {container_id} error: {error_msg}")
+                return f"EXECUTION_ERROR: {error_msg}"
+
+            elif error_type == 'APIError':
+                error_msg = f"Docker API error: {str(e)}"
+                logger.error(f"Container {container_id} API error: {error_msg}")
+                return f"DOCKER_ERROR: {error_msg}"
+
+            else:
+                error_msg = f"Sandbox execution failed: {str(e)}"
+                logger.error(f"Container {container_id} unexpected error: {error_msg}")
+                return f"SANDBOX_ERROR: {error_msg}"
 
     def _create_wrapper_script(self, code: str, inputs: Dict[str, Any]) -> str:
         """
@@ -189,12 +199,15 @@ except Exception as e:
             container.remove(force=True)
             logger.info(f"Manually cleaned up container {container_id}")
             return True
-        except docker.errors.NotFound:
-            logger.warning(f"Container {container_id} not found (already removed)")
-            return False
         except Exception as e:
-            logger.error(f"Failed to cleanup container {container_id}: {e}")
-            return False
+            error_type = type(e).__name__
+
+            if error_type == 'NotFound':
+                logger.warning(f"Container {container_id} not found (already removed)")
+                return False
+            else:
+                logger.error(f"Failed to cleanup container {container_id}: {e}")
+                return False
 
 
 def test_sandbox_basic():

@@ -68,7 +68,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 02: Hazard Sandbox (Docker container for untrusted skill execution)
   - Plan 03: Skills Registry (import GitHub URLs, tag as Untrusted, LLM security scan before Active)
   - Estimated Plans: 3 plans (1-2 days)
-  - Status: Pending
+  - Status: Ready (3 plans created)
+  **Plans**: 3 plans
+  - [ ] 14-01-PLAN.md — Skill Adapter (parse SKILL.md, wrap as LangChain BaseTool)
+  - [ ] 14-02-PLAN.md — Hazard Sandbox (Docker isolation with resource limits)
+  - [ ] 14-03-PLAN.md — Skills Registry (import UI, LLM security scan, governance)
 
 ## Phase Details
 
