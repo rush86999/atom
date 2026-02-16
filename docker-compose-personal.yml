@@ -1,0 +1,106 @@
+version: '3.8'
+
+# Personal Edition - Simplified Docker Compose for Local Development
+# This configuration uses SQLite (no PostgreSQL) and minimal services for easy local setup
+#
+# Quick Start:
+#   1. Copy .env.personal to .env and fill in your API keys
+#   2. docker-compose -f docker-compose-personal.yml up -d
+#   3. Access at http://localhost:8000
+#
+# Features:
+#   - SQLite database (no external DB required)
+#   - Backend API with hot reload
+#   - Frontend Next.js dev server
+#   - Browser automation (optional)
+#   - All data persists in ./data directory
+
+services:
+  # Backend API with SQLite
+  atom-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atom-personal-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Use SQLite for personal edition (simpler setup)
+      - DATABASE_URL=sqlite:///./data/atom.db
+      - SQLITE_PATH=./data/atom.db
+
+      # Basic configuration
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+
+      # API Keys (set in .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+
+      # Encryption keys (generate with: openssl rand -base64 32)
+      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:-default-personal-key-change-me}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-jwt-secret-change-me}
+
+      # Storage paths (mounted to ./data)
+      - LANCEDB_PATH=./data/lancedb
+      - ENABLE_LANCEDB=true
+
+      # Optional: Browser automation
+      - BROWSER_HOST=browser-node
+      - BROWSER_PORT=3000
+
+    volumes:
+      # Persist all data to ./data directory
+      - ./data:/app/data
+      - ./backend:/app
+    working_dir: /app
+    command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Next.js (Development Mode)
+  atom-frontend:
+    build:
+      context: ./frontend-nextjs
+      dockerfile: Dockerfile
+    container_name: atom-personal-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=development
+      - NEXT_PUBLIC_ENABLE_MQTT=false
+    volumes:
+      - ./frontend-nextjs:/app
+      - /app/node_modules
+      - /app/.next
+    working_dir: /app
+    command: npm run dev
+    restart: unless-stopped
+    depends_on:
+      - atom-backend
+
+  # Browser Automation (Optional - comment out if not needed)
+  browser-node:
+    image: browserless/chrome:latest
+    container_name: atom-personal-browser
+    ports:
+      - "3001:3000"
+    environment:
+      - MAX_CONCURRENT_SESSIONS=3
+      - MAX_QUEUE_LENGTH=5
+      - PREBOOT_CHROME=true
+      - CONNECTION_TIMEOUT=60000
+    restart: unless-stopped
+
+volumes:
+  # All data persisted in ./data directory on host
+  atom-personal-data:
+    driver: local
