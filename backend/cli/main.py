@@ -322,7 +322,15 @@ def config():
     click.echo("  ANTHROPIC_API_KEY - Anthropic API key")
     click.echo("  DEEPSEEK_API_KEY  - DeepSeek API key")
     click.echo("")
+    click.echo("Local Agent:")
+    click.echo("  ATOM_BACKEND_URL  - Backend API URL (default: http://localhost:8000)")
+    click.echo("")
     click.echo("See .env file for full configuration.")
+
+
+# Import local-agent command group
+from cli.local_agent import local_agent
+main_cli.add_command(local_agent, name="local-agent")
 
 
 def _confirm_host_mount():
