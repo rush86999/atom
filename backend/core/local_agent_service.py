@@ -18,6 +18,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from core.directory_permission import check_directory_permission
+from core.command_whitelist import validate_command, get_command_category
 from core.models import AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,55 @@ class LocalAgentService:
                 "maturity_level": governance_result.get("maturity_level", "UNKNOWN")
             }
 
-        # Step 2: Check directory permission (NEW)
+        # Step 1.5: Validate command against whitelist (NEW)
+        maturity_level_str = governance_result.get("maturity_level", "STUDENT")
+        validation = validate_command(command, maturity_level_str)
+
+        if not validation["valid"]:
+            # Command validation failed - blocked or wrong maturity level
+            category = get_command_category(command)
+
+            # Log blocked command attempt to audit trail
+            await self._log_execution({
+                "agent_id": agent_id,
+                "command": command,
+                "working_directory": working_directory,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": validation["reason"],
+                "timed_out": False,
+                "duration_seconds": 0,
+                "executed_at": datetime.utcnow().isoformat(),
+                "operation_type": "blocked",
+                "maturity_level": maturity_level_str,
+                "command_whitelist_valid": False,
+                "blocked_reason": validation["reason"]
+            })
+
+            # Check if command requires higher maturity level
+            if validation.get("maturity_required") and validation["maturity_required"] != maturity_level_str:
+                # Return approval required for higher maturity commands
+                return {
+                    "allowed": False,
+                    "reason": validation["reason"],
+                    "requires_approval": True,
+                    "maturity_level": maturity_level_str,
+                    "maturity_required": validation["maturity_required"],
+                    "suggested_command": command,
+                    "category": validation.get("category")
+                }
+
+            # Command is blocked for all maturity levels
+            return {
+                "allowed": False,
+                "reason": validation["reason"],
+                "blocked": True,
+                "maturity_level": maturity_level_str,
+                "suggested_command": command,
+                "category": validation.get("category")
+            }
+
+        # Step 2: Check directory permission (EXISTING)
         maturity_level_str = governance_result.get("maturity_level", "STUDENT")
         try:
             maturity_level = AgentStatus(maturity_level_str)
@@ -111,7 +160,23 @@ class LocalAgentService:
         )
 
         if not directory_permission["allowed"]:
-            # Directory access denied
+            # Directory access denied - log to audit trail
+            await self._log_execution({
+                "agent_id": agent_id,
+                "command": command,
+                "working_directory": working_directory,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": directory_permission["reason"],
+                "timed_out": False,
+                "duration_seconds": 0,
+                "executed_at": datetime.utcnow().isoformat(),
+                "operation_type": "blocked",
+                "maturity_level": maturity_level_str,
+                "command_whitelist_valid": True,
+                "blocked_reason": f"Directory access denied: {directory_permission['reason']}"
+            })
+
             return {
                 "allowed": False,
                 "reason": directory_permission["reason"],
@@ -123,6 +188,22 @@ class LocalAgentService:
         # Step 3: Check suggest_only flag
         if directory_permission["suggest_only"]:
             # Lower maturity agent - return approval request
+            await self._log_execution({
+                "agent_id": agent_id,
+                "command": command,
+                "working_directory": working_directory,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": f"Approval required for {maturity_level_str} maturity level",
+                "timed_out": False,
+                "duration_seconds": 0,
+                "executed_at": datetime.utcnow().isoformat(),
+                "operation_type": "suggest_only",
+                "maturity_level": maturity_level_str,
+                "command_whitelist_valid": True,
+                "requires_approval": True
+            })
+
             return {
                 "allowed": False,
                 "reason": directory_permission["reason"],
@@ -151,7 +232,8 @@ class LocalAgentService:
             "duration_seconds": execution_result.get("duration_seconds", 0),
             "executed_at": datetime.utcnow().isoformat(),
             "operation_type": execution_result.get("operation_type", "execute"),
-            "maturity_level": maturity_level_str
+            "maturity_level": maturity_level_str,
+            "command_whitelist_valid": True
         })
 
         return {
