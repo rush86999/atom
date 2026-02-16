@@ -46,8 +46,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Plan 06: Fix agent task cancellation flaky tests (test_unregister_task, test_register_task, test_get_all_running_agents)
   - Plan 07: Fix security config and governance runtime flaky tests (test_default_secret_key_in_development, test_agent_governance_gating)
   - Plan 08: Validate TQ-03 and TQ-04 after flaky test fixes (optimized pytest.ini, 3-run verification)
-- [ ] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13
-  - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities
+- [x] **Phase 11: Coverage Analysis & Prioritization** - Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13 ✅ COMPLETE
+  - Plan 01: Generate coverage analysis report with file-by-file breakdown and prioritize high-impact testing opportunities ✅
+- [ ] **Phase 12: Tier 1 Coverage Push** - Target 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage)
+  - Focus Files: models.py (2351 lines), workflow_engine.py (1163 lines), atom_agent_endpoints.py (736 lines), workflow_analytics_engine.py (593 lines), byok_handler.py (549 lines), workflow_debugger.py (527 lines)
+  - Test Strategy: Property tests for stateful logic (workflow engines, BYOK handler), integration tests for API endpoints, unit tests for models
+  - Estimated Plans: 4-5 plans (3-4 files per plan, 50% coverage target per file)
 
 ## Phase Details
 
@@ -499,6 +503,56 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 - [ ] 08-80-percent-coverage-push-33-PLAN.md — Document ingestion and WebSocket routes tests
 - [ ] 08-80-percent-coverage-push-34-PLAN.md — Phase 9.0 summary and coverage report
 
+### Phase 11: Coverage Analysis & Prioritization
+**Goal**: Identify high-impact files for maximum coverage gain and create testing strategy for Phases 12-13
+**Depends on**: Phase 10
+**Requirements**: COVR-09-01 (Coverage gap analysis), COVR-09-02 (File prioritization)
+**Success Criteria** (what must be TRUE):
+  1. Comprehensive coverage analysis script created and tested
+  2. Files prioritized by size tier (Tier 1: >500 lines, Tier 2: 300-500, Tier 3: 200-300)
+  3. Testing strategy documented for Phases 12-13 with estimated coverage gains
+  4. Priority file lists generated (Phase 12: 6 Tier 1 files, Phase 13: 30 Tier 2-3 + zero coverage)
+
+**Estimated Impact**: 0% coverage (analysis only, no tests written)
+**Estimated Duration**: 1 plan (4-6 hours)
+
+**Plans**: 1 plan
+- [x] 11-coverage-analysis-and-prioritization-01-PLAN.md — Generate coverage analysis report and prioritize high-impact testing opportunities ✅
+
+### Phase 12: Tier 1 Coverage Push
+**Goal**: Achieve 28% overall coverage (+5.2% from 22.8%) by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage)
+**Depends on**: Phase 11
+**Requirements**: COVR-10-01 (Tier 1 file coverage), COVR-10-02 (Property tests for stateful logic), COVR-10-03 (Integration tests for API endpoints)
+**Success Criteria** (what must be TRUE):
+  1. Overall coverage reaches 28% (from 22.8%, +5.2 percentage points)
+  2. All 6 Tier 1 files tested: models.py (2351 lines), workflow_engine.py (1163 lines), atom_agent_endpoints.py (736 lines), workflow_analytics_engine.py (593 lines), byok_handler.py (549 lines), workflow_debugger.py (527 lines)
+  3. Test coverage per file reaches 50% (proven sustainable from Phase 8.6)
+  4. Property tests validate stateful logic invariants (workflow engines, BYOK handler, coordinators)
+  5. Integration tests validate API endpoint contracts (atom_agent_endpoints, BYOK endpoints)
+
+**Focus Files** (Tier 1: >500 lines, <20% coverage, sorted by line count):
+1. core/models.py (2351 lines, 0% coverage) - Database models with ORM relationships, estimated gain: 1176 lines
+2. core/workflow_engine.py (1163 lines, 0% coverage) - Workflow execution engine, estimated gain: 582 lines
+3. core/atom_agent_endpoints.py (736 lines, 0% coverage) - Agent API endpoints, estimated gain: 368 lines
+4. core/workflow_analytics_engine.py (593 lines, 0% coverage) - Analytics computation, estimated gain: 297 lines
+5. core/llm/byok_handler.py (549 lines, 0% coverage) - Multi-provider LLM routing, estimated gain: 275 lines
+6. core/workflow_debugger.py (527 lines, 0% coverage) - Workflow debugging, estimated gain: 264 lines
+
+**Test Strategy**:
+- Property tests for stateful logic: workflow_engine.py, workflow_analytics_engine.py, byok_handler.py, workflow_debugger.py
+- Integration tests for API endpoints: atom_agent_endpoints.py
+- Unit tests for isolated models: models.py (SQLAlchemy models with relationships)
+
+**Estimated Impact**: +5.2% overall coverage (2962 lines across 6 files, 50% coverage target)
+**Estimated Duration**: 4-5 plans (2-3 days)
+**Estimated Velocity**: +1.3-1.5% per plan (3.38x acceleration from Phase 8.6 based on file tiering)
+
+**Plans**: 4 plans
+- [x] 12-tier-1-coverage-push-01-PLAN.md — Models and workflow engine property tests ✅ PLANNED
+- [x] 12-tier-1-coverage-push-02-PLAN.md — Agent endpoints integration tests ✅ PLANNED
+- [x] 12-tier-1-coverage-push-03-PLAN.md — BYOK handler and workflow analytics property tests ✅ PLANNED
+- [x] 12-tier-1-coverage-push-04-PLAN.md — Workflow debugger and Phase 12 summary ✅ PLANNED
+
 ## Progress
 
 **Execution Order:**
@@ -519,7 +573,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8.9. Canvas & Browser Tools | 2/2 | **Complete** | 2026-02-14 | 21-22% |
 | 9.0. API Module Expansion | 4/4 | **Complete** | 2026-02-14 | 25-27% |
 | 9.1. API Route & Governance | 4/4 | **Complete** | 2026-02-14 | 24-26% |
-| 10. Test Failure Fixes | 0/5 | **Pending** | - | Fix all failures, verify quality requirements |
-| 11. Coverage Analysis & Prioritization | 0/1 | **Pending** | - | High-impact file identification for Phases 12-13 |
+| 10. Test Failure Fixes | 8/8 | **Complete** | 2026-02-15 | Fixed 5 flaky tests, optimized pytest.ini, validated TQ-03/TQ-04 |
+| 11. Coverage Analysis & Prioritization | 1/1 | **Complete** | 2026-02-16 | Coverage analysis script, Phase 12-13 strategy |
+| 12. Tier 1 Coverage Push | 0/4-5 | **Pending** | - | Target: 28% coverage (+5.2%) |
 
-**Overall Progress**: 79 plans completed out of ~90-105 estimated for 80% coverage (+5 Phase 10-11 plans pending)
+**Overall Progress**: 88 plans completed out of ~100-120 estimated for 80% coverage (+4-5 Phase 12 plans pending)
