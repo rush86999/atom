@@ -62,6 +62,13 @@ def start(port: int, host: str, workers: int, host_mount: bool, dev: bool):
     # Import after CLI to avoid slow startup
     from main_api_app import app
 
+    # Check edition
+    from core.package_feature_service import get_package_feature_service
+    service = get_package_feature_service()
+
+    edition_display = "Personal Edition" if service.is_personal else "Enterprise Edition"
+    click.echo(click.style(f"{edition_display}", fg="blue" if service.is_personal else "yellow"))
+
     if host_mount:
         _confirm_host_mount()
         os.environ["ATOM_HOST_MOUNT_ENABLED"] = "true"
@@ -331,6 +338,14 @@ def config():
 # Import local-agent command group
 from cli.local_agent import local_agent
 main_cli.add_command(local_agent, name="local-agent")
+
+# Import edition management commands
+from cli.init import register_init_command
+from cli.enable import register_enable_command
+
+# Register edition management commands
+register_init_command(main_cli)
+register_enable_command(main_cli)
 
 
 def _confirm_host_mount():
