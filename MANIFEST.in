@@ -1,0 +1,61 @@
+# MANIFEST.in for atom-os package
+# Specifies which files to include in the distribution
+
+# Include README
+include README.md
+include LICENSE
+
+# Include documentation
+recursive-include docs *.md *.txt
+
+# Include configuration files
+include .env.example
+include .env.personal
+include docker-compose.yml
+include docker-compose-personal.yml
+
+# Include Alembic migrations
+recursive-include backend/alembic *.py
+include backend/alembic.ini
+
+# Include CLI
+include backend/cli/*.py
+
+# Include tests (for verification)
+recursive-include backend/tests *.py
+
+# Include data files
+recursive-include backend/data *
+
+# Exclude development files
+exclude .gitignore
+exclude .env
+exclude .env.*
+exclude .coverage
+exclude coverage.xml
+exclude htmlcov/
+exclude .pytest_cache/
+exclude .mypy_cache/
+exclude __pycache__/
+exclude *.pyc
+exclude *.pyo
+exclude .DS_Store
+
+# Exclude test archives
+exclude-also backend/test_archives*
+
+# Exclude venv
+exclude-also venv/
+exclude-also backend/venv/
+
+# Exclude node_modules
+exclude-also node_modules/
+exclude-also frontend-nextjs/node_modules/
+exclude-also mobile/node_modules/
+
+# Exclude build artifacts
+exclude-also build/
+exclude-also dist/
+exclude-also *.egg-info/
+exclude-also .next/
+exclude-again *.log
