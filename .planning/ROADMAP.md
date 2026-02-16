@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Implementation Fixes** - Fix incomplete and inconsistent implementations discovered during testing (Expo SDK 50 compatibility, service bugs, mobile authentication, desktop integration issues)
 - [x] **Phase 8: 80% Coverage Push (Reality Adjusted)** - Systematically add unit tests to uncovered code paths. Achieved 15.87% coverage (216% improvement from 4.4% baseline). Original 80% target was unrealistic for single phase.
 - [x] **Phase 8.7: API Integration Testing** - Target 17-18% overall coverage (+2-3% from 15.87%) ✅ COMPLETE
-- [ ] **Phase 8.8: Agent Governance & BYOK** - Target 19-20% overall coverage (+2% from 17-18%)
+- [x] **Phase 8.8: Agent Governance & BYOK** - Target 19-20% overall coverage (+2% from 17-18%) ✅ COMPLETE
 - [x] **Phase 8.9: Canvas & Browser Tools** - Target 21-22% overall coverage (+2% from 19-20%) ✅ COMPLETE
   - Plan 29: Canvas tool tests (canvas_tool.py) ✅ 58.49% coverage (+19.46%)
   - Plan 30: Browser, device & canvas collaboration tests (browser_tool.py, device_tool.py, canvas_collaboration_service.py) ✅ 64.23% avg coverage
@@ -461,9 +461,9 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 **Estimated Duration**: 2 plans (1 day)
 
 **Plans**: 3 plans
-- [ ] 08-80-percent-coverage-push-27a-PLAN.md — Agent governance service tests (agent_governance_service)
-- [ ] 08-80-percent-coverage-push-27b-PLAN.md — Agent context resolver & trigger interceptor tests (agent_context_resolver, trigger_interceptor)
-- [ ] 08-80-percent-coverage-push-28-PLAN.md — LLM BYOK handler tests (byok_handler)
+- [x] 08-80-percent-coverage-push-27a-PLAN.md — Agent governance service tests (agent_governance_service) ✅
+- [x] 08-80-percent-coverage-push-27b-PLAN.md — Agent context resolver & trigger interceptor tests (agent_context_resolver, trigger_interceptor) ✅
+- [x] 08-80-percent-coverage-push-28-PLAN.md — LLM BYOK handler tests (byok_handler) ✅
 
 ### Phase 8.9: Canvas & Browser Tools
 **Goal**: Achieve 21-22% overall coverage (+2% from 19-20%) by extending canvas and browser tool coverage
@@ -636,7 +636,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Implementation Fixes | 2/2 | **Complete** | 2026-02-12 | - |
 | 8. 80% Coverage Push | 22/22 | **Complete** | 2026-02-13 | 15.87% |
 | 8.7. Core Workflow Focus | 4/4 | **Complete** | 2026-02-13 | 17-18% |
-| 8.8. Agent Governance & BYOK | 0/3 | **Skipped** | - | Target: 19-20% |
+| 8.8. Agent Governance & BYOK | 3/3 | **Complete** | 2026-02-13 | Agent governance 77.68%, context resolver + trigger interceptor tested, BYOK handler covered |
 | 8.9. Canvas & Browser Tools | 2/2 | **Complete** | 2026-02-14 | 21-22% |
 | 9.0. API Module Expansion | 4/4 | **Complete** | 2026-02-14 | 25-27% |
 | 9.1. API Route & Governance | 4/4 | **Complete** | 2026-02-14 | 24-26% |
@@ -645,4 +645,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 12. Tier 1 Coverage Push | 7/7 | **Complete** | 2026-02-16 | 15.70% coverage (3/6 files at 50%+, gap closure done) |
 | 13. OpenClaw Integration | 3/3 | **Complete** | 2026-02-16 | Host shell, social layer, installer |
 
-**Overall Progress**: 101 plans completed out of ~105-125 estimated (+4-8 Phase 13 plans recommended)
+**Overall Progress**: 104 plans completed out of ~105-125 estimated
