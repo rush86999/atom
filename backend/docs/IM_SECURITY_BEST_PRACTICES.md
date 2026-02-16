@@ -58,6 +58,33 @@ result = await im_governance.verify_and_rate_limit(request, body_bytes)
 | Using `==` for comparison | Timing attacks | Use `hmac.compare_digest()` |
 | Logging raw payloads | PII exposure | Log SHA256 hash only |
 
+### Timing Attack Prevention
+
+When comparing secret tokens (webhook signatures, API keys), ALWAYS use constant-time comparison:
+
+**VULNERABLE (timing attack possible):**
+```python
+if header_token == self.secret_token:  # VULNERABLE
+    return True
+```
+
+**SECURE (constant-time):**
+```python
+import hmac
+return hmac.compare_digest(header_token, self.secret_token)  # SAFE
+```
+
+**Why:** String comparison with `==` short-circuits on first mismatch. Attackers can measure response times to guess valid tokens character-by-character. `hmac.compare_digest()` always compares full strings, preventing this attack vector.
+
+**Required for:**
+- Telegram: `X-Telegram-Bot-Api-Secret-Token` header
+- WhatsApp: `X-Hub-Signature-256` HMAC verification
+- All webhook signature validations
+
+**Implementation in Atom:**
+- `backend/core/communication/adapters/telegram.py` - Uses `hmac.compare_digest()`
+- `backend/core/communication/adapters/whatsapp.py` - Uses `hmac.compare_digest()`
+
 ---
 
 ## Rate Limiting
@@ -70,11 +97,23 @@ Rate limiting prevents:
 - Resource exhaustion from rapid requests
 - Automated scraping/bot attacks
 
-### Configuration
+### Implementation
+
+IMGovernanceService uses a **sliding window** rate limiting algorithm:
+
+#### Algorithm
+
+For each unique key `{platform}:{sender_id}`:
+1. Maintain list of request timestamps
+2. Remove timestamps older than window (60s)
+3. Reject if >= 10 requests in window
+4. Otherwise, add current timestamp and allow
+
+#### Configuration
 
 **Current Settings**:
 - Limit: 10 requests per minute per `user_id`
-- Algorithm: Token bucket (allows bursts)
+- Algorithm: Sliding window (allows bursts)
 - Scope: Per-platform (Telegram and WhatsApp counted separately)
 
 **Rate Limit Key Format**:
@@ -86,16 +125,19 @@ Examples:
 - `telegram:123456789` - Telegram user
 - `whatsapp:+1234567890` - WhatsApp user
 
-### Implementation
+#### Characteristics
 
-```python
-from slowapi import Limiter
+- **Burst-tolerant**: All 10 requests can arrive simultaneously
+- **Memory-efficient**: Old timestamps automatically cleaned up
+- **Single-worker**: In-memory store doesn't share across workers
+- **Latency**: <1ms per check (in-memory lookup)
 
-limiter = Limiter(
-    key_func=lambda request: f"{platform}:{sender_id}",
-    default_limits=["10/minute"]
-)
-```
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IM_RATE_LIMIT_REQUESTS` | 10 | Max requests per window |
+| `IM_RATE_LIMIT_WINDOW_SECONDS` | 60 | Time window in seconds |
 
 ### Tuning Rate Limits
 
@@ -108,16 +150,18 @@ IM_RATE_LIMIT_WHITELIST=user@example.com,trusted_user
 ```
 
 2. **For all users** (global):
-```python
-# In IMGovernanceService.__init__
-default_limits=["20/minute"]  # Increase from 10
+```bash
+# Set environment variables
+IM_RATE_LIMIT_REQUESTS=20  # Increase from 10
+IM_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
-3. **Per-platform**:
+3. **Per-platform** (requires code modification):
 ```python
-platform_limits = {
-    "telegram": "10/minute",
-    "whatsapp": "5/minute"  # More restrictive for WhatsApp
+# In IMGovernanceService.__init__
+platform_rate_limits = {
+    "telegram": (10, 60),  # 10 requests per 60 seconds
+    "whatsapp": (5, 60),   # More restrictive for WhatsApp
 }
 ```
 
@@ -135,6 +179,13 @@ GROUP BY platform, sender_id
 HAVING COUNT(*) > 5
 ORDER BY violations DESC;
 ```
+
+#### Production Notes
+
+For multi-worker deployments (gunicorn -w 4):
+- Each worker has its own rate limit store
+- Effective limit = workers * 10 requests/minute
+- Solution: Use Redis-backed rate limiting for distributed deployments
 
 ---
 
