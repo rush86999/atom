@@ -739,11 +739,11 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 **Estimated Duration**: 4-5 plans (1-2 days)
 
 **Plans**: 5 plans
-- [ ] 15-codebase-completion-01-PLAN.md — Test infrastructure fixes (async/await, fixtures, isolation)
-- [ ] 15-codebase-completion-02-PLAN.md — Code quality enhancements (type hints, error handling, logging)
-- [ ] 15-codebase-completion-03-PLAN.md — Production hardening (monitoring, health checks, rate limiting)
-- [ ] 15-codebase-completion-04-PLAN.md — Documentation completion (API docs, runbooks, troubleshooting)
-- [ ] 15-codebase-completion-05-PLAN.md — Performance benchmarks and optimization (critical paths, caching)
+- [ ] 15-01-PLAN.md — Test infrastructure fixes (async/await, fixtures, TODO evaluation)
+- [ ] 15-02-PLAN.md — Production hardening (health checks, Prometheus metrics, structured logging)
+- [ ] 15-03-PLAN.md — API documentation (OpenAPI spec, endpoint docs, testing guide)
+- [ ] 15-04-PLAN.md — Deployment runbooks (deployment procedures, operations guide, troubleshooting)
+- [ ] 15-05-PLAN.md — Code quality standards (type hints, MyPy, error handling)
 
 ## Progress
 
