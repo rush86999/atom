@@ -17,6 +17,7 @@ from core.models import (
     Episode,
     EpisodeSegment,
     SupervisionSession,
+    SkillExecution,
 )
 
 logger = logging.getLogger(__name__)
@@ -806,6 +807,124 @@ class AgentGraduationService:
         trend_score = trend_scores.get(metrics["recent_performance_trend"], 0)
 
         return rating_score + intervention_score + high_quality_score + trend_score
+
+    # ========================================================================
+    # Skill Usage Metrics Integration (NEW)
+    # ========================================================================
+
+    async def calculate_skill_usage_metrics(
+        self,
+        agent_id: str,
+        days_back: int = 30
+    ) -> dict:
+        """
+        Calculate skill usage metrics for graduation readiness.
+
+        Args:
+            agent_id: Agent ID
+            days_back: Number of days to look back
+
+        Returns:
+            {
+                "total_skill_executions": int,
+                "successful_executions": int,
+                "success_rate": float,
+                "unique_skills_used": int,
+                "skill_episodes_count": int,
+                "skill_learning_velocity": float
+            }
+        """
+        from datetime import timedelta
+        from sqlalchemy import select
+
+        # Get recent skill executions
+        start_date = datetime.now() - timedelta(days=days_back)
+
+        # Query skill executions
+        skill_executions_result = await self.db.execute(
+            select(SkillExecution)
+            .where(SkillExecution.agent_id == agent_id)
+            .where(SkillExecution.executed_at >= start_date)
+            .where(SkillExecution.skill_source == "community")
+        )
+        skills = skill_executions_result.scalars().all()
+
+        # Calculate metrics
+        total_executions = len(skills)
+        successful_executions = len([s for s in skills if s.status == "success"])
+        unique_skills_used = len(set(s.skill_id for s in skills))
+
+        # Get skill episodes
+        skill_episodes_result = await self.db.execute(
+            select(EpisodeSegment)
+            .where(EpisodeSegment.agent_id == agent_id)
+            .where(EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"]))
+            .where(EpisodeSegment.start_time >= start_date)
+        )
+        episodes = skill_episodes_result.scalars().all()
+
+        # Calculate learning velocity (episodes per day)
+        skill_learning_velocity = len(episodes) / days_back if days_back > 0 else 0
+
+        return {
+            "total_skill_executions": total_executions,
+            "successful_executions": successful_executions,
+            "success_rate": successful_executions / total_executions if total_executions > 0 else 0,
+            "unique_skills_used": unique_skills_used,
+            "skill_episodes_count": len(episodes),
+            "skill_learning_velocity": skill_learning_velocity
+        }
+
+    async def calculate_readiness_score_with_skills(
+        self,
+        agent_id: str,
+        target_maturity: str
+    ) -> dict:
+        """
+        Calculate graduation readiness score with skill metrics.
+
+        Integrates skill usage metrics into the readiness score calculation.
+
+        Args:
+            agent_id: Agent ID
+            target_maturity: Target maturity level
+
+        Returns:
+            {
+                "readiness_score": float,
+                "episode_metrics": dict,
+                "intervention_metrics": dict,
+                "skill_metrics": dict,
+                "skill_diversity_bonus": float
+            }
+        """
+        # Get existing readiness score
+        existing_readiness = await self.calculate_readiness_score(
+            agent_id=agent_id,
+            target_maturity=target_maturity
+        )
+
+        # Get skill usage metrics
+        skill_metrics = await self.calculate_skill_usage_metrics(agent_id)
+
+        # Calculate skill diversity bonus (up to +5%)
+        # Reward agents that use diverse skills
+        skill_diversity_bonus = min(skill_metrics["unique_skills_used"] * 0.01, 0.05)
+
+        # Base score from existing calculation
+        base_score = existing_readiness.get("score", 0) / 100.0  # Convert to 0-1 scale
+
+        # Apply skill diversity bonus
+        final_score = min(base_score + skill_diversity_bonus, 1.0)
+
+        return {
+            "readiness_score": final_score,
+            "episode_metrics": existing_readiness,
+            "skill_metrics": skill_metrics,
+            "skill_diversity_bonus": skill_diversity_bonus,
+            "target_maturity": target_maturity
+        }
+
 
     async def execute_graduation_exam(
         self,
