@@ -118,9 +118,9 @@ def start(port: int, host: str, workers: int, host_mount: bool, dev: bool):
 
 
 @main_cli.command()
-@click.option('--port', default=8000, '--port', '-p', help='Port for web server')
-@click.option('--host', default='0.0.0.0', '--host', '-h', help='Host to bind to')
-@click.option('--workers', default=1, '--workers', '-w', help='Number of worker processes')
+@click.option('--port', '-p', default=8000, help='Port for web server')
+@click.option('--host', '-h', default='0.0.0.0', help='Host to bind to')
+@click.option('--workers', '-w', default=1, help='Number of worker processes')
 @click.option('--host-mount', is_flag=True, help='Enable host filesystem mount')
 @click.option('--dev', is_flag=True, help='Enable development mode')
 @click.option('--foreground', '-f', is_flag=True, help='Run in foreground (not daemon)')
