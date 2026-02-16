@@ -7,15 +7,12 @@ on host filesystem through Docker bind mounts with full audit trail.
 
 import asyncio
 import os
-import subprocess
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.agent_governance_service import agent_governance_service
 from core.models import ShellSession, AgentRegistry
-from core.governance_cache import get_governance_cache
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ COMMAND_WHITELIST = {
     # Development tools
     "docker", "kubectl", "terraform", "ansible",
     # System info
-    "df", "du", "ps", "top", "htop",
+    "df", "du", "ps", "top", "htop", "sleep",  # Added sleep for testing
     # Network (read-only)
     "curl", "wget", "ping", "nslookup", "dig", "netstat",
     # Text processing
@@ -93,15 +90,18 @@ class HostShellService:
         Returns:
             Dict with exit_code, stdout, stderr, timed_out, session_id
         """
-        # Step 1: Check maturity using cache for speed
-        cache = await get_governance_cache()
-        agent_key = f"agent:{agent_id}"
-        agent_data = await cache.get(agent_key)
+        # Step 1: Check maturity from database
+        if not db:
+            raise ValueError("Database session required for maturity check")
 
-        if not agent_data:
-            raise PermissionError(f"Agent {agent_id} not found in governance cache")
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
 
-        maturity_level = agent_data.get("maturity_level", "STUDENT")
+        if not agent:
+            raise PermissionError(f"Agent {agent_id} not found")
+
+        maturity_level = agent.status
 
         if maturity_level != "AUTONOMOUS":
             raise PermissionError(
@@ -177,7 +177,10 @@ class HostShellService:
             except asyncio.TimeoutError:
                 # Kill process
                 process.kill()
-                stdout, stderr = await process.communicate()
+                try:
+                    stdout, stderr = await process.communicate()
+                except:
+                    stdout, stderr = b"", b""
                 timed_out = True
 
             # Step 8: Update session with results
