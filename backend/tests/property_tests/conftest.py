@@ -58,6 +58,128 @@ local_profile = settings(
 # In local development, use max_examples=200 for thorough testing
 DEFAULT_PROFILE = ci_profile if os.getenv("CI") else local_profile
 
+
+# ============================================================================
+# HYPOTHESIS TEST SIZE DECORATORS
+# ============================================================================
+#
+# Provides tiered testing profiles for different performance targets:
+# - Small: Fast property tests (<10s, max_examples=100)
+# - Medium: Standard property tests (<60s, max_examples=200)
+# - Large: Slow property tests (<100s, max_examples=50 in CI)
+#
+# Usage:
+#   @given(...)
+#   @settings(DEFAULT_PROFILE)
+#   def test_something(...):
+#       ...
+# ============================================================================
+
+from hypothesis import given, assume
+import enum
+
+
+@pytest.fixture(scope="session")
+def small_settings():
+    """Fast property tests with fewer examples (10s target)."""
+    return settings(
+        max_examples=100,
+        deadline=10000,  # 10 seconds per test
+        suppress_health_check=list(HealthCheck)
+    )
+
+
+@pytest.fixture(scope="session")
+def medium_settings():
+    """Standard property tests (60s target)."""
+    return settings(
+        max_examples=200,
+        deadline=60000,  # 60 seconds per test
+        suppress_health_check=list(HealthCheck)
+    )
+
+
+@pytest.fixture(scope="session")
+def large_settings():
+    """Slow property tests with fewer examples (100s target)."""
+    return settings(
+        max_examples=50,
+        deadline=100000,  # 100 seconds per test
+        suppress_health_check=list(HealthCheck)
+    )
+
+
+# ============================================================================
+# HYPOTHESIS PROPERTY TEST STRATEGIES
+# ============================================================================
+#
+# Provides reusable strategies for generating test data:
+# - valid_agent_ids: UUID-based agent identifiers
+# - confidence_scores: Float values in [0.0, 1.0] range
+# - maturity_levels: Enum values for agent maturity
+#
+# Usage:
+#   @given(valid_agent_ids())
+#   def test_agent_lookup(agent_id):
+#       agent = get_agent(agent_id)
+#       assert agent is not None
+# ============================================================================
+
+from hypothesis import strategies as st
+
+
+@pytest.fixture(scope="session")
+def valid_agent_ids():
+    """Strategy for generating valid agent IDs."""
+    return st.uuids()
+
+
+@pytest.fixture(scope="session")
+def confidence_scores():
+    """Strategy for generating valid confidence scores (0.0-1.0)."""
+    return st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+
+
+@pytest.fixture(scope="session")
+def maturity_levels():
+    """Strategy for generating maturity level enums."""
+    return st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+
+
+# ============================================================================
+# HYPOTHESIS PROPERTY TEST ASSUMPTIONS
+# ============================================================================
+#
+# Provides helper functions for filtering generated test data:
+# - assume_valid_agent_id: Ensures agent_id is not None/empty
+# - assume_valid_confidence: Ensures confidence is in [0.0, 1.0]
+# - assume_maturity_level: Ensures maturity is a valid enum value
+#
+# Usage:
+#   @given(st.text())
+#   def test_agent_name(name):
+#       assume_valid_agent_id(name)  # Skip empty/None values
+#       result = create_agent(name)
+#       assert result is not None
+# ============================================================================
+
+def assume_valid_agent_id(agent_id):
+    """Assume agent_id is valid (not None, not empty string)."""
+    assume(agent_id is not None)
+    if isinstance(agent_id, str):
+        assume(len(agent_id) > 0)
+
+
+def assume_valid_confidence(confidence):
+    """Assume confidence is in valid range [0.0, 1.0]."""
+    assume(0.0 <= confidence <= 1.0)
+
+
+def assume_maturity_level(maturity):
+    """Assume maturity is a valid level."""
+    valid_levels = ['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS']
+    assume(maturity in valid_levels)
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
