@@ -11,12 +11,13 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 05-agent-layer
-Plan: 02 of 3 complete
-Status: IN PROGRESS
+Plan: 03 of 3 complete
+Status: COMPLETE
+Last activity: 2026-02-17 — Plan 03 COMPLETE: Agent execution & coordination integration tests (1,483 lines, 26 tests, 100% passing). Integration tests (1,181 lines) validate end-to-end execution orchestration (governance → LLM → streaming → persistence) and agent coordination (social layer, event bus, FIFO ordering). Property tests (302 lines) validate coordination invariants (FIFO, delivery, termination). Bug fixes: STUDENT governance check (case-insensitive), event bus iteration (set modification). All must-haves validated.
 Last activity: 2026-02-17 — Plan 02 COMPLETE: Agent layer unit tests (1,126 lines, 43 tests). Agent graduation tests (414 lines, 18 tests) cover readiness scoring, exams, promotions. Student training tests (373 lines, 10 tests) cover proposals, sessions, completion. Context resolver tests (339 lines, 15 tests) cover fallback chain, session context. All must-haves validated.
 Last activity: 2026-02-17 — Plan 01 COMPLETE: Agent governance test suite (1,313 lines, 54 tests, 100% passing). Property tests (571 lines) validate maturity routing invariants. Unit tests (417 lines) test all 4 maturity levels. Performance tests (325 lines) validate >95% cache hit rate, <1ms P99 latency. All must-haves validated.
 
-Progress: [██████████░] 53% (Phase 04: 3/3 complete, Phase 05: 2/3 complete, 97 agent layer tests)
+Progress: [█████████░] 60% (Phase 04: 3/3 complete, Phase 05: 3/3 complete, 123 agent layer tests)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
@@ -690,6 +691,57 @@ with patch('core.trigger_interceptor.get_async_governance_cache', new_callable=A
 - tests/unit/agent/test_governance_cache.py (325 lines)
 
 **Commit:** addd5eb1
+
+### Agent Execution & Coordination Integration Tests (Plan 05-03)
+
+**Decision:** Integration and property tests for agent execution orchestration and multi-agent coordination
+
+**Context:** Agent execution is the core workflow - agents take actions based on user input. Tests validate the complete pipeline with error handling, audit logging, and graceful degradation. Agent coordination enables multi-agent workflows - tests validate message delivery and ordering.
+
+**Implementation:**
+- **Integration Tests (1,181 lines, 17 tests):** End-to-end execution (governance → LLM → streaming → persistence), agent-to-agent messaging, event bus pub/sub, FIFO ordering, multi-agent workflows
+- **Property Tests (302 lines, 9 tests):** FIFO ordering invariant, event bus reliability, coordination termination, message content preservation
+
+**Bug Fixes:**
+1. **STUDENT Agent Governance Check (Rule 1):** Fixed case-sensitive comparison
+   - `if sender_maturity == "STUDENT"` → `if sender_maturity.lower() == "student"`
+   - Database stores lowercase "student", check was using uppercase "STUDENT"
+
+2. **Event Bus Iteration Bug (Rule 1):** Fixed set modification during iteration
+   - Collect websockets before iterating, avoid modifying set during iteration
+   - Prevents RuntimeError when dead connections are removed during broadcast
+
+**Outcomes:**
+- All 26 tests passing (100%)
+- All 5 must-haves validated
+- Coverage: 1,483 lines of test code (execution: 652 lines, coordination: 529 lines, property: 302 lines)
+- Two production bugs fixed (STUDENT governance, event bus iteration)
+
+**Alternatives Considered:**
+- Only unit tests: Would not validate end-to-end execution flow
+- Only integration tests: Would miss edge cases that property tests catch
+- Manual testing: Would not provide regression protection
+
+**Impact:**
+- Validates complete execution pipeline (governance → LLM → streaming → persistence)
+- Ensures agent coordination works (social layer, event bus, FIFO ordering)
+- Fixes STUDENT agent governance (was not blocking posts due to case sensitivity)
+- Fixes event bus reliability (was crashing on dead connections)
+- Provides regression protection for critical execution and coordination code
+
+**Files Created:**
+- tests/integration/agent/test_agent_execution_orchestration.py (652 lines, 7 tests)
+- tests/integration/agent/test_agent_coordination.py (529 lines, 10 tests)
+- tests/property_tests/agent/test_agent_coordination_invariants.py (302 lines, 9 tests)
+
+**Files Modified:**
+- core/agent_social_layer.py (STUDENT governance fix)
+- core/agent_communication.py (event bus iteration fix)
+
+**Commits:**
+- f9e2c45d - Integration tests for agent execution orchestration
+- 25f1b5db - Integration tests for agent coordination + bug fixes
+- 802f7d6c - Property tests for coordination invariants
 
 ---
 
