@@ -6,16 +6,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 02-core-invariants - Property-Based Testing for Core System Invariants
+**Current focus:** Phase 04-hybrid-retrieval - Hybrid Retrieval Enhancement (FastEmbed + Sentence Transformers)
 
 ## Current Position
 
-Phase: 03-memory-layer
-Plan: 02 (COMPLETE)
-Status: IN_PROGRESS (2 of 2 plans complete)
-Last activity: 2026-02-17 — Plan 03-02 COMPLETE: Lifecycle and graduation property tests created. 19 property tests passing (2,700+ Hypothesis examples). Tests validate decay formula, consolidation invariants, archival workflows, graduation readiness, constitutional compliance. Fixed 4 test infrastructure issues. Integration tests verified (32 tests exist, blocked by database schema issue). Execution time: 21 minutes. Commits: 983a41ae, 8df7af23.
+Phase: 04-hybrid-retrieval
+Plan: Not started
+Status: READY TO BEGIN
+Last activity: 2026-02-17 — Phase 03 COMPLETE: Memory Layer verified with 19/19 must-haves (100%). Fixed 5 critical production bugs in episode segmentation service. 189+ tests passing (83 property tests with 2,700+ Hypothesis examples). All segmentation, retrieval, lifecycle, and graduation integration tested and verified. Performance targets met (<100ms semantic retrieval). Verification status: PASSED.
 
-Progress: [██████████] 100% (Phase 03: 2 of 2 plans complete)
+Progress: [██████░░░░] 30% (Phase 03: 2 of 2 plans complete, Phase 4 ready to begin)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
