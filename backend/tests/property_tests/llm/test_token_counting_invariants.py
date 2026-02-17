@@ -13,6 +13,7 @@ These tests protect against cost calculation errors and budget bypasses.
 import pytest
 from hypothesis import given, settings, example
 from hypothesis import strategies as st
+from hypothesis import HealthCheck
 from typing import Dict, Tuple
 from unittest.mock import Mock, patch
 import math
@@ -26,7 +27,7 @@ class TestInputTokenCountingInvariants:
     @given(
         text=st.text(min_size=1, max_size=10000, alphabet='abcdefghijklmnopqrstuvwxyz ')
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_openai_input_token_count_invariant(self, db_session, text: str):
         """
         INVARIANT: OpenAI input token count is non-negative and scales with text length.
@@ -46,7 +47,7 @@ class TestInputTokenCountingInvariants:
     @given(
         text_length=st.integers(min_value=0, max_value=100000)
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_empty_text_token_count_invariant(self, db_session, text_length: int):
         """
         INVARIANT: Empty text has 0 tokens, non-empty has >0 tokens.
@@ -69,7 +70,7 @@ class TestInputTokenCountingInvariants:
             max_size=10
         )
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_token_count_additive_invariant(self, db_session, texts: list):
         """
         INVARIANT: Token count of concatenated text equals sum of individual counts.
@@ -102,7 +103,7 @@ class TestCostCalculationInvariants:
         input_price=st.floats(min_value=0.0001, max_value=0.01, allow_nan=False, allow_infinity=False),
         output_price=st.floats(min_value=0.0001, max_value=0.03, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cost_calculation_formula_invariant(
         self, db_session, input_tokens: int, output_tokens: int,
         input_price: float, output_price: float
@@ -128,7 +129,7 @@ class TestCostCalculationInvariants:
         provider=st.sampled_from(["openai", "anthropic", "deepseek"]),
         complexity=st.sampled_from([QueryComplexity.SIMPLE, QueryComplexity.MODERATE, QueryComplexity.COMPLEX, QueryComplexity.ADVANCED])
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_provider_pricing_consistency_invariant(
         self, db_session, provider: str, complexity: QueryComplexity
     ):
@@ -157,7 +158,7 @@ class TestCostCalculationInvariants:
         input_tokens=st.integers(min_value=1, max_value=100000),
         output_tokens=st.integers(min_value=1, max_value=50000)
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cost_per_1k_tokens_invariant(
         self, db_session, input_tokens: int, output_tokens: int
     ):
@@ -195,7 +196,7 @@ class TestTokenBudgetInvariants:
         budget=st.integers(min_value=100, max_value=10000),
         request_tokens=st.integers(min_value=1, max_value=20000)
     )
-    @settings(max_examples=40)
+    @settings(max_examples=40, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_budget_enforcement_invariant(
         self, db_session, budget: int, request_tokens: int
     ):
@@ -228,7 +229,7 @@ class TestTokenBudgetInvariants:
             max_size=10
         )
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_budget_tracking_across_requests_invariant(
         self, db_session, budgets: list, requests: list
     ):
@@ -264,7 +265,7 @@ class TestTokenBudgetInvariants:
         budget=st.integers(min_value=100, max_value=10000),
         request_tokens=st.integers(min_value=1, max_value=20000)
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_budget_no_negative_invariant(self, db_session, budget: int, request_tokens: int):
         """
         INVARIANT: Budget never goes negative, even when exceeded.
@@ -323,7 +324,7 @@ class TestProviderFallbackChainInvariants:
             unique=True
         )
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_fallback_skips_failed_invariant(self, db_session, failed_providers: list):
         """
         INVARIANT: Fallback chain skips providers that have failed.
@@ -353,7 +354,7 @@ class TestProviderFallbackChainInvariants:
         prompt=st.text(min_size=1, max_size=1000),
         task_type=st.sampled_from([None, "coding", "writing", "analysis"])
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_routing_info_consistency_invariant(self, db_session, prompt: str, task_type: str):
         """
         INVARIANT: Routing info is consistent and contains required fields.
