@@ -13,6 +13,7 @@ These tests protect against streaming bugs and provider switching issues.
 import pytest
 from hypothesis import given, settings, example, Phase
 from hypothesis import strategies as st
+from hypothesis import HealthCheck
 from typing import List, Dict, Any
 from unittest.mock import Mock, AsyncMock, patch
 import asyncio
@@ -36,7 +37,7 @@ class TestStreamingCompletionInvariants:
         chunk_count=st.integers(min_value=1, max_value=100),
         tokens_per_chunk=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50, phases=[Phase.generate])
+    @settings(max_examples=50, phases=[Phase.generate], suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_chunk_ordering_invariant(
         self, db_session, messages: List[Dict[str, str]], chunk_count: int, tokens_per_chunk: int
     ):
@@ -68,7 +69,7 @@ class TestStreamingCompletionInvariants:
         provider=st.sampled_from(["openai", "anthropic"]),
         chunk_count=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_metadata_consistency_invariant(
         self, db_session, model: str, provider: str, chunk_count: int
     ):
@@ -100,7 +101,7 @@ class TestStreamingCompletionInvariants:
     @given(
         finish_reasons=st.sampled_from(["stop", "length", "content_filter", None])
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_eos_signaling_invariant(self, db_session, finish_reasons: str):
         """
         INVARIANT: Stream properly signals end-of-stream (EOS).
@@ -151,7 +152,7 @@ class TestProviderFallbackInvariants:
             unique=True
         )
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_fallback_preserves_conversation_history_invariant(
         self, db_session, messages: List[Dict[str, str]], failing_providers: List[str]
     ):
@@ -188,7 +189,7 @@ class TestProviderFallbackInvariants:
         input_tokens=st.integers(min_value=1, max_value=10000),
         output_tokens=st.integers(min_value=1, max_value=5000)
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_fallback_cost_tracking_invariant(
         self, db_session, primary_cost: float, fallback_cost: float,
         input_tokens: int, output_tokens: int
@@ -218,7 +219,7 @@ class TestStreamingErrorRecoveryInvariants:
         retry_count=st.integers(min_value=1, max_value=5),
         max_retries=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_retry_limit_enforced_invariant(
         self, db_session, retry_count: int, max_retries: int
     ):
@@ -252,7 +253,7 @@ class TestStreamingErrorRecoveryInvariants:
             max_size=5
         )
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_exponential_backoff_invariant(self, db_session, delays: List[float]):
         """
         INVARIANT: Retry delays follow exponential backoff pattern.
@@ -279,7 +280,7 @@ class TestStreamingPerformanceInvariants:
         token_count=st.integers(min_value=10, max_value=1000),
         tokens_per_second=st.floats(min_value=5.0, max_value=100.0)
     )
-    @settings(max_examples=30, deadline=10000)  # 10 second deadline
+    @settings(max_examples=30, deadline=10000, suppress_health_check=[HealthCheck.function_scoped_fixture])  # 10 second deadline
     def test_first_token_latency_invariant(
         self, db_session, token_count: int, tokens_per_second: float
     ):
@@ -316,7 +317,7 @@ class TestStreamingPerformanceInvariants:
         token_count=st.integers(min_value=50, max_value=500),
         duration_seconds=st.floats(min_value=1.0, max_value=10.0)
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_token_throughput_invariant(
         self, db_session, token_count: int, duration_seconds: float
     ):
