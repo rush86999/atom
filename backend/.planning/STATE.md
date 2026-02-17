@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 02-core-invariants
-Plan: 03 (COMPLETE)
-Status: IN_PROGRESS (3 of 3 plans complete)
-Last activity: 2026-02-17 — Plan 02-03 COMPLETE: Database ACID and OWASP security invariant tests with 29 property-based tests (13 database + 16 security). Coverage for atomicity, consistency, isolation, durability, foreign keys, unique constraints, null constraints, rollback behavior, transaction timeouts, data integrity, constraint propagation, SQL injection, XSS, cryptography, misconfiguration, vulnerabilities, authentication, logging, SSRF, insecure design, validation errors, rate limiting, session management, file uploads, API security, and authorization. Security testing tools added (bandit, pip-audit, safety). All tests passing (12.79s execution). 4 deviations auto-fixed (syntax error, test validation logic, nested transaction, durability test). Commits: 71bc34ed, 60c8c0a7.
+Phase: 03-memory-layer
+Plan: 01 (COMPLETE)
+Status: IN_PROGRESS (1 of 2 plans complete)
+Last activity: 2026-02-17 — Plan 03-01 COMPLETE: Episode segmentation and retrieval test validation with 249 tests passing. Fixed 5 production bugs (ChatMessage field mismatch, AgentExecution query pattern, null handling, metadata checks). All property tests passing (64/64), all unit tests passing (74/74). Execution time: 12 minutes. Commit: 3a9705f1.
 
-Progress: [████░░░░░] 100% (Phase 02: 3 of 3 plans complete)
+Progress: [███░░░░░░] 50% (Phase 03: 1 of 2 plans complete)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
@@ -373,6 +373,31 @@ Progress: [████░░░░░] 100% (Phase 02: 3 of 3 plans complete)
 2. **Quality gates ready**: Infrastructure prevents regression
 3. **Test patterns established**: AsyncMock, factories, fixtures all working
 4. **Documentation comprehensive**: CLAUDE.md, docs/ provide clear guidance
+
+---
+
+## Decisions from Phase 03 (Memory Layer)
+
+### Episode Segmentation Bug Fixes (Plan 03-01)
+**1. Fixed ChatMessage field mismatch: session_id → conversation_id**
+- Context: Model refactored but service code not updated
+- Decision: Update service to use correct model field
+- Impact: Episode creation now correctly retrieves messages
+
+**2. Fixed AgentExecution query pattern: session_id → agent_id + time range**
+- Context: AgentExecution has no session_id field
+- Decision: Use established pattern from supervision_service (agent_id + started_at >= session.created_at)
+- Impact: Episode creation now correctly retrieves executions
+
+**3. Added defensive null checks for None content**
+- Context: Service crashed on None message content
+- Decision: Add null/hasattr checks before accessing content
+- Impact: Service gracefully handles missing data
+
+**4. Added isinstance(dict) checks for metadata**
+- Context: Service called .items() on Mock objects during tests
+- Decision: Check isinstance(dict) before calling dict methods
+- Impact: Service handles malformed metadata and test mocks
 
 ---
 
