@@ -294,6 +294,250 @@ Make it engaging and team-focused. Keep it under 280 characters."""
             logger.warning(f"Template missing key {e}, using default")
             return f"{metadata.get('agent_name', 'Agent')} working on {operation_type}"
 
+    async def generate_with_episode_context(
+        self,
+        agent_id: str,
+        operation: dict,
+        db: Session = None,
+        limit: int = 3
+    ) -> dict:
+        """
+        Generate social post with relevant episode context.
+
+        Enhanced version that:
+        - Retrieves episodes relevant to current operation
+        - Includes episode references in generated post
+        - Adds "Similar to past experiences:" context
+        - Falls back to standard generation if no episodes
+
+        Args:
+            agent_id: Agent ID
+            operation: Operation metadata dict (from AgentOperationTracker)
+            db: Database session
+            limit: Max episodes to retrieve
+
+        Returns:
+            dict with keys:
+                - content: Generated post content
+                - mentioned_episode_ids: List of episode IDs referenced
+                - metadata: Generation metadata
+        """
+        # Retrieve relevant episodes
+        episodes = await self._retrieve_relevant_episodes(
+            agent_id, operation, limit, db
+        )
+
+        # Build episode context for LLM
+        episode_context = self._format_episode_context(episodes)
+
+        # Generate post with or without episode context
+        if episode_context and self._openai_client:
+            # Use LLM with episode context
+            content = await self._generate_with_llm_and_context(
+                operation, episode_context
+            )
+        else:
+            # Fall back to standard generation
+            content = await self._generate_with_llm(
+                operation_type=operation.get("operation_type", "unknown"),
+                metadata=operation
+            )
+
+        return {
+            "content": content,
+            "mentioned_episode_ids": [e.id for e in episodes],
+            "metadata": {
+                "operation": operation,
+                "episode_count": len(episodes),
+                "generated_with_context": len(episodes) > 0
+            }
+        }
+
+    async def _retrieve_relevant_episodes(
+        self,
+        agent_id: str,
+        operation: dict,
+        limit: int,
+        db: Session = None
+    ) -> list:
+        """
+        Retrieve episodes relevant to current operation.
+
+        Args:
+            agent_id: Agent ID
+            operation: Operation metadata
+            limit: Max episodes to retrieve
+            db: Database session
+
+        Returns:
+            List of Episode objects
+        """
+        if not db:
+            return []
+
+        try:
+            from core.episode_retrieval_service import EpisodeRetrievalService
+
+            retrieval_service = EpisodeRetrievalService(db)
+
+            # Build query from operation
+            operation_type = operation.get("operation_type", "")
+            what_explanation = operation.get("what_explanation", "")
+            query = f"{operation_type} {what_explanation}"
+
+            results = await retrieval_service.retrieve_episodes(
+                agent_id=agent_id,
+                query_type="semantic",
+                query=query,
+                limit=limit
+            )
+            return results
+        except Exception as e:
+            logger.warning(
+                f"Failed to retrieve relevant episodes for agent {agent_id}: {e}"
+            )
+            return []
+
+    def _format_episode_context(self, episodes: list) -> str:
+        """
+        Format episodes for LLM context.
+
+        Args:
+            episodes: List of Episode objects
+
+        Returns:
+            Formatted context string (max 280 characters)
+        """
+        if not episodes:
+            return ""
+
+        context_parts = []
+        for episode in episodes[:3]:  # Max 3 episodes
+            summary = episode.summary[:100] if episode.summary else ""
+            if summary:
+                context_parts.append(f"- {summary}")
+
+        if not context_parts:
+            return ""
+
+        context = "Similar to past experiences:\n" + "\n".join(context_parts)
+
+        # Limit context length
+        if len(context) > 280:
+            context = context[:280] + "..."
+
+        return context
+
+    async def _generate_with_llm_and_context(
+        self,
+        operation: dict,
+        episode_context: str
+    ) -> str:
+        """
+        Generate post using LLM with episode context.
+
+        Args:
+            operation: Operation metadata
+            episode_context: Formatted episode context
+
+        Returns:
+            Generated post content (max 280 chars)
+        """
+        if not self._openai_client:
+            raise RuntimeError("OpenAI client not initialized")
+
+        # Build system prompt with episode guidance
+        system_prompt = self._build_system_prompt(with_episodes=True)
+
+        # Build user prompt with operation details and episode context
+        user_prompt = self._build_user_prompt(operation, episode_context)
+
+        try:
+            response = await self._openai_client.chat.completions.create(
+                model="gpt-4.1-mini",  # Cost-effective model
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=150,
+                timeout=5.0
+            )
+            content = response.choices[0].message.content.strip()
+
+            # Validate length
+            if len(content) > 280:
+                logger.warning(f"Generated post too long ({len(content)} chars), truncating")
+                content = content[:277] + "..."
+
+            return content
+
+        except asyncio.TimeoutError:
+            logger.warning("LLM generation timeout, falling back to template")
+            return self.generate_with_template(
+                operation.get("operation_type", "unknown"),
+                operation
+            )
+        except Exception as e:
+            logger.error(f"LLM generation with context failed: {e}, falling back")
+            return self.generate_with_template(
+                operation.get("operation_type", "unknown"),
+                operation
+            )
+
+    def _build_system_prompt(self, with_episodes: bool = False) -> str:
+        """
+        Build system prompt with or without episode context.
+
+        Args:
+            with_episodes: If True, encourage referencing past experiences
+
+        Returns:
+            System prompt string
+        """
+        base_prompt = (
+            "You are an AI assistant sharing status updates about your work. "
+            "Write casual, friendly posts under 280 characters. Use max 2 emoji."
+        )
+
+        if with_episodes:
+            base_prompt += (
+                " When relevant, reference similar past experiences to show "
+                "learning and continuity. Use phrases like 'Similar to when I...' "
+                "or 'Building on my previous work...'"
+            )
+
+        return base_prompt
+
+    def _build_user_prompt(
+        self,
+        operation: dict,
+        episode_context: str = ""
+    ) -> str:
+        """
+        Build user prompt from operation metadata and episode context.
+
+        Args:
+            operation: Operation metadata dict
+            episode_context: Optional episode context
+
+        Returns:
+            User prompt string
+        """
+        operation_type = operation.get("operation_type", "unknown")
+        what_explanation = operation.get("what_explanation", "")
+        why_explanation = operation.get("why_explanation", "")
+
+        prompt = f"Operation: {operation_type}\n"
+        if what_explanation:
+            prompt += f"What: {what_explanation}\n"
+        if why_explanation:
+            prompt += f"Why: {why_explanation}\n"
+
+        if episode_context:
+            prompt += f"\n{episode_context}\n"
+
+        return prompt
+
 
 # Global service instance
 social_post_generator = SocialPostGenerator()
