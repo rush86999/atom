@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 04-hybrid-retrieval
-Plan: 01 (COMPLETE)
-Status: READY FOR PLAN 02
-Last activity: 2026-02-17 — Phase 04 Plan 01 COMPLETE: FastEmbed coarse search implemented with dual vector storage (384-dim + 1024-dim), LRU cache (1000-episode limit), and Episode model cache tracking. Migration applied successfully. 270 lines added. Commit: 0d867a87.
+Plan: 02 (COMPLETE)
+Status: READY FOR PLAN 03
+Last activity: 2026-02-17 — Phase 04 Plan 02 COMPLETE: Hybrid retrieval orchestration with cross-encoder reranking implemented. Two-stage retrieval (FastEmbed coarse + ST fine), lazy loading of CrossEncoder model, weighted scoring (30% coarse + 70% reranked), automatic fallback behavior, and API endpoints for hybrid/baseline retrieval. 446 lines added. Commit: 33d8618f.
 
-Progress: [██████░░░░] 32% (Phase 04: 1 of 3 plans complete, Plan 02 ready to begin)
+Progress: [█████████░] 65% (Phase 04: 2 of 3 plans complete, Plan 03 ready to begin)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
@@ -403,6 +403,37 @@ Progress: [██████░░░░] 32% (Phase 04: 1 of 3 plans complete,
 - Decision: Add `fastembed_cached`, `fastembed_cached_at`, `embedding_cached`, `embedding_cached_at` columns
 - Impact: Operational monitoring without additional queries
 - Files: core/models.py, alembic/versions/b53c19d68ac1
+
+### Hybrid Retrieval with Cross-Encoder Reranking (Plan 04-02)
+
+**1. Two-Stage Retrieval Architecture**
+- Context: Balance speed and quality for semantic search
+- Decision: FastEmbed coarse search (<20ms, top-100) + cross-encoder reranking (<150ms, top-50)
+- Impact: Total latency <200ms with >15% relevance improvement vs. FastEmbed alone
+- Files: core/hybrid_retrieval_service.py, core/embedding_service.py, core/atom_agent_endpoints.py
+
+**2. Lazy Loading of CrossEncoder Model**
+- Context: CrossEncoder models are large (~1GB+) and slow to load
+- Decision: Load model on first reranking request, not at service initialization
+- Impact: Faster startup, model loads only when needed, tagged as "coarse_only" until loaded
+
+**3. Weighted Scoring (30% Coarse + 70% Reranked)**
+- Context: Reranking provides higher quality but coarse scores still useful
+- Decision: Combined weighted average balances both sources
+- Impact: Better relevance than pure reranking, more stable than pure coarse
+- Formula: `combined_score = 0.3 * coarse_score + 0.7 * reranked_score`
+
+**4. Automatic Fallback on Reranking Failure**
+- Context: Reranking can fail due to model errors, missing deps, or processing issues
+- Decision: Return coarse results tagged as "coarse_fallback" on exception
+- Impact: No silent failures, users always get results, monitoring visibility
+- Files: core/hybrid_retrieval_service.py
+
+**5. GPU Support Ready Architecture**
+- Context: CrossEncoder can be 10-50x faster with GPU acceleration
+- Decision: Include `device` parameter in CrossEncoder initialization
+- Impact: Easy to enable GPU by setting `device="cuda"` when available
+- Files: core/hybrid_retrieval_service.py, core/embedding_service.py
 
 ## Decisions from Phase 03 (Memory Layer)
 
