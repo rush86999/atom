@@ -10,7 +10,7 @@ from ai.workflow_scheduler import workflow_scheduler
 
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from operations.system_intelligence_service import SystemIntelligenceService
 from pydantic import BaseModel
 

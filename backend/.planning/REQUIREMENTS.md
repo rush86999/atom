@@ -154,7 +154,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-05: Agent Governance Coverage
 **Priority:** P0 (safety-critical)
-**Phase:** 4 - Agent Layer
+**Phase:** 5 - Agent Layer
 **Description:** Test maturity routing, permissions, graduation, context resolution
 **Acceptance Criteria:**
 - [ ] **Maturity routing**:
@@ -208,7 +208,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-07: Social Layer Coverage
 **Priority:** P2 (important feature)
-**Phase:** 5 - Social Layer
+**Phase:** 6 - Social Layer
 **Description:** Test post generation, PII redaction, communication, channels
 **Acceptance Criteria:**
 - [ ] **Post generation**:
@@ -233,6 +233,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-08: Community Skills Coverage
 **Priority:** P1 (security-critical)
+**Phase:** 7 - Skills Layer
 **Phase:** 6 - Skills Layer
 **Description:** Test parsing, adaptation, sandbox, registry, security scanning
 **Acceptance Criteria:**
@@ -263,7 +264,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-09: Local Agent Coverage
 **Priority:** P0 (security-critical)
-**Phase:** 7 - Local Agent
+**Phase:** 8 - Local Agent
 **Description:** Test shell execution, directory permissions, command whitelist, security
 **Acceptance Criteria:**
 - [ ] **Shell execution**:
@@ -288,7 +289,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-10: IM Adapters Coverage
 **Priority:** P2 (integration feature)
-**Phase:** 8 - IM Layer
+**Phase:** 9 - IM Layer
 **Description:** Test webhook handling, governance routing, rate limiting, audit logging
 **Acceptance Criteria:**
 - [ ] **Webhook handling**:
@@ -314,7 +315,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-11: Three-Tier LLM Testing Strategy
 **Priority:** P1 (quality assurance)
-**Phase:** 9 - LLM Validation
+**Phase:** 10 - LLM Validation
 **Description:** Unit (mocks) + Integration (real LLM at temperature=0) + E2E (statistical)
 **Acceptance Criteria:**
 - [ ] **Unit tests (70% of LLM tests)**:
@@ -335,7 +336,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-12: Property-Based Testing Expansion
 **Priority:** P1 (invariant validation)
-**Phase:** 2-10 (ongoing)
+**Phase:** 2-11 (ongoing)
 **Description:** Expand Hypothesis usage for system invariants beyond core
 **Acceptance Criteria:**
 - [ ] **Memory system invariants** (Phase 3):
@@ -364,7 +365,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-13: Chaos Engineering Tests
 **Priority:** P3 (resilience verification)
-**Phase:** 10 - Chaos Engineering
+**Phase:** 11 - Chaos Engineering
 **Description:** Test system resilience under failure conditions
 **Acceptance Criteria:**
 - [ ] **LLM provider failures**:
@@ -387,7 +388,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-14: Security Test Suite
 **Priority:** P0 (security-critical)
-**Phase:** 2, 6, 7 (integrated)
+**Phase:** 2, 7, 8 (integrated)
 **Description:** Fuzz testing, OWASP Top 10, dependency scanning
 **Acceptance Criteria:**
 - [ ] **Fuzz testing** (integrated into AR-08, AR-09):
@@ -410,7 +411,7 @@ These are in scope for this initiative. Implementation pending.
 
 ### AR-15: 80% Coverage Target Achievement
 **Priority:** P1 (goal)
-**Phase:** 11 - Gap Filling
+**Phase:** 12 - Gap Filling
 **Description:** Reach 80% coverage with focus on critical paths
 **Acceptance Criteria:**
 - [ ] **Overall coverage**: ≥80% line coverage
@@ -432,6 +433,133 @@ These are in scope for this initiative. Implementation pending.
 **Rationale:** 80% coverage is the goal, but critical paths need 100%.
 **Dependencies:** All previous phases
 **Estimated:** 5-7 days
+
+### AR-16: Hybrid Retrieval Implementation
+**Priority:** P1 (high value)
+**Phase:** 4 - Hybrid Retrieval Enhancement
+**Description:** Implement FastEmbed for initial indexing and Sentence Transformers for reranking to improve retrieval quality
+**Acceptance Criteria:**
+- [ ] **FastEmbed integration**:
+  - [ ] FastEmbed model initialization (BAAI/bge-small-en-v1.5, 384-dim vectors)
+  - [ ] Batch embedding generation for episode indexing
+  - [ ] Fast vector similarity search (<20ms for 10k episodes)
+  - [ ] Local-only execution (no API calls, privacy-preserving)
+- [ ] **Sentence Transformers reranking**:
+  - [ ] Sentence Transformers model integration (BAAI/bge-large-en-v1.5, 1024-dim vectors)
+  - [ ] Top-k candidate selection (k=50-100 from FastEmbed results)
+  - [ ] Reranking with higher-quality embeddings
+  - [ ] Fallback to FastEmbed if reranking fails
+- [ ] **Hybrid retrieval pipeline**:
+  - [ ] FastEmbed coarse search (retrieve top-k candidates)
+  - [ ] Sentence Transformers fine reranking (reorder top-k by relevance)
+  - [ ] Unified API for semantic retrieval
+  - [ ] Caching strategy (embeddings cached in LanceDB)
+- [ ] **Performance targets**:
+  - [ ] FastEmbed indexing: <10ms per episode
+  - [ ] Coarse search: <20ms for top-100 candidates
+  - [ ] Reranking: <150ms for top-50 candidates
+  - [ ] Total latency: <200ms end-to-end
+**Rationale:** FastEmbed provides fast, local embeddings for initial candidate retrieval. Sentence Transformers provides higher-quality embeddings for reranking top candidates, improving relevance while maintaining performance.
+**Dependencies:** Phase 1 (test infrastructure), Phase 2 (database invariants), Phase 3 (memory layer)
+**Estimated:** 3-5 days
+
+### AR-17: Retrieval Quality Testing
+**Priority:** P1 (high value)
+**Phase:** 4 - Hybrid Retrieval Enhancement
+**Description:** Property tests for retrieval accuracy, latency, and consistency with FastEmbed and Sentence Transformers
+**Acceptance Criteria:**
+- [ ] **Quality improvements**:
+  - [ ] Recall@10: >90% (FastEmbed alone: ~80%)
+  - [ ] NDCG@10: >0.85 (vs. ~0.70 for FastEmbed alone)
+  - [ ] Relevance score improvement: >15% boost
+- [ ] **Property tests** (AR-12):
+  - [ ] Top-k candidates always include best matches (no false negatives)
+  - [ ] Reranking never decreases relevance scores (monotonic improvement)
+  - [ ] Fallback maintains FastEmbed baseline quality
+  - [ ] Embedding consistency (same input → same embedding)
+- [ ] **Performance tests**:
+  - [ ] End-to-end latency <200ms for semantic retrieval
+  - [ ] Coarse search <20ms for top-100 candidates
+  - [ ] Reranking <150ms for top-50 candidates
+- [ ] **Fallback tests**:
+  - [ ] Sentence Transformers failure → FastEmbed fallback
+  - [ ] Network timeout → cached embeddings
+  - [ ] Model loading error → graceful degradation
+**Rationale:** Property tests verify retrieval invariants and ensure quality improvements. Fallback testing ensures system resilience.
+**Dependencies:** AR-16 (Hybrid Retrieval Implementation)
+**Estimated:** 3-5 days (combined with AR-16)
+
+### AR-18: CI/CD Pipeline Reliability
+**Priority:** P0 (blocks deployment)
+**Phase:** 13 - CI/CD Pipeline Fixes
+**Description:** Ensure all CI/CD checks pass consistently and reliably
+**Acceptance Criteria:**
+- [ ] **CI stability**:
+  - [ ] CI pass rate: 100% (all checks pass consistently)
+  - [ ] 20 consecutive successful CI runs
+  - [ ] Zero intermittent failures
+- [ ] **Failure analysis**:
+  - [ ] Identify all flaky tests (inconsistent failures)
+  - [ ] Identify timeout issues (tests exceeding limits)
+  - [ ] Identify resource constraints (memory, CPU, disk)
+  - [ ] Baseline CI metrics documented
+- [ ] **Root cause fixes**:
+  - [ ] Fix test ordering dependencies (tests run independently)
+  - [ ] Fix async race conditions (explicit coordination)
+  - [ ] Fix resource leaks (connections, files, threads)
+  - [ ] Add retries for transient failures (network, external services)
+**Rationale:** CI/CD reliability is critical for deployment confidence. Failing checks block releases and erode trust in test suite.
+**Dependencies:** All previous phases (complete test suite required)
+**Estimated:** 3-5 days
+
+### AR-19: Test Suite Determinism
+**Priority:** P0 (blocks reliability)
+**Phase:** 13 - CI/CD Pipeline Fixes
+**Description:** Eliminate flaky tests and ensure reproducible results
+**Acceptance Criteria:**
+- [ ] **Flaky test elimination**:
+  - [ ] Flaky test rate: 0% (verified over 10 runs per test)
+  - [ ] All tests pass consistently across multiple runs
+  - [ ] Test isolation enforced (no shared state between tests)
+- [ ] **Determinism improvements**:
+  - [ ] Remove time dependencies (use fixed timestamps, fake timers)
+  - [ ] Remove randomness from tests (seed random number generators)
+  - [ ] Explicit async coordination (no race conditions)
+  - [ ] Fixed test execution order (shuffle to detect dependencies)
+- [ ] **Verification**:
+  - [ ] Run full test suite 10 times consecutively
+  - [ ] All 10 runs produce identical results
+  - [ ] Document remaining non-determinism (if any)
+**Rationale:** Flaky tests erode trust in CI and make it impossible to detect real failures. Deterministic tests ensure reliable CI/CD.
+**Dependencies:** AR-18 (CI stability analysis)
+**Estimated:** 3-5 days (combined with AR-18)
+
+### AR-20: Pipeline Performance
+**Priority:** P1 (optimization)
+**Phase:** 13 - CI/CD Pipeline Fixes
+**Description:** Optimize CI/CD pipeline for fast feedback
+**Acceptance Criteria:**
+- [ ] **Execution time**:
+  - [ ] Full test suite: <30 minutes (target: 20 minutes)
+  - [ ] Unit tests: <5 minutes
+  - [ ] Integration tests: <10 minutes
+  - [ ] Property tests: <15 minutes
+- [ ] **Parallelization**:
+  - [ ] pytest-xdist configured (split tests across workers)
+  - [ ] Test suite split into chunks (unit, integration, property)
+  - [ ] Worker count optimized (based on CI resources)
+- [ ] **Caching**:
+  - [ ] Docker layer caching ( dependencies, images)
+  - [ ] pip package caching (wheelhouse for compiled packages)
+  - [ ] Test fixture caching (database snapshots, test data)
+  - [ ] Dependency caching (GitHub Actions cache, proper cache keys)
+- [ ] **Monitoring**:
+  - [ ] CI metrics dashboard (pass rate, execution time trends)
+  - [ ] Performance alerting (notify on slowdowns)
+  - [ ] Bottleneck identification (track slow tests)
+**Rationale:** Fast CI feedback enables rapid iteration. Slow pipelines delay releases and frustrate developers.
+**Dependencies:** AR-18 (CI stability analysis)
+**Estimated:** 3-5 days (combined with AR-18)
 
 ---
 
@@ -486,19 +614,24 @@ The initiative is successful when:
 | AR-02: Test infrastructure | 1 | P0 | None | 1-2 days |
 | AR-03: Core invariants | 2 | P0 | AR-02 | 3-5 days |
 | AR-04: LLM integration | 2 | P0 | AR-02, AR-03 | 3-5 days (combined) |
-| AR-05: Agent governance | 4 | P0 | AR-03, AR-06 | 4-5 days |
+| AR-05: Agent governance | 5 | P0 | AR-03, AR-06 | 4-5 days |
 | AR-06: Episodic memory | 3 | P1 | AR-03 | 3-4 days |
-| AR-07: Social layer | 5 | P2 | AR-05, AR-06 | 3-4 days |
-| AR-08: Community skills | 6 | P1 | AR-05 | 4-5 days |
-| AR-09: Local agent | 7 | P0 | AR-05 | 3-4 days |
-| AR-10: IM adapters | 8 | P2 | AR-05 | 2-3 days |
-| AR-11: Three-tier LLM testing | 9 | P1 | All previous | 3-4 days |
-| AR-12: Property-based expansion | 2-10 | P1 | AR-03 | Ongoing |
-| AR-13: Chaos engineering | 10 | P3 | All previous | 3-4 days |
-| AR-14: Security test suite | 2,6,7 | P0 | AR-03, AR-08, AR-09 | 2-3 days (integrated) |
-| AR-15: 80% coverage | 11 | P1 | All previous | 5-7 days |
+| AR-07: Social layer | 6 | P2 | AR-05, AR-06 | 3-4 days |
+| AR-08: Community skills | 7 | P1 | AR-05 | 4-5 days |
+| AR-09: Local agent | 8 | P0 | AR-05 | 3-4 days |
+| AR-10: IM adapters | 9 | P2 | AR-05 | 2-3 days |
+| AR-11: Three-tier LLM testing | 10 | P1 | All previous | 3-4 days |
+| AR-12: Property-based expansion | 2-11 | P1 | AR-03 | Ongoing |
+| AR-13: Chaos engineering | 11 | P3 | All previous | 3-4 days |
+| AR-14: Security test suite | 2,7,8 | P0 | AR-03, AR-08, AR-09 | 2-3 days (integrated) |
+| AR-15: 80% coverage | 12 | P1 | All previous | 5-7 days |
+| **AR-16: Hybrid retrieval implementation** | **4** | **P1** | **AR-02, AR-03, AR-06** | **3-5 days** |
+| **AR-17: Retrieval quality testing** | **4** | **P1** | **AR-16** | **3-5 days (combined)** |
+| **AR-18: CI/CD pipeline reliability** | **13** | **P0** | **All previous** | **3-5 days** |
+| **AR-19: Test suite determinism** | **13** | **P0** | **AR-18** | **3-5 days (combined)** |
+| **AR-20: Pipeline performance** | **13** | **P1** | **AR-18** | **3-5 days (combined)** |
 
-**Total Estimated Time:** 35-50 days
+**Total Estimated Time:** 43-63 days
 
 ---
 

@@ -15,7 +15,8 @@ import os
 from unittest.mock import Mock, AsyncMock, patch
 from sqlalchemy.orm import Session
 
-from core.host_shell_service import host_shell_service, COMMAND_WHITELIST, BLOCKED_COMMANDS
+from core.host_shell_service import host_shell_service, HostShellService
+from core.command_whitelist import COMMAND_WHITELIST
 from core.models import ShellSession, AgentRegistry
 
 
