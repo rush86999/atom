@@ -1,0 +1,19 @@
+{
+  "history": [
+    {
+      "phase": "01-foundation-infrastructure", 
+      "overall_coverage": 5.131879212439633, 
+      "covered_lines": 2901, 
+      "plan": "01-baseline-coverage", 
+      "missing_lines": 53628, 
+      "date": "2026-02-17T05:04:04.685575", 
+      "modules": {
+        "": {
+          "covered": 2901, 
+          "total": 56529
+        }
+      }, 
+      "total_lines": 56529
+    }
+  ]
+}

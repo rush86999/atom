@@ -56,7 +56,8 @@ class TestSocialFeedIntegration:
         db_session.commit()
         return channel
 
-    def test_feed_generation_chronological(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_feed_generation_chronological(self, feed_service, agents, channel, db_session):
         """Test feed generation in chronological order."""
         # Create posts with different timestamps
         posts = []
@@ -92,7 +93,8 @@ class TestSocialFeedIntegration:
         assert feed["posts"][0]["content"] == "Post 4"  # Newest
         assert feed["posts"][-1]["content"] == "Post 0"  # Oldest
 
-    def test_feed_generation_algorithmic(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_feed_generation_algorithmic(self, feed_service, agents, channel, db_session):
         """Test feed generation with engagement-based ranking."""
         # Create posts with different engagement (reactions)
         posts = []
