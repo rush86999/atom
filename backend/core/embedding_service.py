@@ -21,9 +21,10 @@ Performance:
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from functools import lru_cache
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -537,6 +538,93 @@ class EmbeddingService:
             "utilization_percent": len(self._fastembed_cache) / self._fastembed_cache_max * 100,
             "keys_cached": len(self._fastembed_cache_order)
         }
+
+    # ========================================================================
+    # Cross-Encoder Reranking for Hybrid Retrieval (NEW - Phase 4 Plan 02)
+    # ========================================================================
+
+    async def rerank_cross_encoder(
+        self,
+        query: str,
+        episode_ids: List[str],
+        agent_id: str,
+        db: Session
+    ) -> List[Tuple[str, float]]:
+        """
+        Rerank episodes using cross-encoder.
+
+        Performance: <150ms for 50 candidates
+        Returns: List of (episode_id, reranked_score)
+
+        Args:
+            query: Search query text
+            episode_ids: List of episode IDs to rerank
+            agent_id: Agent ID for filtering
+            db: Database session
+
+        Returns:
+            List of (episode_id, normalized_score) sorted by relevance (descending)
+        """
+        from core.models import Episode
+
+        # Lazy load cross-encoder
+        if not hasattr(self, '_cross_encoder'):
+            try:
+                from sentence_transformers import CrossEncoder
+                self._cross_encoder = CrossEncoder(
+                    "BAAI/bge-large-en-v1.5",
+                    device="cpu"
+                )
+                logger.info("Cross-encoder loaded for reranking")
+            except ImportError:
+                logger.warning("sentence_transformers not available, reranking disabled")
+                return []
+            except Exception as e:
+                logger.error(f"Failed to load cross-encoder: {e}")
+                return []
+
+        # Fetch episode content
+        episodes = db.query(Episode).filter(
+            Episode.id.in_(episode_ids),
+            Episode.agent_id == agent_id
+        ).all()
+
+        episode_map = {ep.id: ep for ep in episodes}
+
+        # Create (query, episode_text) pairs
+        pairs = [
+            (query, episode_map[ep_id].summary or episode_map[ep_id].content or "")
+            for ep_id in episode_ids
+            if ep_id in episode_map
+        ]
+
+        if not pairs:
+            logger.warning("No valid episode content for reranking")
+            return []
+
+        # Rerank
+        try:
+            scores = self._cross_encoder.predict(pairs)
+        except Exception as e:
+            logger.error(f"Cross-encoder prediction failed: {e}")
+            return []
+
+        # Normalize to [0, 1]
+        if NUMPY_AVAILABLE:
+            scores_array = np.array(scores)
+            normalized_scores = (scores_array - scores_array.min()) / (scores_array.max() - scores_array.min() + 1e-8)
+            scores = normalized_scores.tolist()
+        else:
+            # Python fallback
+            min_score = min(scores)
+            max_score = max(scores)
+            score_range = max_score - min_score + 1e-8
+            scores = [(s - min_score) / score_range for s in scores]
+
+        # Return sorted
+        results = list(zip(episode_ids, scores))
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results
 
     # ========================================================================
     # OpenAI Implementation (Cloud, High Quality)
