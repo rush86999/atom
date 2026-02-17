@@ -12,6 +12,37 @@ A comprehensive testing initiative to achieve 80% code coverage across the Atom 
 
 **Important**: The original 80% coverage target was set without considering codebase scale. Phase 8 achieved a 216% improvement (4.4% → 15.87%) and built the infrastructure for continued coverage growth. Reaching 80% is a multi-quarter journey requiring 45+ additional plans over 4-6 weeks. See "Phase 8 Reality Assessment" below for details.
 
+---
+
+## New Initiative: Atom 80% Test Coverage - State Management (2026-02-17)
+
+**Status**: Phase 1 Planning Complete - READY TO START
+
+This is a fresh testing initiative focusing on state management and AI component coverage. While previous phases established strong infrastructure, this initiative targets specific gaps in governance, LLM, memory, agents, social, skills, local agent, and IM adapter testing.
+
+### Phase 1: Foundation & Infrastructure (NEW)
+
+**Goal**: Establish baseline coverage measurement and standardize test infrastructure for state management testing
+
+**Status**: 2 plans created, Wave 1 (parallel execution)
+
+**Plans**:
+- [ ] 01-foundation-infrastructure-01-PLAN.md — Baseline Coverage Measurement
+  - Generate comprehensive coverage report (HTML, JSON, terminal)
+  - Analyze gaps in AI components (governance, LLM, memory, agents, social, skills, local agent, IM)
+  - Catalog uncovered lines in critical services
+  - Create BASELINE_COVERAGE.md and CRITICAL_PATHS_UNCOVERED.md
+- [ ] 01-foundation-infrastructure-02-PLAN.md — Test Infrastructure Standardization
+  - Standardize conftest.py with maturity-specific fixtures (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+  - Add mock_llm_response and mock_embedding_vectors fixtures
+  - Verify Hypothesis settings (max_examples=200 local, 50 CI)
+  - Create test utilities module (helpers, assertions)
+  - Document TEST_STANDARDS.md
+
+**Estimated**: 1.5-2.5 days for both plans
+
+---
+
 ## Phases
 
 **Phase Numbering:**
@@ -22,6 +53,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Infrastructure** - Establish pytest configuration, parallel execution, test data factories, coverage reporting, quality gates, and CI integration
 - [x] **Phase 2: Core Property Tests** - Implement Hypothesis-based property tests for governance, episodic memory, database transactions, API contracts, state management, event handling, and file operations
+- [ ] **Phase 3: Memory Layer** - Episodic memory coverage verification (segmentation, retrieval, lifecycle, graduation integration)
+  - Plan 01: Verify episodic memory test coverage — Property tests for segmentation (time-gap, topic change, task completion), retrieval (temporal, semantic, sequential, contextual), lifecycle (decay, consolidation, archival), graduation (readiness scores, constitutional compliance), and AR-12 invariants (no duplicates, sorted, ranked)
 - [x] **Phase 3: Integration & Security Tests** - Build integration tests for API endpoints, database transactions, WebSockets, external services, and security flows (authentication, authorization, input validation, canvas security, JWT, OAuth, episode access)
 - [x] **Phase 4: Platform Coverage** - Extend test coverage to React Native mobile components and Tauri desktop/menu bar applications
 - [x] **Phase 5: Coverage & Quality Validation** - Achieve 80% coverage across all domains, validate test quality (parallel execution, no shared state, no flaky tests), and create comprehensive documentation
@@ -73,6 +106,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [ ] 14-01-PLAN.md — Skill Adapter (parse SKILL.md, wrap as LangChain BaseTool)
   - [ ] 14-02-PLAN.md — Hazard Sandbox (Docker isolation with resource limits)
   - [ ] 14-03-PLAN.md — Skills Registry (import UI, LLM security scan, governance)
+- [ ] **Phase 17: Agent Layer Testing** - Comprehensive test coverage for agent governance, graduation, context resolution, execution orchestration, and agent-to-agent communication
+  - Plan 01: Agent Governance & Maturity Routing — 4x4 maturity/complexity matrix tests, action complexity validation (60+ actions), governance cache performance
+  - Plan 02: Agent Graduation & Context Resolution — Graduation readiness scoring, exam execution, trigger interceptor routing
+  - Plan 03: Agent Execution & Coordination — Execution orchestration, agent-to-agent communication, coordination invariants
+  - Estimated Plans: 3 plans (2-3 days)
+  - Status: Planning Complete (3 plans created)
+  **Plans**: 3 plans
+  - [ ] 17-agent-layer-01-PLAN.md — Agent Governance & Maturity Routing (Wave 1)
+  - [ ] 17-agent-layer-02-PLAN.md — Agent Graduation & Context Resolution (Wave 2)
+  - [ ] 17-agent-layer-03-PLAN.md — Agent Execution & Coordination (Wave 2)
 
 ## Phase Details
 
@@ -94,24 +137,49 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 01-test-infrastructure-05-PLAN.md — Implement assertion density quality gate and factory documentation
 
 ### Phase 2: Core Property Tests
-**Goal**: Property-based tests verify critical system invariants for governance, episodic memory, database, API, state, events, and file operations
+**Goal**: Property-based tests verify critical system invariants for governance, LLM integration, database, API, state, events, files, and security
 **Depends on**: Phase 1
-**Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05, PROP-06, PROP-07, QUAL-04, QUAL-05, DOCS-02
+**Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05, PROP-06, PROP-07, QUAL-04, QUAL-05, DOCS-02, AR-04, AR-14
 **Success Criteria** (what must be TRUE):
   1. Property tests verify governance invariants (agent maturity levels, permissions matrix, confidence scores) with bug-finding evidence documented
-  2. Property tests verify episodic memory invariants (segmentation boundaries, retrieval accuracy, graduation criteria) with bug-finding evidence documented
-  3. Property tests verify database transaction invariants (ACID properties, constraints) with bug-finding evidence documented
-  4. Each property test documents the invariant being tested and includes VALIDATED_BUG section in docstrings
-  5. INVARIANTS.md documents all invariants externally with test locations and max_examples values
-  6. Strategic max_examples: 200 for critical invariants (financial, security, data loss), 100 for standard, 50 for IO-bound
-**Plans**: 7 plans
-- [x] 02-core-property-tests-01-PLAN.md — Enhance governance property tests with bug-finding evidence documentation
-- [x] 02-core-property-tests-02-PLAN.md — Enhance episodic memory property tests with bug-finding evidence documentation
-- [x] 02-core-property-tests-03-PLAN.md — Enhance database transaction property tests with ACID invariant documentation
-- [x] 02-core-property-tests-04-PLAN.md — Enhance API contract property tests with validation error documentation
-- [x] 02-core-property-tests-05-PLAN.md — Enhance state management property tests with rollback sync documentation
-- [x] 02-core-property-tests-06-PLAN.md — Enhance event handling property tests with ordering batching documentation
-- [x] 02-core-property-tests-07-PLAN.md — Enhance file operations property tests with security path documentation
+  2. Property tests verify LLM integration invariants (provider fallback, streaming completion, token counting, cost calculation) with bug-finding evidence
+  3. Property tests verify database transaction invariants (ACID properties, cascade deletions, constraints) with bug-finding evidence documented
+  4. Security tests verify OWASP Top 10 coverage (injection, broken auth, XSS, CSRF, misconfiguration) with fuzz testing
+  5. Each property test documents the invariant being tested and includes VALIDATED_BUG section in docstrings
+  6. INVARIANTS.md documents all invariants externally with test locations and max_examples values
+  7. Strategic max_examples: 200 for critical invariants (financial, security, data loss), 100 for standard, 50 for IO-bound
+**Plans**: 9 plans (3 waves)
+- [x] 02-core-property-tests-01-PLAN.md — Enhance governance property tests with bug-finding evidence documentation (Wave 1)
+- [x] 02-core-property-tests-02-PLAN.md — Enhance episodic memory property tests with bug-finding evidence documentation (Wave 1)
+- [x] 02-core-property-tests-03-PLAN.md — Enhance database transaction property tests with ACID and cascade deletion invariants (Wave 1)
+- [x] 02-core-property-tests-04-PLAN.md — Enhance API contract property tests with validation error documentation (Wave 2)
+- [x] 02-core-property-tests-05-PLAN.md — Enhance state management property tests with rollback sync documentation (Wave 2)
+- [x] 02-core-property-tests-06-PLAN.md — Enhance event handling property tests with ordering batching documentation (Wave 2)
+- [x] 02-core-property-tests-07-PLAN.md — Enhance file operations property tests with security path documentation (Wave 2)
+- [x] 02-core-property-tests-08-PLAN.md — Implement LLM integration property tests (provider fallback, streaming, token counting, cost) (Wave 1)
+- [x] 02-core-property-tests-09-PLAN.md — Implement comprehensive security test suite (fuzzing, OWASP Top 10, dependency scanning) (Wave 1)
+
+### Phase 3: Memory Layer
+**Goal**: Episodic memory coverage verification - test segmentation, retrieval, lifecycle, graduation integration with property-based invariants
+**Depends on**: Phase 2 (property test infrastructure)
+**Requirements**: AR-06 (Episodic Memory Coverage), AR-12 (Property-Based Testing Expansion)
+**Success Criteria** (what must be TRUE):
+  1. Segmentation tests verify time-gap detection (>30min threshold), topic change detection (similarity <0.75), task completion boundaries
+  2. Retrieval tests verify temporal (sorted by time), semantic (ranked by similarity), sequential (full episodes), contextual (hybrid) retrieval
+  3. AR-12 property tests verified: no duplicates in retrieval, temporal queries sorted, semantic results ranked
+  4. Lifecycle tests verify decay (90-day threshold, 180-day archival), consolidation (similarity-based), archival to LanceDB
+  5. Graduation tests verify episode counts (10/25/50), intervention rates (50%/20%/0%), constitutional scores (0.70/0.85/0.95)
+  6. Performance SLAs met: episode creation <5s, temporal retrieval <10ms, semantic retrieval <100ms
+**Plans**: 1 plan (verification-focused)
+- [ ] 03-memory-layer-01-PLAN.md — Verify episodic memory test coverage (property-based invariants for segmentation, retrieval, lifecycle, graduation)
+  - Task 1: Verify segmentation coverage (time-gap, topic change, task completion, canvas-aware, feedback-linked)
+  - Task 2: Verify retrieval coverage (temporal sorted, semantic ranked, sequential, contextual, no duplicates, AR-12)
+  - Task 3: Verify graduation coverage (readiness scores [0-100], constitutional compliance, supervision metrics)
+  - Task 4: Verify lifecycle coverage (decay, consolidation, archival, importance updates)
+  - Task 5: Verify performance SLAs (creation <5s, temporal <10ms, semantic <100ms)
+  - Task 6: Run full episodic memory test suite (property, unit, integration tests)
+**Estimated Impact**: 0% new code (verification only), ~10,000 lines of existing episodic memory tests validated
+**Estimated Duration**: 2-3 hours (verification + documentation)
 
 ### Phase 3: Integration & Security Tests
 **Goal**: Integration tests validate component interactions and security tests validate authentication, authorization, input validation, and access control
@@ -745,10 +813,115 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
 - [x] 15-04-PLAN.md — Deployment runbooks (deployment procedures, operations guide, troubleshooting) ✅
 - [x] 15-05-PLAN.md — Code quality standards (type hints, MyPy, error handling) ✅
 
+### Phase 16: Hybrid Retrieval Enhancement
+**Goal**: Implement and test hybrid retrieval system combining FastEmbed (initial indexing) and Sentence Transformers (reranking)
+**Depends on**: Phase 15 (codebase completion)
+**Requirements**: AR-16 (Two-stage retrieval), AR-17 (Quality targets), AR-12 (Property testing)
+**Success Criteria** (what must be TRUE):
+  1. FastEmbed generates 384-dim embeddings in <20ms for coarse search (top-100 candidates)
+  2. Sentence Transformers cross-encoder reranks to top-50 in <150ms
+  3. Total retrieval latency <200ms (coarse + rerank + overhead)
+  4. Recall@10 >90% and NDCG@10 >0.85 (quality targets from research)
+  5. Fallback to FastEmbed results if reranking fails
+  6. Dimension consistency (384 vs 1024) verified with property tests
+  7. Dual vector columns stored in LanceDB (vector + vector_fastembed)
+**Plans**: 3 plans (2 waves)
+- [ ] 16-hybrid-retrieval-enhancement-01-PLAN.md — FastEmbed Integration (coarse search, caching, dual vector storage)
+- [ ] 16-hybrid-retrieval-enhancement-02-PLAN.md — Sentence Transformers Reranking (cross-encoder, fallback, API)
+- [ ] 16-hybrid-retrieval-enhancement-03-PLAN.md — Hybrid Retrieval Testing (property tests, quality, performance)
+
+### Phase 17: Agent Layer Testing
+**Goal**: Comprehensive test coverage for agent governance, graduation, context resolution, execution orchestration, and agent-to-agent communication
+**Depends on**: Phase 15 (codebase completion)
+**Requirements**: AR-05 (Agent Governance Coverage), AR-12 (Property-Based Testing Expansion)
+**Success Criteria** (what must be TRUE):
+  1. Agent maturity routing enforces correct permission gates for all 4x4 combinations (4 maturity levels × 4 action complexities)
+  2. Action complexity matrix correctly maps 60+ actions to 4 complexity levels
+  3. Governance cache performance meets SLA targets (>90% hit rate, <1ms latency)
+  4. Graduation readiness scores calculated correctly with 40/30/30 weighting (episodes/intervention/constitutional)
+  5. All 3 promotion thresholds enforced (episode count, intervention rate, constitutional compliance)
+  6. Trigger interceptor routes all 4 maturity levels correctly (STUDENT→training, INTERN→proposal, SUPERVISED→supervision, AUTONOMOUS→execution)
+  7. Context resolver fallback chain works (explicit agent_id → session agent → system default)
+  8. Agent execution orchestration validates governance→LLM→streaming→persistence pipeline
+  9. Agent-to-agent communication via social layer and event bus tested
+  10. Property-based tests validate agent coordination invariants
+**Plans**: 3 plans (2 waves)
+- [ ] 17-agent-layer-01-PLAN.md — Agent Governance & Maturity Routing (Wave 1)
+  - Maturity routing tests (4x4 matrix = 16 test cases)
+  - Action complexity matrix validation (60+ action mappings)
+  - Governance cache performance tests (hit rate, latency, LRU eviction)
+- [ ] 17-agent-layer-02-PLAN.md — Agent Graduation & Context Resolution (Wave 2)
+  - Graduation readiness scoring tests (calculate_readiness_score)
+  - Graduation exam sandbox execution tests (execute_exam, validate_constitutional)
+  - Trigger interceptor routing tests (4 routing paths with fallback chain)
+- [ ] 17-agent-layer-03-PLAN.md — Agent Execution & Coordination (Wave 2)
+  - Agent execution orchestration tests (end-to-end governance→LLM→streaming→persistence)
+  - Agent-to-agent communication tests (social layer, event bus, message delivery)
+  - Agent coordination invariants (property tests with Hypothesis)
+
+### Phase 18: Social Layer Testing
+**Goal**: Comprehensive test coverage for social post generation, PII redaction, agent-to-agent messaging, Redis pub/sub, and feed management
+**Depends on**: Phase 13 (OpenClaw Integration - social layer implementation)
+**Requirements**: AR-07 (Social Layer Coverage), AR-12 (Property-Based Testing Expansion)
+**Success Criteria** (what must be TRUE):
+  1. Social post generator tests verify GPT-4.1 mini NLG integration with >95% success rate
+  2. PII redactor tests verify >95% detection rate for all entities (EMAIL, SSN, CREDIT_CARD, PHONE, IBAN, IP_ADDRESS, etc.)
+  3. Property-based tests verify PII redaction invariant: redacted_text never contains original PII values
+  4. Agent-to-agent messaging tests verify FIFO ordering and zero lost messages
+  5. Redis pub/sub integration tests verify horizontal scaling for multi-instance deployments
+  6. Feed generation tests verify chronological ordering and filter behavior
+  7. Cursor pagination tests verify no duplicates even when new posts arrive
+  8. Property-based tests verify all AR-12 invariants (no duplicates, FIFO, no lost messages, feed stability)
+
+**Features**:
+1. **Post Generation Tests** (Plan 01):
+   - GPT-4.1 mini NLG tests (timeout, fallback, quality)
+   - Template fallback generation tests
+   - Rate limiting enforcement tests
+   - Significant operation detection tests
+   - Integration tests with agent governance
+
+2. **PII Redaction Tests** (Plan 01):
+   - Unit tests for all 10 entity types (EMAIL, SSN, CREDIT_CARD, PHONE, IBAN, IP_ADDRESS, US_BANK_NUMBER, US_DRIVER_LICENSE, URL, DATE_TIME)
+   - Allowlist functionality tests (support@atom.ai, etc.)
+   - Property-based tests for PII never leaks invariant
+   - Integration tests with social layer
+
+3. **Property-Based Tests** (Plan 01):
+   - Post generation invariants (280 char limit, rate limit honored)
+   - PII redaction invariants (idempotency, placeholder consistency)
+   - Social feed invariants (no duplicates, monotonic counters)
+
+4. **Agent Communication Tests** (Plan 02):
+   - EventBus unit tests (subscribe, unsubscribe, publish, topics)
+   - Redis pub/sub integration tests (horizontal scaling)
+   - WebSocket connection tests (connect, disconnect, ping/pong)
+   - Property-based tests for FIFO ordering, no lost messages
+
+5. **Feed Generation Tests** (Plan 02):
+   - Chronological ordering verification
+   - Filter tests (post_type, sender, channel, is_public)
+   - Cursor pagination tests (no duplicates invariant)
+   - Channel isolation tests
+   - Real-time update tests
+
+**Estimated Impact**: +2-3% overall coverage (social layer modules: social_post_generator, pii_redactor, agent_communication, agent_social_layer)
+**Estimated Duration**: 2 plans (1-2 days)
+
+**Plans**: 2 plans (Wave 1, parallel execution)
+- [ ] 18-social-layer-testing-01-PLAN.md — Post Generation & PII Redaction (unit + property tests)
+  - Social post generator tests (GPT-4.1 mini, template fallback, rate limiting)
+  - PII redactor tests (10 entity types, allowlist, property-based invariants)
+  - Property-based tests for social layer invariants (no PII leaks, idempotency)
+- [ ] 18-social-layer-testing-02-PLAN.md — Communication & Feed Management (integration + property tests)
+  - Agent-to-agent messaging tests (EventBus, Redis pub/sub, WebSocket)
+  - Feed generation tests (chronological, filters, cursor pagination)
+  - Property-based tests for AR-12 invariants (no duplicates, FIFO, no lost messages)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0 → 9.1 → 10 → 11 → 12 → 13 → 14 → 15
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0 → 9.1 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
 
 | Phase | Plans Complete | Status | Completed | Coverage |
 |-------|----------------|--------|-----------|----------|
@@ -771,5 +944,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 13. OpenClaw Integration | 3/3 | **Complete** | 2026-02-16 | Host shell, social layer, installer |
 | 14. Community Skills Integration | 6/6 | **Complete** | 2026-02-16 | Skill adapter, sandbox, registry, episodic integration, daemon mode, Python execution |
 | 15. Codebase Completion & Quality Assurance | 5/5 | **Complete** | 2026-02-16 | Test infrastructure, code quality, production hardening, docs |
+| 16. Hybrid Retrieval Enhancement | 3/3 | **Ready** | - | Two-stage retrieval (FastEmbed coarse + ST rerank) |
+| 17. Agent Layer Testing | 0/3 | **Planning Complete** | - | Governance, graduation, execution, coordination |
+| 18. Social Layer Testing | 0/2 | **Planning Complete** | - | Post generation, PII redaction, communication, channels |
 
-**Overall Progress**: 115 plans completed out of ~115 estimated (100%)
+**Overall Progress**: 115 plans completed out of ~120 estimated (96%)
