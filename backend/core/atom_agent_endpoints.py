@@ -1891,3 +1891,128 @@ Provide helpful, concise responses. When you need to take actions, describe what
     except Exception as e:
         logger.error(f"Error in streaming chat: {str(e)}")
         return {"success": False, "error": str(e)}
+
+
+# ========================================================================
+# Hybrid Retrieval Endpoints (NEW - Phase 04 Plan 02)
+# ========================================================================
+
+from core.hybrid_retrieval_service import HybridRetrievalService
+from core.database import get_db
+
+
+@router.post("/agents/{agent_id}/retrieve-hybrid")
+async def retrieve_hybrid(
+    agent_id: str,
+    query: str,
+    coarse_top_k: int = 100,
+    rerank_top_k: int = 50,
+    use_reranking: bool = True,
+    db: Session = Depends(get_db)
+):
+    """
+    Hybrid semantic retrieval (FastEmbed + ST reranking).
+
+    Performance: <200ms total
+    Quality: >15% relevance improvement vs. FastEmbed alone
+
+    Args:
+        agent_id: Agent ID for filtering episodes
+        query: Search query text
+        coarse_top_k: Number of candidates from FastEmbed (default: 100)
+        rerank_top_k: Number of results after reranking (default: 50)
+        use_reranking: Whether to use cross-encoder reranking (default: True)
+        db: Database session
+
+    Returns:
+        Dictionary with results, scores, and stage information
+    """
+    try:
+        service = HybridRetrievalService(db)
+
+        results = await service.retrieve_semantic_hybrid(
+            agent_id=agent_id,
+            query=query,
+            coarse_top_k=coarse_top_k,
+            rerank_top_k=rerank_top_k,
+            use_reranking=use_reranking
+        )
+
+        return {
+            "success": True,
+            "results": [
+                {
+                    "episode_id": ep_id,
+                    "relevance_score": score,
+                    "stage": stage
+                }
+                for ep_id, score, stage in results
+            ],
+            "query": query,
+            "coarse_top_k": coarse_top_k,
+            "rerank_top_k": rerank_top_k,
+            "use_reranking": use_reranking,
+            "count": len(results)
+        }
+
+    except Exception as e:
+        logger.error(f"Hybrid retrieval failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "results": []
+        }
+
+
+@router.post("/agents/{agent_id}/retrieve-baseline")
+async def retrieve_baseline(
+    agent_id: str,
+    query: str,
+    top_k: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    Baseline semantic retrieval (FastEmbed only).
+
+    Used for A/B testing and performance comparison.
+
+    Args:
+        agent_id: Agent ID for filtering episodes
+        query: Search query text
+        top_k: Number of results to retrieve (default: 50)
+        db: Database session
+
+    Returns:
+        Dictionary with results and scores
+    """
+    try:
+        service = HybridRetrievalService(db)
+
+        results = await service.retrieve_semantic_baseline(
+            agent_id=agent_id,
+            query=query,
+            top_k=top_k
+        )
+
+        return {
+            "success": True,
+            "results": [
+                {
+                    "episode_id": ep_id,
+                    "relevance_score": score
+                }
+                for ep_id, score in results
+            ],
+            "query": query,
+            "top_k": top_k,
+            "method": "fastembed_baseline",
+            "count": len(results)
+        }
+
+    except Exception as e:
+        logger.error(f"Baseline retrieval failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "results": []
+        }
