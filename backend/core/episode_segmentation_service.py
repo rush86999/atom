@@ -177,12 +177,14 @@ class EpisodeSegmentationService:
 
         # 2. Get messages and executions
         messages = self.db.query(ChatMessage).filter(
-            ChatMessage.session_id == session_id
+            ChatMessage.conversation_id == session_id
         ).order_by(ChatMessage.created_at.asc()).all()
 
+        # Executions are linked by agent_id and time range (AgentExecution has no session_id field)
         executions = self.db.query(AgentExecution).filter(
-            AgentExecution.session_id == session_id
-        ).order_by(AgentExecution.created_at.asc()).all()
+            AgentExecution.agent_id == agent_id,
+            AgentExecution.started_at >= session.created_at
+        ).order_by(AgentExecution.started_at.asc()).all()
 
         # 2.5. Fetch canvas and feedback context (NEW)
         canvas_audits = self._fetch_canvas_context(session_id)
@@ -314,6 +316,10 @@ class EpisodeSegmentationService:
         topics = set()
 
         for m in messages:
+            # Handle missing or None content gracefully
+            if not m or not hasattr(m, 'content') or not m.content:
+                continue
+
             # Extract common words as topics (very basic)
             words = m.content.lower().split()
             topics.update([w for w in words if len(w) > 4][:3])
@@ -327,21 +333,27 @@ class EpisodeSegmentationService:
 
         # Extract from messages
         for msg in messages:
+            # Handle missing or None content gracefully
+            if not msg or not hasattr(msg, 'content') or not msg.content:
+                continue
+
+            content = msg.content
+
             # Email addresses
-            emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', msg.content)
+            emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', content)
             entities.update(emails)
 
             # Phone numbers (US format)
-            phones = re.findall(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', msg.content)
+            phones = re.findall(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', content)
             entities.update(phones)
 
             # URLs
-            urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', msg.content)
+            urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
             entities.update(urls)
 
             # Extract from metadata if available (ChatMessage may not have this field)
             metadata = getattr(msg, 'metadata_json', None)
-            if metadata:
+            if metadata and isinstance(metadata, dict):
                 for key, value in metadata.items():
                     if isinstance(value, str) and 3 < len(value) < 50:
                         # Filter for likely entities (alphanumeric with some special chars)
@@ -365,7 +377,7 @@ class EpisodeSegmentationService:
 
             # Extract from execution metadata if available
             metadata = getattr(exec, 'metadata_json', None)
-            if metadata:
+            if metadata and isinstance(metadata, dict):
                 for key, value in metadata.items():
                     if isinstance(value, str) and 3 < len(value) < 50:
                         entities.add(value)
