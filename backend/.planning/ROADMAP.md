@@ -1,9 +1,10 @@
 # Roadmap: Atom 80% Test Coverage Initiative
 
 **Created:** February 17, 2026
+**Updated:** February 17, 2026 (added Phase 4: Hybrid Retrieval + Phase 13: CI/CD Pipeline Fixes)
 **Goal:** 80% test coverage across AI-related components
-**Estimated:** 35-50 days
-**Phases:** 11
+**Estimated:** 43-63 days
+**Phases:** 13
 
 ---
 
@@ -14,16 +15,18 @@
 | 1 | Foundation & Infrastructure | Establish test infrastructure, baseline measurement, and quality standards | 2 | 1.5-2.5 days |
 | 2 | Core Invariants | Property-based tests for governance, LLM, database, and security | 3 | 3-5 days |
 | 3 | Memory Layer | Episodic memory coverage (segmentation, retrieval, lifecycle, graduation) | 2 | 3-4 days |
-| 4 | Agent Layer | Agent governance, maturity routing, permissions, graduation, execution | 3 | 4-5 days |
-| 5 | Social Layer | Social feed, PII redaction, communication, channels | 2 | 3-4 days |
-| 6 | Skills Layer | Community skills parsing, adaptation, sandbox, registry, security | 3 | 4-5 days |
-| 7 | Local Agent | Shell execution, directory permissions, command whitelist, security | 2 | 3-4 days |
-| 8 | IM Layer | Webhook handling, governance routing, rate limiting, audit logging | 2 | 2-3 days |
-| 9 | LLM Validation | Three-tier LLM testing (unit, integration, E2E) | 2 | 3-4 days |
-| 10 | Chaos Engineering | Failure injection and resilience testing | 2 | 3-4 days |
-| 11 | Gap Filling | Reach 80% coverage across all AI components | 3 | 5-7 days |
+| 4 | **Hybrid Retrieval Enhancement** | **FastEmbed + Sentence Transformers for improved retrieval quality** | 3 | 3-5 days |
+| 5 | Agent Layer | Agent governance, maturity routing, permissions, graduation, execution | 3 | 4-5 days |
+| 6 | Social Layer | Social feed, PII redaction, communication, channels | 2 | 3-4 days |
+| 7 | Skills Layer | Community skills parsing, adaptation, sandbox, registry, security | 3 | 4-5 days |
+| 8 | Local Agent | Shell execution, directory permissions, command whitelist, security | 2 | 3-4 days |
+| 9 | IM Layer | Webhook handling, governance routing, rate limiting, audit logging | 2 | 2-3 days |
+| 10 | LLM Validation | Three-tier LLM testing (unit, integration, E2E) | 2 | 3-4 days |
+| 11 | Chaos Engineering | Failure injection and resilience testing | 2 | 3-4 days |
+| 12 | Gap Filling | Reach 80% coverage across all AI components | 3 | 5-7 days |
+| 13 | **CI/CD Pipeline Fixes** | **Ensure all CI/CD checks pass consistently** | 3 | 3-5 days |
 
-**Total:** 11 phases, 29 plans, 35-50 days estimated
+**Total:** 13 phases, 35 plans, 43-63 days estimated
 
 ---
 
@@ -185,7 +188,71 @@
 
 ---
 
-## Phase 4: Agent Layer
+## Phase 4: Hybrid Retrieval Enhancement
+
+**Goal:** Implement and test hybrid retrieval system combining FastEmbed (initial indexing) and Sentence Transformers (reranking)
+
+**Plans:**
+- Plan 4-1: FastEmbed Integration - Implement FastEmbed for fast initial candidate retrieval with 384-dim vectors
+- Plan 4-2: Sentence Transformers Reranking - Implement high-quality reranking with Sentence Transformers on top-k candidates
+- Plan 4-3: Hybrid Retrieval Testing - Property tests for retrieval quality, performance, and consistency
+
+**Requirements:**
+- AR-16: Hybrid Retrieval Implementation - FastEmbed for initial indexing, Sentence Transformers for reranking top candidates
+- AR-17: Retrieval Quality Testing - Property tests for retrieval accuracy, latency, and consistency
+- AR-12: Property-Based Testing Expansion (Hybrid Retrieval) - Top-k candidates always include best matches, reranking improves relevance scores, latency <200ms
+
+**Dependencies:** Phase 1 (test infrastructure), Phase 2 (database invariants), Phase 3 (memory layer)
+
+**Estimated:** 3-5 days
+
+**Deliverables:**
+- [ ] **FastEmbed integration**:
+  - [ ] FastEmbed model initialization (BAAI/bge-small-en-v1.5, 384-dim vectors)
+  - [ ] Batch embedding generation for episode indexing
+  - [ ] Fast vector similarity search (<20ms for 10k episodes)
+  - [ ] Local-only execution (no API calls, privacy-preserving)
+- [ ] **Sentence Transformers reranking**:
+  - [ ] Sentence Transformers model integration (BAAI/bge-large-en-v1.5, 1024-dim vectors)
+  - [ ] Top-k candidate selection (k=50-100 from FastEmbed results)
+  - [ ] Reranking with higher-quality embeddings
+  - [ ] Fallback to FastEmbed if reranking fails
+- [ ] **Hybrid retrieval pipeline**:
+  - [ ] FastEmbed coarse search (retrieve top-k candidates)
+  - [ ] Sentence Transformers fine reranking (reorder top-k by relevance)
+  - [ ] Unified API for semantic retrieval
+  - [ ] Caching strategy (embeddings cached in LanceDB)
+- [ ] **Performance targets**:
+  - [ ] FastEmbed indexing: <10ms per episode
+  - [ ] Coarse search: <20ms for top-100 candidates
+  - [ ] Reranking: <150ms for top-50 candidates
+  - [ ] Total latency: <200ms end-to-end
+- [ ] **Quality improvements**:
+  - [ ] Recall@10: >90% (FastEmbed alone: ~80%)
+  - [ ] NDCG@10: >0.85 (vs. ~0.70 for FastEmbed alone)
+  - [ ] Relevance score improvement: >15% boost
+- [ ] **Property tests** (AR-12):
+  - [ ] Top-k candidates always include best matches (no false negatives)
+  - [ ] Reranking never decreases relevance scores (monotonic improvement)
+  - [ ] Fallback maintains FastEmbed baseline quality
+  - [ ] Embedding consistency (same input → same embedding)
+
+**Success Criteria:**
+- [ ] FastEmbed integrated with local embedding generation
+- [ ] Sentence Transformers integrated for reranking
+- [ ] Hybrid retrieval pipeline operational with <200ms latency
+- [ ] Property tests verify retrieval invariants (top-k quality, monotonic improvement, fallback)
+- [ ] Quality metrics improved vs. FastEmbed alone (recall, NDCG, relevance)
+- [ ] Comprehensive test coverage (>90% for retrieval code)
+
+**Pitfalls Addressed:**
+- Performance regression (Pitfall #5) - Baseline performance measured before optimization
+- Integration test fragility (Pitfall #3) - Mock embeddings for deterministic testing
+- Fallback testing (Pitfall #6) - Explicit failure scenarios tested
+
+---
+
+## Phase 5: Agent Layer
 
 **Goal:** Agent governance, maturity routing, permissions, graduation, execution, and coordination
 
@@ -247,19 +314,19 @@
 
 ---
 
-## Phase 5: Social Layer
+## Phase 6: Social Layer
 
 **Goal:** Social feed, PII redaction, communication, and channels
 
 **Plans:**
-- Plan 5-1: Post Generation & PII Redaction - Test GPT-4.1 mini NLG, Microsoft Presidio integration
-- Plan 5-2: Communication & Feed Management - Test agent-to-agent messaging, Redis pub/sub, feed generation
+- Plan 6-1: Post Generation & PII Redaction - Test GPT-4.1 mini NLG, Microsoft Presidio integration
+- Plan 6-2: Communication & Feed Management - Test agent-to-agent messaging, Redis pub/sub, feed generation
 
 **Requirements:**
 - AR-07: Social Layer Coverage - Test post generation, PII redaction, communication, channels
 - AR-12: Property-Based Testing Expansion (Social Layer) - Feed pagination never returns duplicates, message ordering FIFO, PII redaction never leaks
 
-**Dependencies:** Phase 4 (agent layer), Phase 3 (memory layer)
+**Dependencies:** Phase 5 (agent layer), Phase 3 (memory layer)
 
 **Estimated:** 3-4 days
 
@@ -298,21 +365,21 @@
 
 ---
 
-## Phase 6: Skills Layer
+## Phase 7: Skills Layer
 
 **Goal:** Community skills parsing, adaptation, sandbox, registry, and security
 
 **Plans:**
-- Plan 6-1: Skill Parsing & Adaptation - Test SKILL.md parsing, LangChain BaseTool wrapping
-- Plan 6-2: Skill Sandbox & Security - Test Docker isolation, fuzz testing, security scanning
-- Plan 6-3: Skill Registry & Execution - Test Untrusted → Active → Banned transitions, audit logging
+- Plan 7-1: Skill Parsing & Adaptation - Test SKILL.md parsing, LangChain BaseTool wrapping
+- Plan 7-2: Skill Sandbox & Security - Test Docker isolation, fuzz testing, security scanning
+- Plan 7-3: Skill Registry & Execution - Test Untrusted → Active → Banned transitions, audit logging
 
 **Requirements:**
 - AR-08: Community Skills Coverage - Test parsing, adaptation, sandbox, registry, security scanning
 - AR-12: Property-Based Testing Expansion (Skills) - SKILL.md parsing succeeds for valid YAML, sandboxed skills cannot access host, security scanner detects 90% of malicious patterns
 - AR-14: Security Test Suite (Skills) - Fuzz testing for SKILL.md files, Docker escape attempts blocked, command injection prevention
 
-**Dependencies:** Phase 4 (agent layer - for governance)
+**Dependencies:** Phase 5 (agent layer - for governance)
 
 **Estimated:** 4-5 days
 
@@ -357,20 +424,20 @@
 
 ---
 
-## Phase 7: Local Agent
+## Phase 8: Local Agent
 
 **Goal:** Shell execution, directory permissions, command whitelist, and security
 
 **Plans:**
-- Plan 7-1: Shell Execution & Command Whitelist - Test command injection prevention, argument sanitization, timeout enforcement
-- Plan 7-2: Directory Permissions & Security - Test maturity-based access, path traversal prevention, fuzz testing
+- Plan 8-1: Shell Execution & Command Whitelist - Test command injection prevention, argument sanitization, timeout enforcement
+- Plan 8-2: Directory Permissions & Security - Test maturity-based access, path traversal prevention, fuzz testing
 
 **Requirements:**
 - AR-09: Local Agent Coverage - Test shell execution, directory permissions, command whitelist, security
 - AR-12: Property-Based Testing Expansion (Local Agent) - Shell execution timeout enforced (≤5 min), command whitelist blocks 100% of dangerous commands, AUTONOMOUS gate enforcement
 - AR-14: Security Test Suite (Local Agent) - Fuzz testing for shell inputs, host filesystem isolation, audit logging
 
-**Dependencies:** Phase 4 (agent governance)
+**Dependencies:** Phase 5 (agent governance)
 
 **Estimated:** 3-4 days
 
@@ -409,18 +476,18 @@
 
 ---
 
-## Phase 8: IM Layer
+## Phase 9: IM Layer
 
 **Goal:** Webhook handling, governance routing, rate limiting, and audit logging
 
 **Plans:**
-- Plan 8-1: Webhook Handling - Test Telegram/WhatsApp signature verification, parsing, replay prevention
-- Plan 8-2: Governance Routing & Rate Limiting - Test IM-triggered agent execution, rate limits, audit logging
+- Plan 9-1: Webhook Handling - Test Telegram/WhatsApp signature verification, parsing, replay prevention
+- Plan 9-2: Governance Routing & Rate Limiting - Test IM-triggered agent execution, rate limits, audit logging
 
 **Requirements:**
 - AR-10: IM Adapters Coverage - Test webhook handling, governance routing, rate limiting, audit logging
 
-**Dependencies:** Phase 4 (agent governance)
+**Dependencies:** Phase 5 (agent governance)
 
 **Estimated:** 2-3 days
 
@@ -455,13 +522,13 @@
 
 ---
 
-## Phase 9: LLM Validation
+## Phase 10: LLM Validation
 
 **Goal:** Three-tier LLM testing (unit, integration, E2E)
 
 **Plans:**
-- Plan 9-1: LLM Unit & Integration Tests - Mocked responses, real LLM at temperature=0, DeepEval metrics
-- Plan 9-2: LLM E2E Tests - Real LLM at temperature=0.7, statistical assertions, golden dataset
+- Plan 10-1: LLM Unit & Integration Tests - Mocked responses, real LLM at temperature=0, DeepEval metrics
+- Plan 10-2: LLM E2E Tests - Real LLM at temperature=0.7, statistical assertions, golden dataset
 
 **Requirements:**
 - AR-11: Three-Tier LLM Testing Strategy - Unit (mocks) + Integration (real LLM at temperature=0) + E2E (statistical)
@@ -495,13 +562,13 @@
 
 ---
 
-## Phase 10: Chaos Engineering
+## Phase 11: Chaos Engineering
 
 **Goal:** Test system resilience under failure conditions
 
 **Plans:**
-- Plan 10-1: LLM & Database Failures - Test provider timeouts, connection loss, query timeouts, deadlocks
-- Plan 10-2: Redis & Network Failures - Test pub/sub failures, cache misses, network partitions
+- Plan 11-1: LLM & Database Failures - Test provider timeouts, connection loss, query timeouts, deadlocks
+- Plan 11-2: Redis & Network Failures - Test pub/sub failures, cache misses, network partitions
 
 **Requirements:**
 - AR-13: Chaos Engineering Tests - Test system resilience under failure conditions
@@ -538,14 +605,14 @@
 
 ---
 
-## Phase 11: Gap Filling
+## Phase 12: Gap Filling
 
 **Goal:** Reach 80% coverage across all AI components
 
 **Plans:**
-- Plan 11-1: Coverage Analysis & Prioritization - Identify remaining gaps, prioritize critical paths
-- Plan 11-2: Targeted Test Development - Fill coverage gaps in high-priority areas
-- Plan 11-3: Final Validation & Documentation - Verify 80% coverage, update documentation
+- Plan 12-1: Coverage Analysis & Prioritization - Identify remaining gaps, prioritize critical paths
+- Plan 12-2: Targeted Test Development - Fill coverage gaps in high-priority areas
+- Plan 12-3: Final Validation & Documentation - Verify 80% coverage, update documentation
 
 **Requirements:**
 - AR-15: 80% Coverage Target Achievement - Reach 80% coverage with focus on critical paths
@@ -585,6 +652,64 @@
 
 ---
 
+## Phase 13: CI/CD Pipeline Fixes
+
+**Goal:** Ensure all CI/CD checks pass consistently and reliably
+
+**Plans:**
+- Plan 13-1: CI Stability Analysis - Identify flaky tests, timeouts, and resource constraints
+- Plan 13-2: Test Reliability Fixes - Fix flaky tests, reduce timeouts, improve determinism
+- Plan 13-3: Pipeline Optimization - Optimize execution time, cache dependencies, parallelize tests
+
+**Requirements:**
+- AR-18: CI/CD Pipeline Reliability - All CI/CD checks pass consistently with 100% reliability
+- AR-19: Test Suite Determinism - Eliminate flaky tests, ensure reproducible results
+- AR-20: Pipeline Performance - CI/CD pipeline executes in <30 minutes consistently
+
+**Dependencies:** All previous phases (test suite must be complete)
+
+**Estimated:** 3-5 days
+
+**Deliverables:**
+- [ ] **CI stability analysis**:
+  - [ ] Identify flaky tests (tests that fail inconsistently across runs)
+  - [ ] Identify timeout issues (tests that exceed time limits)
+  - [ ] Identify resource constraints (memory, CPU, disk space)
+  - [ ] Measure baseline CI metrics (pass rate, execution time, failure patterns)
+- [ ] **Test reliability fixes**:
+  - [ ] Fix flaky tests (remove time dependencies, improve isolation)
+  - [ ] Add explicit waits/synchronization for async tests
+  - [ ] Remove test ordering dependencies (tests can run in any order)
+  - [ ] Fix resource leaks (database connections, file handles, threads)
+- [ ] **Pipeline optimization**:
+  - [ ] Parallelize test execution with pytest-xdist (split across workers)
+  - [ ] Cache dependencies (Docker layers, pip packages, test fixtures)
+  - [ ] Optimize test database (use tmpfs, reduce I/O, connection pooling)
+  - [ ] Split test suite into faster chunks (unit, integration, property tests)
+- [ ] **Quality gates**:
+  - [ ] CI pass rate: 100% (all checks pass consistently)
+  - [ ] Test execution time: <30 minutes (target: 20 minutes)
+  - [ ] Flaky test rate: 0% (zero tolerance for flakes)
+  - [ ] Resource usage: within CI limits (memory, CPU, disk)
+- [ ] **Monitoring**:
+  - [ ] CI metrics dashboard (pass rate, execution time trends)
+  - [ ] Alert on failures (notify on CI failures, track trends)
+  - [ ] Flakiness detection (multi-run verification for new tests)
+
+**Success Criteria:**
+- [ ] All CI/CD checks pass 100% consistently (20 consecutive successful runs)
+- [ ] Test execution time <30 minutes (measured over 10 runs)
+- [ ] Zero flaky tests (verified over 10 runs per test)
+- [ ] CI metrics dashboard operational
+- [ ] Pipeline optimized and documented
+
+**Pitfalls Addressed:**
+- Flaky tests (Pitfall #4) - Explicit async coordination, isolation enforcement
+- Performance traps (Pitfall #5) - Baseline measurement, parallel execution, caching
+- CI infrastructure (Pitfall #6) - Resource limits, timeout tuning, dependency caching
+
+---
+
 ## Risk Register
 
 | Risk | Probability | Impact | Mitigation |
@@ -613,10 +738,11 @@ A phase is **DONE** when:
 
 The initiative is **COMPLETE** when:
 - [ ] 80% coverage achieved across all AI components
-- [ ] All 15 requirements met
+- [ ] All 20 requirements met
 - [ ] Critical paths 100% covered (governance, security, episodic memory, LLM integration)
-- [ ] Test suite stable (<1% flaky)
+- [ ] Test suite stable (0% flaky, verified over 10 runs)
 - [ ] Security tests passing (fuzzing, OWASP Top 10, dependency scanning)
+- [ ] CI/CD checks passing consistently (100% pass rate, 20+ consecutive runs)
 - [ ] Test suite executes in <30 minutes (pytest-xdist parallelization)
 - [ ] Tests are readable, documented, and follow patterns
 - [ ] Documentation updated (test suite README, coverage guide)
@@ -627,9 +753,11 @@ The initiative is **COMPLETE** when:
 
 ### Phase Dependencies
 - **Phase 1** must complete first (foundation for all other phases)
-- **Phase 2** must complete before Phase 3-10 (property test mindset)
-- **Phase 3-10** can execute in parallel after Phase 2 (independent domains)
-- **Phase 11** must complete last (gap filling requires all other phases)
+- **Phase 2** must complete before Phase 3-12 (property test mindset)
+- **Phase 3** must complete before Phase 4 (memory layer required for retrieval enhancement)
+- **Phase 4** must complete before Phase 5-12 (hybrid retrieval foundation)
+- **Phase 5-12** can execute in parallel after Phase 4 (independent domains)
+- **Phase 13** must complete last (CI/CD fixes require complete test suite)
 
 ### Quality Standards
 - **Assertion density:** >1 assertion per 20 lines of test code
@@ -654,9 +782,10 @@ When reviewing tests, ask:
 
 ### Timeline Management
 - **Week 1:** Phase 1-2 (Foundation + Core Invariants)
-- **Week 2:** Phase 3-6 (Memory, Agent, Social, Skills layers)
-- **Week 3:** Phase 7-10 (Local Agent, IM, LLM, Chaos)
-- **Week 4:** Phase 11 (Gap Filling + Final Validation)
+- **Week 2:** Phase 3-4 (Memory Layer + Hybrid Retrieval Enhancement)
+- **Week 3:** Phase 5-8 (Agent, Social, Skills, Local Agent)
+- **Week 4:** Phase 9-12 (IM, LLM, Chaos, Gap Filling)
+- **Week 5:** Phase 13 (CI/CD Pipeline Fixes + Final Validation)
 
 **Flexibility:** If a phase takes longer than estimated, adjust timeline. Quality matters more than speed.
 
@@ -673,6 +802,7 @@ When reviewing tests, ask:
 ---
 
 *Roadmap created: February 17, 2026*
-*Based on requirements: AR-01 through AR-15*
-*Estimated: 35-50 days, 11 phases, 29 plans*
-*Next: Begin Phase 1 (Foundation & Infrastructure)*
+*Updated: February 17, 2026 (added Phase 4: Hybrid Retrieval + Phase 13: CI/CD Pipeline Fixes)*
+*Based on requirements: AR-01 through AR-20*
+*Estimated: 43-63 days, 13 phases, 35 plans*
+*Next: Phase 2 execution complete, Phase 3 (Memory Layer) ready to plan*
