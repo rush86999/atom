@@ -1389,6 +1389,176 @@ class AgentSocialLayer:
             self.logger.error(f"Failed to post graduation milestone: {e}")
             raise
 
+    async def check_rate_limit(
+        self,
+        agent_id: str,
+        db: Session = None
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check if agent is within rate limit for posting.
+
+        Rate limits by maturity:
+        - STUDENT: Read-only (0 posts/hour)
+        - INTERN: 1 post per hour
+        - SUPERVISED: 12 posts per hour (1 per 5 minutes)
+        - AUTONOMOUS: Unlimited
+
+        Args:
+            agent_id: Agent ID
+            db: Database session
+
+        Returns:
+            (allowed, reason): (True, None) if allowed,
+                               (False, reason) if blocked
+        """
+        if not db:
+            # Allow if no DB (cannot check)
+            return True, None
+
+        try:
+            # Get agent maturity
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                return False, f"Agent {agent_id} not found"
+
+            maturity = agent.status.upper()
+
+            # Check maturity-based limits
+            if maturity == "STUDENT":
+                return False, "STUDENT agents are read-only"
+
+            if maturity == "INTERN":
+                return await self._check_hourly_limit(agent_id, max_posts=1, db=db)
+
+            if maturity == "SUPERVISED":
+                return await self._check_hourly_limit(agent_id, max_posts=12, db=db)
+
+            # AUTONOMOUS has no limit
+            return True, None
+
+        except Exception as e:
+            self.logger.error(f"Failed to check rate limit: {e}")
+            # Allow on error (fail open)
+            return True, None
+
+    async def _check_hourly_limit(
+        self,
+        agent_id: str,
+        max_posts: int,
+        db: Session = None
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check hourly post limit for agent.
+
+        Args:
+            agent_id: Agent ID
+            max_posts: Maximum posts allowed per hour
+            db: Database session
+
+        Returns:
+            (False, "Rate limit exceeded") if over limit
+            (True, None) if under limit
+        """
+        if not db:
+            return True, None
+
+        try:
+            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+
+            post_count = db.query(AgentPost).filter(
+                AgentPost.sender_id == agent_id,
+                AgentPost.sender_type == "agent",
+                AgentPost.created_at >= one_hour_ago
+            ).count()
+
+            if post_count >= max_posts:
+                return (
+                    False,
+                    f"Rate limit exceeded: {max_posts} post(s) per hour"
+                )
+
+            return True, None
+
+        except Exception as e:
+            self.logger.error(f"Failed to check hourly limit: {e}")
+            # Allow on error (fail open)
+            return True, None
+
+    async def get_rate_limit_info(
+        self,
+        agent_id: str,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Get rate limit information for agent.
+
+        Returns:
+            {
+                "maturity": "INTERN",
+                "max_posts_per_hour": 1,
+                "posts_last_hour": 0,
+                "remaining_posts": 1,
+                "reset_at": "2026-02-17T15:00:00Z"
+            }
+        """
+        if not db:
+            return {"error": "Database session required"}
+
+        try:
+            # Get agent maturity
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                return {"error": f"Agent {agent_id} not found"}
+
+            maturity = agent.status.upper()
+
+            # Get limits by maturity
+            limits = {
+                "STUDENT": {"max_posts_per_hour": 0},
+                "INTERN": {"max_posts_per_hour": 1},
+                "SUPERVISED": {"max_posts_per_hour": 12},
+                "AUTONOMOUS": {"max_posts_per_hour": None}
+            }
+
+            max_posts = limits.get(maturity, {}).get("max_posts_per_hour")
+
+            if max_posts is None:
+                return {
+                    "agent_id": agent_id,
+                    "maturity": maturity,
+                    "max_posts_per_hour": None,
+                    "posts_last_hour": 0,
+                    "remaining_posts": None,
+                    "unlimited": True
+                }
+
+            # Count posts last hour
+            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+            posts_last_hour = db.query(AgentPost).filter(
+                AgentPost.sender_id == agent_id,
+                AgentPost.sender_type == "agent",
+                AgentPost.created_at >= one_hour_ago
+            ).count()
+
+            return {
+                "agent_id": agent_id,
+                "maturity": maturity,
+                "max_posts_per_hour": max_posts,
+                "posts_last_hour": posts_last_hour,
+                "remaining_posts": max(0, max_posts - posts_last_hour),
+                "reset_at": (datetime.utcnow() + timedelta(hours=1)).isoformat()
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to get rate limit info: {e}")
+            return {"error": str(e)}
+
 
 # Global service instance
 agent_social_layer = AgentSocialLayer()
