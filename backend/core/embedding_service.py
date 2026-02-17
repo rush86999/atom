@@ -21,9 +21,18 @@ Performance:
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from functools import lru_cache
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    logger.warning("NumPy not available, some features will be limited")
 
 
 class EmbeddingProvider:
@@ -80,6 +89,11 @@ class EmbeddingService:
             EmbeddingProvider.COHERE
         ]:
             raise ValueError(f"Unknown embedding provider: {self.provider}")
+
+        # FastEmbed coarse search infrastructure
+        self._fastembed_cache = {}  # Simple dict cache (LRU logic manual)
+        self._fastembed_cache_order = []  # Track access order for LRU eviction
+        self._fastembed_cache_max = 1000  # Max cache size
 
         logger.info(
             f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
@@ -273,6 +287,256 @@ class EmbeddingService:
         except Exception as e:
             logger.error(f"FastEmbed batch embedding generation failed: {e}")
             raise
+
+    # ========================================================================
+    # FastEmbed Coarse Search for Hybrid Retrieval (NEW - Phase 4)
+    # ========================================================================
+
+    async def create_fastembed_embedding(self, text: str) -> Optional[List[float]]:
+        """
+        Create 384-dimensional FastEmbed embedding for coarse search.
+
+        Performance: <20ms per embedding
+        Dimensions: 384 (BAAI/bge-small-en-v1.5)
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            List of 384 floats or None if failed
+        """
+        try:
+            # Use existing _generate_fastembed_embedding method
+            embedding = await self._generate_fastembed_embedding(text)
+
+            # Validate dimension (should be 384 for default model)
+            if NUMPY_AVAILABLE and len(embedding) != 384:
+                logger.warning(
+                    f"FastEmbed embedding dimension is {len(embedding)}, "
+                    f"expected 384 for coarse search"
+                )
+
+            return embedding
+
+        except Exception as e:
+            logger.error(f"Failed to create FastEmbed embedding: {e}")
+            return None
+
+    async def cache_fastembed_embedding(
+        self,
+        episode_id: str,
+        embedding: List[float],
+        db: Optional[Any] = None
+    ) -> bool:
+        """
+        Cache FastEmbed embedding in memory and optionally in LanceDB.
+
+        Stores in LRU cache with 1000-episode limit.
+        Also stores in LanceDB vector_fastembed column (384-dim).
+
+        Args:
+            episode_id: Episode ID
+            embedding: 384-dimensional embedding vector
+            db: Optional database session for LanceDB storage
+
+        Returns:
+            True if cached successfully
+        """
+        try:
+            # Store in LRU cache (memory)
+            self._lru_cache_put(episode_id, embedding)
+
+            # Store in LanceDB if db session provided
+            if db is not None:
+                try:
+                    from core.lancedb_handler import get_lancedb_handler
+                    lancedb = get_lancedb_handler()
+
+                    # Add to LanceDB with vector_fastembed column
+                    success = await lancedb.add_embedding(
+                        table_name="episodes",
+                        episode_id=episode_id,
+                        vector=embedding,
+                        vector_column="vector_fastembed",  # Use 384-dim column
+                        metadata={"source": "fastembed_coarse_search"}
+                    )
+
+                    if success:
+                        logger.debug(f"Cached FastEmbed embedding in LanceDB for {episode_id}")
+
+                except Exception as lancedb_err:
+                    logger.warning(
+                        f"Failed to cache in LanceDB (non-critical): {lancedb_err}"
+                    )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to cache FastEmbed embedding: {e}")
+            return False
+
+    async def get_fastembed_embedding(
+        self,
+        episode_id: str,
+        db: Optional[Any] = None
+    ) -> Optional[List[float]]:
+        """
+        Get FastEmbed embedding from cache (LRU → LanceDB).
+
+        Args:
+            episode_id: Episode ID
+            db: Optional database session for LanceDB fallback
+
+        Returns:
+            384-dimensional embedding or None if not found
+        """
+        try:
+            # Check LRU cache first (fastest, ~1ms)
+            cached = self._lru_cache_get(episode_id)
+            if cached is not None:
+                logger.debug(f"FastEmbed cache hit for {episode_id}")
+                return cached
+
+            # Fallback to LanceDB if db session provided
+            if db is not None:
+                try:
+                    from core.lancedb_handler import get_lancedb_handler
+                    lancedb = get_lancedb_handler()
+
+                    # Retrieve from LanceDB
+                    embedding = await lancedb.get_embedding(
+                        table_name="episodes",
+                        episode_id=episode_id,
+                        vector_column="vector_fastembed"  # Use 384-dim column
+                    )
+
+                    if embedding is not None:
+                        # Cache in LRU for future access
+                        self._lru_cache_put(episode_id, embedding)
+                        logger.debug(f"FastEmbed LanceDB lookup for {episode_id}")
+                        return embedding
+
+                except Exception as lancedb_err:
+                    logger.warning(
+                        f"Failed to retrieve from LanceDB: {lancedb_err}"
+                    )
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get FastEmbed embedding: {e}")
+            return None
+
+    async def coarse_search_fastembed(
+        self,
+        agent_id: str,
+        query: str,
+        top_k: int = 100,
+        db: Optional[Any] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        FastEmbed coarse search (retrieve top-k candidates).
+
+        Performance: <20ms for top-100 candidates
+        Returns: List of (episode_id, similarity_score)
+
+        Args:
+            agent_id: Agent ID to filter episodes
+            query: Search query text
+            top_k: Number of candidates to retrieve (default: 100)
+            db: Optional database session
+
+        Returns:
+            List of tuples (episode_id, similarity_score)
+        """
+        try:
+            # Create query embedding
+            query_embedding = await self.create_fastembed_embedding(query)
+            if query_embedding is None:
+                logger.error("Failed to create query embedding for coarse search")
+                return []
+
+            # Search LanceDB using dual vector storage
+            if db is not None:
+                try:
+                    from core.lancedb_handler import get_lancedb_handler
+                    lancedb = get_lancedb_handler()
+
+                    # Search using vector_fastembed column (384-dim)
+                    results = await lancedb.similarity_search(
+                        table_name="episodes",  # Assuming episodes table exists
+                        vector=query_embedding,
+                        vector_column="vector_fastembed",  # Use 384-dim FastEmbed column
+                        top_k=top_k,
+                        agent_id=agent_id
+                    )
+
+                    # Convert to list of tuples
+                    return [
+                        (r["episode_id"], r["score"])
+                        for r in results
+                    ]
+
+                except Exception as lancedb_err:
+                    logger.warning(
+                        f"LanceDB coarse search failed: {lancedb_err}"
+                    )
+
+            return []
+
+        except Exception as e:
+            logger.error(f"FastEmbed coarse search failed: {e}")
+            return []
+
+    def _lru_cache_put(self, key: str, value: List[float]) -> None:
+        """
+        Put value in LRU cache with eviction policy.
+
+        Args:
+            key: Cache key (episode_id)
+            value: 384-dimensional embedding vector
+        """
+        # Evict oldest if at capacity
+        if len(self._fastembed_cache_order) >= self._fastembed_cache_max:
+            oldest_key = self._fastembed_cache_order.pop(0)
+            if oldest_key in self._fastembed_cache:
+                del self._fastembed_cache[oldest_key]
+                logger.debug(f"Evicted {oldest_key} from FastEmbed cache")
+
+        # Add new entry
+        self._fastembed_cache[key] = value
+        self._fastembed_cache_order.append(key)
+
+    def _lru_cache_get(self, key: str) -> Optional[List[float]]:
+        """
+        Get value from LRU cache and update access order.
+
+        Args:
+            key: Cache key (episode_id)
+
+        Returns:
+            Cached embedding or None if not found
+        """
+        if key in self._fastembed_cache:
+            # Update access order (move to end)
+            self._fastembed_cache_order.remove(key)
+            self._fastembed_cache_order.append(key)
+            return self._fastembed_cache[key]
+        return None
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """
+        Get FastEmbed LRU cache statistics.
+
+        Returns:
+            Dictionary with cache size, max size, hit rate metrics
+        """
+        return {
+            "current_size": len(self._fastembed_cache),
+            "max_size": self._fastembed_cache_max,
+            "utilization_percent": len(self._fastembed_cache) / self._fastembed_cache_max * 100,
+            "keys_cached": len(self._fastembed_cache_order)
+        }
 
     # ========================================================================
     # OpenAI Implementation (Cloud, High Quality)

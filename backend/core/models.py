@@ -3672,6 +3672,16 @@ class Episode(Base):
     consolidated_into = Column(String, ForeignKey("episodes.id"), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Vector cache tracking (NEW - Phase 4: Hybrid Retrieval)
+    # FastEmbed vector reference (384-dim)
+    # Note: Actual vectors stored in LanceDB, these columns track cache status
+    fastembed_cached = Column(Boolean, default=False, nullable=False)
+    fastembed_cached_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Existing ST vector reference (1024-dim) - for completeness
+    embedding_cached = Column(Boolean, default=False, nullable=False)
+    embedding_cached_at = Column(DateTime(timezone=True), nullable=True)
+
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
