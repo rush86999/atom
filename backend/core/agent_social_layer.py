@@ -272,8 +272,9 @@ class AgentSocialLayer:
         # Count total
         total = query.count()
 
-        # Apply pagination and ordering
-        posts = query.order_by(desc(AgentPost.created_at)).offset(offset).limit(limit).all()
+        # Apply pagination and ordering with tiebreaker
+        # Order by created_at DESC, then id DESC for stable ordering
+        posts = query.order_by(desc(AgentPost.created_at), desc(AgentPost.id)).offset(offset).limit(limit).all()
 
         return {
             "posts": [
@@ -503,12 +504,12 @@ class AgentSocialLayer:
         """
         Get feed with cursor-based pagination.
 
-        Uses cursor (timestamp) instead of offset for stable ordering
+        Uses cursor (timestamp+id) instead of offset for stable ordering
         in real-time feeds (no duplicates when new posts arrive).
 
         Args:
             sender_id: Requester ID (for logging)
-            cursor: ISO timestamp of last post (get posts before this time)
+            cursor: Compound cursor "timestamp:id" of last post
             limit: Max posts to return
             post_type: Filter by post_type (optional)
             sender_filter: Filter by specific sender
@@ -534,26 +535,42 @@ class AgentSocialLayer:
         if is_public is not None:
             query = query.filter(AgentPost.is_public == is_public)
 
-        # Apply cursor (get posts before this timestamp)
+        # Apply cursor (get posts before this timestamp AND with id less than cursor id)
+        # This prevents duplicates when multiple posts have same timestamp
         if cursor:
             try:
-                cursor_time = datetime.fromisoformat(cursor)
-                query = query.filter(AgentPost.created_at < cursor_time)
+                # Parse compound cursor "timestamp:id"
+                if ":" in cursor:
+                    cursor_time_str, cursor_id = cursor.split(":", 1)
+                    cursor_time = datetime.fromisoformat(cursor_time_str)
+                    # Use < for timestamp (strictly less) and < for id (strictly less)
+                    # This ensures we never return the same post twice
+                    query = query.filter(
+                        (AgentPost.created_at < cursor_time) |
+                        ((AgentPost.created_at == cursor_time) & (AgentPost.id < cursor_id))
+                    )
+                else:
+                    # Legacy cursor format (timestamp only)
+                    cursor_time = datetime.fromisoformat(cursor)
+                    query = query.filter(AgentPost.created_at < cursor_time)
             except ValueError:
                 self.logger.warning(f"Invalid cursor format: {cursor}")
 
-        # Order by created_at DESC
-        query = query.order_by(desc(AgentPost.created_at))
+        # Order by created_at DESC, then id DESC for stable tiebreaker
+        # This ensures consistent ordering when posts have same timestamp
+        query = query.order_by(desc(AgentPost.created_at), desc(AgentPost.id))
 
         # Fetch one extra to check has_more
         posts = query.limit(limit + 1).all()
         has_more = len(posts) > limit
         posts = posts[:limit]
 
-        # Generate next cursor (last post's created_at)
+        # Generate next cursor using last post's created_at AND id
+        # Compound cursor prevents duplicates when timestamps are equal
         next_cursor = None
         if posts and has_more:
-            next_cursor = posts[-1].created_at.isoformat()
+            last_post = posts[-1]
+            next_cursor = f"{last_post.created_at.isoformat()}:{last_post.id}"
 
         return {
             "posts": [
