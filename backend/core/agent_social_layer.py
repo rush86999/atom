@@ -744,6 +744,257 @@ class AgentSocialLayer:
             "total": len(replies)
         }
 
+    async def create_post_with_episode(
+        self,
+        sender_type: str,
+        sender_id: str,
+        sender_name: str,
+        post_type: str,
+        content: str,
+        episode_ids: Optional[List[str]] = None,
+        sender_maturity: Optional[str] = None,
+        sender_category: Optional[str] = None,
+        recipient_type: Optional[str] = None,
+        recipient_id: Optional[str] = None,
+        is_public: bool = True,
+        channel_id: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        mentioned_agent_ids: List[str] = None,
+        mentioned_user_ids: List[str] = None,
+        mentioned_task_ids: List[str] = None,
+        skip_pii_redaction: bool = False,
+        auto_generated: bool = False,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Create social post and link to episodes.
+
+        Enhanced version of create_post that:
+        - Creates AgentPost record with mentioned_episode_ids
+        - Creates EpisodeSegment for social interaction
+        - Retrieves relevant episodes if not provided
+        - Stores episode context in post metadata
+
+        Args:
+            episode_ids: Optional list of episode IDs to reference.
+                        If not provided, retrieves relevant episodes automatically.
+            All other args same as create_post()
+
+        Returns:
+            Created post data with episode context
+
+        Raises:
+            PermissionError: If agent is STUDENT maturity
+            ValueError: If post_type is invalid
+        """
+        # Retrieve relevant episodes if not provided
+        if not episode_ids and sender_type == "agent" and db:
+            episode_ids = await self._retrieve_relevant_episodes(
+                sender_id, content, limit=3, db=db
+            )
+
+        # Create post with episode references using existing method
+        post = await self.create_post(
+            sender_type=sender_type,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            post_type=post_type,
+            content=content,
+            sender_maturity=sender_maturity,
+            sender_category=sender_category,
+            recipient_type=recipient_type,
+            recipient_id=recipient_id,
+            is_public=is_public,
+            channel_id=channel_id,
+            channel_name=channel_name,
+            mentioned_agent_ids=mentioned_agent_ids,
+            mentioned_user_ids=mentioned_user_ids,
+            mentioned_episode_ids=episode_ids,
+            mentioned_task_ids=mentioned_task_ids,
+            skip_pii_redaction=skip_pii_redaction,
+            auto_generated=auto_generated,
+            db=db
+        )
+
+        # Create episode segment for social interaction
+        if episode_ids and db:
+            try:
+                from core.models import EpisodeSegment
+                import json
+
+                # Create segment for first episode (primary episode)
+                segment = EpisodeSegment(
+                    episode_id=episode_ids[0],
+                    agent_id=sender_id if sender_type == "agent" else None,
+                    segment_type="social_post",
+                    sequence_order=0,
+                    content=json.dumps({
+                        "post_id": str(post["id"]),
+                        "content": content,
+                        "post_type": post_type
+                    }),
+                    content_summary=f"Social post: {content[:100]}",
+                    metadata=json.dumps({
+                        "sender_type": sender_type,
+                        "sender_id": sender_id,
+                        "post_type": post_type,
+                        "is_public": is_public,
+                        "channel_id": channel_id,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }),
+                    created_at=datetime.utcnow()
+                )
+                db.add(segment)
+                db.commit()
+
+                self.logger.info(
+                    f"Created episode segment {segment.id} for social post {post['id']}"
+                )
+            except Exception as e:
+                # Log but don't fail post creation
+                self.logger.warning(
+                    f"Failed to create episode segment for post {post['id']}: {e}"
+                )
+
+        return post
+
+    async def _retrieve_relevant_episodes(
+        self,
+        agent_id: str,
+        content: str,
+        limit: int = 3,
+        db: Session = None
+    ) -> List[str]:
+        """
+        Retrieve episodes relevant to post content.
+
+        Uses EpisodeRetrievalService.semantic_search() to find
+        episodes related to the post content.
+
+        Args:
+            agent_id: Agent ID to search episodes for
+            content: Post content to search against
+            limit: Max episodes to retrieve
+            db: Database session
+
+        Returns:
+            List of episode IDs
+        """
+        if not db:
+            return []
+
+        try:
+            from core.episode_retrieval_service import EpisodeRetrievalService
+
+            retrieval_service = EpisodeRetrievalService(db)
+            results = await retrieval_service.retrieve_episodes(
+                agent_id=agent_id,
+                query_type="semantic",
+                query=content,
+                limit=limit
+            )
+            return [e.id for e in results]
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to retrieve relevant episodes for agent {agent_id}: {e}"
+            )
+            return []
+
+    async def get_feed_with_episode_context(
+        self,
+        agent_id: Optional[str] = None,
+        sender_filter: Optional[str] = None,
+        post_type_filter: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        is_public: Optional[bool] = None,
+        limit: int = 50,
+        offset: int = 0,
+        include_episode_context: bool = True,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Retrieve social feed with episode context.
+
+        Enhanced version of get_feed() that includes episode summaries
+        for posts that reference episodes.
+
+        Args:
+            include_episode_context: If True, includes episode summaries
+                                    for posts with mentioned_episode_ids
+            All other args same as get_feed()
+
+        Returns:
+            Feed posts with optional episode_context field
+        """
+        # Get base feed using existing method
+        feed = await self.get_feed(
+            agent_id=agent_id,
+            sender_filter=sender_filter,
+            post_type_filter=post_type_filter,
+            channel_id=channel_id,
+            is_public=is_public,
+            limit=limit,
+            offset=offset,
+            db=db
+        )
+
+        # Add episode context if requested
+        if include_episode_context and db:
+            for post in feed.get("posts", []):
+                if post.get("mentioned_episode_ids"):
+                    try:
+                        episodes = await self._get_episode_summaries(
+                            post["mentioned_episode_ids"],
+                            db=db
+                        )
+                        post["episode_context"] = episodes
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to get episode context for post {post.get('id')}: {e}"
+                        )
+                        post["episode_context"] = []
+
+        return feed
+
+    async def _get_episode_summaries(
+        self,
+        episode_ids: List[str],
+        db: Session = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get episode summaries for a list of episode IDs.
+
+        Args:
+            episode_ids: List of episode IDs
+            db: Database session
+
+        Returns:
+            List of episode summaries
+        """
+        if not db or not episode_ids:
+            return []
+
+        try:
+            from core.models import Episode
+
+            episodes = db.query(Episode).filter(
+                Episode.id.in_(episode_ids)
+            ).all()
+
+            return [
+                {
+                    "id": ep.id,
+                    "title": ep.title,
+                    "summary": ep.summary[:200] if ep.summary else None,
+                    "created_at": ep.created_at.isoformat() if ep.created_at else None,
+                    "agent_id": ep.agent_id
+                }
+                for ep in episodes
+            ]
+        except Exception as e:
+            self.logger.warning(f"Failed to get episode summaries: {e}")
+            return []
+
 
 # Global service instance
 agent_social_layer = AgentSocialLayer()
