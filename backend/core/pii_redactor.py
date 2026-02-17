@@ -21,6 +21,7 @@ try:
     PRESIDIO_AVAILABLE = True
 except ImportError:
     PRESIDIO_AVAILABLE = False
+    OperatorConfig = None  # Placeholder for type hints
     logger.warning(
         "Presidio not available. Install with: pip install presidio-analyzer presidio-anonymizer spacy. "
         "Falling back to regex-only redaction."
@@ -206,7 +207,7 @@ class PIIRedactor:
             has_secrets=result.has_secrets
         )
 
-    def _get_operators(self) -> Dict[str, OperatorConfig]:
+    def _get_operators(self) -> Dict[str, Any]:  # Changed from OperatorConfig to Any for compatibility
         """Define anonymization operators for each entity type"""
         return {
             "EMAIL_ADDRESS": OperatorConfig("redact", {}),
