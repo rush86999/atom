@@ -33,8 +33,9 @@ class EpisodeFactory(BaseFactory):
         if o.status in ['completed', 'archived', 'consolidated'] else None
     )
 
-    # Intervention tracking
-    intervention_count = fuzzy.FuzzyInteger(0, 10)
+    # Intervention tracking (model uses human_intervention_count)
+    human_intervention_count = fuzzy.FuzzyInteger(0, 10)
+    intervention_count = fuzzy.FuzzyInteger(0, 10)  # Deprecated, kept for compatibility
     constitutional_score = fuzzy.FuzzyFloat(0.0, 1.0)
 
     # Importance and lifecycle
