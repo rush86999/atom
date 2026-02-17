@@ -6,16 +6,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 04-hybrid-retrieval - Hybrid Retrieval Enhancement (FastEmbed + Sentence Transformers)
+**Current focus:** Phase 05-agent-layer - Agent Governance & Maturity Routing
 
 ## Current Position
 
-Phase: 04-hybrid-retrieval
-Plan: 03 (COMPLETE)
-Status: PHASE COMPLETE
-Last activity: 2026-02-17 — Phase 04 Plan 03 COMPLETE: Comprehensive test suite for hybrid retrieval system with unit tests (HybridRetrievalService orchestration), property tests (Recall@10 >90%, NDCG@10 >0.85 invariants), and integration tests (API endpoints, A/B testing, performance benchmarks). 1,161 lines of test code added. Commits: aace3274, 59001a12, 96ac32c3.
+Phase: 05-agent-layer
+Plan: Not started
+Status: READY TO BEGIN
+Last activity: 2026-02-17 — Phase 04 COMPLETE with gaps: Hybrid retrieval infrastructure implemented (FastEmbed <1ms coarse search ✅, dual vector storage ✅, LRU cache ✅, cross-encoder reranking ✅, API endpoints ✅). 1,161 lines of tests created. Gaps: CPU-only reranking ~3000ms vs <150ms target (needs GPU), quality metrics need real data validation (Recall@10, NDCG@10), 5/10 unit tests passing. Verification: 28/39 must-haves (71.8%).
 
-Progress: [██████████] 100% (Phase 04: 3 of 3 plans complete, PHASE COMPLETE)
+Progress: [████████░░] 40% (Phase 04: 3/3 plans complete with gaps, Phase 5 ready to begin)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
