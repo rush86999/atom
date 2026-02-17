@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 04-hybrid-retrieval
-Plan: Not started
-Status: READY TO BEGIN
-Last activity: 2026-02-17 — Phase 03 COMPLETE: Memory Layer verified with 19/19 must-haves (100%). Fixed 5 critical production bugs in episode segmentation service. 189+ tests passing (83 property tests with 2,700+ Hypothesis examples). All segmentation, retrieval, lifecycle, and graduation integration tested and verified. Performance targets met (<100ms semantic retrieval). Verification status: PASSED.
+Plan: 01 (COMPLETE)
+Status: READY FOR PLAN 02
+Last activity: 2026-02-17 — Phase 04 Plan 01 COMPLETE: FastEmbed coarse search implemented with dual vector storage (384-dim + 1024-dim), LRU cache (1000-episode limit), and Episode model cache tracking. Migration applied successfully. 270 lines added. Commit: 0d867a87.
 
-Progress: [██████░░░░] 30% (Phase 03: 2 of 2 plans complete, Phase 4 ready to begin)
+Progress: [██████░░░░] 32% (Phase 04: 1 of 3 plans complete, Plan 02 ready to begin)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
@@ -375,6 +375,34 @@ Progress: [██████░░░░] 30% (Phase 03: 2 of 2 plans complete,
 4. **Documentation comprehensive**: CLAUDE.md, docs/ provide clear guidance
 
 ---
+
+## Decisions from Phase 04 (Hybrid Retrieval)
+
+### FastEmbed Coarse Search Implementation (Plan 04-01)
+
+**1. Dual Vector Storage Architecture**
+- Context: FastEmbed (384-dim) and Sentence Transformers (1024-dim) have incompatible dimensionalities
+- Decision: Store both in separate columns (`vector_fastembed` and `vector`) to prevent conflicts
+- Impact: Enables hybrid retrieval (coarse FastEmbed → fine ST reranking) in future plans
+- Files: core/lancedb_handler.py, alembic/versions/b53c19d68ac1
+
+**2. LRU Cache Size of 1000 Episodes**
+- Context: Balance memory usage vs. cache hit rate for FastEmbed embeddings
+- Decision: Use 1000-episode limit (~1.5MB memory) based on research recommendations
+- Impact: Sub-1ms retrieval for recent episodes, automatic eviction prevents unbounded growth
+- Files: core/embedding_service.py
+
+**3. Dimension Validation at LanceDB Layer**
+- Context: Prevent silent corruption from embedding dimension mismatches
+- Decision: Enforce vector size at storage layer with clear error messages
+- Impact: Adds slight write overhead but prevents data integrity issues
+- Files: core/lancedb_handler.py
+
+**4. Cache Tracking Columns in Episode Model**
+- Context: Need visibility into cache penetration and warming strategies
+- Decision: Add `fastembed_cached`, `fastembed_cached_at`, `embedding_cached`, `embedding_cached_at` columns
+- Impact: Operational monitoring without additional queries
+- Files: core/models.py, alembic/versions/b53c19d68ac1
 
 ## Decisions from Phase 03 (Memory Layer)
 
