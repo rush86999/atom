@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 02-core-invariants
-Plan: 01 (COMPLETE)
-Status: IN_PROGRESS (1 of 3 plans complete)
-Last activity: 2026-02-17 — Plan 02-01 COMPLETE: Governance invariant property tests with 6 test classes, 13 tests, 659 lines. Coverage for confidence score bounds, maturity routing, action complexity enforcement, cache performance (<10ms P95), permission checks, and trigger interception. All tests passing (10.01s execution). 3 deviations auto-fixed (Hypothesis HealthCheck, GovernanceCache API, missing health check suppression). Commit: 5f580a79.
+Plan: 02 (COMPLETE)
+Status: IN_PROGRESS (2 of 3 plans complete)
+Last activity: 2026-02-17 — Plan 02-02 COMPLETE: LLM streaming and token counting invariants with 8 test classes, 20 tests, 743 lines. Coverage for streaming completion (ordering, metadata, EOS), provider fallback (conversation history, cost tracking), error recovery (retry limits, exponential backoff), performance (latency, throughput), cost calculation (formula, pricing, per-1k tokens), and budget enforcement. All tests passing (15.66s execution). 3 deviations auto-fixed (Hypothesis health checks, API alignment, test logic). Commits: dfbdf781, 2326670d, f0fd2bf9, 86c2fec7, 5efcb9d6.
 
-Progress: [█░░░░░░░░] 33% (Phase 02: 1 of 3 plans complete)
+Progress: [██░░░░░░░] 67% (Phase 02: 2 of 3 plans complete)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
