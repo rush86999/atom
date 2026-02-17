@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry, AgentStatus, Episode, CanvasAudit
-from core.governance_cache import governance_cache
+from core.governance_cache import get_governance_cache
 
 
 def assert_agent_maturity(
@@ -77,7 +77,8 @@ def assert_governance_blocked(
         assert_governance_blocked("student-agent-id", "delete_user", reason="maturity")
     """
     # Check governance cache for blocked decision
-    decision = governance_cache.check(agent_id, action)
+    cache = get_governance_cache()
+    decision = cache.check(agent_id, action)
     assert decision.allowed is False, \
         f"Action {action} was not blocked for agent {agent_id}"
 
