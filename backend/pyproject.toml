@@ -127,9 +127,6 @@ Repository = "https://github.com/rush86999/atom"
 [project.scripts]
 atom-os = "cli.main:main_cli"
 
-[tool.setuptools]
-zip_safe = false
-
 # Package discovery
 [tool.setuptools.packages.find]
 exclude = ["tests.*", "tests", "*.tests", "*.tests.*"]
