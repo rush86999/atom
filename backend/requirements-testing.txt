@@ -32,3 +32,8 @@ pytest-randomly>=3.15.0,<4.0.0  # Randomize test execution order
 freezegun>=1.4.0,<2.0.0  # Time freezing for tests
 factory-boy>=3.3.0  # Test data factories
 faker>=22.0.0  # Fake data generation for tests
+
+# Security Testing Tools (Phase 2-03)
+bandit>=1.7.0  # OWASP Top 10 scanning
+pip-audit>=2.7.0  # Dependency vulnerability scanning (PyPA official)
+safety>=3.0.0  # Alternative dependency checker with policy enforcement
