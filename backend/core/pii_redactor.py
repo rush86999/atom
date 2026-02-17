@@ -82,8 +82,9 @@ class PIIRedactor:
 
         self.analyzer = AnalyzerEngine()
         self.anonymizer = AnonymizerEngine()
-        self.allowlist = set(allowlist or [])
-        self.allowlist.update(self.DEFAULT_ALLOWLIST)
+        # Store allowlist in lowercase for case-insensitive matching
+        self.allowlist = set(email.lower() for email in (allowlist or []))
+        self.allowlist.update(email.lower() for email in self.DEFAULT_ALLOWLIST)
 
         # Default entity types to detect
         self.default_entities = [
@@ -137,15 +138,44 @@ class PIIRedactor:
                 entities=entity_types
             )
 
-            # Filter out allowed emails
+            # Filter out allowed emails (case-insensitive)
+            # Also filter URLs that are part of allowed emails
             filtered_results = []
+            allowed_emails_indices = set()  # Track indices of allowed emails
+
+            # First pass: mark allowed email indices
             for result in results:
                 if result.entity_type == "EMAIL_ADDRESS":
                     email = text[result.start:result.end]
-                    if email in self.allowlist:
+                    if email.lower() in self.allowlist:
                         logger.debug(f"Skipping allowed email: {email}")
-                        continue  # Skip redaction for allowed emails
+                        allowed_emails_indices.add(id(result))
+                        continue
                 filtered_results.append(result)
+
+            # Second pass: filter out URLs that are substrings of allowed emails
+            final_results = []
+            for result in filtered_results:
+                if result.entity_type == "URL":
+                    # Check if this URL is within any allowed email
+                    url_text = text[result.start:result.end]
+                    is_substring_of_allowed = False
+                    for allowed_idx in allowed_emails_indices:
+                        # Find the original allowed email result
+                        for orig_result in results:
+                            if id(orig_result) == allowed_idx:
+                                allowed_email = text[orig_result.start:orig_result.end]
+                                if url_text in allowed_email:
+                                    is_substring_of_allowed = True
+                                    break
+                        if is_substring_of_allowed:
+                            break
+                    if not is_substring_of_allowed:
+                        final_results.append(result)
+                else:
+                    final_results.append(result)
+
+            filtered_results = final_results
 
             # Define anonymization operators
             operators = self._get_operators()
@@ -157,7 +187,7 @@ class PIIRedactor:
                 operators=operators
             )
 
-            # Build redaction metadata
+            # Build redaction metadata (use anonymized item positions for hash locations)
             redactions = [
                 {
                     "type": r.entity_type,
@@ -168,6 +198,9 @@ class PIIRedactor:
                 for r in filtered_results
             ]
 
+            # Add readable placeholders instead of hashes
+            redacted_text = self._add_placeholders(anonymized, redactions)
+
             # Log redaction for audit
             if redactions:
                 entity_types_found = [r["type"] for r in redactions]
@@ -177,7 +210,7 @@ class PIIRedactor:
 
             return RedactionResult(
                 original_text=text,
-                redacted_text=anonymized.text,
+                redacted_text=redacted_text,
                 redactions=redactions,
                 has_secrets=len(filtered_results) > 0
             )
@@ -209,18 +242,55 @@ class PIIRedactor:
 
     def _get_operators(self) -> Dict[str, Any]:  # Changed from OperatorConfig to Any for compatibility
         """Define anonymization operators for each entity type"""
+        # Use hash for most entities to get consistent redaction strings
+        # We'll replace hashes with readable placeholders afterwards
         return {
-            "EMAIL_ADDRESS": OperatorConfig("redact", {}),
+            "EMAIL_ADDRESS": OperatorConfig("hash", {"hash_type": "sha256"}),
             "US_SSN": OperatorConfig("hash", {"hash_type": "sha256"}),
             "CREDIT_CARD": OperatorConfig("mask", {"chars_to_mask": 4, "masking_char": "*"}),
-            "PHONE_NUMBER": OperatorConfig("redact", {}),
-            "IBAN_CODE": OperatorConfig("redact", {}),
-            "IP_ADDRESS": OperatorConfig("redact", {}),
-            "US_BANK_NUMBER": OperatorConfig("redact", {}),
-            "US_DRIVER_LICENSE": OperatorConfig("redact", {}),
-            "URL": OperatorConfig("redact", {}),
-            "DATE_TIME": OperatorConfig("redact", {})
+            "PHONE_NUMBER": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "IBAN_CODE": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "IP_ADDRESS": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "US_BANK_NUMBER": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "US_DRIVER_LICENSE": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "URL": OperatorConfig("hash", {"hash_type": "sha256"}),
+            "DATE_TIME": OperatorConfig("hash", {"hash_type": "sha256"})
         }
+
+    def _add_placeholders(self, anonymized: 'AnonymizedResult', redactions: List[Dict]) -> str:
+        """
+        Replace hash strings with readable placeholders.
+
+        Presidio's hash operator creates SHA256 hashes like:
+        e69df8e0e6515fc0790350cb8028659fc464e7bb9aebc7e82dc2252557c1485c
+
+        This replaces them with readable placeholders like <EMAIL_ADDRESS>.
+        """
+        text = anonymized.text
+
+        # Build mapping from hash values to entity types using anonymized items
+        hash_to_type = {}
+        for item in anonymized.items:
+            entity_type = item.entity_type
+            # Get the hashed text from the anonymized result
+            start = item.start
+            end = item.end
+            hash_value = text[start:end]
+            if len(hash_value) == 64:  # SHA256 hash length
+                hash_to_type[hash_value] = entity_type
+
+        # Replace hashes with placeholders (reverse order to preserve indices)
+        # Sort by position in text (rightmost first)
+        hash_positions = [(hash_value, text.find(hash_value)) for hash_value in hash_to_type.keys()]
+        hash_positions.sort(key=lambda x: x[1], reverse=True)
+
+        for hash_value, pos in hash_positions:
+            if pos >= 0:  # Found in text
+                entity_type = hash_to_type[hash_value]
+                placeholder = f"<{entity_type}>"
+                text = text[:pos] + placeholder + text[pos + len(hash_value):]
+
+        return text
 
     def redact_entities(self, text: str, entities: List[str]) -> str:
         """
@@ -260,7 +330,8 @@ class PIIRedactor:
             >>> redactor = PIIRedactor()
             >>> redactor.add_allowlist(["support@company.com", "admin@company.com"])
         """
-        self.allowlist.update(emails)
+        # Store in lowercase for case-insensitive matching
+        self.allowlist.update(email.lower() for email in emails)
         logger.info(f"Added {len(emails)} emails to allowlist")
 
 
