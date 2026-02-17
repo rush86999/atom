@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-cov pytest-mock pytest-xdist pytest-html
+        pip install factory-boy faker
+        pip install hypothesis
+        pip install fastapi[all] httpx
+        pip install sqlalchemy alembic
+
+    - name: Install test dependencies
+      run: |
+        pip install playwright
+        playwright install chromium
+
+    - name: Install Presidio (PII redaction)
+      run: |
+        pip install presidio-analyzer presidio-anonymizer
+        pip install spacy
+        python -m spacy download en_core_web_lg
+
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ \
+          --cov=core \
+          --cov=api \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          --junitxml=test-results.xml \
+          --verbose \
+          --tb=short \
+          | tee test-output.log
+
+    - name: Check coverage threshold
+      run: |
+        coverage report --fail-under=15
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: success()
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          test-results.xml
+          test-output.log
+          htmlcov/
+
+    - name: Archive coverage reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-${{ matrix.python-version }}
+        path: |
+          coverage.xml
+          htmlcov/
+          .coverage
