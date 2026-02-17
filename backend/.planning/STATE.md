@@ -11,12 +11,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 05-agent-layer
-Plan: 01 of 3 complete
+Plan: 02 of 3 complete
 Status: IN PROGRESS
+Last activity: 2026-02-17 — Plan 02 COMPLETE: Agent layer unit tests (1,126 lines, 43 tests). Agent graduation tests (414 lines, 18 tests) cover readiness scoring, exams, promotions. Student training tests (373 lines, 10 tests) cover proposals, sessions, completion. Context resolver tests (339 lines, 15 tests) cover fallback chain, session context. All must-haves validated.
 Last activity: 2026-02-17 — Plan 01 COMPLETE: Agent governance test suite (1,313 lines, 54 tests, 100% passing). Property tests (571 lines) validate maturity routing invariants. Unit tests (417 lines) test all 4 maturity levels. Performance tests (325 lines) validate >95% cache hit rate, <1ms P99 latency. All must-haves validated.
-Last activity: 2026-02-17 — Phase 04 COMPLETE with gaps: Hybrid retrieval infrastructure implemented (FastEmbed <1ms coarse search ✅, dual vector storage ✅, LRU cache ✅, cross-encoder reranking ✅, API endpoints ✅). 1,161 lines of tests created. Gaps: CPU-only reranking ~3000ms vs <150ms target (needs GPU), quality metrics need real data validation (Recall@10, NDCG@10), 5/10 unit tests passing. Verification: 28/39 must-haves (71.8%).
 
-Progress: [██████████░] 46% (Phase 04: 3/3 complete, Phase 05: 1/3 complete, 54 agent governance tests passing)
+Progress: [██████████░] 53% (Phase 04: 3/3 complete, Phase 05: 2/3 complete, 97 agent layer tests)
 ### Coverage Metrics (as of 2026-02-15)
 - **Overall Coverage**: 15.2%
 - **Current Goal**: 80%
