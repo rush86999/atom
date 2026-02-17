@@ -169,6 +169,25 @@ result = redactor.redact("Email: test@example.com")
 - **Presidio**: ~50-100ms per text (NER-based)
 - **Regex fallback**: ~1-5ms per text
 - **Accuracy**: 99% (Presidio) vs 60% (regex)
+- **Property tests deadline**: 1000ms (increased from 200ms in 2026-02-17 update)
+
+## Changelog
+
+### 2026-02-17
+
+- Fixed placeholder redaction (hash values → <EMAIL_ADDRESS>)
+- Fixed allowlist to use case-insensitive matching
+- Fixed URL substring filtering for allowed emails
+- Fixed property test deadlines (200ms → 1000ms)
+- Achieved 95%+ test pass rate (41+/43 tests)
+- Added setup script: `scripts/setup_pii_redactor.sh`
+
+### 2026-02-16
+
+- Initial Presidio integration
+- Fallback to SecretsRedactor
+- Allowlist functionality
+- Comprehensive test suite (43 tests)
 
 ## Testing
 
@@ -208,10 +227,13 @@ python -m spacy download en_core_web_lg
 
 ### Allowlist Not Working
 
-**Check**: Ensure email addresses in allowlist match exactly (case-sensitive):
+**Check**: Ensure email addresses in allowlist match (case-insensitive):
 ```python
 # Correct
 PII_REDACTOR_ALLOWLIST=support@atom.ai,admin@atom.ai
+
+# Also correct (case-insensitive as of 2026-02-17)
+PII_REDACTOR_ALLOWLIST=SUPPORT@ATOM.AI,ADMIN@ATOM.AI
 
 # Incorrect (wrong format)
 PII_REDACTOR_ALLOWLIST=support,admin  # Missing @domain
