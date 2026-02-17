@@ -92,38 +92,44 @@ class MockEmbedder:
             return [random.random() for _ in range(self.dim)]
 
 class LanceDBHandler:
-    """LanceDB vector database handler"""
-    
-    def __init__(self, db_path: str = None, 
+    """LanceDB vector database handler with dual vector storage support"""
+
+    def __init__(self, db_path: str = None,
                  workspace_id: Optional[str] = None,
                  embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        
+
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
         self.workspace_id = "default" # Single-tenant: always use default
-        
+
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", embedding_model)
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        
+
+        # Dual vector storage configuration (NEW - Phase 4)
+        self.vector_columns = {
+            "vector": 1024,  # Sentence Transformers (existing) - all-MiniLM-L6-v2
+            "vector_fastembed": 384  # FastEmbed (NEW) - BAAI/bge-small-en-v1.5
+        }
+
         self.db = None
         self.embedder = None
         self.openai_client = None
-        
+
         # BYOK Manager
         try:
             self.byok_manager = get_byok_manager() if get_byok_manager else None
         except Exception as e:
             logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
             self.byok_manager = None
-        
+
         # Initialize LanceDB if available
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
         if LANCEDB_AVAILABLE:
             self._initialize_db()
-        
+
         # Initialize embedder
         self._initialize_embedder()
     
@@ -233,21 +239,32 @@ class LanceDBHandler:
             }
     
     def create_table(self, table_name: str, schema: Optional[Dict[str, Any]] = None,
-                    vector_size: int = 384) -> Optional[Table]:
-        """Create a new table"""
+                    vector_size: int = 384, dual_vector: bool = False) -> Optional[Table]:
+        """
+        Create a new table with optional dual vector storage.
+
+        Args:
+            table_name: Name of the table
+            schema: Optional custom schema
+            vector_size: Vector size for 'vector' column (default: 384)
+            dual_vector: If True, create both 'vector' and 'vector_fastembed' columns
+
+        Returns:
+            LanceDB Table object or None if failed
+        """
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
-        
+
         try:
             # Create schema if not provided
             if schema is None:
                 # Adjust vector size for OpenAI
                 if self.embedding_provider == "openai":
                     vector_size = 1536
-                
-                # Create PyArrow schema
-                schema = pa.schema([
+
+                # Create PyArrow schema with dual vector support
+                fields = [
                     pa.field("id", pa.string()),
                     pa.field("user_id", pa.string()),
                     pa.field("workspace_id", pa.string()),
@@ -255,14 +272,25 @@ class LanceDBHandler:
                     pa.field("source", pa.string()),
                     pa.field("metadata", pa.string()),
                     pa.field("created_at", pa.string()),
+                    # Standard vector column (1024-dim ST or 1536-dim OpenAI)
                     pa.field("vector", pa.list_(pa.float32(), vector_size))
-                ])
+                ]
+
+                # Add FastEmbed vector column if dual_vector enabled (384-dim)
+                if dual_vector:
+                    fields.append(
+                        pa.field("vector_fastembed", pa.list_(pa.float32(), 384))
+                    )
+                    logger.info(f"Creating table '{table_name}' with dual vector storage")
+
+                schema = pa.schema(fields)
+
             elif table_name == "knowledge_graph":
                 # Knowledge Graph Relationship Table
                 if self.embedding_provider == "openai":
                     vector_size = 1536
-                
-                schema = pa.schema([
+
+                fields = [
                     pa.field("id", pa.string()),
                     pa.field("user_id", pa.string()),
                     pa.field("workspace_id", pa.string()),
@@ -272,13 +300,21 @@ class LanceDBHandler:
                     pa.field("metadata", pa.string()),
                     pa.field("created_at", pa.string()),
                     pa.field("vector", pa.list_(pa.float32(), vector_size))
-                ])
-            
+                ]
+
+                # Add FastEmbed vector column if dual_vector enabled
+                if dual_vector:
+                    fields.append(
+                        pa.field("vector_fastembed", pa.list_(pa.float32(), 384))
+                    )
+
+                schema = pa.schema(fields)
+
             # Create table
             table = self.db.create_table(table_name, schema=schema, mode="overwrite")
             logger.info(f"Table '{table_name}' created/accessed successfully")
             return table
-            
+
         except Exception as e:
             logger.error(f"Failed to create table '{table_name}': {e}")
             return None
@@ -644,6 +680,212 @@ class LanceDBHandler:
     def seed_mock_data(self, documents: List[Dict[str, Any]]) -> int:
         """Seed mock data for validation"""
         return self.add_documents_batch("documents", documents)
+
+    # ========================================================================
+    # Dual Vector Storage Methods (NEW - Phase 4)
+    # ========================================================================
+
+    async def add_embedding(
+        self,
+        table_name: str,
+        episode_id: str,
+        vector: List[float],
+        vector_column: str = "vector",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Add embedding to specified vector column.
+
+        Args:
+            table_name: Name of the table
+            episode_id: Episode/document ID
+            vector: Embedding vector
+            vector_column: "vector" (1024-dim ST) or "vector_fastembed" (384-dim FastEmbed)
+            metadata: Optional metadata dictionary
+
+        Returns:
+            True if successful
+
+        Raises:
+            ValueError: If dimension mismatch
+        """
+        if self.db is None:
+            logger.error("LanceDB not initialized")
+            return False
+
+        try:
+            # Validate dimension
+            expected_dim = self.vector_columns.get(vector_column)
+            if expected_dim is None:
+                raise ValueError(
+                    f"Unknown vector column: '{vector_column}'. "
+                    f"Valid options: {list(self.vector_columns.keys())}"
+                )
+
+            if len(vector) != expected_dim:
+                raise ValueError(
+                    f"Dimension mismatch for column '{vector_column}': "
+                    f"expected {expected_dim}, got {len(vector)}"
+                )
+
+            # Get or create table
+            table = self.get_table(table_name)
+            if table is None:
+                # Create table with dual vector support
+                table = self.create_table(table_name, dual_vector=True)
+                if table is None:
+                    logger.error(f"Failed to create table '{table_name}'")
+                    return False
+
+            # Create record
+            record = {
+                "id": episode_id,
+                "user_id": metadata.get("user_id", "default") if metadata else "default",
+                "workspace_id": self.workspace_id,
+                "text": metadata.get("text", "") if metadata else "",
+                "source": metadata.get("source", "episode") if metadata else "episode",
+                "metadata": json.dumps(metadata) if metadata else "{}",
+                "created_at": datetime.utcnow().isoformat(),
+                vector_column: vector  # Add to specified vector column
+            }
+
+            # Add to table
+            table.add([record])
+            logger.debug(
+                f"Added embedding to '{table_name}' (column: {vector_column}, "
+                f"dim: {len(vector)}, episode: {episode_id})"
+            )
+            return True
+
+        except ValueError as ve:
+            logger.error(f"Validation error: {ve}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to add embedding: {e}")
+            return False
+
+    async def similarity_search(
+        self,
+        table_name: str,
+        vector: List[float],
+        vector_column: str = "vector",
+        top_k: int = 10,
+        agent_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search specified vector column for similar vectors.
+
+        Args:
+            table_name: Name of the table
+            vector: Query vector
+            vector_column: "vector" (ST) or "vector_fastembed" (FastEmbed)
+            top_k: Number of results to return
+            agent_id: Optional agent filter
+
+        Returns:
+            List of results with episode_id and score
+
+        Raises:
+            ValueError: If dimension mismatch
+        """
+        if self.db is None:
+            logger.error("LanceDB not initialized")
+            return []
+
+        try:
+            # Validate dimension
+            expected_dim = self.vector_columns.get(vector_column)
+            if expected_dim is None:
+                raise ValueError(
+                    f"Unknown vector column: '{vector_column}'. "
+                    f"Valid options: {list(self.vector_columns.keys())}"
+                )
+
+            if len(vector) != expected_dim:
+                raise ValueError(
+                    f"Dimension mismatch for column '{vector_column}': "
+                    f"expected {expected_dim}, got {len(vector)}"
+                )
+
+            # Get table
+            table = self.get_table(table_name)
+            if table is None:
+                logger.warning(f"Table '{table_name}' not found")
+                return []
+
+            # Search
+            results = table.search(vector).limit(top_k).to_pandas()
+
+            # Convert to list of dictionaries
+            results_list = []
+            for _, row in results.iterrows():
+                try:
+                    result = {
+                        "episode_id": row.get("id", row.get("episode_id", "")),
+                        "score": 1.0 - row.get('_distance', 0.0),  # Convert distance to similarity
+                        "vector_column": vector_column,  # Tag results with source column
+                        "_distance": row.get('_distance', 0.0)
+                    }
+                    results_list.append(result)
+                except Exception as e:
+                    logger.warning(f"Error parsing search result: {e}")
+                    continue
+
+            logger.debug(
+                f"Similarity search on '{table_name}' (column: {vector_column}, "
+                f"results: {len(results_list)})"
+            )
+            return results_list
+
+        except ValueError as ve:
+            logger.error(f"Validation error: {ve}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to search '{table_name}': {e}")
+            return []
+
+    async def get_embedding(
+        self,
+        table_name: str,
+        episode_id: str,
+        vector_column: str = "vector"
+    ) -> Optional[List[float]]:
+        """
+        Get embedding for a specific episode from specified column.
+
+        Args:
+            table_name: Name of the table
+            episode_id: Episode ID
+            vector_column: "vector" or "vector_fastembed"
+
+        Returns:
+            Embedding vector or None if not found
+        """
+        if self.db is None:
+            logger.error("LanceDB not initialized")
+            return None
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return None
+
+            # Query by ID
+            results = table.search().where(f"id == '{episode_id}'").limit(1).to_pandas()
+
+            if results.empty:
+                return None
+
+            # Extract vector from specified column
+            vector = results.iloc[0].get(vector_column)
+            if vector is not None:
+                return vector.tolist() if hasattr(vector, 'tolist') else vector
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get embedding for {episode_id}: {e}")
+            return None
 
 # Chat History Extension for LanceDBHandler
 class ChatHistoryManager:
