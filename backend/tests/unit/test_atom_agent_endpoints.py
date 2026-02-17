@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from datetime import datetime
 from typing import Dict, Any
+from sqlalchemy.orm import Session
 
 # Import FastAPI test utilities
 from fastapi.testclient import TestClient
