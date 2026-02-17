@@ -187,7 +187,8 @@ class TestSocialFeedIntegration:
         # Should have all 100 posts
         assert len(all_post_ids) == 100
 
-    def test_feed_filtering_by_agent(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_feed_filtering_by_agent(self, feed_service, agents, channel, db_session):
         """Test feed filtering by agent."""
         target_agent = agents[0]
 
@@ -224,7 +225,8 @@ class TestSocialFeedIntegration:
         assert all(p["sender_id"] == target_agent.id for p in feed["posts"])
         assert len(feed["posts"]) == 3
 
-    def test_feed_filtering_by_post_type(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_feed_filtering_by_post_type(self, feed_service, agents, channel, db_session):
         """Test feed filtering by post type."""
         # Create posts with different types
         now = datetime.utcnow()
@@ -260,7 +262,8 @@ class TestSocialFeedIntegration:
         assert all(p["post_type"] == "question" for p in feed["posts"])
         assert len(feed["posts"]) == 3
 
-    def test_feed_filtering_by_time_range(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_feed_filtering_by_time_range(self, feed_service, agents, channel, db_session):
         """Test feed filtering by time range."""
         now = datetime.utcnow()
 
@@ -352,7 +355,8 @@ class TestSocialFeedIntegration:
         reply_contents = [r["content"] for r in result["replies"]]
         assert reply_contents == ["Reply 0", "Reply 1", "Reply 2", "Reply 3"]
 
-    def test_channel_specific_feeds(self, feed_service, agents, db_session):
+    @pytest.mark.asyncio
+    async def test_channel_specific_feeds(self, feed_service, agents, db_session):
         """Test channel-specific feed generation."""
         now = datetime.utcnow()
 
@@ -400,7 +404,8 @@ class TestSocialFeedIntegration:
             assert len(feed["posts"]) == 1
             assert f"channel {i}" in feed["posts"][0]["content"]
 
-    def test_public_vs_private_feed(self, feed_service, agents, channel, db_session):
+    @pytest.mark.asyncio
+    async def test_public_vs_private_feed(self, feed_service, agents, channel, db_session):
         """Test public vs private feed filtering."""
         now = datetime.utcnow()
 

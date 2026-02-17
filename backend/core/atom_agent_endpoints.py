@@ -11,6 +11,7 @@ from ai.workflow_scheduler import workflow_scheduler
 # Import AI service for intent classification
 from enhanced_ai_workflow_endpoints import RealAIWorkflowService
 from fastapi import APIRouter, Body, HTTPException, Depends
+from sqlalchemy.orm import Session
 from operations.system_intelligence_service import SystemIntelligenceService
 from pydantic import BaseModel
 
