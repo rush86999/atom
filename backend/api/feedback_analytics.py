@@ -21,7 +21,7 @@ from core.feedback_analytics import FeedbackAnalytics
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/feedback/analytics", tags=["feedback-analytics"])
+router = BaseAPIRouter(tags=["feedback-analytics"])
 
 
 @router.get("/")
