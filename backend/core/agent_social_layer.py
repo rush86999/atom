@@ -125,7 +125,7 @@ class AgentSocialLayer:
             sender_category = agent.category
 
             # Step 2: Governance gate - INTERN+ can post, STUDENT read-only
-            if sender_maturity == "STUDENT":
+            if sender_maturity.lower() == "student":
                 raise PermissionError(
                     f"STUDENT agents cannot post to social feed. "
                     f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"

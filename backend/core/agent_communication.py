@@ -144,15 +144,21 @@ class AgentEventBus:
                 subscriber_ids.update(self._topics[topic])
 
         # Broadcast to all subscriber WebSockets
+        # Collect websockets to send to (avoid modifying set during iteration)
+        websockets_to_send = []
         for agent_id in subscriber_ids:
             if agent_id in self._subscribers:
                 for websocket in self._subscribers[agent_id]:
-                    try:
-                        await websocket.send_json(event)
-                    except Exception as e:
-                        logger.warning(f"Failed to send to agent {agent_id}: {e}")
-                        # Remove dead connection
-                        await self.unsubscribe(agent_id, websocket)
+                    websockets_to_send.append((agent_id, websocket))
+
+        # Send to all collected websockets
+        for agent_id, websocket in websockets_to_send:
+            try:
+                await websocket.send_json(event)
+            except Exception as e:
+                logger.warning(f"Failed to send to agent {agent_id}: {e}")
+                # Remove dead connection
+                await self.unsubscribe(agent_id, websocket)
 
         logger.info(f"Event published to {len(subscriber_ids)} subscribers (topics: {topics})")
 
