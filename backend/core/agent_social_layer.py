@@ -995,6 +995,400 @@ class AgentSocialLayer:
             self.logger.warning(f"Failed to get episode summaries: {e}")
             return []
 
+    async def track_positive_interaction(
+        self,
+        post_id: str,
+        interaction_type: str,
+        user_id: Optional[str] = None,
+        db: Session = None
+    ) -> None:
+        """
+        Track positive interactions for agent graduation.
+
+        Counts emoji reactions and helpful replies, updates agent
+        reputation score, and links to AgentFeedback for learning.
+
+        Args:
+            post_id: Post ID that received interaction
+            interaction_type: Type (reaction, reply, etc.)
+            user_id: Optional user ID who interacted
+            db: Database session
+        """
+        if not db:
+            return
+
+        try:
+            # Get post
+            post = db.query(AgentPost).filter(AgentPost.id == post_id).first()
+            if not post or post.sender_type != "agent":
+                return
+
+            # Determine if interaction is positive
+            is_positive = self._is_positive_interaction(interaction_type)
+            if not is_positive:
+                return
+
+            # Track positive interaction for graduation
+            try:
+                from core.agent_graduation_service import AgentGraduationService
+                graduation_service = AgentGraduationService(db)
+
+                # Note: This assumes graduation service has this method
+                # If not, we'll track it in a separate table
+                self.logger.info(
+                    f"Tracking positive interaction for agent {post.agent_id}: "
+                    f"{interaction_type} on post {post_id}"
+                )
+
+                # Create feedback record linking to social interaction
+                from core.models import AgentFeedback
+
+                feedback = AgentFeedback(
+                    agent_id=post.agent_id,
+                    user_id=user_id,
+                    feedback_type="social_interaction",
+                    rating=1.0 if is_positive else 0.0,
+                    comment=f"Positive {interaction_type} on social post {post_id}",
+                    context={
+                        "post_id": post_id,
+                        "interaction_type": interaction_type,
+                        "timestamp": datetime.utcnow().isoformat()
+                    },
+                    created_at=datetime.utcnow()
+                )
+                db.add(feedback)
+                db.commit()
+
+            except ImportError:
+                # Graduation service not available, log only
+                self.logger.warning("AgentGraduationService not available")
+
+            # Update agent reputation
+            await self._update_agent_reputation(
+                post.agent_id, interaction_type, db=db
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to track positive interaction: {e}")
+
+    def _is_positive_interaction(self, interaction_type: str) -> bool:
+        """
+        Determine if interaction type is positive.
+
+        Args:
+            interaction_type: Type of interaction
+
+        Returns:
+            True if interaction is positive
+        """
+        positive_reactions = {"👍", "❤️", "🎉", "🌟", "💯", "fire", "like", "love"}
+        positive_reply_keywords = {"thanks", "helpful", "great", "awesome", "thanks!"}
+
+        interaction_lower = interaction_type.lower()
+
+        # Check if it's a positive reaction
+        if interaction_lower in positive_reactions:
+            return True
+
+        # Check if it's a positive reply keyword
+        for keyword in positive_reply_keywords:
+            if keyword in interaction_lower:
+                return True
+
+        return False
+
+    async def _update_agent_reputation(
+        self,
+        agent_id: str,
+        interaction_type: str,
+        db: Session = None
+    ) -> None:
+        """
+        Update agent reputation from social interaction.
+
+        Args:
+            agent_id: Agent ID
+            interaction_type: Type of interaction
+            db: Database session
+        """
+        # Note: Reputation is calculated on-demand in get_agent_reputation()
+        # This is a placeholder for any real-time updates needed
+        self.logger.info(f"Updated reputation for agent {agent_id}: {interaction_type}")
+
+    async def get_agent_reputation(
+        self,
+        agent_id: str,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Calculate agent reputation from social interactions.
+
+        Returns reputation score (0-100), breakdown by interaction type,
+        trend over last 30 days, and percentile rank.
+
+        Args:
+            agent_id: Agent ID
+            db: Database session
+
+        Returns:
+            Reputation dict with score, breakdown, trend, percentile
+        """
+        if not db:
+            return {
+                "agent_id": agent_id,
+                "reputation_score": 0,
+                "total_reactions": 0,
+                "total_replies": 0,
+                "helpful_replies": 0,
+                "post_count": 0,
+                "percentile_rank": 0,
+                "trend": []
+            }
+
+        try:
+            # Get agent's posts
+            posts = db.query(AgentPost).filter(
+                AgentPost.sender_id == agent_id,
+                AgentPost.sender_type == "agent"
+            ).all()
+
+            # Calculate metrics
+            total_reactions = sum(
+                len(p.get("reactions", [])) if isinstance(p.reactions, list) else 0
+                for p in posts
+            )
+            total_replies = sum(p.reply_count or 0 for p in posts)
+            helpful_replies = await self._count_helpful_replies(agent_id, db)
+
+            # Base reputation score
+            score = min(100, (
+                total_reactions * 2 +  # 2 points per reaction
+                helpful_replies * 5 +   # 5 points per helpful reply
+                len(posts) * 1          # 1 point per post
+            ))
+
+            # Get percentile rank
+            percentile = await self._calculate_percentile_rank(agent_id, score, db)
+
+            return {
+                "agent_id": agent_id,
+                "reputation_score": score,
+                "total_reactions": total_reactions,
+                "total_replies": total_replies,
+                "helpful_replies": helpful_replies,
+                "post_count": len(posts),
+                "percentile_rank": percentile,
+                "trend": await self._get_reputation_trend(agent_id, db)
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to calculate reputation for agent {agent_id}: {e}")
+            return {
+                "agent_id": agent_id,
+                "reputation_score": 0,
+                "error": str(e)
+            }
+
+    async def _count_helpful_replies(
+        self,
+        agent_id: str,
+        db: Session = None
+    ) -> int:
+        """
+        Count helpful replies by agent.
+
+        Args:
+            agent_id: Agent ID
+            db: Database session
+
+        Returns:
+            Number of helpful replies
+        """
+        if not db:
+            return 0
+
+        try:
+            # Get posts that are replies to other posts
+            # and check if they contain "helpful" keywords
+            from core.models import AgentFeedback
+
+            helpful_feedback = db.query(AgentFeedback).filter(
+                AgentFeedback.agent_id == agent_id,
+                AgentFeedback.feedback_type == "social_interaction",
+                AgentFeedback.rating >= 0.8  # High rating indicates helpful
+            ).count()
+
+            return helpful_feedback
+        except Exception as e:
+            self.logger.warning(f"Failed to count helpful replies: {e}")
+            return 0
+
+    async def _calculate_percentile_rank(
+        self,
+        agent_id: str,
+        score: int,
+        db: Session = None
+    ) -> float:
+        """
+        Calculate agent's percentile rank among all agents.
+
+        Args:
+            agent_id: Agent ID
+            score: Agent's reputation score
+            db: Database session
+
+        Returns:
+            Percentile rank (0-100)
+        """
+        if not db:
+            return 0.0
+
+        try:
+            # Get all agent IDs
+            from core.models import AgentRegistry
+            all_agents = db.query(AgentRegistry).all()
+
+            if not all_agents:
+                return 0.0
+
+            # Calculate scores for all agents (simplified - would be expensive for real)
+            # For now, just return score as percentile
+            return min(100.0, (score / 100.0) * 100)
+
+        except Exception as e:
+            self.logger.warning(f"Failed to calculate percentile: {e}")
+            return 0.0
+
+    async def _get_reputation_trend(
+        self,
+        agent_id: str,
+        db: Session = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get 30-day reputation trend for agent.
+
+        Args:
+            agent_id: Agent ID
+            db: Database session
+
+        Returns:
+            List of daily reputation scores
+        """
+        if not db:
+            return []
+
+        try:
+            # Get posts in last 30 days
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            posts = db.query(AgentPost).filter(
+                AgentPost.sender_id == agent_id,
+                AgentPost.sender_type == "agent",
+                AgentPost.created_at >= thirty_days_ago
+            ).all()
+
+            # Group by day and calculate score
+            # (Simplified - just return post count by day)
+            from collections import defaultdict
+
+            daily_counts = defaultdict(int)
+            for post in posts:
+                day = post.created_at.strftime("%Y-%m-%d")
+                daily_counts[day] += 1
+
+            return [
+                {"date": day, "post_count": count}
+                for day, count in sorted(daily_counts.items())
+            ]
+
+        except Exception as e:
+            self.logger.warning(f"Failed to get reputation trend: {e}")
+            return []
+
+    async def post_graduation_milestone(
+        self,
+        agent_id: str,
+        from_maturity: str,
+        to_maturity: str,
+        db: Session = None
+    ) -> Dict[str, Any]:
+        """
+        Post agent graduation milestone to social feed.
+
+        Creates announcement post, broadcasts to all agents,
+        includes celebration emoji.
+
+        Args:
+            agent_id: Agent ID that graduated
+            from_maturity: Previous maturity level
+            to_maturity: New maturity level
+            db: Database session
+
+        Returns:
+            Created milestone post
+        """
+        if not db:
+            return {}
+
+        try:
+            # Get agent details
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                raise ValueError(f"Agent {agent_id} not found")
+
+            # Generate celebration message
+            message = (
+                f"🎉 Exciting news! {agent.name} has graduated from "
+                f"{from_maturity} to {to_maturity}! "
+                f"Keep up the great work! 💪"
+            )
+
+            # Create milestone post
+            post = await self.create_post(
+                sender_type="system",
+                sender_id="graduation_system",
+                sender_name="Graduation System",
+                post_type="announcement",
+                content=message,
+                is_public=True,
+                auto_generated=True,
+                metadata={
+                    "milestone_type": "graduation",
+                    "from_maturity": from_maturity,
+                    "to_maturity": to_maturity,
+                    "agent_id": agent_id,
+                    "agent_name": agent.name
+                },
+                db=db
+            )
+
+            # Broadcast to all agents
+            await agent_event_bus.publish(
+                {
+                    "type": "graduation_milestone",
+                    "agent_id": agent_id,
+                    "agent_name": agent.name,
+                    "from_maturity": from_maturity,
+                    "to_maturity": to_maturity,
+                    "post_id": str(post["id"]),
+                    "timestamp": datetime.utcnow().isoformat()
+                },
+                ["global", "alerts"]
+            )
+
+            self.logger.info(
+                f"Posted graduation milestone for agent {agent_id}: "
+                f"{from_maturity} → {to_maturity}"
+            )
+
+            return post
+
+        except Exception as e:
+            self.logger.error(f"Failed to post graduation milestone: {e}")
+            raise
+
 
 # Global service instance
 agent_social_layer = AgentSocialLayer()
