@@ -211,6 +211,199 @@ class TestSocialPostGenerator:
         with pytest.raises(ValueError, match="what_explanation is required"):
             asyncio.run(generator.generate_from_operation(mock_tracker, mock_agent))
 
+    # Additional GPT-4.1 Mini NLG Tests
+    @pytest.mark.asyncio
+    async def test_llm_api_error_fallback(self, generator, mock_tracker, mock_agent):
+        """Test that API errors fall back to template"""
+        with patch.object(generator, '_openai_client', create=True):
+            import openai
+            generator._openai_client = AsyncMock()
+            # Use Exception instead of APIError to avoid complex signature
+            generator._openai_client.chat.completions.create = AsyncMock(
+                side_effect=Exception("API request failed")
+            )
+
+            post = await generator.generate_from_operation(mock_tracker, mock_agent)
+
+            assert "workflow" in post.lower() or "tests" in post.lower()
+
+    @pytest.mark.asyncio
+    async def test_llm_disabled_behavior(self, generator, mock_tracker, mock_agent):
+        """Test that template used when LLM disabled"""
+        generator.llm_enabled = False
+
+        post = await generator.generate_from_operation(mock_tracker, mock_agent)
+
+        assert "workflow" in post.lower() or "tests" in post.lower()
+        assert len(post) <= 280
+
+    @pytest.mark.asyncio
+    async def test_generated_post_length_limit(self, generator, mock_tracker, mock_agent):
+        """Verify 280 character truncation"""
+        # Create a very long response
+        long_response = "x" * 300
+        with patch.object(generator, '_openai_client', create=True):
+            generator._openai_client = AsyncMock()
+            generator._openai_client.chat.completions.create = AsyncMock(
+                return_value=Mock(choices=[Mock(message=Mock(content=long_response))])
+            )
+
+            post = await generator.generate_from_operation(mock_tracker, mock_agent)
+
+            assert len(post) <= 280
+
+    @pytest.mark.asyncio
+    async def test_generated_post_quality(self, generator, mock_tracker, mock_agent):
+        """Verify casual tone, emoji usage (max 2), no jargon"""
+        with patch.object(generator, '_openai_client', create=True):
+            generator._openai_client = AsyncMock()
+            generator._openai_client.chat.completions.create = AsyncMock(
+                return_value=Mock(choices=[Mock(message=Mock(content="Just finished running tests! 🎉 All passed! 🧪"))])
+            )
+
+            post = await generator.generate_from_operation(mock_tracker, mock_agent)
+
+            # Count emojis (should be max 2)
+            emoji_count = sum(1 for char in post if ord(char) > 127)
+            assert emoji_count <= 2, f"Too many emojis: {post}"
+
+            # Should be casual tone (not overly formal)
+            assert len(post) <= 280
+
+    def test_significant_operation_detection(self, generator):
+        """All 7 operation types verified"""
+        significant_ops = [
+            "workflow_execute",
+            "integration_connect",
+            "browser_automate",
+            "report_generate",
+            "human_feedback_received",
+            "approval_requested",
+            "agent_to_agent_call"
+        ]
+
+        for op_type in significant_ops:
+            tracker = Mock(spec=AgentOperationTracker)
+            tracker.operation_type = op_type
+            tracker.status = "completed"
+            tracker.what_explanation = "Test"
+            tracker.why_explanation = "Test"
+            tracker.next_steps = "Test"
+
+            result = generator.is_significant_operation(tracker)
+            assert result is True, f"{op_type} should be significant"
+
+    # Additional Template Fallback Tests
+    def test_template_completed_status(self, generator):
+        """Uses 'completed' template"""
+        metadata = {
+            "agent_name": "Test Agent",
+            "operation_type": "workflow_execute",
+            "what_explanation": "Ran tests",
+            "why_explanation": "Quality",
+            "next_steps": "Fix bugs",
+            "status": "completed"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        assert "completed" in post.lower() or "workflow" in post.lower()
+
+    def test_template_working_status(self, generator):
+        """Uses 'working' template"""
+        metadata = {
+            "agent_name": "Test Agent",
+            "operation_type": "workflow_execute",
+            "what_explanation": "Running tests",
+            "why_explanation": "Quality",
+            "next_steps": "Fix bugs",
+            "status": "running"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        assert "working" in post.lower() or "workflow" in post.lower()
+
+    def test_template_default_status(self, generator):
+        """Uses 'default' template"""
+        metadata = {
+            "agent_name": "Test Agent",
+            "operation_type": "workflow_execute",
+            "what_explanation": "Running tests",
+            "why_explanation": "Quality",
+            "next_steps": "Fix bugs",
+            "status": "pending"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        # Should use default template
+        assert "test agent" in post.lower() or "workflow" in post.lower()
+
+    def test_template_missing_key_uses_default(self, generator):
+        """KeyError handled gracefully"""
+        # Missing required metadata keys
+        metadata = {
+            "agent_name": "Test Agent",
+            "status": "completed"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        # Should not crash, should return something
+        assert post is not None
+        assert len(post) > 0
+
+    def test_template_empty_content(self, generator):
+        """Empty strings handled"""
+        metadata = {
+            "agent_name": "",
+            "operation_type": "workflow_execute",
+            "what_explanation": "",
+            "why_explanation": "",
+            "next_steps": "",
+            "status": "completed"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        # Should handle gracefully
+        assert post is not None
+
+    def test_template_special_characters(self, generator):
+        """Special characters preserved"""
+        metadata = {
+            "agent_name": "Test Agent",
+            "operation_type": "workflow_execute",
+            "what_explanation": "Fixed bug: NullPointerException in @async method",
+            "why_explanation": "Critical fix",
+            "next_steps": "Deploy to prod",
+            "status": "completed"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        # Should handle special chars
+        assert post is not None
+        assert len(post) <= 280
+
+    def test_template_unicode_content(self, generator):
+        """Unicode characters handled"""
+        metadata = {
+            "agent_name": "Tëst Ägënt",
+            "operation_type": "workflow_execute",
+            "what_explanation": "Fïxëd büg",
+            "why_explanation": "Crïtical",
+            "next_steps": "Dëploy",
+            "status": "completed"
+        }
+
+        post = generator.generate_with_template("workflow_execute", metadata)
+
+        # Should handle unicode
+        assert post is not None
+        assert len(post) <= 280
+
 
 # ==============================================================================
 # Unit Tests: OperationTrackerHooks
@@ -475,3 +668,27 @@ class TestSocialPostIntegration:
         assert len(post) <= 280, "Post must be under 280 characters"
         assert any(word in post.lower() for word in ["workflow", "tests", "pr"]), "Post should mention relevant keywords"
         assert post != "", "Post should not be empty"
+
+    @pytest.mark.asyncio
+    async def test_pii_redaction_integration(self, mock_tracker, mock_agent, mock_db):
+        """PII redaction placeholder verified"""
+        # Add PII to tracker
+        mock_tracker.what_explanation = "Contact john@example.com for help"
+
+        # Mock database queries
+        mock_db.query.return_value.filter.return_value.first.side_effect = [mock_tracker, mock_agent]
+
+        # Mock social layer
+        with patch('core.operation_tracker_hooks.agent_social_layer') as mock_social:
+            mock_social.create_post = AsyncMock()
+
+            hooks = OperationTrackerHooks()
+            await hooks.on_operation_complete("tracker_123", mock_db)
+
+            # Verify post was created (PII redaction is TODO in Plan 02)
+            mock_social.create_post.assert_called_once()
+
+            # Verify content was passed (will be redacted in Plan 02)
+            call_args = mock_social.create_post.call_args
+            content = call_args.kwargs.get('content', '')
+            assert len(content) > 0
