@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, AsyncMock
 from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry, AgentStatus, Episode, CanvasAudit
-from core.governance_cache import governance_cache
+from core.governance_cache import get_governance_cache
 
 
 def create_test_agent(
@@ -198,10 +198,11 @@ def clear_governance_cache(agent_id: Optional[str] = None) -> None:
         clear_governance_cache()  # Clear all
         clear_governance_cache(agent_id="abc-123")  # Clear specific agent
     """
+    cache = get_governance_cache()
     if agent_id:
-        governance_cache.invalidate_agent(agent_id)
+        cache.invalidate_agent(agent_id)
     else:
         # Clear all cache entries
-        governance_cache._cache.clear()
-        governance_cache._hits = 0
-        governance_cache._misses = 0
+        cache._cache.clear()
+        cache._hits = 0
+        cache._misses = 0
