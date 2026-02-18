@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit } from "lucide-react";
 
 export interface AgentInfo {
     id: string;
@@ -18,9 +18,11 @@ interface AgentCardProps {
     agent: AgentInfo;
     onRun: (id: string) => void;
     onStop: (id: string) => void;
+    onChat: (id: string) => void;
+    onEdit: (id: string) => void;
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onEdit }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -52,23 +54,29 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop }) => {
                 </div>
             </CardContent>
             <CardFooter className="flex gap-2">
+                <Button variant="outline" size="icon" onClick={() => onChat(agent.id)} title="Chat with Agent">
+                    <MessageSquare className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => onEdit(agent.id)} title="Edit Agent">
+                    <Edit className="w-4 h-4" />
+                </Button>
                 {agent.status === "running" ? (
                     <Button
-                        className="w-full"
+                        className="flex-1"
                         variant="destructive"
                         onClick={() => onStop(agent.id)}
                     >
                         <XCircle className="w-4 h-4 mr-2" />
-                        Stop Agent
+                        Stop
                     </Button>
                 ) : (
                     <Button
-                        className="w-full"
+                        className="flex-1"
                         variant="default"
                         onClick={() => onRun(agent.id)}
                     >
                         <Play className="w-4 h-4 mr-2" />
-                        Run Agent
+                        Run
                     </Button>
                 )}
             </CardFooter>
