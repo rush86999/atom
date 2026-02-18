@@ -637,8 +637,8 @@ Topics: {', '.join(episode.topics)}
             canvas_types.add(audit.canvas_type)
 
             # Extract visual elements from canvas metadata
-            if audit.metadata_json:
-                metadata = audit.metadata_json
+            if audit.audit_metadata:
+                metadata = audit.audit_metadata
 
                 # Check for component type
                 component = metadata.get('component', '')
