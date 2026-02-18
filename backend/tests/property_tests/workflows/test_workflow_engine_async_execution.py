@@ -22,6 +22,9 @@ from typing import Dict, List, Any
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from hypothesis import given, strategies as st, settings, HealthCheck
 
+# Import module explicitly for coverage tracking
+import core.workflow_engine  # noqa: F401
+
 from core.workflow_engine import WorkflowEngine
 from core.models import WorkflowExecutionStatus
 from core.exceptions import AgentExecutionError, ValidationError as AtomValidationError

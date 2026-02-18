@@ -19,6 +19,9 @@ from typing import Dict, List, Any
 import json
 import csv
 
+# Import module explicitly for coverage tracking
+import core.workflow_analytics_engine  # noqa: F401
+
 from core.workflow_analytics_engine import (
     WorkflowAnalyticsEngine,
     WorkflowMetric,
