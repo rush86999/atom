@@ -1310,10 +1310,22 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
    - Verify API documentation matches actual implementation
 
 **Estimated Impact**: Clear, concise README with comprehensive documentation ecosystem
+**Plans**: 4 plans (2 waves)
+- [ ] 24-01-PLAN.md — Condense README.md to ~200 lines (Wave 1)
+- [ ] 24-02-PLAN.md — Update feature documentation with Phase 20-23 features (Wave 1)
+- [ ] 24-03-PLAN.md — Update CLAUDE.md with recent features (Wave 2)
+- [ ] 24-04-PLAN.md — Documentation verification and link checking (Wave 2)
 **Estimated Duration**: 4 plans (1-2 days)
 
 **Plans**: 4 plans
-- [ ] 24-01-PLAN.md — Condense README.md to 200 lines with preserved links
-- [ ] 24-02-PLAN.md — Update feature documentation with latest features
-- [ ] 24-03-PLAN.md — Update CLAUDE.md with Phase 20-23 features
-- [ ] 24-04-PLAN.md — Verify and test all documentation
+- [x] 24-01-PLAN.md — Condense README.md to 200 lines with preserved links ✅ COMPLETE
+- [x] 24-02-PLAN.md — Update feature documentation with latest features ✅ COMPLETE
+- [x] 24-03-PLAN.md — Update CLAUDE.md with Phase 20-23 features ✅ COMPLETE
+- [x] 24-04-PLAN.md — Verify and test all documentation ✅ COMPLETE
+
+- [ ] **Phase 25: Atom CLI as OpenClaw Skill** - Convert Atom CLI commands into OpenClaw-compatible skills for cross-platform agent usage
+  - Plan 01: Create SKILL.md wrapper for atom CLI commands (daemon, status, execute)
+  - Plan 02: Add skill metadata and YAML frontmatter for OpenClaw compatibility
+  - Plan 03: Test CLI skill integration with community skills framework
+  - Estimated Plans: 3 plans (1 day)
+  - Status: Not Planned (February 18, 2026)
