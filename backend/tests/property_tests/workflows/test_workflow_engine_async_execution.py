@@ -222,7 +222,7 @@ class TestAsyncWorkflowExecution:
         # Mock _execute_step
         async def mock_execute_step(step, params):
             if should_fail and step["id"] == "step_1":
-                raise AgentExecutionError("Step failed")
+                raise AgentExecutionError("step_1", "Step failed")
             return {"result": {"success": True}}
 
         with patch.object(engine, '_execute_step', mock_execute_step):
@@ -372,11 +372,11 @@ class TestRetryLogic:
         async def flaky_operation():
             attempt_count[0] += 1
             if attempt_count[0] <= fail_count:
-                raise AgentExecutionError(f"Attempt {attempt_count[0]} failed")
+                raise AgentExecutionError("test_task", f"Attempt {attempt_count[0]} failed")
             return {"result": {"success": True}}
 
-        # Invariant: Should retry if fail_count <= max_attempts
-        if fail_count <= max_attempts:
+        # Invariant: Should succeed if we have more attempts than failures
+        if fail_count < max_attempts:
             # Should eventually succeed
             result = None
             for i in range(max_attempts):
@@ -409,7 +409,7 @@ class TestRetryLogic:
 
         async def always_failing_operation():
             attempt_count[0] += 1
-            raise AgentExecutionError("Always fails")
+            raise AgentExecutionError("test_task", "Always fails")
 
         # Should attempt exactly max_attempts times
         for i in range(max_attempts):
@@ -435,7 +435,7 @@ class TestRetryLogic:
         async def operation_with_backoff():
             attempt_times.append(datetime.utcnow())
             if len(attempt_times) < max_attempts:
-                raise AgentExecutionError("Not yet")
+                raise AgentExecutionError("test_task", "Not yet")
             return {"result": {"success": True}}
 
         # Calculate expected delays
@@ -462,7 +462,7 @@ class TestRetryLogic:
                 # Permanent error (e.g., validation)
                 raise AtomValidationError("Invalid input")
             else:
-                raise AgentExecutionError("Transient error")
+                raise AgentExecutionError("test_task", "Transient error")
 
         # Permanent errors should not retry
         if error_type == "permanent":
