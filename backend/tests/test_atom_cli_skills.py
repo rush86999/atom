@@ -544,16 +544,19 @@ class TestAtomCliGovernanceGates:
             return mock_service
 
     @pytest.fixture
-    def mock_skill_execution(self, monkeypatch):
-        """Mock skill execution."""
-        from unittest.mock import patch
-        from core.skill_adapter import CommunitySkillTool
+    def mock_subprocess_run(self, monkeypatch):
+        """Mock subprocess.run for CLI commands."""
+        from unittest.mock import patch, MagicMock
 
-        with patch('core.skill_adapter.CommunitySkillTool._execute_cli_skill') as mock:
-            mock.return_value = {"success": True, "stdout": "Command executed"}
-            yield mock
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Command executed successfully"
+        mock_result.stderr = ""
 
-    def test_student_agent_blocked_from_autonomous_skills(self, mock_governance_service, mock_skill_execution):
+        with patch('subprocess.run', return_value=mock_result) as mock_run:
+            yield mock_run
+
+    def test_student_agent_blocked_from_autonomous_skills(self, mock_governance_service, mock_subprocess_run):
         """STUDENT agent blocked from daemon/start/stop/execute skills."""
         from tools.atom_cli_skill_wrapper import execute_atom_cli_command
         from core.agent_governance_service import AgentGovernanceService
@@ -573,7 +576,7 @@ class TestAtomCliGovernanceGates:
             result = execute_atom_cli_command(skill)
             assert "success" in result
 
-    def test_student_agent_can_read_status_config(self, mock_governance_service, mock_skill_execution):
+    def test_student_agent_can_read_status_config(self, mock_governance_service, mock_subprocess_run):
         """STUDENT agent allowed status/config skills."""
         from tools.atom_cli_skill_wrapper import execute_atom_cli_command
 
@@ -584,7 +587,7 @@ class TestAtomCliGovernanceGates:
             result = execute_atom_cli_command(skill)
             assert result["success"] is True  # Assuming command executes successfully
 
-    def test_autonomous_agent_can_execute_all_skills(self, mock_governance_service, mock_skill_execution):
+    def test_autonomous_agent_can_execute_all_skills(self, mock_governance_service, mock_subprocess_run):
         """AUTONOMOUS agent has full access to all CLI skills."""
         from tools.atom_cli_skill_wrapper import execute_atom_cli_command
 
@@ -593,7 +596,7 @@ class TestAtomCliGovernanceGates:
 
         for skill in all_skills:
             result = execute_atom_cli_command(skill)
-            assert result["success"] is True  # Assuming command executes successfully
+            assert result["success"] is True  # Assuming command executes successfullly
 
     def test_governance_check_before_cli_execution(self, mock_governance_service):
         """Verify governance check happens before subprocess execution."""
@@ -621,10 +624,30 @@ class TestAtomCliSkillImport:
         return list((Path(__file__).parent.parent / "skills/atom-cli").glob("atom-*.md"))
 
     @pytest.fixture
-    def skill_registry_service(self, db_session):
-        """SkillRegistryService instance."""
+    def skill_registry_service(self, db_session, monkeypatch):
+        """SkillRegistryService instance with mocked dependencies."""
+        from unittest.mock import patch, MagicMock
         from core.skill_registry_service import SkillRegistryService
-        return SkillRegistryService(db_session)
+
+        # Mock Docker dependencies at module level before creating service
+        with patch('docker.from_env') as mock_docker, \
+             patch('core.skill_parser.SkillParser') as mock_parser, \
+             patch('core.skill_security_scanner.SkillSecurityScanner') as mock_scanner, \
+             patch('core.skill_sandbox.HazardSandbox') as mock_sandbox, \
+             patch('core.agent_governance_service.AgentGovernanceService') as mock_governance, \
+             patch('core.episode_segmentation_service.EpisodeSegmentationService') as mock_segmentation:
+
+            # Set up mocks
+            mock_docker.return_value = MagicMock()  # Mock Docker client
+            mock_parser.return_value = MagicMock()
+            mock_scanner.return_value = MagicMock()
+            mock_sandbox.return_value = MagicMock()
+            mock_governance_instance = MagicMock()
+            mock_governance_instance.check_permission.return_value = True
+            mock_governance.return_value = mock_governance_instance
+            mock_segmentation.return_value = MagicMock()
+
+            return SkillRegistryService(db_session)
 
     @pytest.fixture
     def mock_governance_service(self, monkeypatch):
