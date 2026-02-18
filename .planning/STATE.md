@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 25-atom-cli-openclaw-skill
-Plan: 02 (COMPLETE)
-Status: IN PROGRESS (2 of 4 plans complete)
-Last activity: 2026-02-18 — Plan 25-02 COMPLETE: Subprocess Wrapper for Atom CLI Command Execution. Created atom_cli_skill_wrapper.py with execute_atom_cli_command function (30s timeout, structured output, exception handling). Added daemon helpers (is_daemon_running, get_daemon_pid, wait_for_daemon_ready with polling). Integrated with CommunitySkillTool for CLI skill execution (atom-* prefix detection, argument parsing). 2 atomic commits (4d6c3f06, 6f80d9e8), 5 minutes duration, 1 file created, 1 file modified, 404 lines added. Deviation 1: Task 3 already completed in Task 1.
+Plan: 04 (COMPLETE)
+Status: IN PROGRESS (3 of 4 plans complete)
+Last activity: 2026-02-18 — Plan 25-04 COMPLETE: Documentation and Verification. Created comprehensive ATOM_CLI_SKILLS_GUIDE.md (909 lines), updated COMMUNITY_SKILLS.md with CLI skills section, updated CLAUDE.md with Phase 25 content, updated ROADMAP.md with progress tracking, created 25-VERIFICATION.md documenting all success criteria. 4 atomic commits (c77e9792, 19b9406b, 4fa85ac3, 449fe8fc, 6f3049bc), 5 minutes duration, 2 files created, 3 files modified, 1,154 lines added. Zero deviations.
 
-Progress: [██░░░░░░░] 50% (Phase 25: 2 of 4 plans complete)
+Progress: [███░░░░░] 75% (Phase 25: 3 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -190,6 +190,8 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 24-documentation-updates P03 | 180s | 4 tasks | 1 file |
 | Phase 21-llm-canvas-summaries P01 | 427s | 5 tasks | 2 files |
 | Phase 25-atom-cli-openclaw-skill P01 | 240 | 3 tasks | 6 files |
+| Phase 25-atom-cli-openclaw-skill P02 | 300 | 3 tasks | 2 files |
+| Phase 25-atom-cli-openclaw-skill P04 | 300 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
