@@ -21,7 +21,8 @@ from tools.atom_cli_skill_wrapper import (
     build_command_args
 )
 from core.skill_registry_service import SkillRegistryService
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from tests.factories.agent_factory import StudentAgentFactory, AutonomousAgentFactory
 
 
 class TestAtomCliSkillParsing:
@@ -183,28 +184,21 @@ class TestAtomCliSkillMetadata:
         assert len(skill_files) == 6, f"Expected 6 skill files, found {len(skill_files)}"
 
         for skill_file in skill_files:
-            result = skill_parser.parse_skill_file(str(skill_file))
-
-            assert result["success"], f"Parsing failed for {skill_file.name}: {result['error']}"
-
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
             # Check required fields exist
             for field in required_fields:
-                assert field in skill, f"Missing field '{field}' in {skill_file.name}"
-                assert skill[field] is not None, f"Empty field '{field}' in {skill_file.name}"
-                assert str(skill[field]).strip(), f"Blank field '{field}' in {skill_file.name}"
+                assert field in metadata, f"Missing field '{field}' in {skill_file.name}"
+                assert metadata[field] is not None, f"Empty field '{field}' in {skill_file.name}"
+                assert str(metadata[field]).strip(), f"Blank field '{field}' in {skill_file.name}"
 
     def test_governance_maturity_requirements(self, skill_parser, cli_skill_dir):
         """Verify governance maturity requirements are properly set."""
         skill_files = list(cli_skill_dir.glob("atom-*.md"))
 
         for skill_file in skill_files:
-            result = skill_parser.parse_skill_file(str(skill_file))
-
-            assert result["success"], f"Parsing failed for {skill_file.name}: {result['error']}"
-
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             governance = skill.get("governance", {})
 
             # Verify governance section exists and has maturity_requirement
@@ -226,11 +220,8 @@ class TestAtomCliSkillMetadata:
 
             assert skill_file.exists(), f"Skill file {skill_file.name} missing"
 
-            result = skill_parser.parse_skill_file(str(skill_file))
-
-            assert result["success"], f"Parsing failed for {skill_file.name}: {result['error']}"
-
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             assert skill["name"] == expected_name, \
                 f"Expected name '{expected_name}', got '{skill['name']}' in {skill_file.name}"
 
@@ -240,11 +231,8 @@ class TestAtomCliSkillMetadata:
         skill_files = list(cli_skill_dir.glob("atom-*.md"))
 
         for skill_file in skill_files:
-            result = skill_parser.parse_skill_file(str(skill_file))
-
-            assert result["success"], f"Parsing failed for {skill_file.name}: {result['error']}"
-
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             governance = skill.get("governance", {})
 
             if governance["maturity_requirement"] == "AUTONOMOUS":
@@ -256,8 +244,8 @@ class TestAtomCliSkillMetadata:
         autonomous_skills = ["atom-daemon", "atom-start", "atom-stop", "atom-execute"]
         for skill_name in autonomous_skills:
             skill_file = cli_skill_dir / f"{skill_name}.md"
-            result = skill_parser.parse_skill_file(str(skill_file))
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             assert skill["governance"]["maturity_requirement"] == "AUTONOMOUS"
 
     def test_student_skills_count(self, skill_parser, cli_skill_dir):
@@ -266,11 +254,8 @@ class TestAtomCliSkillMetadata:
         skill_files = list(cli_skill_dir.glob("atom-*.md"))
 
         for skill_file in skill_files:
-            result = skill_parser.parse_skill_file(str(skill_file))
-
-            assert result["success"], f"Parsing failed for {skill_file.name}: {result['error']}"
-
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             governance = skill.get("governance", {})
 
             if governance["maturity_requirement"] == "STUDENT":
@@ -282,8 +267,8 @@ class TestAtomCliSkillMetadata:
         student_skills = ["atom-status", "atom-config"]
         for skill_name in student_skills:
             skill_file = cli_skill_dir / f"{skill_name}.md"
-            result = skill_parser.parse_skill_file(str(skill_file))
-            skill = result["skill"]
+            metadata, body = skill_parser.parse_skill_file(str(skill_file))
+            skill = metadata
             assert skill["governance"]["maturity_requirement"] == "STUDENT"
 
 
@@ -489,60 +474,40 @@ class TestDaemonHelperFunctions:
 
     def test_wait_for_daemon_ready(self, mock_execute_atom_cli_command):
         """Poll status until running with timeout."""
-        from tools.atom_cli_skill_wrapper import wait_for_daemon_ready
+        from tools.atom_cli_skill_wrapper import wait_for_daemon_ready, is_daemon_running
+
+        # Mock is_daemon_running instead of execute_atom_cli_command directly
+        # since wait_for_daemon_ready() calls is_daemon_running() internally
 
         # Test immediate success
-        mock_execute_atom_cli_command.return_value = {
-            "success": True,
-            "stdout": "Status: RUNNING",
-            "stderr": "",
-            "returncode": 0
-        }
+        with patch('tools.atom_cli_skill_wrapper.is_daemon_running') as mock_is_running:
+            mock_is_running.return_value = True
 
-        result = wait_for_daemon_ready(max_wait=5)
-        assert result is True
-        assert mock_execute_atom_cli_command.call_count == 1
+            result = wait_for_daemon_ready(max_wait=5)
+            assert result is True
+            mock_is_running.assert_called_once()
 
-        # Test timeout after 3 attempts
-        mock_execute_atom_cli_command.reset_mock()
-        call_count = 0
+        # Test delayed success
+        with patch('tools.atom_cli_skill_wrapper.is_daemon_running') as mock_is_running:
+            call_count = [0]  # Use list to modify in nested function
 
-        def mock_delayed_response():
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                return {
-                    "success": True,
-                    "stdout": "Status: STOPPED",
-                    "stderr": "",
-                    "returncode": 0
-                }
-            else:
-                return {
-                    "success": True,
-                    "stdout": "Status: RUNNING",
-                    "stderr": "",
-                    "returncode": 0
-                }
+            def mock_delayed_running():
+                call_count[0] += 1
+                return call_count[0] >= 3  # Return True after 3rd call
 
-        mock_execute_atom_cli_command.side_effect = mock_delayed_response
+            mock_is_running.side_effect = mock_delayed_running
 
-        result = wait_for_daemon_ready(max_wait=2)
-        assert result is True  # Should succeed on 3rd attempt
-        assert mock_execute_atom_cli_command.call_count == 3
+            result = wait_for_daemon_ready(max_wait=2)
+            assert result is True  # Should succeed on 3rd attempt
+            assert mock_is_running.call_count == 3
 
         # Test persistent failure
-        mock_execute_atom_cli_command.reset_mock()
-        mock_execute_atom_cli_command.return_value = {
-            "success": True,
-            "stdout": "Status: STOPPED",
-            "stderr": "",
-            "returncode": 0
-        }
+        with patch('tools.atom_cli_skill_wrapper.is_daemon_running') as mock_is_running:
+            mock_is_running.return_value = False
 
-        result = wait_for_daemon_ready(max_wait=1)
-        assert result is False
-        assert mock_execute_atom_cli_command.call_count >= 2  # Should attempt multiple times
+            result = wait_for_daemon_ready(max_wait=1)
+            assert result is False
+            assert mock_is_running.call_count >= 2  # Should attempt multiple times
 
     def test_mock_daemon_response(self):
         """Test mock_daemon_response utility function."""
@@ -591,7 +556,6 @@ class TestAtomCliGovernanceGates:
     def test_student_agent_blocked_from_autonomous_skills(self, mock_governance_service, mock_skill_execution):
         """STUDENT agent blocked from daemon/start/stop/execute skills."""
         from tools.atom_cli_skill_wrapper import execute_atom_cli_command
-        from unittest.mock import patch
         from core.agent_governance_service import AgentGovernanceService
 
         # Mock governance to block STUDENT agent
@@ -602,7 +566,7 @@ class TestAtomCliGovernanceGates:
 
         for skill in autonomous_skills:
             # Test with STUDENT agent
-            student_agent = AgentRegistryFactory(status="STUDENT")
+            student_agent = StudentAgentFactory()
 
             # This should fail governance check (we'd need to integrate actual governance)
             # For now, test the wrapper behavior
@@ -660,7 +624,7 @@ class TestAtomCliSkillImport:
     def skill_registry_service(self, db_session):
         """SkillRegistryService instance."""
         from core.skill_registry_service import SkillRegistryService
-        return SkillRegistryService()
+        return SkillRegistryService(db_session)
 
     @pytest.fixture
     def mock_governance_service(self, monkeypatch):
@@ -834,12 +798,12 @@ class TestAtomCliSkillCoverage:
         parser = SkillParser()
 
         for skill_file in cli_skill_files:
-            result = parser.parse_skill_file(str(skill_file))
+            metadata, body = parser.parse_skill_file(str(skill_file))
 
-            assert result["success"], f"Failed to parse {skill_file.name}: {result['error']}"
-            assert "skill" in result
+            assert metadata is not None, f"Failed to parse {skill_file.name}"
+            assert body is not None, f"Failed to parse {skill_file.name}"
 
-            skill = result["skill"]
+            skill = metadata
             assert skill["name"] is not None
             assert skill["description"] is not None
             assert skill["version"] is not None
@@ -858,8 +822,8 @@ class TestAtomCliSkillCoverage:
         student_count = 0
 
         for skill_file in skill_files:
-            result = parser.parse_skill_file(str(skill_file))
-            skill = result["skill"]
+            metadata, body = parser.parse_skill_file(str(skill_file))
+            skill = metadata
             governance = skill.get("governance", {})
 
             if governance.get("maturity_requirement") == "AUTONOMOUS":
