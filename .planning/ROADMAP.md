@@ -1028,8 +1028,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 19. Coverage Push & Bug Fixes | 4/4 | **Gaps Found** | 2026-02-17 | 22% coverage (target 25-27%), 40 test failures, gap closure needed |
 | 20. Coverage Gap Closure & Canvas AI Context | 0/5 | **Not Started** | - | Fix 40 test failures, reduce over-mocking, add canvas accessibility for AI agents |
 | 21. LLM Canvas Summaries | 2/4 | **Partial** | 2026-02-18 | CanvasSummaryService, docs, 21.59% coverage (tests pending Plans 02/03) |
+| 25. Atom CLI as OpenClaw Skill | 2/4 | **In Progress** | 2026-02-18 | SKILL.md files, subprocess wrapper, docs (Plans 01/02 complete, Plans 03/04 pending) |
 
-**Overall Progress**: 121 plans completed out of ~134 estimated (90%)
+**Overall Progress**: 122 plans completed out of ~138 estimated (88%)
 
 ---
 
