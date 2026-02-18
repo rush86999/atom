@@ -202,8 +202,20 @@ class EpisodeSegmentationService:
         canvas_audits = self._fetch_canvas_context(session_id)
         feedback_records = self._fetch_feedback_context(session_id, agent_id, [e.id for e in executions])
 
-        # 2.6. Extract canvas context for semantic understanding (NEW)
-        canvas_context = self._extract_canvas_context(canvas_audits)
+        # 2.6. Extract canvas context with LLM-generated summaries (Phase 21)
+        # Extract agent task from first message for context
+        agent_task = None
+        if messages and len(messages) > 0:
+            agent_task = messages[0].content if messages[0].role == "user" else None
+
+        # Generate LLM summary for most recent canvas
+        if canvas_audits:
+            canvas_context = await self._extract_canvas_context_llm(
+                canvas_audit=canvas_audits[0],
+                agent_task=agent_task
+            )
+        else:
+            canvas_context = {}
 
         if not messages and not executions:
             logger.warning(f"No data for session {session_id}")
