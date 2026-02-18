@@ -26,14 +26,16 @@
 - **api/project_routes.py**: 100% coverage (was 53.57%) - +46.43 percentage points!
 - **Overall API module**: 39.60% (was 22.64%) - +16.96 percentage points!
 
-### Files at 95%+ Coverage 🏆
+### Files at 87%+ Coverage 🏆 (9 files total)
 1. api/feedback_analytics.py - 100%
 2. api/integration_dashboard_routes.py - 100%
 3. api/reasoning_routes.py - 100%
 4. api/project_routes.py - 100%
 5. api/time_travel_routes.py - 100%
 6. api/connection_routes.py - 100%
-7. api/canvas_terminal_routes.py - 95.92% ⭐ NEW
+7. api/canvas_terminal_routes.py - 95.92% (13 tests)
+8. api/canvas_sheets_routes.py - 87.88% (17 tests) ⭐ NEW
+9. api/canvas_coding_routes.py - 87.50% (16 tests) ⭐ NEW
 
 ### Fixes Applied 🔧
 1. Fixed Session import in `core/atom_agent_endpoints.py`
