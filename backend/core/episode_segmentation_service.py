@@ -32,6 +32,8 @@ from core.models import (
     SupervisionSession,
     User,
 )
+from core.llm.canvas_summary_service import CanvasSummaryService
+from core.llm.byok_handler import BYOKHandler
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +144,20 @@ class EpisodeBoundaryDetector:
 class EpisodeSegmentationService:
     """Creates episodes from agent sessions and executions"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, byok_handler: Optional[BYOKHandler] = None):
         self.db = db
         self.lancedb = get_lancedb_handler()
         self.detector = EpisodeBoundaryDetector(self.lancedb)
+
+        # Initialize BYOK handler for LLM summaries
+        if byok_handler is None:
+            byok_handler = BYOKHandler(workspace_id="default")
+        self.byok_handler = byok_handler
+
+        # Initialize CanvasSummaryService
+        self.canvas_summary_service = CanvasSummaryService(
+            byok_handler=self.byok_handler
+        )
 
     async def create_episode_from_session(
         self,
