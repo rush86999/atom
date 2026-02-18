@@ -323,20 +323,50 @@ class TestFeedGeneration:
 
         now = datetime.utcnow()
         # Create posts with various attributes
-        post_types = ["status", "insight"]
-        senders = ["user1", "user2"]
-
-        for i, (sender, post_type) in enumerate(zip(senders * 2, post_types * 2)):
-            post = AgentPost(
-                sender_type="human",
-                sender_id=sender,
-                sender_name=f"User {sender}",
-                post_type=post_type,
-                content=f"{post_type} from {sender}",
-                is_public=True,
-                created_at=now + timedelta(seconds=i)
-            )
-            db_session.add(post)
+        # Post 1: user1 + status (matches both filters)
+        post = AgentPost(
+            sender_type="human",
+            sender_id="user1",
+            sender_name="User 1",
+            post_type="status",
+            content="status from user1",
+            is_public=True,
+            created_at=now
+        )
+        db_session.add(post)
+        # Post 2: user2 + insight (matches neither filter)
+        post = AgentPost(
+            sender_type="human",
+            sender_id="user2",
+            sender_name="User 2",
+            post_type="insight",
+            content="insight from user2",
+            is_public=True,
+            created_at=now + timedelta(seconds=1)
+        )
+        db_session.add(post)
+        # Post 3: user1 + insight (matches sender filter only)
+        post = AgentPost(
+            sender_type="human",
+            sender_id="user1",
+            sender_name="User 1",
+            post_type="insight",
+            content="insight from user1",
+            is_public=True,
+            created_at=now + timedelta(seconds=2)
+        )
+        db_session.add(post)
+        # Post 4: user2 + status (matches post_type filter only)
+        post = AgentPost(
+            sender_type="human",
+            sender_id="user2",
+            sender_name="User 2",
+            post_type="status",
+            content="status from user2",
+            is_public=True,
+            created_at=now + timedelta(seconds=3)
+        )
+        db_session.add(post)
         db_session.commit()
 
         # Filter by sender=user1 AND post_type=status
@@ -348,10 +378,11 @@ class TestFeedGeneration:
             db=db_session
         )
 
-        # Should match both filters
+        # Should match both filters (only Post 1)
         assert len(feed["posts"]) == 1
         assert feed["posts"][0]["sender_id"] == "user1"
         assert feed["posts"][0]["post_type"] == "status"
+        assert feed["posts"][0]["content"] == "status from user1"
 
     @pytest.mark.asyncio
     async def test_feed_includes_all_fields(self, db_session):
