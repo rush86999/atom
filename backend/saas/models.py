@@ -49,8 +49,8 @@ class UsageEvent(Base):
 
     # Relationships
     # subscription is defined in ecommerce/models.py
-    # We use a string reference to avoid circular imports
-    subscription = relationship("ecommerce.models.Subscription", backref="usage_events")
+    # Use class name only - SQLAlchemy resolves it via the registry in core.database.Base
+    subscription = relationship("Subscription", backref="usage_events")
 
 class Formula(Base):
     """
