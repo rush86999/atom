@@ -494,6 +494,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load Episodic Memory routes: {e}")
 
+    # Canvas State Routes (NEW)
+    try:
+        from api.canvas_state_routes import router as canvas_state_router
+        app.include_router(canvas_state_router)  # Prefix defined in router (/api/canvas)
+        logger.info("✓ Canvas State Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load Canvas State routes: {e}")
+
     # Security Routes (NEW)
     try:
         from api.security_routes import router as security_router
