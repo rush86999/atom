@@ -1439,24 +1439,27 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
   - [x] 26-06-PLAN.md — Fix mock database interaction (Wave 2) ✅
   - Achievement: 24/28 tests passing (86%), up from 1/29 (3%). All CI/CD infrastructure issues resolved.
 
-- [ ] **Phase 27: Replace Redis with Open Source Alternative** - Replace Redis dependency with open source Redis-compatible solution
-  - Goal: Remove external Redis dependency, use open source alternative included in deployment
+- [ ] **Phase 27: Include Redis in Docker Compose Deployment** - Add Redis (or open source alternative) to deployment stack for local development and production
+  - Goal: Provide Redis as part of Docker Compose setup for local development and production deployments
   - Options:
-    - **Redict** (Linux Foundation) - Fully open source Redis fork
+    - **Redis** (official) - Standard Redis server
+    - **Redict** (Linux Foundation) - Fully open source Redis fork, license-compliant
     - **KeyDB** - Multi-threaded Redis fork with better performance
-    - **Valkey** - Another open source Redis fork from Linux Foundation
-    - **DragonflyDB** - Modern Redis-compatible engine
+    - **Valkey** - Open source Redis fork from Linux Foundation
+    - **DragonflyDB** - Modern Redis-compatible engine (drop-in replacement)
   - Scope:
-    - Evaluate alternatives (performance, license, maintenance)
-    - Choose solution (recommend Redict for open source compliance)
-    - Update deployment stack (Docker Compose, Kubernetes)
-    - Update integration tests to use new solution
-    - Update documentation and quick start guides
+    - Choose Redis alternative (recommend Redict for open source compliance, or DragonflyDB for performance)
+    - Add Redis service to docker-compose.yml and docker-compose-personal.yml
+    - Configure persistence, networking, and health checks
+    - Update environment variables and configuration
+    - Update documentation with Docker Compose quick start
+    - Verify Redis pub/sub tests work with Docker Compose Redis
   - Success Criteria:
-    - Deployment runs without external Redis dependency
-    - All Redis pub/sub tests pass with new solution
-    - Documentation updated with deployment instructions
-  - Estimated Plans: 3-4 plans (evaluation, integration, testing, documentation)
+    - `docker-compose up` includes Redis service
+    - Agent communication tests pass with Docker Compose Redis
+    - Developers can run full stack locally without external dependencies
+    - Documentation updated with Docker Compose setup instructions
+  - Estimated Plans: 3-4 plans (selection, Docker Compose integration, testing, documentation)
   - Status: Not started
 
 - [ ] **Phase 28: Tauri Canvas AI Accessibility Verification** - Verify canvas AI context accessibility works correctly in Tauri desktop app
