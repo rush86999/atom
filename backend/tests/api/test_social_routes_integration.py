@@ -382,13 +382,15 @@ class TestSocialRoutesAPI:
             db_session.add(post)
         db_session.commit()
 
-        # Get first page
-        response1 = client.get(f"/api/social/feed/cursor?sender_id={intern_agent.id}&limit=10")
+        # Get first page - use sender_filter to filter by this agent
+        response1 = client.get(f"/api/social/feed/cursor?sender_id=user123&sender_filter={intern_agent.id}&limit=10")
+        assert response1.status_code == 200
         data1 = response1.json()
         cursor = data1["next_cursor"]
 
         # Get second page
-        response2 = client.get(f"/api/social/feed/cursor?sender_id={intern_agent.id}&cursor={cursor}&limit=10")
+        response2 = client.get(f"/api/social/feed/cursor?sender_id=user123&sender_filter={intern_agent.id}&cursor={cursor}&limit=10")
+        assert response2.status_code == 200
         data2 = response2.json()
 
         assert len(data2["posts"]) == 10
