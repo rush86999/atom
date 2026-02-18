@@ -25,12 +25,23 @@
 - **Governance Integration** - Skills respect agent maturity levels (Student → Autonomous)
 - **Audit Trail** - All skill executions logged with full metadata
 - **Episodic Memory Integration** - Skill executions create EpisodeSegments for agent learning (Phase 14)
+- **Atom CLI Skills** - 6 built-in skills for controlling the Atom OS CLI (Phase 25)
 
 **Types of Skills:**
 - **Prompt Skills** - Natural language instructions (safe for all agents)
 - **Python Skills** - Code execution (requires INTERN+ maturity, runs in sandbox)
+- **Built-in Skills** - Atom CLI commands (Phase 25)
 
 **Phase 14 Status**: ✅ **COMPLETE** (February 16, 2026)
+- All 3 plans executed successfully
+- 13/13 verification criteria satisfied (100%)
+- 82 tests across 6 test files
+- Episodic memory and graduation integration complete
+
+**Phase 25: Atom CLI Skills** (February 18, 2026)
+- Converted 6 CLI commands to OpenClaw-compatible skills
+- Skills work with Community Skills framework (import, security scan, governance)
+- Daemon mode manageable through skill interface
 - All 3 plans executed successfully
 - 13/13 verification criteria satisfied (100%)
 - 82 tests across 6 test files
@@ -181,6 +192,47 @@ curl -X POST http://localhost:8000/api/skills/execute \
   "container_id": "abc123def"
 }
 ```
+
+## Atom CLI Skills
+
+Atom includes 6 built-in skills for controlling the Atom OS CLI:
+
+| Skill | Maturity | Description |
+|-------|----------|-------------|
+| atom-daemon | AUTONOMOUS | Start background daemon |
+| atom-status | STUDENT | Check daemon status (PID, memory, CPU) |
+| atom-start | AUTONOMOUS | Start server (foreground) |
+| atom-stop | AUTONOMOUS | Stop daemon gracefully |
+| atom-execute | AUTONOMOUS | Execute on-demand command |
+| atom-config | STUDENT | Show configuration and environment |
+
+**Features:**
+- **Governance Gates**: AUTONOMOUS required for daemon control, STUDENT for read-only
+- **Natural Language Parsing**: CLI commands understand "port 3000", "dev mode", etc.
+- **Structured Output**: JSON responses with stdout, stderr, returncode
+- **Error Handling**: 30-second timeout prevents hanging processes
+- **Security Integration**: All executions logged to ShellSession table
+
+**Usage Example:**
+```bash
+# Start daemon (requires AUTONOMOUS agent)
+curl -X POST http://localhost:8000/api/skills/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill_id": "atom-daemon",
+    "query": "start daemon on port 3000 with dev mode"
+  }'
+
+# Check status (works with STUDENT+)
+curl -X POST http://localhost:8000/api/skills/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill_id": "atom-status",
+    "query": "show daemon status"
+  }'
+```
+
+**See:** [ATOM_CLI_SKILLS_GUIDE.md](./ATOM_CLI_SKILLS_GUIDE.md) for complete documentation.
 
 ---
 
