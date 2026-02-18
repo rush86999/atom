@@ -131,6 +131,18 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Camera (INTERN+), Screen Recording (SUPERVISED+), Location (INTERN+), Notifications (INTERN+), Command Execution (AUTONOMOUS only)
 - **Docs**: `docs/DEVICE_CAPABILITIES.md`
 
+### 5.5 Atom CLI Skills System ✨ NEW
+- **Files**: `backend/tools/atom_cli_skill_wrapper.py`, `backend/skills/atom-cli/` (6 SKILL.md files), `backend/core/skill_adapter.py`
+- **Purpose**: Convert CLI commands to OpenClaw-compatible skills with governance
+- **Features**:
+  - 6 built-in skills: atom-daemon, atom-status, atom-start, atom-stop, atom-execute, atom-config
+  - AUTONOMOUS maturity for daemon control, STUDENT for read-only operations
+  - Subprocess wrapper with 30s timeout, structured output, error handling
+  - Natural language argument parsing (port 3000, dev mode, host mount)
+  - Integration with Community Skills framework (import, security scan, governance)
+- **Security**: Maturity gates prevent unauthorized daemon control, audit trail logging
+- **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
+
 ### 6. Deep Linking System
 - **Files**: `core/deeplinks.py`, `api/deeplinks.py`
 - `atom://agent/{id}`, `atom://workflow/{id}`, `atom://canvas/{id}`, `atom://tool/{name}`
@@ -252,6 +264,21 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ---
 
 ## Recent Major Changes
+
+### Phase 25: Atom CLI as OpenClaw Skills (Feb 18, 2026) ✨ NEW
+- **Purpose**: Convert CLI commands to OpenClaw-compatible skills with governance
+- **Implementation**: 6 SKILL.md files + subprocess wrapper + Community Skills integration
+- **Features**:
+  - 6 built-in skills: atom-daemon, atom-status, atom-start, atom-stop, atom-execute, atom-config
+  - AUTONOMOUS maturity for daemon control, STUDENT for read-only operations
+  - Subprocess wrapper with 30s timeout, structured output, error handling
+  - Natural language argument parsing (port 3000, dev mode, host mount)
+  - Integration with Community Skills framework (import, security scan, governance)
+- **Files Created**: `backend/skills/atom-cli/` (6 SKILL.md files), `backend/tools/atom_cli_skill_wrapper.py`
+- **Files Modified**: `backend/core/skill_adapter.py`, `docs/ATOM_CLI_SKILLS_GUIDE.md`
+- **Impact**: Agents can control Atom CLI through skills with proper governance
+- **Security**: Maturity gates prevent unauthorized daemon control, audit trail logging
+- **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
 
 ### Phase 21: LLM Canvas Summaries (Feb 18, 2026) ✨ NEW
 - **Purpose**: Generate semantic canvas presentation summaries for enhanced episodic memory
@@ -590,6 +617,11 @@ pytest tests/ --cov=core --cov-report=html
 - `backend/tools/canvas_tool.py` - Canvas presentations
 - `backend/tools/browser_tool.py` - Browser automation
 - `backend/tools/device_tool.py` - Device capabilities
+- `backend/tools/atom_cli_skill_wrapper.py` - CLI command subprocess wrapper
+
+**Skills**:
+- `backend/skills/atom-cli/` - CLI skills SKILL.md files (daemon, status, start, stop, execute, config)
+- `backend/core/skill_adapter.py` - Community Skills integration
 
 ---
 
