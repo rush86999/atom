@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Check, AlertCircle } from 'lucide-react';
+import type { FormCanvasState, CanvasStateAPI } from './types';
 
 interface FormField {
     name: string;
@@ -44,6 +45,68 @@ export function InteractiveForm({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
+    // Register canvas state with global API for AI agent access
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (!(window as any).atom) {
+                (window as any).atom = {};
+            }
+            if (!(window as any).atom.canvas) {
+                (window as any).atom.canvas = {
+                    getState: (canvasId: string) => null,
+                    getAllStates: () => [],
+                    subscribe: () => () => {},
+                    subscribeAll: () => () => {}
+                };
+            }
+
+            const formCanvasId = canvasId || `form-${Date.now()}`;
+
+            const validationErrors = Object.entries(errors).map(([field, message]) => ({
+                field,
+                message
+            }));
+
+            const state: FormCanvasState = {
+                canvas_type: 'generic',
+                canvas_id: formCanvasId,
+                timestamp: new Date().toISOString(),
+                component: 'form',
+                form_schema: {
+                    fields: fields.map(f => ({
+                        name: f.name,
+                        type: f.type,
+                        label: f.label,
+                        required: f.required || false
+                    }))
+                },
+                form_data: formData,
+                validation_errors: validationErrors,
+                submit_enabled: !isSubmitting,
+                submitted: submitted
+            };
+
+            const api = (window as any).atom.canvas as CanvasStateAPI;
+            const originalGetState = api.getState;
+            api.getState = (id: string) => {
+                const originalResult = originalGetState(id);
+                if (originalResult) return originalResult;
+                return id === state.canvas_id ? state : null;
+            };
+
+            const originalGetAllStates = api.getAllStates;
+            api.getAllStates = () => {
+                const states = originalGetAllStates() || [];
+                return [...states, { canvas_id: state.canvas_id, state }];
+            };
+
+            return () => {
+                api.getState = originalGetState;
+                api.getAllStates = originalGetAllStates;
+            };
+        }
+    }, [formData, fields, errors, isSubmitting, submitted, canvasId]);
 
     const validateField = (field: FormField, value: any): string | null => {
         if (field.required && !value) {
