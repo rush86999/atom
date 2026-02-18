@@ -1027,8 +1027,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 18. Social Layer Testing | 0/2 | **Planning Complete** | - | Post generation, PII redaction, communication, channels |
 | 19. Coverage Push & Bug Fixes | 4/4 | **Gaps Found** | 2026-02-17 | 22% coverage (target 25-27%), 40 test failures, gap closure needed |
 | 20. Coverage Gap Closure & Canvas AI Context | 0/5 | **Not Started** | - | Fix 40 test failures, reduce over-mocking, add canvas accessibility for AI agents |
+| 21. LLM Canvas Summaries | 2/4 | **Partial** | 2026-02-18 | CanvasSummaryService, docs, 21.59% coverage (tests pending Plans 02/03) |
 
-**Overall Progress**: 119 plans completed out of ~130 estimated (92%)
+**Overall Progress**: 121 plans completed out of ~134 estimated (90%)
 
 ---
 
@@ -1076,3 +1077,71 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 - [ ] 20-04-PLAN.md — Implement canvas-aware episode retrieval (filter by canvas_type, interactions)
 - [ ] 20-05-PLAN.md — Test canvas context enrichment across all 7 canvas types (50%+ coverage target)
 - [ ] 20-06-PLAN.md — Validate coverage targets and create Phase 20 summary
+
+---
+
+## Phase 21: LLM-Generated Canvas Presentation Summaries
+
+**Goal**: Implement LLM-generated canvas presentation summaries for richer episodic memory understanding
+**Depends on**: Phase 20 (canvas AI context features)
+**Status**: PARTIALLY COMPLETE (February 18, 2026)
+
+**Success Criteria** (what must be TRUE):
+  1. LLM-generated summaries captured for all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding)
+  2. Summaries are semantically richer than metadata extraction (business context, intent, decision reasoning)
+  3. Episode retrieval returns LLM-enriched summaries
+  4. Fallback to metadata extraction if LLM fails
+  5. Cost tracking implemented (<$0.01 per episode target)
+  6. Summary generation <5s per episode (or background queue)
+  7. No LLM hallucinations (only facts from canvas state)
+
+**Features**:
+1. **LLM Summary Generation Service** (Plan 01):
+   - CanvasSummaryService with generate_summary() method
+   - Canvas-specific prompts for all 7 canvas types
+   - LLM generation via BYOK handler (multi-provider)
+   - Caching by canvas state hash
+   - Fallback to metadata extraction
+   - Cost tracking and rate limiting
+
+2. **Episode Segmentation Integration** (Plan 02 - PENDING):
+   - CanvasSummaryService injection in EpisodeSegmentationService
+   - _extract_canvas_context_llm() method with async generation
+   - 2-second timeout with fallback
+   - Episode creation uses LLM summaries
+
+3. **Quality Testing & Validation** (Plan 03 - PENDING):
+   - Unit tests for prompt building (7 canvas types)
+   - Unit tests for summary generation and validation
+   - Integration tests for episode creation with LLM summaries
+   - Quality tests: semantic richness, accuracy, consistency
+   - Hallucination detection tests
+   - Cost tracking and rate limiting tests
+
+4. **Coverage & Documentation** (Plan 04):
+   - Coverage report showing 21.59% (tests pending)
+   - Developer documentation (LLM_CANVAS_SUMMARIES.md)
+   - Prompt engineering patterns
+   - Cost optimization strategies
+   - Phase 21 summary with metrics
+
+**Estimated Impact**: Richer semantic understanding for episodic memory, better episode retrieval, enhanced agent learning
+**Estimated Duration**: 4 plans (2-3 days)
+
+**Plans**: 4 plans
+- [x] 21-01-PLAN.md — LLM Summary Generation Service (canvas_summary_service.py with prompts, BYOK integration, caching) ✅
+- [ ] 21-02-PLAN.md — Episode Segmentation Integration (update _extract_canvas_context, async generation with timeout) ⏸️
+- [ ] 21-03-PLAN.md — Quality Testing & Validation (unit tests, integration tests, quality metrics) ⏸️
+- [x] 21-04-PLAN.md — Coverage & Documentation (60%+ target, developer guide, phase summary) ✅
+
+**Status**: PARTIALLY COMPLETE (February 18, 2026) - 2 of 4 plans executed
+**Results**:
+- CanvasSummaryService implemented with all 7 canvas types
+- Comprehensive documentation created (LLM_CANVAS_SUMMARIES.md, 418 lines)
+- Coverage report generated (21.59%, tests pending Plans 02/03)
+- Phase 21 summary created with recommendations
+
+**Pending** (Plans 02/03):
+- Episode segmentation integration
+- Comprehensive test suite (60+ tests expected)
+- Quality metrics validation
