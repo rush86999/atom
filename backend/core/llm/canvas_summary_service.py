@@ -244,3 +244,71 @@ class CanvasSummaryService:
 
         logger.info(f"Used metadata fallback for {canvas_type} canvas")
         return summary
+
+    def get_cache_stats(self) -> Dict[str, int]:
+        """
+        Get cache statistics for monitoring.
+
+        Returns:
+            Dictionary with cache size and tracking metrics
+        """
+        return {
+            "cache_size": len(self._summary_cache),
+            "tracked_sessions": len(self._cost_tracker),
+            "supported_canvas_types": len(self._CANVAS_PROMPTS)
+        }
+
+    def clear_cache(self) -> None:
+        """
+        Clear the summary cache.
+
+        Useful for testing or when canvas state structure changes.
+        """
+        cleared_count = len(self._summary_cache)
+        self._summary_cache.clear()
+        logger.info(f"Cleared {cleared_count} cached summaries")
+
+    def get_supported_canvas_types(self) -> list[str]:
+        """
+        Get list of supported canvas types.
+
+        Returns:
+            List of canvas type identifiers
+        """
+        return list(self._CANVAS_PROMPTS.keys())
+
+    def is_canvas_type_supported(self, canvas_type: str) -> bool:
+        """
+        Check if a canvas type is supported.
+
+        Args:
+            canvas_type: Canvas type to check
+
+        Returns:
+            True if supported, False otherwise
+        """
+        return canvas_type in self._CANVAS_PROMPTS
+
+    def get_total_cost_tracked(self) -> float:
+        """
+        Get total cost tracked for all summary generations.
+
+        Returns:
+            Total cost in USD (updated by BYOK handler)
+        """
+        return sum(self._cost_tracker.values())
+
+    def get_canvas_prompt_instructions(self, canvas_type: str) -> Optional[str]:
+        """
+        Get the canvas-specific prompt instructions for a given type.
+
+        Useful for debugging or understanding what guidance is provided
+        to the LLM for each canvas type.
+
+        Args:
+            canvas_type: Canvas type
+
+        Returns:
+            Prompt instructions string or None if canvas type not found
+        """
+        return self._CANVAS_PROMPTS.get(canvas_type)
