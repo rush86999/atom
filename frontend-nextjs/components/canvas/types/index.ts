@@ -341,3 +341,209 @@ export interface GenericCanvasData extends BaseCanvasData {
   component: 'line_chart' | 'bar_chart' | 'pie_chart' | 'markdown' | 'form' | 'status_panel';
   data: any;
 }
+
+// ============================================================================
+// Canvas State API Types
+// ============================================================================
+
+/**
+ * Base canvas state interface for AI agent accessibility
+ * All canvas types should extend this base interface
+ */
+export interface BaseCanvasState {
+  canvas_type: CanvasType;
+  canvas_id: string;
+  timestamp: string;
+  title?: string;
+}
+
+/**
+ * Terminal canvas state
+ */
+export interface TerminalCanvasState extends BaseCanvasState {
+  canvas_type: 'terminal';
+  working_dir: string;
+  command: string;
+  lines: string[];
+  cursor_pos: { row: number; col: number };
+  scroll_offset: number;
+  exit_code?: number;
+}
+
+/**
+ * Chart canvas state (applies to LineChart, BarChart, PieChart)
+ */
+export interface ChartCanvasState extends BaseCanvasState {
+  canvas_type: 'generic';  // Charts use 'generic' with specific components
+  component: 'line_chart' | 'bar_chart' | 'pie_chart';
+  chart_type: 'line' | 'bar' | 'pie';
+  data_points: Array<{ x: string | number; y: number; label?: string }>;
+  axes_labels?: { x?: string; y?: string };
+  title?: string;
+  legend?: boolean;
+}
+
+/**
+ * Form canvas state
+ */
+export interface FormCanvasState extends BaseCanvasState {
+  canvas_type: 'generic';
+  component: 'form';
+  form_schema: {
+    fields: Array<{
+      name: string;
+      type: string;
+      label: string;
+      required: boolean;
+    }>;
+  };
+  form_data: Record<string, any>;
+  validation_errors: Array<{
+    field: string;
+    message: string;
+  }>;
+  submit_enabled: boolean;
+  submitted?: boolean;
+}
+
+/**
+ * Orchestration canvas state
+ */
+export interface OrchestrationCanvasState extends BaseCanvasState {
+  canvas_type: 'orchestration';
+  layout: 'board' | 'timeline' | 'calendar';
+  tasks: Array<{
+    task_id: string;
+    title: string;
+    status: 'todo' | 'in_progress' | 'done';
+    assignee?: string;
+  }>;
+  nodes: Array<{
+    node_id: string;
+    app_name: string;
+    node_type: 'trigger' | 'action' | 'condition';
+  }>;
+}
+
+/**
+ * Agent operation tracker state
+ */
+export interface AgentOperationState extends BaseCanvasState {
+  canvas_type: 'generic';
+  component: 'agent_operation_tracker';
+  operation_id: string;
+  agent_id: string;
+  agent_name: string;
+  operation_type: string;
+  status: 'running' | 'waiting' | 'completed' | 'failed';
+  current_step: string;
+  current_step_index: number;
+  total_steps?: number;
+  progress: number;
+  context: {
+    what?: string;
+    why?: string;
+    next?: string;
+  };
+  logs_count: number;
+  started_at: string;
+  completed_at?: string;
+}
+
+/**
+ * View orchestrator state
+ */
+export interface ViewOrchestratorState extends BaseCanvasState {
+  canvas_type: 'generic';
+  component: 'view_orchestrator';
+  layout: 'split_horizontal' | 'split_vertical' | 'grid' | 'tabs';
+  current_view: string;
+  active_views: Array<{
+    view_id: string;
+    view_type: 'canvas' | 'browser' | 'terminal' | 'app';
+    title: string;
+    status: 'active' | 'background' | 'closed';
+    url?: string;
+    command?: string;
+  }>;
+  canvas_guidance?: {
+    agent_id: string;
+    message: string;
+    what_youre_seeing: string;
+    controls: Array<{ label: string; action: string }>;
+  };
+}
+
+/**
+ * Union type for all canvas states
+ */
+export type AnyCanvasState =
+  | TerminalCanvasState
+  | ChartCanvasState
+  | FormCanvasState
+  | OrchestrationCanvasState
+  | AgentOperationState
+  | ViewOrchestratorState;
+
+/**
+ * Canvas state API response
+ */
+export interface CanvasStateResponse {
+  canvas_id: string;
+  state: AnyCanvasState;
+  timestamp: string;
+}
+
+/**
+ * WebSocket event types for canvas state changes
+ */
+export interface CanvasStateChangeEvent {
+  type: 'canvas:state_change';
+  canvas_id: string;
+  canvas_type: CanvasType;
+  component: string;
+  state: AnyCanvasState;
+  timestamp: string;
+}
+
+/**
+ * Canvas state API (global window.atom.canvas)
+ */
+export interface CanvasStateAPI {
+  /**
+   * Get current state for a specific canvas
+   * @param canvasId - The canvas ID to query
+   * @returns Canvas state or null if not found
+   */
+  getState: (canvasId: string) => AnyCanvasState | null;
+
+  /**
+   * Get all active canvas states
+   * @returns Array of all canvas states
+   */
+  getAllStates: () => Array<{ canvas_id: string; state: AnyCanvasState }>;
+
+  /**
+   * Subscribe to state changes for a specific canvas
+   * @param canvasId - The canvas ID to watch
+   * @param callback - Function called when state changes
+   * @returns Unsubscribe function
+   */
+  subscribe: (canvasId: string, callback: (state: AnyCanvasState) => void) => () => void;
+
+  /**
+   * Subscribe to all canvas state changes
+   * @param callback - Function called when any canvas state changes
+   * @returns Unsubscribe function
+   */
+  subscribeAll: (callback: (event: CanvasStateChangeEvent) => void) => () => void;
+}
+
+// Declare global window augmentation
+declare global {
+  interface Window {
+    atom?: {
+      canvas?: CanvasStateAPI;
+    };
+  }
+}
