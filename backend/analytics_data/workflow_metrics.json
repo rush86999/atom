@@ -9,12 +9,12 @@
     "last_executed": "2025-11-29T18:04:30.975772"
   },
   "test_workflow": {
-    "execution_count": 245,
+    "execution_count": 335,
     "success_count": 0,
-    "failure_count": 245,
-    "total_duration_seconds": 1.7446090000000003,
+    "failure_count": 335,
+    "total_duration_seconds": 2.4248900000000004,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-02-18T03:35:40.335518"
+    "last_executed": "2026-02-18T04:22:09.947043"
   }
 }
