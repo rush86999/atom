@@ -3735,6 +3735,34 @@ class EpisodeSegment(Base):
     source_type = Column(String, nullable=False)  # chat_message, agent_execution, manual
     source_id = Column(String, nullable=True, index=True)  # ID of source object
 
+    # Canvas context for semantic understanding
+    canvas_context = Column(JSON, nullable=True, comment="""
+        Canvas presentation context for semantic understanding.
+        Stores metadata about what was presented on canvases during episode creation.
+
+        Schema:
+        {
+            "canvas_type": str,  # "generic", "docs", "email", "sheets", "orchestration", "terminal", "coding"
+            "presentation_summary": str,  # "Agent presented 3 charts: user growth, revenue, engagement"
+            "visual_elements": List[str],  # ["line_chart", "data_table", "approval_form"]
+            "user_interaction": str,  # "User clicked 'Approve Workflow' button"
+            "critical_data_points": {  # Business logic data
+                "workflow_id": str,
+                "approval_status": str,  # "approved", "rejected", "pending"
+                "revenue": str,  # "$1.2M"
+                "amount": float,
+                "priority": int,
+                "created_at": str,
+                "updated_at": str
+            }
+        }
+
+        Progressive detail levels:
+        - summary: presentation_summary only (~50 tokens) - DEFAULT
+        - standard: summary + critical_data_points (~200 tokens)
+        - full: all fields including visual_elements (~500 tokens)
+    """)
+
     # Timing
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
