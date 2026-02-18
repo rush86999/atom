@@ -436,7 +436,8 @@ class LanceDBHandler:
 
     def add_document(self, table_name: str, text: str, source: str = "", 
                     metadata: Dict[str, Any] = None, user_id: str = "default_user",
-                    extract_knowledge: bool = True) -> bool:
+                    extract_knowledge: bool = True, workspace_id: Optional[str] = None,
+                    doc_id: Optional[str] = None) -> bool:
         """Add a single document to memory"""
         if self.db is None:
             return False
@@ -471,17 +472,24 @@ class LanceDBHandler:
             if embedding is None:
                 return False
             
-            doc_id = str(datetime.utcnow().timestamp())
+            # Use provided doc_id or generate new one
+            if doc_id is None:
+                doc_id = str(datetime.utcnow().timestamp())
             
             # Record with user_id and workspace_id
             # Record with user_id and workspace_id
+            
+            # Serialize metadata to ensure schema flexibility (String instead of inferred Struct)
+            import json
+            serialized_metadata = json.dumps(metadata if metadata else {})
+            
             record = {
                 "id": doc_id,
                 "user_id": user_id,
-                "workspace_id": self.workspace_id,
+                "workspace_id": workspace_id or self.workspace_id,
                 "text": text,
                 "source": source,
-                "metadata": metadata if metadata else {},
+                "metadata": serialized_metadata,
                 "created_at": datetime.utcnow().isoformat(),
                 "vector": embedding.tolist()
             }
@@ -516,7 +524,7 @@ class LanceDBHandler:
                     
                     if settings.is_extraction_enabled():
                         from core.knowledge_ingestion import get_knowledge_ingestion
-                        ingestor = get_knowledge_ingestion("default")
+                        ingestor = get_knowledge_ingestion()
                         asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id="default"))
                     else:
                         logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
@@ -552,8 +560,6 @@ class LanceDBHandler:
                 return True
             except Exception as e:
                 logger.error(f"CRITICAL: Failed to add record to table '{table_name}': {e}")
-                import traceback
-                logger.error(traceback.format_exc())
                 return False
                 
         except Exception as e:
