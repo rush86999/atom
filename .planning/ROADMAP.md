@@ -1034,42 +1034,45 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 ## Phase 20: Coverage Gap Closure & Canvas AI Context
 
-**Goal**: Fix Phase 19 test failures, reduce over-mocking, and enhance canvas components with AI agent accessibility features
+**Goal**: Enhance canvas components with AI agent accessibility features and integrate canvas context into episodic memory for richer semantic search
 
-**Status**: Not Started (February 17, 2026)
+**Status**: Not Started (February 18, 2026)
 
 **Success Criteria** (what must be TRUE):
-  1. All 40 test failures from Phase 19 are fixed (workflow engine, analytics, BYOK handler)
-  2. Over-mocking reduced to enable actual code execution (real database sessions, fewer AsyncMocks)
-  3. Overall coverage reaches 25-27% target (from 22%)
-  4. Canvas components expose structured state for AI agents (accessibility tree, state mirrors)
-  5. Terminal/canvas views provide both visual (pixels) and logical (state) representations
-  6. AI agents can "read" canvas content without OCR (hidden accessibility divs with role="log")
-  7. Test pass rate reaches 98%+ (TQ-02 requirement)
+  1. Canvas components expose structured state for AI agents (accessibility tree, state mirrors)
+  2. Terminal/canvas views provide both visual (pixels) and logical (state) representations
+  3. AI agents can "read" canvas content without OCR (hidden accessibility divs with role="log")
+  4. Episodes store canvas context summaries (canvas_type, presentation_summary, user_interactions)
+  5. Episode retrieval supports canvas-aware semantic search (filter by canvas_type, interactions, data_points)
+  6. Canvas context enhances episode recall with visual elements and critical data
+  7. Test coverage for episodic memory canvas integration reaches 50%+
 
 **Features**:
-1. **Test Failure Fixes** (Plans 01-02):
-   - Fix 6 workflow_engine async tests (assertion errors, reduce over-mocking)
-   - Fix 21 workflow_analytics tests (add database session setup, fix imports)
-   - Fix 13 BYOK handler tests (AsyncMock patterns, await coroutines)
-
-2. **Over-Mocking Reduction** (Plan 03):
-   - Replace AsyncMock with real database sessions using factory-boy
-   - Use transaction rollback pattern for test isolation
-   - Mock only external dependencies (LLM providers, WebSocket), not internal services
-
-3. **Canvas AI Accessibility** (Plans 04-05):
+1. **Canvas AI Accessibility** (Plans 01-02):
    - Add hidden accessibility trees for canvas components (div with role="log", aria-live)
    - Expose terminal state as JavaScript objects (lines, cursorPos, scrollOffset)
    - Create state mirrors for all canvas types (terminal, charts, forms)
    - Document canvas state API for AI agent integration
 
-**Estimated Impact**: +3-5% overall coverage, 98%+ test pass rate, AI-readable canvas components
-**Estimated Duration**: 5 plans (2-3 days)
+2. **Canvas Context for Episodic Memory** (Plans 03-05):
+   - Enrich EpisodeSegment with canvas_context field (canvas_type, presentation_summary, visual_elements, critical_data_points)
+   - Track canvas interactions (submit, close, update, execute) with user intent
+   - Implement canvas-aware semantic search (filter by canvas_type, data_points, interactions)
+   - Store canvas presentation summaries for episode retrieval
+   - Test canvas context enrichment across all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding)
 
-**Plans**: 5 plans
-- [ ] 20-01-PLAN.md — Fix workflow engine test failures (reduce over-mocking, fix assertions)
-- [ ] 20-02-PLAN.md — Fix analytics and BYOK handler test failures (DB setup, AsyncMock patterns)
-- [ ] 20-03-PLAN.md — Reduce over-mocking across Phase 19 tests (real sessions, transaction rollback)
-- [ ] 20-04-PLAN.md — Add canvas accessibility trees for AI agents (hidden divs, state mirrors)
-- [ ] 20-05-PLAN.md — Validate coverage targets and create Phase 20 summary
+3. **Coverage Validation** (Plan 06):
+   - Measure episodic memory coverage with canvas context features
+   - Verify canvas-aware episode retrieval works correctly
+   - Create Phase 20 summary with results
+
+**Estimated Impact**: +2-3% episodic memory coverage, AI-readable canvas components, canvas-aware semantic search
+**Estimated Duration**: 6 plans (3-4 days)
+
+**Plans**: 6 plans
+- [ ] 20-01-PLAN.md — Add canvas accessibility trees for AI agents (hidden divs, state mirrors)
+- [ ] 20-02-PLAN.md — Expose canvas state API (terminal lines, cursorPos, form data, chart metadata)
+- [ ] 20-03-PLAN.md — Enrich EpisodeSegment with canvas context (canvas_type, presentation_summary)
+- [ ] 20-04-PLAN.md — Implement canvas-aware episode retrieval (filter by canvas_type, interactions)
+- [ ] 20-05-PLAN.md — Test canvas context enrichment across all 7 canvas types (50%+ coverage target)
+- [ ] 20-06-PLAN.md — Validate coverage targets and create Phase 20 summary
