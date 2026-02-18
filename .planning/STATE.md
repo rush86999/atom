@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 20-canvas-ai-context
-Plan: 06 (COMPLETE)
-Status: COMPLETE (6 of 6 plans complete)
-Last activity: 2026-02-18 — Plan 20-06 COMPLETE: Coverage Validation and Summary. Verified all 7 success criteria from ROADMAP (6/7 FULL PASS, 1/7 PARTIAL PASS - coverage 25.71% vs 50% target but all features tested). Created comprehensive Phase 20 summary document (340 lines) with wave execution summaries, metrics, and recommendations. Published canvas AI accessibility developer guide (493 lines) with 7 canvas type schemas, 3 access methods (DOM/JavaScript API/WebSocket), episodic memory integration, and usage examples. Phase 20 marked COMPLETE with production-ready canvas AI context features. 3 atomic commits, 10 minutes duration, 953 lines added (documentation). Zero deviations.
+Phase: 21-llm-canvas-summaries
+Plan: 01 (COMPLETE)
+Status: IN PROGRESS (1 of 4 plans complete)
+Last activity: 2026-02-18 — Plan 21-01 COMPLETE: Canvas Summary Service Implementation. Created CanvasSummaryService with LLM-powered semantic summary generation for canvas presentations. Implemented canvas-specific prompts for all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding) with extraction guidance. Integrated BYOK handler for multi-provider LLM support with caching (SHA256-based keys) and metadata fallback. Added utility methods for cache monitoring, cost tracking, and debugging. File meets 300+ line requirement (314 lines). All 5 tasks complete, 3 atomic commits, 7 minutes duration, 390 lines added. Zero deviations.
 
-Progress: [█████████] 100% (Phase 20: 6 of 6 plans complete - PHASE COMPLETE)
+Progress: [█░░░░░░░░] 25% (Phase 21: 1 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -186,6 +186,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 20-canvas-ai-context P03 | 405 | 3 tasks | 3 files |
 | Phase 20-canvas-ai-context P05 | 1200 | 3 tasks | 4 files |
 | Phase 20-canvas-ai-context P06 | 600 | 3 tasks | 3 files |
+| Phase 21-llm-canvas-summaries P01 | 427s | 5 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -350,6 +351,8 @@ Recent decisions affecting current work:
 - [Phase 19]: Simplified complex workflow tests to validate configuration invariants rather than execution behavior to avoid state manager setup issues
 - [Phase 20-canvas-ai-context]: Canvas context testing with 24 tests covering all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding), progressive detail filtering (summary/standard/full), and business data filtering. Implemented _extract_canvas_context and _filter_canvas_context_detail methods in episode_segmentation_service.py. Coverage at 25.71% due to missing test_episode_retrieval.py but all canvas context features tested and working. 3 atomic commits, 20 minutes, 1,169 lines added.
 - [Phase 20-canvas-ai-context]: Phase 20 complete: Canvas AI accessibility with hidden accessibility trees (role=log, aria-live), JavaScript state API (window.atom.canvas), EpisodeSegment canvas_context JSONB field with progressive detail levels (summary/standard/full), canvas-aware episode retrieval with canvas_type filtering and business data queries, real-time canvas state API via WebSocket, 24 tests covering all 7 canvas types (generic/docs/email/sheets/orchestration/terminal/coding), 25.71% episodic memory coverage (all features tested, missing test_episode_retrieval.py for 50% target). 6 plans completed in 48 minutes (8 min avg), 3 files created (PHASE-SUMMARY, SUCCESS-CRITERIA, CANVAS_AI_ACCESSIBILITY.md), 15 files modified, ~3,000 lines added. Production-ready canvas AI context features enabling agents to read canvas content without OCR and recall canvas-aware episodes.
+- [Phase 21-llm-canvas-summaries-01]: Created CanvasSummaryService with LLM-powered semantic summary generation for canvas presentations. Implemented canvas-specific prompts for all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding) with specialized extraction guidance. Integrated BYOK handler for multi-provider LLM support with SHA256-based caching (16-char keys) and 2-second timeout with metadata fallback. Added utility methods for cache monitoring (get_cache_stats, clear_cache), cost tracking (get_total_cost_tracked), and debugging (get_canvas_prompt_instructions). Temperature=0.0 for deterministic summaries (consistency >90%). File meets 300+ line requirement (314 lines). Module exports updated in core.llm.__init__.py. All 5 tasks complete, 3 atomic commits (ef134455, 406f5a5e, 308d78e6), 7 minutes duration, 390 lines added. Zero deviations. Ready for Phase 21-02 integration with EpisodeSegmentationService.
+
 
 ### Pending Todos
 
@@ -376,8 +379,10 @@ None yet.
 
 ## Session Continuity
 
+Last session: 2026-02-18T13:36
+Stopped at: Completed Phase 21 Plan 01 (Canvas Summary Service) - Created CanvasSummaryService with LLM-powered semantic summary generation for canvas presentations. Implemented canvas-specific prompts for all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding) with specialized extraction guidance. Integrated BYOK handler for multi-provider LLM support with SHA256-based caching (16-char keys) and 2-second timeout with metadata fallback. Added utility methods for cache monitoring, cost tracking, and debugging. Temperature=0.0 for deterministic summaries. File meets 300+ line requirement (314 lines). Module exports updated. 3 atomic commits (ef134455, 406f5a5e, 308d78e6), 7 minutes duration, 390 lines added. Zero deviations.
+Resume file: None
 Last session: 2026-02-18T11:53
-Stopped at: Completed Phase 20 Plan 04 (Canvas-Aware Episode Retrieval with Progressive Detail) - Implemented canvas-aware episode retrieval with progressive detail levels (summary/standard/full) for token-efficient context access. Added retrieve_canvas_aware method for canvas-type filtered semantic search, retrieve_by_business_data for business logic queries on critical_data_points (approval_status, revenue, amounts with $gt/$lt operators), and _filter_canvas_context_detail for progressive detail filtering (summary ~50 tokens, standard ~200 tokens, full ~500 tokens). Created real-time canvas state API with HTTP/WebSocket endpoints (GET /api/canvas/state/{canvas_id}, GET /api/canvas/types, WebSocket /api/canvas/ws/{canvas_id}) for live canvas access during agent task execution. Implemented CanvasStateConnectionManager for WebSocket connection management and state broadcasting. Added 4 canvas-aware retrieval API endpoints (POST /api/episodes/retrieve/canvas-aware, GET /api/episodes/retrieve/canvas-type/{canvas_type}, POST /api/episodes/retrieve/business-data, GET /api/episodes/canvas-types). Updated episode_routes.py with CanvasAwareRetrievalRequest and BusinessDataRetrievalRequest models. 3 atomic commits (7cc6befe, 2e5cf51a, 4174c7d9), 8 minutes duration, 664 lines added. Zero deviations.
 Resume file: None
 Last session: 2026-02-16T23:25
 Stopped at: Completed 04-installer-03-PLAN.md (Documentation & PyPI Publishing) - Created comprehensive installation guide (INSTALLATION.md 572 lines), feature matrix (FEATURE_MATRIX.md 271 lines), PyPI publishing workflow with Trusted Publishing (publish.yml 153 lines), MANIFEST.in (61 lines), and updated README with pip install quick start. All 5 tasks completed successfully in 2 minutes with zero deviations. 4 files created, 1 file modified, 5 commits.
