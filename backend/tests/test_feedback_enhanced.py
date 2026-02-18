@@ -41,8 +41,8 @@ def test_user(db):
     user = User(
         id=f"user-{uuid.uuid4()}",
         email="test@example.com",
-        username="testuser",
-        full_name="Test User"
+        first_name="Test",
+        last_name="User"
     )
     db.add(user)
     db.commit()
