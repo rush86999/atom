@@ -6,16 +6,15 @@ Tests for health monitoring of agents, integrations, and system metrics.
 
 import os
 import sys
+import uuid
 from datetime import datetime, timedelta
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from core.health_monitoring_service import HealthMonitoringService
 from core.models import (
     AgentExecution,
     AgentRegistry,
-    Base,
     IntegrationCatalog,
     User,
     UserConnection,
@@ -23,25 +22,6 @@ from core.models import (
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-# Use in-memory database for tests
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture
-def db_session():
-    """Create test database session"""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture
@@ -270,7 +250,3 @@ class TestHealthMonitoringAPI:
         except:
             # If the route isn't loaded, that's OK for this test
             pass
-
-
-# Import uuid at module level
-import uuid
