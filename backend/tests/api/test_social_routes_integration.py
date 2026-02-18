@@ -21,15 +21,31 @@ from sqlalchemy.orm import Session
 from main_api_app import app
 from core.models import AgentRegistry, AgentPost, Channel
 from tests.factories import AgentFactory
+from tests.property_tests.conftest import db_session
+from core.database import get_db
+
+
+@pytest.fixture
+def client(db_session: Session):
+    """
+    Create test client with database session dependency injection.
+    """
+    def _get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
 
 
 class TestSocialRoutesAPI:
     """Test social routes API endpoints."""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
 
     @pytest.fixture
     def intern_agent(self, db_session):
@@ -38,10 +54,9 @@ class TestSocialRoutesAPI:
             name="InternAgent",
             status="INTERN",
             class_name="TestAgent",
-            module_path="tests.api.test_social_routes_integration"
+            module_path="tests.api.test_social_routes_integration",
+            _session=db_session
         )
-        db_session.add(agent)
-        db_session.commit()
         return agent
 
     @pytest.fixture
@@ -51,10 +66,9 @@ class TestSocialRoutesAPI:
             name="StudentAgent",
             status="STUDENT",
             class_name="TestAgent",
-            module_path="tests.api.test_social_routes_integration"
+            module_path="tests.api.test_social_routes_integration",
+            _session=db_session
         )
-        db_session.add(agent)
-        db_session.commit()
         return agent
 
     @pytest.fixture
@@ -64,10 +78,9 @@ class TestSocialRoutesAPI:
             name="AutonomousAgent",
             status="AUTONOMOUS",
             class_name="TestAgent",
-            module_path="tests.api.test_social_routes_integration"
+            module_path="tests.api.test_social_routes_integration",
+            _session=db_session
         )
-        db_session.add(agent)
-        db_session.commit()
         return agent
 
     @pytest.fixture
@@ -83,7 +96,7 @@ class TestSocialRoutesAPI:
             created_by="user1"
         )
         db_session.add(channel)
-        db_session.commit()
+        db_session.flush()
         return channel
 
     # ==========================================================================

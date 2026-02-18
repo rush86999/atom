@@ -333,7 +333,7 @@ def client(db_session: Session):
     """
     Create a FastAPI TestClient for testing API endpoints.
     """
-    from core.dependency import get_db
+    from core.database import get_db
 
     # Override the database dependency
     def _get_db():
