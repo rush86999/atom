@@ -1165,18 +1165,18 @@ class TestFeedInvariants:
 
         assert parsed_timestamps == sorted(parsed_timestamps, reverse=True)
 
-    @given(reply_counts=st.lists(st.integers(min_value=0, max_value=50), min_size=0, max_size=20))
+    @given(num_replies=st.integers(min_value=0, max_value=20))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_reply_count_monotonically_increases(self, db_session, reply_counts):
-        """Property: Reply count never decreases."""
+    async def test_reply_count_never_negative(self, db_session, num_replies):
+        """Property: Reply count is always non-negative."""
         service = AgentSocialLayer()
 
         # Clean up any existing posts from previous Hypothesis runs
         db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
         db_session.commit()
 
-        # Create parent post
+        # Create parent post with initial reply count
         parent_post = AgentPost(
             sender_type="human",
             sender_id="user1",
@@ -1184,28 +1184,39 @@ class TestFeedInvariants:
             post_type="question",
             content="Parent post",
             is_public=True,
-            reply_count=0
+            reply_count=num_replies  # Set reply count directly
         )
         db_session.add(parent_post)
         db_session.commit()
+        db_session.refresh(parent_post)
 
-        previous_count = 0
+        # Verify the reply count was persisted correctly
+        assert parent_post.reply_count == num_replies, f"Parent post reply_count not set: expected {num_replies}, got {parent_post.reply_count}"
 
-        for count in reply_counts:
-            parent_post.reply_count = count
-            db_session.commit()
+        # Retrieve post via feed and verify reply count
+        feed = await service.get_feed(
+            sender_id="user1",
+            limit=10,
+            db=db_session
+        )
 
-            # Retrieve post
-            feed = await service.get_feed(
-                sender_id="user1",
-                limit=10,
-                db=db_session
-            )
+        # Should have at least the parent post
+        assert len(feed["posts"]) >= 1, "Feed should contain at least the parent post"
 
-            current_count = feed["posts"][0]["reply_count"]
-            assert current_count >= previous_count, \
-                f"Reply count decreased from {previous_count} to {current_count}"
-            previous_count = current_count
+        # Find the parent post in the feed
+        parent_in_feed = None
+        for post in feed["posts"]:
+            if post["post_type"] == "question" and post["content"] == "Parent post":
+                parent_in_feed = post
+                break
+
+        assert parent_in_feed is not None, "Parent post should be in feed"
+
+        current_count = parent_in_feed["reply_count"]
+        # Reply count should always be non-negative
+        assert current_count >= 0, f"Reply count is negative: {current_count}"
+        # Reply count should match what we set
+        assert current_count == num_replies, f"Reply count mismatch: expected {num_replies}, got {current_count}"
 
     @given(channel_posts=st.integers(min_value=1, max_value=50), other_posts=st.integers(min_value=1, max_value=10))
     @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
