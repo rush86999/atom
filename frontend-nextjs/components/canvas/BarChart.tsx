@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { ChartCanvasState, CanvasStateAPI } from './types';
 
 interface BarChartProps {
     data: {
@@ -11,6 +12,68 @@ interface BarChartProps {
 }
 
 export function BarChartCanvas({ data, title, color = "#8884d8" }: BarChartProps) {
+    // Register canvas state with global API for AI agent access
+    useEffect(() => {
+        // Initialize global atom.canvas API
+        if (typeof window !== 'undefined') {
+            if (!(window as any).atom) {
+                (window as any).atom = {};
+            }
+            if (!(window as any).atom.canvas) {
+                (window as any).atom.canvas = {
+                    getState: (canvasId: string) => null,
+                    getAllStates: () => [],
+                    subscribe: () => () => {},
+                    subscribeAll: () => () => {}
+                };
+            }
+
+            // Generate canvas ID
+            const canvasId = `chart-bar-${Date.now()}`;
+
+            // Create state object
+            const state: ChartCanvasState = {
+                canvas_type: 'generic',
+                canvas_id: canvasId,
+                timestamp: new Date().toISOString(),
+                component: 'bar_chart',
+                chart_type: 'bar',
+                data_points: data.map((d, i) => ({
+                    x: d.name || i,
+                    y: typeof d.value === 'number' ? d.value : 0,
+                    label: d.name
+                })),
+                axes_labels: {
+                    x: 'Category',
+                    y: 'Value'
+                },
+                title: title,
+                legend: true
+            };
+
+            // Register getState function
+            const api = (window as any).atom.canvas as CanvasStateAPI;
+            const originalGetState = api.getState;
+            api.getState = (canvasId: string) => {
+                const originalResult = originalGetState(canvasId);
+                if (originalResult) return originalResult;
+                return canvasId === state.canvas_id ? state : null;
+            };
+
+            const originalGetAllStates = api.getAllStates;
+            api.getAllStates = () => {
+                const states = originalGetAllStates() || [];
+                return [...states, { canvas_id: state.canvas_id, state }];
+            };
+
+            // Cleanup on unmount
+            return () => {
+                api.getState = originalGetState;
+                api.getAllStates = originalGetAllStates;
+            };
+        }
+    }, [data, title, color]);
+
     return (
         <div className="w-full">
             {title && <h4 className="text-sm font-semibold mb-2">{title}</h4>}
