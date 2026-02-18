@@ -543,6 +543,85 @@ class TestRedisPubSub:
             # Should only publish once, not recursively
             assert len(publish_calls) == 1
 
+    @pytest.mark.asyncio
+    async def test_redis_integration_end_to_end(self):
+        """End-to-end Redis integration flow with proper mocking."""
+        try:
+            import redis.asyncio
+        except ImportError:
+            pytest.skip("Redis not available")
+
+        # Create event bus with Redis
+        bus = AgentEventBus(redis_url="redis://localhost:6379/0")
+
+        # Create async iterator for listen() that returns one message then stops
+        async def async_iter_messages():
+            # Yield one test message then stop
+            yield {
+                'type': 'pmessage',
+                'channel': 'agent_events:global',
+                'data': json.dumps({
+                    "topics": ["global"],
+                    "event": {"type": "test", "data": "from_redis"}
+                })
+            }
+
+        # Mock pubsub with all required methods
+        mock_pubsub = MagicMock()
+        mock_pubsub.psubscribe = AsyncMock()
+        mock_pubsub.listen = Mock(return_value=async_iter_messages())
+        mock_pubsub.close = AsyncMock()
+
+        # Mock redis to return our pubsub
+        mock_redis = MagicMock()
+        mock_redis.pubsub = Mock(return_value=mock_pubsub)
+        mock_redis.publish = AsyncMock()
+        mock_redis.close = AsyncMock()
+
+        # Mock redis.from_url to return mock_redis
+        async def mock_from_url(*args, **kwargs):
+            return mock_redis
+
+        # Step 1: Verify _ensure_redis() creates Redis connection
+        with patch('redis.asyncio.from_url', side_effect=mock_from_url):
+            await bus._ensure_redis()
+            assert bus._redis is not None
+            assert bus._pubsub is not None
+            assert bus._redis_enabled is True
+
+        # Step 2: Verify publish() sends to Redis with correct format
+        event = {"type": "agent_post", "data": {"content": "test message"}}
+        await bus.publish(event, ["global", "alerts"])
+
+        # Verify Redis publish was called twice (once per topic)
+        assert mock_redis.publish.call_count == 2
+
+        # Verify publish format
+        first_call = mock_redis.publish.call_args_list[0]
+        channel = first_call[0][0]
+        data = first_call[0][1]
+
+        assert channel == "agent_events:global"
+        parsed = json.loads(data)
+        assert parsed["topics"] == ["global", "alerts"]
+        assert parsed["event"] == event
+
+        # Step 3: Verify subscribe_to_redis() creates background task
+        # Reset for clean test
+        bus._redis_listener_task = None
+
+        await bus.subscribe_to_redis()
+        assert bus._redis_listener_task is not None
+        mock_pubsub.psubscribe.assert_called_with("agent_events:*")
+
+        # Step 4: Verify graceful shutdown closes Redis connection
+        # Cancel the listener task
+        bus._redis_listener_task.cancel()
+
+        await bus.close_redis()
+        mock_pubsub.close.assert_called_once()
+        mock_redis.close.assert_called_once()
+
 
 # ============================================================================
 # WebSocket Connection Tests (8 tests)
