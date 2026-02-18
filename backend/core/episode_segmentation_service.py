@@ -190,6 +190,9 @@ class EpisodeSegmentationService:
         canvas_audits = self._fetch_canvas_context(session_id)
         feedback_records = self._fetch_feedback_context(session_id, agent_id, [e.id for e in executions])
 
+        # 2.6. Extract canvas context for semantic understanding (NEW)
+        canvas_context = self._extract_canvas_context(canvas_audits)
+
         if not messages and not executions:
             logger.warning(f"No data for session {session_id}")
             return None
@@ -252,7 +255,7 @@ class EpisodeSegmentationService:
         self.db.commit()
 
         # 5. Create segments
-        await self._create_segments(episode, messages, executions, message_boundaries)
+        await self._create_segments(episode, messages, executions, message_boundaries, canvas_context)
 
         # 6. Archive to LanceDB
         await self._archive_to_lancedb(episode)
@@ -459,7 +462,8 @@ class EpisodeSegmentationService:
         episode: Episode,
         messages: List[ChatMessage],
         executions: List[AgentExecution],
-        boundaries: set
+        boundaries: set,
+        canvas_context: Optional[Dict[str, Any]] = None
     ):
         """Create episode segments from messages and executions"""
         segment_order = 0
@@ -482,7 +486,8 @@ class EpisodeSegmentationService:
                             content=self._format_messages(current_segment_messages),
                             content_summary=self._summarize_messages(current_segment_messages),
                             source_type="chat_message",
-                            source_id=current_segment_messages[0].id
+                            source_id=current_segment_messages[0].id,
+                            canvas_context=canvas_context  # Add canvas context for semantic understanding
                         )
                         self.db.add(segment)
                         segment_order += 1
@@ -498,7 +503,8 @@ class EpisodeSegmentationService:
                 content=self._format_execution(exec),
                 content_summary=exec.result_summary or "Agent execution",
                 source_type="agent_execution",
-                source_id=exec.id
+                source_id=exec.id,
+                canvas_context=canvas_context  # Add canvas context for semantic understanding
             )
             self.db.add(segment)
             segment_order += 1
@@ -608,6 +614,97 @@ Topics: {', '.join(episode.topics)}
             logger.error(f"Failed to fetch canvas context for session {session_id}: {e}")
             return []
 
+    def _extract_canvas_context(self, canvas_audits: List[CanvasAudit]) -> Optional[Dict[str, Any]]:
+        """
+        Extract semantic canvas context from CanvasAudit records.
+
+        Args:
+            canvas_audits: List of CanvasAudit records for the session
+
+        Returns:
+            Canvas context dict or None if no canvas audits
+        """
+        if not canvas_audits:
+            return None
+
+        # Aggregate canvas types and actions
+        canvas_types = set()
+        visual_elements = []
+        user_interactions = []
+        critical_data = {}
+
+        for audit in canvas_audits:
+            canvas_types.add(audit.canvas_type)
+
+            # Extract visual elements from canvas metadata
+            if audit.metadata_json:
+                metadata = audit.metadata_json
+
+                # Check for component type
+                component = metadata.get('component', '')
+                if component:
+                    visual_elements.append(component)
+
+                # Extract critical data points based on canvas type
+                if audit.canvas_type == 'orchestration':
+                    if 'workflow_id' in metadata:
+                        critical_data['workflow_id'] = metadata['workflow_id']
+                    if 'approval_status' in metadata:
+                        critical_data['approval_status'] = metadata['approval_status']
+
+                elif audit.canvas_type == 'sheets':
+                    if 'revenue' in metadata:
+                        critical_data['revenue'] = metadata['revenue']
+                    if 'amount' in metadata:
+                        critical_data['amount'] = metadata['amount']
+
+                elif audit.canvas_type == 'terminal':
+                    if 'command' in metadata:
+                        critical_data['command'] = metadata['command']
+                    if 'exit_code' in metadata:
+                        critical_data['exit_code'] = metadata['exit_code']
+
+            # Extract user interaction from action
+            if audit.action:
+                interaction_map = {
+                    'submit': 'User submitted form',
+                    'close': 'User closed canvas',
+                    'update': 'User updated canvas content',
+                    'execute': 'User executed action',
+                    'present': 'Agent presented canvas',
+                    'approve': 'User approved',
+                    'reject': 'User rejected'
+                }
+                interaction = interaction_map.get(audit.action, f'User action: {audit.action}')
+                if audit.action in ['submit', 'approve', 'reject', 'close']:
+                    user_interactions.append(interaction)
+
+        # Build presentation summary
+        canvas_type_str = ', '.join(sorted(canvas_types)) if canvas_types else 'unknown'
+        visual_elements_str = ', '.join(sorted(set(visual_elements))) if visual_elements else 'elements'
+
+        if visual_elements_str:
+            presentation_summary = f"Agent presented {visual_elements_str} on {canvas_type_str} canvas"
+        else:
+            presentation_summary = f"Agent presented {canvas_type_str} canvas"
+
+        # Build canvas context object
+        canvas_context = {
+            'canvas_type': list(canvas_types)[0] if len(canvas_types) == 1 else 'generic',
+            'presentation_summary': presentation_summary,
+            'visual_elements': sorted(set(visual_elements)),
+        }
+
+        # Add user interaction (most recent)
+        if user_interactions:
+            canvas_context['user_interaction'] = user_interactions[-1]
+
+        # Add critical data points
+        if critical_data:
+            canvas_context['critical_data_points'] = critical_data
+
+        return canvas_context if canvas_context else None
+
     def _fetch_feedback_context(
         self,
         session_id: str,
@@ -685,6 +782,136 @@ Topics: {', '.join(episode.topics)}
         except Exception as e:
             logger.error(f"Failed to calculate feedback score: {e}")
             return None
+
+    def _extract_canvas_context(self, canvas_audits: List[CanvasAudit]) -> Dict[str, Any]:
+        """
+        Extract semantic canvas context from CanvasAudit records.
+
+        Transforms raw canvas audit events into structured semantic context
+        that captures WHAT was presented and WHY it matters for AI understanding.
+
+        Args:
+            canvas_audits: List of CanvasAudit records from _fetch_canvas_context
+
+        Returns:
+            Structured canvas context dict with schema:
+            {
+                "canvas_type": str,
+                "presentation_summary": str,
+                "visual_elements": List[str],
+                "user_interaction": str,
+                "critical_data_points": dict
+            }
+        """
+        if not canvas_audits:
+            return {}
+
+        try:
+            # For now, use the first (most recent) canvas audit
+            # Future: aggregate multiple canvases into combined context
+            audit = canvas_audits[0]
+
+            # Base context structure
+            context = {
+                "canvas_type": audit.canvas_type or "generic",
+                "presentation_summary": f"Agent presented {audit.component_name or 'canvas'}",
+                "visual_elements": [],
+                "user_interaction": "",
+                "critical_data_points": {}
+            }
+
+            # Extract from audit_metadata
+            metadata = audit.audit_metadata or {}
+
+            # Build presentation summary
+            if audit.component_name:
+                context["presentation_summary"] = f"Agent presented {audit.component_name}"
+
+            # Extract visual elements
+            if audit.component_name:
+                context["visual_elements"].append(audit.component_name)
+
+            # Extract user interaction from action
+            if audit.action:
+                interaction_map = {
+                    "present": "presented to user",
+                    "submit": "user submitted",
+                    "close": "user closed",
+                    "update": "user updated",
+                    "execute": "user executed"
+                }
+                context["user_interaction"] = interaction_map.get(
+                    audit.action,
+                    f"user performed {audit.action}"
+                )
+
+            # Extract critical data points from metadata
+            # Business logic fields that agents need for reasoning
+            critical_fields = [
+                "workflow_id", "approval_status", "revenue", "amount",
+                "priority", "command", "exit_code", "file_path", "language",
+                "subject", "recipient", "word_count", "title"
+            ]
+            for field in critical_fields:
+                if field in metadata:
+                    context["critical_data_points"][field] = metadata[field]
+
+            logger.debug(f"Extracted canvas context: {context['canvas_type']}")
+            return context
+
+        except Exception as e:
+            logger.error(f"Failed to extract canvas context: {e}")
+            return {}
+
+    def _filter_canvas_context_detail(
+        self,
+        context: Dict[str, Any],
+        detail_level: str = "summary"
+    ) -> Dict[str, Any]:
+        """
+        Filter canvas context by detail level for progressive disclosure.
+
+        Args:
+            context: Full canvas context dict from _extract_canvas_context
+            detail_level: One of "summary" (default), "standard", "full"
+
+        Returns:
+            Filtered context dict based on detail level:
+            - summary: presentation_summary only (~50 tokens)
+            - standard: summary + critical_data_points (~200 tokens)
+            - full: all fields including visual_elements (~500 tokens)
+        """
+        if not context:
+            return {}
+
+        try:
+            if detail_level == "summary":
+                # Minimal context for quick scanning
+                return {
+                    "canvas_type": context.get("canvas_type", "unknown"),
+                    "presentation_summary": context.get("presentation_summary", "")
+                }
+
+            elif detail_level == "standard":
+                # Summary + business-critical data
+                return {
+                    "canvas_type": context.get("canvas_type", "unknown"),
+                    "presentation_summary": context.get("presentation_summary", ""),
+                    "critical_data_points": context.get("critical_data_points", {})
+                }
+
+            elif detail_level == "full":
+                # Complete context including visual elements
+                return context
+
+            else:
+                # Default to summary for unknown levels
+                logger.warning(f"Unknown detail level: {detail_level}, using summary")
+                return self._filter_canvas_context_detail(context, "summary")
+
+        except Exception as e:
+            logger.error(f"Failed to filter canvas context: {e}")
+            return {}
 
     # ========================================================================
     # Supervision Episode Creation
