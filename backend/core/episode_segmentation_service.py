@@ -795,6 +795,103 @@ Topics: {', '.join(episode.topics)}
             logger.error(f"Failed to calculate feedback score: {e}")
             return None
 
+    async def _extract_canvas_context_llm(
+        self,
+        canvas_audit: CanvasAudit,
+        agent_task: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Extract canvas context with LLM-generated semantic summary.
+
+        Uses CanvasSummaryService to generate rich semantic summaries
+        that capture business context, intent, and decision reasoning.
+
+        Args:
+            canvas_audit: CanvasAudit record with canvas metadata
+            agent_task: Optional agent task description for context
+
+        Returns:
+            Canvas context dict with LLM-generated presentation_summary:
+            {
+                "canvas_type": str,
+                "presentation_summary": str,  # LLM-generated
+                "visual_elements": List[str],
+                "user_interaction": str,
+                "critical_data_points": dict,
+                "summary_source": "llm" or "metadata"  # Track source
+            }
+        """
+        try:
+            # Build canvas state from audit metadata
+            canvas_state = canvas_audit.audit_metadata or {}
+
+            # Generate LLM summary with 2-second timeout
+            presentation_summary = await self.canvas_summary_service.generate_summary(
+                canvas_type=canvas_audit.canvas_type or "generic",
+                canvas_state=canvas_state,
+                agent_task=agent_task,
+                user_interaction=canvas_audit.action,
+                timeout_seconds=2
+            )
+
+            # Extract visual elements from canvas state
+            visual_elements = []
+            if "components" in canvas_state:
+                visual_elements = [
+                    c.get("type", "element")
+                    for c in canvas_state["components"][:5]
+                ]
+
+            # Extract user interaction
+            interaction_map = {
+                "present": "presented to user",
+                "submit": "user submitted",
+                "close": "user closed",
+                "update": "user updated",
+                "execute": "user executed"
+            }
+            user_interaction = interaction_map.get(
+                canvas_audit.action,
+                f"user action: {canvas_audit.action}"
+            )
+
+            # Extract critical data points
+            critical_data = {}
+            critical_fields = [
+                "workflow_id", "approval_status", "revenue", "amount",
+                "priority", "command", "exit_code", "file_path", "language"
+            ]
+            for field in critical_fields:
+                if field in canvas_state:
+                    critical_data[field] = canvas_state[field]
+
+            return {
+                "canvas_type": canvas_audit.canvas_type or "generic",
+                "presentation_summary": presentation_summary,
+                "visual_elements": visual_elements,
+                "user_interaction": user_interaction,
+                "critical_data_points": critical_data,
+                "summary_source": "llm"
+            }
+
+        except Exception as e:
+            logger.error(f"LLM canvas context extraction failed: {e}")
+            # Fallback to metadata extraction
+            return self._extract_canvas_context_metadata(canvas_audit, agent_task)
+
+    def _extract_canvas_context_metadata(
+        self,
+        canvas_audit: CanvasAudit,
+        agent_task: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Fallback to metadata extraction (Phase 20 behavior).
+        """
+        # Use existing _extract_canvas_context logic
+        result = self._extract_canvas_context([canvas_audit])
+        result["summary_source"] = "metadata"
+        return result
+
     def _extract_canvas_context(self, canvas_audits: List[CanvasAudit]) -> Dict[str, Any]:
         """
         Extract semantic canvas context from CanvasAudit records.
