@@ -576,7 +576,7 @@ class TestConcurrencyControl:
     )
     @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     async def test_max_concurrent_steps_enforced(self, max_concurrent, total_steps):
-        """INVARIANT: Max concurrent steps limit is enforced."""
+        """INVARIANT: Max concurrent steps limit is enforced via semaphore."""
         engine = WorkflowEngine(max_concurrent_steps=max_concurrent)
 
         # Invariant: Semaphore should limit concurrency
@@ -588,13 +588,15 @@ class TestConcurrencyControl:
         lock = asyncio.Lock()
 
         async def simulated_step():
-            async with lock:
-                concurrent_count[0] += 1
-                if concurrent_count[0] > max_observed[0]:
-                    max_observed[0] = concurrent_count[0]
-            await asyncio.sleep(0.01)
-            async with lock:
-                concurrent_count[0] -= 1
+            # Acquire semaphore to enforce concurrency limit
+            async with engine.semaphore:
+                async with lock:
+                    concurrent_count[0] += 1
+                    if concurrent_count[0] > max_observed[0]:
+                        max_observed[0] = concurrent_count[0]
+                await asyncio.sleep(0.01)
+                async with lock:
+                    concurrent_count[0] -= 1
 
         # Launch all steps
         tasks = [simulated_step() for _ in range(total_steps)]
