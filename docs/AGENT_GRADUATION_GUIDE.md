@@ -40,6 +40,14 @@ Users need confidence that agents:
 - Improve over time
 - Don't repeat mistakes
 
+### 4. Multi-Dimensional Learning
+
+Graduation tracking includes:
+- **Episodic Memory**: Agent interactions and past experiences
+- **Community Skills**: Skill usage diversity and learning velocity
+- **Canvas Presentations**: Context-aware decision making
+- **User Feedback**: Performance ratings and corrections
+
 ---
 
 ## Graduation Criteria
@@ -89,6 +97,12 @@ Episode Score = min(episode_count / min_episodes, 1.0) × 40
 Intervention Score = (1 - intervention_rate / max_intervention_rate) × 30
 Constitutional Score = (avg_constitutional_score / min_constitutional_score) × 30
 ```
+
+**Skill Diversity Bonus** (Phase 14):
+- Agents using diverse community skills receive up to +5% readiness boost
+- Encourages varied skill adoption for comprehensive learning
+- Calculated as: `min(unique_skills_used / 20, 1.0) × 5`
+- Promotes skill exploration beyond core functionality
 
 ### Example Calculation
 
