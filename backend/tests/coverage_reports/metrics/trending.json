@@ -40,6 +40,24 @@
         "canvas_tool.py": "40.40%"
       },
       "notes": "All 131 tests passing (100% pass rate). Coverage target not met due to measurement scope (core + tools only). Target file coverage achieved for 4/6 files (>35%). Gap closure complete: fixed all 40 test failures from verification."
+    },
+    {
+      "phase": "21-llm-canvas-summaries",
+      "plan": "21-04",
+      "date": "2026-02-18T08:50:47.864322",
+      "coverage": 21.59,
+      "target_coverage": ">60%",
+      "target_achieved": false,
+      "gap": 38.41,
+      "tests_created": 0,
+      "tests_passing": 0,
+      "tests_failing": 0,
+      "pass_rate": 0,
+      "files_tested": 1,
+      "file_coverage": {
+        "canvas_summary_service.py": "21.59%"
+      },
+      "notes": "Coverage report generated for Plan 04. Tests from Plans 02/03 not yet executed (pending). Coverage will increase when test files are created."
     }
   ]
 }

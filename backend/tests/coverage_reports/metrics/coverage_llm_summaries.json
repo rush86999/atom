@@ -1,0 +1,726 @@
+{
+    "meta": {
+        "format": 3,
+        "version": "7.10.6",
+        "timestamp": "2026-02-18T08:48:21.526405",
+        "branch_coverage": true,
+        "show_contexts": false
+    },
+    "files": {
+        "core/llm/canvas_summary_service.py": {
+            "executed_lines": [
+                1,
+                16,
+                17,
+                18,
+                19,
+                20,
+                22,
+                25,
+                28,
+                29,
+                42,
+                73,
+                84,
+                164,
+                204,
+                248,
+                261,
+                271,
+                280,
+                292,
+                301
+            ],
+            "summary": {
+                "covered_lines": 19,
+                "num_statements": 72,
+                "percent_covered": 21.59090909090909,
+                "percent_covered_display": "21.59",
+                "missing_lines": 53,
+                "excluded_lines": 0,
+                "num_branches": 16,
+                "num_partial_branches": 0,
+                "covered_branches": 0,
+                "missing_branches": 16
+            },
+            "missing_lines": [
+                80,
+                81,
+                82,
+                110,
+                111,
+                112,
+                118,
+                128,
+                129,
+                130,
+                133,
+                134,
+                136,
+                147,
+                150,
+                151,
+                153,
+                154,
+                156,
+                157,
+                158,
+                160,
+                161,
+                162,
+                184,
+                186,
+                202,
+                222,
+                223,
+                226,
+                227,
+                228,
+                229,
+                230,
+                231,
+                232,
+                233,
+                234,
+                237,
+                238,
+                240,
+                242,
+                243,
+                245,
+                246,
+                255,
+                267,
+                268,
+                269,
+                278,
+                290,
+                299,
+                314
+            ],
+            "excluded_lines": [],
+            "executed_branches": [],
+            "missing_branches": [
+                [
+                    111,
+                    112
+                ],
+                [
+                    111,
+                    118
+                ],
+                [
+                    128,
+                    129
+                ],
+                [
+                    128,
+                    133
+                ],
+                [
+                    227,
+                    228
+                ],
+                [
+                    227,
+                    229
+                ],
+                [
+                    229,
+                    230
+                ],
+                [
+                    229,
+                    231
+                ],
+                [
+                    231,
+                    232
+                ],
+                [
+                    231,
+                    233
+                ],
+                [
+                    233,
+                    234
+                ],
+                [
+                    233,
+                    237
+                ],
+                [
+                    237,
+                    238
+                ],
+                [
+                    237,
+                    240
+                ],
+                [
+                    242,
+                    243
+                ],
+                [
+                    242,
+                    245
+                ]
+            ],
+            "functions": {
+                "CanvasSummaryService.__init__": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 3,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 3,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        80,
+                        81,
+                        82
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.generate_summary": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 21,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 21,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 4
+                    },
+                    "missing_lines": [
+                        110,
+                        111,
+                        112,
+                        118,
+                        128,
+                        129,
+                        130,
+                        133,
+                        134,
+                        136,
+                        147,
+                        150,
+                        151,
+                        153,
+                        154,
+                        156,
+                        157,
+                        158,
+                        160,
+                        161,
+                        162
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": [
+                        [
+                            111,
+                            112
+                        ],
+                        [
+                            111,
+                            118
+                        ],
+                        [
+                            128,
+                            129
+                        ],
+                        [
+                            128,
+                            133
+                        ]
+                    ]
+                },
+                "CanvasSummaryService._build_prompt": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 3,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 3,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        184,
+                        186,
+                        202
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService._fallback_to_metadata": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 18,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 18,
+                        "excluded_lines": 0,
+                        "num_branches": 12,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 12
+                    },
+                    "missing_lines": [
+                        222,
+                        223,
+                        226,
+                        227,
+                        228,
+                        229,
+                        230,
+                        231,
+                        232,
+                        233,
+                        234,
+                        237,
+                        238,
+                        240,
+                        242,
+                        243,
+                        245,
+                        246
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": [
+                        [
+                            227,
+                            228
+                        ],
+                        [
+                            227,
+                            229
+                        ],
+                        [
+                            229,
+                            230
+                        ],
+                        [
+                            229,
+                            231
+                        ],
+                        [
+                            231,
+                            232
+                        ],
+                        [
+                            231,
+                            233
+                        ],
+                        [
+                            233,
+                            234
+                        ],
+                        [
+                            233,
+                            237
+                        ],
+                        [
+                            237,
+                            238
+                        ],
+                        [
+                            237,
+                            240
+                        ],
+                        [
+                            242,
+                            243
+                        ],
+                        [
+                            242,
+                            245
+                        ]
+                    ]
+                },
+                "CanvasSummaryService.get_cache_stats": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 1,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        255
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.clear_cache": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 3,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 3,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        267,
+                        268,
+                        269
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.get_supported_canvas_types": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 1,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        278
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.is_canvas_type_supported": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 1,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        290
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.get_total_cost_tracked": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 1,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        299
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CanvasSummaryService.get_canvas_prompt_instructions": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 1,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        314
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        22,
+                        25,
+                        28,
+                        29,
+                        42,
+                        73,
+                        84,
+                        164,
+                        204,
+                        248,
+                        261,
+                        271,
+                        280,
+                        292,
+                        301
+                    ],
+                    "summary": {
+                        "covered_lines": 19,
+                        "num_statements": 19,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.00",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                }
+            },
+            "classes": {
+                "CanvasSummaryService": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 53,
+                        "percent_covered": 0.0,
+                        "percent_covered_display": "0.00",
+                        "missing_lines": 53,
+                        "excluded_lines": 0,
+                        "num_branches": 16,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 16
+                    },
+                    "missing_lines": [
+                        80,
+                        81,
+                        82,
+                        110,
+                        111,
+                        112,
+                        118,
+                        128,
+                        129,
+                        130,
+                        133,
+                        134,
+                        136,
+                        147,
+                        150,
+                        151,
+                        153,
+                        154,
+                        156,
+                        157,
+                        158,
+                        160,
+                        161,
+                        162,
+                        184,
+                        186,
+                        202,
+                        222,
+                        223,
+                        226,
+                        227,
+                        228,
+                        229,
+                        230,
+                        231,
+                        232,
+                        233,
+                        234,
+                        237,
+                        238,
+                        240,
+                        242,
+                        243,
+                        245,
+                        246,
+                        255,
+                        267,
+                        268,
+                        269,
+                        278,
+                        290,
+                        299,
+                        314
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": [
+                        [
+                            111,
+                            112
+                        ],
+                        [
+                            111,
+                            118
+                        ],
+                        [
+                            128,
+                            129
+                        ],
+                        [
+                            128,
+                            133
+                        ],
+                        [
+                            227,
+                            228
+                        ],
+                        [
+                            227,
+                            229
+                        ],
+                        [
+                            229,
+                            230
+                        ],
+                        [
+                            229,
+                            231
+                        ],
+                        [
+                            231,
+                            232
+                        ],
+                        [
+                            231,
+                            233
+                        ],
+                        [
+                            233,
+                            234
+                        ],
+                        [
+                            233,
+                            237
+                        ],
+                        [
+                            237,
+                            238
+                        ],
+                        [
+                            237,
+                            240
+                        ],
+                        [
+                            242,
+                            243
+                        ],
+                        [
+                            242,
+                            245
+                        ]
+                    ]
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        22,
+                        25,
+                        28,
+                        29,
+                        42,
+                        73,
+                        84,
+                        164,
+                        204,
+                        248,
+                        261,
+                        271,
+                        280,
+                        292,
+                        301
+                    ],
+                    "summary": {
+                        "covered_lines": 19,
+                        "num_statements": 19,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.00",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                }
+            }
+        }
+    },
+    "totals": {
+        "covered_lines": 19,
+        "num_statements": 72,
+        "percent_covered": 21.59090909090909,
+        "percent_covered_display": "21.59",
+        "missing_lines": 53,
+        "excluded_lines": 0,
+        "num_branches": 16,
+        "num_partial_branches": 0,
+        "covered_branches": 0,
+        "missing_branches": 16
+    }
+}
