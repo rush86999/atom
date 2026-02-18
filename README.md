@@ -75,72 +75,63 @@ That's it! 🚀
 
 ### 🎙️ Voice Interface
 - Build complex workflows using just your voice
-- Natural language understanding — no proprietary syntax to learn
+- Natural language understanding — no proprietary syntax
 - Real-time feedback as Atom visualizes its reasoning
 
 ### 🤖 Specialty Agents
 - **Sales Agent**: CRM pipelines, lead scoring, outreach
 - **Marketing Agent**: Campaigns, social posting, analytics
 - **Engineering Agent**: PR notifications, deployments, incidents
-- **Governance**: Agents progress from "Student" to "Autonomous" as they gain trust
+- **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
-### 🎨 Canvas Presentations & Agent Guidance ✨
+### 🎨 Canvas Presentations & Real-Time Guidance ✨
 - Rich interactive presentations (charts, forms, markdown)
-- **Real-time operation visibility**: See exactly what agents are doing
+- **Live operation visibility**: See exactly what agents are doing
 - Multi-view orchestration (browser, terminal, canvas)
 - Smart error resolution with actionable suggestions
 - [Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
 ### 🧠 Episodic Memory & Graduation
-- **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
-- **Hybrid storage**: PostgreSQL (hot data) + LanceDB (cold archives)
+- **Experience-based learning**: Agents store and retrieve past experiences
+- **Hybrid storage**: PostgreSQL + LanceDB for performance
 - **Four retrieval modes**: Temporal, Semantic, Sequential, Contextual
-- **Graduation validation**: Promote agents only when they demonstrate reliable performance
+- **Graduation validation**: Promote agents only when reliable
 - [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
 
 ### 🛡️ Agent Governance System
-- Agents progress from 'Student' → 'Autonomous' based on performance
-- **Maturity-based routing**: Student agents blocked from automated triggers
-- **AI-powered training**: Personalized learning with duration estimation
-- Sensitive actions require approval until confidence is high
+- 4-tier maturity-based routing and approval system
+- AI-powered training duration estimation
 - Every action logged, timestamped, and traceable
 
 ### 🔌 Deep Integrations
-- **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
-- **9 messaging platforms**: Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Facebook Messenger, LINE
-- Proactive messaging, scheduled messages, condition monitoring
+- **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce
+- **9 messaging platforms**: Real-time communication
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
 ### 🌐 Community Skills ✨
-- **5,000+ OpenClaw/ClawHub skills**: Import and use community-built skills
-- **Enterprise security**: LLM-powered scanning with 21+ malicious pattern detection
-- **Hazard Sandbox**: Isolated Docker containers prevent host access
-- **Skills Registry**: Easy import with status tracking (Untrusted → Active → Banned)
+- **5,000+ OpenClaw/ClawHub skills**: Import community-built tools
+- **Enterprise security**: LLM-powered scanning with hazard sandbox
+- **Skills Registry**: Import with status tracking (Untrusted → Active → Banned)
 - [Community Skills Guide →](docs/COMMUNITY_SKILLS.md)
 
 ### 🔍 Browser & Device Automation
-- Browser automation via CDP (web scraping, form filling)
-- Device control (camera, location, notifications, terminal)
-- Governance-first: all actions require appropriate maturity level
+- Browser automation via CDP (scraping, form filling)
+- Device control (camera, location, notifications)
+- Maturity-governed for security
 
 ---
 
 ## Installation Options
 
-### 🐳 Docker (5 minutes - No setup required)
-
+### 🐳 Docker (5 minutes)
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
 cp .env.personal .env
-# Edit .env and add your API keys
 docker-compose -f docker-compose-personal.yml up -d
 ```
 
-Access at: **http://localhost:3000**
-
-### 💻 Native Installation (10 minutes - No Docker)
-
+### 💻 Native (10 minutes)
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
@@ -148,14 +139,9 @@ cd backend && python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cd ../frontend-nextjs && npm install
 cp .env.personal .env
-# Edit .env and add your API keys
 # Start backend: cd backend && python -m uvicorn main_api_app:app --reload
 # Start frontend: cd frontend-nextjs && npm run dev
 ```
-
-Access at: **http://localhost:3000**
-
-[Full Docker Guide →](docs/PERSONAL_EDITION.md) | [Full Native Guide →](docs/NATIVE_SETUP.md)
 
 ---
 
@@ -163,10 +149,10 @@ Access at: **http://localhost:3000**
 
 | **Department** | **Scenario** |
 |----------------|-------------|
-| **Sales** | New lead in HubSpot → Research company → Score lead → Slack the account executive |
-| **Finance** | PDF invoice in Gmail → Extract data → Match against QuickBooks → Flag discrepancies |
-| **Support** | Zendesk ticket arrives → Analyze sentiment → Route urgent issues → Draft response |
-| **HR** | New employee in BambooHR → Provision Google account → Invite to Slack → Schedule orientation |
+| **Sales** | New lead in HubSpot → Research → Score → Notify Slack |
+| **Finance** | PDF invoice in Gmail → Extract → Match QuickBooks → Flag discrepancies |
+| **Support** | Zendesk ticket → Analyze sentiment → Route urgent → Draft response |
+| **HR** | New employee in BambooHR → Provision → Invite → Schedule orientation |
 
 ---
 
@@ -174,7 +160,7 @@ Access at: **http://localhost:3000**
 
 - **Self-Hosted Only**: Your data never leaves your environment
 - **BYOK**: Bring your own OpenAI, Anthropic, Gemini, or DeepSeek keys
-- **Encrypted Storage**: Sensitive data encrypted at-rest (Fernet)
+- **Encrypted Storage**: Sensitive data encrypted at-rest
 - **Audit Logs**: Every agent action logged and traceable
 - **Human-in-the-Loop**: Configurable approval policies
 
@@ -182,23 +168,22 @@ Access at: **http://localhost:3000**
 
 ## Documentation
 
-### Core Features
-- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - Import 5,000+ OpenClaw/ClawHub skills
-- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Experience-based learning system
-- [Agent Graduation Guide](docs/AGENT_GRADUATION_GUIDE.md) - Promotion validation framework
-- [Student Agent Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity-based routing system
+### Core
+- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - 5,000+ skills
+- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Learning system
+- [Agent Graduation](docs/AGENT_GRADUATION_GUIDE.md) - Promotion framework
+- [Student Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity routing
 
 ### Platform
-- [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
-- [Installation Guide](docs/INSTALLATION.md) - Complete installation instructions
-- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison with alternatives
+- [Development Guide](docs/DEVELOPMENT.md) - Technical setup
+- [Installation Guide](docs/INSTALLATION.md) - Complete instructions
+- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
 
 ### Advanced
-- [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system details
-- [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
-- [Personal Edition](docs/PERSONAL_EDITION.md) - Local deployment with Docker Compose
-- [Agent-to-Agent Execution](docs/PERSONAL_EDITION.md) - Daemon mode and CLI control
-- [IM Adapter Setup](backend/docs/IM_ADAPTER_SETUP.md) - Telegram & WhatsApp integration
+- [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas details
+- [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels
+- [Personal Edition](docs/PERSONAL_EDITION.md) - Local deployment
+- [IM Adapter Setup](backend/docs/IM_ADAPTER_SETUP.md) - Messaging integration
 
 **[Complete Documentation Index →](docs/INDEX.md)**
 
@@ -212,11 +197,11 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Support
 
-- **Documentation**: See [docs/INDEX.md](docs/INDEX.md) for complete documentation index
-- **Developer Guide**: See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and deployment
-- **Implementation History**: See [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) for recent changes
-- **Issues**: [GitHub Issues](https://github.com/rush8699/atom/issues)
-- **License**: AGPL v3 - See [LICENSE.md](LICENSE.md)
+- **Documentation**: [docs/INDEX.md](docs/INDEX.md) - Complete index
+- **Developer Guide**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Setup
+- **Implementation History**: [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) - Recent changes
+- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
+- **License**: AGPL v3 - [LICENSE.md](LICENSE.md)
 
 ---
 
