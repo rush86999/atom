@@ -1439,27 +1439,25 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
   - [x] 26-06-PLAN.md — Fix mock database interaction (Wave 2) ✅
   - Achievement: 24/28 tests passing (86%), up from 1/29 (3%). All CI/CD infrastructure issues resolved.
 
-- [ ] **Phase 27: Include Redis-Compatible Open Source Alternative in Docker Compose** - Add Redis-compatible open source database to deployment stack (NOT official Redis)
-  - Goal: Provide open source Redis-compatible solution as part of Docker Compose for local development and production
-  - Options (Redis-compatible open source alternatives):
-    - **Redict** (Linux Foundation) - Fully open source Redis fork, 100% license-compliant (Recommended)
-    - **KeyDB** - Multi-threaded Redis fork with better performance, active development
-    - **Valkey** - Open source Redis fork from Linux Foundation/community
-    - **DragonflyDB** - Modern Redis-compatible engine, drop-in replacement with better performance
+- [ ] **Phase 27: Redis-Compatible Database in Docker Compose** - Add Valkey (Redis-compatible open source database) to Docker Compose deployment stack for local development
+  - Goal: Add Valkey to Docker Compose for agent communication via Redis pub/sub. Remove external Redis dependency.
+  - Decision: **Valkey** (Linux Foundation, LGPL-3.0) - 100% Redis protocol compatible, not official Redis, not DragonflyDB (GPL concerns), not KeyDB (uncertain maintenance)
   - Scope:
-    - Choose open source alternative (recommend Redict for license compliance or DragonflyDB for performance)
-    - Add selected database service to docker-compose.yml and docker-compose-personal.yml
-    - Configure persistence, networking, and health checks
-    - Update environment variables (REDIS_URL or compatible endpoint)
-    - Update documentation with Docker Compose quick start
-    - Verify Redis pub/sub tests work with Docker Compose database
+    - Add valkey service to docker-compose-personal.yml (in-memory only, no persistence for Personal Edition)
+    - Update .env.personal with REDIS_URL=redis://valkey:6379
+    - Verify agent communication tests pass with Docker Compose Valkey
+    - Update PERSONAL_EDITION.md documentation
   - Success Criteria:
-    - `docker-compose up` includes Redis service
-    - Agent communication tests pass with Docker Compose Redis
+    - `docker-compose up` includes Valkey service on port 6379
+    - Agent communication tests pass with Docker Compose Valkey
     - Developers can run full stack locally without external dependencies
     - Documentation updated with Docker Compose setup instructions
-  - Estimated Plans: 3-4 plans (selection, Docker Compose integration, testing, documentation)
-  - Status: Not started
+  - Estimated Plans: 3 plans
+  - Status: Planning Complete (3 plans created)
+  **Plans**: 3 plans
+  - [ ] 27-01-PLAN.md — Docker Compose Valkey Integration (Wave 1)
+  - [ ] 27-02-PLAN.md — Test Verification with Docker Compose (Wave 2)
+  - [ ] 27-03-PLAN.md — Documentation Update (Wave 3)
 
 - [ ] **Phase 28: Tauri Canvas AI Accessibility Verification** - Verify canvas AI context accessibility works correctly in Tauri desktop app
   - Goal: Ensure canvas AI context is accessible via windows global variable in Tauri app
