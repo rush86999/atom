@@ -96,6 +96,28 @@ Open http://localhost:8000 in your browser.
 
 ## Personal Edition Installation
 
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# Clone repository
+git clone https://github.com/rush86999/atom.git
+cd atom
+
+# Start with Docker Compose
+docker-compose -f docker-compose-personal.yml up -d
+
+# Check status
+docker-compose -f docker-compose-personal.yml logs -f
+```
+
+This setup includes:
+- Backend service (FastAPI + SQLite)
+- Health checks and monitoring
+- All Personal Edition features
+- No Python installation required
+
+### Option 2: pip install (Development)
+
 ### Prerequisites
 
 - Python 3.11 or later
