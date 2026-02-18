@@ -1260,3 +1260,60 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 - Episode segmentation integration
 - Comprehensive test suite (60+ tests expected)
 - Quality metrics validation
+
+---
+
+## Phase 24: Documentation Updates & README Condensation
+
+**Goal**: Update all existing documentation to reflect current state and condense README for clarity while preserving essential links
+**Depends on**: Phases 15-23 (all major features implemented)
+**Status**: Not Started (February 18, 2026)
+
+**Success Criteria** (what must be TRUE):
+  1. README.md condensed to ~200 lines (from 593 lines) with all essential links preserved
+  2. All feature docs updated to reflect production-ready status
+  3. CLAUDE.md updated with Phase 20-23 features
+  4. Installation guides verified and consistent
+  5. API documentation complete and accurate
+  6. Quick start guides tested and working
+  7. Documentation cross-references are accurate
+
+**Features**:
+1. **README Condensation** (Plan 01):
+   - Reduce from 593 lines to ~200 lines
+   - Keep core value proposition, quick start, key features
+   - Preserve all links to documentation (→ docs/)
+   - Remove redundant content (already covered in docs)
+   - Maintain badge shields and visual elements
+
+2. **Feature Documentation Updates** (Plan 02):
+   - Update CANVAS_IMPLEMENTATION_COMPLETE.md (add Phase 20/21 features)
+   - Update EPISODIC_MEMORY_IMPLEMENTATION.md (add canvas context, LLM summaries)
+   - Update COMMUNITY_SKILLS.md (verify production status)
+   - Update AGENT_GRADUATION_GUIDE.md (add latest graduation criteria)
+   - Update INSTALLATION.md (verify Personal/Enterprise editions)
+
+3. **CLAUDE.md Updates** (Plan 03):
+   - Add Phase 20: Canvas AI Context & Accessibility
+   - Add Phase 21: LLM-Generated Canvas Summaries
+   - Add Phase 22: Mobile App (when complete)
+   - Add Phase 23: Menu Bar Access (when complete)
+   - Update technical stack and key directories
+   - Update recent major changes section
+
+4. **Documentation Verification** (Plan 04):
+   - Test all quick start guides (installation, personal edition, native setup)
+   - Verify all installation steps work end-to-end
+   - Check all cross-references are valid (no broken links)
+   - Update broken links and outdated references
+   - Ensure consistency across all documentation
+   - Verify API documentation matches actual implementation
+
+**Estimated Impact**: Clear, concise README with comprehensive documentation ecosystem
+**Estimated Duration**: 4 plans (1-2 days)
+
+**Plans**: 4 plans
+- [ ] 24-01-PLAN.md — Condense README.md to 200 lines with preserved links
+- [ ] 24-02-PLAN.md — Update feature documentation with latest features
+- [ ] 24-03-PLAN.md — Update CLAUDE.md with Phase 20-23 features
+- [ ] 24-04-PLAN.md — Verify and test all documentation
