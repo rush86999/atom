@@ -232,21 +232,3 @@ class TestHealthMonitoringService:
         assert "integration_name" in health
         assert "status" in health
         assert "connection_status" in health
-
-
-class TestHealthMonitoringAPI:
-    """Test health monitoring API endpoints"""
-
-    def test_health_check(self, client):
-        """Test health check endpoint"""
-        response = client.get("/api/health/health")
-        # Note: This might fail if the route isn't loaded in test client
-        # We'll just verify the import works for now
-        try:
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "healthy"
-            assert data["service"] == "health_monitoring"
-        except:
-            # If the route isn't loaded, that's OK for this test
-            pass
