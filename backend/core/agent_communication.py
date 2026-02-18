@@ -123,7 +123,7 @@ class AgentEventBus:
             event: Event data (agent_post, status_update, etc.)
             topics: Topics to broadcast to (default: ["global"])
         """
-        topics = topics or ["global"]
+        topics = topics if topics is not None else ["global"]
 
         # NEW: Publish to Redis (if enabled)
         if self._redis_enabled:
