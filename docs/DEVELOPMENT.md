@@ -454,6 +454,9 @@ systemctl start atom-backend atom-workers
 - [Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md) - Agent promotion criteria
 - [Real-Time Agent Guidance](AGENT_GUIDANCE_IMPLEMENTATION.md) - Live operation tracking
 - [Canvas & Feedback Integration](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas presentations in episodes
+- [Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md) - Dual representation for AI agents
+- [Canvas State API](CANVAS_STATE_API.md) - JavaScript API for real-time canvas state
+- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - LLM-powered semantic summaries
 - [Deep Linking](DEEPLINK_IMPLEMENTATION.md) - External app integration via atom:// URLs
 - [Device Capabilities](backend/docs/BROWSER_AUTOMATION.md) - Camera, screen recording, location
 
