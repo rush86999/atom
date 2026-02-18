@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 18-social-layer-testing
-Plan: 04 (COMPLETE)
-Status: COMPLETE (2 of 4 plans complete)
-Last activity: 2026-02-18 — Phase 18-04 COMPLETE: Redis Integration Test Fixes. Fixed 4 failing Redis tests by correcting async mock configuration (test_redis_subscribe, test_redis_fallback_to_in_memory, test_redis_graceful_shutdown, test_redis_multiple_topics). Added comprehensive end-to-end integration test (test_redis_integration_end_to_end). All 11 Redis tests now pass (100% pass rate, up from 60%). Overall test pass rate improved from 88.6% to 97.3% (36/37 tests). 2 atomic commits, ~5 minutes duration. Zero deviations. Redis pub/sub integration validated for horizontal scaling with proper mock configuration patterns established.
+Plan: 05 (COMPLETE)
+Status: COMPLETE (4 of 5 plans complete)
+Last activity: 2026-02-18 — Phase 18-05 COMPLETE: API Integration Tests - Database Session Dependency Injection Fix. Fixed incorrect imports in social_routes.py (core.models.get_db → core.database.get_db) and conftest.py (core.dependency.get_db → core.database.get_db). Fixed client fixture to properly inject db_session via dependency overrides. Fixed agent fixtures to use _session=db_session parameter in AgentFactory. Fixed cursor pagination test to use sender_filter parameter instead of sender_id. All 28 API integration tests now pass (100% pass rate, up from 14%). 2 atomic commits (90ca0b70, 4bcd3da7), ~14 minutes duration. 4 deviations documented (incorrect imports, factory session attachment, cursor pagination parameter). Client fixture in conftest.py is reusable for other API test files.
 
 Progress: [████████░] 100% (Phase 25: 4 of 4 plans complete) ✅
 Phase 9.0 Wave 7 Results:
