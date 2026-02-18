@@ -116,18 +116,21 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [ ] 17-agent-layer-01-PLAN.md — Agent Governance & Maturity Routing (Wave 1)
   - [ ] 17-agent-layer-02-PLAN.md — Agent Graduation & Context Resolution (Wave 2)
   - [ ] 17-agent-layer-03-PLAN.md — Agent Execution & Coordination (Wave 2)
-- [ ] **Phase 19: Coverage Push & Bug Fixes** - Achieve 25-27% coverage (+3-5% from 22.64%) and fix all remaining test failures
-  - Plan 01: Workflow Engine & Analytics Coverage — Property tests for async execution, integration tests for analytics
-  - Plan 02: Agent Endpoints & BYOK Handler Coverage — Streaming endpoints, provider failover
-  - Plan 03: Canvas Tool & Governance Service Coverage — Canvas presentations, governance invariants
-  - Plan 04: Bug Fixes and Coverage Validation — Fix test failures, validate 98%+ pass rate
-  - Estimated Plans: 4 plans (2-3 days)
-  - Status: Planning Complete (4 plans created)
-  **Plans**: 4 plans
-  - [ ] 19-01-PLAN.md — Workflow Engine & Analytics Coverage (Wave 1)
-  - [ ] 19-02-PLAN.md — Agent Endpoints & BYOK Handler Coverage (Wave 1)
-  - [ ] 19-03-PLAN.md — Canvas Tool & Governance Service Coverage (Wave 2)
-  - [ ] 19-04-PLAN.md — Bug Fixes and Coverage Validation (Wave 2)
+- [x] **Phase 19: Coverage Push & Bug Fixes** - Achieve 25-27% coverage (+3-5% from 22.64%) and fix all remaining test failures
+  - Original Plans (01-04): Test creation for workflow engine, analytics, endpoints, BYOK handler, canvas, governance
+  - Gap Closure Plans (05-09): Fix 40 test failures, reduce over-mocking, achieve coverage target
+  - Estimated Plans: 9 plans total (4 original + 5 gap closure)
+  - Status: Gap Closure Planning Complete (9 plans created)
+  **Plans**: 9 plans
+  - [x] 19-01-PLAN.md — Workflow Engine & Analytics Coverage (Wave 1)
+  - [x] 19-02-PLAN.md — Agent Endpoints & BYOK Handler Coverage (Wave 1)
+  - [x] 19-03-PLAN.md — Canvas Tool & Governance Service Coverage (Wave 2)
+  - [x] 19-04-PLAN.md — Bug Fixes and Coverage Validation (Wave 2)
+  - [ ] 19-05-PLAN.md — Fix workflow_engine async tests (6 failures) ✨ GAP CLOSURE
+  - [ ] 19-06-PLAN.md — Fix workflow_analytics integration tests (21 failures) ✨ GAP CLOSURE
+  - [ ] 19-07-PLAN.md — Fix BYOK handler tests (13 failures) ✨ GAP CLOSURE
+  - [ ] 19-08-PLAN.md — Reduce over-mocking for actual coverage ✨ GAP CLOSURE
+  - [ ] 19-09-PLAN.md — Coverage validation and final report ✨ GAP CLOSURE
 
 ## Phase Details
 
@@ -1022,6 +1025,51 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 16. Hybrid Retrieval Enhancement | 3/3 | **Ready** | - | Two-stage retrieval (FastEmbed coarse + ST rerank) |
 | 17. Agent Layer Testing | 0/3 | **Planning Complete** | - | Governance, graduation, execution, coordination |
 | 18. Social Layer Testing | 0/2 | **Planning Complete** | - | Post generation, PII redaction, communication, channels |
-| 19. Coverage Push & Bug Fixes | 0/4 | **Planning Complete** | - | 8 high-impact files, 25-27% target |
+| 19. Coverage Push & Bug Fixes | 4/4 | **Gaps Found** | 2026-02-17 | 22% coverage (target 25-27%), 40 test failures, gap closure needed |
+| 20. Coverage Gap Closure & Canvas AI Context | 0/5 | **Not Started** | - | Fix 40 test failures, reduce over-mocking, add canvas accessibility for AI agents |
 
-**Overall Progress**: 115 plans completed out of ~125 estimated (92%)
+**Overall Progress**: 119 plans completed out of ~130 estimated (92%)
+
+---
+
+## Phase 20: Coverage Gap Closure & Canvas AI Context
+
+**Goal**: Fix Phase 19 test failures, reduce over-mocking, and enhance canvas components with AI agent accessibility features
+
+**Status**: Not Started (February 17, 2026)
+
+**Success Criteria** (what must be TRUE):
+  1. All 40 test failures from Phase 19 are fixed (workflow engine, analytics, BYOK handler)
+  2. Over-mocking reduced to enable actual code execution (real database sessions, fewer AsyncMocks)
+  3. Overall coverage reaches 25-27% target (from 22%)
+  4. Canvas components expose structured state for AI agents (accessibility tree, state mirrors)
+  5. Terminal/canvas views provide both visual (pixels) and logical (state) representations
+  6. AI agents can "read" canvas content without OCR (hidden accessibility divs with role="log")
+  7. Test pass rate reaches 98%+ (TQ-02 requirement)
+
+**Features**:
+1. **Test Failure Fixes** (Plans 01-02):
+   - Fix 6 workflow_engine async tests (assertion errors, reduce over-mocking)
+   - Fix 21 workflow_analytics tests (add database session setup, fix imports)
+   - Fix 13 BYOK handler tests (AsyncMock patterns, await coroutines)
+
+2. **Over-Mocking Reduction** (Plan 03):
+   - Replace AsyncMock with real database sessions using factory-boy
+   - Use transaction rollback pattern for test isolation
+   - Mock only external dependencies (LLM providers, WebSocket), not internal services
+
+3. **Canvas AI Accessibility** (Plans 04-05):
+   - Add hidden accessibility trees for canvas components (div with role="log", aria-live)
+   - Expose terminal state as JavaScript objects (lines, cursorPos, scrollOffset)
+   - Create state mirrors for all canvas types (terminal, charts, forms)
+   - Document canvas state API for AI agent integration
+
+**Estimated Impact**: +3-5% overall coverage, 98%+ test pass rate, AI-readable canvas components
+**Estimated Duration**: 5 plans (2-3 days)
+
+**Plans**: 5 plans
+- [ ] 20-01-PLAN.md — Fix workflow engine test failures (reduce over-mocking, fix assertions)
+- [ ] 20-02-PLAN.md — Fix analytics and BYOK handler test failures (DB setup, AsyncMock patterns)
+- [ ] 20-03-PLAN.md — Reduce over-mocking across Phase 19 tests (real sessions, transaction rollback)
+- [ ] 20-04-PLAN.md — Add canvas accessibility trees for AI agents (hidden divs, state mirrors)
+- [ ] 20-05-PLAN.md — Validate coverage targets and create Phase 20 summary
