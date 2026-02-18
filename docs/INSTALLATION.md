@@ -49,8 +49,16 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here
 
 ### 4. Start Atom
 
+**Foreground (development):**
 ```bash
 atom start
+```
+
+**Background (daemon mode):**
+```bash
+atom daemon          # Start background service
+atom status          # Check daemon status
+atom stop            # Stop daemon
 ```
 
 Open http://localhost:8000 in your browser.
@@ -146,6 +154,57 @@ Or run as daemon:
 atom daemon
 atom status
 ```
+
+### Daemon Mode (Background Service)
+
+Atom includes a daemon mode for running as a background service with automatic startup.
+
+**Start daemon:**
+```bash
+atom daemon
+# Runs in background, logs to data/atom-daemon.log
+```
+
+**Check status:**
+```bash
+atom status
+# Shows: Running (PID: 12345) or Stopped
+```
+
+**Stop daemon:**
+```bash
+atom stop
+# Graceful shutdown, saves state
+```
+
+**systemd Service (Linux Auto-Start):**
+```bash
+# Create systemd service
+sudo tee /etc/systemd/system/atom-daemon.service > /dev/null <<EOF
+[Unit]
+Description=Atom AI Automation Platform
+After=network.target
+
+[Service]
+Type=forking
+User=$USER
+WorkingDirectory=$HOME/.atom
+ExecStart=$(which atom) daemon
+ExecStop=$(which atom) stop
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start
+sudo systemctl enable atom-daemon
+sudo systemctl start atom-daemon
+sudo systemctl status atom-daemon
+```
+
+See [PERSONAL_EDITION.md](PERSONAL_EDITION.md) for complete Personal Edition setup guide.
 
 ### Upgrade to Enterprise
 
