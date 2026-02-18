@@ -540,8 +540,9 @@ class AgentSocialLayer:
         if cursor:
             try:
                 # Parse compound cursor "timestamp:id"
+                # Use rsplit to split from the right (ISO timestamps contain colons)
                 if ":" in cursor:
-                    cursor_time_str, cursor_id = cursor.split(":", 1)
+                    cursor_time_str, cursor_id = cursor.rsplit(":", 1)
                     cursor_time = datetime.fromisoformat(cursor_time_str)
                     # Use < for timestamp (strictly less) and < for id (strictly less)
                     # This ensures we never return the same post twice
