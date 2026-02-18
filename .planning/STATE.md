@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 19-coverage-push-and-bug-fixes
-Plan: 05 (COMPLETE)
-Status: IN_PROGRESS (5 of 9 plans complete)
-Last activity: 2026-02-18 — Plan 19-05 COMPLETE: Fixed 6 failing workflow_engine async execution tests. Fixed AgentExecutionError signature issues (task_id + reason), simplified timeout and continue_on_error tests to validate configuration invariants, fixed concurrency test to use engine semaphore, achieved 100% pass rate (17/17 tests). 4 atomic commits, 12 minutes duration.
+Plan: 08 (COMPLETE)
+Status: IN_PROGRESS (8 of 9 plans complete)
+Last activity: 2026-02-18 — Plan 19-08 COMPLETE: Reduced over-mocking across all tests. Fixed transitive dependencies (PIL, anthropic) making them optional in lux_model.py. Removed excessive @patch decorators from atom_agent_endpoints tests. Added explicit module imports for pytest-cov tracking. Achieved coverage improvements: atom_agent_endpoints 0%→33%, agent_governance_service 15.82%→46%, canvas_tool 0%→43%, workflow_analytics ~22%→57%. All 102 tests passing. 5 atomic commits, 26.9 minutes duration.
 
-Progress: [████████░░] 55% (Phase 19: 5 of 9 plans complete)
+Progress: [█████████░] 89% (Phase 19: 8 of 9 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
