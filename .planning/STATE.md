@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 20-canvas-ai-context - Canvas State API for AI Agents
+**Current focus:** Phase 18-complete - Social Layer Testing Complete
 
 ## Current Position
 
 Phase: 18-social-layer-testing
-Plan: 05 (COMPLETE)
-Status: COMPLETE (4 of 5 plans complete)
-Last activity: 2026-02-18 — Phase 18-05 COMPLETE: API Integration Tests - Database Session Dependency Injection Fix. Fixed incorrect imports in social_routes.py (core.models.get_db → core.database.get_db) and conftest.py (core.dependency.get_db → core.database.get_db). Fixed client fixture to properly inject db_session via dependency overrides. Fixed agent fixtures to use _session=db_session parameter in AgentFactory. Fixed cursor pagination test to use sender_filter parameter instead of sender_id. All 28 API integration tests now pass (100% pass rate, up from 14%). 2 atomic commits (90ca0b70, 4bcd3da7), ~14 minutes duration. 4 deviations documented (incorrect imports, factory session attachment, cursor pagination parameter). Client fixture in conftest.py is reusable for other API test files.
+Plan: COMPLETE (5 of 5 plans complete, including 3 gap closure plans)
+Status: COMPLETE ✅
+Last activity: 2026-02-18 — Phase 18 COMPLETE: Social Layer Testing with 100% pass rate (103/103 tests). Fixed topics default handling in AgentEventBus.publish() - empty list [] was treated as falsy and replaced with ["global"]. Property test test_topic_filtering now correctly publishes to 0 subscribers when topics=[]. Changed from `topics = topics or ["global"]` to `topics = topics if topics is not None else ["global"]`. Commit b42ec8be, ~2 minutes duration. Total Phase 18: 4 original plans + 3 gap closure plans = 7 total plans, 13 commits, ~2 hours total duration.
 
 Progress: [████████░] 100% (Phase 25: 4 of 4 plans complete) ✅
 Phase 9.0 Wave 7 Results:
@@ -368,6 +368,9 @@ Recent decisions affecting current work:
 - [Phase 20-canvas-ai-context]: Phase 20 complete: Canvas AI accessibility with hidden accessibility trees (role=log, aria-live), JavaScript state API (window.atom.canvas), EpisodeSegment canvas_context JSONB field with progressive detail levels (summary/standard/full), canvas-aware episode retrieval with canvas_type filtering and business data queries, real-time canvas state API via WebSocket, 24 tests covering all 7 canvas types (generic/docs/email/sheets/orchestration/terminal/coding), 25.71% episodic memory coverage (all features tested, missing test_episode_retrieval.py for 50% target). 6 plans completed in 48 minutes (8 min avg), 3 files created (PHASE-SUMMARY, SUCCESS-CRITERIA, CANVAS_AI_ACCESSIBILITY.md), 15 files modified, ~3,000 lines added. Production-ready canvas AI context features enabling agents to read canvas content without OCR and recall canvas-aware episodes.
 - [Phase 21-llm-canvas-summaries-01]: Created CanvasSummaryService with LLM-powered semantic summary generation for canvas presentations. Implemented canvas-specific prompts for all 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding) with specialized extraction guidance. Integrated BYOK handler for multi-provider LLM support with SHA256-based caching (16-char keys) and 2-second timeout with metadata fallback. Added utility methods for cache monitoring (get_cache_stats, clear_cache), cost tracking (get_total_cost_tracked), and debugging (get_canvas_prompt_instructions). Temperature=0.0 for deterministic summaries (consistency >90%). File meets 300+ line requirement (314 lines). Module exports updated in core.llm.__init__.py. All 5 tasks complete, 3 atomic commits (ef134455, 406f5a5e, 308d78e6), 7 minutes duration, 390 lines added. Zero deviations. Ready for Phase 21-02 integration with EpisodeSegmentationService.
 - [Phase 18-social-layer-testing]: Redis async mock configuration: Use async coroutine with side_effect instead of return_value for redis.asyncio.from_url to avoid 'object MagicMock can't be used in await expression' errors
+- [Phase ?]: Use named parameters in @given decorator for pytest fixture compatibility
+- [Phase ?]: Use rsplit(':', 1) instead of split(':', 1) for compound cursor parsing to handle ISO timestamps
+- [Phase ?]: Add explicit cleanup in property tests to handle function-scoped fixture not being reset between Hypothesis examples
 
 ### Pending Todos
 

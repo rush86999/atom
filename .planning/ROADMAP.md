@@ -921,9 +921,9 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
    - Real-time update tests
 
 **Estimated Impact**: +2-3% overall coverage (social layer modules: social_post_generator, pii_redactor, agent_communication, agent_social_layer)
-**Estimated Duration**: 2 original plans complete, 3 gap closure plans (0.5-1 day)
+**Estimated Duration**: 5 plans complete (2 original + 3 gap closure), ~2 hours
 
-**Status**: 2/2 original plans complete ✅ | 0/3 gap closure plans pending | GAPS FOUND (fixture issues, mock config, dependency injection)
+**Status**: ✅ COMPLETE - 5/5 plans (2 original + 3 gap closure), 100% pass rate (103/103 tests)
 
 **Plans**: 5 plans (2 original + 3 gap closure)
 - [x] 18-social-layer-testing-01-PLAN.md — Post Generation & PII Redaction (unit + property tests) ✅ COMPLETE
@@ -934,18 +934,18 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
   - Agent-to-agent messaging tests (EventBus, Redis pub/sub, WebSocket)
   - Feed generation tests (chronological, filters, cursor pagination)
   - Property-based tests for AR-12 invariants (no duplicates, FIFO, no lost messages)
-- [ ] 18-social-layer-testing-03-PLAN.md — Gap Closure: Cursor Pagination & Property Tests 🔧 FIX
-  - Fix Hypothesis+pytest fixture incompatibility in 7 property-based tests
-  - Fix test_cursor_second_page_returns_older_posts (0 posts instead of 10)
-  - Fix test_feed_with_multiple_filters (2 posts instead of 1)
-- [ ] 18-social-layer-testing-04-PLAN.md — Gap Closure: Redis Integration Tests 🔧 FIX
-  - Fix Redis mock configuration for pubsub tests
-  - Fix 4 failing Redis tests (test_redis_subscribe, test_redis_fallback_to_in_memory, test_redis_graceful_shutdown, test_redis_multiple_topics)
-  - Verify Redis integration code works correctly
-- [ ] 18-social-layer-testing-05-PLAN.md — Gap Closure: API Integration Tests 🔧 FIX
-  - Fix database session dependency injection for FastAPI TestClient
-  - Fix 24 failing API tests (POST /posts, GET /feed, cursor pagination, replies, reactions, channels, WebSocket)
-  - Verify client fixture in conftest works correctly
+- [x] 18-social-layer-testing-03-PLAN.md — Gap Closure: Cursor Pagination & Property Tests ✅ COMPLETE
+  - Fixed Hypothesis+pytest fixture incompatibility in 7 property-based tests
+  - Fixed test_cursor_second_page_returns_older_posts (cursor.rsplit(':', 1) for ISO timestamps)
+  - Fixed test_feed_with_multiple_filters, test_reply_count_property
+- [x] 18-social-layer-testing-04-PLAN.md — Gap Closure: Redis Integration Tests ✅ COMPLETE
+  - Fixed Redis mock configuration for pubsub tests (AsyncMock with side_effect)
+  - Fixed 4 failing Redis tests (test_redis_subscribe, test_redis_fallback_to_in_memory, test_redis_graceful_shutdown, test_redis_multiple_topics)
+  - Added comprehensive Redis integration test
+- [x] 18-social-layer-testing-05-PLAN.md — Gap Closure: API Integration Tests ✅ COMPLETE
+  - Fixed database session dependency injection for FastAPI TestClient
+  - Fixed 24 failing API tests (POST /posts, GET /feed, cursor pagination, replies, reactions, channels, WebSocket)
+  - Fixed topics default handling bug (empty list [] treated as falsy)
 
 ### Phase 19: Coverage Push & Bug Fixes
 **Goal**: Achieve 25-27% overall coverage (+3-5% from 22.64%) and fix all remaining test failures by systematically testing high-impact files (>150 lines, <50% coverage)
