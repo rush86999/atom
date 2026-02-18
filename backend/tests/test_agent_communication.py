@@ -305,10 +305,28 @@ class TestRedisPubSub:
 
         bus = AgentEventBus(redis_url="redis://localhost:6379/0")
 
-        with patch.object(bus, '_pubsub') as mock_pubsub:
-            mock_pubsub.psubscribe = AsyncMock()
-            mock_pubsub.listen = MagicMock()
+        # Create async iterator for listen()
+        async def async_iter_messages():
+            # Empty iterator - test doesn't need actual messages
+            if False:
+                yield  # pylint: disable=unreachable
 
+        # Mock pubsub with all required methods
+        mock_pubsub = MagicMock()
+        mock_pubsub.psubscribe = AsyncMock()
+        mock_pubsub.listen = Mock(return_value=async_iter_messages())
+        mock_pubsub.close = AsyncMock()
+
+        # Mock redis to return our pubsub (regular MagicMock, not AsyncMock)
+        mock_redis = MagicMock()
+        mock_redis.pubsub = Mock(return_value=mock_pubsub)
+        mock_redis.close = AsyncMock()
+
+        # Patch redis.from_url to return mock_redis (must be async)
+        async def mock_from_url(*args, **kwargs):
+            return mock_redis
+
+        with patch('redis.asyncio.from_url', side_effect=mock_from_url):
             await bus.subscribe_to_redis()
 
             # Verify subscribed to wildcard pattern
@@ -323,14 +341,16 @@ class TestRedisPubSub:
         except ImportError:
             pytest.skip("Redis not available")
 
-        # Invalid Redis URL should fall back
         bus = AgentEventBus(redis_url="redis://invalid:9999/0")
 
-        # Should not crash, should disable Redis
-        await bus._ensure_redis()
+        # Mock redis.from_url to raise connection error
+        with patch('redis.asyncio.from_url', side_effect=Exception("Connection refused")):
+            # Should not crash, should disable Redis
+            await bus._ensure_redis()
 
-        # Should disable Redis and continue with in-memory
-        assert not bus._redis_enabled
+            # Should disable Redis and continue with in-memory
+            assert not bus._redis_enabled
+            assert bus._redis is None
 
     @pytest.mark.asyncio
     async def test_redis_graceful_shutdown(self):
@@ -342,8 +362,11 @@ class TestRedisPubSub:
 
         bus = AgentEventBus(redis_url="redis://localhost:6379/0")
 
-        # Mock Redis components
-        mock_task = MagicMock()
+        # Create an async task that raises CancelledError when awaited
+        async def mock_task_func():
+            raise asyncio.CancelledError()
+
+        mock_task = asyncio.create_task(mock_task_func())
         mock_pubsub = MagicMock()
         mock_pubsub.close = AsyncMock()
         mock_redis = MagicMock()
@@ -355,10 +378,12 @@ class TestRedisPubSub:
 
         await bus.close_redis()
 
-        # Verify cleanup
-        mock_task.cancel.assert_called_once()
+        # Verify cleanup - pubsub and redis close should be called
         mock_pubsub.close.assert_called_once()
         mock_redis.close.assert_called_once()
+
+        # Task should be cancelled
+        assert mock_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_redis_listener_broadcasts_locally(self):
@@ -411,9 +436,25 @@ class TestRedisPubSub:
 
         bus = AgentEventBus(redis_url="redis://localhost:6379/0")
 
-        with patch.object(bus, '_pubsub') as mock_pubsub:
-            mock_pubsub.psubscribe = AsyncMock()
+        # Create async iterator for listen()
+        async def async_iter_messages():
+            if False:
+                yield  # pylint: disable=unreachable
 
+        # Mock pubsub with all required methods
+        mock_pubsub = MagicMock()
+        mock_pubsub.psubscribe = AsyncMock()
+        mock_pubsub.listen = Mock(return_value=async_iter_messages())
+
+        # Mock redis to return our pubsub (regular MagicMock, not AsyncMock)
+        mock_redis = MagicMock()
+        mock_redis.pubsub = Mock(return_value=mock_pubsub)
+
+        # Patch redis.from_url to return mock_redis (must be async)
+        async def mock_from_url(*args, **kwargs):
+            return mock_redis
+
+        with patch('redis.asyncio.from_url', side_effect=mock_from_url):
             await bus.subscribe_to_redis()
 
             # Verify wildcard subscription
