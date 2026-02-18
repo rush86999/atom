@@ -116,6 +116,18 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [ ] 17-agent-layer-01-PLAN.md — Agent Governance & Maturity Routing (Wave 1)
   - [ ] 17-agent-layer-02-PLAN.md — Agent Graduation & Context Resolution (Wave 2)
   - [ ] 17-agent-layer-03-PLAN.md — Agent Execution & Coordination (Wave 2)
+- [ ] **Phase 19: Coverage Push & Bug Fixes** - Achieve 25-27% coverage (+3-5% from 22.64%) and fix all remaining test failures
+  - Plan 01: Workflow Engine & Analytics Coverage — Property tests for async execution, integration tests for analytics
+  - Plan 02: Agent Endpoints & BYOK Handler Coverage — Streaming endpoints, provider failover
+  - Plan 03: Canvas Tool & Governance Service Coverage — Canvas presentations, governance invariants
+  - Plan 04: Bug Fixes and Coverage Validation — Fix test failures, validate 98%+ pass rate
+  - Estimated Plans: 4 plans (2-3 days)
+  - Status: Planning Complete (4 plans created)
+  **Plans**: 4 plans
+  - [ ] 19-01-PLAN.md — Workflow Engine & Analytics Coverage (Wave 1)
+  - [ ] 19-02-PLAN.md — Agent Endpoints & BYOK Handler Coverage (Wave 1)
+  - [ ] 19-03-PLAN.md — Canvas Tool & Governance Service Coverage (Wave 2)
+  - [ ] 19-04-PLAN.md — Bug Fixes and Coverage Validation (Wave 2)
 
 ## Phase Details
 
@@ -918,10 +930,73 @@ Phase 8 transformed coverage from an ad-hoc activity into a systematic, data-dri
   - Feed generation tests (chronological, filters, cursor pagination)
   - Property-based tests for AR-12 invariants (no duplicates, FIFO, no lost messages)
 
+### Phase 19: Coverage Push & Bug Fixes
+**Goal**: Achieve 25-27% overall coverage (+3-5% from 22.64%) and fix all remaining test failures by systematically testing high-impact files (>150 lines, <50% coverage)
+**Depends on**: Phase 12 (Tier 1 Coverage Push patterns), Phase 18 (Social Layer completion)
+**Requirements**: COVR-11-01 (Systematic coverage expansion), COVR-11-02 (Fix test failures, 98%+ pass rate), COVR-11-03 (Bug fixes for production code)
+**Success Criteria** (what must be TRUE):
+  1. workflow_engine.py async execution paths are tested (error handling, retry logic, state manager integration)
+  2. workflow_analytics_engine.py metrics tracking and aggregation functions are tested
+  3. atom_agent_endpoints.py streaming endpoint and error handling are tested
+  4. llm/byok_handler.py provider failover and token streaming are tested
+  5. tools/canvas_tool.py presentation and interaction functions are tested
+  6. core/agent_governance_service.py maturity checks and permissions are tested
+  7. All tested files achieve 50%+ coverage target
+  8. Overall coverage increases to 25-27% (from 22.64%)
+  9. 98%+ test pass rate achieved (TQ-02)
+  10. No flaky tests remain (TQ-04)
+
+**Features**:
+1. **Workflow Engine & Analytics** (Plan 01 - Wave 1):
+   - Property tests for workflow async execution invariants
+   - Integration tests for analytics metrics tracking
+   - Retry logic and state manager integration tests
+   - Target: 50% coverage on workflow_engine.py and workflow_analytics_engine.py
+
+2. **Agent Endpoints & BYOK Handler** (Plan 02 - Wave 1):
+   - Expanded integration tests for streaming endpoints
+   - Unit tests for LLM provider failover and token streaming
+   - Governance integration tests for all maturity levels
+   - Target: 50% coverage on atom_agent_endpoints.py and llm/byok_handler.py
+
+3. **Canvas Tool & Governance Service** (Plan 03 - Wave 2):
+   - Expanded unit tests for canvas presentations
+   - Property tests for governance cache invariants
+   - Maturity matrix tests (4x4 combinations)
+   - Target: 50% coverage on tools/canvas_tool.py and core/agent_governance_service.py
+
+4. **Bug Fixes and Validation** (Plan 04 - Wave 2):
+   - Fix all test failures discovered during execution
+   - Run full suite 3 times for stability verification (TQ-02)
+   - Validate final coverage results
+   - Create phase summary with trending data
+
+**Estimated Impact**: +3-5% overall coverage (8 high-impact files tested)
+**Estimated Duration**: 4 plans (2-3 days)
+
+**Plans**: 4 plans (Wave 1: Plans 01-02 parallel, Wave 2: Plans 03-04 sequential)
+- [ ] 19-01-PLAN.md — Workflow Engine & Analytics Coverage
+  - Property tests for workflow async execution invariants
+  - Integration tests for workflow_analytics_engine.py metrics
+  - Target: 50% coverage on workflow_engine.py (582+ lines) and workflow_analytics_engine.py (297+ lines)
+- [ ] 19-02-PLAN.md — Agent Endpoints & BYOK Handler Coverage
+  - Expanded integration tests for atom_agent_endpoints.py streaming
+  - Unit tests for llm/byok_handler.py provider failover
+  - Target: 50% coverage on atom_agent_endpoints.py (368+ lines) and llm/byok_handler.py (275+ lines)
+- [ ] 19-03-PLAN.md — Canvas Tool & Governance Service Coverage
+  - Expanded unit tests for tools/canvas_tool.py presentations
+  - Property tests for core/agent_governance_service.py invariants
+  - Target: 50% coverage on tools/canvas_tool.py and core/agent_governance_service.py
+- [ ] 19-04-PLAN.md — Bug Fixes and Coverage Validation
+  - Fix all test failures (test bugs, production bugs, flaky tests)
+  - Run full suite 3 times for 98%+ pass rate verification (TQ-02)
+  - Generate final coverage report and validate 25-27% target
+  - Create Phase 19 summary with trending data
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0 → 9.1 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 8.7 → 8.8 → 8.9 → 9.0 → 9.1 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19
 
 | Phase | Plans Complete | Status | Completed | Coverage |
 |-------|----------------|--------|-----------|----------|
@@ -947,5 +1022,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 16. Hybrid Retrieval Enhancement | 3/3 | **Ready** | - | Two-stage retrieval (FastEmbed coarse + ST rerank) |
 | 17. Agent Layer Testing | 0/3 | **Planning Complete** | - | Governance, graduation, execution, coordination |
 | 18. Social Layer Testing | 0/2 | **Planning Complete** | - | Post generation, PII redaction, communication, channels |
+| 19. Coverage Push & Bug Fixes | 0/4 | **Planning Complete** | - | 8 high-impact files, 25-27% target |
 
-**Overall Progress**: 115 plans completed out of ~120 estimated (96%)
+**Overall Progress**: 115 plans completed out of ~125 estimated (92%)
