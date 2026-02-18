@@ -1,7 +1,15 @@
 # Atom Documentation Index
 
-> **Last Updated**: February 16, 2026
+> **Last Updated**: February 18, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
+
+---
+
+## 🚀 Recent Updates (February 2026)
+
+- [Canvas AI Accessibility Guide](CANVAS_AI_ACCESSIBILITY.md) - Phase 20: Dual representation for AI agents with hidden accessibility trees
+- [Canvas State API](CANVAS_STATE_API.md) - Phase 20: JavaScript API for canvas state access during agent tasks
+- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - Phase 21: Semantic summaries for episodic memory integration (80%+ richness)
 
 ---
 
@@ -65,6 +73,13 @@
 | [CANVAS_IMPLEMENTATION_COMPLETE.md](CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
 | [CANVAS_QUICK_REFERENCE.md](CANVAS_QUICK_REFERENCE.md) | Canvas types and usage | Feb 1, 2026 |
 | [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
+
+### Canvas AI & State
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) | **AI agent accessibility with dual representation** | Feb 2026 |
+| [CANVAS_STATE_API.md](CANVAS_STATE_API.md) | **JavaScript API for real-time canvas state** | Feb 2026 |
+| [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) | **LLM-powered semantic summaries** | Feb 2026 |
 
 ### Canvas Collaboration
 | Document | Description | Last Updated |
@@ -299,6 +314,13 @@
 - [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
 - [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
+
+### Canvas & AI Features (Phase 20-23)
+- [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - **AI agent accessibility with dual representation** (Feb 2026)
+- [CANVAS_STATE_API.md](CANVAS_STATE_API.md) - **JavaScript API for real-time canvas state** (Feb 2026)
+- [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - **LLM-powered semantic summaries** (Feb 2026)
+
+### Core Development (Feb 6)
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Updated with security, testing, task queue (Feb 6)
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
