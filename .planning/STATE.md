@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 24-documentation-updates
-Plan: 04 (COMPLETE)
-Status: IN PROGRESS (3 of 4 plans complete)
-Last activity: 2026-02-18 — Plan 24-04 COMPLETE: Documentation Verification and Cross-Reference Validation. Updated docs/INDEX.md with Phase 20-23 documentation (CANVAS_AI_ACCESSIBILITY.md, CANVAS_STATE_API.md, LLM_CANVAS_SUMMARIES.md), verified quick start guides consistency across README.md/QUICKSTART.md/INSTALLATION.md, updated docs/DEVELOPMENT.md with new features, created comprehensive LINK_CHECK_REPORT.md (0 broken links found). 3 atomic commits (b7c3ccb9, 67ab4ad2, 4b83805b), 5 minutes duration, 2 files created, 1 file updated. Zero deviations.
+Phase: 25-atom-cli-openclaw-skill
+Plan: 01 (COMPLETE)
+Status: IN PROGRESS (1 of 2 plans complete)
+Last activity: 2026-02-18 — Plan 25-01 COMPLETE: Atom CLI OpenClaw Skills. Created 6 OpenClaw-compatible SKILL.md files for Atom CLI commands (daemon, status, start, stop, execute, config) with appropriate maturity gates (4 AUTONOMOUS for daemon control, 2 STUDENT for read-only). All files parse successfully with python-frontmatter, complete documentation with usage examples and CLI options. 3 atomic commits (c259dac8, 9010c5a8, 9a9b5822), 4 minutes duration, 6 files created, 504 lines added. Zero deviations.
 
-Progress: [██░░░░░░░] 75% (Phase 24: 3 of 4 plans complete)
+Progress: [█░░░░░░░░] 50% (Phase 25: 1 of 2 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -189,6 +189,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 | Phase 24-documentation-updates P01 | 180s | 3 tasks | 1 file |
 | Phase 24-documentation-updates P03 | 180s | 4 tasks | 1 file |
 | Phase 21-llm-canvas-summaries P01 | 427s | 5 tasks | 2 files |
+| Phase 25-atom-cli-openclaw-skill P01 | 240 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 25-atom-cli-openclaw-skill-01]: Atom CLI OpenClaw Skills - Created 6 OpenClaw-compatible SKILL.md files for Atom CLI commands (daemon, status, start, stop, execute, config) with appropriate maturity gates. AUTONOMOUS maturity required for daemon control commands (daemon, start, stop, execute) due to system resource management and service termination risks. STUDENT maturity access for read-only commands (status, config) as they are safe operations. All skills follow Phase 14 SKILL.md format with YAML frontmatter (name, description, version, author, tags, governance), parse successfully with python-frontmatter, and include comprehensive documentation (usage, options, examples, output, security warnings). Skills ready for import via existing /api/skills/import endpoint. Next step: Plan 02 subprocess wrapper implementation for CLI command execution. 3 atomic commits (c259dac8, 9010c5a8, 9a9b5822), 4 minutes duration, 6 files created, 504 lines added. Zero deviations.
 - [Phase 24-documentation-updates-04]: Documentation Verification and Cross-Reference Validation. Updated docs/INDEX.md with Phase 20-23 documentation (CANVAS_AI_ACCESSIBILITY.md, CANVAS_STATE_API.md, LLM_CANVAS_SUMMARIES.md), verified quick start guides consistency across README.md/QUICKSTART.md/INSTALLATION.md, updated docs/DEVELOPMENT.md with new Phase 20-23 features, created comprehensive LINK_CHECK_REPORT.md (0 broken links found). All verification criteria passed with zero deviations. 3 atomic commits (b7c3ccb9, 67ab4ad2, 4b83805b), 5 minutes duration, 2 files created, 1 file updated. Zero deviations.
 - [Phase 24-documentation-updates-03]: CLAUDE.md Documentation Updates. Updated primary context file to include Phase 20 Canvas AI Context and Phase 21 LLM Canvas Summaries features. Added Canvas AI Accessibility System section (3.6) with hidden accessibility trees, Canvas State API, and TypeScript definitions. Added LLM Canvas Summaries section (3.7) with semantic summary generation, multi-provider LLM support, and quality metrics. Updated Recent Major Changes with Phases 20-21, Key Services with new canvas components, Key Directories to include frontend-nextjs, Quick Reference with Canvas State API commands, and Important File Locations with new file paths. Updated Last Updated date to February 18, 2026. All verification criteria passed with zero deviations. 4 atomic commits (b5c180fe, 44c7ef5c), 3 minutes duration, 205 lines added. Zero deviations.
 - [Phase 24-documentation-updates-02]: Feature documentation updates for Phase 20-23. Updated 5 documentation files to reflect current platform state: CANVAS_IMPLEMENTATION_COMPLETE.md (Phase 20 AI Agent Accessibility with hidden accessibility trees and Canvas State API), EPISODIC_MEMORY_IMPLEMENTATION.md (Phase 21 LLM Canvas Summaries with 80%+ semantic richness), COMMUNITY_SKILLS.md (Phase 14 COMPLETE status and episodic memory integration), AGENT_GRADUATION_GUIDE.md (Skill Diversity Bonus for graduation readiness), INSTALLATION.md (daemon mode and systemd service setup). Verified all cross-references resolve to existing files. Documentation now accurately reflects Phase 20-23 features with proper cross-linking and implementation history. 4 atomic commits (dc9f9489, fb4eedab, 260b1e63, 19ce1c83), 8 minutes duration, 196 lines added. Zero deviations.
