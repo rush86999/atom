@@ -1439,21 +1439,20 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
   - [x] 26-06-PLAN.md — Fix mock database interaction (Wave 2) ✅
   - Achievement: 24/28 tests passing (86%), up from 1/29 (3%). All CI/CD infrastructure issues resolved.
 
-- [ ] **Phase 27: Include Redis in Docker Compose Deployment** - Add Redis (or open source alternative) to deployment stack for local development and production
-  - Goal: Provide Redis as part of Docker Compose setup for local development and production deployments
-  - Options:
-    - **Redis** (official) - Standard Redis server
-    - **Redict** (Linux Foundation) - Fully open source Redis fork, license-compliant
-    - **KeyDB** - Multi-threaded Redis fork with better performance
-    - **Valkey** - Open source Redis fork from Linux Foundation
-    - **DragonflyDB** - Modern Redis-compatible engine (drop-in replacement)
+- [ ] **Phase 27: Include Redis-Compatible Open Source Alternative in Docker Compose** - Add Redis-compatible open source database to deployment stack (NOT official Redis)
+  - Goal: Provide open source Redis-compatible solution as part of Docker Compose for local development and production
+  - Options (Redis-compatible open source alternatives):
+    - **Redict** (Linux Foundation) - Fully open source Redis fork, 100% license-compliant (Recommended)
+    - **KeyDB** - Multi-threaded Redis fork with better performance, active development
+    - **Valkey** - Open source Redis fork from Linux Foundation/community
+    - **DragonflyDB** - Modern Redis-compatible engine, drop-in replacement with better performance
   - Scope:
-    - Choose Redis alternative (recommend Redict for open source compliance, or DragonflyDB for performance)
-    - Add Redis service to docker-compose.yml and docker-compose-personal.yml
+    - Choose open source alternative (recommend Redict for license compliance or DragonflyDB for performance)
+    - Add selected database service to docker-compose.yml and docker-compose-personal.yml
     - Configure persistence, networking, and health checks
-    - Update environment variables and configuration
+    - Update environment variables (REDIS_URL or compatible endpoint)
     - Update documentation with Docker Compose quick start
-    - Verify Redis pub/sub tests work with Docker Compose Redis
+    - Verify Redis pub/sub tests work with Docker Compose database
   - Success Criteria:
     - `docker-compose up` includes Redis service
     - Agent communication tests pass with Docker Compose Redis
