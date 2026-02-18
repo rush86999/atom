@@ -1417,3 +1417,37 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 - [ ] 25-03-PLAN.md — Integration testing and documentation
 
 **Estimated Duration**: 3 plans (1 day)
+
+- [ ] **Phase 26: CI/CD Fixes - Get All Tests Passing** - Fix failing tests across all phases to achieve 100% CI pass rate
+  - Goal: Ensure CI pipeline runs green with all tests passing
+  - Focus Areas:
+    - Fix Hypothesis+pytest fixture incompatibility (property-based tests)
+    - Fix Redis mock configuration for async tests
+    - Fix database session dependency injection in FastAPI TestClient tests
+    - Fix any remaining broken imports, missing fixtures, or test data issues
+  - Success Criteria:
+    - `pytest -xvs` passes with 0 failures
+    - CI pipeline (GitHub Actions) shows green checkmark
+    - All test suites achieve target pass rates (95%+)
+  - Estimated Plans: 4-6 gap closure plans across in-progress phases
+  - Status: Not started - gap closure plans created for Phase 18 (3 plans)
+
+- [ ] **Phase 27: Replace Redis with Open Source Alternative** - Replace Redis dependency with open source Redis-compatible solution
+  - Goal: Remove external Redis dependency, use open source alternative included in deployment
+  - Options:
+    - **Redict** (Linux Foundation) - Fully open source Redis fork
+    - **KeyDB** - Multi-threaded Redis fork with better performance
+    - **Valkey** - Another open source Redis fork from Linux Foundation
+    - **DragonflyDB** - Modern Redis-compatible engine
+  - Scope:
+    - Evaluate alternatives (performance, license, maintenance)
+    - Choose solution (recommend Redict for open source compliance)
+    - Update deployment stack (Docker Compose, Kubernetes)
+    - Update integration tests to use new solution
+    - Update documentation and quick start guides
+  - Success Criteria:
+    - Deployment runs without external Redis dependency
+    - All Redis pub/sub tests pass with new solution
+    - Documentation updated with deployment instructions
+  - Estimated Plans: 3-4 plans (evaluation, integration, testing, documentation)
+  - Status: Not started
