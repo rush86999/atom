@@ -73,13 +73,23 @@ openssl rand -base64 32
 ### 3. Start Atom
 
 ```bash
-# Start all services
+# Start all services (includes Valkey for agent communication)
 docker-compose -f docker-compose-personal.yml up -d
 
 # Wait for services to start (30-60 seconds)
 # Check status:
 docker-compose -f docker-compose-personal.yml ps
 ```
+
+**Expected output:**
+```
+✅ atom-personal-backend - Up (healthy)
+✅ atom-personal-frontend - Up
+✅ atom-personal-valkey - Up (healthy)
+✅ atom-personal-browser - Up
+```
+
+**Note:** Valkey (Redis-compatible) is included automatically for agent communication. No external Redis installation required!
 
 ### 4. Access Atom
 
@@ -193,8 +203,23 @@ docker-compose -f docker-compose-personal.yml logs -f
 ```
 ✅ atom-personal-backend - Up (healthy)
 ✅ atom-personal-frontend - Up
+✅ atom-personal-valkey - Up (healthy)
 ✅ atom-personal-browser - Up
 ```
+
+---
+
+## Included Services
+
+Personal Edition includes all necessary services via Docker Compose:
+
+- **Backend API** - FastAPI server with hot reload
+- **Frontend** - Next.js development server
+- **Valkey** - Redis-compatible pub/sub for agent communication
+- **Browser Node** - Chrome automation (optional)
+- **SQLite** - Embedded database (no PostgreSQL required)
+
+No external dependencies beyond Docker itself!
 
 ---
 
@@ -216,7 +241,8 @@ Open your browser and navigate to:
 4. **Browser Automation** - Web scraping and form filling
 5. **Episodic Memory** - Agents remember past interactions
 6. **Agent Governance** - Agents progress from Student → Autonomous
-7. **Community Skills** ✨ NEW - Import 5,000+ OpenClaw/ClawHub skills with enterprise security
+7. **Agent Communication** - Redis pub/sub (Valkey included) for multi-agent coordination
+8. **Community Skills** ✨ NEW - Import 5,000+ OpenClaw/ClawHub skills with enterprise security
 
 ---
 
@@ -393,6 +419,35 @@ docker-compose -f docker-compose-personal.yml up -d
 2. Reduce concurrent agents in `.env`: `MAX_CONCURRENT_AGENTS=2`
 3. Disable browser service if not needed (comment out in docker-compose-personal.yml)
 
+### Issue: Valkey/Redis Connection Issues
+
+**Error:** `Redis connection failed` or `Could not connect to Redis`
+
+**Solution:**
+```bash
+# Check Valkey container status
+docker-compose -f docker-compose-personal.yml ps valkey
+
+# Check Valkey logs
+docker-compose -f docker-compose-personal.yml logs valkey
+
+# Restart Valkey
+docker-compose -f docker-compose-personal.yml restart valkey
+
+# Test Valkey connection
+docker-compose -f docker-compose-personal.yml exec valkey redis-cli ping
+# Expected output: PONG
+```
+
+**Note:** Valkey uses port 6379. If you have local Redis on this port, stop it first:
+```bash
+# macOS: Stop local Redis if running
+brew services stop redis
+
+# Linux: Stop local Redis if running
+sudo systemctl stop redis
+```
+
 ---
 
 ## Personal vs Full Edition
@@ -400,6 +455,7 @@ docker-compose -f docker-compose-personal.yml up -d
 | Feature | Personal Edition | Full Edition |
 |---------|-----------------|--------------|
 | **Database** | SQLite (simpler, no external DB) | PostgreSQL (production-ready) |
+| **Agent Communication** | Valkey (included, in-memory) | Redis (persistent, clustered) |
 | **Setup Time** | 5-10 minutes | 15-30 minutes |
 | **Services** | Backend, Frontend, Browser (optional) | All services including monitoring |
 | **Use Case** | Personal use, development | Production deployment |
