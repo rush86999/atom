@@ -62,10 +62,18 @@ async def test_atom_governance_gating():
 async def test_atom_learning_progression():
     """Test that AtomMetaAgent.execute() works and uses correct API (no _step_act)"""
     from unittest.mock import patch
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.database import Base
 
-    db = SessionLocal()
+    # Use in-memory DB to avoid atom_dev.db state issues and mapper initialization problems
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(bind=engine)
+
+    db = TestSessionLocal()
     try:
-        # 1. Setup Atom as a Student with specific confidence
+        # Setup agent
         db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").delete()
         agent_model = AgentRegistry(
             id="atom_main",
@@ -84,34 +92,22 @@ async def test_atom_learning_progression():
         # Mock LLM - uses correct AtomMetaAgent.llm.generate_response API
         atom.llm.generate_response = AsyncMock(return_value="Thought: I should finish.\nFinal Answer: Done.")
 
-        # Mock _record_execution to avoid UsageEvent mapper issues (pre-existing database bug)
-        # This allows us to test the core execute() API without hitting infrastructure problems
-        with patch.object(atom, '_record_execution', new_callable=AsyncMock):
-            # 2. Execute a task using AtomMetaAgent.execute() - NOT _step_act
-            # This is the core test: verify execute() works without AttributeError
+        # Patch AgentGovernanceService.record_outcome to avoid UsageEvent mapper
+        # This is more effective than patching _record_execution because it prevents
+        # the mapper initialization issue at the source
+        with patch('core.agent_governance_service.AgentGovernanceService.record_outcome', new_callable=AsyncMock):
+            # Execute a task using AtomMetaAgent.execute() - NOT _step_act
             result = await atom.execute("Test task")
 
-            # 3. Verify execution completed successfully
-            # If we get here without AttributeError about _step_act, the test passes
+            # Verify execution completed successfully
             assert result is not None, "execute() should return a result"
             assert "status" in result, "Result should have status field"
             assert result["status"] == "success", f"Execution should succeed, got status: {result.get('status')}"
-
-            # 4. Verify the LLM API was called correctly (via the mock)
             atom.llm.generate_response.assert_called_once()
 
     finally:
         # Cleanup
         db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").delete()
-        autonomous_atom = AgentRegistry(
-            id="atom_main",
-            name="Atom",
-            status=AgentStatus.AUTONOMOUS.value,
-            category="Meta",
-            module_path="core.atom_meta_agent",
-            class_name="AtomMetaAgent",
-            confidence_score=1.0
-        )
-        db.add(autonomous_atom)
         db.commit()
         db.close()
+        engine.dispose()
