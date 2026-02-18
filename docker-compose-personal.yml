@@ -47,6 +47,9 @@ services:
       - LANCEDB_PATH=./data/lancedb
       - ENABLE_LANCEDB=true
 
+      # Redis-compatible database for agent communication (Valkey)
+      - REDIS_URL=redis://valkey:6379
+
       # Optional: Browser automation
       - BROWSER_HOST=browser-node
       - BROWSER_PORT=3000
@@ -58,12 +61,31 @@ services:
     working_dir: /app
     command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    depends_on:
+      valkey:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Valkey (Redis-compatible database) for agent communication
+  # Valkey is a Linux Foundation project (LGPL-3.0) - 100% Redis protocol compatible
+  # Personal Edition: In-memory only (no persistence) for faster development and clean restarts
+  valkey:
+    image: valkey/valkey:latest
+    container_name: atom-personal-valkey
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   # Frontend Next.js (Development Mode)
   atom-frontend:
@@ -86,6 +108,7 @@ services:
     restart: unless-stopped
     depends_on:
       - atom-backend
+      - valkey
 
   # Browser Automation (Optional - comment out if not needed)
   browser-node:
