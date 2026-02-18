@@ -101,6 +101,17 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
           <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
           <div className="h-4 bg-gray-300 rounded w-48"></div>
         </div>
+        {/* Accessibility Tree - Loading state */}
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Agent operation state"
+          style={{ display: 'none' }}
+          data-canvas-state="agent_operation_tracker"
+          data-status="loading"
+        >
+          {JSON.stringify({ status: 'loading', message: 'Waiting for operation data...' })}
+        </div>
       </div>
     );
   }
@@ -261,6 +272,51 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
             Completed: {new Date(operation.completed_at).toLocaleString()}
           </span>
         )}
+      </div>
+
+      {/* Accessibility Tree - Hidden from visual display, readable by AI agents and screen readers */}
+      <div
+        role="log"
+        aria-live="polite"
+        aria-label="Agent operation state"
+        style={{ display: 'none' }}
+        data-canvas-state="agent_operation_tracker"
+        data-operation-id={operation?.operation_id}
+        data-agent-id={operation?.agent_id}
+        data-agent-name={operation?.agent_name}
+        data-operation-type={operation?.operation_type}
+        data-status={operation?.status}
+        data-progress={operation?.progress}
+        data-current-step={operation?.current_step}
+        data-current-step-index={operation?.current_step_index}
+        data-total-steps={operation?.total_steps}
+        data-context-what={operation?.context?.what}
+        data-context-why={operation?.context?.why}
+        data-context-next={operation?.context?.next}
+        data-logs-count={operation?.logs?.length}
+        data-started-at={operation?.started_at}
+        data-completed-at={operation?.completed_at}
+      >
+        {operation && JSON.stringify({
+          operation_id: operation.operation_id,
+          agent_id: operation.agent_id,
+          agent_name: operation.agent_name,
+          operation_type: operation.operation_type,
+          status: operation.status,
+          current_step: operation.current_step,
+          total_steps: operation.total_steps,
+          current_step_index: operation.current_step_index,
+          progress: operation.progress,
+          context: operation.context,
+          logs_count: operation.logs.length,
+          started_at: operation.started_at,
+          completed_at: operation.completed_at,
+          logs: operation.logs.map(l => ({
+            timestamp: l.timestamp,
+            level: l.level,
+            message: l.message
+          }))
+        })}
       </div>
     </div>
   );
