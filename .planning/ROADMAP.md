@@ -1451,3 +1451,21 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
     - Documentation updated with deployment instructions
   - Estimated Plans: 3-4 plans (evaluation, integration, testing, documentation)
   - Status: Not started
+
+- [ ] **Phase 28: Tauri Canvas AI Accessibility Verification** - Verify canvas AI context accessibility works correctly in Tauri desktop app
+  - Goal: Ensure canvas AI context is accessible via windows global variable in Tauri app
+  - Background: Tauri apps use `window.__TAURI__` global for frontend-backend bridge. Canvas AI context needs to be accessible for agent guidance and presentation.
+  - Focus Areas:
+    - Verify canvas AI context is exposed to Tauri frontend
+    - Test `window.canvas_ai_context` or similar global variable access
+    - Verify agent guidance canvas data flows correctly through Tauri IPC
+    - Test real-time canvas updates in Tauri desktop environment
+    - Verify canvas component rendering in Tauri webview
+  - Success Criteria:
+    - Canvas AI context accessible via Tauri window global
+    - Agent guidance canvas renders correctly in Tauri app
+    - Real-time canvas updates work through Tauri IPC bridge
+    - Integration tests pass for Tauri canvas access
+  - Estimated Plans: 2-3 plans (verification, integration testing, documentation)
+  - Status: Not started
+  - Depends on: Phase 20 (Canvas AI Context), Tauri desktop app infrastructure
