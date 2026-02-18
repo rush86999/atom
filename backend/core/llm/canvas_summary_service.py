@@ -155,11 +155,11 @@ class CanvasSummaryService:
 
         except asyncio.TimeoutError:
             logger.warning(f"LLM summary generation timed out after {timeout_seconds}s")
-            return self._fallback_to_metadata(canvas_type, canvas_state)
+            raise  # Re-raise to allow caller to handle fallback
 
         except Exception as e:
             logger.error(f"LLM summary generation failed: {e}")
-            return self._fallback_to_metadata(canvas_type, canvas_state)
+            raise  # Re-raise to allow caller to handle fallback
 
     def _build_prompt(
         self,
