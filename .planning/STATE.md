@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 18-complete - Social Layer Testing Complete
+**Current focus:** Phase 26-ci-cd-fixes - CI/CD Test Fixes
 
 ## Current Position
 
-Phase: 18-social-layer-testing
-Plan: COMPLETE (5 of 5 plans complete, including 3 gap closure plans)
-Status: COMPLETE ✅
-Last activity: 2026-02-18 — Phase 18 COMPLETE: Social Layer Testing with 100% pass rate (103/103 tests). Fixed topics default handling in AgentEventBus.publish() - empty list [] was treated as falsy and replaced with ["global"]. Property test test_topic_filtering now correctly publishes to 0 subscribers when topics=[]. Changed from `topics = topics or ["global"]` to `topics = topics if topics is not None else ["global"]`. Commit b42ec8be, ~2 minutes duration. Total Phase 18: 4 original plans + 3 gap closure plans = 7 total plans, 13 commits, ~2 hours total duration.
+Phase: 26-ci-cd-fixes
+Plan: 02 of 3 complete
+Status: IN PROGRESS 🔄
+Last activity: 2026-02-18 — Phase 26-01 COMPLETE: Fixed User model test fixtures. Removed username/full_name fields from test_feedback_enhanced.py User fixture (replaced with first_name/last_name). Verified test_health_monitoring.py already uses correct schema (id, email, role). Commit cc345e7a, 2 minutes duration. User model validation now enforces schema at instantiation time - TypeError for invalid fields (username, full_name).
 
-Progress: [████████░] 100% (Phase 25: 4 of 4 plans complete) ✅
+Progress: [████████░] 100% (Phase 25: 4 of 4 plans complete, Phase 26: 1 of 3 plans complete) 🔄
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
@@ -201,6 +201,7 @@ Phase 9.0 Achievement: +2.5-3.5 percentage points toward overall coverage
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+- [Phase 26-ci-cd-fixes-01]: Fix Test Fixtures Using Outdated User Model Schema - Fixed User fixture in test_feedback_enhanced.py by removing invalid username and full_name fields, replaced with first_name and last_name. Verified test_health_monitoring.py already uses correct User model schema (id, email, role). User model enforces schema at instantiation time - TypeError for invalid fields. 1 atomic commit (cc345e7a), 2 minutes duration, 1 file modified. Zero deviations.
 - [Phase 18-social-layer-testing-04]: Redis Integration Mock Configuration for Async Tests - Fixed 4 failing Redis tests by correcting async mock configuration for redis.asyncio integration. Root cause: Tests were using return_value with MagicMock/AsyncMock when mocking redis.asyncio.from_url, but the code does await redis.from_url(...) which requires an awaitable coroutine. Solution: Use async def coroutine function with side_effect parameter instead of return_value (e.g., async def mock_from_url(*args, **kwargs): return mock_redis). Also fixed task cancellation testing by using real asyncio.create_task() with CancelledError instead of AsyncMock for close_redis() validation. Fixed graceful degradation testing by mocking redis.asyncio.from_url to raise Exception("Connection refused") instead of relying on invalid URL (which doesn't fail until used). Added comprehensive end-to-end integration test (test_redis_integration_end_to_end) validating complete Redis flow (_ensure_redis → publish → subscribe_to_redis → close_redis). All 11 Redis tests now pass (100% pass rate, up from 60%). Overall test pass rate improved from 88.6% to 97.3% (36/37 tests). Redis pub/sub integration validated for horizontal scaling with proper mock configuration patterns established. 2 atomic commits (393c5336, b7d48e03), 5 minutes duration, 1 file modified (79 lines added). Zero deviations.
 - [Phase 25-atom-cli-openclaw-skill-02]: Subprocess Wrapper for Atom CLI Command Execution - Created atom_cli_skill_wrapper.py with execute_atom_cli_command function for safe subprocess execution with 30-second timeout enforcement, structured output (success, stdout, stderr, returncode), and comprehensive error handling (TimeoutExpired, generic exceptions). Added daemon helper functions (is_daemon_running for status parsing with "RUNNING" detection, get_daemon_pid with regex extraction r"PID:\\s+(\\d+)", wait_for_daemon_ready with 0.5s polling loop and 10s timeout). Integrated with CommunitySkillTool (CLI skill detection via skill_id.startswith("atom-"), _execute_cli_skill method for subprocess execution, _parse_cli_args method for argument extraction using regex patterns for --port, --host, --workers, --host-mount, --dev, --foreground flags). Subprocess wrapper enables cross-platform CLI invocation from skills without Python coupling. Daemon polling prevents race conditions after start (Pitfall 4 from RESEARCH.md). Argument parsing enables natural language queries to CLI commands. 2 atomic commits (4d6c3f06, 6f80d9e8), 5 minutes duration, 1 file created (298 lines), 1 file modified (106 lines). Deviation: Task 3 (daemon helpers) already completed in Task 1.
 - [Phase 25-atom-cli-openclaw-skill-01]: Atom CLI OpenClaw Skills - Created 6 OpenClaw-compatible SKILL.md files for Atom CLI commands (daemon, status, start, stop, execute, config) with appropriate maturity gates. AUTONOMOUS maturity required for daemon control commands (daemon, start, stop, execute) due to system resource management and service termination risks. STUDENT maturity access for read-only commands (status, config) as they are safe operations. All skills follow Phase 14 SKILL.md format with YAML frontmatter (name, description, version, author, tags, governance), parse successfully with python-frontmatter, and include comprehensive documentation (usage, options, examples, output, security warnings). Skills ready for import via existing /api/skills/import endpoint. Next step: Plan 02 subprocess wrapper implementation for CLI command execution. 3 atomic commits (c259dac8, 9010c5a8, 9a9b5822), 4 minutes duration, 6 files created, 504 lines added. Zero deviations.
@@ -397,6 +398,9 @@ None yet.
 
 ## Session Continuity
 
+Last session: 2026-02-18T21:16
+Stopped at: Completed Phase 26-01 - Fix Test Fixtures Using Outdated User Model Schema. Fixed User fixture in test_feedback_enhanced.py by removing invalid username and full_name fields, replaced with first_name/last_name. Verified test_health_monitoring.py already uses correct User model schema (id, email, role). User model now enforces schema at instantiation time - TypeError for invalid fields. 1 atomic commit (cc345e7a), 2 minutes duration, 1 file modified. Zero deviations. CI/CD pipeline should no longer fail with TypeError: 'username' is an invalid keyword argument for User.
+Resume file: None
 Last session: 2026-02-18T18:53
 Stopped at: Completed Phase 18-04 - Redis Integration Test Fixes. Fixed 4 failing Redis tests by correcting async mock configuration (test_redis_subscribe, test_redis_fallback_to_in_memory, test_redis_graceful_shutdown, test_redis_multiple_topics). Added comprehensive end-to-end integration test (test_redis_integration_end_to_end). All 11 Redis tests now pass (100% pass rate, up from 60%). Overall test pass rate improved from 88.6% to 97.3% (36/37 tests). 2 atomic commits (393c5336, b7d48e03), 5 minutes duration, 1 file modified (79 lines added). Zero deviations. Redis pub/sub integration validated for horizontal scaling with proper mock configuration patterns established.
 Resume file: None
