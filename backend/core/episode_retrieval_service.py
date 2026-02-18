@@ -9,8 +9,10 @@ Provides four retrieval modes:
 """
 
 from datetime import datetime, timedelta
+import json
 import logging
 from typing import Any, Dict, List, Optional
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -384,6 +386,7 @@ class EpisodeRetrievalService:
             "content_summary": segment.content_summary,
             "source_type": segment.source_type,
             "source_id": segment.source_id,
+            "canvas_context": segment.canvas_context,  # Include canvas_context
             "created_at": segment.created_at.isoformat() if segment.created_at else None
         }
 
@@ -449,6 +452,255 @@ class EpisodeRetrievalService:
         except Exception as e:
             logger.error(f"Failed to fetch feedback context: {e}")
             return []
+
+    async def retrieve_canvas_aware(
+        self,
+        agent_id: str,
+        query: str,
+        canvas_type: Optional[str] = None,
+        canvas_context_detail: str = "summary",  # "summary" | "standard" | "full"
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Canvas-aware semantic search with progressive detail levels.
+
+        Args:
+            agent_id: Agent ID
+            query: Semantic search query
+            canvas_type: Filter by canvas type (generic, docs, email, sheets, orchestration, terminal, coding)
+            canvas_context_detail: Detail level for canvas_context
+                - "summary": presentation_summary only (~50 tokens) - DEFAULT
+                - "standard": summary + critical_data_points (~200 tokens)
+                - "full": all fields including visual_elements (~500 tokens)
+            limit: Max results
+
+        Returns:
+            {
+                "episodes": List[Episode],
+                "count": int,
+                "query": str,
+                "canvas_type": str | None,
+                "canvas_context_detail": str,
+                "governance_check": dict
+            }
+        """
+        # Governance check (Level 2, INTERN+ for semantic search)
+        governance_check = self.governance.can_perform_action(
+            agent_id=agent_id,
+            action_type="semantic_search"
+        )
+
+        if not governance_check.get("allowed", True):
+            return {
+                "episodes": [],
+                "error": governance_check.get("reason", "Governance check failed"),
+                "governance_check": governance_check
+            }
+
+        # Build canvas type filter
+        canvas_filter = ""
+        if canvas_type:
+            canvas_filter = f" AND canvas_context->>'canvas_type' == '{canvas_type}'"
+
+        # Search LanceDB with canvas filter
+        try:
+            results = self.lancedb.search(
+                table_name="episodes",
+                query=query,
+                filter_str=f"agent_id == '{agent_id}'{canvas_filter}",
+                limit=limit
+            )
+
+            # Fetch episode details
+            episode_ids = []
+            for r in results:
+                meta = r.get("metadata", {})
+                if isinstance(meta, str):
+                    meta = json.loads(meta)
+                episode_id = meta.get("episode_id")
+                if episode_id:
+                    episode_ids.append(episode_id)
+
+            episodes = self.db.query(Episode).filter(
+                Episode.id.in_(episode_ids),
+                Episode.agent_id == agent_id
+            ).all()
+
+            # Filter segments by canvas context detail level
+            filtered_episodes = []
+            for episode in episodes:
+                episode_dict = self._serialize_episode(episode)
+
+                # Apply canvas context detail filter
+                segments = self.db.query(EpisodeSegment).filter(
+                    EpisodeSegment.episode_id == episode.id
+                ).all()
+
+                episode_dict["segments"] = []
+                for segment in segments:
+                    segment_dict = self._serialize_segment(segment)
+
+                    # Apply canvas context detail filter
+                    if segment_dict.get("canvas_context"):
+                        segment_dict["canvas_context"] = self._filter_canvas_context_detail(
+                            segment_dict["canvas_context"],
+                            canvas_context_detail
+                        )
+
+                    episode_dict["segments"].append(segment_dict)
+
+                filtered_episodes.append(episode_dict)
+
+            # Log access
+            for episode in episodes:
+                await self._log_access(
+                    episode.id, "canvas_aware", governance_check, agent_id, len(episodes)
+                )
+
+            return {
+                "episodes": filtered_episodes,
+                "count": len(filtered_episodes),
+                "query": query,
+                "canvas_type": canvas_type,
+                "canvas_context_detail": canvas_context_detail,
+                "governance_check": governance_check
+            }
+
+        except Exception as e:
+            logger.error(f"Canvas-aware retrieval failed: {e}")
+            return {
+                "episodes": [],
+                "error": str(e),
+                "governance_check": governance_check
+            }
+
+    def _filter_canvas_context_detail(
+        self,
+        canvas_context: Dict[str, Any],
+        detail_level: str
+    ) -> Dict[str, Any]:
+        """
+        Filter canvas context by detail level.
+
+        Args:
+            canvas_context: Full canvas context dict
+            detail_level: "summary" | "standard" | "full"
+
+        Returns:
+            Filtered canvas context based on detail level
+        """
+        if detail_level == "full":
+            # Return everything
+            return canvas_context
+
+        elif detail_level == "standard":
+            # Return summary + critical_data_points
+            return {
+                "canvas_type": canvas_context.get("canvas_type"),
+                "presentation_summary": canvas_context.get("presentation_summary"),
+                "critical_data_points": canvas_context.get("critical_data_points", {})
+            }
+
+        else:  # "summary" (default)
+            # Return only presentation_summary (~50 tokens)
+            return {
+                "presentation_summary": canvas_context.get("presentation_summary", "")
+            }
+
+    async def retrieve_by_business_data(
+        self,
+        agent_id: str,
+        business_filters: Dict[str, Any],
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Retrieve episodes by business data in canvas context.
+
+        Args:
+            agent_id: Agent ID
+            business_filters: Business data filters
+                Example: {"approval_status": "approved", "revenue": {"$gt": 1000000}}
+            limit: Max results
+
+        Returns:
+            {
+                "episodes": List[Episode],
+                "count": int,
+                "filters": dict,
+                "governance_check": dict
+            }
+        """
+        # Governance check
+        governance_check = self.governance.can_perform_action(
+            agent_id=agent_id,
+            action_type="read_memory"
+        )
+
+        if not governance_check.get("allowed", True):
+            return {
+                "episodes": [],
+                "error": governance_check.get("reason"),
+                "governance_check": governance_check
+            }
+
+        try:
+            # Build query from business filters
+            query = self.db.query(EpisodeSegment).join(Episode).filter(
+                Episode.agent_id == agent_id,
+                EpisodeSegment.canvas_context.isnot(None)
+            )
+
+            # Apply filters
+            for key, value in business_filters.items():
+                if key == "$gt" or key == "$lt" or key == "$gte" or key == "$lte":
+                    continue  # Handle operators separately
+
+                # Check if filter is on critical_data_points
+                filter_path = f"canvas_context->'critical_data_points'->>'{key}'"
+                if isinstance(value, dict):
+                    # Handle operators like {"$gt": 1000000}
+                    for op, op_value in value.items():
+                        if op == "$gt":
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) > {op_value}"))
+                        elif op == "$lt":
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) < {op_value}"))
+                        elif op == "$gte":
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) >= {op_value}"))
+                        elif op == "$lte":
+                            query = query.filter(text(f"CAST({filter_path} AS FLOAT) <= {op_value}"))
+                else:
+                    # Direct equality check
+                    query = query.filter(text(f"{filter_path} = :value")).params(value=str(value))
+
+            segments = query.limit(limit).all()
+
+            # Get unique episodes
+            episode_ids = list(set([s.episode_id for s in segments]))
+            episodes = self.db.query(Episode).filter(
+                Episode.id.in_(episode_ids),
+                Episode.agent_id == agent_id
+            ).all()
+
+            # Log access
+            for episode in episodes:
+                await self._log_access(
+                    episode.id, "business_data", governance_check, agent_id, len(episodes)
+                )
+
+            return {
+                "episodes": [self._serialize_episode(e) for e in episodes],
+                "count": len(episodes),
+                "filters": business_filters,
+                "governance_check": governance_check
+            }
+
+        except Exception as e:
+            logger.error(f"Business data retrieval failed: {e}")
+            return {
+                "episodes": [],
+                "error": str(e),
+                "governance_check": governance_check
+            }
 
     async def retrieve_by_canvas_type(
         self,
