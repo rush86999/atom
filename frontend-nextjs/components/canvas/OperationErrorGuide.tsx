@@ -109,6 +109,36 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
     return null;
   }
 
+  return (
+    <>
+      {/* Accessibility Tree - Hidden error state for AI agents */}
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-label="Operation error guide"
+        style={{ display: 'none' }}
+        data-canvas-state="operation_error_guide"
+        data-error-type={errorData?.error?.type}
+        data-error-code={errorData?.error?.code}
+        data-error-message={errorData?.error?.message}
+        data-operation-id={errorData?.operation_id}
+        data-suggested-resolution={errorData?.suggested_resolution}
+      >
+        {JSON.stringify({
+          operation_id: errorData.operation_id,
+          error: {
+            type: errorData.error.type,
+            code: errorData.error.code,
+            message: errorData.error.message
+          },
+          agent_analysis: errorData.agent_analysis,
+          resolutions: errorData.resolutions,
+          suggested_resolution: errorData.suggested_resolution
+        })}
+      </div>
+
+      <div className={`operation-error-guide bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500 ${className}`}>
+
   const getErrorIcon = (type: string) => {
     switch (type) {
       case 'permission_denied':
@@ -262,7 +292,8 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
           {errorData.error.technical_details}
         </pre>
       </details>
-    </div>
+      </div>
+    </>
   );
 };
 

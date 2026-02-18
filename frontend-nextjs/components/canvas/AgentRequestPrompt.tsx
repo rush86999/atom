@@ -201,7 +201,42 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
   const expired = timeRemaining === 0;
 
   return (
-    <div className={`agent-request-prompt bg-white rounded-lg shadow-lg p-6 border-2 ${
+    <>
+      {/* Accessibility Tree - Hidden request state for AI agents */}
+      <div
+        role="log"
+        aria-live="polite"
+        aria-label="Agent request prompt"
+        style={{ display: 'none' }}
+        data-canvas-state="agent_request_prompt"
+        data-request-id={requestData?.request_id}
+        data-agent-id={requestData?.agent_id}
+        data-request-type={requestData?.request_type}
+        data-urgency={requestData?.urgency}
+        data-suggested-option={requestData?.suggested_option}
+        data-options-count={requestData?.options?.length}
+        data-user-decision={selectedOption !== null ? 'selected' : 'pending'}
+      >
+        {JSON.stringify({
+          request_id: requestData.request_id,
+          agent_id: requestData.agent_id,
+          agent_name: requestData.agent_name,
+          request_type: requestData.request_type,
+          urgency: requestData.urgency,
+          title: requestData.title,
+          explanation: requestData.explanation,
+          context: requestData.context,
+          options: requestData.options,
+          suggested_option: requestData.suggested_option,
+          governance: requestData.governance,
+          user_decision: selectedOption !== null ? {
+            selected_option: selectedOption,
+            option_label: requestData.options[selectedOption]?.label
+          } : null
+        })}
+      </div>
+
+      <div className={`agent-request-prompt bg-white rounded-lg shadow-lg p-6 border-2 ${
       requestData.urgency === 'blocking' ? 'border-red-500' :
       requestData.urgency === 'high' ? 'border-orange-500' :
       'border-gray-200'
@@ -344,7 +379,8 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
           You can revoke this decision at any time before the operation completes.
         </p>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

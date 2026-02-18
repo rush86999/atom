@@ -164,12 +164,52 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
           <div className="h-4 bg-gray-300 rounded w-48"></div>
         </div>
+        {/* Accessibility Tree - Loading state */}
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Integration connection guide"
+          style={{ display: 'none' }}
+          data-canvas-state="integration_connection_guide"
+          data-status="loading"
+        >
+          {JSON.stringify({ status: 'loading', message: 'Waiting for integration data...' })}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`integration-connection-guide bg-white rounded-lg shadow-md overflow-hidden ${className}`}>
+    <>
+      {/* Accessibility Tree - Hidden integration state for AI agents */}
+      <div
+        role="log"
+        aria-live="polite"
+        aria-label="Integration connection guide"
+        style={{ display: 'none' }}
+        data-canvas-state="integration_connection_guide"
+        data-integration-id={guideData?.integration_id}
+        data-integration-name={guideData?.integration_name}
+        data-stage={guideData?.stage}
+        data-connection-status={guideData?.connection_status?.state}
+        data-permissions-count={guideData?.permissions?.length}
+        data-current-step-index={currentStepIndex}
+      >
+        {JSON.stringify({
+          integration_id: guideData.integration_id,
+          integration_name: guideData.integration_name,
+          stage: guideData.stage,
+          agent_guidance: guideData.agent_guidance,
+          permissions: guideData.permissions,
+          connection_status: guideData.connection_status,
+          browser_session: guideData.browser_session,
+          current_step_index: currentStepIndex,
+          total_steps: steps.length,
+          progress_percentage: Math.round((currentStepIndex / (steps.length - 1)) * 100)
+        })}
+      </div>
+
+      <div className={`integration-connection-guide bg-white rounded-lg shadow-md overflow-hidden ${className}`}>
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
         <div className="flex items-center space-x-3">
@@ -357,7 +397,8 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
