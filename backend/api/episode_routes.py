@@ -7,7 +7,7 @@ REST endpoints for episodic memory system with governance integration.
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import Depends
+from fastapi import Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -67,6 +67,20 @@ class CanvasTypeRetrievalRequest(BaseModel):
     canvas_type: str  # 'sheets', 'charts', 'generic', etc.
     action: Optional[str] = None  # 'present', 'submit', 'close', etc.
     time_range: str = "30d"
+    limit: int = 10
+
+
+class CanvasAwareRetrievalRequest(BaseModel):
+    agent_id: str
+    query: str
+    canvas_type: Optional[str] = None
+    canvas_context_detail: str = "summary"  # "summary" | "standard" | "full"
+    limit: int = 10
+
+
+class BusinessDataRetrievalRequest(BaseModel):
+    agent_id: str
+    filters: Dict[str, Any]  # e.g., {"approval_status": "approved", "revenue": {"$gt": 1000000}}
     limit: int = 10
 
 
@@ -245,6 +259,156 @@ async def retrieve_by_canvas_type(
         limit=request.limit
     )
     return result
+
+
+@router.post("/retrieve/canvas-aware")
+async def retrieve_episodes_canvas_aware(
+    request: CanvasAwareRetrievalRequest,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Retrieve episodes with canvas-aware semantic search.
+
+    POST /api/episodes/retrieve/canvas-aware
+    {
+        "agent_id": "agent_123",
+        "query": "workflow approval",
+        "canvas_type": "orchestration",
+        "canvas_context_detail": "standard",
+        "limit": 10
+    }
+
+    Canvas context detail levels:
+    - "summary": presentation_summary only (~50 tokens) - DEFAULT
+    - "standard": summary + critical_data_points (~200 tokens)
+    - "full": all fields including visual_elements (~500 tokens)
+
+    Returns:
+        Episodes with canvas context filtered by detail level
+    """
+    service = EpisodeRetrievalService(db)
+    return await service.retrieve_canvas_aware(
+        agent_id=request.agent_id,
+        query=request.query,
+        canvas_type=request.canvas_type,
+        canvas_context_detail=request.canvas_context_detail,
+        limit=request.limit
+    )
+
+
+@router.get("/retrieve/canvas-type/{canvas_type}")
+async def retrieve_episodes_by_canvas_type(
+    agent_id: str,
+    canvas_type: str,
+    query: Optional[str] = None,
+    limit: int = Query(10, ge=1, le=100),
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Retrieve episodes filtered by canvas type.
+
+    GET /api/episodes/retrieve/canvas-type/orchestration?agent_id=agent_123&query=approval&canvas_context_detail=standard
+
+    Args:
+        agent_id: Agent ID
+        canvas_type: Canvas type filter (generic, docs, email, sheets, orchestration, terminal, coding)
+        query: Optional semantic search query
+        limit: Max results
+        canvas_context_detail: Detail level for canvas context (summary|standard|full)
+
+    Returns:
+        Episodes filtered by canvas type
+    """
+    service = EpisodeRetrievalService(db)
+
+    if query:
+        return await service.retrieve_canvas_aware(
+            agent_id=agent_id,
+            query=query,
+            canvas_type=canvas_type,
+            canvas_context_detail=canvas_context_detail,
+            limit=limit
+        )
+    else:
+        # Use temporal retrieval without semantic search
+        return await service.retrieve_temporal(
+            agent_id=agent_id,
+            time_range="90d",  # Default to 90 days
+            limit=limit
+        )
+
+
+@router.post("/retrieve/business-data")
+async def retrieve_episodes_by_business_data(
+    request: BusinessDataRetrievalRequest,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Retrieve episodes by business data in canvas context.
+
+    POST /api/episodes/retrieve/business-data
+    {
+        "agent_id": "agent_123",
+        "filters": {
+            "approval_status": "approved",
+            "revenue": {"$gt": 1000000}
+        },
+        "limit": 10
+    }
+
+    Returns:
+        Episodes matching business data filters
+
+    Examples:
+        Find $1M+ approved workflows:
+        {
+            "agent_id": "agent_123",
+            "filters": {
+                "approval_status": "approved",
+                "revenue": {"$gt": 1000000}
+            }
+        }
+    """
+    service = EpisodeRetrievalService(db)
+    return await service.retrieve_by_business_data(
+        agent_id=request.agent_id,
+        business_filters=request.filters,
+        limit=request.limit
+    )
+
+
+@router.get("/canvas-types")
+async def list_canvas_types(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    List all available canvas types for filtering.
+
+    GET /api/episodes/canvas-types
+
+    Returns:
+        Canvas types with descriptions and example use cases
+    """
+    return router.success_response(
+        data={
+            "canvas_types": {
+                "generic": "Generic canvas with charts, forms, markdown",
+                "docs": "Documentation canvas",
+                "email": "Email composer/viewer",
+                "sheets": "Spreadsheet with data grids",
+                "orchestration": "Workflow orchestration board",
+                "terminal": "Terminal/console output",
+                "coding": "Code editor and diff viewer"
+            },
+            "detail_levels": {
+                "summary": "presentation_summary only (~50 tokens) - default",
+                "standard": "summary + critical_data_points (~200 tokens)",
+                "full": "all fields including visual_elements (~500 tokens)"
+            }
+        },
+        message="Canvas types retrieved successfully"
+    )
 
 
 @router.post("/{episode_id}/feedback/submit")
