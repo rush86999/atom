@@ -16,6 +16,8 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 const AgentsDashboard = () => {
@@ -187,6 +189,53 @@ const AgentsDashboard = () => {
         }
     };
 
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editAgentName, setEditAgentName] = useState("");
+    const [editAgentDescription, setEditAgentDescription] = useState("");
+
+    const handleChat = (id: string) => {
+        router.push(`/chat?agent_id=${id}`);
+    };
+
+    const handleEdit = (id: string) => {
+        const agent = agents.find(a => a.id === id);
+        if (agent) {
+            setSelectedAgentId(id);
+            setEditAgentName(agent.name);
+            setEditAgentDescription(agent.description);
+            setIsEditDialogOpen(true);
+        }
+    };
+
+    const saveAgentChanges = async () => {
+        if (!selectedAgentId) return;
+
+        try {
+            const res = await fetch(`/api/agents/${selectedAgentId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                },
+                body: JSON.stringify({
+                    name: editAgentName,
+                    description: editAgentDescription
+                })
+            });
+
+            if (res.ok) {
+                toast({ title: "Agent Updated", description: "Agent details saved successfully." });
+                setIsEditDialogOpen(false);
+                fetchAgents();
+            } else {
+                const err = await res.json();
+                toast({ title: "Failed to update", description: err.detail || "Unknown error", variant: "error" });
+            }
+        } catch (e) {
+            toast({ title: "Error", description: "Network error", variant: "error" });
+        }
+    };
+
     const activeAgentName = agents.find(a => a.id === activeAgentId)?.name || "Terminal";
     const activeAgentStatus = agents.find(a => a.id === activeAgentId)?.status || "idle";
 
@@ -237,6 +286,8 @@ const AgentsDashboard = () => {
                                     agent={agent}
                                     onRun={handleRunAgent}
                                     onStop={handleStopAgent}
+                                    onChat={handleChat}
+                                    onEdit={handleEdit}
                                 />
                             ))}
                         </div>
@@ -290,6 +341,45 @@ const AgentsDashboard = () => {
                         </Button>
                         <Button onClick={executeAgentRun} disabled={isRunning}>
                             {isRunning ? "Starting..." : "Run Agent"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Agent Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Agent</DialogTitle>
+                        <DialogDescription>
+                            Update agent details.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
+                                value={editAgentName}
+                                onChange={(e) => setEditAgentName(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="description">Description</Label>
+                            <Textarea
+                                id="description"
+                                value={editAgentDescription}
+                                onChange={(e) => setEditAgentDescription(e.target.value)}
+                                className="min-h-[100px]"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={saveAgentChanges}>
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>

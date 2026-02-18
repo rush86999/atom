@@ -21,13 +21,19 @@ interface AgentStep {
 
 interface AgentWorkspaceProps {
     sessionId: string | null;
+    initialAgentId?: string | null;
 }
 
-const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId }) => {
+const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgentId }) => {
     const [steps, setSteps] = useState<AgentStep[]>([]);
     const [agentStatus, setAgentStatus] = useState<string>("idle");
-    const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+    const [activeAgentId, setActiveAgentId] = useState<string | null>(initialAgentId || null);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Update active agent if initial changes (e.g. navigation)
+    useEffect(() => {
+        if (initialAgentId) setActiveAgentId(initialAgentId);
+    }, [initialAgentId]);
 
     // Subscribe to workspace events
     const { lastMessage, isConnected } = useWebSocket({
