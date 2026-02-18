@@ -139,7 +139,7 @@ class TestProviderFallbackInvariants:
     @given(
         messages=st.lists(
             st.fixed_dictionaries({
-                'role': st.just('user'),
+                'role': st.sampled_from(['user']),
                 'content': st.text(min_size=1, max_size=500)
             }),
             min_size=1,
