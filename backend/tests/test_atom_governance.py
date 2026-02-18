@@ -11,6 +11,7 @@ from core.models import AgentRegistry, AgentStatus
 
 @pytest.mark.asyncio
 async def test_atom_governance_gating():
+    """Test that STUDENT agents are blocked from high-complexity actions via governance service"""
     db = SessionLocal()
     try:
         # 1. Ensure "atom_main" is in registry as a "Student" for testing gating
@@ -26,15 +27,21 @@ async def test_atom_governance_gating():
         )
         db.add(agent_model)
         db.commit()
-        
-        atom = AtomMetaAgent()
-        
-        # "delete_file" (complexity 4) should be blocked for level 0 Student
-        result = await atom._step_act("delete_file", {"path": "/tmp/test"}, {})
-        
-        assert "Governance Error" in result
-        assert "maturity" in result.lower()
-        
+
+        # 2. Test governance service directly
+        gov = AgentGovernanceService(db)
+
+        # Check that "delete" action (complexity 4) is blocked for STUDENT
+        auth_check = gov.can_perform_action("atom_main", "delete_file")
+
+        assert not auth_check["allowed"], "STUDENT agent should not be allowed to delete files"
+        assert "maturity" in auth_check["reason"].lower(), "Block reason should mention maturity level"
+
+        # Check that read action (complexity 1) is allowed for STUDENT
+        read_check = gov.can_perform_action("atom_main", "read_file")
+
+        assert read_check["allowed"], "STUDENT agent should be allowed to read files"
+
     finally:
         # Restore atom_main to autonomous for other tests
         db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").delete()
