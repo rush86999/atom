@@ -22,7 +22,7 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 **Key Difference**: Unlike SaaS alternatives, Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
-> **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison with other open-source AI automation platforms.
+> **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison.
 
 ---
 
@@ -30,103 +30,15 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 | Aspect | Atom | OpenClaw |
 |--------|------|----------|
-| **Best For** | Business automation, multi-agent workflows, enterprise governance | Personal productivity, messaging-based workflows |
+| **Best For** | Business automation, multi-agent workflows | Personal productivity, messaging workflows |
 | **Agent Model** | Multi-agent system with specialty agents | Single-agent runtime |
-| **Governance** | ✅ 4-tier maturity (Student → Autonomous) with audit trails | ❌ No maturity levels |
+| **Governance** | ✅ 4-tier maturity (Student → Autonomous) | ❌ No maturity levels |
 | **Memory** | ✅ Episodic memory with graduation validation | ✅ Persistent Markdown files |
 | **Integrations** | 46+ business (CRM, support, dev tools) | 50+ personal (smart home, media, messaging) |
 | **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
-| **Real-Time Visibility** | ✅ Canvas, operation tracking, error resolution | ❌ No operation visibility |
 | **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
-| **Primary Focus** | Business process automation with safety guardrails | Personal assistant with rapid experimentation |
 
 [Full Comparison →](docs/ATOM_VS_OPENCLAW.md)
-
----
-
-## Key Features
-
-### 🎙️ Voice Interface
-- Build complex workflows using just your voice
-- Natural language understanding — no proprietary syntax to learn
-- Real-time feedback as Atom visualizes its reasoning
-
-### 🤖 Specialty Agents
-- **Sales Agent**: CRM pipelines, lead scoring, outreach
-- **Marketing Agent**: Campaigns, social posting, analytics
-- **Engineering Agent**: PR notifications, deployments, incidents
-- **Governance**: Agents progress from "Student" to "Autonomous" as they gain trust
-
-### 🎨 Canvas Presentations & Agent Guidance ✨ NEW
-- Rich interactive presentations (charts, forms, markdown)
-- **Real-time operation visibility**: See exactly what agents are doing in plain English
-- Multi-view orchestration (browser, terminal, canvas)
-- Smart error resolution with actionable suggestions
-- Complete transparency and governance integration
-
-[Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
-
-### 🔍 Browser & Device Automation
-- Browser automation via CDP (web scraping, form filling)
-- Device control (camera, location, notifications, terminal)
-- Governance-first: all actions require appropriate maturity level
-
-### 🧠 Universal Memory & Context
-- **Capability Recall**: Agents remember your connected services
-- **Unified Index**: Search emails, docs, tickets, and Slack instantly
-- **Knowledge Graph**: Understands relationships, not just keywords
-- **Episodic Memory**: Agents learn from past experiences with automatic segmentation
-- **Graduation Validation**: Promote agents only when they demonstrate reliable performance
-- **Privacy First**: API keys and PII automatically encrypted
-
-### 🛡️ Agent Governance System
-- Agents progress from 'Student' → 'Autonomous' based on performance
-- **Maturity-based routing**: Student agents blocked from automated triggers
-- **AI-powered training**: Personalized learning scenarios with duration estimation
-- Sensitive actions require approval until confidence is high
-- Every action logged, timestamped, and traceable
-- Real-time supervision for learning agents
-
-### 🔌 Deep Integrations
-- **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
-- **9 fully implemented messaging platforms**: Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Facebook Messenger, LINE
-- Proactive messaging, scheduled messages, and condition monitoring
-- Use `/run`, `/workflow`, `/agents` from your favorite chat app
-
-[Platform Guide →](docs/MESSAGING_PLATFORMS.md) | [Messaging Features →](docs/MESSAGING_GUIDE.md)
-
-### 📱 IM Adapters ✨ NEW
-- **Telegram & WhatsApp Webhook Integration**: Interact with agents via IM platforms
-- **Webhook Signature Verification**: All incoming webhooks verified via HMAC
-- **Rate Limiting**: 10 requests/minute per user (configurable)
-- **Governance Integration**: STUDENT agents blocked, INTERN+ allowed with checks
-- **Audit Trail**: All interactions logged to `im_audit_logs` table
-- [Setup Guide →](backend/docs/IM_ADAPTER_SETUP.md) | [Security Best Practices →](backend/docs/IM_SECURITY_BEST_PRACTICES.md)
-
-### 🛠️ Dynamic Skills
-- Agents build new tools on-the-fly
-- Skill Runner UI to test and execute agent skills
-- Real-time streaming execution
-
-### 🌐 Community Skills Integration ✨ NEW
-- **5,000+ OpenClaw/ClawHub skills** - Import and use community-built skills directly in Atom
-- **Enterprise-grade security** - LLM-powered security scanning with 21+ malicious pattern detection
-- **Hazard Sandbox** - Isolated Docker containers prevent skills from accessing host filesystem
-- **Skills Registry** - Easy import via GitHub URL, status tracking (Untrusted → Active → Banned)
-- **Governance integration** - STUDENT agents blocked from Python skills, INTERN+ require approval
-- **Automatic learning** - Skill executions create episodic memories and track toward agent graduation
-
-[Community Skills Guide →](docs/COMMUNITY_SKILLS.md) | [Import Skills →](#importing-community-skills)
-
-### 🔄 Agent-to-Agent Execution ✨ NEW
-- **Universal agent control**: Any agent can install and run Atom (OpenClaw, Claude, custom agents)
-- **Background service mode**: Run Atom as daemon with PID tracking
-- **On-demand execution**: Execute Atom commands temporarily
-- **REST API control**: Programmatic start/stop/status for agent integration
-- **CLI commands**: Simple terminal commands for easy control
-- **Systemd service**: Auto-start on system boot
-
-[Usage Guide →](#agent-to-agent-execution)
 
 ---
 
@@ -159,67 +71,61 @@ That's it! 🚀
 
 ---
 
-### ⚡ One-Command Start (Alternative)
+## Key Features
 
-```bash
-git clone https://github.com/rush86999/atom.git
-cd atom
-./start.sh  # macOS/Linux
-# OR
-start.bat  # Windows
-```
+### 🎙️ Voice Interface
+- Build complex workflows using just your voice
+- Natural language understanding — no proprietary syntax to learn
+- Real-time feedback as Atom visualizes its reasoning
 
-Access at: **http://localhost:3000**
+### 🤖 Specialty Agents
+- **Sales Agent**: CRM pipelines, lead scoring, outreach
+- **Marketing Agent**: Campaigns, social posting, analytics
+- **Engineering Agent**: PR notifications, deployments, incidents
+- **Governance**: Agents progress from "Student" to "Autonomous" as they gain trust
 
-[Full Guide →](QUICK_START.md) | [Docker Guide →](docs/PERSONAL_EDITION.md) | [Native Guide →](docs/NATIVE_SETUP.md)
+### 🎨 Canvas Presentations & Agent Guidance ✨
+- Rich interactive presentations (charts, forms, markdown)
+- **Real-time operation visibility**: See exactly what agents are doing
+- Multi-view orchestration (browser, terminal, canvas)
+- Smart error resolution with actionable suggestions
+- [Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
----
+### 🧠 Episodic Memory & Graduation
+- **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
+- **Hybrid storage**: PostgreSQL (hot data) + LanceDB (cold archives)
+- **Four retrieval modes**: Temporal, Semantic, Sequential, Contextual
+- **Graduation validation**: Promote agents only when they demonstrate reliable performance
+- [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
 
-## Personal Edition
+### 🛡️ Agent Governance System
+- Agents progress from 'Student' → 'Autonomous' based on performance
+- **Maturity-based routing**: Student agents blocked from automated triggers
+- **AI-powered training**: Personalized learning with duration estimation
+- Sensitive actions require approval until confidence is high
+- Every action logged, timestamped, and traceable
 
-Atom offers a **Personal Edition** that's free and perfect for:
+### 🔌 Deep Integrations
+- **46+ pre-built integrations**: Slack, Gmail, HubSpot, Salesforce, etc.
+- **9 messaging platforms**: Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Facebook Messenger, LINE
+- Proactive messaging, scheduled messages, condition monitoring
+- Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
-- Personal productivity automation
-- AI agent experimentation
-- Local development
-- Privacy-focused automation (data never leaves your machine)
+### 🌐 Community Skills ✨
+- **5,000+ OpenClaw/ClawHub skills**: Import and use community-built skills
+- **Enterprise security**: LLM-powered scanning with 21+ malicious pattern detection
+- **Hazard Sandbox**: Isolated Docker containers prevent host access
+- **Skills Registry**: Easy import with status tracking (Untrusted → Active → Banned)
+- [Community Skills Guide →](docs/COMMUNITY_SKILLS.md)
 
-**What's included:**
-- Local agent execution
-- Workflow automation
-- Canvas presentations
-- Browser automation
-- Episodic memory
-- Agent governance
-- Community skills (5,000+ OpenClaw/ClawHub)
-
-**What's NOT included** (Enterprise features):
-- Multi-user support
-- PostgreSQL database
-- SSO (Okta, Auth0, SAML)
-- Advanced monitoring
-- Audit trail
-- Rate limiting
-
-[Full Feature Matrix →](docs/FEATURE_MATRIX.md)
-
-### Install Personal Edition
-
-```bash
-pip install atom-os
-atom init
-atom start
-```
-
-### Upgrade to Enterprise
-
-```bash
-atom enable enterprise
-```
-
-[Personal Edition Guide →](docs/PERSONAL_EDITION.md)
+### 🔍 Browser & Device Automation
+- Browser automation via CDP (web scraping, form filling)
+- Device control (camera, location, notifications, terminal)
+- Governance-first: all actions require appropriate maturity level
 
 ---
+
+## Installation Options
 
 ### 🐳 Docker (5 minutes - No setup required)
 
@@ -233,9 +139,8 @@ docker-compose -f docker-compose-personal.yml up -d
 
 Access at: **http://localhost:3000**
 
-[Full Docker Guide →](docs/PERSONAL_EDITION.md)
-
 ### 💻 Native Installation (10 minutes - No Docker)
+
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
@@ -245,11 +150,12 @@ cd ../frontend-nextjs && npm install
 cp .env.personal .env
 # Edit .env and add your API keys
 # Start backend: cd backend && python -m uvicorn main_api_app:app --reload
-# Start frontend (new terminal): cd frontend-nextjs && npm run dev
+# Start frontend: cd frontend-nextjs && npm run dev
 ```
+
 Access at: **http://localhost:3000**
 
-[Full Native Guide →](docs/NATIVE_SETUP.md)
+[Full Docker Guide →](docs/PERSONAL_EDITION.md) | [Full Native Guide →](docs/NATIVE_SETUP.md)
 
 ---
 
@@ -274,295 +180,27 @@ Access at: **http://localhost:3000**
 
 ---
 
-## What's Included
-
-✅ Complete backend (FastAPI) + frontend (Next.js) + desktop app (Tauri)
-✅ 46+ pre-built integrations
-✅ 5,000+ community skills via OpenClaw/ClawHub integration
-✅ Multi-platform communication bridge (12+ platforms)
-✅ Agent governance and maturity system
-✅ Episodic memory and graduation framework
-✅ Memory and knowledge graph
-✅ Voice interface
-✅ Docker deployment
-
----
-
-## Recent Features (February 2026)
-
-### Community Skills Integration ✨ NEW
-- **5,000+ OpenClaw/ClawHub skills**: Import and use community-built skills directly in Atom
-- **Enterprise security**: LLM-powered scanning with 21+ malicious pattern detection
-- **Hazard Sandbox**: Isolated Docker containers prevent host access
-- **Skills Registry**: Import via GitHub URL, status tracking (Untrusted → Active → Banned)
-- **Governance integration**: STUDENT blocked from Python skills, maturity-based approvals
-- **Episodic learning**: Skill executions create memories and track toward graduation
-- [Full Documentation →](.planning/phases/14-community-skills-integration/14-VERIFICATION.md)
-
-### Episodic Memory & Graduation Framework ✨ NEW
-- **Experience-based learning**: Agents automatically segment, store, and retrieve past experiences
-- **Hybrid storage architecture**: PostgreSQL (hot data) + LanceDB (cold archives) for efficient scaling
-- **Four retrieval modes**: Temporal (time-based), Semantic (vector search), Sequential (full episodes), Contextual (hybrid)
-- **Graduation validation**: Assess agent readiness using episodic memory before maturity promotions
-- **Constitutional compliance**: Track intervention rates and validate against governance rules
-- **Use cases**: MedScribe (clinical documentation), Brennan.ca (pricing validation), workflow optimization
-- [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
-
-### Student Agent Training System
-- **Maturity-based routing**: Prevents STUDENT agents from automated triggers
-- **AI training proposals**: Personalized learning with duration estimation
-- **Real-time supervision**: Monitor SUPERVISED agents with intervention controls
-- **Action proposals**: INTERN agents require human approval before execution
-- **Confidence boosting**: Performance-based maturity progression
-- [Full Documentation →](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)
-
-### Canvas & Agent Guidance System
-- Real-time operation tracking with plain English explanations
-- Multi-view orchestration (browser, terminal, canvas)
-- Smart error resolution with learning feedback
-- Interactive permission/decision requests
-
-### Recording & Governance Integration ✨ NEW
-- **Auto-recording**: Autonomous agents automatically record sessions for governance
-- **AI-powered review**: Analyzes recordings to update agent confidence
-- **Learning loop**: Successful/failed patterns feed into world model
-- **Confidence scoring**: Approved actions increase confidence, failures decrease it
-- Full audit trail for compliance
-
----
-
-## Agent-to-Agent Execution
-
-Atom OS can be controlled by any agent (OpenClaw, Claude, custom agents) through CLI or REST API. This allows other AI agents to easily install, run, and control Atom as a background service or on-demand execution.
-
-### Quick Start for Agents
-
-**1. Install Atom:**
-```bash
-pip install atom-os
-```
-
-**2. Start as background service:**
-```bash
-atom-os daemon --port 8000
-```
-
-**3. Check status:**
-```bash
-atom-os status
-```
-
-**4. Stop service:**
-```bash
-atom-os stop
-```
-
-### CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `atom-os daemon [--port] [--host-mount]` | Start as background daemon |
-| `atom-os daemon --foreground` | Run in foreground (for debugging) |
-| `atom-os status` | Check daemon status (PID, memory, CPU) |
-| `atom-os stop` | Stop daemon gracefully |
-| `atom-os execute <command>` | Execute single command (on-demand) |
-| `atom-os config` | Show configuration details |
-
-### REST API Control
-
-Start Atom programmatically:
-```bash
-curl -X POST http://localhost:8000/api/agent/start \
-  -H "Content-Type: application/json" \
-  -d '{"port": 8000, "host": "0.0.0.0"}'
-```
-
-Check status:
-```bash
-curl http://localhost:8000/api/agent/status
-```
-
-Stop Atom:
-```bash
-curl -X POST http://localhost:8000/api/agent/stop
-```
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/agent/start` | POST | Start Atom as background service |
-| `/api/agent/stop` | POST | Stop Atom service |
-| `/api/agent/status` | GET | Get status and running info |
-| `/api/agent/restart` | POST | Restart Atom service |
-| `/api/agent/execute` | POST | Execute single command |
-
-### Systemd Service (Auto-start on Boot)
-
-Enable Atom OS to start on system boot:
-```bash
-# Install service file
-sudo cp backend/atom-os.service /etc/systemd/system/
-
-# Reload systemd
-sudo systemctl daemon-reload
-
-# Enable auto-start
-sudo systemctl enable atom-os
-
-# Start service now
-sudo systemctl start atom-os
-
-# Check status
-sudo systemctl status atom-os
-```
-
-### Examples
-
-**OpenClaw Agent:**
-```python
-# Start Atom before using tools
-import subprocess
-subprocess.run(["atom-os", "daemon"])
-
-# Use Atom tools via API
-import requests
-response = requests.get("http://localhost:8000/api/skills/list")
-skills = response.json()["skills"]
-```
-
-**Claude Agent:**
-```python
-# Check if Atom is running
-import requests
-status = requests.get("http://localhost:8000/api/agent/status")
-if not status.json()["status"]["running"]:
-    # Start Atom
-    import subprocess
-    subprocess.run(["atom-os", "daemon"])
-
-# Execute workflow
-response = requests.post(
-    "http://localhost:8000/api/workflows/execute",
-    json={"workflow_name": "monthly_report"}
-)
-result = response.json()
-```
-
-**Custom Agent:**
-```python
-import requests
-import time
-
-class AtomClient:
-    """Simple client for controlling Atom OS."""
-
-    def __init__(self, base_url="http://localhost:8000"):
-        self.base_url = base_url
-
-    def start(self, port=8000):
-        """Start Atom as background service."""
-        response = requests.post(
-            f"{self.base_url}/api/agent/start",
-            json={"port": port}
-        )
-        return response.json()
-
-    def status(self):
-        """Check Atom status."""
-        response = requests.get(f"{self.base_url}/api/agent/status")
-        return response.json()["status"]
-
-    def stop(self):
-        """Stop Atom service."""
-        response = requests.post(f"{self.base_url}/api/agent/stop")
-        return response.json()
-
-# Usage
-client = AtomClient()
-client.start(port=8000)
-print(f"Running: {client.status()['running']}")
-client.stop()
-```
-
-### Daemon Status Output
-
-```bash
-$ atom-os status
-
-Status: RUNNING
-  PID: 12345
-  Memory: 256.5 MB
-  CPU: 5.2%
-  Uptime: 3600s
-  Dashboard: http://localhost:8000
-```
-
----
-
-## Importing Community Skills ✨ NEW
-
-Atom can import and use 5,000+ community skills from OpenClaw/ClawHub while maintaining enterprise security.
-
-### Quick Import
-
-**Via GitHub URL:**
-```bash
-curl -X POST http://localhost:8000/api/skills/import \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "github_url",
-    "url": "https://github.com/openclaw/skills/tree/main/email-sorter"
-  }'
-```
-
-**Via File Upload:**
-```bash
-curl -X POST http://localhost:8000/api/skills/import \
-  -F "file=@SKILL.md" \
-  -F "source=file_upload"
-```
-
-### Security Workflow
-
-1. **Import** → Skills marked as "Untrusted" automatically
-2. **Security Scan** → LLM + static analysis for malicious patterns
-3. **Activate** → Promote to "Active" status for agent use
-4. **Execute** → Agents run skills in isolated Docker sandbox
-
-### List Imported Skills
-
-```bash
-curl http://localhost:8000/api/skills/list?status=Active
-```
-
-### Governance
-
-| Agent Level | Prompt Skills | Python Skills |
-|-------------|---------------|---------------|
-| STUDENT | ✅ Yes | ❌ Blocked |
-| INTERN | ✅ Yes | ⚠️ Approval Required |
-| SUPERVISED | ✅ Yes | ✅ Yes (Monitored) |
-| AUTONOMOUS | ✅ Yes | ✅ Yes |
-
-[Full Documentation →](docs/COMMUNITY_SKILLS.md)
-
----
-
 ## Documentation
 
+### Core Features
 - [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - Import 5,000+ OpenClaw/ClawHub skills
-- [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
 - [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Experience-based learning system
 - [Agent Graduation Guide](docs/AGENT_GRADUATION_GUIDE.md) - Promotion validation framework
 - [Student Agent Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity-based routing system
+
+### Platform
+- [Development Guide](docs/DEVELOPMENT.md) - Technical setup and architecture
+- [Installation Guide](docs/INSTALLATION.md) - Complete installation instructions
+- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison with alternatives
+
+### Advanced
 - [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system details
 - [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels and approvals
-- [Recording System](docs/CANVAS_RECORDING_IMPLEMENTATION.md) - Recording and playback
-- [Review Integration](docs/RECORDING_REVIEW_INTEGRATION.md) - Governance & learning
+- [Personal Edition](docs/PERSONAL_EDITION.md) - Local deployment with Docker Compose
+- [Agent-to-Agent Execution](docs/PERSONAL_EDITION.md) - Daemon mode and CLI control
 - [IM Adapter Setup](backend/docs/IM_ADAPTER_SETUP.md) - Telegram & WhatsApp integration
-- [IM Security Best Practices](backend/docs/IM_SECURITY_BEST_PRACTICES.md) - Security guidelines
-- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
+
+**[Complete Documentation Index →](docs/INDEX.md)**
 
 ---
 
