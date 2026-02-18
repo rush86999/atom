@@ -33,6 +33,9 @@ from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from contextlib import contextmanager
 import pytest
 
+# Import module explicitly for coverage tracking
+import tools.canvas_tool  # noqa: F401
+
 from core.models import AgentStatus
 from tools.canvas_tool import (
     _create_canvas_audit,
