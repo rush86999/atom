@@ -1324,8 +1324,81 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 - [x] 24-04-PLAN.md — Verify and test all documentation ✅ COMPLETE
 
 - [ ] **Phase 25: Atom CLI as OpenClaw Skill** - Convert Atom CLI commands into OpenClaw-compatible skills for cross-platform agent usage
-  - Plan 01: Create SKILL.md wrapper for atom CLI commands (daemon, status, execute)
-  - Plan 02: Add skill metadata and YAML frontmatter for OpenClaw compatibility
-  - Plan 03: Test CLI skill integration with community skills framework
-  - Estimated Plans: 3 plans (1 day)
-  - Status: Not Planned (February 18, 2026)
+  - Plan 01: Create 6 SKILL.md files (daemon, status, start, stop, execute, config)
+  - Plan 02: Create subprocess wrapper service for CLI execution
+  - Plan 03: Test skill import and execution with governance
+  - Plan 04: Documentation and verification
+  - Estimated Plans: 4 plans (1 day)
+  - Status: Planning Complete (4 plans created)
+  **Plans**: 4 plans
+  - [ ] 25-atom-cli-openclaw-skill-01-PLAN.md — Create 6 SKILL.md files (Wave 1)
+  - [ ] 25-atom-cli-openclaw-skill-02-PLAN.md — Create subprocess wrapper service (Wave 1)
+  - [ ] 25-atom-cli-openclaw-skill-03-PLAN.md — Test skill import and execution (Wave 2)
+  - [ ] 25-atom-cli-openclaw-skill-04-PLAN.md — Documentation and verification (Wave 2)
+
+## Phase 25: Atom CLI as OpenClaw Skill
+
+**Goal**: Convert Atom CLI commands (daemon, status, start, stop, execute, config) into OpenClaw-compatible skills for cross-platform agent usage
+
+**Depends on**: Phase 13 (OpenClaw Integration), Phase 14 (Community Skills), Phase 02 (Local Agent)
+
+**Status**: Planning Complete (February 18, 2026) - 4 plans created
+
+**Success Criteria** (what must be TRUE):
+  1. Atom CLI commands wrapped as OpenClaw skills with SKILL.md metadata
+  2. Skills work with Community Skills framework (import, security scan, governance)
+  3. CLI commands can be executed by agents through skill system
+  4. Daemon mode manageable via skill interface
+  5. Skills properly tagged with maturity requirements (AUTONOMOUS for daemon control)
+  6. Integration tested and documented
+
+**Features**:
+- **SKILL.md files** for all 6 CLI commands (daemon, status, start, stop, execute, config)
+- **YAML frontmatter** with skill metadata (name, description, version, tags, governance)
+- **Maturity gates**: AUTONOMOUS for daemon control (daemon/start/stop/execute), STUDENT for read-only (status/config)
+- **Subprocess wrapper** for safe CLI execution with timeout and error handling
+- **Governance integration** via existing Community Skills framework
+- **Cross-platform compatibility** (Linux, macOS, Windows via WSL)
+
+**Implementation Approach**:
+
+1. **Plan 01: Create 6 SKILL.md Files**
+   - Create backend/skills/atom-cli/ directory
+   - atom-daemon.md: Start background daemon (AUTONOMOUS)
+   - atom-status.md: Check daemon status (STUDENT)
+   - atom-start.md: Start server foreground (AUTONOMOUS)
+   - atom-stop.md: Stop daemon (AUTONOMOUS)
+   - atom-execute.md: Execute on-demand command (AUTONOMOUS)
+   - atom-config.md: Show configuration (STUDENT)
+
+2. **Plan 02: Create Subprocess Wrapper Service**
+   - atom_cli_skill_wrapper.py with execute_atom_cli_command()
+   - Timeout handling (30s), structured output (success/stdout/stderr/returncode)
+   - Daemon helpers: is_daemon_running(), get_daemon_pid(), wait_for_daemon_ready()
+   - Integration with CommunitySkillTool for atom-* skill routing
+
+3. **Plan 03: Test Skill Import and Execution**
+   - test_atom_cli_skills.py with 20+ tests
+   - Parsing tests: Verify all 6 skills parse correctly
+   - Execution tests: Subprocess wrapper with mocking
+   - Governance tests: Maturity gates enforced
+   - Integration tests: Full import->execute flow
+
+4. **Plan 04: Documentation and Verification**
+   - ATOM_CLI_SKILLS_GUIDE.md with comprehensive user guide
+   - Update COMMUNITY_SKILLS.md with CLI skills section
+   - Update CLAUDE.md with Phase 25 reference
+   - Verification summary with all success criteria
+   - Test skill execution through agents
+   - Verify governance enforcement (AUTONOMOUS only)
+   - Document skill usage and capabilities
+   - Create examples for agent workflows
+
+**Estimated Impact**: Atom CLI becomes accessible to OpenClaw ecosystem, enabling cross-platform agents to manage Atom services
+
+**Plans**: 3 plans (1 wave, all autonomous)
+- [ ] 25-01-PLAN.md — Create SKILL.md wrappers for CLI commands
+- [ ] 25-02-PLAN.md — Add metadata and security configuration
+- [ ] 25-03-PLAN.md — Integration testing and documentation
+
+**Estimated Duration**: 3 plans (1 day)
