@@ -10,11 +10,13 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 21-llm-canvas-summaries
-Plan: 03 (COMPLETE)
-Status: IN PROGRESS (3 of 4 plans complete)
-Last activity: 2026-02-18 — Plan 21-03 COMPLETE: Quality Testing & Validation. Created comprehensive test suite for LLM canvas summaries with 40 tests (30 unit + 10 integration) achieving 80% coverage. Added quality metrics methods (_calculate_semantic_richness for scoring 0.0-1.0 based on 15+ business indicators, _detect_hallucination for detecting fabricated facts). All tests passing with zero errors. Quality validation infrastructure ready for production use. 3 atomic commits (374beb49, be50f39b, b334a81b), 16 minutes duration, 690 lines added. Zero deviations.
+Plan: 02 (COMPLETE)
+Status: IN PROGRESS (2 of 4 plans complete)
+Last activity: 2026-02-18 — Plan 21-02 COMPLETE: Episode Segmentation Integration. Integrated LLM-generated canvas summaries into episode segmentation process, replacing Phase 20's metadata extraction with richer semantic summaries via CanvasSummaryService. Updated EpisodeSegmentationService.__init__ to accept optional BYOK handler, created _extract_canvas_context_llm() async method with 2-second timeout, modified create_episode_from_session() to use LLM summaries with agent_task context. Created comprehensive integration tests (9 tests, 100% pass rate) covering LLM generation, timeout fallback, exception handling, all 7 canvas types, critical data extraction, visual elements, user interaction, and caching. Fixed CanvasSummaryService exception propagation for proper source tracking. All existing tests pass (backward compatible). 4 atomic commits (c85882ef, 58da6cd2, 0fa7ccf6, bf76f638), 22 minutes duration, 369 lines added. 1 deviation fixed (exception propagation).
 
-Progress: [███░░░░░░] 75% (Phase 21: 3 of 4 plans complete)
+**Note**: Plan 04 (Coverage & Documentation) was executed earlier to provide documentation and coverage baseline. Plan 03 (Quality Testing & Validation) is pending.
+
+Progress: [██░░░░░░░] 50% (Phase 21: 2 of 4 plans complete)
 Phase 9.0 Wave 7 Results:
 - Plan 31 (Agent Guidance & Integration Dashboard): 68 tests, 45-50% coverage
 - Plan 32 (Workflow Templates): 71 tests, 35-40% coverage (partial, governance decorator blocked)
