@@ -18,11 +18,16 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock
 from typing import List, Dict, Any
 
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 
 from core.agent_social_layer import AgentSocialLayer, agent_social_layer
 from core.agent_communication import AgentEventBus
 from core.models import AgentPost, Channel
+
+# Import db_session fixture explicitly for Hypothesis compatibility
+# Hypothesis @given decorator runs before pytest fixture resolution,
+# so we need to import the fixture to make it available
+from tests.property_tests.conftest import db_session
 
 
 # ============================================================================
@@ -1026,12 +1031,16 @@ class TestRealTimeUpdates:
 class TestFeedInvariants:
     """Property-based tests for feed invariants."""
 
-    @given(st.integers(min_value=1, max_value=50), st.integers(min_value=5, max_value=20))
-    @settings(max_examples=50)
+    @given(post_count=st.integers(min_value=1, max_value=50), page_size=st.integers(min_value=5, max_value=20))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_cursor_pagination_never_returns_duplicates(self, post_count, page_size, db_session):
+    async def test_cursor_pagination_never_returns_duplicates(self, db_session, post_count, page_size):
         """Property: Cursor pagination never returns duplicate posts."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         # Create posts
         now = datetime.utcnow()
@@ -1085,12 +1094,16 @@ class TestFeedInvariants:
         # Verify all posts seen
         assert len(seen_ids) == post_count
 
-    @given(st.integers(min_value=1, max_value=100))
-    @settings(max_examples=50)
+    @given(post_count=st.integers(min_value=1, max_value=100))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_feed_always_chronological(self, post_count, db_session):
+    async def test_feed_always_chronological(self, db_session, post_count):
         """Property: Feed always returns posts in chronological order (newest first)."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         # Create posts with different timestamps
         now = datetime.utcnow()
@@ -1117,17 +1130,20 @@ class TestFeedInvariants:
         # Verify descending order (newest first)
         timestamps = [p["created_at"] for p in feed["posts"]]
         # Parse ISO format strings back to datetime for comparison
-        from datetime import datetime
         parsed_timestamps = [datetime.fromisoformat(ts.replace('Z', '+00:00')) for ts in timestamps]
 
         assert parsed_timestamps == sorted(parsed_timestamps, reverse=True)
 
-    @given(st.lists(st.integers(min_value=0, max_value=50), min_size=0, max_size=20))
-    @settings(max_examples=50)
+    @given(reply_counts=st.lists(st.integers(min_value=0, max_value=50), min_size=0, max_size=20))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_reply_count_monotonically_increases(self, reply_counts, db_session):
+    async def test_reply_count_monotonically_increases(self, db_session, reply_counts):
         """Property: Reply count never decreases."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         # Create parent post
         parent_post = AgentPost(
@@ -1160,12 +1176,17 @@ class TestFeedInvariants:
                 f"Reply count decreased from {previous_count} to {current_count}"
             previous_count = current_count
 
-    @given(st.integers(min_value=1, max_value=50), st.integers(min_value=1, max_value=10))
-    @settings(max_examples=30)
+    @given(channel_posts=st.integers(min_value=1, max_value=50), other_posts=st.integers(min_value=1, max_value=10))
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_channel_posts_isolated(self, channel_posts, other_posts, db_session):
+    async def test_channel_posts_isolated(self, db_session, channel_posts, other_posts):
         """Property: Channel posts only appear in that channel's feed."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts/channels from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.query(Channel).filter(Channel.id == "channel-test").delete()
+        db_session.commit()
 
         # Create channel
         channel = Channel(
@@ -1221,12 +1242,16 @@ class TestFeedInvariants:
         assert all(p["channel_id"] == "channel-test" for p in channel_feed["posts"])
         assert len(channel_feed["posts"]) == channel_posts
 
-    @given(st.integers(min_value=1, max_value=20))
-    @settings(max_examples=30)
+    @given(post_count=st.integers(min_value=1, max_value=20))
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_feed_filter_by_post_type_complete(self, post_count, db_session):
+    async def test_feed_filter_by_post_type_complete(self, db_session, post_count):
         """Property: Filter returns only matching post_type."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         types = ["status", "insight", "question", "alert"]
 
@@ -1261,12 +1286,16 @@ class TestFeedInvariants:
             # All should match filter
             assert all(p["post_type"] == target_type for p in filtered["posts"])
 
-    @given(st.integers(min_value=1, max_value=30))
-    @settings(max_examples=30)
+    @given(post_count=st.integers(min_value=1, max_value=30))
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_total_count_matches_actual(self, post_count, db_session):
+    async def test_total_count_matches_actual(self, db_session, post_count):
         """Property: Total count matches actual post count."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         # Create posts
         now = datetime.utcnow()
@@ -1292,12 +1321,16 @@ class TestFeedInvariants:
 
         assert feed["total"] == post_count
 
-    @given(st.integers(min_value=1, max_value=20))
-    @settings(max_examples=30)
+    @given(post_count=st.integers(min_value=1, max_value=20))
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
-    async def test_no_lost_posts_in_feed(self, post_count, db_session):
+    async def test_no_lost_posts_in_feed(self, db_session, post_count):
         """Property: All posts appear in feed (no lost posts)."""
         service = AgentSocialLayer()
+
+        # Clean up any existing posts from previous Hypothesis runs
+        db_session.query(AgentPost).filter(AgentPost.sender_id == "user1").delete()
+        db_session.commit()
 
         # Create posts
         now = datetime.utcnow()
