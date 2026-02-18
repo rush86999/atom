@@ -17,7 +17,6 @@ import pytest
 from sqlalchemy.orm import Session
 
 from core.agent_learning_enhanced import AgentLearningEnhanced
-from core.database import SessionLocal
 from core.feedback_analytics import FeedbackAnalytics
 from core.models import AgentExecution, AgentFeedback, AgentRegistry, User
 
@@ -26,17 +25,7 @@ from core.models import AgentExecution, AgentFeedback, AgentRegistry, User
 # ============================================================================
 
 @pytest.fixture
-def db():
-    """Create a test database session."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture
-def test_user(db):
+def test_user(db_session):
     """Create a test user."""
     user = User(
         id=f"user-{uuid.uuid4()}",
@@ -44,17 +33,17 @@ def test_user(db):
         first_name="Test",
         last_name="User"
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     yield user
     # Cleanup
-    db.delete(user)
-    db.commit()
+    db_session.delete(user)
+    db_session.commit()
 
 
 @pytest.fixture
-def test_agent(db):
+def test_agent(db_session):
     """Create a test agent."""
     agent = AgentRegistry(
         id=f"agent-{uuid.uuid4()}",
@@ -65,18 +54,18 @@ def test_agent(db):
         status="INTERN",
         confidence_score=0.7
     )
-    db.add(agent)
-    db.commit()
-    db.refresh(agent)
+    db_session.add(agent)
+    db_session.commit()
+    db_session.refresh(agent)
     yield agent
     # Cleanup
-    db.query(AgentFeedback).filter(AgentFeedback.agent_id == agent.id).delete()
-    db.delete(agent)
-    db.commit()
+    db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == agent.id).delete()
+    db_session.delete(agent)
+    db_session.commit()
 
 
 @pytest.fixture
-def test_execution(db, test_agent):
+def test_execution(db_session, test_agent):
     """Create a test agent execution."""
     execution = AgentExecution(
         id=f"exec-{uuid.uuid4()}",
@@ -86,13 +75,13 @@ def test_execution(db, test_agent):
         input_summary="Test execution",
         triggered_by="api"
     )
-    db.add(execution)
-    db.commit()
-    db.refresh(execution)
+    db_session.add(execution)
+    db_session.commit()
+    db_session.refresh(execution)
     yield execution
     # Cleanup
-    db.delete(execution)
-    db.commit()
+    db_session.delete(execution)
+    db_session.commit()
 
 
 # ============================================================================
@@ -102,7 +91,7 @@ def test_execution(db, test_agent):
 class TestFeedbackSubmission:
     """Test enhanced feedback submission."""
 
-    def test_submit_thumbs_up_feedback(self, db, test_agent, test_user, test_execution):
+    def test_submit_thumbs_up_feedback(self, db_session, test_agent, test_user, test_execution):
         """Test submitting thumbs up feedback."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -116,9 +105,9 @@ class TestFeedbackSubmission:
             rating=None
         )
 
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
+        db_session.add(feedback)
+        db_session.commit()
+        db_session.refresh(feedback)
 
         assert feedback.id is not None
         assert feedback.thumbs_up_down is True
@@ -126,10 +115,10 @@ class TestFeedbackSubmission:
         assert feedback.agent_id == test_agent.id
 
         # Cleanup
-        db.delete(feedback)
-        db.commit()
+        db_session.delete(feedback)
+        db_session.commit()
 
-    def test_submit_thumbs_down_feedback(self, db, test_agent, test_user):
+    def test_submit_thumbs_down_feedback(self, db_session, test_agent, test_user):
         """Test submitting thumbs down feedback."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -140,17 +129,17 @@ class TestFeedbackSubmission:
             feedback_type="comment"
         )
 
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
+        db_session.add(feedback)
+        db_session.commit()
+        db_session.refresh(feedback)
 
         assert feedback.thumbs_up_down is False
 
         # Cleanup
-        db.delete(feedback)
-        db.commit()
+        db_session.delete(feedback)
+        db_session.commit()
 
-    def test_submit_star_rating(self, db, test_agent, test_user):
+    def test_submit_star_rating(self, db_session, test_agent, test_user):
         """Test submitting star rating."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -161,18 +150,18 @@ class TestFeedbackSubmission:
             feedback_type="rating"
         )
 
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
+        db_session.add(feedback)
+        db_session.commit()
+        db_session.refresh(feedback)
 
         assert feedback.rating == 5
         assert feedback.feedback_type == "rating"
 
         # Cleanup
-        db.delete(feedback)
-        db.commit()
+        db_session.delete(feedback)
+        db_session.commit()
 
-    def test_submit_correction_feedback(self, db, test_agent, test_user):
+    def test_submit_correction_feedback(self, db_session, test_agent, test_user):
         """Test submitting correction feedback."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -183,18 +172,18 @@ class TestFeedbackSubmission:
             feedback_type="correction"
         )
 
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
+        db_session.add(feedback)
+        db_session.commit()
+        db_session.refresh(feedback)
 
         assert feedback.feedback_type == "correction"
         assert "2+2=4" in feedback.user_correction
 
         # Cleanup
-        db.delete(feedback)
-        db.commit()
+        db_session.delete(feedback)
+        db_session.commit()
 
-    def test_submit_mixed_feedback(self, db, test_agent, test_user):
+    def test_submit_mixed_feedback(self, db_session, test_agent, test_user):
         """Test submitting feedback with both rating and correction."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -206,17 +195,17 @@ class TestFeedbackSubmission:
             feedback_type="correction"
         )
 
-        db.add(feedback)
-        db.commit()
-        db.refresh(feedback)
+        db_session.add(feedback)
+        db_session.commit()
+        db_session.refresh(feedback)
 
         assert feedback.rating == 3
         assert feedback.thumbs_up_down is False
         assert feedback.feedback_type == "correction"
 
         # Cleanup
-        db.delete(feedback)
-        db.commit()
+        db_session.delete(feedback)
+        db_session.commit()
 
 
 # ============================================================================
@@ -226,7 +215,7 @@ class TestFeedbackSubmission:
 class TestFeedbackAnalytics:
     """Test feedback analytics service."""
 
-    def test_get_agent_feedback_summary(self, db, test_agent, test_user):
+    def test_get_agent_feedback_summary(self, db_session, test_agent, test_user):
         """Test getting agent feedback summary."""
         # Create sample feedback
         for i in range(10):
@@ -238,11 +227,11 @@ class TestFeedbackAnalytics:
                 thumbs_up_down=(i % 2 == 0),  # 5 thumbs up, 5 thumbs down
                 rating=None
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         summary = analytics.get_agent_feedback_summary(test_agent.id, days=30)
 
         assert summary["agent_id"] == test_agent.id
@@ -251,10 +240,10 @@ class TestFeedbackAnalytics:
         assert summary["thumbs_down_count"] == 5
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_get_feedback_statistics(self, db, test_agent, test_user):
+    def test_get_feedback_statistics(self, db_session, test_agent, test_user):
         """Test getting overall feedback statistics."""
         # Create sample feedback
         for i in range(5):
@@ -266,21 +255,21 @@ class TestFeedbackAnalytics:
                 rating=(i % 5) + 1,  # Ratings 1-5
                 thumbs_up_down=None
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         stats = analytics.get_feedback_statistics(days=30)
 
         assert stats["total_feedback"] >= 5
         assert stats["overall_average_rating"] is not None
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_get_top_performing_agents(self, db, test_agent, test_user):
+    def test_get_top_performing_agents(self, db_session, test_agent, test_user):
         """Test getting top performing agents."""
         # Create positive feedback
         for i in range(10):
@@ -292,11 +281,11 @@ class TestFeedbackAnalytics:
                 thumbs_up_down=True,
                 rating=5
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         top_agents = analytics.get_top_performing_agents(days=30, limit=10)
 
         # Test agent should be in top agents
@@ -304,10 +293,10 @@ class TestFeedbackAnalytics:
         assert test_agent.id in agent_ids
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_get_most_corrected_agents(self, db, test_agent, test_user):
+    def test_get_most_corrected_agents(self, db_session, test_agent, test_user):
         """Test getting most corrected agents."""
         # Create correction feedback
         for i in range(5):
@@ -318,11 +307,11 @@ class TestFeedbackAnalytics:
                 user_correction=f"Correct output {i}",
                 feedback_type="correction"
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         most_corrected = analytics.get_most_corrected_agents(days=30, limit=10)
 
         # Test agent should be in most corrected
@@ -335,10 +324,10 @@ class TestFeedbackAnalytics:
                 assert agent["correction_count"] == 5
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_get_feedback_trends(self, db, test_agent, test_user):
+    def test_get_feedback_trends(self, db_session, test_agent, test_user):
         """Test getting feedback trends."""
         # Create feedback over multiple days
         for i in range(3):
@@ -351,11 +340,11 @@ class TestFeedbackAnalytics:
                 rating=5,
                 created_at=datetime.now() - timedelta(days=i)
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         trends = analytics.get_feedback_trends(days=30)
 
         assert len(trends) > 0
@@ -365,8 +354,8 @@ class TestFeedbackAnalytics:
         assert "negative" in trends[0]
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
 
 # ============================================================================
@@ -376,7 +365,7 @@ class TestFeedbackAnalytics:
 class TestAgentLearningEnhanced:
     """Test enhanced learning with feedback."""
 
-    def test_adjust_confidence_with_thumbs_up(self, db, test_agent, test_user):
+    def test_adjust_confidence_with_thumbs_up(self, db_session, test_agent, test_user):
         """Test confidence adjustment with thumbs up."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -386,7 +375,7 @@ class TestAgentLearningEnhanced:
             thumbs_up_down=True
         )
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -396,7 +385,7 @@ class TestAgentLearningEnhanced:
         assert new_confidence > 0.7  # Should increase
         assert new_confidence <= 1.0  # Should not exceed 1.0
 
-    def test_adjust_confidence_with_thumbs_down(self, db, test_agent, test_user):
+    def test_adjust_confidence_with_thumbs_down(self, db_session, test_agent, test_user):
         """Test confidence adjustment with thumbs down."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -406,7 +395,7 @@ class TestAgentLearningEnhanced:
             thumbs_up_down=False
         )
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -416,7 +405,7 @@ class TestAgentLearningEnhanced:
         assert new_confidence < 0.7  # Should decrease
         assert new_confidence >= 0.0  # Should not go below 0.0
 
-    def test_adjust_confidence_with_5_star_rating(self, db, test_agent, test_user):
+    def test_adjust_confidence_with_5_star_rating(self, db_session, test_agent, test_user):
         """Test confidence adjustment with 5-star rating."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -426,7 +415,7 @@ class TestAgentLearningEnhanced:
             rating=5
         )
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -435,7 +424,7 @@ class TestAgentLearningEnhanced:
 
         assert new_confidence > 0.7  # Should increase significantly
 
-    def test_adjust_confidence_with_1_star_rating(self, db, test_agent, test_user):
+    def test_adjust_confidence_with_1_star_rating(self, db_session, test_agent, test_user):
         """Test confidence adjustment with 1-star rating."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -445,7 +434,7 @@ class TestAgentLearningEnhanced:
             rating=1
         )
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -454,7 +443,7 @@ class TestAgentLearningEnhanced:
 
         assert new_confidence < 0.7  # Should decrease significantly
 
-    def test_adjust_confidence_with_correction(self, db, test_agent, test_user):
+    def test_adjust_confidence_with_correction(self, db_session, test_agent, test_user):
         """Test confidence adjustment with correction."""
         feedback = AgentFeedback(
             agent_id=test_agent.id,
@@ -464,7 +453,7 @@ class TestAgentLearningEnhanced:
             feedback_type="correction"
         )
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -473,7 +462,7 @@ class TestAgentLearningEnhanced:
 
         assert new_confidence < 0.7  # Should decrease
 
-    def test_get_learning_signals(self, db, test_agent, test_user):
+    def test_get_learning_signals(self, db_session, test_agent, test_user):
         """Test getting learning signals from feedback."""
         # Create mixed feedback
         for i in range(10):
@@ -485,11 +474,11 @@ class TestAgentLearningEnhanced:
                 thumbs_up_down=(i < 7),  # 7 positive, 3 negative
                 rating=5 if i < 7 else 2
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         signals = learning.get_learning_signals(test_agent.id, days=30)
 
         assert signals["agent_id"] == test_agent.id
@@ -499,12 +488,12 @@ class TestAgentLearningEnhanced:
         assert "improvement_suggestions" in signals
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_confidence_bounds(self, db, test_agent, test_user):
+    def test_confidence_bounds(self, db_session, test_agent, test_user):
         """Test confidence adjustments stay within bounds."""
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
 
         # Test upper bound
         feedback = AgentFeedback(
@@ -550,7 +539,7 @@ class TestAgentLearningEnhanced:
 class TestFeedbackIntegration:
     """Integration tests for feedback system."""
 
-    def test_feedback_to_analytics_to_learning(self, db, test_agent, test_user):
+    def test_feedback_to_analytics_to_learning(self, db_session, test_agent, test_user):
         """Test full feedback lifecycle: submit -> analytics -> learning."""
         # Step 1: Submit feedback
         feedback = AgentFeedback(
@@ -561,16 +550,16 @@ class TestFeedbackIntegration:
             thumbs_up_down=True,
             rating=5
         )
-        db.add(feedback)
-        db.commit()
+        db_session.add(feedback)
+        db_session.commit()
 
         # Step 2: Analytics
-        analytics = FeedbackAnalytics(db)
+        analytics = FeedbackAnalytics(db_session)
         summary = analytics.get_agent_feedback_summary(test_agent.id, days=30)
         assert summary["total_feedback"] >= 1
 
         # Step 3: Learning
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.adjust_confidence_with_feedback(
             agent_id=test_agent.id,
             feedback=feedback,
@@ -579,10 +568,10 @@ class TestFeedbackIntegration:
         assert new_confidence != test_agent.confidence_score
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
-    def test_batch_confidence_update(self, db, test_agent, test_user):
+    def test_batch_confidence_update(self, db_session, test_agent, test_user):
         """Test batch confidence update from multiple feedback."""
         # Create multiple feedback
         for i in range(20):
@@ -595,11 +584,11 @@ class TestFeedbackIntegration:
                 rating=5 if i < 15 else 2,
                 created_at=datetime.now() - timedelta(hours=i)
             )
-            db.add(feedback)
+            db_session.add(feedback)
 
-        db.commit()
+        db_session.commit()
 
-        learning = AgentLearningEnhanced(db)
+        learning = AgentLearningEnhanced(db_session)
         new_confidence = learning.batch_update_confidence_from_feedback(
             agent_id=test_agent.id,
             days=1
@@ -610,8 +599,8 @@ class TestFeedbackIntegration:
         assert new_confidence > test_agent.confidence_score
 
         # Cleanup
-        db.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
-        db.commit()
+        db_session.query(AgentFeedback).filter(AgentFeedback.agent_id == test_agent.id).delete()
+        db_session.commit()
 
 
 if __name__ == "__main__":
