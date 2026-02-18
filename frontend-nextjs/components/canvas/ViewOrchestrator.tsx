@@ -196,6 +196,17 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
           <p className="text-lg mb-2">No active views</p>
           <p className="text-sm">Views will appear here when the agent activates them.</p>
         </div>
+        {/* Accessibility Tree - Empty state */}
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="View orchestration state"
+          style={{ display: 'none' }}
+          data-canvas-state="view_orchestrator"
+          data-status="empty"
+        >
+          {JSON.stringify({ status: 'empty', message: 'No active views' })}
+        </div>
       </div>
     );
   }
@@ -301,6 +312,40 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
               />
             </div>
           );
+        })}
+      </div>
+
+      {/* Accessibility Tree - View orchestration state for AI agents */}
+      <div
+        role="log"
+        aria-live="polite"
+        aria-label="View orchestration state"
+        style={{ display: 'none' }}
+        data-canvas-state="view_orchestrator"
+        data-layout={orchestration?.layout}
+        data-current-view={orchestration?.current_view}
+        data-active-views-count={orchestration?.active_views?.length}
+        data-canvas-expanded={canvasExpanded}
+      >
+        {orchestration && JSON.stringify({
+          layout: orchestration.layout,
+          active_views: orchestration.active_views.map(v => ({
+            view_id: v.view_id,
+            view_type: v.view_type,
+            title: v.title,
+            status: v.status,
+            position: v.position,
+            size: v.size,
+            url: v.url,
+            command: v.command
+          })),
+          canvas_guidance: orchestration.canvas_guidance ? {
+            agent_id: orchestration.canvas_guidance.agent_id,
+            message: orchestration.canvas_guidance.message,
+            what_youre_seeing: orchestration.canvas_guidance.what_youre_seeing,
+            controls: orchestration.canvas_guidance.controls
+          } : null,
+          current_view: orchestration.current_view
         })}
       </div>
     </div>
