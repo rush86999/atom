@@ -13,6 +13,9 @@ from unittest.mock import AsyncMock, Mock, MagicMock, patch
 from sqlalchemy.orm import Session
 from hypothesis import given, strategies as st, settings, HealthCheck, example
 
+# Import module explicitly for coverage tracking
+import core.agent_governance_service  # noqa: F401
+
 from core.agent_governance_service import AgentGovernanceService
 from core.models import AgentRegistry, AgentStatus
 
