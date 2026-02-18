@@ -312,3 +312,76 @@ class CanvasSummaryService:
             Prompt instructions string or None if canvas type not found
         """
         return self._CANVAS_PROMPTS.get(canvas_type)
+
+    def _calculate_semantic_richness(self, summary: str) -> float:
+        """
+        Calculate semantic richness score (0.0 to 1.0).
+
+        Higher score indicates more business context, intent, and
+        decision reasoning present in the summary.
+
+        Args:
+            summary: LLM-generated summary
+
+        Returns:
+            Richness score (0.0 = poor, 1.0 = excellent)
+        """
+        if not summary:
+            return 0.0
+
+        richness_indicators = [
+            # Business context terms
+            "approval", "budget", "revenue", "workflow", "stakeholder",
+            "decision", "consent", "deadline", "priority",
+            # Metrics and numbers
+            "%", "growth", "increase", "decrease", "trend",
+            "$", "k", "m", "b",
+            # Intent and reasoning
+            "requiring", "requesting", "highlighting", "showing",
+            "due to", "because", "for", "with"
+        ]
+
+        summary_lower = summary.lower()
+        matches = sum(1 for indicator in richness_indicators if indicator.lower() in summary_lower)
+
+        # Normalize to 0-1 range (assuming ~10 indicators is excellent)
+        return min(1.0, matches / 10.0)
+
+    def _detect_hallucination(
+        self,
+        summary: str,
+        canvas_state: Dict[str, Any]
+    ) -> bool:
+        """
+        Detect hallucinations in LLM summary.
+
+        Checks if summary contains facts not present in canvas state.
+
+        Args:
+            summary: LLM-generated summary
+            canvas_state: Original canvas state
+
+        Returns:
+            True if hallucination detected (facts not in state)
+        """
+        import re
+
+        # Look for workflow IDs, amounts, etc. in summary
+        summary_facts = set()
+
+        # Workflow IDs (e.g., wf-123)
+        summary_facts.update(re.findall(r'wf-\d+', summary.lower()))
+
+        # Check if summary facts exist in canvas state
+        state_str = json.dumps(canvas_state, default=str).lower()
+
+        for fact in summary_facts:
+            if fact not in state_str:
+                # Fact not found in state - potential hallucination
+                return True
+
+        # For monetary amounts, be more lenient - just check presence of numbers
+        # Don't strictly match formatting differences ($50K vs 50000)
+        # Only flag if summary contains workflow IDs that don't exist in state
+
+        return False
