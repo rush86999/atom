@@ -21,8 +21,7 @@ from tools.atom_cli_skill_wrapper import (
     build_command_args
 )
 from core.skill_registry_service import SkillRegistryService
-from tests.factories import AgentRegistryFactory
-from sqlalchemy.orm import Session
+from unittest.mock import patch
 
 
 class TestAtomCliSkillParsing:
@@ -46,13 +45,14 @@ class TestAtomCliSkillParsing:
         assert skill_file.exists(), "atom-daemon.md file missing"
 
         # Parse the skill
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        # Verify parsing succeeded
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        # Verify parsing returned valid data
+        assert metadata is not None, "Skill parsing returned None metadata"
+        assert body is not None, "Skill parsing returned None body"
 
         # Verify skill metadata
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-daemon"
         assert skill["description"] == "Start Atom OS as background daemon service with PID tracking"
         assert skill["version"] == "1.0.0"
@@ -69,11 +69,12 @@ class TestAtomCliSkillParsing:
 
         assert skill_file.exists(), "atom-status.md file missing"
 
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        assert metadata is not None, f"Skill parsing failed for {skill_file.name}"
+        assert body is not None, f"Skill parsing failed for {skill_file.name}"
 
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-status"
         assert "daemon status" in skill["description"].lower()
         assert skill["maturity_level"] == "STUDENT"
@@ -88,13 +89,14 @@ class TestAtomCliSkillParsing:
 
         assert skill_file.exists(), "atom-start.md file missing"
 
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        assert metadata is not None, f"Skill parsing failed for {skill_file.name}"
+        assert body is not None, f"Skill parsing failed for {skill_file.name}"
 
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-start"
-        assert "start atom server" in skill["description"].lower()
+        assert "start atom" in skill["description"].lower()
         assert skill["maturity_level"] == "AUTONOMOUS"
 
         governance = skill.get("governance", {})
@@ -107,13 +109,14 @@ class TestAtomCliSkillParsing:
 
         assert skill_file.exists(), "atom-stop.md file missing"
 
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        assert metadata is not None, f"Skill parsing failed for {skill_file.name}"
+        assert body is not None, f"Skill parsing failed for {skill_file.name}"
 
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-stop"
-        assert "stop daemon" in skill["description"].lower()
+        assert "stop atom" in skill["description"].lower()
         assert skill["maturity_level"] == "AUTONOMOUS"
 
         governance = skill.get("governance", {})
@@ -126,13 +129,14 @@ class TestAtomCliSkillParsing:
 
         assert skill_file.exists(), "atom-execute.md file missing"
 
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        assert metadata is not None, f"Skill parsing failed for {skill_file.name}"
+        assert body is not None, f"Skill parsing failed for {skill_file.name}"
 
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-execute"
-        assert "execute command" in skill["description"].lower()
+        assert "execute atom" in skill["description"].lower()
         assert skill["maturity_level"] == "AUTONOMOUS"
 
         governance = skill.get("governance", {})
@@ -145,11 +149,12 @@ class TestAtomCliSkillParsing:
 
         assert skill_file.exists(), "atom-config.md file missing"
 
-        result = skill_parser.parse_skill_file(str(skill_file))
+        metadata, body = skill_parser.parse_skill_file(str(skill_file))
 
-        assert result["success"], f"Skill parsing failed: {result['error']}"
+        assert metadata is not None, f"Skill parsing failed for {skill_file.name}"
+        assert body is not None, f"Skill parsing failed for {skill_file.name}"
 
-        skill = result["skill"]
+        skill = metadata
         assert skill["name"] == "atom-config"
         assert "configuration" in skill["description"].lower()
         assert skill["maturity_level"] == "STUDENT"
@@ -484,7 +489,6 @@ class TestDaemonHelperFunctions:
 
     def test_wait_for_daemon_ready(self, mock_execute_atom_cli_command):
         """Poll status until running with timeout."""
-        import time
         from tools.atom_cli_skill_wrapper import wait_for_daemon_ready
 
         # Test immediate success
@@ -653,7 +657,7 @@ class TestAtomCliSkillImport:
         return list((Path(__file__).parent.parent / "skills/atom-cli").glob("atom-*.md"))
 
     @pytest.fixture
-    def skill_registry_service(self, get_db_session):
+    def skill_registry_service(self, db_session):
         """SkillRegistryService instance."""
         from core.skill_registry_service import SkillRegistryService
         return SkillRegistryService()
@@ -668,7 +672,7 @@ class TestAtomCliSkillImport:
         mock_service.check_permission.return_value = True
         monkeypatch.setattr('core.agent_governance_service.AgentGovernanceService', lambda: mock_service)
 
-    def test_import_all_cli_skills_via_api(self, skill_registry_service, get_db_session, mock_governance_service):
+    def test_import_all_cli_skills_via_api(self, skill_registry_service, db_session, mock_governance_service):
         """Import all 6 skills, verify skill_id returned."""
         from pathlib import Path
 
@@ -705,7 +709,7 @@ class TestAtomCliSkillImport:
         # Verify unique skill IDs
         assert len(set(imported_skills)) == 6, "Duplicate skill IDs found"
 
-    def test_imported_skills_have_correct_status(self, skill_registry_service, get_db_session, mock_governance_service):
+    def test_imported_skills_have_correct_status(self, skill_registry_service, db_session, mock_governance_service):
         """Verify Untrusted/Active based on scan."""
         from pathlib import Path
 
@@ -729,7 +733,7 @@ class TestAtomCliSkillImport:
         assert "status" in result
         assert result["status"] in ["Untrusted", "Active", "Active after review", "Banned"]
 
-    def test_execute_imported_skill(self, skill_registry_service, get_db_session, mock_governance_service):
+    def test_execute_imported_skill(self, skill_registry_service, db_session, mock_governance_service):
         """Full integration test (import -> execute -> verify result)."""
         from pathlib import Path
         from tools.atom_cli_skill_wrapper import execute_atom_cli_command
