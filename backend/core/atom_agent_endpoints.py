@@ -4,12 +4,29 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
-from advanced_workflow_orchestrator import get_orchestrator
-from ai.automation_engine import AutomationEngine
-from ai.workflow_scheduler import workflow_scheduler
+
+# Try to import optional dependencies
+try:
+    from advanced_workflow_orchestrator import get_orchestrator
+except ImportError:
+    get_orchestrator = None
+
+try:
+    from ai.automation_engine import AutomationEngine
+    AutomationEngine = None  # Will be loaded lazily
+except ImportError:
+    AutomationEngine = None
+
+try:
+    from ai.workflow_scheduler import workflow_scheduler
+except ImportError:
+    workflow_scheduler = None
 
 # Import AI service for intent classification
-from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+try:
+    from enhanced_ai_workflow_endpoints import RealAIWorkflowService
+except ImportError:
+    RealAIWorkflowService = None
 from fastapi import APIRouter, Body, HTTPException, Depends
 from sqlalchemy.orm import Session
 from operations.system_intelligence_service import SystemIntelligenceService
@@ -908,8 +925,11 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any]) ->
     
     if not workflow:
         return {"success": False, "response": {"message": f"Workflow '{workflow_ref}' not found.", "actions": []}}
-    
+
     try:
+        if AutomationEngine is None:
+            return {"success": False, "response": {"message": "AutomationEngine not available (missing dependencies)", "actions": []}}
+
         engine = AutomationEngine()
         execution_id = str(uuid.uuid4())
         results = await engine.execute_workflow_definition(workflow, {}, execution_id=execution_id)
@@ -1274,7 +1294,10 @@ async def execute_generated_workflow(request: ExecuteGeneratedRequest):
         workflow = next((w for w in workflows if w['id'] == request.workflow_id), None)
         if not workflow:
             return {"success": False, "error": "Workflow not found"}
-        
+
+        if AutomationEngine is None:
+            return {"success": False, "error": "AutomationEngine not available (missing dependencies)"}
+
         engine = AutomationEngine()
         execution_id = str(uuid.uuid4())
         results = await engine.execute_workflow_definition(workflow, request.input_data, execution_id=execution_id)

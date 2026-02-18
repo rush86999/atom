@@ -1,0 +1,86 @@
+{
+  "timestamp": "2026-02-17T21:26:29.341843",
+  "base_url": "http://localhost:5058",
+  "test_user": "test_user",
+  "total_services": 10,
+  "authorization_endpoints": {
+    "working": 0,
+    "success_rate": 0.0
+  },
+  "status_endpoints": {
+    "working": 0,
+    "success_rate": 0.0
+  },
+  "credentials": {
+    "real": 0,
+    "placeholder": 0,
+    "real_percentage": 0.0
+  },
+  "overall_system": {
+    "success_rate": 0.0,
+    "production_ready": false
+  },
+  "services_needing_credentials": [],
+  "results": {
+    "gmail": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/gmail/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55bdb90>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/gmail/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55d0dd0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "outlook": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/outlook/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e54bf910>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/outlook/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1cff29110>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "slack": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/slack/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55ac290>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/slack/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55ba7d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "teams": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/teams/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55a72d0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/teams/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e576ced0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "trello": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/trello/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55bdf10>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/trello/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e5797c50>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "asana": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/asana/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e576cf50>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/asana/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e54db7d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "notion": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/notion/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e576b250>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/notion/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55af710>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "github": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/github/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55cd510>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/github/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e3e8ce10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "dropbox": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/dropbox/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55aed90>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/dropbox/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e5769690>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    "gdrive": {
+      "auth_status": "\u274c EXCEPTION",
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/gdrive/authorize?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e54bd6d0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "status_status": "\u274c EXCEPTION",
+      "status_error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/auth/gdrive/status?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1e55a4950>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    }
+  }
+}

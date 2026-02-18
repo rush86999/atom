@@ -15,8 +15,21 @@ import os
 import platform
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple
-from PIL import Image, ImageGrab
-import anthropic
+
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    anthropic = None
+
+try:
+    from PIL import Image, ImageGrab
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    Image = None
+    ImageGrab = None
 
 try:
     import pyautogui
