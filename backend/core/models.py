@@ -1160,6 +1160,32 @@ class CategoryCache(Base):
         return f"<{self.__class__.__name__}(category_name={self.category_name}, expires_at={self.expires_at})>"
 
 
+class SkillRating(Base):
+    """
+    User ratings for community skills with 1-5 star scale.
+
+    Stores user feedback for marketplace skills.
+    Ratings are aggregated for average score display.
+
+    Phase 60 Plan 01 - Skill Marketplace with local ratings storage.
+    """
+    __tablename__ = "skill_ratings"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String(255), nullable=False, index=True)  # References SkillExecution.id
+    user_id = Column(String(255), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)  # 1-5 stars
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('idx_skill_rating_skill_user', 'skill_id', 'user_id', unique=True),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, user_id={self.user_id}, rating={self.rating})>"
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).
