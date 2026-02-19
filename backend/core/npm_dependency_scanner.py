@@ -133,9 +133,20 @@ class NpmDependencyScanner:
         dependencies = {}
 
         for pkg in packages:
-            # Parse package specifier (e.g., "lodash@4.17.21" or "express")
-            if '@' in pkg and not pkg.startswith('@'):
-                # Scoped packages start with @, so check if @ is not at start
+            # Parse package specifier (e.g., "lodash@4.17.21" or "express" or "@angular/core@12.0.0")
+            if pkg.startswith('@'):
+                # Scoped package (@scope/name or @scope/name@version)
+                if pkg.count('@') >= 2:  # @scope/name@version
+                    # Find the second @ to split name and version
+                    parts = pkg.split('@')
+                    # parts[0] = '', parts[1] = 'scope/name', parts[2] = 'version'
+                    name = f"@{parts[1]}"
+                    version = parts[2]
+                    dependencies[name] = version
+                else:  # @scope/name without version
+                    dependencies[pkg] = "*"
+            elif '@' in pkg:
+                # Regular package with version: name@version
                 name, version = pkg.split('@', 1)
                 dependencies[name] = version
             else:
@@ -297,7 +308,7 @@ class NpmDependencyScanner:
                                 "cve_id": vuln.get("cwe", "UNKNOWN"),
                                 "severity": vuln.get("severity", "UNKNOWN"),
                                 "package": pkg_name,
-                                "affected_versions": vuln.get("range", []),
+                                "affected_versions": [vuln.get("range", [])] if not isinstance(vuln.get("range", []), list) else vuln.get("range", []),
                                 "advisory": vuln.get("title", "No description"),
                                 "source": f"{package_manager}-audit"
                             })
