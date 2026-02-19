@@ -222,9 +222,14 @@ class SkillCompositionEngine:
 
             # Step 4: Complete workflow
             workflow_exec.status = "completed"
-            workflow_exec.completed_at = datetime.now(timezone.utc)
+            completed_at = datetime.now(timezone.utc)
+            workflow_exec.completed_at = completed_at
+            # Ensure started_at is timezone-aware for subtraction
+            started_at = workflow_exec.started_at
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
             workflow_exec.duration_seconds = (
-                workflow_exec.completed_at - workflow_exec.started_at
+                completed_at - started_at
             ).total_seconds()
             workflow_exec.final_output = results
             self.db.commit()
@@ -315,9 +320,14 @@ class SkillCompositionEngine:
         # TODO: Implement skill-specific rollback handlers
         # For now, mark workflow as rolled back
         workflow_exec.status = "rolled_back"
-        workflow_exec.completed_at = datetime.now(timezone.utc)
+        completed_at = datetime.now(timezone.utc)
+        workflow_exec.completed_at = completed_at
+        # Ensure started_at is timezone-aware for subtraction
+        started_at = workflow_exec.started_at
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
         workflow_exec.duration_seconds = (
-            workflow_exec.completed_at - workflow_exec.started_at
+            completed_at - started_at
         ).total_seconds()
         self.db.commit()
 

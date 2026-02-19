@@ -1147,8 +1147,8 @@ class SkillCompositionExecution(Base):
     rollback_steps = Column(JSON, nullable=True)  # Which steps were rolled back
 
     # Performance
-    started_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
-    completed_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Float, nullable=True)
 
     # Relationships
