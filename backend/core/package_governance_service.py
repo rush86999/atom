@@ -33,12 +33,12 @@ class PackageGovernanceService:
     while maintaining <1ms performance through GovernanceCache integration.
     """
 
-    # Maturity level ordering for comparisons
+    # Maturity level ordering for comparisons (lowercase to match AgentStatus enum)
     MATURITY_ORDER = {
-        "STUDENT": 0,
-        "INTERN": 1,
-        "SUPERVISED": 2,
-        "AUTONOMOUS": 3
+        "student": 0,
+        "intern": 1,
+        "supervised": 2,
+        "autonomous": 3
     }
 
     # Package permission statuses
@@ -82,31 +82,21 @@ class PackageGovernanceService:
 
         logger.debug(f"Cache MISS for {package_name}@{version} - checking database")
 
-        # Get agent maturity
+        # Get agent maturity (stored in 'status' field)
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
         ).first()
 
-        agent_maturity = agent.maturity_level if agent else "STUDENT"
+        agent_maturity = agent.status if agent else "student"
 
-        # STUDENT blocking rule (non-negotiable - educational restriction)
-        if agent_maturity == "STUDENT":
-            result = {
-                "allowed": False,
-                "maturity_required": "INTERN",
-                "reason": "STUDENT agents cannot execute Python packages (educational restriction)"
-            }
-            self.cache.set(agent_id, cache_key, result)
-            logger.info(f"STUDENT agent {agent_id} blocked from {package_name}@{version}")
-            return result
-
-        # Check package registry
+        # Check package registry FIRST (before STUDENT blocking)
+        # This allows banned package reason to take precedence
         package = db.query(PackageRegistry).filter(
             PackageRegistry.name == package_name,
             PackageRegistry.version == version
         ).first()
 
-        # Banned package enforcement (overrides all other rules)
+        # Banned package enforcement (overrides ALL other rules including STUDENT)
         if package and package.status == self.STATUS_BANNED:
             result = {
                 "allowed": False,
@@ -117,11 +107,23 @@ class PackageGovernanceService:
             logger.warning(f"Banned package {package_name}@{version} blocked for agent {agent_id}")
             return result
 
+        # STUDENT blocking rule (non-negotiable - educational restriction)
+        # But banned packages already handled above
+        if agent_maturity == "student":
+            result = {
+                "allowed": False,
+                "maturity_required": "intern",
+                "reason": "STUDENT agents cannot execute Python packages (educational restriction)"
+            }
+            self.cache.set(agent_id, cache_key, result)
+            logger.info(f"STUDENT agent {agent_id} blocked from {package_name}@{version}")
+            return result
+
         # Unknown package - requires approval
         if not package or package.status == self.STATUS_UNTRUSTED:
             result = {
                 "allowed": False,
-                "maturity_required": "INTERN",
+                "maturity_required": "intern",
                 "reason": f"Package {package_name}@{version} not in registry - requires approval"
             }
             self.cache.set(agent_id, cache_key, result)
@@ -166,7 +168,7 @@ class PackageGovernanceService:
         # Default deny for unexpected statuses
         result = {
             "allowed": False,
-            "maturity_required": "INTERN",
+            "maturity_required": "intern",
             "reason": f"Package {package_name}@{version} has unexpected status: {package.status}"
         }
         self.cache.set(agent_id, cache_key, result)
@@ -202,16 +204,15 @@ class PackageGovernanceService:
                 name=package_name,
                 version=version,
                 status=self.STATUS_PENDING,
-                min_maturity="INTERN"  # Default minimum maturity
+                min_maturity="intern"  # Default minimum maturity
             )
             db.add(package)
             logger.info(f"Created pending package request for {package_id}")
 
         db.commit()
 
-        # Invalidate cache for this package
-        cache_key = f"pkg:{package_name}:{version}"
-        self.cache.invalidate_all(cache_key)
+        # Clear all cache to ensure immediate effect (cache key pattern doesn't support wildcards)
+        self.cache.clear()
 
         return package
 
@@ -269,10 +270,9 @@ class PackageGovernanceService:
                 f"by {approved_by}"
             )
 
-        # Invalidate cache for this package (all agents)
-        cache_key = f"pkg:{package_name}:{version}"
-        self.cache.invalidate_all(cache_key)
-        logger.info(f"Invalidated cache for package {package_id}")
+        # Clear all cache to ensure immediate effect
+        self.cache.clear()
+        logger.info(f"Cleared cache for package {package_id}")
 
         db.commit()
         return package
@@ -309,15 +309,14 @@ class PackageGovernanceService:
                 version=version,
                 status=self.STATUS_BANNED,
                 ban_reason=reason,
-                min_maturity="AUTONOMOUS"  # Highest maturity (still blocked)
+                min_maturity="autonomous"  # Highest maturity (still blocked)
             )
             db.add(package)
             logger.warning(f"Created banned package {package_id}: {reason}")
 
-        # Invalidate cache for this package (all agents)
-        cache_key = f"pkg:{package_name}:{version}"
-        self.cache.invalidate_all(cache_key)
-        logger.warning(f"Invalidated cache for banned package {package_id}")
+        # Clear all cache to ensure immediate effect
+        self.cache.clear()
+        logger.warning(f"Cleared cache for banned package {package_id}")
 
         db.commit()
         return package
@@ -354,10 +353,10 @@ class PackageGovernanceService:
             <0 if a < b (a has lower maturity)
 
         Example:
-            _maturity_cmp("AUTONOMOUS", "INTERN") > 0
-            _maturity_cmp("STUDENT", "SUPERVISED") < 0
+            _maturity_cmp("autonomous", "intern") > 0
+            _maturity_cmp("student", "supervised") < 0
         """
-        return self.MATURITY_ORDER.get(a, 0) - self.MATURITY_ORDER.get(b, 0)
+        return self.MATURITY_ORDER.get(a.lower() if a else a, 0) - self.MATURITY_ORDER.get(b.lower() if b else b, 0)
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """
