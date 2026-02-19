@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 35-36 of 37 (Package Support - Python & npm)
-Plan: Phase 36-02 complete
-Status: Phase 36-02 COMPLETE - npm Dependency & Script Scanners (2/7 plans, 33 tests, production-ready)
-Last activity: 2026-02-19 — Phase 36-02 COMPLETE: npm Dependency & Script Scanners - Implemented NpmDependencyScanner with npm/yarn/pnpm audit integration and optional Snyk support for comprehensive vulnerability scanning. Created NpmScriptAnalyzer detecting 10 malicious postinstall patterns (fetch, axios, child_process, eval, process.env, fs, atob/btoa) and 3 suspicious package combinations (trufflehog+axios, dotenv+axios, node-fetch+fs) to prevent Shai-Hulud/Sha1-Hulud credential theft attacks. 33 comprehensive tests (15 scanner + 18 analyzer, 100% pass rate) covering npm audit JSON parsing, Snyk integration, timeout handling, malicious pattern detection, npm registry API integration, and scoped package parsing. 4 atomic commits (d994a3d4, 4880a292, 5ff9740f, cdcd9db6), 4 files created, 18 minutes duration. Timeout handling returns safe=True (scanning failure != security issue). Snyk integration optional - scanner works with npm audit alone.
+Plan: Phase 36-01 complete
+Status: Phase 36-01 COMPLETE - npm Package Governance Extension (1/7 plans, 4 tasks, production-ready)
+Last activity: 2026-02-19 — Phase 36-01 COMPLETE: npm Package Governance Extension - Extended PackageGovernanceService and PackageRegistry model to support npm packages alongside Python packages. Added package_type field (python/npm) to model with index for fast queries. Updated cache key format to include package_type: "pkg:{type}:{name}:{version}". Extended all service methods (check_permission, request_approval, approve, ban, list) to accept package_type parameter with backward-compatible default="python". Fixed SQLite migration compatibility (sa.func.current_timestamp, batch mode for foreign keys). 2 atomic commits (942dc174, 3d3e17c0), 3 files modified, 4 minutes duration. All 32 existing tests pass without modification. Cache keys namespaced by package type to prevent ID collisions between Python and npm packages.
 
 Previous: 2026-02-19 — Phase 35-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 75K+ bytes, 161+ sections) for Python Package Support. PYTHON_PACKAGES.md (19K bytes, 52 sections) - user guide with quick start, version formats, governance rules, security features, API usage, troubleshooting, best practices, and examples. PACKAGE_GOVERNANCE.md (15K bytes, 37 sections) - maturity-based access matrix, approval workflow, banning procedures, cache performance, API reference, audit trail. PACKAGE_SECURITY.md (21K bytes, 34 sections) - threat model (dependency confusion, typosquatting, transitive dependencies, container escape, resource exhaustion, data exfiltration), security constraints, vulnerability scanning, static code analysis, security testing, incident response. PYTHON_PACKAGES_DEPLOYMENT.md (20K bytes, 38 sections) - pre-deployment checklist, post-deployment verification, rollback procedures, production readiness, monitoring. Updated .env.example with SAFETY_API_KEY and cache configuration. Updated COMMUNITY_SKILLS.md with package dependency syntax examples. Updated CLAUDE.md with Python Package Support section and recent changes. 1 atomic commit (8211af2a), 7 files created/modified, 7 minutes duration. Phase 35 complete - all 7 plans executed, production-ready with comprehensive documentation.
 
@@ -28,7 +28,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 35% (v2.0: 12/31 plans) - Phase 36-02 complete
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 35% (v2.0: 13/31 plans) - Phase 36-01 complete
 
 ## Upcoming: Phase 36 - npm Package Support
 
@@ -74,7 +74,9 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 35 P05 | 420 | 2 tasks | 5 files |
 | Phase 35 P06 | 15 | 4 tasks | 4 files |
 | Phase 35 P07 | 463 | 4 tasks | 7 files |
+| Phase 36-npm-package-support P01 | 4 | 4 tasks | 3 files |
 | Phase 36-npm-package-support P02 | 18 | 5 tasks | 4 files |
+| Phase 36-npm-package-support P01 | 4min | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -117,6 +119,9 @@ Recent decisions affecting current work:
 - [Phase 35]: Non-root user execution (UID 1000) in skill containers for security
 - [Phase 35]: Comprehensive documentation follows defense-in-depth approach - user guide, governance, security, deployment all covered for production readiness
 - [Phase 35]: Package version formats clearly explained with recommendations - exact versions (==) preferred for reproducibility in production
+- [Phase 36-npm-package-support]: Include package_type in initial PackageRegistry table creation migration
+- [Phase 36-npm-package-support]: Use default package_type='python' for backward compatibility
+- [Phase 36-npm-package-support]: Namespaced cache keys by package type to prevent Python/npm package ID collisions
 
 ### Pending Todos
 
