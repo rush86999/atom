@@ -1136,7 +1136,15 @@ try:
     except ImportError as e:
         logger.warning(f"Custom components routes not found: {e}")
 
-    # 15.12 Analytics Dashboard Routes (NEW - Phase 1)
+    # 15.12 Auto-Installation Routes (Phase 60 - Advanced Skill Execution)
+    try:
+        from api.auto_install_routes import router as auto_install_router
+        app.include_router(auto_install_router, prefix="/api", tags=["Auto-Installation"])
+        logger.info("✓ Auto-Installation Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Auto-installation routes not found: {e}")
+
+    # 15.13 Analytics Dashboard Routes (NEW - Phase 1)
     try:
         from api.analytics_dashboard_endpoints import router as analytics_dashboard_router
         app.include_router(analytics_dashboard_router, tags=["Analytics Dashboard"])
