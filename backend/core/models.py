@@ -323,13 +323,13 @@ class WorkflowExecutionLog(Base):
     __tablename__ = "workflow_execution_logs"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False)
 
     level = Column(String, default="INFO")  # DEBUG, INFO, WARNING, ERROR
     message = Column(Text, nullable=False)
     step_id = Column(String, nullable=True)
     context = Column(JSON, nullable=True)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     execution = relationship("WorkflowExecution", backref="logs")
 
@@ -343,10 +343,10 @@ class WorkflowStepExecution(Base):
     __tablename__ = "workflow_step_executions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
-    workflow_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False)
+    workflow_id = Column(String, nullable=False)
 
-    step_id = Column(String, nullable=False, index=True)
+    step_id = Column(String, nullable=False)
     step_name = Column(String, nullable=False)
     step_type = Column(String, nullable=False)  # trigger, action, condition
     sequence_order = Column(Integer, nullable=False)
@@ -1097,12 +1097,16 @@ class SkillExecution(Base):
     sandbox_enabled = Column(Boolean, default=False, index=True)
     container_id = Column(String, nullable=True)  # Docker container ID for sandbox execution
 
+    # Package governance (Phase 35)
+    package_id = Column(String, ForeignKey("package_registry.id"), nullable=True, index=True)  # Python package used
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     agent = relationship("AgentRegistry", backref="skill_executions")
     workspace = relationship("Workspace", backref="skill_executions")
+    package = relationship("PackageRegistry", back_populates="executions")
 
 class AgentExecution(Base):
     """
@@ -1668,9 +1672,9 @@ class ABTestParticipant(Base):
     __tablename__ = "ab_test_participants"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    test_id = Column(String, ForeignKey("ab_tests.id"), nullable=False, index=True)
-    user_id = Column(String, nullable=False, index=True)
-    session_id = Column(String, nullable=True, index=True)
+    test_id = Column(String, ForeignKey("ab_tests.id"), nullable=False)
+    user_id = Column(String, nullable=False)
+    session_id = Column(String, nullable=True)
 
     # Assignment
     assigned_variant = Column(String, nullable=False)  # 'A' or 'B'
@@ -1730,9 +1734,9 @@ class CanvasAgentParticipant(Base):
     __tablename__ = "canvas_agent_participants"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id"), nullable=False, index=True)
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    user_id = Column(String, nullable=False, index=True)  # User who initiated this agent
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id"), nullable=False)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, nullable=False)  # User who initiated this agent
 
     # Agent role and permissions
     role = Column(String, default="contributor")  # owner, contributor, reviewer, viewer
@@ -1812,12 +1816,12 @@ class CustomComponent(Base):
     __tablename__ = "custom_components"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workspace_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    workspace_id = Column(String, nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Component identification
     name = Column(String, nullable=False)
-    slug = Column(String, nullable=False, unique=True, index=True)  # URL-friendly identifier
+    slug = Column(String, nullable=False, unique=True)  # URL-friendly identifier
     description = Column(Text, nullable=True)
     category = Column(String, default="custom")  # 'chart', 'form', 'widget', 'custom'
 
@@ -1846,7 +1850,7 @@ class CustomComponent(Base):
     parent_component_id = Column(String, ForeignKey("custom_components.id"), nullable=True)
 
     # Timing
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -1873,7 +1877,7 @@ class ComponentVersion(Base):
     __tablename__ = "component_versions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False, index=True)
+    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False)
     version_number = Column(Integer, nullable=False)
 
     # Version code snapshot
@@ -1890,7 +1894,7 @@ class ComponentVersion(Base):
     change_type = Column(String, default="update")  # 'create', 'update', 'rollback'
 
     # Timing
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     component = relationship("CustomComponent", back_populates="versions")
@@ -1911,11 +1915,11 @@ class ComponentUsage(Base):
     __tablename__ = "component_usage"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False, index=True)
-    canvas_id = Column(String, nullable=False, index=True)
-    session_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    component_id = Column(String, ForeignKey("custom_components.id"), nullable=False)
+    canvas_id = Column(String, nullable=False)
+    session_id = Column(String, nullable=True)
+    user_id = Column(String, nullable=False)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
 
     # Usage context
     props_passed = Column(JSON, nullable=True)  # Properties passed to component
@@ -1927,7 +1931,7 @@ class ComponentUsage(Base):
     agent_maturity_level = Column(String, nullable=True)
 
     # Timing
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     component = relationship("CustomComponent", back_populates="usage_logs")
@@ -1960,9 +1964,9 @@ class WorkflowTemplate(Base):
     tags = Column(JSON, default=list)
 
     # Authorship and visibility
-    author_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    is_public = Column(Boolean, default=False, index=True)
-    is_featured = Column(Boolean, default=False, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=True)
+    is_public = Column(Boolean, default=False)
+    is_featured = Column(Boolean, default=False)
 
     # Template content (full workflow definition)
     template_json = Column(JSON, nullable=False)
@@ -1994,7 +1998,7 @@ class WorkflowTemplate(Base):
     license = Column(String, default="MIT")
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
@@ -2026,7 +2030,7 @@ class TemplateVersion(Base):
     __tablename__ = "template_versions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False, index=True)
+    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False)
     version = Column(String, nullable=False)  # Semantic version (1.0.0, 1.1.0, etc.)
 
     # Snapshot of template at this version
@@ -2056,9 +2060,9 @@ class TemplateExecution(Base):
     __tablename__ = "template_executions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False, index=True)
-    workflow_id = Column(String, nullable=False, index=True)  # Created workflow ID
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    template_id = Column(String, ForeignKey("workflow_templates.template_id"), nullable=False)
+    workflow_id = Column(String, nullable=False)  # Created workflow ID
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Execution parameters
     parameters_used = Column(JSON, nullable=False)  # Input values provided
@@ -2093,7 +2097,7 @@ class WorkflowCollaborationSession(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String, unique=True, nullable=False, index=True)
-    workflow_id = Column(String, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False)
 
     # Session metadata
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
@@ -2128,8 +2132,8 @@ class CollaborationSessionParticipant(Base):
     __tablename__ = "collaboration_session_participants"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Presence tracking
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -2170,18 +2174,18 @@ class EditLock(Base):
     session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=False, index=True)
 
     # Lock target
-    workflow_id = Column(String, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False)
     resource_type = Column(String, nullable=False)  # "node", "edge", "workflow"
-    resource_id = Column(String, nullable=False, index=True)  # node_id, edge_id, or "workflow"
+    resource_id = Column(String, nullable=False)  # node_id, edge_id, or "workflow"
 
     # Lock owner
-    locked_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    locked_by = Column(String, ForeignKey("users.id"), nullable=False)
     locked_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
     # Lock metadata
     lock_reason = Column(String)  # Optional reason for lock
-    is_active = Column(Boolean, default=True, index=True)
+    is_active = Column(Boolean, default=True)
 
     # Relationships
     session = relationship("WorkflowCollaborationSession", back_populates="locks")
@@ -2205,21 +2209,21 @@ class WorkflowShare(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     share_id = Column(String, unique=True, nullable=False, index=True)
-    workflow_id = Column(String, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False)
 
     # Share metadata
-    created_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
     share_link = Column(String, unique=True, nullable=False)  # Public share URL
 
     # Access control
     share_type = Column(String, default="link")  # "link", "email", "workspace"
     permissions = Column(JSON)  # {can_view: true, can_edit: false, can_comment: true}
-    expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
     max_uses = Column(Integer, nullable=True)  # Null for unlimited
     use_count = Column(Integer, default=0)
 
     # Active status
-    is_active = Column(Boolean, default=True, index=True)
+    is_active = Column(Boolean, default=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     revoked_by = Column(String, ForeignKey("users.id"), nullable=True)
 
@@ -2247,26 +2251,26 @@ class CollaborationComment(Base):
     __tablename__ = "collaboration_comments"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False)
 
     # Comment content
-    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
 
     # Thread support
-    parent_comment_id = Column(String, ForeignKey("collaboration_comments.id"), nullable=True, index=True)
+    parent_comment_id = Column(String, ForeignKey("collaboration_comments.id"), nullable=True)
 
     # Context
     context_type = Column(String)  # "workflow", "node", "edge"
     context_id = Column(String)  # node_id or edge_id for targeted comments
 
     # Status
-    is_resolved = Column(Boolean, default=False, index=True)
+    is_resolved = Column(Boolean, default=False)
     resolved_by = Column(String, ForeignKey("users.id"), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
@@ -2292,11 +2296,11 @@ class CollaborationAudit(Base):
     __tablename__ = "collaboration_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False, index=True)
+    workflow_id = Column(String, nullable=False)
 
     # Action details
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    action_type = Column(String, nullable=False, index=True)  # "share", "comment", "lock", "unlock", "join_session"
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    action_type = Column(String, nullable=False)  # "share", "comment", "lock", "unlock", "join_session"
     action_details = Column(JSON)  # Additional context about the action
 
     # Target resource
@@ -2304,10 +2308,10 @@ class CollaborationAudit(Base):
     resource_id = Column(String)
 
     # Session tracking
-    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=True, index=True)
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.session_id"), nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user = relationship("User")
@@ -2334,11 +2338,11 @@ class WorkflowDebugSession(Base):
     __tablename__ = "workflow_debug_sessions"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False, index=True)
-    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
+    workflow_id = Column(String, nullable=False)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True)
     
     # Session management
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     session_name = Column(String, nullable=True)
     status = Column(String, default="active")  # active, paused, completed, cancelled
     current_step = Column(Integer, default=0)
@@ -2389,12 +2393,12 @@ class WorkflowBreakpoint(Base):
     __tablename__ = "workflow_breakpoints"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False, index=True)
-    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    workflow_id = Column(String, nullable=False)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True)
     
     # Breakpoint target
-    node_id = Column(String, nullable=False, index=True)  # ID of the node to break at
-    edge_id = Column(String, nullable=True, index=True)  # ID of the edge (for connection breakpoints)
+    node_id = Column(String, nullable=False)  # ID of the node to break at
+    edge_id = Column(String, nullable=True)  # ID of the edge (for connection breakpoints)
     
     # Breakpoint configuration
     breakpoint_type = Column(String, default="node")  # node, edge, conditional, exception
@@ -2403,7 +2407,7 @@ class WorkflowBreakpoint(Base):
     hit_limit = Column(Integer, nullable=True)  # Stop after N hits (null = unlimited)
     
     # State
-    is_active = Column(Boolean, default=True, index=True)
+    is_active = Column(Boolean, default=True)
     is_disabled = Column(Boolean, default=False)
     log_message = Column(Text, nullable=True)  # Optional log message instead of stopping
     
@@ -2433,13 +2437,13 @@ class ExecutionTrace(Base):
     __tablename__ = "execution_traces"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = Column(String, nullable=False, index=True)
-    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
-    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    workflow_id = Column(String, nullable=False)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True)
     
     # Step information
-    step_number = Column(Integer, nullable=False, index=True)
-    node_id = Column(String, nullable=False, index=True)
+    step_number = Column(Integer, nullable=False)
+    node_id = Column(String, nullable=False)
     node_type = Column(String, nullable=False)  # trigger, action, condition, loop, etc.
     
     # Execution details
@@ -2484,11 +2488,11 @@ class DebugVariable(Base):
     __tablename__ = "debug_variables"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    trace_id = Column(String, ForeignKey("execution_traces.id"), nullable=False, index=True)
-    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True, index=True)
+    trace_id = Column(String, ForeignKey("execution_traces.id"), nullable=False)
+    debug_session_id = Column(String, ForeignKey("workflow_debug_sessions.id"), nullable=True)
     
     # Variable identification
-    variable_name = Column(String, nullable=False, index=True)
+    variable_name = Column(String, nullable=False)
     variable_path = Column(String, nullable=False)  # Dot-notation path for nested variables (e.g., "user.profile.name")
     variable_type = Column(String, nullable=False)  # string, number, boolean, object, array, null
     
@@ -2526,8 +2530,8 @@ class EmailVerificationToken(Base):
     __tablename__ = "email_verification_tokens"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    token = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    token = Column(String, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -2595,8 +2599,8 @@ class MeetingAttendanceStatus(Base):
     __tablename__ = "meeting_attendance_status"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    task_id = Column(String, nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    task_id = Column(String, nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     platform = Column(String, nullable=True)  # zoom, teams, meet, etc.
     meeting_identifier = Column(String, nullable=True)  # Meeting ID or URL
     status_timestamp = Column(DateTime(timezone=True), nullable=False)
@@ -2620,7 +2624,7 @@ class FinancialAccount(Base):
     __tablename__ = "financial_accounts"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     account_type = Column(String, nullable=False)  # checking, savings, investment, credit_card
     provider = Column(String, nullable=True)  # Bank or institution name
     provider_account_id = Column(String, nullable=True)  # External ID
@@ -2645,8 +2649,8 @@ class NetWorthSnapshot(Base):
     __tablename__ = "net_worth_snapshots"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    snapshot_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    snapshot_date = Column(DateTime(timezone=True), nullable=False)
     net_worth = Column(Float, nullable=False)
     assets = Column(Float, default=0.0)
     liabilities = Column(Float, default=0.0)
@@ -2669,9 +2673,9 @@ class CanvasRecording(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     recording_id = Column(String, unique=True, nullable=False, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     canvas_id = Column(String, nullable=True)
-    session_id = Column(String, nullable=True, index=True)
+    session_id = Column(String, nullable=True)
 
     # Recording metadata
     reason = Column(String, nullable=False)  # Why was this recorded?
@@ -2719,9 +2723,9 @@ class CanvasRecordingReview(Base):
     __tablename__ = "canvas_recording_reviews"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    recording_id = Column(String, ForeignKey("canvas_recordings.recording_id"), nullable=False, index=True)
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    recording_id = Column(String, ForeignKey("canvas_recordings.recording_id"), nullable=False)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Review outcomes
     review_status = Column(String, nullable=False)  # approved, rejected, needs_changes, pending
@@ -2775,8 +2779,8 @@ class MobileDevice(Base):
     __tablename__ = "mobile_devices"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    device_token = Column(String, nullable=False, unique=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    device_token = Column(String, nullable=False, unique=True)
     platform = Column(String, nullable=False)  # ios, android, web
     status = Column(String, default="active")  # active, inactive, disabled
 
@@ -2816,8 +2820,8 @@ class OfflineAction(Base):
     __tablename__ = "offline_actions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Action details
     action_type = Column(String, nullable=False)  # agent_message, workflow_trigger, form_submit, etc.
@@ -2854,8 +2858,8 @@ class SyncState(Base):
     __tablename__ = "sync_states"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False, unique=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_id = Column(String, ForeignKey("mobile_devices.id"), nullable=False, unique=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Last sync timestamps
     last_sync_at = Column(DateTime(timezone=True), nullable=True)
@@ -2941,15 +2945,15 @@ class BlockedTriggerContext(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized for quick queries
 
     # Maturity State at Time of Block
-    agent_maturity_at_block = Column(String, nullable=False, index=True)  # student, intern, supervised, autonomous
+    agent_maturity_at_block = Column(String, nullable=False)  # student, intern, supervised, autonomous
     confidence_score_at_block = Column(Float, nullable=False)
 
     # Trigger Source
-    trigger_source = Column(String, nullable=False, index=True)  # MANUAL, DATA_SYNC, WORKFLOW_ENGINE, AI_COORDINATOR
+    trigger_source = Column(String, nullable=False)  # MANUAL, DATA_SYNC, WORKFLOW_ENGINE, AI_COORDINATOR
     trigger_type = Column(String, nullable=False)  # agent_message, workflow_trigger, etc.
     trigger_context = Column(JSON, nullable=False)  # Full trigger payload
 
@@ -2958,13 +2962,13 @@ class BlockedTriggerContext(Base):
     block_reason = Column(Text, nullable=False)  # Human-readable explanation
 
     # Resolution
-    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True, index=True)
-    resolved = Column(Boolean, default=False, index=True)
+    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True)
+    resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolution_outcome = Column(Text, nullable=True)  # What happened after blocking
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     agent = relationship("AgentRegistry", backref="blocked_triggers")
@@ -2992,11 +2996,11 @@ class AgentProposal(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized
 
     # Proposal Details
-    proposal_type = Column(String, nullable=False, index=True)  # training, action, analysis
+    proposal_type = Column(String, nullable=False)  # training, action, analysis
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
 
@@ -3021,9 +3025,9 @@ class AgentProposal(Base):
     training_end_date = Column(DateTime(timezone=True), nullable=True)
 
     # Approval Workflow
-    status = Column(String, default=ProposalStatus.PROPOSED.value, index=True)
+    status = Column(String, default=ProposalStatus.PROPOSED.value)
     proposed_by = Column(String, nullable=False)  # agent_id or "atom_meta_agent"
-    approved_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     modifications = Column(JSON, nullable=True)  # Changes made during approval
 
@@ -3032,7 +3036,7 @@ class AgentProposal(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -3062,24 +3066,24 @@ class SupervisionSession(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized
 
     # Trigger Context
-    trigger_id = Column(String, ForeignKey("blocked_triggers.id"), nullable=True, index=True)
-    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    trigger_id = Column(String, ForeignKey("blocked_triggers.id"), nullable=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     trigger_context = Column(JSON, nullable=False)  # Original trigger context
 
     # Session Status
-    status = Column(String, default=SupervisionStatus.RUNNING.value, index=True)
+    status = Column(String, default=SupervisionStatus.RUNNING.value)
 
     # Timing
-    started_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Integer, nullable=True)  # Calculated on completion
 
     # Supervision
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False)
     intervention_count = Column(Integer, default=0)  # Number of interventions
 
     # Interventions (JSON array of intervention records)
@@ -3134,10 +3138,10 @@ class SupervisorRating(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Links
-    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    rater_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)  # Who rated
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)  # Optional agent context
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    rater_id = Column(String, ForeignKey("users.id"), nullable=False)  # Who rated
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)  # Optional agent context
 
     # Rating (1-5 stars)
     rating = Column(Integer, nullable=False)  # 1-5 scale
@@ -3178,9 +3182,9 @@ class SupervisorComment(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Links
-    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
-    author_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    parent_comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)  # For threading
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False)
+    parent_comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True)  # For threading
 
     # Content
     content = Column(Text, nullable=False)
@@ -3205,7 +3209,7 @@ class SupervisorComment(Base):
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)  # Soft delete
 
@@ -3235,9 +3239,9 @@ class FeedbackVote(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Links
-    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=True, index=True)
-    comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=True)
+    comment_id = Column(String, ForeignKey("supervisor_comments.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Vote (thumbs up/down)
     vote_type = Column(String, nullable=False)  # "up", "down"
@@ -3278,7 +3282,7 @@ class SupervisorPerformance(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Supervisor
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True)
 
     # Overall Metrics
     total_sessions_supervised = Column(Integer, default=0)
@@ -3342,9 +3346,9 @@ class InterventionOutcome(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Links
-    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False, index=True)
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    supervision_session_id = Column(String, ForeignKey("supervision_sessions.id"), nullable=False)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
 
     # Intervention Details
     intervention_type = Column(String, nullable=False)  # "pause", "correct", "terminate"
@@ -3398,14 +3402,14 @@ class TrainingSession(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Proposal Reference
-    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=False, index=True, unique=True)
+    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=False, unique=True)
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized
 
     # Session Status
-    status = Column(String, index=True)  # scheduled, in_progress, completed, cancelled, failed
+    status = Column(String)  # scheduled, in_progress, completed, cancelled, failed
 
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -3413,7 +3417,7 @@ class TrainingSession(Base):
     duration_seconds = Column(Integer, nullable=True)  # Actual training duration
 
     # Supervision
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=False)
     supervisor_guidance = Column(JSON, nullable=True)  # Guidance provided during training
 
     # Training Progress
@@ -3435,7 +3439,7 @@ class TrainingSession(Base):
     capability_gaps_remaining = Column(JSON, nullable=True)  # Gaps still remaining
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -3463,7 +3467,7 @@ class Dashboard(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    owner_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Dashboard configuration (layout, theme, refresh interval, etc.)
     configuration = Column(JSON, default={})
@@ -3496,7 +3500,7 @@ class DashboardWidget(Base):
     __tablename__ = "dashboard_widgets"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    dashboard_id = Column(String, ForeignKey("dashboards.id"), nullable=False, index=True)
+    dashboard_id = Column(String, ForeignKey("dashboards.id"), nullable=False)
 
     # Widget configuration
     widget_type = Column(String(50), nullable=False)  # 'line_chart', 'bar_chart', 'metric', 'table', etc.
@@ -3545,10 +3549,10 @@ class ActiveToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     jti = Column(String(255), unique=True, nullable=False, index=True)
     issued_at = Column(DateTime, server_default=func.now(), nullable=False)
-    expires_at = Column(DateTime, nullable=False, index=True)  # For cleanup
+    expires_at = Column(DateTime, nullable=False)  # For cleanup
 
     # Track which user owns the token
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Optional: Track token context (IP, user agent)
     issued_ip = Column(String(50), nullable=True)
@@ -3579,10 +3583,10 @@ class RevokedToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     jti = Column(String(255), unique=True, nullable=False, index=True)
     revoked_at = Column(DateTime, server_default=func.now(), nullable=False)
-    expires_at = Column(DateTime, nullable=False, index=True)  # For cleanup
+    expires_at = Column(DateTime, nullable=False)  # For cleanup
 
     # Optional: Track which user revoked the token
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
 
     # Optional: Track revocation reason (logout, password_change, security_breach, admin_action)
     revocation_reason = Column(String(50), nullable=True)
@@ -3618,12 +3622,12 @@ class Episode(Base):
     summary = Column(Text, nullable=True)
 
     # Attribution
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
 
     # Relationships
-    session_id = Column(String, nullable=True, index=True)  # Links to ChatSession
+    session_id = Column(String, nullable=True)  # Links to ChatSession
     execution_ids = Column(JSON, default=list)  # List of AgentExecution IDs
 
     # Canvas linkage (NEW - Feb 2026)
@@ -3635,14 +3639,14 @@ class Episode(Base):
     aggregate_feedback_score = Column(Float, nullable=True)  # -1.0 to 1.0 aggregate score
 
     # Supervision linkage (NEW - Feb 2026)
-    supervisor_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    supervisor_id = Column(String, ForeignKey("users.id"), nullable=True)
     supervisor_rating = Column(Integer, nullable=True)  # 1-5 scale
     supervision_feedback = Column(Text, nullable=True)
     intervention_count = Column(Integer, default=0)
     intervention_types = Column(JSON, nullable=True)  # ["pause", "correct", "terminate"]
 
     # Proposal linkage (NEW - Feb 2026)
-    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True, index=True)
+    proposal_id = Column(String, ForeignKey("agent_proposals.id"), nullable=True)
     proposal_outcome = Column(String, nullable=True)  # "approved", "rejected", "modified"
     rejection_reason = Column(Text, nullable=True)
 
@@ -3652,15 +3656,15 @@ class Episode(Base):
     duration_seconds = Column(Integer, nullable=True)
 
     # State
-    status = Column(String, default="active", nullable=False, index=True)  # active, completed, archived, consolidated
+    status = Column(String, default="active", nullable=False)  # active, completed, archived, consolidated
 
     # Content
     topics = Column(JSON, default=list)  # Extracted topics
     entities = Column(JSON, default=list)  # Named entities
-    importance_score = Column(Float, default=0.5, index=True)  # 0.0 to 1.0
+    importance_score = Column(Float, default=0.5)  # 0.0 to 1.0
 
     # Graduation tracking fields
-    maturity_at_time = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    maturity_at_time = Column(String, nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
     human_intervention_count = Column(Integer, default=0, nullable=False)
     human_edits = Column(JSON, default=list)  # List of corrections made
     constitutional_score = Column(Float, nullable=True)  # 0.0 to 1.0
@@ -3721,10 +3725,10 @@ class EpisodeSegment(Base):
     __tablename__ = "episode_segments"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False, index=True)
+    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False)
 
     # Segment details
-    segment_type = Column(String, nullable=False, index=True)  # conversation, execution, reflection
+    segment_type = Column(String, nullable=False)  # conversation, execution, reflection
     sequence_order = Column(Integer, nullable=False)  # For ordering within episode
 
     # Content
@@ -3733,7 +3737,7 @@ class EpisodeSegment(Base):
 
     # Source tracking
     source_type = Column(String, nullable=False)  # chat_message, agent_execution, manual
-    source_id = Column(String, nullable=True, index=True)  # ID of source object
+    source_id = Column(String, nullable=True)  # ID of source object
 
     # Canvas context for semantic understanding
     canvas_context = Column(JSON, nullable=True, comment="""
@@ -3783,13 +3787,13 @@ class EpisodeAccessLog(Base):
     __tablename__ = "episode_access_logs"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False, index=True)
+    episode_id = Column(String, ForeignKey("episodes.id", ondelete="CASCADE"), nullable=False)
 
     # Access details
-    accessed_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    accessed_by_agent = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    accessed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    accessed_by_agent = Column(String, ForeignKey("agent_registry.id"), nullable=True)
 
-    access_type = Column(String, nullable=False, index=True)  # temporal, semantic, sequential, contextual
+    access_type = Column(String, nullable=False)  # temporal, semantic, sequential, contextual
     retrieval_query = Column(Text, nullable=True)
     retrieval_mode = Column(String, nullable=True)  # Specific mode used
 
@@ -3802,7 +3806,7 @@ class EpisodeAccessLog(Base):
     access_duration_ms = Column(Integer, nullable=True)
 
     # Timing
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user = relationship("User", foreign_keys=[accessed_by])
@@ -3845,22 +3849,22 @@ class ProactiveMessage(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized for quick queries
-    agent_maturity_level = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    agent_maturity_level = Column(String, nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
 
     # Message Details
-    platform = Column(String, nullable=False, index=True)  # slack, discord, whatsapp, etc.
-    recipient_id = Column(String, nullable=False, index=True)  # User ID, channel ID, phone number
+    platform = Column(String, nullable=False)  # slack, discord, whatsapp, etc.
+    recipient_id = Column(String, nullable=False)  # User ID, channel ID, phone number
     content = Column(Text, nullable=False)
 
     # Scheduling
-    scheduled_for = Column(DateTime(timezone=True), nullable=True, index=True)  # Send at specific time
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)  # Send at specific time
     send_now = Column(Boolean, default=False)  # If True, send immediately (if approved)
 
     # Status & Approval
-    status = Column(String, default=ProactiveMessageStatus.PENDING.value, index=True)
-    approved_by = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    status = Column(String, default=ProactiveMessageStatus.PENDING.value)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(Text, nullable=True)
 
@@ -3873,7 +3877,7 @@ class ProactiveMessage(Base):
     platform_message_id = Column(String, nullable=True)  # ID returned by platform
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -3910,24 +3914,24 @@ class ScheduledMessage(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized
 
     # Schedule Details
-    platform = Column(String, nullable=False, index=True)
-    recipient_id = Column(String, nullable=False, index=True)
+    platform = Column(String, nullable=False)
+    recipient_id = Column(String, nullable=False)
 
     # Message Content (Template)
     template = Column(Text, nullable=False)  # Can include variables like {{customer_name}}
     template_variables = Column(JSON, default={})  # Variable definitions for substitution
 
     # Schedule Configuration
-    schedule_type = Column(String, nullable=False, index=True)  # one_time, recurring
+    schedule_type = Column(String, nullable=False)  # one_time, recurring
     cron_expression = Column(String, nullable=True)  # For recurring: "0 9 * * *" (daily at 9am)
     natural_language_schedule = Column(String, nullable=True)  # "every day at 9am"
 
     # Execution Tracking
-    next_run = Column(DateTime(timezone=True), nullable=False, index=True)
+    next_run = Column(DateTime(timezone=True), nullable=False)
     last_run = Column(DateTime(timezone=True), nullable=True)
     run_count = Column(Integer, default=0, nullable=False)
 
@@ -3936,14 +3940,14 @@ class ScheduledMessage(Base):
     end_date = Column(DateTime(timezone=True), nullable=True)  # Stop after this date
 
     # Status
-    status = Column(String, default=ScheduledMessageStatus.ACTIVE.value, index=True)
+    status = Column(String, default=ScheduledMessageStatus.ACTIVE.value)
     timezone = Column(String, default="UTC")  # Timezone for schedule
 
     # Governance
     governance_metadata = Column(JSON, default={})
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -3987,7 +3991,7 @@ class ConditionMonitor(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent Information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
     agent_name = Column(String, nullable=False)  # Denormalized
 
     # Monitor Details
@@ -3995,7 +3999,7 @@ class ConditionMonitor(Base):
     description = Column(Text, nullable=True)
 
     # Condition Configuration
-    condition_type = Column(String, nullable=False, index=True)  # inbox_volume, task_backlog, api_metrics, etc.
+    condition_type = Column(String, nullable=False)  # inbox_volume, task_backlog, api_metrics, etc.
     threshold_config = Column(JSON, nullable=False)  # Threshold configuration
     # Examples:
     # {"metric": "unread_count", "operator": ">", "value": 100}
@@ -4017,13 +4021,13 @@ class ConditionMonitor(Base):
     last_alert_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     # Status
-    status = Column(String, default="active", index=True)  # active, paused, disabled
+    status = Column(String, default="active")  # active, paused, disabled
 
     # Governance
     governance_metadata = Column(JSON, default={})
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -4049,7 +4053,7 @@ class ConditionAlert(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Monitor Reference
-    monitor_id = Column(String, ForeignKey("condition_monitors.id"), nullable=False, index=True)
+    monitor_id = Column(String, ForeignKey("condition_monitors.id"), nullable=False)
 
     # Condition Details
     condition_value = Column(JSON, nullable=False)  # Actual value that triggered alert
@@ -4060,10 +4064,10 @@ class ConditionAlert(Base):
     platforms_sent = Column(JSON, default=[])  # [{"platform": "slack", "status": "sent", "message_id": "..."}]
 
     # Status
-    status = Column(String, default=ConditionAlertStatus.PENDING.value, index=True)
+    status = Column(String, default=ConditionAlertStatus.PENDING.value)
 
     # Timestamps
-    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now())
     sent_at = Column(DateTime(timezone=True), nullable=True)
     acknowledged_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -4097,20 +4101,20 @@ class UnifiedWorkspace(Base):
     __tablename__ = "unified_workspaces"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Workspace identification
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
     # Platform-specific IDs (nullable for partial sync)
-    slack_workspace_id = Column(String, nullable=True, index=True)
-    discord_guild_id = Column(String, nullable=True, index=True)
-    google_chat_space_id = Column(String, nullable=True, index=True)
-    teams_team_id = Column(String, nullable=True, index=True)
+    slack_workspace_id = Column(String, nullable=True)
+    discord_guild_id = Column(String, nullable=True)
+    google_chat_space_id = Column(String, nullable=True)
+    teams_team_id = Column(String, nullable=True)
 
     # Synchronization status
-    sync_status = Column(String, default="active", index=True)  # active, paused, error
+    sync_status = Column(String, default="active")  # active, paused, error
     last_sync_at = Column(DateTime(timezone=True), default=func.now())
     last_sync_error = Column(Text, nullable=True)
 
@@ -4181,7 +4185,7 @@ class WorkspaceSyncLog(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Workspace reference
-    unified_workspace_id = Column(String, ForeignKey("unified_workspaces.id"), nullable=False, index=True)
+    unified_workspace_id = Column(String, ForeignKey("unified_workspaces.id"), nullable=False)
 
     # Sync operation details
     operation = Column(String, nullable=False)  # create, update, delete, propagate
@@ -4224,24 +4228,24 @@ class GovernanceAuditLog(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Agent information
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
 
     # Action details
-    action_type = Column(String, nullable=False, index=True)  # accounting_transaction_create, etc.
+    action_type = Column(String, nullable=False)  # accounting_transaction_create, etc.
     resource_type = Column(String, nullable=True)  # transaction, message, canvas, etc.
 
     # Governance decision
-    allowed = Column(Boolean, nullable=False, index=True)
-    agent_maturity = Column(String, nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    allowed = Column(Boolean, nullable=False)
+    agent_maturity = Column(String, nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
     required_maturity = Column(String, nullable=False)  # Required maturity for this action
     reason = Column(Text, nullable=True)  # Reason for denial (if not allowed)
 
     # Context
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    request_id = Column(String, nullable=True, index=True)  # For tracing
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    request_id = Column(String, nullable=True)  # For tracing
 
     # Timestamps
-    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    checked_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     agent = relationship("AgentRegistry", backref="governance_audit_logs")
@@ -4275,8 +4279,8 @@ class IMAuditLog(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Who
-    platform = Column(String, nullable=False, index=True)  # telegram, whatsapp, etc.
-    sender_id = Column(String, nullable=False, index=True)  # User/platform-specific ID
+    platform = Column(String, nullable=False)  # telegram, whatsapp, etc.
+    sender_id = Column(String, nullable=False)  # User/platform-specific ID
     user_id = Column(String, ForeignKey("users.id"), nullable=True)  # Atom user (if linked)
 
     # What
@@ -4285,7 +4289,7 @@ class IMAuditLog(Base):
     metadata_json = Column(JSON, default=dict)  # Non-sensitive metadata (command, agent, etc.)
 
     # When
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Outcome
     success = Column(Boolean, nullable=False)
@@ -4320,7 +4324,7 @@ class SocialPostHistory(Base):
     __tablename__ = "social_post_history"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Post content
     content = Column(Text, nullable=False)
@@ -4337,14 +4341,14 @@ class SocialPostHistory(Base):
     posted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Background task tracking
-    job_id = Column(String, nullable=True, index=True)  # RQ job ID for scheduled posts
+    job_id = Column(String, nullable=True)  # RQ job ID for scheduled posts
 
     # Status tracking
-    status = Column(String, default="pending", index=True)  # pending, posted, failed, scheduled, posting, partial, cancelled
+    status = Column(String, default="pending")  # pending, posted, failed, scheduled, posting, partial, cancelled
     error_message = Column(Text, nullable=True)
 
     # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -4368,20 +4372,20 @@ class SecurityAuditLog(Base):
     __tablename__ = "security_audit_log"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Event information
-    event_type = Column(String(100), nullable=False, index=True)  # webhook_signature_invalid, default_secret_key, etc.
-    severity = Column(String(20), nullable=False, index=True)  # critical, warning, info
+    event_type = Column(String(100), nullable=False)  # webhook_signature_invalid, default_secret_key, etc.
+    severity = Column(String(20), nullable=False)  # critical, warning, info
 
     # User context
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
 
     # Event details
     details = Column(JSON, nullable=False, default=dict)
 
     # Request context
-    request_id = Column(String, nullable=True, index=True)
+    request_id = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
 
@@ -4408,17 +4412,17 @@ class SocialMediaAudit(Base):
     __tablename__ = "social_media_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Agent context
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
-    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Action details
-    platform = Column(String(50), nullable=False, index=True)  # twitter, linkedin, facebook
-    action_type = Column(String(50), nullable=False, index=True)  # post, schedule, delete
-    post_id = Column(String, nullable=True, index=True)  # Platform-specific post ID
+    platform = Column(String(50), nullable=False)  # twitter, linkedin, facebook
+    action_type = Column(String(50), nullable=False)  # post, schedule, delete
+    post_id = Column(String, nullable=True)  # Platform-specific post ID
 
     # Content tracking
     content = Column(Text, nullable=False)  # Post content
@@ -4426,18 +4430,18 @@ class SocialMediaAudit(Base):
     link_url = Column(String, nullable=True)  # Attached link
 
     # Results
-    success = Column(Boolean, nullable=False, default=False, index=True)
+    success = Column(Boolean, nullable=False, default=False)
     error_message = Column(Text, nullable=True)
     platform_response = Column(JSON, nullable=True)  # Full API response
 
     # Maturity at time of action
-    agent_maturity = Column(String(50), nullable=False, index=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
-    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    agent_maturity = Column(String(50), nullable=False)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+    governance_check_passed = Column(Boolean, nullable=False, default=True)
     required_approval = Column(Boolean, nullable=False, default=False)
     approval_granted = Column(Boolean, nullable=True)
 
     # Request context
-    request_id = Column(String, nullable=True, index=True)
+    request_id = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
 
@@ -4467,16 +4471,16 @@ class FinancialAudit(Base):
     __tablename__ = "financial_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Agent context
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
-    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Action details
-    account_id = Column(String, ForeignKey("financial_accounts.id"), nullable=False, index=True)
-    action_type = Column(String(50), nullable=False, index=True)  # create, update, delete
+    account_id = Column(String, ForeignKey("financial_accounts.id"), nullable=False)
+    action_type = Column(String(50), nullable=False)  # create, update, delete
 
     # Change tracking
     changes = Column(JSON, nullable=False, default=dict)  # {"field": {"old": "value", "new": "value"}}
@@ -4484,17 +4488,17 @@ class FinancialAudit(Base):
     new_values = Column(JSON, nullable=True)  # Full new state
 
     # Results
-    success = Column(Boolean, nullable=False, default=False, index=True)
+    success = Column(Boolean, nullable=False, default=False)
     error_message = Column(Text, nullable=True)
 
     # Maturity at time of action
-    agent_maturity = Column(String(50), nullable=False, index=True)
-    governance_check_passed = Column(Boolean, nullable=False, default=True, index=True)
+    agent_maturity = Column(String(50), nullable=False)
+    governance_check_passed = Column(Boolean, nullable=False, default=True)
     required_approval = Column(Boolean, nullable=False, default=False)
     approval_granted = Column(Boolean, nullable=True)
 
     # Request context
-    request_id = Column(String, nullable=True, index=True)
+    request_id = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
 
@@ -4525,16 +4529,16 @@ class MenuBarAudit(Base):
     __tablename__ = "menu_bar_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Agent context
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
-    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    device_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=True, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    device_id = Column(String, ForeignKey("device_nodes.device_id"), nullable=True)
 
     # Action details
-    action = Column(String(100), nullable=False, index=True)  # login, quick_chat, get_agents, etc.
+    action = Column(String(100), nullable=False)  # login, quick_chat, get_agents, etc.
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
@@ -4542,15 +4546,15 @@ class MenuBarAudit(Base):
     response_summary = Column(JSON, nullable=True)  # Output summary
 
     # Results
-    success = Column(Boolean, nullable=False, default=False, index=True)
+    success = Column(Boolean, nullable=False, default=False)
     error_message = Column(Text, nullable=True)
 
     # Agent maturity at time of action (if agent involved)
-    agent_maturity = Column(String(50), nullable=True, index=True)
-    governance_check_passed = Column(Boolean, nullable=True, index=True)
+    agent_maturity = Column(String(50), nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
 
     # Request context
-    request_id = Column(String, nullable=True, index=True)
+    request_id = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     platform = Column(String(50), nullable=True)  # darwin, windows, linux
 
@@ -4683,7 +4687,7 @@ class AgentPost(Base):
     read_at = Column(DateTime(timezone=True), nullable=True)  # For directed messages
 
     # When
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     # Note: sender_id can reference either AgentRegistry or User, so we can't use foreign_keys
@@ -4742,16 +4746,16 @@ class DebugEvent(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Event categorization
-    event_type = Column(String(50), nullable=False, index=True)  # DebugEventType
-    component_type = Column(String(50), nullable=False, index=True)  # agent, browser, workflow, system
-    component_id = Column(String, nullable=True, index=True)  # Component identifier
+    event_type = Column(String(50), nullable=False)  # DebugEventType
+    component_type = Column(String(50), nullable=False)  # agent, browser, workflow, system
+    component_id = Column(String, nullable=True)  # Component identifier
 
     # Correlation and linking
-    correlation_id = Column(String, nullable=False, index=True)  # Links related events
-    parent_event_id = Column(String, nullable=True, index=True)  # Event chain for tracing
+    correlation_id = Column(String, nullable=False)  # Links related events
+    parent_event_id = Column(String, nullable=True)  # Event chain for tracing
 
     # Log metadata
-    level = Column(String(20), nullable=True, index=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    level = Column(String(20), nullable=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     message = Column(Text, nullable=True)
 
     # Event data
@@ -4759,7 +4763,7 @@ class DebugEvent(Base):
     event_metadata = Column(JSON, nullable=True)  # Tags, labels, additional context
 
     # Timestamp
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     insights = relationship("DebugInsight", backref="event", foreign_keys="DebugInsight.source_event_id")
@@ -4789,8 +4793,8 @@ class DebugInsight(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Insight categorization
-    insight_type = Column(String(50), nullable=False, index=True)  # DebugInsightType
-    severity = Column(String(20), nullable=False, index=True)  # DebugInsightSeverity
+    insight_type = Column(String(50), nullable=False)  # DebugInsightType
+    severity = Column(String(20), nullable=False)  # DebugInsightSeverity
 
     # Insight content
     title = Column(String(200), nullable=False)
@@ -4803,16 +4807,16 @@ class DebugInsight(Base):
 
     # Resolution suggestions
     suggestions = Column(JSON, nullable=True)  # Resolution suggestions
-    resolved = Column(Boolean, nullable=False, default=False, index=True)
+    resolved = Column(Boolean, nullable=False, default=False)
     resolution_notes = Column(Text, nullable=True)
 
     # Scope and impact
-    scope = Column(String(50), nullable=False, index=True)  # component, distributed, system
+    scope = Column(String(50), nullable=False)  # component, distributed, system
     affected_components = Column(JSON, nullable=True)  # List of affected components
 
     # Provenance
     source_event_id = Column(String, ForeignKey("debug_events.id"), nullable=True)
-    generated_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Insight expiration
 
     # Indexes
@@ -4840,11 +4844,11 @@ class DebugStateSnapshot(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Component identification
-    component_type = Column(String(50), nullable=False, index=True)
-    component_id = Column(String, nullable=False, index=True)
+    component_type = Column(String(50), nullable=False)
+    component_id = Column(String, nullable=False)
 
     # Correlation
-    operation_id = Column(String, nullable=False, index=True)  # Operation correlation
+    operation_id = Column(String, nullable=False)  # Operation correlation
     checkpoint_name = Column(String(100), nullable=True)  # Optional label
 
     # State data
@@ -4853,7 +4857,7 @@ class DebugStateSnapshot(Base):
     snapshot_type = Column(String(20), nullable=False)  # full, incremental, partial
 
     # Timestamp
-    captured_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    captured_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Indexes
     __table_args__ = (
@@ -4878,9 +4882,9 @@ class DebugMetric(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Metric identification
-    metric_name = Column(String(100), nullable=False, index=True)
-    component_type = Column(String(50), nullable=False, index=True)
-    component_id = Column(String, nullable=True, index=True)
+    metric_name = Column(String(100), nullable=False)
+    component_type = Column(String(50), nullable=False)
+    component_id = Column(String, nullable=True)
 
     # Metric value
     value = Column(Float, nullable=False)
@@ -4890,7 +4894,7 @@ class DebugMetric(Base):
     dimensions = Column(JSON, nullable=True)  # Additional dimensions for filtering
 
     # Timestamp
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Indexes
     __table_args__ = (
@@ -4928,11 +4932,11 @@ class DebugSession(Base):
     query_count = Column(Integer, nullable=False, default=0)
 
     # Status
-    active = Column(Boolean, nullable=False, default=True, index=True)
+    active = Column(Boolean, nullable=False, default=True)
     resolved = Column(Boolean, nullable=False, default=False)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -4962,7 +4966,7 @@ class LearningPlan(Base):
     __tablename__ = "learning_plans"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Plan details
     topic = Column(String, nullable=False)
@@ -4983,7 +4987,7 @@ class LearningPlan(Base):
     notion_page_id = Column(String, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
@@ -5008,7 +5012,7 @@ class CompetitorAnalysis(Base):
     __tablename__ = "competitor_analyses"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Analysis parameters
     competitors = Column(JSON, nullable=False)  # List of competitor names/URLs
@@ -5026,10 +5030,10 @@ class CompetitorAnalysis(Base):
 
     # Caching
     status = Column(String, default="complete")  # complete, cached, expired
-    cache_expiry = Column(DateTime(timezone=True), nullable=True, index=True)
+    cache_expiry = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user = relationship("User", backref="competitor_analyses")
@@ -5054,10 +5058,10 @@ class ProjectHealthHistory(Base):
     __tablename__ = "project_health_history"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
 
     # Check identification
-    check_id = Column(String, nullable=False, index=True)
+    check_id = Column(String, nullable=False)
 
     # Overall results
     overall_score = Column(Float, nullable=False)
@@ -5070,7 +5074,7 @@ class ProjectHealthHistory(Base):
     time_range_days = Column(Integer, nullable=False)
 
     # Timestamp
-    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    checked_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user = relationship("User", backref="project_health_history")
@@ -5095,7 +5099,7 @@ class CustomerChurnPrediction(Base):
     __tablename__ = "customer_churn_predictions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workspace_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=False)
 
     # Customer info
     customer_id = Column(String, nullable=False)
@@ -5108,7 +5112,7 @@ class CustomerChurnPrediction(Base):
     recommended_action = Column(Text, nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Indexes
     __table_args__ = (
@@ -5130,7 +5134,7 @@ class ARDelayPrediction(Base):
     __tablename__ = "ar_delay_predictions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workspace_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, nullable=False)
 
     # Invoice info
     invoice_id = Column(String, nullable=False)
@@ -5143,7 +5147,7 @@ class ARDelayPrediction(Base):
     reason = Column(Text, nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Indexes
     __table_args__ = (
@@ -5186,8 +5190,8 @@ class UserActivity(Base):
 
     id = Column(String, primary_key=True, default=lambda: f"ua_{str(uuid.uuid4())}")
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True, unique=True)
-    state = Column(SQLEnum(UserState), nullable=False, default=UserState.offline, index=True)
-    last_activity_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    state = Column(SQLEnum(UserState), nullable=False, default=UserState.offline)
+    last_activity_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     manual_override = Column(Boolean, default=False)
     manual_override_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -5217,7 +5221,7 @@ class UserActivitySession(Base):
     activity_id = Column(String, ForeignKey("user_activities.id"), nullable=False, index=True)
     session_type = Column(String, nullable=False)  # "web" or "desktop"
     session_token = Column(String, nullable=False, unique=True, index=True)
-    last_heartbeat = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    last_heartbeat = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     user_agent = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -5244,18 +5248,18 @@ class SupervisedExecutionQueue(Base):
 
     id = Column(String, primary_key=True, default=lambda: f"queue_{str(uuid.uuid4())}")
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     trigger_type = Column(String, nullable=False)  # "automated" or "manual"
     execution_context = Column(JSON, nullable=False)  # Serialized execution context
-    status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending, index=True)
+    status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending)
     supervisor_type = Column(String, nullable=False)  # "user" or "autonomous_agent"
-    priority = Column(Integer, default=0, index=True)  # Higher priority = executed first
+    priority = Column(Integer, default=0)  # Higher priority = executed first
     max_attempts = Column(Integer, default=3)
     attempt_count = Column(Integer, default=0)
-    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
     execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
@@ -5319,3 +5323,49 @@ class ShellSession(Base):
     agent = relationship("AgentRegistry", backref="shell_sessions")
     user = relationship("User", foreign_keys=[user_id], backref="shell_sessions_initiated")
     approver = relationship("User", foreign_keys=[approved_by])
+
+
+class PackageRegistry(Base):
+    """
+    Python package registry for maturity-based governance.
+
+    Purpose:
+    - Track Python packages available for agent skill execution
+    - Enforce maturity-based access controls (STUDENT blocked, INTERN+ approved)
+    - Maintain security ban list for malicious packages
+    - Audit trail for package approvals and usage
+
+    Governance:
+    - STUDENT agents: Blocked from all Python packages
+    - INTERN agents: Require explicit approval for each package version
+    - SUPERVISED agents: Allowed if min_maturity <= SUPERVISED
+    - AUTONOMOUS agents: Allowed if min_maturity <= AUTONOMOUS
+    - Banned packages: Blocked for all agents regardless of maturity
+
+    Package ID format: "{package_name}:{version}" (e.g., "numpy:1.21.0")
+    """
+    __tablename__ = "package_registry"
+
+    # Composite primary key: package_name:version
+    id = Column(String, primary_key=True)  # Format: "numpy:1.21.0"
+
+    # Package identification
+    name = Column(String, nullable=False, index=True)  # Package name (e.g., "numpy")
+    version = Column(String, nullable=False, index=True)  # Version (e.g., "1.21.0")
+
+    # Governance
+    min_maturity = Column(String, default="INTERN", nullable=False)  # Required maturity level
+    status = Column(String, default="untrusted", nullable=False, index=True)  # untrusted, active, banned, pending
+    ban_reason = Column(Text, nullable=True)  # Reason if banned
+
+    # Approval tracking
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)  # User who approved
+    approved_at = Column(DateTime(timezone=True), nullable=True)  # Approval timestamp
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    approver = relationship("User", foreign_keys=[approved_by])
+    executions = relationship("SkillExecution", back_populates="package")
