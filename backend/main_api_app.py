@@ -474,6 +474,13 @@ try:
         logger.warning(f"Failed to load marketplace routes: {e}")
 
     try:
+        from api.composition_routes import router as composition_router
+        app.include_router(composition_router, prefix="/api")
+        logger.info("✓ Skill Composition Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load composition routes: {e}")
+
+    try:
         from api.ai_accounting_routes import router as accounting_router
         app.include_router(accounting_router, prefix="/api/accounting", tags=["ai-accounting"])
     except ImportError as e:
