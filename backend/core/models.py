@@ -1108,6 +1108,53 @@ class SkillExecution(Base):
     workspace = relationship("Workspace", backref="skill_executions")
     package = relationship("PackageRegistry", back_populates="executions")
 
+
+class SkillCompositionExecution(Base):
+    """
+    Execution record for skill composition workflows with DAG validation.
+
+    Tracks multi-step skill workflows with:
+    - DAG validation status
+    - Step execution results
+    - Rollback state
+    - Performance metrics
+
+    Reference: Phase 60 Plan 03 - Skill Composition Engine
+    """
+    __tablename__ = "skill_composition_executions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String(255), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False, index=True)
+    workspace_id = Column(String(255), nullable=False)
+
+    # Workflow definition
+    workflow_definition = Column(JSON, nullable=False)  # Steps, dependencies, conditions
+    validation_status = Column(String(50), nullable=False)  # "valid", "invalid", "cyclic"
+
+    # Execution state
+    status = Column(String(50), nullable=False, default="pending")  # pending, running, completed, failed, rolled_back
+    current_step = Column(String(255), nullable=True)
+    completed_steps = Column(JSON, nullable=True)  # List of completed step IDs
+
+    # Results
+    execution_results = Column(JSON, nullable=True)  # Step outputs
+    final_output = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Rollback
+    rollback_performed = Column(Boolean, nullable=False, default=False)
+    rollback_steps = Column(JSON, nullable=True)  # Which steps were rolled back
+
+    # Performance
+    started_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="skill_composition_executions")
+
+
 class SkillCache(Base):
     """
     Local cache for Atom SaaS marketplace skills with TTL expiration.
