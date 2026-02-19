@@ -143,6 +143,23 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Security**: Maturity gates prevent unauthorized daemon control, audit trail logging
 - **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
 
+### 5.6 Python Package Support System ✨ NEW
+- **Files**: `backend/core/package_governance_service.py`, `backend/core/package_dependency_scanner.py`, `backend/core/package_installer.py` (Plan 03)
+- **Purpose**: Maturity-based governance and vulnerability scanning for Python packages in agent skills
+- **Features**:
+  - PackageGovernanceService: Maturity-based permissions with <1ms cached lookups
+  - PackageDependencyScanner: Vulnerability scanning using pip-audit and Safety
+  - Dependency tree visualization with pipdeptree
+  - Version conflict detection for transitive dependencies
+  - STUDENT agents blocked from all Python packages
+  - INTERN+ require approval for each package version
+  - Banned packages blocked for all agents regardless of maturity
+  - CVE vulnerability detection from PyPI/GitHub Advisory Database
+- **Performance**: <1ms governance checks, 2-5s vulnerability scans
+- **Tests**: 51 tests across 2 test files, all passing
+- **Status**: Plans 01-02 complete, Plans 03-07 pending
+- **See**: `.planning/phases/35-python-package-support/`
+
 ### 6. Deep Linking System
 - **Files**: `core/deeplinks.py`, `api/deeplinks.py`
 - `atom://agent/{id}`, `atom://workflow/{id}`, `atom://canvas/{id}`, `atom://tool/{name}`
@@ -264,6 +281,29 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ---
 
 ## Recent Major Changes
+
+### Phase 35: Python Package Support (Feb 19, 2026) ✨ NEW
+- **Purpose**: Maturity-based governance and vulnerability scanning for Python packages in agent skills
+- **Three Major Components**:
+  1. **Package Governance Service** - Maturity-based permissions with <1ms cached lookups
+  2. **Dependency Scanner** - Vulnerability scanning using pip-audit (PyPI/GitHub advisories) and Safety (commercial DB)
+  3. **Package Installer** - Safe installation with governance checks and vulnerability validation (Plan 03-07)
+- **Implementation**: Plan 01-02 complete, Plans 03-07 pending
+- **Plans Complete**:
+  - Plan 01: PackageGovernanceService (368 lines, 32 tests, 100% pass rate)
+  - Plan 02: PackageDependencyScanner (268 lines, 19 tests, 100% pass rate)
+- **Key Features**:
+  - STUDENT agents blocked from all Python packages
+  - INTERN+ require approval for each package version
+  - Banned packages blocked for all agents regardless of maturity
+  - CVE vulnerability detection with pip-audit and Safety
+  - Dependency tree visualization with pipdeptree
+  - Version conflict detection for transitive dependencies
+- **Performance**: <1ms governance checks, 2-5s vulnerability scans
+- **Tests**: 51 tests across 2 test files, all passing
+- **Docs**: `backend/core/package_governance_service.py`, `backend/core/package_dependency_scanner.py`
+- **Status**: 🔄 IN PROGRESS - Plans 01-02 complete, Plans 03-07 pending
+- **See**: `.planning/phases/35-python-package-support/`
 
 ### Phase 25: Atom CLI as OpenClaw Skills (Feb 18, 2026) ✨ NEW
 - **Purpose**: Convert CLI commands to OpenClaw-compatible skills with governance
