@@ -76,6 +76,13 @@ class PackageCheckRequest(BaseModel):
     version: str = Field(..., description="Package version (e.g., '1.21.0')")
 
 
+class NpmPackageCheckRequest(BaseModel):
+    """Request to check npm package permission for an agent."""
+    agent_id: str = Field(..., description="Agent ID requesting package access")
+    package_name: str = Field(..., description="npm package name (e.g., 'lodash')")
+    version: str = Field(..., description="Package version (e.g., '4.17.21')")
+
+
 class PackageInstallRequest(BaseModel):
     """Request to install Python packages for a skill."""
     agent_id: str = Field(..., description="Agent ID requesting package installation")
@@ -85,11 +92,32 @@ class PackageInstallRequest(BaseModel):
     base_image: str = Field("python:3.11-slim", description="Base Docker image")
 
 
+class NpmPackageInstallRequest(BaseModel):
+    """Request to install npm packages for a skill."""
+    agent_id: str = Field(..., description="Agent ID requesting package installation")
+    skill_id: str = Field(..., description="Skill identifier (for image tagging)")
+    packages: list[str] = Field(..., description="List of npm package specifiers (e.g., ['lodash@4.17.21', 'express@^4.18.0'])")
+    package_manager: str = Field("npm", description="Package manager: npm, yarn, or pnpm")
+    scan_for_vulnerabilities: bool = Field(True, description="Run vulnerability scan before installation")
+    base_image: str = Field("node:20-alpine", description="Base Node.js Docker image")
+
+
 class PackageExecuteRequest(BaseModel):
     """Request to execute skill code with packages."""
     agent_id: str = Field(..., description="Agent ID executing skill")
     skill_id: str = Field(..., description="Skill identifier (must have called install first)")
     code: str = Field(..., description="Python code to execute")
+    inputs: dict[str, Any] = Field(default_factory=dict, description="Input variables for execution")
+    timeout_seconds: int = Field(30, description="Maximum execution time")
+    memory_limit: str = Field("256m", description="Memory limit for container")
+    cpu_limit: float = Field(0.5, description="CPU quota (0.5 = 50% of one core)")
+
+
+class NpmPackageExecuteRequest(BaseModel):
+    """Request to execute Node.js skill code with packages."""
+    agent_id: str = Field(..., description="Agent ID executing skill")
+    skill_id: str = Field(..., description="Skill identifier (must have called install first)")
+    code: str = Field(..., description="Node.js code to execute")
     inputs: dict[str, Any] = Field(default_factory=dict, description="Input variables for execution")
     timeout_seconds: int = Field(30, description="Maximum execution time")
     memory_limit: str = Field("256m", description="Memory limit for container")
