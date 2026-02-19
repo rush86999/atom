@@ -339,22 +339,46 @@ curl -X POST http://localhost:8000/api/skills/execute \
 
 Skills can now use Python packages (numpy, pandas, requests, etc.) through per-skill Docker images with dependency isolation.
 
-### Installing Packages
+### Package Dependencies in SKILL.md
 
-```bash
-curl -X POST http://localhost:8000/api/packages/install \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent_id": "agent_789",
-    "skill_id": "data-analysis-skill",
-    "requirements": [
-      "numpy==1.21.0",
-      "pandas>=1.3.0",
-      "matplotlib>=3.4.0"
-    ],
-    "scan_for_vulnerabilities": true
-  }'
+Add Python packages to your SKILL.md file using the `packages` field in YAML frontmatter:
+
+```yaml
+---
+name: "Data Processing Skill"
+description: "Analyzes CSV data using pandas and numpy"
+skill_type: python_code
+packages:
+  - pandas==1.3.0      # Exact version (recommended)
+  - numpy>=1.21.0      # Minimum version
+  - matplotlib~=3.4.0  # Compatible release
+---
+
+import pandas as pd
+import numpy as np
+
+def process_data(file_path):
+    """Process CSV file and return statistics."""
+    data = pd.read_csv(file_path)
+    return {
+        "rows": len(data),
+        "columns": len(data.columns),
+        "mean": data.mean(numeric_only=True).to_dict()
+    }
 ```
+
+### Package Version Formats
+
+| Format | Example | Description | Recommended |
+|--------|---------|-------------|-------------|
+| **Exact** | `pandas==1.3.0` | Exactly version 1.3.0 | ✅ Yes (reproducible) |
+| **Minimum** | `numpy>=1.21.0` | 1.21.0 or higher | ⚠️ Use with caution |
+| **Compatible** | `requests~=2.28.0` | >=2.28.0, <2.29.0 | ✅ Yes for bug fixes |
+| **Any** | `scipy` | Latest version | ❌ No (may break) |
+
+**Recommendation:** Use exact versions (`==`) for production skills to ensure reproducibility.
+
+### Installing Packages
 
 **Response:**
 ```json
