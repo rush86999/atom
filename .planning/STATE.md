@@ -85,6 +85,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 36-npm-package-support P07 | 10 | 5 tasks | 4 files |
 | Phase 60-advanced-skill-execution P02 | 208 | 3 tasks | 3 files |
 | Phase 60-advanced-skill-execution P04 | 10 | 4 tasks | 4 files |
+| Phase 60-06 P60-06 | 188 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,10 @@ Recent decisions affecting current work:
 - [Phase 60-advanced-skill-execution]: Dynamic skill loading with importlib.util.spec_from_file_location for Python stdlib-based runtime module loading
 - [Phase 60-advanced-skill-execution]: Hot-reload with explicit sys.modules cache clearing to prevent stale imports (del sys.modules[skill_name] before reload)
 - [Phase 60-advanced-skill-execution]: SHA256 file hash version tracking for change detection (64-character hex string, more reliable than mtime)
+- [Phase 60-06]: Use pytest-benchmark for historical performance tracking
+- [Phase 60-06]: Regression threshold set to 1.5x baseline (50% slower triggers alert)
+- [Phase 60-06]: Manual baseline save required (prevents accidental overwriting)
+- [Phase 60-06]: Local JSON storage for baselines (no external APM needed)
 
 ### Pending Todos
 
