@@ -419,7 +419,12 @@ class TestTaskCleanup:
 
     @pytest.mark.asyncio
     async def test_unregister_task(self):
-        """Test unregistering a task"""
+        """Test unregistering a task
+
+        Previously flaky due to race condition between unregister_task() and
+        registry cleanup. Fixed by polling for actual condition (task is None)
+        instead of arbitrary sleep.
+        """
         task_id = str(uuid.uuid4())
         agent_id = str(uuid.uuid4())
 
@@ -442,8 +447,14 @@ class TestTaskCleanup:
         # Unregister
         agent_task_registry.unregister_task(task_id)
 
-        # Allow async cleanup to complete
-        await asyncio.sleep(0.1)
+        # Poll for task to be removed from registry (handles async cleanup delay)
+        # This is more robust than arbitrary sleep on slow CI systems
+        for _ in range(10):
+            if agent_task_registry.get_task(task_id) is None:
+                break
+            await asyncio.sleep(0.1)
+        else:
+            assert False, "Task not unregistered after 1 second"
 
         # Verify task is gone
         assert agent_task_registry.get_task(task_id) is None
