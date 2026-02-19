@@ -162,6 +162,95 @@ class HazardSandbox:
                 logger.error(f"Container {container_id} unexpected error: {error_msg}")
                 return f"SANDBOX_ERROR: {error_msg}"
 
+    def execute_nodejs(
+        self,
+        code: str,
+        inputs: Dict[str, Any],
+        timeout_seconds: int = 30,
+        memory_limit: str = "256m",
+        cpu_limit: float = 0.5,
+        image: Optional[str] = None
+    ) -> str:
+        """
+        Execute Node.js code in isolated Docker container.
+
+        Args:
+            code: Node.js code to execute
+            inputs: Input variables to inject into execution context
+            timeout_seconds: Maximum execution time (default: 30s)
+            memory_limit: Memory limit (e.g., "256m", "512m")
+            cpu_limit: CPU quota (0.5 = 50% of one core)
+            image: Custom Docker image (default: "node:20-alpine")
+
+        Returns:
+            str: Execution output (stdout) or error message
+
+        Raises:
+            RuntimeError: If Docker is not available
+            ValueError: If code execution fails
+
+        Security constraints (per RESEARCH.md Pitfall 4):
+        - NEVER mount /var/run/docker.sock
+        - NEVER use --privileged mode
+        - Always use network_disabled=True
+        - Always use read_only=True
+        - Limit resources with mem_limit and cpu_quota
+        """
+        container_id = f"skill_{uuid.uuid4().hex[:8]}"
+
+        # Use custom image or default base image
+        container_image = image if image else "node:20-alpine"
+
+        try:
+            # Create wrapper script that injects inputs and executes code
+            wrapper_script = self._create_nodejs_wrapper(code, inputs)
+
+            logger.info(f"Starting Node.js container {container_id} with limits: "
+                       f"mem={memory_limit}, cpu={cpu_limit}, timeout={timeout_seconds}s, "
+                       f"image={container_image}")
+
+            # Run container with security constraints
+            output = self.client.containers.run(
+                image=container_image,
+                command=["node", "-e", wrapper_script],
+                name=container_id,
+                mem_limit=memory_limit,
+                cpu_quota=int(cpu_limit * 100000),  # Docker uses 100000 as base
+                cpu_period=100000,
+                network_disabled=True,  # CRITICAL: No network access
+                read_only=True,  # CRITICAL: Read-only filesystem
+                tmpfs={"/tmp": "size=10m"},  # Temporary storage only
+                auto_remove=True,  # Ephemeral container
+                stdout=True,
+                stderr=True,
+                timeout=timeout_seconds
+            )
+
+            result = output.decode("utf-8")
+            logger.info(f"Node.js container {container_id} completed successfully")
+
+            return result
+
+        except Exception as e:
+            error_type = type(e).__name__
+
+            if error_type == 'ContainerError':
+                # ContainerError has stderr attribute
+                stderr_msg = e.stderr.decode('utf-8') if hasattr(e, 'stderr') and e.stderr else str(e)
+                error_msg = f"Container execution failed: {stderr_msg}"
+                logger.error(f"Node.js container {container_id} error: {error_msg}")
+                return f"EXECUTION_ERROR: {error_msg}"
+
+            elif error_type == 'APIError':
+                error_msg = f"Docker API error: {str(e)}"
+                logger.error(f"Node.js container {container_id} API error: {error_msg}")
+                return f"DOCKER_ERROR: {error_msg}"
+
+            else:
+                error_msg = f"Sandbox execution failed: {str(e)}"
+                logger.error(f"Node.js container {container_id} unexpected error: {error_msg}")
+                return f"SANDBOX_ERROR: {error_msg}"
+
     def _create_wrapper_script(self, code: str, inputs: Dict[str, Any]) -> str:
         """
         Create wrapper script that injects inputs and executes skill code.
@@ -188,6 +277,30 @@ except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
 """
+
+    def _create_nodejs_wrapper(self, code: str, inputs: Dict[str, Any]) -> str:
+        """
+        Create Node.js wrapper script that injects inputs and executes code.
+
+        Args:
+            code: Node.js code to execute
+            inputs: Input variables to inject
+
+        Returns:
+            str: Complete wrapper script
+        """
+        # Convert inputs to JavaScript object
+        inputs_json = json.dumps(inputs)
+
+        wrapper = f"""
+// Inject inputs
+const inputs = {inputs_json};
+
+// User code
+{code}
+
+"""
+        return wrapper
 
     def cleanup_container(self, container_id: str) -> bool:
         """
