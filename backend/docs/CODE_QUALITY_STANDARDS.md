@@ -288,6 +288,261 @@ def test_agent_promotion_when_confidence_exceeds_threshold(db_session: Session):
 - **Business logic:** 80%+ coverage
 - **Overall:** 70%+ coverage
 
+### Security Testing Patterns
+
+Security tests validate defense-in-depth protections against real-world attacks. Use these patterns when testing sandbox execution, package installation, or external code execution.
+
+#### Container Escape Tests
+
+Validate Docker isolation prevents breakout attempts:
+
+```python
+class TestContainerEscape:
+    """Container escape attack prevention tests."""
+
+    @patch('core.skill_sandbox.docker.from_env')
+    def test_privileged_mode_disabled(self, mock_docker, mock_docker_client):
+        """
+        Verify containers NEVER run with --privileged flag.
+
+        Privileged mode disables all security mechanisms and allows
+        full host access (CVE-2019-5736, CVE-2025-9074).
+
+        Security: CRITICAL
+        """
+        mock_docker.return_value = mock_docker_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(code="print('test')", inputs={})
+
+        # Verify privileged=False (or not set, default is False)
+        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        assert call_kwargs.get('privileged', False) == False, \
+            "Container must NOT run in privileged mode"
+
+    @patch('core.skill_sandbox.docker.from_env')
+    def test_docker_socket_not_mounted(self, mock_docker, mock_docker_client):
+        """
+        Verify Docker socket is NEVER mounted in containers.
+
+        Mounting /var/run/docker.sock enables container escape
+        and full host control (Docker-out-of-Docker attack).
+
+        Security: CRITICAL
+        """
+        mock_docker.return_value = mock_docker_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(code="print('test')", inputs={})
+
+        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        volumes = call_kwargs.get('volumes', {})
+
+        assert '/var/run/docker.sock' not in str(volumes), \
+            "Docker socket must NOT be mounted (enables container escape)"
+```
+
+#### Resource Exhaustion Tests
+
+Validate resource limits prevent DoS attacks:
+
+```python
+class TestResourceExhaustion:
+    """Resource limit enforcement tests."""
+
+    @patch('core.skill_sandbox.docker.from_env')
+    def test_memory_limit_enforced(self, mock_docker, mock_docker_client):
+        """
+        Verify memory limit is set to prevent exhaustion attacks.
+
+        Security: HIGH - Memory exhaustion can DoS the host
+        """
+        mock_docker.return_value = mock_docker_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(
+            code="print('test')",
+            inputs={},
+            memory_limit="256m"
+        )
+
+        # Verify mem_limit is set
+        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        assert call_kwargs.get('mem_limit') == "256m", \
+            "Memory limit must be enforced to prevent exhaustion attacks"
+
+    @patch('core.skill_sandbox.docker.from_env')
+    def test_cpu_quota_enforced(self, mock_docker, mock_docker_client):
+        """
+        Verify CPU quota is set to prevent CPU exhaustion.
+
+        Security: HIGH - CPU exhaustion can starve host processes
+        """
+        mock_docker.return_value = mock_docker_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(
+            code="print('test')",
+            inputs={},
+            cpu_limit=0.5
+        )
+
+        # Verify cpu_quota is set (0.5 * 100000 = 50000)
+        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        assert call_kwargs.get('cpu_quota') == 50000, \
+            "CPU quota must be enforced (0.5 * 100000)"
+```
+
+#### Network Isolation Tests
+
+Validate network isolation prevents data exfiltration:
+
+```python
+class TestNetworkIsolation:
+    """Network isolation enforcement tests."""
+
+    @patch('core.skill_sandbox.docker.from_env')
+    def test_network_disabled(self, mock_docker, mock_docker_client):
+        """
+        Verify network is disabled to prevent data exfiltration.
+
+        Security: CRITICAL - Network isolation prevents outbound attacks
+        """
+        mock_docker.return_value = mock_docker_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(code="print('test')", inputs={})
+
+        # Verify network_disabled=True
+        call_kwargs = mock_docker_client.containers.run.call_args[1]
+        assert call_kwargs.get('network_disabled') is True, \
+            "Network must be disabled to prevent data exfiltration"
+```
+
+#### Malicious Pattern Detection Tests
+
+Validate static scanning detects malicious code patterns:
+
+```python
+class TestMaliciousPatternDetection:
+    """Static scanning detects malicious patterns."""
+
+    def test_subprocess_usage_detected(self, security_scanner):
+        """
+        Static scan detects subprocess usage.
+
+        Security: HIGH - subprocess enables arbitrary command execution
+        """
+        malicious_code = """
+import subprocess
+user_input = 'rm -rf /'
+subprocess.call(user_input, shell=True)
+"""
+
+        result = security_scanner.scan_skill(
+            skill_name="malicious-subprocess",
+            skill_content=malicious_code
+        )
+
+        assert result["safe"] == False, "Subprocess usage must be blocked"
+        assert len(result["findings"]) > 0, "Security findings must be reported"
+        assert any("subprocess" in f.lower() for f in result["findings"]), \
+            "Finding must mention subprocess"
+
+    def test_base64_obfuscation_detected(self, security_scanner):
+        """
+        Static scan detects base64 obfuscation.
+
+        Security: HIGH - Base64 obfuscation hides malicious payloads
+        """
+        malicious_code = """
+import base64
+payload = 'c3VicHJvY2Vzcy5ydW4oWyJybSIsICJyZiIsICIvIl0p'
+decoded = base64.b64decode(payload).decode()
+exec(decoded)
+"""
+
+        result = security_scanner.scan_skill(
+            skill_name="obfuscated-base64",
+            skill_content=malicious_code
+        )
+
+        # Should detect base64.b64decode as suspicious
+        assert result["safe"] == False or len(result["findings"]) > 0, \
+            "Base64 obfuscation must be flagged"
+```
+
+#### Governance Blocking Tests
+
+Validate maturity-based access controls:
+
+```python
+class TestGovernanceBlocking:
+    """Maturity-based governance blocks unauthorized access."""
+
+    def test_student_agent_blocked_from_python_packages(self, governance, db_session: Session):
+        """
+        STUDENT agents cannot use Python packages (non-negotiable).
+
+        Security: CRITICAL - Educational restriction, cannot be bypassed
+        """
+        student_agent = StudentAgentFactory(_session=db_session)
+        db_session.commit()
+
+        result = governance.check_package_permission(
+            agent_id=student_agent.id,
+            package_name="numpy",
+            version="1.21.0",
+            db=db_session
+        )
+
+        assert result["allowed"] == False, \
+            "STUDENT agents must be blocked from ALL Python packages"
+        assert "STUDENT agents cannot" in result["reason"], \
+            "Reason must mention STUDENT restriction"
+
+    def test_banned_package_blocks_all_agents(self, governance, db_session: Session):
+        """
+        Banned packages block ALL agents regardless of maturity.
+
+        Security: CRITICAL - Ban list overrides all other rules
+        """
+        # Ban package
+        governance.ban_package(
+            package_name="malicious-lib",
+            version="1.0.0",
+            reason="Security vulnerability: CVE-2025-99999",
+            db=db_session
+        )
+
+        # Create AUTONOMOUS agent (highest maturity)
+        autonomous_agent = AutonomousAgentFactory(_session=db_session)
+        db_session.commit()
+
+        result = governance.check_package_permission(
+            agent_id=autonomous_agent.id,
+            package_name="malicious-lib",
+            version="1.0.0",
+            db=db_session
+        )
+
+        assert result["allowed"] == False, \
+            "Banned packages must block even AUTONOMOUS agents"
+        assert "banned" in result["reason"].lower(), \
+            "Reason must mention ban"
+```
+
+#### Security Testing Best Practices
+
+1. **Mock external dependencies** - Use `@patch` decorators to mock Docker, subprocess calls
+2. **Test malicious fixtures** - Create fixture files with attack samples for reproducible testing
+3. **Defense-in-depth validation** - Test all security layers (static scan + sandbox + governance)
+4. **Security level annotations** - Mark tests with security level (CRITICAL, HIGH, MEDIUM, LOW)
+5. **Clear assertion messages** - Explain WHY the security constraint is critical (reference CVEs)
+6. **Use malicious package fixtures** - Import from `tests.fixtures.malicious_packages` for attack samples
+
+Reference: `backend/tests/test_package_security.py` for comprehensive examples.
+
 ## Code Review Checklist
 
 Before submitting a PR, verify:

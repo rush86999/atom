@@ -82,6 +82,103 @@ Import → Untrusted → Security Scan → Active/Banned → Execution
 ✅ **No Host Mount** - Container cannot access host filesystem
 ✅ **Audit Logging** - All executions logged to `skill_executions` table
 
+### Security Testing & Validation
+
+Atom includes comprehensive security testing to validate all sandbox constraints and attack prevention mechanisms. The security test suite (`backend/tests/test_package_security.py`) includes 34 tests covering:
+
+**Container Escape Prevention** (4 tests)
+- ✅ Privileged mode disabled (prevents CVE-2019-5736, CVE-2025-9074)
+- ✅ Docker socket never mounted (prevents Docker-out-of-Docker attacks)
+- ✅ Host volumes never mounted (prevents filesystem access)
+- ✅ Host PID namespace not shared (prevents process signaling attacks)
+
+**Resource Exhaustion Protection** (4 tests)
+- ✅ Memory limits enforced (256m default, prevents DoS)
+- ✅ CPU quotas enforced (0.5 cores default, prevents starvation)
+- ✅ Timeout enforced (30s default, prevents infinite loops)
+- ✅ Auto-remove enabled (prevents disk exhaustion)
+
+**Network Isolation** (2 tests)
+- ✅ Network disabled (prevents data exfiltration)
+- ✅ No extra hosts (prevents DNS tunneling)
+
+**Filesystem Isolation** (3 tests)
+- ✅ Read-only filesystem (prevents malware persistence)
+- ✅ Tmpfs only writable (prevents disk writes)
+- ✅ No host mounts (prevents container escape)
+
+**Malicious Pattern Detection** (8 tests)
+- ✅ Subprocess usage detected (arbitrary command execution)
+- ✅ os.system detected (shell injection)
+- ✅ eval/exec detected (code injection)
+- ✅ Base64 obfuscation detected (payload hiding)
+- ✅ Import obfuscation detected (dynamic imports)
+- ✅ Pickle unsafe deserialization detected (RCE via deserialization)
+- ✅ Network access detected (data exfiltration)
+- ✅ Benign code passes (no false positives)
+
+**Vulnerability Scanning** (3 tests)
+- ✅ Known CVEs detected via pip-audit
+- ✅ Safe packages pass scan
+- ✅ Multiple vulnerabilities detected
+
+**Governance Blocking** (4 tests)
+- ✅ STUDENT agents blocked from all Python packages
+- ✅ STUDENT blocked even from approved packages
+- ✅ Banned packages block all agents (even AUTONOMOUS)
+- ✅ Unknown packages require approval
+
+**Typosquatting & Dependency Confusion** (4 tests)
+- ✅ Typosquatting packages documented (reqeusts, numpyy, panads)
+- ✅ Known vulnerable packages with CVE data (5 packages)
+- ✅ Dependency confusion packages listed (10 internal-sounding names)
+
+**Integration Tests** (2 tests)
+- ✅ Complete security stack validation (static scan + sandbox + governance)
+- ✅ Malicious patterns comprehensive coverage
+
+Running Security Tests:
+
+```bash
+# Run all security tests
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest backend/tests/test_package_security.py -v
+
+# Run specific test categories
+pytest backend/tests/test_package_security.py::TestContainerEscape -v
+pytest backend/tests/test_package_security.py::TestResourceExhaustion -v
+pytest backend/tests/test_package_security.py::TestMaliciousPatternDetection -v
+
+# With coverage
+pytest backend/tests/test_package_security.py --cov=core/skill_sandbox --cov=core/skill_security_scanner --cov=core/package_governance_service --cov-report=term-missing
+```
+
+Test Results:
+- **Pass Rate:** 100% (34/34 tests)
+- **Execution Time:** 1.7 seconds
+- **Coverage:** 14.3% (focused on critical security paths)
+- **Security Levels:** 8 CRITICAL, 10 HIGH, 6 MEDIUM, 10 LOW
+
+Malicious Package Fixtures:
+
+The test suite includes 450+ lines of malicious package fixtures (`backend/tests/fixtures/malicious_packages.py`) for reproducible testing:
+
+- Container escape scenarios (privileged mode, Docker socket, cgroup)
+- Resource exhaustion (fork bomb, memory, CPU, disk)
+- Network exfiltration (urllib, sockets, requests, DNS tunneling)
+- Filesystem attacks (host write, directory traversal, symlink escape)
+- Code execution (subprocess, os.system, eval, exec, pickle)
+- Obfuscation techniques (base64, import obfuscation, string concat)
+
+**Security Best Practices:**
+
+1. **Never run untrusted code outside sandbox** - Always use HazardSandbox for Python skills
+2. **Validate security constraints before execution** - Check governance, scan for vulnerabilities
+3. **Use maturity-based access controls** - STUDENT agents blocked from Python packages
+4. **Monitor for suspicious patterns** - Static scanning detects 21+ malicious signatures
+5. **Test security defenses** - Run security test suite before deploying to production
+6. **Keep packages updated** - pip-audit scans for known CVEs before installation
+7. **Review audit logs** - All skill executions logged to `skill_executions` table
+
 ---
 
 ## Importing Skills

@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: February 18, 2026
+**Last Updated**: February 19, 2026
 
 ---
 
@@ -144,21 +144,34 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
 
 ### 5.6 Python Package Support System ✨ NEW
-- **Files**: `backend/core/package_governance_service.py`, `backend/core/package_dependency_scanner.py`, `backend/core/package_installer.py` (Plan 03)
+- **Files**: `backend/core/package_governance_service.py`, `backend/core/package_dependency_scanner.py`, `backend/core/package_installer.py`
 - **Purpose**: Maturity-based governance and vulnerability scanning for Python packages in agent skills
 - **Features**:
   - PackageGovernanceService: Maturity-based permissions with <1ms cached lookups
   - PackageDependencyScanner: Vulnerability scanning using pip-audit and Safety
+  - PackageInstaller: Per-skill Docker images with pre-installed packages
+  - HazardSandbox: Isolated execution with security constraints
   - Dependency tree visualization with pipdeptree
   - Version conflict detection for transitive dependencies
   - STUDENT agents blocked from all Python packages
   - INTERN+ require approval for each package version
   - Banned packages blocked for all agents regardless of maturity
   - CVE vulnerability detection from PyPI/GitHub Advisory Database
+  - **Security Testing**: Comprehensive test suite (34 tests, 100% pass rate) validating:
+    - Container escape prevention (privileged mode, Docker socket, host mounts)
+    - Resource exhaustion protection (memory, CPU, timeout, auto-remove)
+    - Network isolation (disabled network, no DNS tunneling)
+    - Filesystem isolation (read-only, tmpfs only, no host access)
+    - Malicious pattern detection (subprocess, eval, base64, pickle, network)
+    - Vulnerability scanning (known CVEs via pip-audit)
+    - Governance blocking (STUDENT agents, banned packages)
+    - Typosquatting and dependency confusion detection
 - **Performance**: <1ms governance checks, 2-5s vulnerability scans
-- **Tests**: 51 tests across 2 test files, all passing
-- **Status**: Plans 01-02 complete, Plans 03-07 pending
-- **See**: `.planning/phases/35-python-package-support/`
+- **Tests**: 117 tests across 6 test files (Plans 01-05), all passing
+- **Security Test File**: `backend/tests/test_package_security.py` (893 lines)
+- **Malicious Fixtures**: `backend/tests/fixtures/malicious_packages.py` (504 lines)
+- **Status**: Plans 01-05 complete, Plans 06-07 pending
+- **See**: `.planning/phases/35-python-package-support/`, `backend/docs/CODE_QUALITY_STANDARDS.md` (Security Testing Patterns)
 
 ### 6. Deep Linking System
 - **Files**: `core/deeplinks.py`, `api/deeplinks.py`
