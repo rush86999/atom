@@ -16,7 +16,7 @@ These tests prevent critical security vulnerabilities.
 
 import pytest
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis import strategies as st
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, characters, booleans
 from sqlalchemy.orm import Session
 from unittest.mock import Mock, patch
 import re
@@ -31,8 +31,8 @@ class TestA01_InjectionInvariants:
     """Property-based tests for A01:2021 - Injection."""
 
     @given(
-        malicious_input=st.text(
-            alphabet=st.characters(
+        malicious_input=text(
+            alphabet=characters(
                 whitelist_categories=['Lu', 'Ll', 'Nd'],
                 whitelist_characters="'\";--\\/*<>=&|",
             ),
@@ -79,7 +79,7 @@ class TestA02_CryptographyInvariants:
     """Property-based tests for A02:2021 - Cryptographic Failures."""
 
     @given(
-        hash_algorithm=st.sampled_from(['bcrypt', 'argon2', 'pbkdf2'])
+        hash_algorithm=sampled_from(['bcrypt', 'argon2', 'pbkdf2'])
     )
     @settings(max_examples=50)
     def test_password_hashing_invariant(self, hash_algorithm: str):
@@ -94,7 +94,7 @@ class TestA02_CryptographyInvariants:
             f"Hash algorithm {hash_algorithm} should be strong (bcrypt/argon2/pbkdf2 recommended)"
 
     @given(
-        weak_algorithm=st.sampled_from(['sha256', 'md5', 'plaintext'])
+        weak_algorithm=sampled_from(['sha256', 'md5', 'plaintext'])
     )
     @settings(max_examples=20)
     def test_weak_password_hashing_rejected(self, weak_algorithm: str):
@@ -113,9 +113,9 @@ class TestA05_SecurityMisconfigurationInvariants:
     """Property-based tests for A05:2021 - Security Misconfiguration."""
 
     @given(
-        debug_mode=st.booleans(),
-        ssl_enabled=st.booleans(),
-        https_port=st.integers(min_value=1, max_value=65535)
+        debug_mode=booleans(),
+        ssl_enabled=booleans(),
+        https_port=integers(min_value=1, max_value=65535)
     )
     @settings(max_examples=50)
     def test_production_security_invariant(
@@ -139,7 +139,7 @@ class TestA06_ComponentVulnerabilityInvariants:
     """Property-based tests for A06:2021 - Vulnerable Components."""
 
     @given(
-        package_name=st.sampled_from([
+        package_name=sampled_from([
             "flask", "django", "requests", "pillow",
             "sqlalchemy", "pyyaml", "jinja2"
         ])
@@ -162,9 +162,9 @@ class TestA07_AuthenticationInvariants:
     """Property-based tests for A07:2021 - Authentication Failures."""
 
     @given(
-        password_length=st.integers(min_value=0, max_value=100),
-        requires_uppercase=st.booleans(),
-        requires_lowercase=st.booleans()
+        password_length=integers(min_value=0, max_value=100),
+        requires_uppercase=booleans(),
+        requires_lowercase=booleans()
     )
     @settings(max_examples=100)
     def test_password_strength_invariant(
@@ -183,7 +183,7 @@ class TestA09_LoggingInvariants:
     """Property-based tests for A09:2021 - Logging Failures."""
 
     @given(
-        event_type=st.sampled_from([
+        event_type=sampled_from([
             "authentication", "authorization", "data_access",
             "admin_action", "security_event"
         ])
@@ -209,8 +209,8 @@ class TestA10_RequestForgeryInvariants:
     """Property-based tests for A10:2021 - Server-Side Request Forgery."""
 
     @given(
-        target_url=st.text(
-            alphabet=st.characters(
+        target_url=text(
+            alphabet=characters(
                 whitelist_categories=['Lu', 'Ll', 'Nd'],
                 whitelist_characters=":/?#[]@!$&'()*+,;="
             ),
@@ -240,7 +240,7 @@ class TestInputValidationInvariants:
     """Property-based tests for input validation invariants."""
 
     @given(
-        username=st.text(
+        username=text(
             min_size=0, max_size=100,
             alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'
         )
@@ -264,8 +264,8 @@ class TestA03_XSSPreventionInvariants:
     """Property-based tests for XSS (Cross-Site Scripting) prevention."""
 
     @given(
-        user_input=st.text(
-            alphabet=st.characters(
+        user_input=text(
+            alphabet=characters(
                 whitelist_categories=['Lu', 'Ll', 'Nd'],
                 whitelist_characters="<>\"'&",
             ),
@@ -304,8 +304,8 @@ class TestA04_InsecureDesignInvariants:
     """Property-based tests for A04:2021 - Insecure Design."""
 
     @given(
-        field_name=st.sampled_from(['is_admin', 'role', 'permissions', 'name', 'email']),
-        is_sensitive=st.booleans()
+        field_name=sampled_from(['is_admin', 'role', 'permissions', 'name', 'email']),
+        is_sensitive=booleans()
     )
     @settings(max_examples=100)
     def test_mass_assignment_prevention_invariant(self, field_name: str, is_sensitive: bool):
@@ -333,8 +333,8 @@ class TestA08_ValidationErrorInvariants:
     """Property-based tests for A08:2021 - Data Validation Failures."""
 
     @given(
-        email_address=st.text(
-            alphabet=st.characters(
+        email_address=text(
+            alphabet=characters(
                 whitelist_categories=['Lu', 'Ll', 'Nd'],
                 whitelist_characters=".-@_+",
             ),
@@ -372,8 +372,8 @@ class TestRateLimitingInvariants:
     """Property-based tests for rate limiting invariants."""
 
     @given(
-        request_count=st.integers(min_value=1, max_value=1000),
-        rate_limit=st.integers(min_value=10, max_value=100)
+        request_count=integers(min_value=1, max_value=1000),
+        rate_limit=integers(min_value=10, max_value=100)
     )
     @settings(max_examples=100)
     def test_rate_limit_enforcement_invariant(
@@ -404,8 +404,8 @@ class TestSessionManagementInvariants:
     """Property-based tests for session management security."""
 
     @given(
-        session_age_seconds=st.integers(min_value=0, max_value=86400),
-        max_session_age_seconds=st.integers(min_value=3600, max_value=7200)
+        session_age_seconds=integers(min_value=0, max_value=86400),
+        max_session_age_seconds=integers(min_value=3600, max_value=7200)
     )
     @settings(max_examples=100)
     def test_session_expiration_invariant(
@@ -435,15 +435,15 @@ class TestFileUploadSecurityInvariants:
     """Property-based tests for file upload security."""
 
     @given(
-        filename=st.text(
-            alphabet=st.characters(
+        filename=text(
+            alphabet=characters(
                 whitelist_categories=['Lu', 'Ll', 'Nd'],
                 whitelist_characters="._-",
             ),
             min_size=1,
             max_size=100
         ),
-        file_size_bytes=st.integers(min_value=0, max_value=100_000_000)
+        file_size_bytes=integers(min_value=0, max_value=100_000_000)
     )
     @example(filename="safe_file.txt", file_size_bytes=1024)
     @example(filename="script.php", file_size_bytes=5000)
@@ -476,8 +476,8 @@ class TestAPISecurityInvariants:
     """Property-based tests for API security."""
 
     @given(
-        response_code=st.integers(min_value=100, max_value=599),
-        contains_sensitive_data=st.booleans()
+        response_code=integers(min_value=100, max_value=599),
+        contains_sensitive_data=booleans()
     )
     @settings(max_examples=100)
     def test_error_response_sanitization_invariant(
@@ -507,8 +507,8 @@ class TestAuthorizationInvariants:
     """Property-based tests for authorization invariants."""
 
     @given(
-        user_role=st.sampled_from(['guest', 'member', 'admin', 'super_admin']),
-        required_role=st.sampled_from(['member', 'admin', 'super_admin'])
+        user_role=sampled_from(['guest', 'member', 'admin', 'super_admin']),
+        required_role=sampled_from(['member', 'admin', 'super_admin'])
     )
     @settings(max_examples=100)
     def test_role_based_access_control_invariant(

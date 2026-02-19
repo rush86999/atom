@@ -14,7 +14,7 @@ These tests protect against data corruption and financial integrity issues.
 
 import pytest
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis import strategies as st
+from hypothesis.strategies import text as st_text, integers, floats, lists, sampled_from, timedeltas, booleans
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
@@ -32,9 +32,9 @@ class TestAtomicityInvariants:
     """Property-based tests for transaction atomicity."""
 
     @given(
-        initial_balance=st.integers(min_value=0, max_value=1000000),
-        debit_amount=st.integers(min_value=1, max_value=100000),
-        credit_amount=st.integers(min_value=1, max_value=100000)
+        initial_balance=integers(min_value=0, max_value=1000000),
+        debit_amount=integers(min_value=1, max_value=100000),
+        credit_amount=integers(min_value=1, max_value=100000)
     )
     @example(initial_balance=100, debit_amount=150, credit_amount=50)  # Overdraft case
     @example(initial_balance=1000, debit_amount=100, credit_amount=200)  # Normal case
@@ -108,8 +108,8 @@ class TestConsistencyInvariants:
     """Property-based tests for transaction consistency."""
 
     @given(
-        confidence_scores=st.lists(
-            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        confidence_scores=lists(
+            floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
             min_size=1,
             max_size=10
         )
@@ -132,8 +132,8 @@ class TestIsolationInvariants:
     """Property-based tests for transaction isolation."""
 
     @given(
-        num_threads=st.integers(min_value=2, max_value=5),
-        operations_per_thread=st.integers(min_value=1, max_value=10)
+        num_threads=integers(min_value=2, max_value=5),
+        operations_per_thread=integers(min_value=1, max_value=10)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_concurrent_transaction_isolation(
@@ -187,7 +187,7 @@ class TestDurabilityInvariants:
     """Property-based tests for transaction durability."""
 
     @given(
-        agent_count=st.integers(min_value=1, max_value=10)
+        agent_count=integers(min_value=1, max_value=10)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_transaction_durability(self, db_session: Session, agent_count: int):
@@ -232,8 +232,8 @@ class TestForeignKeyInvariants:
     """Property-based tests for referential integrity."""
 
     @given(
-        create_executions=st.booleans(),
-        execution_count=st.integers(min_value=1, max_value=5)
+        create_executions=booleans(),
+        execution_count=integers(min_value=1, max_value=5)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_foreign_key_constraint_enforced(
@@ -286,7 +286,7 @@ class TestCascadeDeleteInvariants:
     """Property-based tests for cascade deletion."""
 
     @given(
-        execution_count=st.integers(min_value=1, max_value=10)
+        execution_count=integers(min_value=1, max_value=10)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cascade_delete_on_agent_removal(
@@ -353,8 +353,8 @@ class TestUniqueConstraintInvariants:
     """Property-based tests for unique constraints."""
 
     @given(
-        agent_names=st.lists(
-            st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'),
+        agent_names=lists(
+            st_text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'),
             min_size=1,
             max_size=10,
             unique=True
@@ -399,10 +399,10 @@ class TestNullConstraintInvariants:
     """Property-based tests for null constraint enforcement."""
 
     @given(
-        name_provided=st.booleans(),
-        category_provided=st.booleans(),
-        module_path_provided=st.booleans(),
-        class_name_provided=st.booleans()
+        name_provided=booleans(),
+        category_provided=booleans(),
+        module_path_provided=booleans(),
+        class_name_provided=booleans()
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_not_null_constraints_enforced(
@@ -459,8 +459,8 @@ class TestRollbackBehaviorInvariants:
     """Property-based tests for transaction rollback behavior."""
 
     @given(
-        success_count=st.integers(min_value=0, max_value=5),
-        fail_at_index=st.integers(min_value=0, max_value=5)
+        success_count=integers(min_value=0, max_value=5),
+        fail_at_index=integers(min_value=0, max_value=5)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_partial_update_rollback(
@@ -521,7 +521,7 @@ class TestTransactionTimeoutInvariants:
     """Property-based tests for transaction timeout behavior."""
 
     @given(
-        execution_delay_ms=st.integers(min_value=0, max_value=100)
+        execution_delay_ms=integers(min_value=0, max_value=100)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_long_running_transaction_completion(
@@ -573,8 +573,8 @@ class TestDataIntegrityInvariants:
     """Property-based tests for data integrity constraints."""
 
     @given(
-        confidence_scores=st.lists(
-            st.floats(min_value=-1.0, max_value=2.0, allow_nan=False, allow_infinity=False),
+        confidence_scores=lists(
+            floats(min_value=-1.0, max_value=2.0, allow_nan=False, allow_infinity=False),
             min_size=1,
             max_size=20
         )
@@ -614,8 +614,8 @@ class TestConstraintPropagationInvariants:
     """Property-based tests for constraint propagation across relationships."""
 
     @given(
-        workspace_count=st.integers(min_value=1, max_value=5),
-        agents_per_workspace=st.integers(min_value=1, max_value=3)
+        workspace_count=integers(min_value=1, max_value=5),
+        agents_per_workspace=integers(min_value=1, max_value=3)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_workspace_constraint_propagation(
