@@ -10,8 +10,17 @@ Extended for Python package support (Phase 35):
 - Installs packages in dedicated Docker images using PackageInstaller
 - Executes skills with custom images containing pre-installed packages
 
+Extended for npm package support (Phase 36):
+- Extracts node_packages from parsed skill metadata
+- Checks npm package permissions using PackageGovernanceService (package_type='npm')
+- Installs npm packages using NpmPackageInstaller
+- Executes Node.js skills with pre-installed npm packages
+- Audit logging for all npm governance decisions and installations
+- Skill type detection (Python vs Node.js)
+
 Reference: Phase 14 Plan 03 - Skills Registry & Security
 Reference: Phase 35 Plan 06 - Skill Integration
+Reference: Phase 36 Plan 06 - npm Skill Integration
 """
 
 import datetime
@@ -126,6 +135,14 @@ class SkillRegistryService:
             packages = self._parser._extract_packages(skill_metadata, source)
             skill_metadata['packages'] = packages
 
+            # Extract node_packages (Phase 36)
+            node_packages = self._parser._extract_node_packages(skill_metadata, source)
+            skill_metadata['node_packages'] = node_packages
+
+            # Extract package_manager (Phase 36)
+            package_manager = self._parser._extract_package_manager(skill_metadata, source)
+            skill_metadata['package_manager'] = package_manager
+
             # Detect skill type
             skill_type = self._parser._detect_skill_type(skill_metadata, skill_body)
             skill_metadata['skill_type'] = skill_type
@@ -166,7 +183,9 @@ class SkillRegistryService:
                     "skill_type": skill_type,
                     "skill_metadata": skill_metadata,
                     "skill_body": skill_body,
-                    "packages": packages  # Phase 35: Store packages
+                    "packages": packages,  # Phase 35: Store Python packages
+                    "node_packages": node_packages,  # Phase 36: Store npm packages
+                    "package_manager": package_manager  # Phase 36: Store package manager
                 },
                 skill_source="community",
                 security_scan_result=scan_result,
@@ -314,13 +333,17 @@ class SkillRegistryService:
         # Extract packages from skill metadata (Phase 35)
         packages = skill["skill_metadata"].get("packages", [])
 
+        # Extract node_packages from skill metadata (Phase 36)
+        node_packages = skill["skill_metadata"].get("node_packages", [])
+        package_manager = skill["skill_metadata"].get("package_manager", "npm")
+
         # Governance check: Verify agent maturity
         # Community skills default to INTERN maturity requirement
-        agent = self._governance.get_agent(agent_id)
-        if not agent:
+        agent_caps = self._governance.get_agent_capabilities(agent_id)
+        if not agent_caps:
             logger.warning(f"Agent not found: {agent_id}, executing as system")
         else:
-            agent_maturity = agent.get("maturity_level", "STUDENT")
+            agent_maturity = agent_caps.get("maturity_level", "STUDENT")
             if agent_maturity == "STUDENT" and skill_type == "python_code":
                 raise ValueError(
                     f"STUDENT agents cannot execute Python skills. "
@@ -328,10 +351,11 @@ class SkillRegistryService:
                 )
 
         logger.info(
-            f"Executing skill '{skill_name}' (type: {skill_type}, status: {status}, packages: {len(packages)})"
+            f"Executing skill '{skill_name}' (type: {skill_type}, status: {status}, "
+            f"python_packages: {len(packages)}, node_packages: {len(node_packages)})"
         )
 
-        # Package permission checks (Phase 35)
+        # Package permission checks (Phase 35 - Python, Phase 36 - npm)
         if packages and skill_type == "python_code":
             from core.package_governance_service import PackageGovernanceService
             from packaging.requirements import Requirement
@@ -366,6 +390,39 @@ class SkillRegistryService:
                     logger.error(f"Error checking package permission for {package_req}: {e}")
                     # Continue on parsing errors (already validated in SkillParser)
 
+            # npm package permission checks (Phase 36)
+            if node_packages:
+                from core.package_governance_service import PackageGovernanceService
+
+                governance = PackageGovernanceService()
+
+                # Check permissions for all npm packages
+                for pkg_spec in node_packages:
+                    try:
+                        name, version = self._parse_npm_package(pkg_spec)
+
+                        permission = governance.check_package_permission(
+                            agent_id=agent_id,
+                            package_name=name,
+                            version=version,
+                            package_type="npm",
+                            db=self.db
+                        )
+
+                        if not permission["allowed"]:
+                            error_msg = (
+                                f"npm package permission denied: {name}@{version}. "
+                                f"Reason: {permission['reason']}"
+                            )
+                            logger.warning(error_msg)
+                            raise ValueError(error_msg)
+
+                    except ValueError:
+                        raise  # Re-raise ValueError from permission check
+                    except Exception as e:
+                        logger.error(f"Error checking npm package permission for {pkg_spec}: {e}")
+                        # Continue on parsing errors
+
         # Create execution record
         execution = SkillExecution(
             agent_id=agent_id,
@@ -389,8 +446,13 @@ class SkillRegistryService:
             if skill_type == "prompt_only":
                 result = self._execute_prompt_skill(skill, inputs)
             elif skill_type == "python_code":
-                if packages:
-                    # Package execution path (Phase 35)
+                if node_packages:
+                    # npm package execution path (Phase 36)
+                    result = await self._execute_nodejs_skill_with_packages(
+                        skill, inputs, node_packages, package_manager, agent_id
+                    )
+                elif packages:
+                    # Python package execution path (Phase 35)
                     result = await self._execute_python_skill_with_packages(
                         skill, inputs, packages, agent_id
                     )
@@ -594,6 +656,291 @@ class SkillRegistryService:
         except Exception as e:
             logger.error(f"Package execution failed for skill '{skill_name}': {e}")
             raise
+
+    async def _execute_nodejs_skill_with_packages(
+        self,
+        skill: Dict[str, Any],
+        inputs: Dict[str, Any],
+        node_packages: List[str],
+        package_manager: str,
+        agent_id: str
+    ) -> str:
+        """
+        Execute Node.js skill with npm packages using NpmPackageInstaller.
+
+        Package execution workflow (Phase 36):
+        1. Install npm packages in dedicated Docker image
+        2. Execute Node.js code using custom image with pre-installed packages
+        3. Return execution output
+
+        Args:
+            skill: Skill metadata
+            inputs: Input parameters
+            node_packages: List of npm package specifiers
+            package_manager: Package manager (npm, yarn, pnpm)
+            agent_id: Agent ID executing the skill
+
+        Returns:
+            Execution result from npm-aware execution
+
+        Raises:
+            ValueError: If npm installation fails
+        """
+        from core.npm_package_installer import NpmPackageInstaller
+
+        skill_name = skill["skill_name"]
+        skill_id_for_image = f"skill-{skill['skill_id']}" if 'skill_id' in skill else f"skill-{skill_name.replace(' ', '-').lower()}"
+
+        logger.info(
+            f"Executing Node.js skill '{skill_name}' with {len(node_packages)} npm packages"
+        )
+
+        try:
+            # Step 1: Install npm packages using NpmPackageInstaller
+            logger.info(
+                f"Installing {len(node_packages)} npm packages for skill '{skill_name}'"
+            )
+
+            # Install with governance checks and audit logging
+            install_result = self._install_npm_dependencies_for_skill(
+                skill_id=skill_id_for_image,
+                node_packages=node_packages,
+                package_manager=package_manager,
+                agent_id=agent_id,
+                db=self.db
+            )
+
+            if not install_result.get("success"):
+                error_msg = install_result.get("error", "Unknown npm installation error")
+                logger.error(
+                    f"npm installation failed for skill '{skill_name}': {error_msg}"
+                )
+                raise ValueError(f"npm installation failed: {error_msg}")
+
+            # Log vulnerabilities if any
+            vulnerabilities = install_result.get("vulnerabilities", [])
+            if vulnerabilities:
+                logger.warning(
+                    f"Skill '{skill_name}' has {len(vulnerabilities)} vulnerabilities "
+                    f"(proceeding with execution)"
+                )
+
+            # Step 2: Extract Node.js code from skill body
+            code = self._extract_nodejs_code(skill["skill_body"])
+            if not code:
+                raise ValueError(f"No Node.js code found in skill '{skill_name}'")
+
+            # Step 3: Execute skill using custom image
+            logger.info(
+                f"Executing skill '{skill_name}' with image {install_result['image_tag']}"
+            )
+
+            installer = NpmPackageInstaller()
+            output = installer.execute_with_packages(
+                skill_id=skill_id_for_image,
+                code=code,
+                inputs=inputs
+            )
+
+            return output
+
+        except Exception as e:
+            logger.error(f"npm execution failed for skill '{skill_name}': {e}")
+            raise
+
+    def _extract_nodejs_code(self, skill_body: str) -> str:
+        """
+        Extract Node.js code from skill body.
+
+        Looks for ```javascript or ```node fence blocks.
+        If no code blocks found, returns entire body as code.
+
+        Args:
+            skill_body: Skill body content
+
+        Returns:
+            Node.js code string
+        """
+        # Check for ```javascript or ```node fence blocks
+        lines = skill_body.split('\n')
+        in_code_block = False
+        code_lines = []
+
+        for line in lines:
+            if line.strip().startswith('```javascript') or line.strip().startswith('```node') or line.strip().startswith('``` js'):
+                in_code_block = True
+                continue
+
+            if in_code_block and line.strip() == '```':
+                break
+
+            if in_code_block:
+                code_lines.append(line)
+
+        # If code block found, return it
+        if code_lines:
+            return '\n'.join(code_lines)
+
+        # Otherwise, return entire body (might be pure Node.js code)
+        return skill_body
+
+    def _install_npm_dependencies_for_skill(
+        self,
+        skill_id: str,
+        node_packages: List[str],
+        package_manager: str,
+        agent_id: str,
+        db: Session
+    ) -> Dict[str, Any]:
+        """
+        Install npm packages for skill with governance checks and audit logging.
+
+        Workflow:
+        1. Check governance permissions for all packages (package_type='npm')
+        2. Log governance decisions to audit trail
+        3. Scan for postinstall/preinstall scripts
+        4. Install packages using NpmPackageInstaller
+        5. Log installation attempts to audit trail
+
+        Args:
+            skill_id: Unique skill identifier
+            node_packages: List of npm package specifiers
+            package_manager: Package manager (npm, yarn, pnpm)
+            agent_id: Agent ID executing the skill
+            db: Database session for governance and audit logging
+
+        Returns:
+            Dict with installation result (success, image_tag, vulnerabilities)
+
+        Raises:
+            PermissionError: If governance check fails
+            SecurityError: If malicious scripts detected
+        """
+        from core.npm_package_installer import NpmPackageInstaller
+        from core.npm_script_analyzer import NpmScriptAnalyzer
+        from core.audit_service import audit_service
+
+        # Step 1: Check governance permissions with audit logging
+        logger.info(f"Checking npm governance permissions for {len(node_packages)} packages")
+
+        for pkg in node_packages:
+            name, version = self._parse_npm_package(pkg)
+
+            permission = self._governance.check_package_permission(
+                agent_id, name, version, package_type="npm", db=db
+            )
+
+            # Log governance decision to audit trail
+            audit_service.create_package_audit(
+                db=db,
+                agent_id=agent_id,
+                user_id=agent_id,  # Agent as user
+                action="governance_decision",
+                package_name=name,
+                package_version=version,
+                package_type="npm",
+                skill_id=skill_id,
+                governance_decision="approved" if permission["allowed"] else "denied",
+                governance_reason=permission.get("reason", ""),
+                metadata={"package_manager": package_manager}
+            )
+
+            if not permission["allowed"]:
+                error_msg = (
+                    f"npm package {name}@{version} blocked by governance: "
+                    f"{permission['reason']}"
+                )
+                logger.warning(error_msg)
+                raise PermissionError(error_msg)
+
+            logger.info(f"Governance check passed for npm package {name}@{version}")
+
+        # Step 2: Scan for postinstall scripts
+        script_analyzer = NpmScriptAnalyzer()
+        script_warnings = script_analyzer.analyze_package_scripts(
+            node_packages, package_manager
+        )
+
+        if script_warnings["malicious"]:
+            error_msg = (
+                f"Malicious postinstall/preinstall scripts detected: "
+                f"{script_warnings['warnings']}"
+            )
+            logger.error(error_msg)
+            raise SecurityError(error_msg)
+
+        if script_warnings["warnings"]:
+            logger.warning(f"Suspicious npm scripts detected: {script_warnings['warnings']}")
+
+        # Step 3: Install packages with audit logging
+        installer = NpmPackageInstaller()
+        install_result = installer.install_packages(
+            skill_id=skill_id,
+            packages=node_packages,
+            package_manager=package_manager
+        )
+
+        # Step 4: Log installation attempt to audit trail
+        for pkg in node_packages:
+            name, version = self._parse_npm_package(pkg)
+
+            audit_service.create_package_audit(
+                db=db,
+                agent_id=agent_id,
+                user_id=agent_id,
+                action="install",
+                package_name=name,
+                package_version=version,
+                package_type="npm",
+                skill_id=skill_id,
+                governance_decision="approved",
+                metadata={
+                    "install_success": install_result.get("success", False),
+                    "image_tag": install_result.get("image_tag"),
+                    "package_manager": package_manager
+                }
+            )
+
+        if not install_result["success"]:
+            error_msg = install_result.get("error", "Unknown npm installation error")
+            logger.error(f"npm installation failed: {error_msg}")
+            raise ValueError(error_msg)
+
+        logger.info(
+            f"Successfully installed {len(node_packages)} npm packages for skill {skill_id} "
+            f"(image: {install_result['image_tag']})"
+        )
+
+        return install_result
+
+    def _parse_npm_package(self, package: str) -> tuple:
+        """
+        Parse npm package specifier into name and version.
+
+        Args:
+            package: Package specifier (e.g., "lodash@4.17.21", "express", "@scope/name@^1.0.0")
+
+        Returns:
+            Tuple of (name, version)
+        """
+        # Handle scoped packages (@scope/name or @scope/name@version)
+        if package.startswith('@'):
+            if package.count('@') >= 2:
+                # @scope/name@version
+                parts = package.split('@')
+                name = f"@{parts[1]}"
+                version = parts[2]
+                return (name, version)
+            else:
+                # @scope/name without version
+                return (package, "latest")
+
+        # Handle regular packages
+        if '@' in package:
+            name, version = package.split('@', 1)
+            return (name, version)
+        else:
+            return (package, "latest")
 
     def _summarize_inputs(self, inputs: Dict[str, Any]) -> str:
         """
