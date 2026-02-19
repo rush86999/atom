@@ -26,6 +26,7 @@ class AuditType(str, Enum):
     BROWSER = "browser"
     DEVICE = "device"
     AGENT = "agent"
+    PACKAGE = "package"
     GENERIC = "generic"
 
 
@@ -390,6 +391,82 @@ class AuditService:
         db.add(audit_log)
         db.commit()
         return audit_log.id
+
+    def create_package_audit(
+        self,
+        db: Session,
+        agent_id: Optional[str],
+        agent_execution_id: Optional[str],
+        user_id: str,
+        action: str,  # "install", "execute", "permission_check", "governance_decision"
+        package_name: str,
+        package_version: str,
+        package_type: str,  # "python" or "npm"
+        skill_id: Optional[str] = None,
+        governance_decision: Optional[str] = None,  # "approved", "denied"
+        governance_reason: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        request: Optional[Request] = None
+    ) -> Optional[str]:
+        """
+        Log package installation, execution, or governance decision to audit trail.
+
+        Args:
+            db: Database session
+            agent_id: Agent ID performing the action
+            agent_execution_id: Agent execution ID (if applicable)
+            user_id: User ID requesting the action
+            action: Action type ("install", "execute", "permission_check", "governance_decision")
+            package_name: Package name (e.g., "numpy", "lodash")
+            package_version: Package version (e.g., "1.21.0", "4.17.21")
+            package_type: Package type ("python" or "npm")
+            skill_id: Skill ID (if applicable)
+            governance_decision: Governance decision ("approved", "denied")
+            governance_reason: Reason for governance decision
+            metadata: Additional metadata
+            request: FastAPI Request object for IP/user-agent
+
+        Returns:
+            Audit log ID or None on failure
+
+        Audit metadata includes:
+            - agent_id, package_name, package_version, package_type
+            - governance_decision, governance_reason
+            - skill_id (if provided)
+        """
+        # Enrich metadata with package-specific fields
+        enriched_metadata = metadata or {}
+        enriched_metadata.update({
+            "agent_id": agent_id,
+            "agent_execution_id": agent_execution_id,
+            "package_name": package_name,
+            "package_version": package_version,
+            "package_type": package_type,
+            "skill_id": skill_id,
+            "governance_decision": governance_decision,
+            "governance_reason": governance_reason
+        })
+
+        # Determine description based on action
+        description = f"{action} {package_type} package {package_name}@{package_version}"
+        if governance_decision:
+            description += f" ({governance_decision})"
+        if skill_id:
+            description += f" for skill {skill_id}"
+
+        return self._log_with_retry(
+            db=db,
+            audit_type=AuditType.PACKAGE,
+            event_data={
+                "event_type": "package_operation",
+                "action": action,
+                "description": description,
+                "user_id": user_id,
+                "resource": f"{package_type}:{package_name}:{package_version}",
+                "metadata": enriched_metadata,
+                "request": request
+            }
+        )
 
 
 # Global instance

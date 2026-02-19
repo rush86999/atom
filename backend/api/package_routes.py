@@ -33,6 +33,7 @@ from core.package_dependency_scanner import PackageDependencyScanner
 from core.package_installer import PackageInstaller
 from core.npm_package_installer import NpmPackageInstaller
 from core.npm_script_analyzer import NpmScriptAnalyzer
+from core.audit_service import audit_service
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -500,6 +501,21 @@ def check_npm_package_permission(
             f"allowed={result['allowed']}, maturity_required={result['maturity_required']}"
         )
 
+        # Log permission check to audit trail
+        audit_service.create_package_audit(
+            db=db,
+            agent_id=agent_id,
+            agent_execution_id=None,
+            user_id=agent_id,  # Use agent_id as user_id for system actions
+            action="permission_check",
+            package_name=package_name,
+            package_version=version,
+            package_type="npm",
+            governance_decision="approved" if result["allowed"] else "denied",
+            governance_reason=result.get("reason"),
+            metadata={"maturity_required": result["maturity_required"]}
+        )
+
         return result
 
     except Exception as e:
@@ -710,6 +726,27 @@ def install_npm_packages(
             name, version = pkg, "latest"
         package_specs.append({"name": name, "version": version, "original": pkg})
 
+    # Log installation to audit trail
+    for pkg_spec in package_specs:
+        audit_service.create_package_audit(
+            db=db,
+            agent_id=request.agent_id,
+            agent_execution_id=None,
+            user_id=request.agent_id,
+            action="install",
+            package_name=pkg_spec["name"],
+            package_version=pkg_spec["version"],
+            package_type="npm",
+            skill_id=request.skill_id,
+            governance_decision="approved",
+            metadata={
+                "image_tag": result["image_tag"],
+                "package_manager": request.package_manager,
+                "vulnerabilities_found": len(result.get("vulnerabilities", [])),
+                "script_warnings": result.get("script_warnings", {})
+            }
+        )
+
     return {
         "success": True,
         "skill_id": request.skill_id,
@@ -746,6 +783,26 @@ def execute_npm_code(
         )
 
         logger.info(f"Successfully executed npm skill {request.skill_id} with packages")
+
+        # Log execution to audit trail
+        audit_service.create_package_audit(
+            db=db,
+            agent_id=request.agent_id,
+            agent_execution_id=None,
+            user_id=request.agent_id,
+            action="execute",
+            package_name="nodejs_skill",
+            package_version="custom",
+            package_type="npm",
+            skill_id=request.skill_id,
+            governance_decision="approved",
+            metadata={
+                "timeout_seconds": request.timeout_seconds,
+                "memory_limit": request.memory_limit,
+                "cpu_limit": request.cpu_limit,
+                "output_length": len(output)
+            }
+        )
 
         return {
             "success": True,
