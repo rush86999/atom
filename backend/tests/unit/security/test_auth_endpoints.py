@@ -58,6 +58,68 @@ from core.models import User, MobileDevice
 from tests.factories.user_factory import UserFactory, AdminUserFactory
 
 
+# ============================================================================
+# Test Fixtures for Consistent Secret Key Handling
+# ============================================================================
+
+@pytest.fixture
+def test_secret_key(monkeypatch):
+    """
+    Fixture providing a consistent secret key for JWT token generation in tests.
+
+    This fixture uses monkeypatch to set SECRET_KEY environment variable,
+    ensuring tests use deterministic keys regardless of CI environment.
+
+    Uses 'test-' prefix to distinguish from production keys.
+
+    Security: Never use production secret keys in tests.
+    """
+    test_key = "test-secret-key-for-jwt-testing"
+    monkeypatch.setenv("SECRET_KEY", test_key)
+    return test_key
+
+
+@pytest.fixture
+def test_jwt_token(test_secret_key):
+    """
+    Fixture providing a valid JWT token for testing.
+
+    Creates a token with:
+    - Subject: test_user_123
+    - Expiration: 1 hour from now
+    - Signed with test_secret_key
+
+    Returns:
+        str: Encoded JWT token
+    """
+    import jwt
+    payload = {
+        "sub": "test_user_123",
+        "exp": datetime.utcnow() + timedelta(hours=1),
+        "iat": datetime.utcnow()
+    }
+    return jwt.encode(payload, test_secret_key, algorithm="HS256")
+
+
+@pytest.fixture
+def test_expired_jwt_token(test_secret_key):
+    """
+    Fixture providing an expired JWT token for testing error handling.
+
+    Creates a token that expired 1 hour ago.
+
+    Returns:
+        str: Expired JWT token
+    """
+    import jwt
+    payload = {
+        "sub": "test_user_123",
+        "exp": datetime.utcnow() - timedelta(hours=1),
+        "iat": datetime.utcnow() - timedelta(hours=2)
+    }
+    return jwt.encode(payload, test_secret_key, algorithm="HS256")
+
+
 class TestAuthEndpointsMobile:
     """Test mobile-specific authentication endpoints."""
 
