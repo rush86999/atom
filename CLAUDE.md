@@ -283,26 +283,34 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ## Recent Major Changes
 
 ### Phase 35: Python Package Support (Feb 19, 2026) ✨ NEW
-- **Purpose**: Maturity-based governance and vulnerability scanning for Python packages in agent skills
+- **Purpose**: Maturity-based governance, vulnerability scanning, and REST API for Python packages in agent skills
 - **Three Major Components**:
-  1. **Package Governance Service** - Maturity-based permissions with <1ms cached lookups
-  2. **Dependency Scanner** - Vulnerability scanning using pip-audit (PyPI/GitHub advisories) and Safety (commercial DB)
-  3. **Package Installer** - Safe installation with governance checks and vulnerability validation (Plan 03-07)
-- **Implementation**: Plan 01-02 complete, Plans 03-07 pending
+  1. **Package Governance Service** - Maturity-based permissions with <1ms cached lookups (Plan 01)
+  2. **Dependency Scanner** - Vulnerability scanning using pip-audit (PyPI/GitHub advisories) and Safety (commercial DB) (Plan 02)
+  3. **Package Installer & REST API** - Per-skill Docker images with isolated dependencies (Plans 03-04)
+- **Implementation**: Plans 01-04 complete, Plans 05-07 pending
 - **Plans Complete**:
   - Plan 01: PackageGovernanceService (368 lines, 32 tests, 100% pass rate)
   - Plan 02: PackageDependencyScanner (268 lines, 19 tests, 100% pass rate)
+  - Plan 03: PackageInstaller (368 lines) - Docker image building per skill
+  - Plan 04: REST API (636 lines, 11 endpoints) - Install, execute, cleanup, status, audit
 - **Key Features**:
   - STUDENT agents blocked from all Python packages
   - INTERN+ require approval for each package version
   - Banned packages blocked for all agents regardless of maturity
-  - CVE vulnerability detection with pip-audit and Safety
+  - Per-skill Docker images prevent dependency conflicts (Skill A: numpy 1.21, Skill B: numpy 1.24)
+  - CVE vulnerability detection with pip-audit and Safety before installation
   - Dependency tree visualization with pipdeptree
   - Version conflict detection for transitive dependencies
-- **Performance**: <1ms governance checks, 2-5s vulnerability scans
-- **Tests**: 51 tests across 2 test files, all passing
-- **Docs**: `backend/core/package_governance_service.py`, `backend/core/package_dependency_scanner.py`
-- **Status**: 🔄 IN PROGRESS - Plans 01-02 complete, Plans 03-07 pending
+  - Read-only filesystem, non-root user, resource limits
+- **REST API Endpoints** (11 total):
+  - Governance: GET /check, POST /request, POST /approve, POST /ban, GET /, GET /stats
+  - Management: POST /install, POST /execute, DELETE /{skill_id}, GET /{skill_id}/status, GET /audit
+- **Performance**: <1ms governance checks, 2-5s vulnerability scans, 10-30s image builds
+- **Tests**: 51+ tests across 4 test files, all passing
+- **Docs**: `backend/core/package_installer.py`, `backend/api/package_routes.py`
+- **API Docs**: `backend/docs/API_DOCUMENTATION.md#python-package-management`
+- **Status**: 🔄 IN PROGRESS - Plans 01-04 complete, Plans 05-07 pending
 - **See**: `.planning/phases/35-python-package-support/`
 
 ### Phase 25: Atom CLI as OpenClaw Skills (Feb 18, 2026) ✨ NEW

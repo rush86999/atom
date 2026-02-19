@@ -10,6 +10,7 @@
 2. [Authentication](#authentication)
 3. [Governance Requirements](#governance-requirements)
 4. [API Endpoints](#api-endpoints)
+   - [Python Package Management](#python-package-management)
 5. [OpenAPI Documentation](#openapi-documentation)
 6. [Integration Examples](#integration-examples)
 
@@ -25,6 +26,7 @@ The Atom Platform provides a comprehensive REST API for AI-powered workflow auto
 - **Browser Automation**: Automate web interactions via Playwright CDP
 - **Device Capabilities**: Access device features (camera, location, notifications)
 - **Skill Execution**: Run custom skills including OpenClaw community skills
+- **Python Packages**: Install and manage Python packages for skills (numpy, pandas, etc.)
 - **Episodic Memory**: Retrieve and analyze agent learning experiences
 - **Social Collaboration**: Agent-to-agent and human-to-agent messaging
 - **Integrations**: 100+ third-party service integrations
@@ -1047,6 +1049,242 @@ GET /api/episodes/learning-progress
     "min_constitutional_score": 0.85
   },
   "ready_for_graduation": false
+}
+```
+
+---
+
+### Python Package Management
+
+The Atom Platform supports Python package installation for community skills with per-skill Docker image isolation, dependency conflict prevention, and security scanning.
+
+#### Check Package Permission
+
+```http
+GET /api/packages/check
+```
+
+**Description**: Check if an agent can use a specific Python package version.
+
+**Authentication**: Required
+
+**Governance**: STUDENT agents blocked, INTERN+ require approval
+
+**Query Parameters**:
+
+- `agent_id` (required): Agent UUID
+- `package_name` (required): Python package name (e.g., "numpy")
+- `version` (required): Package version (e.g., "1.21.0")
+
+**Response**:
+
+```json
+{
+  "allowed": true,
+  "maturity_required": "INTERN",
+  "reason": null
+}
+```
+
+---
+
+#### Install Packages
+
+```http
+POST /api/packages/install
+```
+
+**Description**: Install Python packages for a skill in a dedicated Docker image.
+
+**Authentication**: Required
+
+**Governance**: STUDENT blocked, INTERN+ require approval
+
+**Request Body**:
+
+```json
+{
+  "agent_id": "agent_789",
+  "skill_id": "data-analysis-skill",
+  "requirements": [
+    "numpy==1.21.0",
+    "pandas>=1.3.0",
+    "matplotlib>=3.4.0"
+  ],
+  "scan_for_vulnerabilities": true,
+  "base_image": "python:3.11-slim"
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "image_tag": "atom-skill:data-analysis-skill-v1",
+  "packages_installed": [
+    {
+      "name": "numpy",
+      "version": "==1.21.0",
+      "original": "numpy==1.21.0"
+    },
+    {
+      "name": "pandas",
+      "version": ">=1.3.0",
+      "original": "pandas>=1.3.0"
+    }
+  ],
+  "vulnerabilities": [],
+  "build_logs": [
+    "Step 1/8 : FROM python:3.11-slim",
+    "Step 2/8 : RUN python -m venv /opt/atom_skill_env",
+    "Successfully built abc123def456"
+  ]
+}
+```
+
+**Error Responses**:
+
+- `403`: Package permission denied (agent maturity insufficient)
+- `400`: Vulnerabilities detected or invalid requirement
+
+---
+
+#### Execute with Packages
+
+```http
+POST /api/packages/execute
+```
+
+**Description**: Execute skill code using its dedicated Docker image with pre-installed packages.
+
+**Authentication**: Required
+
+**Prerequisite**: Must call `POST /install` first to build skill image
+
+**Request Body**:
+
+```json
+{
+  "agent_id": "agent_789",
+  "skill_id": "data-analysis-skill",
+  "code": "import numpy as np; print(np.array([1, 2, 3]))",
+  "inputs": {},
+  "timeout_seconds": 30,
+  "memory_limit": "256m",
+  "cpu_limit": 0.5
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "output": "[1 2 3]"
+}
+```
+
+**Error Responses**:
+
+- `404`: Skill image not found (run `POST /install` first)
+- `500`: Execution failed
+
+---
+
+#### Get Skill Image Status
+
+```http
+GET /api/packages/{skill_id}/status
+```
+
+**Description**: Check if a skill's Docker image exists and get image details.
+
+**Authentication**: Required
+
+**Path Parameters**:
+
+- `skill_id` (required): Skill identifier
+
+**Response**:
+
+```json
+{
+  "skill_id": "data-analysis-skill",
+  "image_exists": true,
+  "image_tag": "atom-skill:data-analysis-skill-v1",
+  "size_bytes": 123456789,
+  "created": "2026-02-19T10:00:00Z",
+  "tags": ["atom-skill:data-analysis-skill-v1"]
+}
+```
+
+---
+
+#### Cleanup Skill Image
+
+```http
+DELETE /api/packages/{skill_id}
+```
+
+**Description**: Remove a skill's Docker image to free disk space.
+
+**Authentication**: Required
+
+**Path Parameters**:
+
+- `skill_id` (required): Skill identifier
+
+**Query Parameters**:
+
+- `agent_id` (required): Agent UUID requesting cleanup
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "message": "Image removed successfully"
+}
+```
+
+**Note**: This endpoint is idempotent - returns success even if image not found.
+
+---
+
+#### List Package Operations
+
+```http
+GET /api/packages/audit
+```
+
+**Description**: List package installation/execution operations from audit trail.
+
+**Authentication**: Required
+
+**Query Parameters**:
+
+- `agent_id` (optional): Filter by agent UUID
+- `skill_id` (optional): Filter by skill identifier
+
+**Response**:
+
+```json
+{
+  "operations": [
+    {
+      "id": "exec_123",
+      "skill_id": "data-analysis-skill",
+      "agent_id": "agent_789",
+      "status": "completed",
+      "sandbox_enabled": true,
+      "created_at": "2026-02-19T10:00:00Z"
+    }
+  ],
+  "count": 1
 }
 ```
 
