@@ -9,9 +9,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 
-Phase: 60-advanced-skill-execution
-Plan: Phase 60-05 COMPLETE
-Status: Phase 60-05 COMPLETE - E2E Supply Chain Security Testing (2 tasks, 3 files, 1280 lines). Comprehensive supply chain attack fixtures (500+ lines) with typosquatting (8 Python + 8 npm), dependency confusion (3 Python + 3 npm), postinstall malware (4 categories). E2E security test suite with 36 tests covering all major threat vectors, 100% audit trail coverage. Helper functions for detection and validation. 2 atomic commits (a9199c6a, 2dd78669), 11 minutes duration. All tests passing (36/36).
+Phase: 17-agent-layer
+Plan: 17-agent-layer-01 COMPLETE
+Status: Phase 17-01 COMPLETE - Agent Governance & Maturity Routing Test Coverage (136 tests, 3 files, 1694 lines). Comprehensive 4x4 maturity/complexity matrix tests (30 tests), action complexity validation (74 tests), governance cache performance (32 tests). Coverage: 50% combined on agent_governance_service.py and governance_cache.py. Performance: P50 <1ms, P99 <10ms, >90% hit rate. 3 atomic commits (047392a4, 0ba12c4e, 9d13e9c5), 8 minutes duration. All tests passing (136/136).
 
 Previous: Phase 36-07 COMPLETE - npm Package Support Documentation (7/7 plans, 5 tasks, 1,937 lines)
 Last activity: 2026-02-19 — Phase 36-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 1,937 lines, 82 sections) for npm Package Support. NPM_PACKAGE_SUPPORT.md (769 lines, 40 sections) - user guide with quick start, version formats, governance rules, security features, installation workflow, API usage, troubleshooting, best practices, and examples (lodash, axios, express, Joi). README_NPM_TESTS.md (1,004 lines, 42 sections) - security test documentation for all 34 threat scenarios across 4 test files (container escape, resource exhaustion, typosquatting, supply chain). COMMUNITY_SKILLS.md updated (+158 lines) with npm packages section (node_packages field, package_manager options, governance rules, security features). README.md updated (+6 lines) with npm package support references in features, security, and documentation sections. 4 atomic commits (59d9f1ed, ca6be66c, 76426c6e, ca412cca), 10 minutes duration. Phase 36 complete - all 7 plans executed, production-ready with npm package support matching OpenClaw capabilities.
@@ -30,7 +30,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 45% (v2.0: 14/31 plans) - Phase 36 complete
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 48% (v2.0: 15/31 plans) - Phase 17-01 complete
 
 ## Upcoming: Phase 36 - npm Package Support
 
