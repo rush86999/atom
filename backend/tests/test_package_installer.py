@@ -17,12 +17,10 @@ import tempfile
 import shutil
 import types
 
-# Mock docker module before importing
+# Mock docker module BEFORE any imports that use it
 import sys
-sys.modules['docker'] = MagicMock()
-sys.modules['docker.errors'] = MagicMock()
 
-# Create mock exceptions that inherit from Exception (required for catching)
+# Create real exception classes (not mocks) that can be caught
 class DockerException(Exception):
     pass
 
@@ -32,11 +30,16 @@ class ImageNotFound(Exception):
 class APIError(Exception):
     pass
 
-# Create proper docker.errors module with exceptions
-docker_errors = sys.modules['docker.errors']
-docker_errors.DockerException = DockerException
-docker_errors.ImageNotFound = ImageNotFound
-docker_errors.APIError = APIError
+# Create mock docker.errors module with REAL exception classes
+docker_errors_mock = MagicMock()
+docker_errors_mock.DockerException = DockerException
+docker_errors_mock.ImageNotFound = ImageNotFound
+docker_errors_mock.APIError = APIError
+
+# Mock the docker module
+sys.modules['docker'] = MagicMock()
+sys.modules['docker'].errors = docker_errors_mock
+sys.modules['docker.errors'] = docker_errors_mock
 
 from core.package_installer import PackageInstaller
 
@@ -274,8 +277,8 @@ class TestExecutionWithPackages:
 
     def test_execute_with_missing_image_raises_error(self, installer, mock_docker_client):
         """Verify RuntimeError when skill image not found."""
-        # Mock image not found
-        mock_docker_client.images.get.side_effect = ImageNotFound("Image not found")
+        # Mock image not found - use the ImageNotFound from our mocked docker.errors
+        mock_docker_client.images.get.side_effect = sys.modules['docker.errors'].ImageNotFound("Image not found")
 
         with pytest.raises(RuntimeError) as exc_info:
             installer.execute_with_packages(
@@ -331,8 +334,8 @@ class TestImageCleanup:
 
     def test_cleanup_missing_image_returns_false(self, installer, mock_docker_client):
         """Verify cleanup returns False when image not found."""
-        # Mock image not found
-        mock_docker_client.images.get.side_effect = ImageNotFound("Not found")
+        # Mock image not found using our mocked ImageNotFound
+        mock_docker_client.images.get.side_effect = sys.modules['docker.errors'].ImageNotFound("Not found")
 
         result = installer.cleanup_skill_image("test-skill")
 
