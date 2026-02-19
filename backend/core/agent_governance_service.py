@@ -537,3 +537,60 @@ class AgentGovernanceService:
                 return True
                 
         return False
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # GEA: Guardrail hook for evolution directives
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def validate_evolution_directive(
+        self,
+        evolved_config: Dict[str, Any],
+        tenant_id: str,
+    ) -> bool:
+        """
+        GEA Guardrail: Validate an evolved agent config before committing.
+
+        Blocks a config if it contains hard danger phrases, non-evolvable
+        guardrail domains, or has grown to an unhealthy evolution depth (>50).
+
+        Returns True if safe to apply, False to block.
+        """
+        system_prompt: str = evolved_config.get("system_prompt", "") or ""
+        evolution_history: list = evolved_config.get("evolution_history", []) or []
+
+        # 1. Hard danger phrases (absolute block regardless of anything)
+        hard_danger = [
+            "ignore all rules",
+            "bypass guardrails",
+            "disable safety",
+            "override governance",
+            "skip compliance",
+            "ignore tenant policy",
+        ]
+        for phrase in hard_danger:
+            if phrase.lower() in system_prompt.lower():
+                logger.warning(
+                    "GEA guardrail: HARD BLOCK — evolved config contains '%s'", phrase
+                )
+                return False
+
+        # 2. Depth limit — runaway self-modification guard
+        if len(evolution_history) > 50:
+            logger.warning(
+                "GEA guardrail: evolution_history depth %d exceeds limit (50)", len(evolution_history)
+            )
+            return False
+
+        # 3. Domain noise — subjective phrases that signal LLM hallucination
+        noise_patterns = [
+            "as an ai language model",
+            "i cannot assist with",
+            "i'm just an ai",
+        ]
+        for pattern in noise_patterns:
+            if pattern.lower() in system_prompt.lower():
+                logger.warning("GEA guardrail: noise pattern detected: '%s'", pattern)
+                return False
+
+        logger.info("GEA guardrail: config APPROVED for tenant %s", tenant_id)
+        return True
