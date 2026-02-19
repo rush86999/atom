@@ -4,7 +4,14 @@ Skill Registry Service - Manage imported community skills.
 Provides import workflow, security scanning, and lifecycle management
 for OpenClaw community skills with governance integration.
 
+Extended for Python package support (Phase 35):
+- Extracts packages from parsed skill metadata
+- Checks package permissions using PackageGovernanceService
+- Installs packages in dedicated Docker images using PackageInstaller
+- Executes skills with custom images containing pre-installed packages
+
 Reference: Phase 14 Plan 03 - Skills Registry & Security
+Reference: Phase 35 Plan 06 - Skill Integration
 """
 
 import datetime
@@ -77,6 +84,10 @@ class SkillRegistryService:
         """
         Import a community skill from various sources.
 
+        Extended to extract Python packages from SKILL.md (Phase 35):
+        - Parses packages from frontmatter using SkillParser
+        - Stores packages in input_params for execution workflow
+
         Args:
             source: Import source - "github_url", "file_upload", or "raw_content"
             content: SKILL.md content or file content
@@ -87,12 +98,12 @@ class SkillRegistryService:
                 - skill_id: str - Unique identifier for imported skill
                 - scan_result: Dict - Security scan results
                 - status: str - "Untrusted" or "Active"
-                - metadata: Dict - Skill metadata
+                - metadata: Dict - Skill metadata (includes packages)
 
         Example:
             result = service.import_skill(
                 source="raw_content",
-                content="---\\nname: Calculator\\n---\\n...",
+                content="---\\nname: Calculator\\npackages:\\n  - numpy==1.21.0\\n---\\n...",
                 metadata={"author": "community"}
             )
         """
@@ -111,6 +122,10 @@ class SkillRegistryService:
             # Apply auto-fix for missing fields
             skill_metadata = self._parser._auto_fix_metadata(skill_metadata, skill_body, source)
 
+            # Extract packages (Phase 35)
+            packages = self._parser._extract_packages(skill_metadata, source)
+            skill_metadata['packages'] = packages
+
             # Detect skill type
             skill_type = self._parser._detect_skill_type(skill_metadata, skill_body)
             skill_metadata['skill_type'] = skill_type
@@ -121,7 +136,9 @@ class SkillRegistryService:
             skill_name = skill_metadata.get("name", "Unnamed Skill")
             skill_type = skill_metadata.get("skill_type", "prompt_only")
 
-            logger.info(f"Parsed skill '{skill_name}' (type: {skill_type})")
+            logger.info(
+                f"Parsed skill '{skill_name}' (type: {skill_type}, packages: {len(packages)})"
+            )
 
             # Step 2: Security scan
             scan_result = self._scanner.scan_skill(skill_name, skill_body)
@@ -148,7 +165,8 @@ class SkillRegistryService:
                     "skill_name": skill_name,
                     "skill_type": skill_type,
                     "skill_metadata": skill_metadata,
-                    "skill_body": skill_body
+                    "skill_body": skill_body,
+                    "packages": packages  # Phase 35: Store packages
                 },
                 skill_source="community",
                 security_scan_result=scan_result,
@@ -267,13 +285,19 @@ class SkillRegistryService:
         """
         Execute a community skill with governance checks.
 
+        Extended for Python package support (Phase 35):
+        - Extracts packages from skill metadata
+        - Checks package permissions using PackageGovernanceService
+        - Installs packages in dedicated Docker images using PackageInstaller
+        - Executes skills with custom images containing pre-installed packages
+
         Args:
             skill_id: Skill ID from import
             inputs: Input parameters for skill execution
             agent_id: Agent ID executing the skill
 
         Returns:
-            Dict with execution result
+            Dict with execution result (includes image_tag and packages if applicable)
 
         Raises:
             ValueError: If skill not found or governance check fails
@@ -286,6 +310,9 @@ class SkillRegistryService:
         skill_name = skill["skill_name"]
         skill_type = skill["skill_type"]
         status = skill["status"]
+
+        # Extract packages from skill metadata (Phase 35)
+        packages = skill["skill_metadata"].get("packages", [])
 
         # Governance check: Verify agent maturity
         # Community skills default to INTERN maturity requirement
@@ -300,7 +327,44 @@ class SkillRegistryService:
                     f"Agent '{agent_id}' needs INTERN+ maturity for skill '{skill_name}'"
                 )
 
-        logger.info(f"Executing skill '{skill_name}' (type: {skill_type}, status: {status})")
+        logger.info(
+            f"Executing skill '{skill_name}' (type: {skill_type}, status: {status}, packages: {len(packages)})"
+        )
+
+        # Package permission checks (Phase 35)
+        if packages and skill_type == "python_code":
+            from core.package_governance_service import PackageGovernanceService
+            from packaging.requirements import Requirement
+
+            governance = PackageGovernanceService()
+
+            # Check permissions for all packages
+            for package_req in packages:
+                try:
+                    req = Requirement(package_req)
+                    version_spec = str(req.specifier) if req.specifier else "latest"
+
+                    permission = governance.check_package_permission(
+                        agent_id=agent_id,
+                        package_name=req.name,
+                        version=version_spec,
+                        db=self.db
+                    )
+
+                    if not permission["allowed"]:
+                        error_msg = (
+                            f"Package permission denied: {req.name}@{version_spec}. "
+                            f"Reason: {permission['reason']}"
+                        )
+                        logger.warning(error_msg)
+                        raise ValueError(error_msg)
+
+                except ValueError:
+                    # Re-raise ValueError from permission check
+                    raise
+                except Exception as e:
+                    logger.error(f"Error checking package permission for {package_req}: {e}")
+                    # Continue on parsing errors (already validated in SkillParser)
 
         # Create execution record
         execution = SkillExecution(
@@ -321,11 +385,18 @@ class SkillRegistryService:
         result = None
 
         try:
-            # Execute based on skill type
+            # Execute based on skill type and package presence
             if skill_type == "prompt_only":
                 result = self._execute_prompt_skill(skill, inputs)
             elif skill_type == "python_code":
-                result = self._execute_python_skill(skill, inputs)
+                if packages:
+                    # Package execution path (Phase 35)
+                    result = await self._execute_python_skill_with_packages(
+                        skill, inputs, packages, agent_id
+                    )
+                else:
+                    # Original execution without packages
+                    result = self._execute_python_skill(skill, inputs)
             else:
                 raise ValueError(f"Unknown skill type: {skill_type}")
 
@@ -434,6 +505,95 @@ class SkillRegistryService:
         result = self._sandbox.execute_python(code, inputs)
 
         return result
+
+    async def _execute_python_skill_with_packages(
+        self,
+        skill: Dict[str, Any],
+        inputs: Dict[str, Any],
+        packages: List[str],
+        agent_id: str
+    ) -> str:
+        """
+        Execute Python skill with custom Docker image containing packages.
+
+        Package execution workflow (Phase 35):
+        1. Install packages in dedicated Docker image using PackageInstaller
+        2. Execute skill code using custom image with pre-installed packages
+        3. Return execution output
+
+        Args:
+            skill: Skill metadata
+            inputs: Input parameters
+            packages: List of Python package requirements
+            agent_id: Agent ID executing the skill
+
+        Returns:
+            Execution result from package-aware execution
+
+        Raises:
+            ValueError: If package installation fails
+        """
+        from core.package_installer import PackageInstaller
+
+        skill_name = skill["skill_name"]
+        skill_id_for_image = f"skill-{skill_name.replace(' ', '-').lower()}"
+
+        logger.info(
+            f"Executing skill '{skill_name}' with {len(packages)} packages"
+        )
+
+        try:
+            installer = PackageInstaller()
+
+            # Step 1: Install packages in dedicated image
+            logger.info(
+                f"Installing {len(packages)} packages for skill '{skill_name}'"
+            )
+            install_result = installer.install_packages(
+                skill_id=skill_id_for_image,
+                requirements=packages,
+                scan_for_vulnerabilities=True
+            )
+
+            if not install_result["success"]:
+                error_msg = install_result.get("error", "Unknown installation error")
+                logger.error(
+                    f"Package installation failed for skill '{skill_name}': {error_msg}"
+                )
+                raise ValueError(f"Package installation failed: {error_msg}")
+
+            # Log vulnerabilities if any
+            vulnerabilities = install_result.get("vulnerabilities", [])
+            if vulnerabilities:
+                logger.warning(
+                    f"Skill '{skill_name}' has {len(vulnerabilities)} vulnerabilities "
+                    f"(proceeding with execution)"
+                )
+
+            # Step 2: Extract Python code
+            code_blocks = self._parser.extract_python_code(skill["skill_body"])
+            if not code_blocks:
+                raise ValueError(f"No Python code found in skill '{skill_name}'")
+
+            # Use first code block
+            code = code_blocks[0]
+
+            # Step 3: Execute skill using custom image
+            logger.info(
+                f"Executing skill '{skill_name}' with image {install_result['image_tag']}"
+            )
+
+            output = installer.execute_with_packages(
+                skill_id=skill_id_for_image,
+                code=code,
+                inputs=inputs
+            )
+
+            return output
+
+        except Exception as e:
+            logger.error(f"Package execution failed for skill '{skill_name}': {e}")
+            raise
 
     def _summarize_inputs(self, inputs: Dict[str, Any]) -> str:
         """
