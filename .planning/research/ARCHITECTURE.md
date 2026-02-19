@@ -1,559 +1,733 @@
-# Architecture Research
+# Architecture Patterns
 
-**Domain:** Comprehensive Testing Systems for Python/FastAPI/React Native
-**Researched:** February 10, 2026
-**Confidence:** HIGH
+**Domain:** Community Skills Integration (OpenClaw ecosystem)
+**Researched:** February 18, 2026
 
-## Standard Architecture
-
-### System Overview
-
-Comprehensive testing systems follow a layered architecture with clear separation between test types, fixtures, and infrastructure. The design prioritizes test isolation, fast feedback, and coverage quality.
+## Recommended Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Test Execution Layer                            │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐   │
-│  │   Unit     │  │  Property  │  │ Integration│  │    E2E     │   │
-│  │   Tests    │  │   Tests    │  │   Tests    │  │   Tests    │   │
-│  │  (pytest)  │  │(Hypothesis)│  │  (pytest)  │  │  (pytest)  │   │
-│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘   │
-├────────┼───────────────┼───────────────┼───────────────┼───────────┤
-│        │               │               │               │           │
-├────────▼───────────────▼───────────────▼───────────────▼───────────┤
-│                   Test Infrastructure Layer                       │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │              Fixtures & Mocks (conftest.py)                  │  │
-│  │  - Database sessions  - API clients  - Test data factories  │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │                   Test Helpers & Utils                       │  │
-│  │  - Assertions  - Test generators  - Coverage reporters      │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────┤
-│                   Advanced Testing Layer                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ Fuzzy Tests  │  │Mutation Tests│  │Chaos Tests   │            │
-│  │  (Atheris)   │  │  (mutmut)    │  │(ChaosToolkit)│            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
-├─────────────────────────────────────────────────────────────────────┤
-│                   Coverage & Reporting Layer                       │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  Coverage Reports (pytest-cov) → HTML/JSON/Terminal         │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  CI/CD Integration (GitHub Actions) → Test Results           │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         COMMUNITY SKILLS INTEGRATION                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌───────────────┐    ┌───────────────┐    ┌───────────────┐                │
+│  │  Skill Import │───>│   Security    │───>│   Registry    │                │
+│  │   (Parser)    │    │   (Scanner)   │    │   (Service)   │                │
+│  └───────────────┘    └───────────────┘    └───────────────┘                │
+│         │                    │                     │                        │
+│         v                    v                     v                        │
+│  ┌───────────────┐    ┌───────────────┐    ┌───────────────┐                │
+│  │  SKILL.md     │    │ 21+ Patterns  │    │  Untrusted/   │                │
+│  │  Frontmatter  │    │ + GPT-4 Scan  │    │  Active       │                │
+│  └───────────────┘    └───────────────┘    └───────────────┘                │
+│                                                       │                      │
+│                                                       v                      │
+│  ┌───────────────────────────────────────────────────────────────────┐     │
+│  │                      GOVERNANCE LAYER                             │     │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │     │
+│  │  │Governance    │  │Trigger       │  │Agent         │             │     │
+│  │  │Cache         │  │Interceptor   │  │Graduation    │             │     │
+│  │  │(<1ms lookup) │  │(<5ms routing)│  │Service       │             │     │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘             │     │
+│  └───────────────────────────────────────────────────────────────────┘     │
+│                            │           │                                   │
+│                            v           v                                   │
+│  ┌───────────────────────────────────────────────────────────────────┐     │
+│  │                    EXECUTION LAYER                                 │     │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │     │
+│  │  │Skill Adapter │  │Hazard        │  │Episode       │             │     │
+│  │  │(LangChain    │  │Sandbox       │  │Segmentation  │             │     │
+│  │  │BaseTool)     │  │(Docker)      │  │Service       │             │     │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘             │     │
+│  └───────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Responsibilities
+### Component Boundaries
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| **Unit Tests** | Test individual functions/classes in isolation | pytest + pytest-mock |
-| **Property Tests** | Verify invariants hold for all inputs | Hypothesis with custom strategies |
-| **Integration Tests** | Test module interactions with real dependencies | pytest with database fixtures |
-| **E2E Tests** | Test complete workflows through API/UI | pytest + TestClient/Playwright |
-| **Fuzzy Tests** | Find crashes/vulnerabilities with random inputs | Atheris with libFuzzer |
-| **Mutation Tests** | Measure test quality by introducing bugs | mutmut with pytest runner |
-| **Chaos Tests** | Verify resilience under failure conditions | Chaos Toolkit with custom probes |
-| **Coverage System** | Track code coverage across test runs | pytest-cov with JSON/HTML reports |
-| **Test Fixtures** | Provide reusable test data and dependencies | pytest fixtures (conftest.py) |
-| **Test Doubles** | Mock external dependencies | unittest.mock, pytest-mock |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| **SkillParser** | Parse SKILL.md files (YAML + Markdown), auto-fix malformed metadata, detect skill type | SkillRegistryService |
+| **SkillSecurityScanner** | Static pattern matching (21+ malicious patterns) + GPT-4 semantic analysis, cache by SHA hash | SkillRegistryService |
+| **SkillAdapter** | Wrap parsed skills as LangChain BaseTool, support prompt/Python/CLI skill types | SkillRegistryService, Agents |
+| **HazardSandbox** | Isolated Docker container execution, no network/host access, 5-min timeout, memory limits | SkillAdapter, SkillRegistryService |
+| **SkillRegistryService** | Import workflow, security orchestration, lifecycle management, governance checks | All components, GovernanceCache |
+| **GovernanceCache** | <1ms cached permission checks for agent maturity + skill access | TriggerInterceptor, SkillRegistryService |
+| **TriggerInterceptor** | <5ms routing decisions based on agent maturity (STUDENT→INTERN→SUPERVISED→AUTONOMOUS) | SkillRegistryService, GraduationService |
+| **EpisodeSegmentationService** | Create EpisodeSegments for all skill executions, track skill metadata, support retrieval | SkillRegistryService, Agents |
+| **AgentGraduationService** | Calculate readiness scores using skill usage metrics, skill diversity bonus | SkillRegistryService, EpisodeSegments |
+| **skill_routes (API)** | REST endpoints for import/list/execute/promote, governance integration | Frontend, SkillRegistryService |
 
-## Recommended Project Structure
+### Data Flow
 
 ```
-backend/tests/
-├── conftest.py                 # Root fixtures (DB, API clients, env)
-├── pytest.ini                  # Pytest configuration
-├── .pytest_cache/              # Pytest cache
-│
-├── unit/                       # Unit tests (40% of pyramid)
-│   ├── test_core_services.py
-│   ├── test_models.py
-│   └── test_utils.py
-│
-├── property_tests/             # Property-based tests (40% of pyramid)
-│   ├── conftest.py            # Shared fixtures for property tests
-│   ├── database/              # Database invariants
-│   │   ├── test_database_invariants.py
-│   │   └── test_transaction_invariants.py
-│   ├── financial/             # Financial operations invariants
-│   ├── security/              # Security invariants
-│   ├── multi_agent/           # Multi-agent coordination invariants
-│   ├── episodes/              # Episode management invariants
-│   ├── api/                   # API contract invariants
-│   └── tools/                 # Tool execution invariants
-│
-├── integration/               # Integration tests (15% of pyramid)
-│   ├── test_database_integration.py
-│   ├── test_api_integration.py
-│   └── test_llm_integration.py
-│
-├── e2e/                       # End-to-end tests (5% of pyramid)
-│   ├── conftest.py            # E2E-specific fixtures
-│   ├── test_scenario_01_governance.py
-│   ├── test_scenario_02_streaming.py
-│   └── test_scenario_10_complete_workflow.py
-│
-├── fuzzy_tests/               # Fuzzy tests (security-focused)
-│   ├── fuzz_helpers.py        # Fuzz test utilities
-│   ├── security_validation/   # Input sanitization fuzzing
-│   └── financial_parsing/     # Currency parsing fuzzing
-│
-├── chaos/                     # Chaos engineering tests
-│   ├── chaos_helpers.py       # Chaos test utilities
-│   ├── test_database_chaos.py
-│   └── test_network_chaos.py
-│
-├── mutation_tests/            # Mutation testing configuration
-│   ├── MUTATION_TESTING_GUIDE.md
-│   ├── config/                # mutmut configuration
-│   └── scripts/               # Mutation test runners
-│
-├── coverage_reports/          # Coverage artifacts
-│   ├── html/                  # HTML coverage reports
-│   └── metrics/               # JSON coverage metrics
-│
-├── grey_box/                  # Grey-box testing (partial knowledge)
-│   └── conftest.py
-│
-└── artifacts/                 # Test artifacts (screenshots, logs)
+IMPORT FLOW:
+User → API (POST /api/skills/import) → SkillRegistryService.import_skill()
+  → SkillParser._parse_skill() (auto-fix metadata)
+  → SkillSecurityScanner.scan_skill() (21+ patterns + GPT-4)
+  → Store in SkillExecution table (status: Untrusted/Active)
+  → Return skill_id + scan_result
+
+EXECUTION FLOW:
+Agent/LLM → API (POST /api/skills/execute) → SkillRegistryService.execute_skill()
+  → GovernanceCache.check() (agent maturity <1ms lookup)
+  → TriggerInterceptor.intercept_trigger() (<5ms routing)
+  → [STUDENT + Python] → BLOCK → "INTERN+ maturity required"
+  → [INTERN+ + Python] → HazardSandbox.execute() (Docker isolation)
+  → [Any + Prompt] → SkillAdapter._execute_prompt_skill()
+  → EpisodeSegmentationService.create_skill_episode() (audit trail)
+  → Update skill usage metrics (for graduation)
+  → Return execution result + episode_id
+
+GRADUATION FLOW:
+AgentGraduationService.calculate_readiness_score_with_skills()
+  → Get episode metrics (count, interventions, constitutional)
+  → Get skill usage metrics (total_executions, success_rate, unique_skills)
+  → Calculate skill diversity bonus (up to +5% for diverse skill usage)
+  → Return combined readiness score (episodes + interventions + skills)
+
+EPISODIC MEMORY INTEGRATION:
+Every skill execution → EpisodeSegment (segment_type: skill_success/skill_failure)
+  → Extract skill metadata (skill_name, skill_source, inputs)
+  → Store in EpisodeSegment.metadata for retrieval
+  → Support temporal/semantic/sequential/contextual queries
+  → Weight by skill success/failure patterns
 ```
 
-### Structure Rationale
+## Patterns to Follow
 
-- **`unit/`**: Fast tests (<0.1s each) that test business logic in isolation
-- **`property_tests/`**: Medium-speed tests (<1s each) using Hypothesis to find edge cases
-- **`integration/`**: Slower tests (<5s each) testing module interactions with real DB
-- **`e2e/`**: Slowest tests (<30s each) testing complete workflows through API
-- **`fuzzy_tests/`**: Long-running security tests (minutes to hours) with Atheris
-- **`chaos/`**: Resilience tests injecting failures into running system
-- **`mutation_tests/`**: Quality assurance to detect weak tests
-- **`coverage_reports/`**: Generated artifacts, not source code
+### Pattern 1: Three-Layer Security Validation
 
-## Architectural Patterns
+**What:** Defense-in-depth security scanning for imported skills
 
-### Pattern 1: Test Pyramid with Property-Based Layer
-
-**What:** Prioritize fast tests at bottom, fewer slow tests at top. Add property-based testing as middle layer.
-
-**When to use:** All Python projects requiring comprehensive coverage.
-
-**Trade-offs:**
-- **Pros:** Fast feedback, high bug detection, excellent coverage
-- **Cons:** Requires learning Hypothesis strategies, initial setup time
+**When:** All skill imports from external sources (GitHub, file upload, raw content)
 
 **Example:**
 ```python
-# Bottom layer: Unit test (fast, example-based)
-def test_addition():
-    assert add(2, 3) == 5
+from core.skill_registry_service import SkillRegistryService
+from core.skill_security_scanner import SkillSecurityScanner
 
-# Middle layer: Property test (medium speed, exhaustive)
-@given(st.integers(), st.integers())
-def test_addition_commutative(x, y):
-    assert add(x, y) == add(y, x)  # Property: commutativity
+service = SkillRegistryService(db)
 
-# Top layer: Integration test (slow, realistic)
-def test_addition_workflow():
-    response = client.post("/add", json={"x": 2, "y": 3})
-    assert response.status_code == 200
-    assert response.json()["result"] == 5
+# Import with automatic security scanning
+result = service.import_skill(
+    source="raw_content",
+    content="---\nname: Calculator\n---\n...",
+    metadata={"author": "community"}
+)
+
+# Security scan results included
+if result["scan_result"]["risk_level"] == "LOW":
+    # Auto-promote to Active
+    service.promote_skill(result["skill_id"])
+else:
+    # Keep as Untrusted for manual review
+    pass
 ```
 
-### Pattern 2: Fixture Hierarchy with Scoping
+**Key Points:**
+- Static analysis (21+ malicious patterns) runs first (<10ms)
+- GPT-4 semantic analysis for obfuscated threats (if OPENAI_API_KEY set)
+- Cache results by SHA-256 hash (avoid re-scanning)
+- Fail-open behavior: Allow import even if scan fails (mark as "Untrusted")
 
-**What:** Organize fixtures in hierarchy with appropriate scoping (session/module/function).
+### Pattern 2: Maturity-Based Governance Routing
 
-**When to use:** Projects with shared test data and dependencies.
+**What:** Route skill execution based on agent maturity level
 
-**Trade-offs:**
-- **Pros:** DRY, easy maintenance, clear dependency chains
-- **Cons:** Fixture dependency complexity, implicit state
+**When:** Every skill execution request
 
 **Example:**
 ```python
-# conftest.py
-@pytest.fixture(scope="session")
-def db_engine():
-    """Create engine once for entire test session."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    yield engine
-    engine.dispose()
+from core.trigger_interceptor import TriggerInterceptor
+from core.governance_cache import get_governance_cache
 
-@pytest.fixture(scope="function")
-def db_session(db_engine):
-    """Create fresh session for each test."""
-    session = Session(bind=db_engine)
-    yield session
-    session.rollback()
-    session.close()
+interceptor = TriggerInterceptor(db, workspace_id="default")
 
-@pytest.fixture(scope="function")
-def test_agent(db_session):
-    """Create test agent using fresh session."""
-    agent = AgentRegistry(name="TestAgent", status="STUDENT")
-    db_session.add(agent)
-    db_session.commit()
-    return agent
+# Check if agent can execute skill
+decision = await interceptor.intercept_trigger(
+    agent_id="agent-abc",
+    trigger_source=TriggerSource.MANUAL,
+    trigger_context={"action_type": "skill_execute", "skill_type": "python_code"}
+)
+
+if decision.execute:
+    # Proceed with execution
+    result = await service.execute_skill(skill_id, inputs, agent_id)
+else:
+    # Agent blocked from execution
+    if decision.routing_decision == RoutingDecision.TRAINING:
+        # STUDENT agent → Route to training
+    elif decision.routing_decision == RoutingDecision.PROPOSAL:
+        # INTERN agent → Generate proposal for approval
+    elif decision.routing_decision == RoutingDecision.SUPERVISION:
+        # SUPERVISED agent → Execute with monitoring
 ```
 
-### Pattern 3: Strategy-Based Property Testing
+**Maturity Rules:**
+| Agent Level | Prompt Skills | Python Skills | CLI Skills |
+|-------------|---------------|---------------|------------|
+| **STUDENT** | ✅ Yes | ❌ Blocked (route to training) | ✅ Yes |
+| **INTERN** | ✅ Yes | ⚠️ Approval required | ✅ Yes |
+| **SUPERVISED** | ✅ Yes | ✅ Yes (real-time monitoring) | ✅ Yes |
+| **AUTONOMOUS** | ✅ Yes | ✅ Yes (full execution) | ✅ Yes |
 
-**What:** Define custom Hypothesis strategies for domain objects to generate valid test data.
+### Pattern 3: Isolated Sandbox Execution
 
-**When to use:** Property tests for complex domain models.
+**What:** Execute Python skills in Docker containers with strict resource limits
 
-**Trade-offs:**
-- **Pros:** Realistic test data, catches edge cases, reproducible failures
-- **Cons:** Requires strategy design, can be slow with complex data
+**When:** Python skill execution (not prompt skills)
 
 **Example:**
 ```python
-from hypothesis import strategies as st
+from core.skill_sandbox import HazardSandbox
+from core.skill_adapter import CommunitySkillTool
 
-# Custom strategy for agent maturity levels
-@st.composite
-def agent_maturity_strategy(draw):
-    maturity = draw(st.sampled_from(["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]))
-    confidence = draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False))
+# Create skill wrapper
+skill = CommunitySkillTool(
+    name="data-analyzer",
+    skill_id="community_data_analyzer_abc123",
+    skill_type="python_code",
+    skill_content="def analyze(data): return process(data)",
+    sandbox_enabled=True
+)
 
-    # Validate consistency
-    if maturity == "STUDENT":
-        assume(confidence < 0.5)
-    elif maturity == "AUTONOMOUS":
-        assume(confidence > 0.9)
+# Execute in sandbox
+sandbox = HazardSandbox()
+result = await sandbox.execute_skill(
+    skill_id=skill.skill_id,
+    code=skill.skill_content,
+    inputs={"data_file": "/tmp/data.csv"}
+)
 
-    return {"maturity": maturity, "confidence": confidence}
-
-# Use strategy in property test
-@given(agent_maturity_strategy())
-def test_agent_maturity_consistency(agent_data):
-    agent = AgentRegistry(**agent_data)
-    assert agent.is_valid_configuration()
+# Returns: {container_id, output, exit_code, duration_seconds}
 ```
 
-### Pattern 4: Layered Mock Strategy
+**Sandbox Constraints:**
+- Network disabled (no external connections)
+- Read-only filesystem (no persistent storage)
+- 5-minute timeout (auto-termination)
+- Memory limits (prevent resource exhaustion)
+- No host mount (container cannot access host filesystem)
 
-**What:** Use mocks only at integration boundaries, test real behavior in unit tests.
+### Pattern 4: Episodic Memory Integration
 
-**When to use:** Projects with external dependencies (APIs, databases, file system).
+**What:** Create EpisodeSegments for all skill executions to support agent learning
 
-**Trade-offs:**
-- **Pros:** Fast tests, isolation from external failures
-- **Cons:** Mocks can drift from real implementations, over-mocking risks
+**When:** After every skill execution (success or failure)
 
 **Example:**
 ```python
-# ✅ Good: Mock external API in integration test
-def test_slack_api_integration():
-    with patch("integrations.slack.requests.post") as mock_post:
-        mock_post.return_value.status_code = 200
-        result = slack_integration.send_message("#general", "test")
-        assert result.success
-        mock_post.assert_called_once()
+from core.episode_segmentation_service import EpisodeSegmentationService
 
-# ✅ Good: Test real business logic in unit test
-def test_budget_guardrails():
-    engine = FinancialOpsEngine()
-    result = engine.check_budget(budget=100, spend=150)
-    assert not result.approved
-    assert result.reason == "Budget exceeded"
+segmentation = EpisodeSegmentationService(db)
 
-# ❌ Bad: Over-mocking business logic
-def test_budget_guardrails_over_mocked():
-    with patch.object(FinancialOpsEngine, "check_budget") as mock_check:
-        mock_check.return_value = Mock(approved=False)
-        # This test doesn't verify anything real
+# Automatically called after skill execution
+await segmentation.create_skill_episode(
+    agent_id="agent-abc",
+    skill_name="data-analyzer",
+    inputs={"data_file": "/tmp/data.csv"},
+    result={"output": "Analysis complete: 85% positive"},
+    error=None,
+    context_data={
+        "skill_source": "community",
+        "skill_type": "python_code",
+        "sandbox_execution": True,
+        "duration_seconds": 2.3
+    }
+)
+
+# Creates EpisodeSegment with:
+# - segment_type: "skill_success" or "skill_failure"
+# - skill metadata in metadata field
+# - Retrievable via temporal/semantic/sequential/contextual queries
 ```
 
-### Pattern 5: Coverage-Driven Test Development
+**Skill Episode Metadata:**
+```python
+{
+    "skill_name": "data-analyzer",
+    "skill_source": "community",  # vs "builtin" for Atom CLI skills
+    "skill_type": "python_code",  # vs "prompt_only", "cli_command"
+    "sandbox_execution": True,
+    "inputs_summary": "data_file=/tmp/data.csv",
+    "duration_seconds": 2.3,
+    "agent_id": "agent-abc"
+}
+```
 
-**What:** Use coverage reports to identify untested code, write tests to increase coverage.
+### Pattern 5: Graduation Tracking with Skill Metrics
 
-**When to use:** Projects with strict coverage targets (80%+).
+**What:** Include skill usage metrics in agent graduation readiness scores
 
-**Trade-offs:**
-- **Pros:** Quantifiable progress, clear gaps identification
-- **Cons:** Coverage ≠ quality, can lead to useless tests
+**When:** Calculating agent readiness for promotion (STUDENT→INTERN→SUPERVISED→AUTONOMOUS)
 
 **Example:**
-```bash
-# Generate baseline coverage
-pytest tests/ --cov=core --cov-report=json
+```python
+from core.agent_graduation_service import AgentGraduationService
 
-# Identify low-coverage files
-python -c "
-import json
-with open('coverage.json') as f:
-    data = json.load(f)
-    for file, metrics in data['files'].items():
-        if metrics['summary']['percent_covered'] < 80:
-            print(f'{file}: {metrics[\"summary\"][\"percent_covered\"]:.1f}%')
-"
+graduation = AgentGraduationService(db)
 
-# Target low-coverage files with new tests
-pytest tests/unit/test_low_coverage_module.py --cov=core.low_coverage_module
+# Calculate readiness with skill metrics
+readiness = await graduation.calculate_readiness_score_with_skills(
+    agent_id="agent-abc",
+    target_maturity="SUPERVISED"
+)
+
+# Returns:
+{
+    "readiness_score": 0.78,  # Combined score (episodes + skills)
+    "episode_metrics": {
+        "score": 75.0,
+        "episode_count": 28,
+        "intervention_rate": 0.18
+    },
+    "skill_metrics": {
+        "total_skill_executions": 45,
+        "successful_executions": 42,
+        "success_rate": 0.93,
+        "unique_skills_used": 12,
+        "skill_episodes_count": 45
+    },
+    "skill_diversity_bonus": 0.05,  # +5% for using 12 different skills
+    "target_maturity": "SUPERVISED"
+}
+
+# Skill diversity bonus: up to +5% for agents using diverse skills
+# Formula: min(unique_skills_used * 0.01, 0.05)
+# Reward agents that demonstrate versatility across multiple skills
 ```
 
-## Data Flow
+**Graduation Criteria (with Skills):**
+| Level | Episodes | Intervention Rate | Constitutional Score | Skill Diversity Bonus |
+|-------|----------|-------------------|---------------------|----------------------|
+| **INTERN** | 10 | <50% | >0.70 | Up to +5% |
+| **SUPERVISED** | 25 | <20% | >0.85 | Up to +5% |
+| **AUTONOMOUS** | 50 | 0% | >0.95 | Up to +5% |
 
-### Test Execution Flow
+## Anti-Patterns to Avoid
 
-```
-[Developer runs pytest]
-    ↓
-[pytest discovers tests]
-    ↓
-[Load conftest.py fixtures]
-    ↓
-[For each test file]:
-    1. Set up fixtures (db_session, test_agent, client)
-    2. Execute test
-    3. Record result (PASS/FAIL/SKIP)
-    4. Teardown fixtures
-    ↓
-[Generate coverage report]
-    ↓
-[Output results to terminal/JSON/HTML]
-```
+### Anti-Pattern 1: Synchronous Skill Execution
 
-### Property Test Execution Flow
+**What:** Blocking API calls while skill executes (especially Python skills)
 
-```
-[@given decorator generates test data]
-    ↓
-[Hypothesis strategy creates input]
-    ↓
-[Run test with generated input]
-    ↓
-[Test passes?]
-    ├─ YES → [Generate new input (max_examples times)]
-    └─ NO  → [Shrink input to minimal failure case]
-            ↓
-        [Report failing example]
-```
+**Why bad:**
+- API timeouts (5+ minute Python skill execution)
+- Poor user experience (spinner hangs)
+- Resource exhaustion (many concurrent executions)
 
-### Coverage Data Aggregation
+**Instead:**
+```python
+# GOOD: Async execution with status polling
+@router.post("/api/skills/execute")
+async def execute_skill_async(request: ExecuteSkillRequest):
+    # Queue execution in background
+    execution_id = await service.queue_execution(
+        skill_id=request.skill_id,
+        inputs=request.inputs,
+        agent_id=request.agent_id
+    )
 
-```
-[Multiple test runs]
-    ↓
-[.coverage files generated]
-    ↓
-[pytest-cov aggregates coverage]
-    ↓
-[Generate combined report]
-    ├─→ coverage.json (machine-readable)
-    ├─→ coverage.html (human-readable)
-    └─→ terminal output (quick summary)
-    ↓
-[Upload to CI/CD for trend analysis]
+    # Return immediately with execution_id
+    return {
+        "success": True,
+        "execution_id": execution_id,
+        "status": "queued"
+    }
+
+# Separate endpoint for polling
+@router.get("/api/skills/status/{execution_id}")
+async def get_execution_status(execution_id: str):
+    return await service.get_execution_status(execution_id)
 ```
 
-### CI/CD Integration Flow
+### Anti-Pattern 2: Skipping Security Scans
 
+**What:** Import skills directly to "Active" status without security scanning
+
+**Why bad:**
+- Malicious code execution in Docker containers
+- Data exfiltration risks
+- Container escape vulnerabilities
+
+**Instead:**
+```python
+# GOOD: Always scan before activation
+result = service.import_skill(source, content, metadata)
+
+if result["scan_result"]["risk_level"] == "LOW":
+    # Auto-promote safe skills
+    service.promote_skill(result["skill_id"])
+elif result["scan_result"]["risk_level"] in ["MEDIUM", "HIGH"]:
+    # Require manual review
+    send_review_request(result)
+else:  # CRITICAL
+    # Block dangerous skills
+    service.ban_skill(result["skill_id"])
 ```
-[Git push/PR]
-    ↓
-[GitHub Actions trigger]
-    ↓
-[Parallel test execution]:
-    ├─ Smoke tests (<30s) → Block commit on failure
-    ├─ Property tests (<2min) → Comment PR with results
-    ├─ Fuzzy tests (daily) → Open issue on crash
-    └─ Mutation tests (weekly) → Report quality score
-    ↓
-[Coverage upload to Codecov/Codecov]
-    ↓
-[Status checks updated]
-    ↓
-[Block merge if thresholds not met]
+
+### Anti-Pattern 3: Bypassing Governance Checks
+
+**What:** Allow skill execution without agent maturity verification
+
+**Why bad:**
+- STUDENT agents executing dangerous Python skills
+- Loss of audit trail (who executed what)
+- Graduation tracking incomplete
+
+**Instead:**
+```python
+# GOOD: Always check governance before execution
+async def execute_skill(self, skill_id, inputs, agent_id):
+    # Step 1: Retrieve skill
+    skill = self.get_skill(skill_id)
+    if not skill:
+        raise ValueError(f"Skill not found: {skill_id}")
+
+    # Step 2: Check agent maturity
+    agent = self._governance.get_agent(agent_id)
+    if not agent:
+        raise ValueError(f"Agent not found: {agent_id}")
+
+    agent_maturity = agent.get("maturity_level", "STUDENT")
+
+    # Step 3: Enforce maturity rules
+    if agent_maturity == "STUDENT" and skill["skill_type"] == "python_code":
+        raise ValueError(
+            f"STUDENT agents cannot execute Python skills. "
+            f"Agent '{agent_id}' needs INTERN+ maturity"
+        )
+
+    # Step 4: Execute (with sandbox for Python skills)
+    if skill["skill_type"] == "python_code":
+        result = await self._sandbox.execute_skill(...)
+    else:
+        result = await self._adapter.execute_skill(...)
+
+    # Step 5: Create episode segment (audit trail)
+    await self._segmentation_service.create_skill_episode(...)
+
+    return result
 ```
 
-### Key Data Flows
+### Anti-Pattern 4: Tight Coupling to OpenClaw Format
 
-1. **Test Discovery Flow:** pytest scans `tests/` directory → finds `test_*.py` files → collects test functions → builds test graph
-2. **Fixture Resolution Flow:** pytest builds dependency graph → resolves fixtures in order → injects into test functions → cleans up after test
-3. **Coverage Collection Flow:** pytest-cov instruments code → runs tests → records line execution → aggregates coverage → generates reports
-4. **Property Test Shrink Flow:** Hypothesis detects failure → binary search on input space → finds minimal counterexample → reports with reproduction steps
+**What:** Hard-coding assumptions about SKILL.md structure
 
-## Scaling Considerations
+**Why bad:**
+- Fragile parsing (breaks on minor format changes)
+- No auto-fix for malformed metadata
+- Poor error messages for users
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| **0-1k tests** | Single conftest.py, all fixtures in one file, sequential execution |
-| **1k-10k tests** | Split fixtures by module (unit/conftest.py, integration/conftest.py), use pytest-xdist for parallelization |
-| **10k+ tests** | Hierarchical fixture organization, test splitting by suite, distributed CI/CD runners, coverage delta reporting |
+**Instead:**
+```python
+# GOOD: Lenient parsing with auto-fix
+def _parse_skill(self, content: str) -> Dict[str, Any]:
+    try:
+        import frontmatter
+        post = frontmatter.loads(content)
+        metadata = post.metadata
+        body = post.content
+    except Exception as e:
+        logger.warning(f"Frontmatter parsing failed: {e}")
+        metadata = {}
+        body = content
 
-### Scaling Priorities
+    # Auto-fix missing required fields
+    metadata = self._auto_fix_metadata(metadata, body, source="raw_content")
 
-1. **First bottleneck:** Test execution time (10s → 2min → 10min)
-   - **Fix:** Use pytest-xdist for parallel execution, split slow tests into separate suite, use fixture caching
+    return {"metadata": metadata, "body": body}
 
-2. **Second bottleneck:** Fixture setup complexity (simple → nested → implicit dependencies)
-   - **Fix:** Document fixture dependencies, use explicit fixture parameters, create fixture factory pattern
+def _auto_fix_metadata(
+    self,
+    metadata: Dict[str, Any],
+    body: str,
+    source: str
+) -> Dict[str, Any]:
+    """Apply auto-fix for missing fields."""
+    # Ensure required fields exist
+    if "name" not in metadata:
+        metadata["name"] = f"skill_{uuid.uuid4().hex[:8]}"
 
-3. **Third bottleneck:** Coverage analysis (manual → automated → trend monitoring)
-   - **Fix:** Integrate coverage reports in CI/CD, set coverage gates, track coverage trends over time
+    if "description" not in metadata:
+        metadata["description"] = "Auto-generated description"
 
-## Anti-Patterns
+    # Detect skill type if not specified
+    if "skill_type" not in metadata:
+        metadata["skill_type"] = self._detect_skill_type(metadata, body)
 
-### Anti-Pattern 1: Test Implementation Details
+    return metadata
+```
 
-**What people do:** Write tests that check internal implementation rather than external behavior.
+### Anti-Pattern 5: Ignoring Skill Execution Failures
+
+**What:** Not tracking failed skill executions in episodic memory
+
+**Why bad:**
+- Incomplete learning data (agents don't learn from failures)
+- Misleading success metrics
+- Graduation scores inflated
+
+**Instead:**
+```python
+# GOOD: Always create episode segment, even on failure
+try:
+    result = await self._execute_skill_internal(...)
+    error = None
+    success = True
+except Exception as e:
+    logger.error(f"Skill execution failed: {e}")
+    result = None
+    error = e
+    success = False
+finally:
+    # Always create episode segment
+    await self._segmentation_service.create_skill_episode(
+        agent_id=agent_id,
+        skill_name=skill_name,
+        inputs=inputs,
+        result=result,
+        error=error,
+        context_data={...}
+    )
+```
+
+## Scalability Considerations
+
+| Concern | At 100 skills | At 10K skills | At 100K skills |
+|---------|--------------|--------------|----------------|
+| **Security scanning** | On-demand (<5s per skill) | Background queue with Redis | Distributed scan workers (Celery) |
+| **Skill storage** | PostgreSQL JSONB | PostgreSQL + file storage | S3 + PostgreSQL metadata |
+| **Execution queue** | In-memory (asyncio) | Redis queue | Celery/RabbitMQ cluster |
+| **Sandbox pool** | On-demand containers | Container pool (10 containers) | Kubernetes pod autoscaling |
+| **Cache invalidation** | Cache per skill (60s TTL) | Distributed cache (Redis) | Redis Cluster with pub/sub |
+| **Episode segments** | Direct DB writes | Batch inserts (every 10s) | Kafka stream → Batch processing |
+
+**Performance Targets:**
+- Skill import: <5 seconds (including security scan)
+- Governance check: <1ms (cached), <50ms (uncached)
+- Skill execution (prompt): <500ms
+- Skill execution (Python): <5 minutes (sandbox timeout)
+- Episode creation: <100ms (async write)
+- Graduation calculation: <1 second (with skill metrics)
+
+## Integration with Existing Atom Components
+
+### GovernanceCache Integration
+
+**Existing:** GovernanceCache provides <1ms permission checks for agent actions
+
+**New Extension:** Cache skill permission checks by agent_id + skill_type
 
 ```python
-# ❌ Bad: Tests private method
-def test_agent__calculate_confidence():
-    agent = AgentRegistry()
-    assert agent._calculate_confidence() == 0.5  # Brittle!
+# Cache key format for skills
+cache_key = f"{agent_id}:skill:{skill_type}"  # e.g., "agent-abc:skill:python_code"
 
-# ✅ Good: Tests public API
-def test_agent_confidence_property():
-    agent = AgentRegistry(confidence=0.5)
-    assert agent.confidence == 0.5  # Stable
+# Cached result
+{
+    "allowed": True,
+    "agent_maturity": "INTERN",
+    "skill_type": "python_code",
+    "requires_approval": False,
+    "cached_at": 1234567890.123
+}
+
+# Integration point
+async def execute_skill(self, skill_id, inputs, agent_id):
+    # Check cache first
+    cache = get_governance_cache()
+    skill = self.get_skill(skill_id)
+    cached_permission = cache.get(agent_id, f"skill:{skill['skill_type']}")
+
+    if cached_permission:
+        if not cached_permission["allowed"]:
+            raise ValueError(f"Agent not allowed: {cached_permission['reason']}")
+    else:
+        # Governance check (slow path)
+        permission = await self._check_skill_permission(agent_id, skill)
+        cache.set(agent_id, f"skill:{skill['skill_type']}", permission)
 ```
 
-**Why it's wrong:** Tests break when implementation changes, even if behavior is correct. Creates maintenance burden.
+### TriggerInterceptor Integration
 
-**Do this instead:** Test public APIs and observable behavior. Use black-box testing approach.
+**Existing:** TriggerInterceptor routes agent triggers based on maturity (<5ms)
 
-### Anti-Pattern 2: Over-Mocking
-
-**What people do:** Mock everything including the code under test.
+**New Extension:** Include skill execution in routing logic
 
 ```python
-# ❌ Bad: Mocking the code under test
-def test_budget_check():
-    with patch.object(FinancialOpsEngine, "check_budget") as mock_check:
-        mock_check.return_value = Mock(approved=False)
-        engine = FinancialOpsEngine()
-        result = engine.check_budget(100, 150)
-        assert not result.approved  # Tests nothing!
+# Existing trigger types
+MANUAL, DATA_SYNC, WORKFLOW_ENGINE, AI_COORDINATOR
 
-# ✅ Good: Test real logic
-def test_budget_check():
-    engine = FinancialOpsEngine()
-    result = engine.check_budget(budget=100, spend=150)
-    assert not result.approved  # Verifies real behavior
+# New: SKILL_EXECUTION trigger type
+class TriggerSource(str, Enum):
+    SKILL_EXECUTION = "skill_execution"  # NEW
+    # ... existing types
+
+# Routing logic for skill triggers
+async def intercept_trigger(self, agent_id, trigger_source, trigger_context, user_id):
+    if trigger_source == TriggerSource.SKILL_EXECUTION:
+        skill_type = trigger_context.get("skill_type", "prompt_only")
+
+        # STUDENT agents blocked from Python skills
+        if maturity_level == MaturityLevel.STUDENT and skill_type == "python_code":
+            return await self._route_student_agent(...)
+
+        # INTERN agents require approval for Python skills
+        elif maturity_level == MaturityLevel.INTERN and skill_type == "python_code":
+            return await self._route_intern_agent(...)
+
+    # Existing routing logic for other trigger types
 ```
 
-**Why it's wrong:** Tests pass even if code is broken. Gives false confidence.
+### EpisodeSegmentationService Integration
 
-**Do this instead:** Only mock external dependencies (APIs, databases, file system). Test real business logic.
+**Existing:** Creates EpisodeSegments for agent actions
 
-### Anti-Pattern 3: Brittle Property Tests
-
-**What people do:** Write property tests with overly specific assertions.
+**New Extension:** `create_skill_episode()` method for skill executions
 
 ```python
-# ❌ Bad: Brittle property test
-@given(st.lists(st.integers()))
-def test_list_sorting_specific(xs):
-    sorted_xs = sort(xs)
-    assert sorted_xs == sorted(xs)  # Tautology, tests nothing
+# New segment types for skills
+SKILL_EXECUTION_SEGMENT_TYPES = [
+    "skill_success",    # Skill executed successfully
+    "skill_failure",    # Skill execution failed
+    "skill_timeout"     # Skill exceeded 5-minute timeout
+]
 
-# ✅ Good: General property test
-@given(st.lists(st.integers()))
-def test_list_sorting_ordered(xs):
-    sorted_xs = sort(xs)
-    assert all(sorted_xs[i] <= sorted_xs[i+1] for i in range(len(sorted_xs)-1))
-    assert sorted_xs == sorted(set(xs))  # Verify stability
+# Integration point
+async def create_skill_episode(
+    self,
+    agent_id: str,
+    skill_name: str,
+    inputs: Dict[str, Any],
+    result: Any,
+    error: Optional[Exception],
+    context_data: Dict[str, Any]
+) -> EpisodeSegment:
+    """Create episode segment for skill execution."""
+
+    segment_type = "skill_success" if error is None else "skill_failure"
+
+    segment = EpisodeSegment(
+        episode_id=f"skill_{skill_name}_{agent_id[:8]}_{int(datetime.utcnow().timestamp())}",
+        segment_type=segment_type,
+        agent_context=agent_id,
+        source_type="skill_execution",
+        content=self._format_skill_content(skill_name, result, error),
+        content_summary=f"Skill '{skill_name}' execution - {'Success' if error is None else 'Failed'}",
+        metadata=self.extract_skill_metadata(context_data)
+    )
+
+    self.db.add(segment)
+    self.db.commit()
+
+    logger.info(f"Created skill episode segment {segment.id} for skill '{skill_name}'")
+
+    return segment
 ```
 
-**Why it's wrong:** Tests don't verify meaningful properties. Can pass with buggy implementation.
+### AgentGraduationService Integration
 
-**Do this instead:** Identify general invariants (ordering, uniqueness, round-trip) and test those.
+**Existing:** Calculates readiness scores from episodes and supervision sessions
 
-### Anti-Pattern 4: Shared Mutable State
-
-**What people do:** Use module-level or class-level mutable state in tests.
+**New Extension:** Include skill usage metrics in readiness calculation
 
 ```python
-# ❌ Bad: Shared state causes flaky tests
-test_data = {"count": 0}
+# New method for skill metrics
+async def calculate_skill_usage_metrics(
+    self,
+    agent_id: str,
+    days_back: int = 30
+) -> Dict[str, Any]:
+    """Calculate skill usage metrics for graduation readiness."""
 
-def test_increment():
-    test_data["count"] += 1
-    assert test_data["count"] == 1
+    # Get recent skill executions
+    start_date = datetime.now() - timedelta(days=days_back)
 
-def test_increment_again():
-    test_data["count"] += 1
-    assert test_data["count"] == 1  # FAILS if tests run in wrong order!
+    skills = self.db.query(SkillExecution).filter(
+        SkillExecution.agent_id == agent_id,
+        SkillExecution.created_at >= start_date,
+        SkillExecution.skill_source == "community"
+    ).all()
 
-# ✅ Good: Isolated test data
-def test_increment():
-    count = 0
-    count += 1
-    assert count == 1  # Always passes
+    # Calculate metrics
+    total_executions = len(skills)
+    successful_executions = len([s for s in skills if s.status == "success"])
+    unique_skills_used = len(set(s.skill_id for s in skills))
+
+    return {
+        "total_skill_executions": total_executions,
+        "successful_executions": successful_executions,
+        "success_rate": successful_executions / total_executions if total_executions > 0 else 0,
+        "unique_skills_used": unique_skills_used,
+        "skill_diversity_score": min(unique_skills_used * 0.01, 0.05)  # Up to +5%
+    }
+
+# Enhanced readiness calculation
+async def calculate_readiness_score_with_skills(
+    self,
+    agent_id: str,
+    target_maturity: str
+) -> Dict[str, Any]:
+    """Calculate readiness with skill metrics included."""
+
+    # Get existing readiness score
+    existing_readiness = await self.calculate_readiness_score(agent_id, target_maturity)
+
+    # Get skill usage metrics
+    skill_metrics = await self.calculate_skill_usage_metrics(agent_id)
+
+    # Calculate skill diversity bonus (up to +5%)
+    skill_diversity_bonus = min(skill_metrics["unique_skills_used"] * 0.01, 0.05)
+
+    # Base score from existing calculation
+    base_score = existing_readiness.get("score", 0) / 100.0  # Convert to 0-1 scale
+
+    # Apply skill diversity bonus
+    final_score = min(base_score + skill_diversity_bonus, 1.0)
+
+    return {
+        "readiness_score": final_score,
+        "episode_metrics": existing_readiness,
+        "skill_metrics": skill_metrics,
+        "skill_diversity_bonus": skill_diversity_bonus,
+        "target_maturity": target_maturity
+    }
 ```
-
-**Why it's wrong:** Tests become order-dependent. Parallel execution causes random failures.
-
-**Do this instead:** Use fixtures to create fresh test data for each test. Avoid module-level mutable state.
-
-### Anti-Pattern 5: Ignoring Hypothesis Warnings
-
-**What people do:** Suppress Hypothesis health checks without investigation.
-
-```python
-# ❌ Bad: Suppress health check
-@given(st.lists(st.integers()))
-@settings(suppress_health_check=list(HealthCheck))  # DANGER!
-def test_unbounded_input(xs):
-    result = process(xs)
-    assert result is not None
-
-# ✅ Good: Set reasonable limits
-@given(st.lists(st.integers(), max_size=100))  # Bounded
-def test_bounded_input(xs):
-    result = process(xs)
-    assert result is not None
-```
-
-**Why it's wrong:** Health checks detect real problems (slow tests, flaky tests, useless examples). Suppressing hides bugs.
-
-**Do this instead:** Investigate health check failures. Use max_size, max_examples to control test behavior.
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| **Database** | pytest fixtures with in-memory SQLite | Fast isolation, but different from production PostgreSQL |
-| **LLM Providers** | Mock responses in unit tests, real calls in E2E | Unit tests fast, E2E tests catch integration issues |
-| **External APIs** | unittest.mock with responses library | Record/replay patterns for complex interactions |
-| **File System** | pytest tmpdir fixture | Automatic cleanup, isolated per test |
-| **Redis/WebSocket** | fakeredis library for testing | Faster than real Redis, but not identical |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| **core/ ↔ api/** | TestClient (FastAPI) | Test API routes without starting server |
-| **core/ ↔ tools/** | Direct function calls | Tools are pure functions, easy to test |
-| **backend ↔ mobile** | HTTP API tests | Mobile tests call backend API endpoints |
-| **property_tests ↔ unit** | Shared fixtures | Both use conftest.py fixtures for consistency |
 
 ## Sources
 
-- [Testing Strategies: pytest, fixtures, and mocking best practices](https://dasroot.net/posts/2026/01/testing-strategies-pytest-fixtures-mocking/) - January 22, 2026
-- [How to Use pytest with Mocking - OneUptime](https://oneuptime.com/blog/post/2026-02-02-pytest-mocking/view) - February 2, 2026
-- [Mastering Pytest: Advanced Fixtures, Parameterization, and Mocking](https://medium.com/@abhayda/mastering-pytest-advanced-fixtures-parameterization-and-mocking-explained-108a7a2ab82d) - February 8, 2025
-- [Using Hypothesis and Schemathesis to Test FastAPI](https://testdriven.io/blog/fastapi-hypothesis/) - Property-based testing for FastAPI
-- [FastAPI Best Practices](https://auth0.com/blog/fastapi-best-practices/) - Auth0's FastAPI testing guide
-- [Protecting Architecture with Automated Tests in Python](https://handsonarchitects.com/blog/2026/protecting-architecture-with-automated-tests/) - PyTestArch for architecture testing
-- [Building a Production-Ready FastAPI Boilerplate with Clean Architecture](https://dev.to/alwil17/building-a-production-ready-fastapi-boilerplate-with-clean-architecture-5757) - Clean architecture patterns
-- [FastAPI in 2026: The Architecture Behind 3000+ Requests Per Second](https://kawaldeepsingh.medium.com/fastapi-in-2026-the-architecture-behind-3-000-requests-per-second-automatic-api-documentation-43f2cf573f57) - 2026 FastAPI architecture
-- [How to Use Property-Based Testing as Fuzzy Unit Testing](https://www.infoq.com/news/2024/12/fuzzy-unit-testing/) - InfoQ article on property-based testing
-- [A REST API Fuzz Testing Framework Based on GUI Interaction](https://www.sciencedirect.com/org/science/article/pii/S1546221826000895) - January 2026 research on API fuzzing
+### Codebase Analysis (HIGH Confidence)
+- `/Users/rushiparikh/projects/atom/backend/core/skill_registry_service.py` - Skill registry service implementation
+- `/Users/rushiparikh/projects/atom/backend/core/skill_adapter.py` - LangChain BaseTool wrapper
+- `/Users/rushiparikh/projects/atom/backend/core/skill_security_scanner.py` - 21+ malicious patterns + GPT-4 scanning
+- `/Users/rushiparikh/projects/atom/backend/core/skill_sandbox.py` - HazardSandbox Docker isolation
+- `/Users/rushiparikh/projects/atom/backend/core/skill_parser.py` - SKILL.md frontmatter parsing with auto-fix
+- `/Users/rushiparikh/projects/atom/backend/core/agent_governance_service.py` - Existing governance system
+- `/Users/rushiparikh/projects/atom/backend/core/governance_cache.py` - <1ms permission cache
+- `/Users/rushiparikh/projects/atom/backend/core/trigger_interceptor.py` - <5ms routing decisions
+- `/Users/rushiparikh/projects/atom/backend/core/agent_graduation_service.py` - Graduation framework with skill metrics
+- `/Users/rushiparikh/projects/atom/backend/core/episode_segmentation_service.py` - EpisodeSegment creation with skill metadata
+- `/Users/rushiparikh/projects/atom/backend/api/skill_routes.py` - REST API endpoints
+- `/Users/rushiparikh/projects/atom/backend/core/models.py` - SkillExecution, EpisodeSegment models
 
----
-*Architecture research for: Comprehensive Testing Systems*
-*Researched: February 10, 2026*
+### Documentation (HIGH Confidence)
+- `/Users/rushiparikh/projects/atom/docs/COMMUNITY_SKILLS.md` - Comprehensive user guide
+- `/Users/rushiparikh/projects/atom/docs/ATOM_CLI_SKILLS_GUIDE.md` - Built-in CLI skills documentation
+
+### Existing Tests (HIGH Confidence)
+- `backend/tests/test_skill_adapter.py` - Skill adapter tests
+- `backend/tests/test_skill_integration.py` - Integration tests
+- `backend/tests/test_skill_episodic_integration.py` - Episode integration tests
+- `backend/tests/test_atom_cli_skills.py` - CLI skill tests
+
+### Verification Status
+- Architecture pattern validated against existing codebase (February 18, 2026)
+- All integration points verified through code analysis
+- Data flow confirmed through service method analysis
+- Security patterns validated against SkillSecurityScanner implementation
+- Governance integration confirmed through TriggerInterceptor and GovernanceCache
+- Episodic memory integration confirmed through EpisodeSegmentationService
+- Graduation integration confirmed through AgentGraduationService skill metrics methods
+
+**Overall Confidence:** HIGH - Architecture based on existing, production-tested code
