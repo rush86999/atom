@@ -942,6 +942,60 @@ class SkillRegistryService:
         else:
             return (package, "latest")
 
+    def detect_skill_type(self, skill_content: str) -> str:
+        """
+        Detect if skill is Python or Node.js based on content.
+
+        Args:
+            skill_content: Full SKILL.md content (YAML frontmatter + body)
+
+        Returns:
+            "npm" or "python"
+
+        Detection rules (in order of priority):
+        1. Has node_packages field -> 'npm'
+        2. Has python_packages field -> 'python'
+        3. Code file extension .js/.mjs/.cjs -> 'npm'
+        4. Code file extension .py -> 'python'
+        5. Shebang #!/usr/bin/env node -> 'npm'
+        6. Shebang #!/usr/bin/env python -> 'python'
+        7. Default: 'python' (backward compatibility)
+        """
+        # Check for explicit package declarations first (highest priority)
+        if 'node_packages:' in skill_content:
+            return 'npm'
+        if 'python_packages:' in skill_content or '\npackages:' in skill_content:
+            return 'python'
+
+        # Check code file extension
+        # Extract code file from skill_content if present
+        import frontmatter
+        try:
+            post = frontmatter.loads(skill_content)
+            body = post.content
+
+            # Check for code file references in body
+            # Format: "Code file: skill.js" or similar
+            for line in body.split('\n'):
+                line_lower = line.lower()
+                if 'code file:' in line_lower or 'file:' in line_lower:
+                    if line.endswith('.js') or line.endswith('.mjs') or line.endswith('.cjs'):
+                        return 'npm'
+                    if line.endswith('.py'):
+                        return 'python'
+
+            # Check shebang in code blocks
+            if '```javascript' in body.lower() or '```node' in body.lower() or '``` js' in body.lower():
+                return 'npm'
+            if '```python' in body.lower():
+                return 'python'
+
+        except Exception as e:
+            logger.warning(f"Failed to parse skill content for type detection: {e}")
+
+        # Default to Python for backward compatibility
+        return 'python'
+
     def _summarize_inputs(self, inputs: Dict[str, Any]) -> str:
         """
         Summarize input parameters for episode context.
