@@ -11,7 +11,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, MagicMock, patch
 from sqlalchemy.orm import Session
-from hypothesis import given, strategies as st, settings, HealthCheck, example
+from hypothesis import given, settings, HealthCheck, example
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, booleans, datetimes
 
 # Import module explicitly for coverage tracking
 import core.agent_governance_service  # noqa: F401
@@ -45,13 +46,13 @@ def governance_service(mock_db):
 class TestGovernanceInvariants:
     """Property tests for governance system invariants."""
 
-    @given(maturity=st.sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]))
+    @given(maturity=sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]))
     @settings(max_examples=50)
     def test_maturity_level_enumeration(self, maturity):
         """INVARIANT: All maturity levels are valid and enumerable."""
         assert maturity in [AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]
 
-    @given(complexity=st.integers(min_value=1, max_value=4))
+    @given(complexity=integers(min_value=1, max_value=4))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_action_complexity_bounds(self, governance_service, complexity):
         """INVARIANT: Action complexity is always within valid bounds [1, 4]."""
@@ -59,13 +60,13 @@ class TestGovernanceInvariants:
         assert complexity in AgentGovernanceService.ACTION_COMPLEXITY.values()
         assert complexity in AgentGovernanceService.MATURITY_REQUIREMENTS
 
-    @given(confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
+    @given(confidence=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
     @settings(max_examples=100)
     def test_confidence_score_range(self, confidence):
         """INVARIANT: Confidence scores are always in range [0.0, 1.0]."""
         assert 0.0 <= confidence <= 1.0
 
-    @given(agent_status=st.sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]), action_type=st.sampled_from(["search", "read", "analyze", "create", "delete"]))
+    @given(agent_status=sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]), action_type=sampled_from(["search", "read", "analyze", "create", "delete"]))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_governance_check_deterministic(self, governance_service, mock_db, agent_status, action_type):
         """INVARIANT: Governance checks are deterministic for same inputs."""
@@ -83,7 +84,7 @@ class TestGovernanceInvariants:
             result2 = governance_service.can_perform_action(agent.id, action_type)
             assert result1["allowed"] == result2["allowed"]
 
-    @given(complexity=st.integers(min_value=1, max_value=4))
+    @given(complexity=integers(min_value=1, max_value=4))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_permission_matrix_complete(self, governance_service, complexity):
         """INVARIANT: Permission matrix has entry for every complexity level."""
@@ -96,7 +97,7 @@ class TestGovernanceInvariants:
 class TestMaturityMatrix:
     """Property tests for maturity/complexity permission matrix."""
 
-    @given(maturity=st.sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]), complexity=st.integers(min_value=1, max_value=4), confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
+    @given(maturity=sampled_from([AgentStatus.STUDENT.value, AgentStatus.INTERN.value, AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]), complexity=integers(min_value=1, max_value=4), confidence=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_all_maturity_complexity_combinations(self, governance_service, mock_db, maturity, complexity, confidence):
         """INVARIANT: All 4x4 maturity/complexity combinations are handled."""
@@ -114,7 +115,7 @@ class TestMaturityMatrix:
             assert "allowed" in result
             assert isinstance(result["allowed"], bool)
 
-    @given(confidence=st.floats(min_value=0.0, max_value=0.49, allow_nan=False, allow_infinity=False))
+    @given(confidence=floats(min_value=0.0, max_value=0.49, allow_nan=False, allow_infinity=False))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(confidence=0.0)
     def test_student_blocked_from_high_complexity(self, governance_service, mock_db, confidence):
@@ -133,7 +134,7 @@ class TestMaturityMatrix:
                 result = governance_service.can_perform_action(agent.id, action)
                 assert result["allowed"] is False
 
-    @given(confidence=st.floats(min_value=0.9, max_value=1.0, allow_nan=False, allow_infinity=False))
+    @given(confidence=floats(min_value=0.9, max_value=1.0, allow_nan=False, allow_infinity=False))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(confidence=0.9)
     def test_autonomous_full_access(self, governance_service, mock_db, confidence):
@@ -159,7 +160,7 @@ class TestMaturityMatrix:
 class TestGovernanceCache:
     """Property tests for governance cache performance and behavior."""
 
-    @given(action_type=st.sampled_from(["search", "analyze", "create", "delete"]))
+    @given(action_type=sampled_from(["search", "analyze", "create", "delete"]))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_hit_returns_same_result(self, governance_service, mock_db, action_type):
         """INVARIANT: Cache hit returns identical result without database query."""
@@ -180,7 +181,7 @@ class TestGovernanceCache:
             result2 = governance_service.can_perform_action(agent_id, action_type)
             assert result2 == cached_result
 
-    @given(action_type=st.sampled_from(["search", "analyze", "create", "delete"]))
+    @given(action_type=sampled_from(["search", "analyze", "create", "delete"]))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_miss_calls_governance_check(self, governance_service, mock_db, action_type):
         """INVARIANT: Cache miss triggers governance check and caches result."""
@@ -200,7 +201,7 @@ class TestGovernanceCache:
             assert "allowed" in result
             mock_cache_inst.set.assert_called_once()
 
-    @given(n=st.integers(min_value=10, max_value=100))
+    @given(n=integers(min_value=10, max_value=100))
     @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_performance_sub_millisecond(self, governance_service, mock_db, n):
         """INVARIANT: Cache operations complete in sub-millisecond time."""
@@ -231,7 +232,7 @@ class TestGovernanceCache:
 class TestConfidenceScoreEdgeCases:
     """Property tests for confidence score boundary conditions."""
 
-    @given(initial_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False), positive=st.booleans(), impact_level=st.sampled_from(["low", "high"]))
+    @given(initial_score=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False), positive=booleans(), impact_level=sampled_from(["low", "high"]))
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_update_bounds(self, governance_service, mock_db, initial_score, positive, impact_level):
         """INVARIANT: Confidence updates stay within [0.0, 1.0] bounds."""
@@ -244,7 +245,7 @@ class TestConfidenceScoreEdgeCases:
         governance_service._update_confidence_score(agent_id, positive=positive, impact_level=impact_level)
         assert 0.0 <= agent.confidence_score <= 1.0
 
-    @given(num_updates=st.integers(min_value=1, max_value=20))
+    @given(num_updates=integers(min_value=1, max_value=20))
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_monotonic_with_same_impact(self, governance_service, mock_db, num_updates):
         """INVARIANT: Repeated positive updates increase confidence (capped at 1.0)."""
