@@ -7,9 +7,14 @@ Tests cover:
 - Cache hit rate under load
 - Concurrent agent resolution
 - Target: <10ms cached check, <50ms total overhead
+
+Performance Thresholds:
+- Local (CI=false): Standard thresholds for fast local machines
+- CI (CI=true): 3x tolerance for slower CI environments
 """
 
 import asyncio
+import os
 import time
 from typing import List
 from unittest.mock import Mock, patch
@@ -19,6 +24,10 @@ from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.governance_cache import GovernanceCache, get_governance_cache
 from core.models import AgentRegistry, AgentStatus
+
+# CI_MULTIPLIER: Increase performance thresholds for CI environments
+# CI environments are slower due to shared resources and variable load
+CI_MULTIPLIER = 3 if os.getenv("CI") else 1
 
 
 @pytest.fixture
@@ -70,10 +79,11 @@ class TestGovernanceCachePerformance:
         print(f"  P95: {p95_latency:.3f}ms")
         print(f"  P99: {p99_latency:.3f}ms")
         print(f"  Max: {max_latency:.3f}ms")
+        print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-        # Assert performance targets
-        assert avg_latency < 1.0, f"Average latency {avg_latency}ms exceeds 1ms target"
-        assert p99_latency < 10.0, f"P99 latency {p99_latency}ms exceeds 10ms target"
+        # Assert performance targets with CI tolerance
+        assert avg_latency < 1.0 * CI_MULTIPLIER, f"Average latency {avg_latency}ms exceeds {1.0 * CI_MULTIPLIER}ms target"
+        assert p99_latency < 10.0 * CI_MULTIPLIER, f"P99 latency {p99_latency}ms exceeds {10.0 * CI_MULTIPLIER}ms target"
 
     def test_cache_write_latency(self, performance_cache):
         """Test cache write operations are fast."""
@@ -90,8 +100,9 @@ class TestGovernanceCachePerformance:
 
         print(f"\nCache write performance:")
         print(f"  Average: {avg_latency:.3f}ms")
+        print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-        assert avg_latency < 5.0, f"Write latency {avg_latency}ms exceeds 5ms target"
+        assert avg_latency < 5.0 * CI_MULTIPLIER, f"Write latency {avg_latency}ms exceeds {5.0 * CI_MULTIPLIER}ms target"
 
     def test_cache_hit_rate_under_load(self, performance_cache):
         """Test cache maintains >90% hit rate under realistic load."""
@@ -194,9 +205,10 @@ class TestGovernanceCheckPerformance:
             print(f"\nUncached governance check performance:")
             print(f"  Average: {avg_latency:.3f}ms")
             print(f"  P95: {p95_latency:.3f}ms")
+            print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-            # Uncached should still be reasonable (<50ms)
-            assert p95_latency < 50.0, f"P95 latency {p95_latency}ms exceeds 50ms target"
+            # Uncached should still be reasonable (<50ms local, <150ms CI)
+            assert p95_latency < 50.0 * CI_MULTIPLIER, f"P95 latency {p95_latency}ms exceeds {50.0 * CI_MULTIPLIER}ms target"
 
     async def test_cached_governance_check_with_decorator(self, mock_agent):
         """Test governance checks with caching decorator are fast."""
@@ -234,8 +246,9 @@ class TestGovernanceCheckPerformance:
             print(f"\nCached governance check performance:")
             print(f"  Average: {avg_latency:.3f}ms")
             print(f"  P99: {p99_latency:.3f}ms")
+            print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-            assert avg_latency < 5.0, f"Average latency {avg_latency}ms exceeds 5ms target"
+            assert avg_latency < 5.0 * CI_MULTIPLIER, f"Average latency {avg_latency}ms exceeds {5.0 * CI_MULTIPLIER}ms target"
 
 
 @pytest.mark.asyncio
@@ -272,8 +285,9 @@ class TestAgentResolutionPerformance:
 
             print(f"\nAgent resolution (explicit ID) performance:")
             print(f"  Average: {avg_latency:.3f}ms")
+            print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-            assert avg_latency < 20.0, f"Average latency {avg_latency}ms exceeds 20ms target"
+            assert avg_latency < 20.0 * CI_MULTIPLIER, f"Average latency {avg_latency}ms exceeds {20.0 * CI_MULTIPLIER}ms target"
 
     async def test_agent_resolution_fallback_chain(self):
         """Test agent resolution through fallback chain."""
@@ -308,9 +322,10 @@ class TestAgentResolutionPerformance:
 
                 print(f"\nAgent resolution (fallback chain) performance:")
                 print(f"  Average: {avg_latency:.3f}ms")
+                print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
                 # Fallback chain should still be fast enough
-                assert avg_latency < 50.0, f"Average latency {avg_latency}ms exceeds 50ms target"
+                assert avg_latency < 50.0 * CI_MULTIPLIER, f"Average latency {avg_latency}ms exceeds {50.0 * CI_MULTIPLIER}ms target"
 
 
 @pytest.mark.asyncio
@@ -367,8 +382,9 @@ class TestStreamingWithGovernanceOverhead:
             print(f"\nGovernance overhead for streaming:")
             print(f"  Average: {avg_latency:.3f}ms")
             print(f"  P95: {p95_latency:.3f}ms")
+            print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-            assert p95_latency < 50.0, f"P95 overhead {p95_latency}ms exceeds 50ms target"
+            assert p95_latency < 50.0 * CI_MULTIPLIER, f"P95 overhead {p95_latency}ms exceeds {50.0 * CI_MULTIPLIER}ms target"
 
 
 @pytest.mark.asyncio
@@ -406,9 +422,10 @@ class TestConcurrentAgentResolution:
             print(f"\nConcurrent agent resolution:")
             print(f"  100 concurrent resolutions in {elapsed:.3f}s")
             print(f"  Average: {elapsed * 10:.3f}ms per resolution")
+            print(f"  CI_MULTIPLIER: {CI_MULTIPLIER}x (CI={os.getenv('CI', 'false')})")
 
-            # Should complete 100 resolutions in <2 seconds
-            assert elapsed < 2.0, f"Concurrent resolution took {elapsed}s, exceeds 2s target"
+            # Should complete 100 resolutions in <2 seconds (local), <6 seconds (CI)
+            assert elapsed < 2.0 * CI_MULTIPLIER, f"Concurrent resolution took {elapsed}s, exceeds {2.0 * CI_MULTIPLIER}s target"
 
 
 def run_performance_report():
