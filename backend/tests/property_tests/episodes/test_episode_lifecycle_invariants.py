@@ -19,7 +19,7 @@ VALIDATED_BUGS documented from prior testing:
 import pytest
 import random
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis import strategies as st
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, datetimes, timedeltas
 from datetime import datetime, timedelta
 from uuid import uuid4
 from typing import List, Dict, Any
@@ -32,9 +32,9 @@ class TestEpisodeDecayInvariants:
     """Property-based tests for episode importance decay invariants."""
 
     @given(
-        initial_importance=st.floats(min_value=0.1, max_value=1.0, allow_nan=False, allow_infinity=False),
-        access_count=st.integers(min_value=0, max_value=100),
-        days_since_access=st.integers(min_value=0, max_value=365)
+        initial_importance=floats(min_value=0.1, max_value=1.0, allow_nan=False, allow_infinity=False),
+        access_count=integers(min_value=0, max_value=100),
+        days_since_access=integers(min_value=0, max_value=365)
     )
     @example(initial_importance=0.8, access_count=10, days_since_access=90)
     @example(initial_importance=1.0, access_count=0, days_since_access=180)
@@ -81,7 +81,7 @@ class TestEpisodeDecayInvariants:
                 "Importance should not increase without sufficient access"
 
     @given(
-        days_old=st.integers(min_value=0, max_value=730)  # 0-2 years
+        days_old=integers(min_value=0, max_value=730)  # 0-2 years
     )
     @example(days_old=90)  # Boundary: 90 days
     @example(days_old=180)  # Boundary: 180 days
@@ -119,8 +119,8 @@ class TestEpisodeDecayInvariants:
                 "Episodes >180 days should have significant decay"
 
     @given(
-        access_counts=st.lists(
-            st.integers(min_value=0, max_value=100),
+        access_counts=lists(
+            integers(min_value=0, max_value=100),
             min_size=2,
             max_size=10
         )
@@ -153,8 +153,8 @@ class TestEpisodeConsolidationInvariants:
     """Property-based tests for episode consolidation invariants."""
 
     @given(
-        episode_count=st.integers(min_value=5, max_value=100),
-        similarity_threshold=st.floats(min_value=0.7, max_value=0.95, allow_nan=False, allow_infinity=False)
+        episode_count=integers(min_value=5, max_value=100),
+        similarity_threshold=floats(min_value=0.7, max_value=0.95, allow_nan=False, allow_infinity=False)
     )
     @example(episode_count=10, similarity_threshold=0.85)
     @settings(max_examples=100)
@@ -193,7 +193,7 @@ class TestEpisodeConsolidationInvariants:
                 "Only episodes above similarity threshold should consolidate"
 
     @given(
-        episode_count=st.integers(min_value=5, max_value=50)
+        episode_count=integers(min_value=5, max_value=50)
     )
     @settings(max_examples=100)
     def test_consolidation_prevents_circular_references(
@@ -240,8 +240,8 @@ class TestEpisodeConsolidationInvariants:
                     f"Circular reference detected: {ep_id} <-> {episode['consolidated_into']}"
 
     @given(
-        episode_count=st.integers(min_value=10, max_value=100),
-        similarity_threshold=st.floats(min_value=0.8, max_value=0.95, allow_nan=False, allow_infinity=False)
+        episode_count=integers(min_value=10, max_value=100),
+        similarity_threshold=floats(min_value=0.8, max_value=0.95, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
     def test_consolidation_preserves_content(
@@ -284,7 +284,7 @@ class TestEpisodeArchivalInvariants:
     """Property-based tests for episode archival invariants."""
 
     @given(
-        episode_count=st.integers(min_value=1, max_value=50)
+        episode_count=integers(min_value=1, max_value=50)
     )
     @settings(max_examples=100)
     def test_archival_updates_episode_status(
@@ -324,7 +324,7 @@ class TestEpisodeArchivalInvariants:
                 "Archived episode should have archived_at timestamp"
 
     @given(
-        episode_count=st.integers(min_value=5, max_value=50)
+        episode_count=integers(min_value=5, max_value=50)
     )
     @settings(max_examples=50)
     def test_archived_episodes_searchable(
@@ -353,7 +353,7 @@ class TestEpisodeArchivalInvariants:
             "All archived episodes should be searchable"
 
     @given(
-        segment_count=st.integers(min_value=1, max_value=20)
+        segment_count=integers(min_value=1, max_value=20)
     )
     @settings(max_examples=100)
     def test_archival_preserves_segments(
@@ -393,7 +393,7 @@ class TestLifecycleIntegrationInvariants:
     """Property-based tests for lifecycle workflow invariants."""
 
     @given(
-        episode_count=st.integers(min_value=20, max_value=100)
+        episode_count=integers(min_value=20, max_value=100)
     )
     @settings(max_examples=50)
     def test_lifecycle_workflow_order(

@@ -11,9 +11,8 @@ These tests protect against streaming bugs and provider switching issues.
 """
 
 import pytest
-from hypothesis import given, settings, example, Phase
-from hypothesis import strategies as st
-from hypothesis import HealthCheck
+from hypothesis import given, settings, example, Phase, HealthCheck
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, fixed_dictionaries
 from typing import List, Dict, Any
 from unittest.mock import Mock, AsyncMock, patch
 import asyncio
@@ -26,16 +25,16 @@ class TestStreamingCompletionInvariants:
     """Test invariants for streaming completion responses."""
 
     @given(
-        messages=st.lists(
-            st.fixed_dictionaries({
-                'role': st.sampled_from(['user', 'assistant', 'system']),
-                'content': st.text(min_size=1, max_size=5000)
+        messages=lists(
+            fixed_dictionaries({
+                'role': sampled_from(['user', 'assistant', 'system']),
+                'content': text(min_size=1, max_size=5000)
             }),
             min_size=1,
             max_size=10
         ),
-        chunk_count=st.integers(min_value=1, max_value=100),
-        tokens_per_chunk=st.integers(min_value=1, max_value=20)
+        chunk_count=integers(min_value=1, max_value=100),
+        tokens_per_chunk=integers(min_value=1, max_value=20)
     )
     @settings(max_examples=50, phases=[Phase.generate], suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_chunk_ordering_invariant(
@@ -65,9 +64,9 @@ class TestStreamingCompletionInvariants:
             "Chunks must arrive in sequential order"
 
     @given(
-        model=st.sampled_from(["gpt-4", "gpt-3.5-turbo", "claude-3-opus"]),
-        provider=st.sampled_from(["openai", "anthropic"]),
-        chunk_count=st.integers(min_value=5, max_value=50)
+        model=sampled_from(["gpt-4", "gpt-3.5-turbo", "claude-3-opus"]),
+        provider=sampled_from(["openai", "anthropic"]),
+        chunk_count=integers(min_value=5, max_value=50)
     )
     @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_metadata_consistency_invariant(
@@ -99,7 +98,7 @@ class TestStreamingCompletionInvariants:
         assert len(providers) == 1, f"All chunks must have same provider, got: {providers}"
 
     @given(
-        finish_reasons=st.sampled_from(["stop", "length", "content_filter", None])
+        finish_reasons=sampled_from(["stop", "length", "content_filter", None])
     )
     @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_streaming_eos_signaling_invariant(self, db_session, finish_reasons: str):
@@ -137,16 +136,16 @@ class TestProviderFallbackInvariants:
     """Test invariants for provider fallback behavior."""
 
     @given(
-        messages=st.lists(
-            st.fixed_dictionaries({
-                'role': st.sampled_from(['user']),
-                'content': st.text(min_size=1, max_size=500)
+        messages=lists(
+            fixed_dictionaries({
+                'role': sampled_from(['user']),
+                'content': text(min_size=1, max_size=500)
             }),
             min_size=1,
             max_size=5
         ),
-        failing_providers=st.lists(
-            st.sampled_from(["openai", "anthropic", "deepseek"]),
+        failing_providers=lists(
+            sampled_from(["openai", "anthropic", "deepseek"]),
             min_size=0,
             max_size=2,
             unique=True
@@ -184,10 +183,10 @@ class TestProviderFallbackInvariants:
             "Conversation history must be preserved during fallback"
 
     @given(
-        primary_cost=st.floats(min_value=0.001, max_value=0.1),
-        fallback_cost=st.floats(min_value=0.001, max_value=0.1),
-        input_tokens=st.integers(min_value=1, max_value=10000),
-        output_tokens=st.integers(min_value=1, max_value=5000)
+        primary_cost=floats(min_value=0.001, max_value=0.1),
+        fallback_cost=floats(min_value=0.001, max_value=0.1),
+        input_tokens=integers(min_value=1, max_value=10000),
+        output_tokens=integers(min_value=1, max_value=5000)
     )
     @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_fallback_cost_tracking_invariant(
@@ -216,8 +215,8 @@ class TestStreamingErrorRecoveryInvariants:
     """Test invariants for streaming error recovery."""
 
     @given(
-        retry_count=st.integers(min_value=1, max_value=5),
-        max_retries=st.integers(min_value=1, max_value=5)
+        retry_count=integers(min_value=1, max_value=5),
+        max_retries=integers(min_value=1, max_value=5)
     )
     @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_retry_limit_enforced_invariant(
@@ -247,8 +246,8 @@ class TestStreamingErrorRecoveryInvariants:
             f"Attempts must not exceed max_retries + 1. Got {attempts}, max {max_retries}"
 
     @given(
-        base_delay=st.floats(min_value=0.1, max_value=2.0),
-        retry_count=st.integers(min_value=2, max_value=5)
+        base_delay=floats(min_value=0.1, max_value=2.0),
+        retry_count=integers(min_value=2, max_value=5)
     )
     @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_exponential_backoff_invariant(self, db_session, base_delay: float, retry_count: int):
@@ -280,8 +279,8 @@ class TestStreamingPerformanceInvariants:
     """Test invariants for streaming performance."""
 
     @given(
-        token_count=st.integers(min_value=10, max_value=1000),
-        tokens_per_second=st.floats(min_value=5.0, max_value=100.0)
+        token_count=integers(min_value=10, max_value=1000),
+        tokens_per_second=floats(min_value=5.0, max_value=100.0)
     )
     @settings(max_examples=30, deadline=10000, suppress_health_check=[HealthCheck.function_scoped_fixture])  # 10 second deadline
     def test_first_token_latency_invariant(
@@ -317,7 +316,7 @@ class TestStreamingPerformanceInvariants:
             f"First token must arrive within 3 seconds. Took {first_token_time:.2f}s"
 
     @given(
-        token_count=st.integers(min_value=50, max_value=500)
+        token_count=integers(min_value=50, max_value=500)
     )
     @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_token_throughput_invariant(

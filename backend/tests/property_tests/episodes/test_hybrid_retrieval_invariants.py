@@ -11,7 +11,8 @@ Tests CRITICAL invariants:
 """
 import pytest
 import numpy as np
-from hypothesis import strategies as st, given, settings, example
+from hypothesis import given, settings, example
+from hypothesis.strategies import text, integers
 from datetime import datetime, timedelta
 from typing import List, Tuple
 
@@ -40,8 +41,8 @@ class TestRecallAtK:
         return HybridRetrievalService(db)
 
     @given(
-        query=st.text(min_size=5, max_size=100).filter(lambda x: x.strip()),
-        num_episodes=st.integers(min_value=50, max_value=200)
+        query=text(min_size=5, max_size=100).filter(lambda x: x.strip()),
+        num_episodes=integers(min_value=50, max_value=200)
     )
     @settings(max_examples=20)
     @pytest.mark.asyncio
@@ -131,8 +132,8 @@ class TestNDCGAtK:
         return HybridRetrievalService(db)
 
     @given(
-        query=st.text(min_size=5, max_size=50).filter(lambda x: x.strip()),
-        num_episodes=st.integers(min_value=50, max_value=150)
+        query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
+        num_episodes=integers(min_value=50, max_value=150)
     )
     @settings(max_examples=15)
     @pytest.mark.asyncio
@@ -215,8 +216,8 @@ class TestMonotonicImprovement:
         return HybridRetrievalService(db)
 
     @given(
-        query=st.text(min_size=5, max_size=50).filter(lambda x: x.strip()),
-        num_episodes=st.integers(min_value=20, max_value=50)
+        query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
+        num_episodes=integers(min_value=20, max_value=50)
     )
     @settings(max_examples=15)
     @pytest.mark.asyncio
@@ -268,8 +269,8 @@ class TestTopKCompleteness:
         return HybridRetrievalService(db)
 
     @given(
-        query=st.text(min_size=5, max_size=50).filter(lambda x: x.strip()),
-        num_episodes=st.integers(min_value=50, max_value=200)
+        query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
+        num_episodes=integers(min_value=50, max_value=200)
     )
     @settings(max_examples=15)
     @pytest.mark.asyncio
@@ -358,7 +359,7 @@ class TestEmbeddingConsistency:
         """Create EmbeddingService."""
         return EmbeddingService(provider="fastembed")
 
-    @given(text=st.text(min_size=10, max_size=200))
+    @given(text=text(min_size=10, max_size=200))
     @settings(max_examples=30)
     @pytest.mark.asyncio
     async def test_fastembed_embedding_deterministic_mocked(self, embedding_service, text):
@@ -390,8 +391,8 @@ class TestEmbeddingConsistency:
         )
 
     @given(
-        text=st.text(min_size=10, max_size=200),
-        num_iterations=st.integers(min_value=2, max_value=5)
+        text=text(min_size=10, max_size=200),
+        num_iterations=integers(min_value=2, max_value=5)
     )
     @settings(max_examples=20)
     @pytest.mark.asyncio
