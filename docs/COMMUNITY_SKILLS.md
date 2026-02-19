@@ -446,6 +446,164 @@ curl -X DELETE http://localhost:8000/api/packages/data-analysis-skill?agent_id=a
 
 ---
 
+## npm Packages for Skills
+
+Skills can use Node.js/npm packages (lodash, express, axios, etc.) through per-skill Docker images with dependency isolation, matching OpenClaw capabilities.
+
+### Package Dependencies in SKILL.md
+
+Add npm packages to your SKILL.md file using the `node_packages` field in YAML frontmatter:
+
+```yaml
+---
+name: "Data Processing Skill"
+description: "Process data using Lodash"
+skill_type: nodejs_code
+node_packages:
+  - lodash@4.17.21      # Exact version (recommended)
+  - axios@^1.6.0        # Compatible version
+package_manager: npm    # Optional: npm (default), yarn, or pnpm
+---
+
+const _ = require('lodash');
+const axios = require('axios');
+
+async function processData(query) {
+    const data = _.map(query.split(','), Number);
+    return _.sum(data);
+}
+
+processData(inputs.query || '1,2,3,4,5');
+```
+
+### Package Version Formats
+
+| Format | Example | Description | Recommended |
+|--------|---------|-------------|-------------|
+| **Exact** | `lodash@4.17.21` | Exactly version 4.17.21 | ✅ Yes (reproducible) |
+| **Caret** | `axios@^1.6.0` | Compatible with 1.6.0+ (minor/patch) | ⚠️ Testing only |
+| **Tilde** | `express@~4.18.0` | Patch updates only (4.18.x) | ⚠️ Testing only |
+| **Greater** | `moment@>=2.29.0` | Minimum version | ❌ Avoid |
+| **Wildcard** | `chalk@*` | Latest version | ❌ No (security risk) |
+
+### Package Manager Options
+
+- **npm** (default): Standard Node.js package manager, most compatible
+- **yarn**: Faster installs, PnP mode support, selective version resolution
+- **pnpm**: Strict dependency isolation, prevents phantom dependencies, highest security
+
+**Recommendation:** Use exact versions (`@4.17.21`) for production skills to ensure reproducibility.
+
+### Scoped Packages
+
+```yaml
+node_packages:
+  - @babel/core@7.23.0
+  - @types/node@^20.0.0
+  - @typescript-eslint/parser@^6.0.0
+```
+
+### Installing Packages
+
+**Request:**
+```bash
+curl -X POST http://localhost:8000/api/packages/npm/install \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent_789",
+    "skill_id": "data-analysis-skill",
+    "packages": ["lodash@4.17.21", "axios@^1.6.0"],
+    "package_manager": "npm"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "image_tag": "atom-npm-skill:data-analysis-skill-v1",
+  "packages_installed": [
+    {"name": "lodash", "version": "4.17.21"},
+    {"name": "axios", "version": "1.6.2"}
+  ],
+  "vulnerabilities": [],
+  "build_logs": ["Successfully built abc123"]
+}
+```
+
+### Executing with Packages
+
+```bash
+curl -X POST http://localhost:8000/api/packages/npm/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent_789",
+    "skill_id": "data-analysis-skill",
+    "code": "const _ = require(\"lodash\"); _.sum([1, 2, 3]);"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "output": "6",
+  "execution_time_ms": 234
+}
+```
+
+### Package Governance
+
+| Agent Level | npm Package Access |
+|-------------|-------------------|
+| **STUDENT** | ❌ Blocked (educational restriction) |
+| **INTERN** | ⚠️ Approval Required for each package |
+| **SUPERVISED** | ✅ If package approved for SUPERVISED+ |
+| **AUTONOMOUS** | ✅ If package approved for AUTONOMOUS |
+
+**Banned packages block all agents regardless of maturity.**
+
+### Security Features
+
+- ✅ **Postinstall Script Blocking** - --ignore-scripts flag prevents Shai-Hulud attacks
+- ✅ **Vulnerability Scanning** - npm audit + Snyk before installation
+- ✅ **Per-Skill Isolation** - No dependency conflicts (Skill A uses lodash 4.17, Skill B uses 5.0)
+- ✅ **Network Disabled** - Containers cannot access external networks
+- ✅ **Read-Only Filesystem** - No persistent storage in containers
+- ✅ **Non-Root User** - Skills run as nodejs (UID 1001)
+- ✅ **Resource Limits** - Memory and CPU quotas enforced
+- ✅ **Audit Trail** - All package operations logged
+
+### Threat Mitigation
+
+**Postinstall Script Malware (Shai-Hulud/Sha1-Hulud Attacks):**
+- September/November 2025: 700+ npm packages infected, 25K+ repositories affected
+- Mitigation: Automatic --ignore-scripts flag, pre-installation script analysis
+- Detection: Malicious patterns (fetch, axios, child_process, process.env, fs.readFile)
+
+**Typosquatting Attacks:**
+- Threat: Malicious packages with names similar to popular packages (e.g., `exprss` vs `express`)
+- Mitigation: Package metadata validation, download count checks, maintainer verification
+- Examples: `exprss`, `lodas`, `nodemailer` (misspelled variants)
+
+**Dependency Confusion:**
+- Threat: Attackers publish malicious packages with internal package names
+- Mitigation: Exact version pinning, npm scope usage (@scope/package-name), registry priority
+
+### Cleanup
+
+Remove skill image when no longer needed:
+
+```bash
+curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
+```
+
+**See:** [npm Package Support](NPM_PACKAGE_SUPPORT.md) for comprehensive user guide.
+
+---
+
 ## Managing Skills
 
 ### List All Skills
