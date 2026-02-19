@@ -5,13 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment.
-**Current focus:** Phase 30: Coverage Expansion (after Phase 29 complete)
+**Current focus:** Phase 35-36: Package Support (Python & npm)
 
 ## Current Position
 
-Phase: 35 of 37 (Python Package Support)
-Plan: 7 of 7 complete
-Status: Phase 35 COMPLETE - Python Package Support
+Phase: 35-36 of 37 (Package Support - Python & npm)
+Plan: Phase 35 complete, Phase 36 ready to plan
+Status: Phase 35 COMPLETE - Python Package Support (7/7 plans, 117 tests, production-ready)
 Last activity: 2026-02-19 — Phase 35-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 75K+ bytes, 161+ sections) for Python Package Support. PYTHON_PACKAGES.md (19K bytes, 52 sections) - user guide with quick start, version formats, governance rules, security features, API usage, troubleshooting, best practices, and examples. PACKAGE_GOVERNANCE.md (15K bytes, 37 sections) - maturity-based access matrix, approval workflow, banning procedures, cache performance, API reference, audit trail. PACKAGE_SECURITY.md (21K bytes, 34 sections) - threat model (dependency confusion, typosquatting, transitive dependencies, container escape, resource exhaustion, data exfiltration), security constraints, vulnerability scanning, static code analysis, security testing, incident response. PYTHON_PACKAGES_DEPLOYMENT.md (20K bytes, 38 sections) - pre-deployment checklist, post-deployment verification, rollback procedures, production readiness, monitoring. Updated .env.example with SAFETY_API_KEY and cache configuration. Updated COMMUNITY_SKILLS.md with package dependency syntax examples. Updated CLAUDE.md with Python Package Support section and recent changes. 1 atomic commit (8211af2a), 7 files created/modified, 7 minutes duration. Phase 35 complete - all 7 plans executed, production-ready with comprehensive documentation.
 
 Previous: 2026-02-19 — Phase 35-05 COMPLETE: Security Testing - Created comprehensive security test suite (34 tests, 100% pass rate) validating defense-in-depth protections for Python package execution. Test file (893 lines) with malicious fixtures (504 lines) covering container escape prevention (privileged mode, Docker socket, host mounts), resource exhaustion protection (memory, CPU, timeout), network isolation, filesystem isolation, malicious pattern detection (subprocess, eval, base64, pickle), vulnerability scanning, and governance blocking. 3 atomic commits (7d9134db, 67bb3957, 7e58b217), 5 files created/modified, 7 minutes duration. Updated CODE_QUALITY_STANDARDS.md, COMMUNITY_SKILLS.md, and CLAUDE.md with security testing patterns and documentation.
@@ -26,7 +26,23 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 32% (v2.0: 10/31 plans)
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 35% (v2.0: 11/31 plans) - Phase 35 complete
+
+## Upcoming: Phase 36 - npm Package Support
+
+**Goal**: Enable agents to safely execute npm/Node.js packages with comprehensive sandboxing (matching OpenClaw capabilities)
+
+**Key Features**:
+- npm/yarn/pnpm package manager support (2M+ packages in npm ecosystem)
+- Security scanning with npm audit, Snyk, yarn audit
+- Per-skill node_modules isolation (Docker-based)
+- Governance integration (reuse from Phase 35)
+- package.json dependency management
+- SKILL.md `node_packages` field support
+
+**Rationale**: OpenClaw supports npm packages for Node.js skills (npm install -g openclaw@latest). Atom should match this capability for feature parity.
+
+**Dependencies**: Phase 35 (Python Package Support infrastructure)
 
 ## Performance Metrics
 
@@ -64,6 +80,14 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 36 (New Feature)**: Add npm package support to match OpenClaw capabilities (2M+ packages in npm ecosystem)
+- **Phase 36**: Reuse Phase 35 infrastructure (PackageGovernanceService, governance cache, REST API) with package_type field for npm vs Python
+- **Phase 36**: Security tools: npm audit, Snyk, yarn audit (vs pip-audit, Safety for Python)
+- **Phase 36**: Per-skill node_modules isolation in Docker containers (vs Python venv)
+- **Phase 35 Plan 07**: Create 4 comprehensive documentation files (PYTHON_PACKAGES.md, PACKAGE_GOVERNANCE.md, PACKAGE_SECURITY.md, PYTHON_PACKAGES_DEPLOYMENT.md)
+- **Phase 35 Plan 06**: Extend SKILL.md with `packages:` field for Python dependencies (e.g., packages: [numpy==1.21.0, pandas>=1.3.0])
+- **Phase 35 Plan 05**: Create malicious package fixtures (504 lines, 450+ attack samples) for comprehensive security testing
+- **Phase 35 Plan 03**: Use per-skill Docker images (atom-skill:{skill_id}-v1) to prevent dependency conflicts between skills
 - **Phase 35 Plan 02**: Mock subprocess calls in dependency scanner tests to avoid requiring actual pip-audit/safety installation in CI/CD
 - **Phase 35 Plan 02**: Return safe=True on scanning errors (timeouts/parse errors) rather than blocking installation; timeouts indicate scanning problems not security issues
 - **Phase 35 Plan 02**: Optional Safety API key for commercial vulnerability database; system functions with pip-audit alone for open-source scanning
