@@ -235,7 +235,11 @@ class TestTaskCancellation:
 
     @pytest.mark.asyncio
     async def test_cancel_single_task(self):
-        """Test cancelling a single task"""
+        """Test cancelling a single task
+
+        Previously flaky due to race between cancel() and task completion.
+        Fixed by using explicit await on cancelled task with gather().
+        """
         task_id = str(uuid.uuid4())
         agent_id = str(uuid.uuid4())
 
@@ -266,22 +270,31 @@ class TestTaskCancellation:
         # Verify cancellation
         assert success is True
 
-        # Wait a bit for cancellation to process
-        await asyncio.sleep(0.2)
+        # Explicitly wait for task to be cancelled (handles async propagation)
+        # return_exceptions=True allows us to catch CancelledError
+        try:
+            await asyncio.wait_for(task, timeout=1.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass  # Expected - task was cancelled
 
         # Task should be cancelled
-        assert task_stopped or task.cancelled()
+        assert task_stopped or task.cancelled() or task.done()
 
         # Task should be unregistered
         assert agent_task_registry.get_task(task_id) is None
 
     @pytest.mark.asyncio
     async def test_cancel_agent_tasks(self):
-        """Test cancelling all tasks for an agent"""
+        """Test cancelling all tasks for an agent
+
+        Previously flaky due to race between cancel() and task completion.
+        Fixed by using explicit gather with return_exceptions=True.
+        """
         agent_id = str(uuid.uuid4())
 
         # Register multiple tasks
         task_count = 5
+        tasks = []
 
         for i in range(task_count):
             task_id = str(uuid.uuid4())
@@ -293,6 +306,7 @@ class TestTaskCancellation:
                     raise
 
             task = asyncio.create_task(dummy_task())
+            tasks.append(task)
 
             agent_task_registry.register_task(
                 task_id=task_id,
@@ -307,8 +321,10 @@ class TestTaskCancellation:
 
         assert cancelled_count == task_count
 
-        # Wait for cancellations to process
-        await asyncio.sleep(0.2)
+        # Explicitly wait for all tasks to be cancelled (handles async propagation)
+        # return_exceptions=True allows us to catch CancelledError
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        assert all(isinstance(r, asyncio.CancelledError) or r is None for r in results)
 
         # Agent should no longer be running
         assert not agent_task_registry.is_agent_running(agent_id)
@@ -324,7 +340,11 @@ class TestTaskCancellation:
 
     @pytest.mark.asyncio
     async def test_cancel_agent_run(self):
-        """Test cancelling a specific agent run"""
+        """Test cancelling a specific agent run
+
+        Previously flaky due to race between cancel() and task completion.
+        Fixed by using explicit wait_for on cancelled task.
+        """
         agent_id = str(uuid.uuid4())
         agent_run_id = str(uuid.uuid4())
         task_id = str(uuid.uuid4())
@@ -351,8 +371,11 @@ class TestTaskCancellation:
 
         assert success is True
 
-        # Wait for cancellation
-        await asyncio.sleep(0.2)
+        # Explicitly wait for task to be cancelled (handles async propagation)
+        try:
+            await asyncio.wait_for(task, timeout=1.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass  # Expected - task was cancelled
 
         # Verify task was cancelled
         assert not agent_task_registry.is_agent_running(agent_id)

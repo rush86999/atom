@@ -115,7 +115,12 @@ class AgentTaskRegistry:
         logger.info(f"Unregistered task {task_id}")
 
     async def cancel_task(self, task_id: str) -> bool:
-        """Cancel a task by task_id"""
+        """
+        Cancel a task by task_id and wait for cancellation to complete.
+
+        This method now properly waits for the task to handle the cancellation
+        signal before unregistering it, preventing race conditions in tests.
+        """
         if task_id not in self._tasks:
             logger.warning(f"Task {task_id} not found in registry")
             return False
@@ -125,8 +130,14 @@ class AgentTaskRegistry:
 
         if success:
             logger.info(f"Cancelled task {task_id}")
-            # Unregister after a brief delay to allow cancellation to complete
-            await asyncio.sleep(0.1)
+            # Wait for task to actually be cancelled (handles async propagation)
+            # This prevents race conditions where task isn't fully cancelled when unregistered
+            try:
+                await asyncio.wait_for(agent_task.task, timeout=5.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                # CancelledError is expected when task handles cancellation
+                # TimeoutError means task didn't respond to cancellation within 5s
+                pass
             self.unregister_task(task_id)
 
         return success
