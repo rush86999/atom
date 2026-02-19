@@ -10,13 +10,13 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 1 of 6 (Test Failure Fixes & Quality Foundation)
-Plan: 5 of 6 in current phase
-Status: In progress
-Last activity: 2026-02-19 — Phase 29-02 COMPLETE: Proposal Service Unit Tests - Fixed proposal service unit tests by removing flaky logger mocks and improving performance test reliability. test_create_proposal_for_non_intern_agent_logs_warning and test_submit_proposal_for_approval now verify database state instead of logger calls. Performance test threshold increased to 1000ms (2x tolerance for CI). All 40 proposal service tests pass consistently over 3 runs. 3 atomic commits (5944d6c3, 8b8bcefe, 3f6361d1), 12 minutes duration, 1 file modified.
+Plan: 6 of 6 in current phase
+Status: Complete
+Last activity: 2026-02-19 — Phase 29-01 COMPLETE: Fix Hypothesis TypeError in Property Tests - Fixed Hypothesis 6.x compatibility issues across 10 property test modules. Changed from 'from hypothesis import strategies as st' to proper individual strategy imports (text, integers, floats, lists, sampled_from, booleans, datetimes, etc.). Replaced all st.just(), st.sampled_from() with direct calls. Fixed name collision: hypothesis.strategies.text aliased as st_text to avoid conflict with sqlalchemy.text. All 10 modules fixed, 117 property tests now passing. 3 atomic commits (a266a645, 3d373b04, 438f7493), 35 minutes duration, 10 files modified.
 
 Previous: 2026-02-19 — Phase 29-04 COMPLETE: Agent Task Cancellation Tests - Fixed 3 flaky tests by replacing arbitrary sleep with explicit async synchronization. test_unregister_task uses polling loop (1s max timeout). test_register_task and test_get_all_running_agents have explicit cleanup. AgentTaskRegistry.cancel_task() now waits for task completion with asyncio.wait_for(). All 15 tests pass in sequential and parallel execution. 3 atomic commits (6852448f, 5f3b27bb, 3b8bbaba), 7 minutes duration, 2 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 10% (v2.0: 3/31 plans)
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 13% (v2.0: 4/31 plans)
 
 ## Performance Metrics
 
@@ -35,7 +35,8 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 - Last 5 plans (v1.0): [42min, 38min, 51min, 44min, 47min]
 - Trend: Stable (v1.0 complete, v2.0 ready to start)
 
-*Updated: 2026-02-18 (v2.0 initialization)*
+*Updated: 2026-02-19 (Phase 29 Plan 01 complete)*
+| Phase 29 P01 | 35 | 3 tasks | 10 files |
 | Phase 29 P04 | 7 | 3 tasks | 2 files |
 | Phase 29 P02 | 12 | 3 tasks | 1 files |
 
@@ -46,6 +47,8 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 29 Plan 01**: Import Hypothesis strategies individually from hypothesis.strategies (not 'strategies as st') for clarity and compatibility
+- **Phase 29 Plan 01**: Alias hypothesis.strategies.text as st_text when using sqlalchemy.text to avoid name collision
 - **Phase 29 Plan 04**: Use polling loops instead of arbitrary sleep for async cleanup (more robust on slow CI)
 - **Phase 29 Plan 04**: AgentTaskRegistry.cancel_task() waits for task completion with asyncio.wait_for() before unregistering
 - **Phase 29**: Stabilize test suite before coverage push (fix all 40+ failures first)
