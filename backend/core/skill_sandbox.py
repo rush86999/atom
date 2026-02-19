@@ -44,7 +44,8 @@ class HazardSandbox:
             inputs={},
             timeout_seconds=30,
             memory_limit="256m",
-            cpu_limit=0.5
+            cpu_limit=0.5,
+            image="python:3.11-slim"  # Optional custom image
         )
     """
 
@@ -78,7 +79,8 @@ class HazardSandbox:
         inputs: Dict[str, Any],
         timeout_seconds: int = 30,
         memory_limit: str = "256m",
-        cpu_limit: float = 0.5
+        cpu_limit: float = 0.5,
+        image: Optional[str] = None
     ) -> str:
         """
         Execute Python code in isolated Docker container.
@@ -89,6 +91,7 @@ class HazardSandbox:
             timeout_seconds: Maximum execution time (default: 30s)
             memory_limit: Memory limit (e.g., "256m", "512m")
             cpu_limit: CPU quota (0.5 = 50% of one core)
+            image: Custom Docker image (default: "python:3.11-slim")
 
         Returns:
             str: Execution output (stdout) or error message
@@ -106,16 +109,20 @@ class HazardSandbox:
         """
         container_id = f"skill_{uuid.uuid4().hex[:8]}"
 
+        # Use custom image or default base image
+        container_image = image if image else "python:3.11-slim"
+
         try:
             # Create wrapper script that injects inputs and executes code
             wrapper_script = self._create_wrapper_script(code, inputs)
 
             logger.info(f"Starting container {container_id} with limits: "
-                       f"mem={memory_limit}, cpu={cpu_limit}, timeout={timeout_seconds}s")
+                       f"mem={memory_limit}, cpu={cpu_limit}, timeout={timeout_seconds}s, "
+                       f"image={container_image}")
 
             # Run container with security constraints
             output = self.client.containers.run(
-                image="python:3.11-slim",
+                image=container_image,
                 command=["python", "-c", wrapper_script],
                 name=container_id,
                 mem_limit=memory_limit,

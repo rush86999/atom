@@ -463,3 +463,62 @@ class TestContainerNaming:
         container_name = call_args.kwargs['name']
         assert container_name.startswith('skill_')
         assert len(container_name) == len('skill_') + 8  # skill_ + 8 char hex
+
+
+class TestCustomImageSupport:
+    """Test custom Docker image support for package installation."""
+
+    @patch('core.skill_sandbox.docker')
+    def test_execute_python_with_default_image(self, mock_docker_module):
+        """Verify default image is python:3.11-slim when no image specified."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        mock_client.containers.run.return_value = b"Done\n"
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(code="print('Done')", inputs={})
+
+        call_args = mock_client.containers.run.call_args
+        assert call_args.kwargs['image'] == "python:3.11-slim"
+
+    @patch('core.skill_sandbox.docker')
+    def test_execute_python_with_custom_image(self, mock_docker_module):
+        """Verify custom Docker image is used when provided."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        mock_client.containers.run.return_value = b"Done\n"
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(
+            code="print('Done')",
+            inputs={},
+            image="atom-skill:custom-skill-v1"
+        )
+
+        call_args = mock_client.containers.run.call_args
+        assert call_args.kwargs['image'] == "atom-skill:custom-skill-v1"
+
+    @patch('core.skill_sandbox.docker')
+    def test_custom_image_maintains_security(self, mock_docker_module):
+        """Verify custom images still enforce all security constraints."""
+        mock_client = Mock()
+        mock_client.ping.return_value = True
+        mock_client.containers.run.return_value = b"Done\n"
+        mock_docker_module.from_env.return_value = mock_client
+
+        sandbox = HazardSandbox()
+        sandbox.execute_python(
+            code="print('Done')",
+            inputs={},
+            image="atom-skill:custom-v1"
+        )
+
+        call_args = mock_client.containers.run.call_args
+        # Verify all security constraints still apply
+        assert call_args.kwargs['network_disabled'] is True
+        assert call_args.kwargs['read_only'] is True
+        assert call_args.kwargs['auto_remove'] is True
+        assert 'mem_limit' in call_args.kwargs
+        assert 'cpu_quota' in call_args.kwargs
