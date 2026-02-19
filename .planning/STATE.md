@@ -45,6 +45,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 29 P01 | 35 | 3 tasks | 10 files |
 | Phase 29 P04 | 7 | 3 tasks | 2 files |
 | Phase 29 P02 | 12 | 3 tasks | 1 files |
+| Phase 35 P04 | 45 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - **Phase 32**: Platform completion and quality validation (80% governance/security/episodic memory/core)
 - **Phase 33**: Community Skills integration with Docker sandbox and LLM security scanning
 - **Phase 34**: Documentation updates and production verification
+- [Phase 35]: Lazy initialization for PackageInstaller to avoid Docker import dependency
+- [Phase 35]: Per-skill Docker image tagging format: atom-skill:{skill_id}-v1
+- [Phase 35]: Non-root user execution (UID 1000) in skill containers for security
 
 ### Pending Todos
 

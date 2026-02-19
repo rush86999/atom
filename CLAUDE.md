@@ -288,11 +288,11 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
   1. **Package Governance Service** - Maturity-based permissions with <1ms cached lookups (Plan 01)
   2. **Dependency Scanner** - Vulnerability scanning using pip-audit (PyPI/GitHub advisories) and Safety (commercial DB) (Plan 02)
   3. **Package Installer & REST API** - Per-skill Docker images with isolated dependencies (Plans 03-04)
-- **Implementation**: Plans 01-04 complete, Plans 05-07 pending
+- **Implementation**: Plans 01-03 complete, Plans 04-07 pending
 - **Plans Complete**:
-  - Plan 01: PackageGovernanceService (368 lines, 32 tests, 100% pass rate)
-  - Plan 02: PackageDependencyScanner (268 lines, 19 tests, 100% pass rate)
-  - Plan 03: PackageInstaller (368 lines) - Docker image building per skill
+  - Plan 01: PackageGovernanceService (368 lines, 32 tests, 100% pass rate) ✅
+  - Plan 02: PackageDependencyScanner (268 lines, 19 tests, 100% pass rate) ✅
+  - Plan 03: PackageInstaller (344 lines, 19 tests, 100% pass rate) - Docker image building per skill ✅
   - Plan 04: REST API (636 lines, 11 endpoints) - Install, execute, cleanup, status, audit
 - **Key Features**:
   - STUDENT agents blocked from all Python packages
@@ -303,14 +303,23 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
   - Dependency tree visualization with pipdeptree
   - Version conflict detection for transitive dependencies
   - Read-only filesystem, non-root user, resource limits
+  - Extended HazardSandbox with custom image support
+- **PackageInstaller Features** (Plan 03):
+  - install_packages(): Build Docker images with pre-installed packages
+  - execute_with_packages(): Execute code using custom skill images
+  - cleanup_skill_image(): Remove images to free disk space
+  - get_skill_images(): List all Atom skill images
+  - Image tagging: atom-skill:{skill_id}-v1
+  - Virtual environment at /opt/atom_skill_env
+  - Non-root user execution (UID 1000)
 - **REST API Endpoints** (11 total):
   - Governance: GET /check, POST /request, POST /approve, POST /ban, GET /, GET /stats
   - Management: POST /install, POST /execute, DELETE /{skill_id}, GET /{skill_id}/status, GET /audit
 - **Performance**: <1ms governance checks, 2-5s vulnerability scans, 10-30s image builds
-- **Tests**: 51+ tests across 4 test files, all passing
-- **Docs**: `backend/core/package_installer.py`, `backend/api/package_routes.py`
+- **Tests**: 70+ tests across 5 test files, all passing
+- **Docs**: `backend/core/package_installer.py`, `backend/api/package_routes.py`, `docs/COMMUNITY_SKILLS.md`
 - **API Docs**: `backend/docs/API_DOCUMENTATION.md#python-package-management`
-- **Status**: 🔄 IN PROGRESS - Plans 01-04 complete, Plans 05-07 pending
+- **Status**: 🔄 IN PROGRESS - Plans 01-03 complete, Plans 04-07 pending
 - **See**: `.planning/phases/35-python-package-support/`
 
 ### Phase 25: Atom CLI as OpenClaw Skills (Feb 18, 2026) ✨ NEW
