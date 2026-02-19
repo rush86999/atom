@@ -4,8 +4,15 @@ Skill Adapter for OpenClaw community skills.
 Wraps parsed SKILL.md files as LangChain BaseTool subclasses
 with Pydantic validation for seamless integration with Atom agents.
 
+Extended for Python package support (Phase 35):
+- Accepts packages parameter in __init__
+- Uses PackageInstaller for skills with packages
+- Falls back to default HazardSandbox when no packages
+- Automatic Docker image building for isolated package execution
+
 Reference: Phase 14 Plan 01 - Skill Adapter
 Reference: Phase 25 Plan 02 - CLI Skill Integration
+Reference: Phase 35 Plan 06 - Skill Integration
 """
 
 import logging
@@ -43,6 +50,11 @@ class CommunitySkillTool(BaseTool):
     - prompt_only: Natural language instructions with template interpolation
     - python_code: Python code requiring sandbox execution (Plan 02)
 
+    Extended for Python package support (Phase 35):
+    - packages: List of Python package requirements (e.g., ["numpy==1.21.0", "pandas>=1.3.0"])
+    - Automatic Docker image building when packages present
+    - Uses PackageInstaller for isolated package execution
+
     Instance attributes:
         name: Tool name (overridden per instance)
         description: Tool description from skill metadata
@@ -51,6 +63,7 @@ class CommunitySkillTool(BaseTool):
         skill_type: "prompt_only" or "python_code"
         skill_content: Prompt template or Python code
         sandbox_enabled: Whether sandbox is enabled for Python skills
+        packages: List of Python package requirements (Phase 35)
     """
 
     name: str = "community_skill"
@@ -61,10 +74,17 @@ class CommunitySkillTool(BaseTool):
     skill_type: str = "prompt_only"  # "prompt_only" or "python_code"
     skill_content: str = ""  # Prompt template or Python code
     sandbox_enabled: bool = False
+    packages: list = []  # List of package requirements (Phase 35)
 
     def _run(self, query: str) -> str:
         """
         Execute the skill synchronously.
+
+        Extended for Python package support (Phase 35):
+        - If packages present and skill_type == "python_code":
+          1. Install packages in dedicated Docker image
+          2. Execute using custom image with pre-installed packages
+        - Otherwise: Use default execution path (HazardSandbox or prompt template)
 
         Args:
             query: User's request or question
@@ -78,6 +98,10 @@ class CommunitySkillTool(BaseTool):
         # Check if this is a CLI skill (atom-* prefix)
         if self.skill_id.startswith("atom-"):
             return self._execute_cli_skill(query)
+
+        # Package execution path (Phase 35)
+        if self.packages and self.skill_type == "python_code":
+            return self._execute_python_skill_with_packages(query)
 
         if self.skill_type == "prompt_only":
             return self._execute_prompt_skill(query)
@@ -275,6 +299,74 @@ class CommunitySkillTool(BaseTool):
                 f"Enable sandbox by setting sandbox_enabled=True."
             )
 
+    def _execute_python_skill_with_packages(self, query: str) -> str:
+        """
+        Execute Python skill with custom Docker image containing packages.
+
+        Package execution workflow (Phase 35):
+        1. Install packages in dedicated Docker image using PackageInstaller
+        2. Execute skill code using custom image with pre-installed packages
+        3. Handle installation and execution errors gracefully
+
+        Args:
+            query: User's request
+
+        Returns:
+            Execution result or error message
+        """
+        from core.package_installer import PackageInstaller
+
+        # Generate skill ID for image tagging
+        # Format: atom-skill:{skill_name}-v1
+        skill_id_for_image = f"skill-{self.name.replace(' ', '-').lower()}"
+
+        try:
+            installer = PackageInstaller()
+
+            # Step 1: Install packages in dedicated image
+            logger.info(
+                f"Installing {len(self.packages)} packages for skill '{self.name}'"
+            )
+            install_result = installer.install_packages(
+                skill_id=skill_id_for_image,
+                requirements=self.packages,
+                scan_for_vulnerabilities=True  # Scan before installation
+            )
+
+            if not install_result["success"]:
+                error_msg = install_result.get("error", "Unknown installation error")
+                logger.error(
+                    f"Package installation failed for skill '{self.name}': {error_msg}"
+                )
+                return f"PACKAGE_INSTALLATION_ERROR: {error_msg}"
+
+            # Log vulnerabilities if any
+            vulnerabilities = install_result.get("vulnerabilities", [])
+            if vulnerabilities:
+                logger.warning(
+                    f"Skill '{self.name}' has {len(vulnerabilities)} vulnerabilities "
+                    f"(proceeding with execution)"
+                )
+
+            # Step 2: Execute skill using custom image
+            logger.info(
+                f"Executing skill '{self.name}' with image {install_result['image_tag']}"
+            )
+
+            code = self._extract_function_code()
+
+            output = installer.execute_with_packages(
+                skill_id=skill_id_for_image,
+                code=code,
+                inputs={"query": query}
+            )
+
+            return output
+
+        except Exception as e:
+            logger.error(f"Package execution failed for skill '{self.name}': {e}")
+            return f"PACKAGE_EXECUTION_ERROR: {str(e)}"
+
     def _extract_function_code(self) -> str:
         """
         Extract Python function code from skill content.
@@ -299,11 +391,17 @@ def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
     """
     Factory function to create CommunitySkillTool from parsed skill.
 
+    Extended to support Python packages (Phase 35):
+    - Extracts packages from parsed_skill metadata
+    - Passes packages list to CommunitySkillTool constructor
+    - Enables automatic Docker image building for package execution
+
     Args:
         parsed_skill: Dictionary from SkillParser containing:
             - name: Skill name
             - description: Skill description
             - skill_type: "prompt_only" or "python_code"
+            - packages: List of Python package requirements (optional)
             - Additional metadata
 
     Returns:
@@ -318,13 +416,15 @@ def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
             "description": metadata["description"],
             "skill_type": metadata["skill_type"],
             "skill_content": body,
-            "skill_id": "unique_id"
+            "skill_id": "unique_id",
+            "packages": metadata.get("packages", [])  # Phase 35
         })
     """
     skill_type = parsed_skill.get("skill_type", "prompt_only")
     skill_content = parsed_skill.get("skill_content", "")
     skill_id = parsed_skill.get("skill_id", parsed_skill.get("name", "unknown"))
     sandbox_enabled = parsed_skill.get("sandbox_enabled", False)
+    packages = parsed_skill.get("packages", [])  # Phase 35: Extract packages
 
     # Create tool instance
     tool = CommunitySkillTool(
@@ -333,12 +433,13 @@ def create_community_tool(parsed_skill: Dict[str, Any]) -> CommunitySkillTool:
         skill_id=skill_id,
         skill_type=skill_type,
         skill_content=skill_content,
-        sandbox_enabled=sandbox_enabled
+        sandbox_enabled=sandbox_enabled,
+        packages=packages  # Phase 35: Pass packages to tool
     )
 
     logger.info(
         f"Created CommunitySkillTool: {tool.name} "
-        f"(type: {skill_type}, id: {skill_id})"
+        f"(type: {skill_type}, id: {skill_id}, packages: {len(packages)})"
     )
 
     return tool
