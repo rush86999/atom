@@ -31,6 +31,8 @@ from packaging.requirements import Requirement
 from core.package_governance_service import PackageGovernanceService
 from core.package_dependency_scanner import PackageDependencyScanner
 from core.package_installer import PackageInstaller
+from core.npm_package_installer import NpmPackageInstaller
+from core.npm_script_analyzer import NpmScriptAnalyzer
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,8 @@ router = APIRouter()
 _governance = None
 _scanner = None
 _installer = None
+_npm_installer = None
+_npm_script_analyzer = None
 
 
 def get_governance():
@@ -63,6 +67,22 @@ def get_installer():
     if _installer is None:
         _installer = PackageInstaller()
     return _installer
+
+
+def get_npm_installer():
+    """Lazy load npm installer."""
+    global _npm_installer
+    if _npm_installer is None:
+        _npm_installer = NpmPackageInstaller()
+    return _npm_installer
+
+
+def get_npm_script_analyzer():
+    """Lazy load npm script analyzer."""
+    global _npm_script_analyzer
+    if _npm_script_analyzer is None:
+        _npm_script_analyzer = NpmScriptAnalyzer()
+    return _npm_script_analyzer
 
 
 # ============================================================================
@@ -572,6 +592,188 @@ def ban_npm_package(
     except Exception as e:
         logger.error(f"Error banning npm package: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# npm Installation and Execution Endpoints (Plan 04)
+# ============================================================================
+
+@router.post("/npm/install", response_model=PackageInstallResponse)
+def install_npm_packages(
+    request: NpmPackageInstallRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Install npm packages for skill in dedicated Docker image.
+
+    Workflow:
+    1. Check permissions for all packages using PackageGovernanceService (package_type="npm")
+    2. Analyze scripts for malicious postinstall/preinstall threats
+    3. Scan for vulnerabilities using NpmDependencyScanner (if enabled)
+    4. Build Docker image with packages using NpmPackageInstaller
+    5. Return image tag and build logs
+
+    Returns 403 if agent lacks maturity for any package.
+    Returns 403 if malicious scripts detected.
+    Returns 400 if vulnerabilities detected.
+
+    Security: Each skill gets isolated image to prevent dependency conflicts.
+    """
+    # Parse packages and check permissions
+    for pkg in request.packages:
+        # Extract package name and version
+        if '@' in pkg:
+            # Handle scoped packages (@scope/name@version)
+            if pkg.startswith('@') and pkg.count('@') >= 2:
+                # @scope/name@version
+                parts = pkg.split('@')
+                name = f"@{parts[1]}"
+                version = parts[2]
+            elif pkg.startswith('@'):
+                # @scope/name without version
+                name = pkg
+                version = "latest"
+            else:
+                # Regular package: name@version
+                name, version = pkg.split('@', 1)
+        else:
+            name, version = pkg, "latest"
+
+        # Check permission for each package (package_type="npm")
+        permission = get_governance().check_package_permission(
+            request.agent_id,
+            name,
+            version,
+            package_type="npm",
+            db=db
+        )
+
+        if not permission["allowed"]:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "npm package permission denied",
+                    "package": name,
+                    "version": version,
+                    "reason": permission["reason"]
+                }
+            )
+
+        logger.info(f"Permission granted for npm package {name}@{version} to agent {request.agent_id}")
+
+    # Install packages (includes script analysis and vulnerability scanning)
+    result = get_npm_installer().install_packages(
+        skill_id=request.skill_id,
+        packages=request.packages,
+        package_manager=request.package_manager,
+        scan_for_vulnerabilities=request.scan_for_vulnerabilities,
+        base_image=request.base_image
+    )
+
+    if not result["success"]:
+        # Determine appropriate status code
+        if "Malicious postinstall" in result.get("error", ""):
+            status_code = 403
+        elif "Vulnerabilities detected" in result.get("error", ""):
+            status_code = 400
+        else:
+            status_code = 500
+
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "error": result["error"],
+                "script_warnings": result.get("script_warnings", {}),
+                "vulnerabilities": result.get("vulnerabilities", [])
+            }
+        )
+
+    logger.info(
+        f"Successfully installed {len(request.packages)} npm packages for skill {request.skill_id}, "
+        f"image: {result['image_tag']}"
+    )
+
+    # Convert packages to package specs format
+    package_specs = []
+    for pkg in request.packages:
+        if '@' in pkg:
+            if pkg.startswith('@') and pkg.count('@') >= 2:
+                parts = pkg.split('@')
+                name = f"@{parts[1]}"
+                version = parts[2]
+            elif pkg.startswith('@'):
+                name = pkg
+                version = "latest"
+            else:
+                name, version = pkg.split('@', 1)
+        else:
+            name, version = pkg, "latest"
+        package_specs.append({"name": name, "version": version, "original": pkg})
+
+    return {
+        "success": True,
+        "skill_id": request.skill_id,
+        "image_tag": result["image_tag"],
+        "packages_installed": package_specs,
+        "vulnerabilities": result.get("vulnerabilities", []),
+        "build_logs": result.get("build_logs", [])
+    }
+
+
+@router.post("/npm/execute", response_model=PackageExecuteResponse)
+def execute_npm_code(
+    request: NpmPackageExecuteRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute Node.js skill code using its dedicated image with pre-installed packages.
+
+    Skill must have called POST /api/packages/npm/install first to build image.
+
+    Returns 404 if skill image not found.
+    Returns execution output or error message.
+
+    Security: Executes in isolated container with resource limits.
+    """
+    try:
+        output = get_npm_installer().execute_with_packages(
+            skill_id=request.skill_id,
+            code=request.code,
+            inputs=request.inputs,
+            timeout_seconds=request.timeout_seconds,
+            memory_limit=request.memory_limit,
+            cpu_limit=request.cpu_limit
+        )
+
+        logger.info(f"Successfully executed npm skill {request.skill_id} with packages")
+
+        return {
+            "success": True,
+            "skill_id": request.skill_id,
+            "output": output
+        }
+
+    except RuntimeError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "npm skill image not found",
+                    "skill_id": request.skill_id,
+                    "message": "Run POST /api/packages/npm/install first to build skill image"
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": str(e)}
+            )
+    except Exception as e:
+        logger.error(f"Error executing npm skill {request.skill_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"Execution failed: {str(e)}"}
+        )
 
 
 # ============================================================================
