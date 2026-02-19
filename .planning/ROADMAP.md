@@ -1506,15 +1506,40 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 - **Phase 32: Platform & Quality Validation** - Mobile/desktop completion, 80% coverage validation
 - **Phase 33: Community Skills Integration** - 5,000+ OpenClaw skills with Docker sandbox security
 - **Phase 34: Documentation & Verification** - Update all docs for v2.0 features
-- [ ] **Phase 35: Python Package Support for Agent Skills** - Safe execution of Python packages in agent skills with comprehensive sandboxing
-  - Plan 01: Research Python package security vulnerabilities and sandboxing strategies
-  - Plan 02: Design package permission system (which agents can use which packages)
-  - Plan 03: Implement Docker-based package execution with resource limits
-  - Plan 04: Create package dependency scanner (version conflicts, security advisories)
-  - Plan 05: Build package whitelist/blocklist system with governance integration
-  - Plan 06: Implement package version management and isolation
-  - Plan 07: Security testing for package escape scenarios
-  - Estimated: 7 plans
+
+### Phase 35: Python Package Support for Agent Skills
+
+**Goal**: Enable agents to safely execute Python packages with comprehensive sandboxing, security scanning, and governance integration
+
+**Depends on**: Phase 33 (Community Skills Docker sandbox infrastructure)
+
+**Success Criteria** (what must be TRUE):
+  1. Agents can execute Python packages in isolated Docker containers with resource limits
+  2. Package permission system enforces maturity-based restrictions (STUDENT blocked, INTERN+ approved)
+  3. Dependency scanner detects version conflicts and security advisories before execution
+  4. Whitelist/blocklist system integrates with governance cache for <1ms lookups
+  5. Package version isolation prevents conflicts between skills
+  6. Security tests validate escape scenarios (container breakout, resource exhaustion)
+  7. Audit trail tracks all package installations and executions
+
+**Plans**: 7 plans
+- [x] 35-python-package-support-01-PLAN.md — Package governance service with maturity-based permissions
+- [x] 35-python-package-support-02-PLAN.md — Dependency scanner with pip-audit and Safety integration
+- [x] 35-python-package-support-03-PLAN.md — Docker-based package installation with per-skill images
+- [x] 35-python-package-support-04-PLAN.md — REST API integration for package management
+- [x] 35-python-package-support-05-PLAN.md — Security testing for container escape scenarios
+- [x] 35-python-package-support-06-PLAN.md — Skill integration with package support
+- [x] 35-python-package-support-07-PLAN.md — Documentation and deployment
+
+**Wave Structure**:
+- Wave 1 (Parallel): Plan 01 (Package Governance), Plan 02 (Dependency Scanner)
+- Wave 2 (Parallel): Plan 03 (Package Installer), Plan 04 (REST API)
+- Wave 3 (Parallel): Plan 05 (Security Testing), Plan 06 (Skill Integration)
+- Wave 4: Plan 07 (Documentation)
+
+**Estimated**: 10-14 days for all 7 plans
+
+---
 
 **Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35 new feature
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
