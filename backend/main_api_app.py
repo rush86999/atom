@@ -414,6 +414,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load local agent routes (skipping): {e}")
 
+    # Device Node Routes
+    try:
+        from api.device_nodes import router as device_node_router
+        app.include_router(device_node_router)
+        logger.info("✓ Device Node Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load device node routes: {e}")
+
     try:
         from api.workflow_template_routes import router as template_router
         app.include_router(template_router, prefix="/api/workflow-templates", tags=["workflow-templates"])
@@ -443,6 +451,27 @@ try:
         app.include_router(financial_router, prefix="/api/financial", tags=["financial-ops"])
     except ImportError as e:
         logger.warning(f"Failed to load financial ops routes: {e}")
+
+    try:
+        from api.billing_routes import router as billing_router
+        app.include_router(billing_router, prefix="/api")
+        logger.info("✓ Billing Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load billing routes: {e}")
+
+    try:
+        from api.webhook_routes import router as webhook_router
+        app.include_router(webhook_router)
+        logger.info("✓ Webhook Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load webhook routes: {e}")
+
+    try:
+        from api.marketplace_routes import router as marketplace_router
+        app.include_router(marketplace_router, prefix="/api")
+        logger.info("✓ Marketplace Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load marketplace routes: {e}")
 
     try:
         from api.ai_accounting_routes import router as accounting_router
@@ -578,7 +607,7 @@ try:
     # 4b. Onboarding Routes
     try:
         from api.onboarding_routes import router as onboarding_router
-        app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
+        app.include_router(onboarding_router)
     except ImportError as e:
         logger.warning(f"Onboarding routes not found: {e}")
 
@@ -613,6 +642,14 @@ try:
         logger.info("✓ OAuth Routes Loaded")
     except ImportError:
         logger.warning("OAuth routes not found, skipping.")
+
+    # 5.a Mobile Authentication Routes
+    try:
+        from api.auth_routes import router as mobile_auth_router
+        app.include_router(mobile_auth_router)  # Prefix is defined in the router itself
+        logger.info("✓ Mobile Auth Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Mobile auth routes not found or failed to load: {e}")
 
     # 5.1. OAuth Status Routes (for OAuth system testing)
     try:
