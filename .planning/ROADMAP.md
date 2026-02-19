@@ -1497,6 +1497,11 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 **Quick Summary:**
 - **Phase 29: Test Failure Fixes & Quality Foundation** - Fix all 40+ test failures, establish quality infrastructure
 - **Phase 30: Tier 1 Coverage Push** - Achieve 28% overall coverage (6 highest-impact files)
+  - Plan 01: Workflow Engine State Invariants (workflow_engine.py to 50%)
+  - Plan 02: Atom Agent Endpoints API Contracts (atom_agent_endpoints.py to 50%)
+  - Plan 03: BYOK Handler Provider Fallback (byok_handler.py to 50%)
+  - Plan 04: Workflow Debugger Testing (workflow_debugger.py to 50%)
+  - Status: Planning Complete (4 plans created, Wave 1 parallel execution)
 - **Phase 31: Agent Layer & Memory Coverage** - Comprehensive governance, graduation, episodic memory testing
 - **Phase 32: Platform & Quality Validation** - Mobile/desktop completion, 80% coverage validation
 - **Phase 33: Community Skills Integration** - 5,000+ OpenClaw skills with Docker sandbox security
