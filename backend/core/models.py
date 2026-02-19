@@ -5327,31 +5327,36 @@ class ShellSession(Base):
 
 class PackageRegistry(Base):
     """
-    Python package registry for maturity-based governance.
+    Package registry for Python and npm packages with maturity-based governance.
 
     Purpose:
-    - Track Python packages available for agent skill execution
+    - Track Python and npm packages available for agent skill execution
     - Enforce maturity-based access controls (STUDENT blocked, INTERN+ approved)
     - Maintain security ban list for malicious packages
     - Audit trail for package approvals and usage
 
     Governance:
-    - STUDENT agents: Blocked from all Python packages
+    - STUDENT agents: Blocked from all packages (Python and npm)
     - INTERN agents: Require explicit approval for each package version
     - SUPERVISED agents: Allowed if min_maturity <= SUPERVISED
     - AUTONOMOUS agents: Allowed if min_maturity <= AUTONOMOUS
     - Banned packages: Blocked for all agents regardless of maturity
 
-    Package ID format: "{package_name}:{version}" (e.g., "numpy:1.21.0")
+    Package ID format: "{package_name}:{version}" (e.g., "numpy:1.21.0", "lodash:4.17.21")
     """
     __tablename__ = "package_registry"
+
+    # Package type constants
+    PACKAGE_TYPE_PYTHON = "python"
+    PACKAGE_TYPE_NPM = "npm"
 
     # Composite primary key: package_name:version
     id = Column(String, primary_key=True)  # Format: "numpy:1.21.0"
 
     # Package identification
-    name = Column(String, nullable=False, index=True)  # Package name (e.g., "numpy")
+    name = Column(String, nullable=False, index=True)  # Package name (e.g., "numpy", "lodash")
     version = Column(String, nullable=False, index=True)  # Version (e.g., "1.21.0")
+    package_type = Column(String, default=PACKAGE_TYPE_PYTHON, nullable=False, index=True)  # 'python' or 'npm'
 
     # Governance
     min_maturity = Column(String, default="INTERN", nullable=False)  # Required maturity level
