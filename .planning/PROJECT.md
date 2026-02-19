@@ -1,5 +1,20 @@
 # Atom Test Coverage Initiative
 
+## Current Milestone: v2.0 Feature & Coverage Complete
+
+**Goal:** Complete all remaining test coverage phases (55 incomplete) and integrate Community Skills feature while achieving 80% overall coverage with 100% test pass rate.
+
+**Target features:**
+- Community Skills Integration (5,000+ OpenClaw skills)
+- Agent Layer Testing (governance, graduation, execution)
+- Test failure fixes (all 40+ failures resolved)
+- Tier 1 coverage push (28% overall coverage target)
+- Memory layer verification (episodic memory coverage)
+
+**Achievement from v1.0:** 200/203 plans complete (99%), 81 tests passing in Phase 28, production-ready codebase with comprehensive testing infrastructure.
+
+---
+
 ## What This Is
 
 A comprehensive testing initiative to achieve 80% code coverage across the Atom AI-powered business automation platform using property-based tests, fuzzy tests, and integration tests. Coverage spans backend services, API routes, mobile app, desktop app, and menu bar components.
@@ -28,15 +43,14 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-<!-- Target 80% coverage across all modules -->
-- [ ] **80% test coverage** across backend/core/, backend/api/, backend/tools/
-- [ ] **Property-based tests** for all system invariants (database transactions, API contracts, state management)
-- [ ] **Fuzzy tests** for input validation and security boundaries
-- [ ] **Integration tests** for cross-service workflows
-- [ ] **Desktop app coverage** for Tauri-based desktop application
-- [ ] **Menu bar coverage** for desktop menu bar components
-- [ ] **Mobile app coverage** for React Native components
-- [ ] **Test documentation** for running and maintaining test suites
+<!-- Milestone v2.0: Complete all 55 remaining phases -->
+- [ ] **Community Skills Integration** — Import 5,000+ OpenClaw skills with Docker sandbox security (Phase 14)
+- [ ] **Agent Layer Testing** — Comprehensive governance, graduation, and execution coverage (Phase 17)
+- [ ] **Test Failure Fixes** — Resolve all 40+ remaining test failures across workflow engine, analytics, BYOK, governance (Phases 10, 19)
+- [ ] **Tier 1 Coverage Push** — Achieve 28% overall coverage by testing 6 highest-impact files (>500 lines, <20% coverage) (Phase 12)
+- [ ] **Memory Layer Verification** — Episodic memory coverage with property-based invariants (Phase 3)
+- [ ] **Mobile Coverage Completion** — Resolve Expo SDK 50 compatibility, complete device context tests (Phase 5)
+- [ ] **Documentation Cleanup** — Update all docs to reflect v2.0 features (Phase 24)
 
 ### Out of Scope
 
@@ -99,4 +113,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-02-10 after Phase 2 planning*
+*Last updated: 2026-02-18 after Milestone v2.0 initialization*
