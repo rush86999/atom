@@ -81,6 +81,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 36-npm-package-support P04 | 16 | 7 tasks | 4 files |
 | Phase 36-npm-package-support P06 | 20 | 5 tasks | 4 files |
 | Phase 36-npm-package-support P07 | 10 | 5 tasks | 4 files |
+| Phase 60-advanced-skill-execution P02 | 208 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Recent decisions affecting current work:
 - [Phase 36-npm-package-support]: Include package_type in initial PackageRegistry table creation migration
 - [Phase 36-npm-package-support]: Use default package_type='python' for backward compatibility
 - [Phase 36-npm-package-support]: Namespaced cache keys by package type to prevent Python/npm package ID collisions
+- [Phase 60-advanced-skill-execution]: Dynamic skill loading with importlib.util.spec_from_file_location for Python stdlib-based runtime module loading
+- [Phase 60-advanced-skill-execution]: Hot-reload with explicit sys.modules cache clearing to prevent stale imports (del sys.modules[skill_name] before reload)
+- [Phase 60-advanced-skill-execution]: SHA256 file hash version tracking for change detection (64-character hex string, more reliable than mtime)
 
 ### Pending Todos
 
