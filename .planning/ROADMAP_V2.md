@@ -38,15 +38,15 @@ Milestone v2.0 completes all remaining test coverage phases (55 incomplete) to a
   3. Test suite completes in <60 minutes with parallel execution (TQ-03 verified)
   4. Zero flaky tests confirmed via 3-run verification (TQ-04 verified)
   5. All test fixes include regression tests to prevent recurrence
-**Plans**: TBD
+**Plans**: 6 plans in 2 waves (Wave 1: 01-05 parallel, Wave 2: 06 sequential)
 
 Plans:
-- [ ] 29-01: Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from)
-- [ ] 29-02: Fix proposal service test failures (6 tests with incorrect mock targets)
-- [ ] 29-03: Fix graduation governance test failures (3 tests with metadata_json factory parameter)
-- [ ] 29-04: Fix agent task cancellation flaky tests (test_unregister_task, test_register_task, test_get_all_running_agents)
-- [ ] 29-05: Fix security config and governance runtime flaky tests (test_default_secret_key_in_development, test_agent_governance_gating)
-- [ ] 29-06: Verify TQ-02, TQ-03, TQ-04 (3-run verification, <60min execution, zero flaky tests)
+- [ ] 29-01-PLAN.md — Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from)
+- [ ] 29-02-PLAN.md — Fix proposal service test failures (6 tests with incorrect mock targets)
+- [ ] 29-03-PLAN.md — Fix graduation governance test failures (3 tests with metadata_json factory parameter)
+- [ ] 29-04-PLAN.md — Fix agent task cancellation flaky tests (test_unregister_task, test_register_task, test_get_all_running_agents)
+- [ ] 29-05-PLAN.md — Fix security config and governance runtime flaky tests (test_default_secret_key_in_development, test_agent_governance_gating)
+- [ ] 29-06-PLAN.md — Verify TQ-02, TQ-03, TQ-04 (3-run verification, <60min execution, zero flaky tests)
 
 #### Phase 30: Tier 1 Coverage Push - High Impact Files
 **Goal**: Achieve 28% overall coverage by testing 6 highest-impact Tier 1 files (>500 lines, <20% coverage) with property and integration tests
@@ -171,7 +171,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 29. Test Failure Fixes | v2.0 | 0/6 | Not started | - |
+| 29. Test Failure Fixes | v2.0 | 0/6 | Planning Complete | - |
 | 30. Tier 1 Coverage | v2.0 | 0/5 | Not started | - |
 | 31. Agent & Memory | v2.0 | 0/5 | Not started | - |
 | 32. Platform & Quality | v2.0 | 0/5 | Not started | - |
