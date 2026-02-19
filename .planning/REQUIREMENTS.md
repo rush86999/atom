@@ -175,23 +175,31 @@ Requirements for completing all 55 remaining phases to achieve 80% test coverage
 
 ## Traceability
 
-*Populated during roadmap creation*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SKILLS-01 through SKILLS-14 | Phase 14 | Pending |
-| TEST-01 through TEST-10 | Phase 10 | Pending |
-| COV-01 through COV-10 | Phase 12 | Pending |
-| AGENT-01 through AGENT-11 | Phase 17 | Pending |
-| MEM-01 through MEM-17 | Phase 3 | Pending |
-| PLAT-01 through PLAT-07 | Phase 4, 5 | Pending |
-| QUAL-01 through QUAL-10 | Phase 5 | Pending |
-| DOCS-01 through DOCS-06 | Phase 24 | Pending |
+| SKILLS-01 through SKILLS-14 | Phase 33 | Pending |
+| TEST-01 through TEST-10 | Phase 29 | Pending |
+| COV-01 through COV-10 | Phase 30 | Pending |
+| AGENT-01 through AGENT-11 | Phase 31 | Pending |
+| MEM-01 through MEM-17 | Phase 31 | Pending |
+| PLAT-01 through PLAT-07 | Phase 32 | Pending |
+| QUAL-01 through QUAL-10 | Phase 32 | Pending |
+| DOCS-01 through DOCS-06 | Phase 34 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 73 total
-- Mapped to phases: 73 (Phase 3, 10, 12, 14, 17, plus gap closures)
+- Mapped to phases: 73 (Phases 29, 30, 31, 32, 33, 34)
 - Unmapped: 0 ✓
+
+**Gap Closure:**
+- v1.0 incomplete phases (3, 10, 12, 14, 17, 19, 24): All mapped to v2.0 phases
+- Phase 3 (Memory Layer) → Phase 31 (Agent Layer & Memory Coverage)
+- Phase 10 (Test Failures) → Phase 29 (Test Failure Fixes & Quality Foundation)
+- Phase 12 (Tier 1 Coverage) → Phase 30 (Tier 1 Coverage Push)
+- Phase 14 (Community Skills) → Phase 33 (Community Skills Integration)
+- Phase 17 (Agent Layer) → Phase 31 (Agent Layer & Memory Coverage)
+- Phase 19 (More Fixes) → Phase 29 (Test Failure Fixes & Quality Foundation)
+- Phase 24 (Documentation) → Phase 34 (Documentation & Verification)
 
 ---
 *Requirements defined: 2026-02-18*
