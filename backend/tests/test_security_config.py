@@ -15,7 +15,11 @@ class TestSecurityConfig:
     """Test cases for SecurityConfig"""
 
     def test_default_secret_key_in_development(self, monkeypatch):
-        """Test that default SECRET_KEY is allowed in development"""
+        """Test that default SECRET_KEY is allowed in development.
+
+        This test uses monkeypatch to isolate environment variables, ensuring
+        it passes regardless of the CI or local environment configuration.
+        """
         monkeypatch.setenv('ENVIRONMENT', 'development')
         monkeypatch.delenv('SECRET_KEY', raising=False)
 
@@ -25,6 +29,8 @@ class TestSecurityConfig:
         # So we should check that we get a key, not the default
         assert config.secret_key is not None
         assert len(config.secret_key) > 20
+        # Verify it's not the default production key
+        assert config.secret_key != "atom-secret-key-change-in-production"
 
     def test_custom_secret_key(self):
         """Test that custom SECRET_KEY can be set"""
