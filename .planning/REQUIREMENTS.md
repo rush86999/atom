@@ -1,198 +1,198 @@
 # Requirements: Atom Test Coverage Initiative
 
-**Defined:** 2026-02-10
+**Defined:** 2026-02-10 (v1), 2026-02-18 (v2.0)
 **Core Value:** Critical system paths are thoroughly tested and validated before production deployment
 
-## v1 Requirements
+## v1 Requirements (COMPLETE)
 
-Requirements for achieving 80% test coverage in 1-2 weeks. Each maps to roadmap phases.
+All v1 requirements were completed in Milestone v1.0 (200/203 plans).
 
-### Test Infrastructure
+---
 
-- [ ] **INFRA-01**: Test suite executes with pytest 7.4+ and configured markers
-- [ ] **INFRA-02**: Parallel test execution enabled via pytest-xdist
-- [ ] **INFRA-03**: Async test support configured with pytest-asyncio (asyncio_mode = auto)
-- [ ] **INFRA-04**: Test data factories implemented using factory_boy for dynamic data creation
-- [ ] **INFRA-05**: Coverage reporting generates HTML, terminal, and JSON reports
-- [ ] **INFRA-06**: Quality gates enforce assertion density and critical path coverage
-- [ ] **INFRA-07**: CI pipeline runs tests automatically on push/PR
+## v2.0 Requirements
 
-### Property-Based Tests
+Requirements for completing all 55 remaining phases to achieve 80% test coverage and integrate Community Skills feature.
 
-- [ ] **PROP-01**: Governance invariants tested with Hypothesis (agent maturity, permissions, confidence scores)
-- [ ] **PROP-02**: Episodic memory invariants tested (segmentation, retrieval, lifecycle, decay)
-- [ ] **PROP-03**: Database transaction invariants tested (atomicity, consistency, isolation)
-- [ ] **PROP-04**: API contract invariants tested (request/response validation, error handling)
-- [ ] **PROP-05**: State management invariants tested (agent coordination, view orchestration)
-- [ ] **PROP-06**: Event handling invariants tested (streaming, WebSocket, background tasks)
-- [ ] **PROP-07**: File operations invariants tested (canvas exports, PDF processing, uploads)
+### Community Skills Integration
 
-### Integration Tests
+**Table stakes:** SKILL.md parsing, Docker sandbox execution, security scanning, governance workflow
 
-- [ ] **INTG-01**: API integration tests validate FastAPI endpoints with TestClient
-- [ ] **INTG-02**: Database integration tests use transaction rollback pattern
-- [ ] **INTG-03**: WebSocket integration tests test real-time messaging and streaming
-- [ ] **INTG-04**: External service mocking tests (LLM providers, Slack, GitHub integrations)
-- [ ] **INTG-05**: Multi-agent coordination integration tests
-- [ ] **INTG-06**: Canvas presentation integration tests (forms, charts, sheets)
-- [ ] **INTG-07**: Browser automation integration tests (Playwright CDP sessions)
+- [ ] **SKILLS-01**: Atom can parse OpenClaw SKILL.md files with YAML frontmatter and natural language/Python instructions
+- [ ] **SKILLS-02**: Skills are wrapped as Atom BaseTool classes with proper Pydantic validation
+- [ ] **SKILLS-03**: Imported skills run in isolated Docker sandbox ("atom-sandbox-python") to prevent governance bypass
+- [ ] **SKILLS-04**: Sandbox cannot access host filesystem or network (only controlled Atom API)
+- [ ] **SKILLS-05**: Users can import skills via GitHub URL (e.g., from VoltAgent/awesome-openclaw-skills)
+- [ ] **SKILLS-06**: Imported skills are tagged as "Untrusted" until LLM security scan approves them
+- [ ] **SKILLS-07**: GovernanceService reviews skill code for malicious patterns before promoting to "Active"
+- [ ] **SKILLS-08**: AUTONOMOUS agents can use Active skills; STUDENT/INTERN/SUPERVISED require approval
+- [ ] **SKILLS-09**: All skill executions are logged to audit trail with skill metadata
+- [ ] **SKILLS-10**: Skills registry UI shows all imported skills with status (Untrusted/Active/Banned)
 
-### Security Tests
+**Differentiators:** LLM semantic analysis, episodic memory integration, graduation tracking
 
-- [ ] **SECU-01**: Authentication flow tests (signup, login, logout, session management)
-- [ ] **SECU-02**: Authorization tests (agent maturity permissions, action complexity matrix)
-- [ ] **SECU-03**: Input validation tests (SQL injection, XSS, path traversal prevention)
-- [ ] **SECU-04**: Canvas JavaScript security validation tests
-- [ ] **SECU-05**: JWT token validation and refresh tests
-- [ ] **SECU-06**: OAuth flow tests (Google, GitHub, Microsoft integrations)
-- [ ] **SECU-07**: Episode access control tests (multi-tenant isolation)
+- [ ] **SKILLS-11**: SkillSecurityScanner uses GPT-4 for semantic analysis of obfuscated threats
+- [ ] **SKILLS-12**: Skill executions create EpisodeSegments for learning and retrieval
+- [ ] **SKILLS-13**: Skill usage metrics count toward agent graduation readiness scores
+- [ ] **SKILLS-14**: Skill diversity bonus (up to +5%) for agents using varied skills
 
-### Mobile Tests
+### Test Failure Fixes
 
-- [ ] **MOBL-01**: React Native component tests for iOS and Android
-- [ ] **MOBL-02**: Device capability tests (Camera, Location, Notifications, Biometric)
-- [ ] **MOBL-03**: Platform-specific permission tests (iOS and Android differences)
-- [ ] **MOBL-04**: Mobile authentication flow tests
-- [ ] **MOBL-05**: Offline sync and background task tests
+**Table stakes:** All tests passing, stable baseline, quality metrics met
 
-### Desktop Tests
+- [ ] **TEST-01**: Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from issues)
+- [ ] **TEST-02**: Fix proposal service test failures (6 tests with incorrect mock targets)
+- [ ] **TEST-03**: Verify 98%+ test pass rate (TQ-02: run full suite 3 times, <2% failures allowed)
+- [ ] **TEST-04**: Fix graduation governance test failures (3 tests with metadata_json factory parameter issue)
+- [ ] **TEST-05**: Verify test suite performance <60 minutes (TQ-03: full suite execution time)
+- [ ] **TEST-06**: Fix agent task cancellation flaky tests (test_unregister_task, test_register_task, test_get_all_running_agents)
+- [ ] **TEST-07**: Fix security config and governance runtime flaky tests (test_default_secret_key_in_development, test_agent_governance_gating)
+- [ ] **TEST-08**: Verify zero flaky tests (TQ-04: 3 consecutive runs with identical results)
 
-- [ ] **DSKP-01**: Tauri desktop app component tests
-- [ ] **DSKP-02**: Menu bar functionality tests
-- [ ] **DSKP-03**: Desktop-specific device capability tests
-- [ ] **DSKP-04**: Desktop-backend integration tests
+**Differentiators:** Root cause fixes, not just symptom patches
 
-### Coverage Targets
+- [ ] **TEST-09**: All test fixes include regression tests to prevent recurrence
+- [ ] **TEST-10**: Test failures documented with root cause analysis in commit messages
 
-- [ ] **COVR-01**: Governance domain achieves 80% coverage (agent_governance_service.py, agent_context_resolver.py, governance_cache.py, trigger_interceptor.py)
-- [ ] **COVR-02**: Security domain achieves 80% coverage (auth/, crypto/, validation/)
-- [ ] **COVR-03**: Episodic memory domain achieves 80% coverage (episode_segmentation_service.py, episode_retrieval_service.py, episode_lifecycle_service.py)
-- [ ] **COVR-04**: Core backend achieves 80% overall coverage (backend/core/, backend/api/, backend/tools/)
-- [ ] **COVR-05**: Mobile app achieves 80% coverage (mobile/src/)
-- [ ] **COVR-06**: Desktop app achieves 80% coverage (desktop/, menu bar)
-- [ ] **COVR-07**: Coverage trending setup tracks coverage.json over time
+### Coverage Push - Tier 1 Files
 
-### Test Quality
+**Table stakes:** Achieve 28% overall coverage by testing highest-impact files
 
-- [ ] **QUAL-01**: All tests pass with parallel execution (pytest-xdist -n auto)
-- [ ] **QUAL-02**: Zero shared state between tests (transaction rollback, unique fixtures)
-- [ ] **QUAL-03**: Zero flaky tests (proper async coordination, no time.sleep())
-- [ ] **QUAL-04**: Property tests have documented invariants in docstrings
-- [ ] **QUAL-05**: Each property test has evidence of bug-finding (failing example documented)
-- [ ] **QUAL-06**: Test data is isolated (factory pattern, no hardcoded IDs)
-- [ ] **QUAL-07**: Full test suite executes in <5 minutes
+- [ ] **COV-01**: core/models.py (2351 lines) reaches 50% coverage (+1,176 lines)
+- [ ] **COV-02**: core/workflow_engine.py (1163 lines) reaches 50% coverage (+582 lines)
+- [ ] **COV-03**: core/atom_agent_endpoints.py (736 lines) reaches 50% coverage (+368 lines)
+- [ ] **COV-04**: core/workflow_analytics_engine.py (593 lines) reaches 50% coverage (+297 lines)
+- [ ] **COV-05**: core/llm/byok_handler.py (549 lines) reaches 50% coverage (+275 lines)
+- [ ] **COV-06**: core/workflow_debugger.py (527 lines) reaches 50% coverage (+264 lines)
 
-### Documentation
+**Differentiators:** Property tests for stateful logic, integration tests for API endpoints
 
-- [ ] **DOCS-01**: Test suite README with run instructions
-- [ ] **DOCS-02**: Property test invariant documentation
-- [ ] **DOCS-03**: Coverage report interpretation guide
-- [ ] **DOCS-04**: CI/CD integration documentation
-- [ ] **DOCS-05**: Test data factory usage guide
+- [ ] **COV-07**: Property tests verify workflow_engine stateful invariants (execution order, rollback)
+- [ ] **COV-08**: Property tests verify byok_handler provider fallback invariants
+- [ ] **COV-09**: Integration tests verify atom_agent_endpoints API contracts
+- [ ] **COV-10**: Unit tests verify models.py ORM relationships and cascades
 
-## v2 Requirements
+### Agent Layer Testing
 
-Deferred to future release. Tracked but not in current roadmap.
+**Table stakes:** Comprehensive governance, graduation, execution coverage
 
-### Advanced Testing
+- [ ] **AGENT-01**: 4x4 maturity/complexity matrix tests (STUDENT/INTERN/SUPERVISED/AUTONOMOUS × Low/Moderate/High/Critical)
+- [ ] **AGENT-02**: Action complexity validation (60+ actions across all complexity levels)
+- [ ] **AGENT-03**: Governance cache performance tests (<1ms cached, <50ms uncached)
+- [ ] **AGENT-04**: Graduation readiness scoring tests (episode counts, intervention rates, constitutional scores)
+- [ ] **AGENT-05**: Graduation exam execution tests (validate promotion readiness)
+- [ ] **AGENT-06**: Trigger interceptor routing tests (STUDENT → training, INTERN → proposal, SUPERVISED → supervision)
+- [ ] **AGENT-07**: Agent execution orchestration tests (coordination, state management, error recovery)
+- [ ] **AGENT-08**: Agent-to-agent communication tests (message passing, coordination invariants)
 
-- **MUTATION-01**: Mutation testing with mutmut to measure test quality
-- **FUZZY-01**: Fuzzy testing with Atheris for security vulnerability detection
-- **CHAOS-01**: Chaos engineering with Chaos Toolkit for resilience testing
-- **E2E-01**: End-to-end UI testing with Playwright/Cypress
-- **PERF-01**: Performance regression tests with pytest-benchmark
-- **VISUAL-01**: Visual regression testing for UI components
+**Differentiators:** Property-based invariants, end-to-end workflows
 
-### Enhanced Coverage
+- [ ] **AGENT-09**: Property tests verify agent maturity never decreases without explicit promotion
+- [ ] **AGENT-10**: Property tests verify governance decisions are deterministic (same inputs → same routing)
+- [ ] **AGENT-11**: Integration tests verify agent execution → episodic memory → graduation feedback loop
 
-- **LOAD-01**: Load testing for API endpoints
-- **STRESS-01**: Stress testing for database connections
-- **SCALABILITY-01**: Large dataset performance tests (>10k episodes)
-- **NETWORK-01**: Network failure simulation tests
+### Memory Layer Verification
+
+**Table stakes:** Episodic memory coverage with property-based invariants
+
+- [ ] **MEM-01**: Segmentation tests verify time-gap detection (>30min threshold)
+- [ ] **MEM-02**: Segmentation tests verify topic change detection (similarity <0.75)
+- [ ] **MEM-03**: Segmentation tests verify task completion boundaries
+- [ ] **MEM-04**: Retrieval tests verify temporal queries are sorted by time (AR-12 invariant)
+- [ ] **MEM-05**: Retrieval tests verify semantic queries are ranked by similarity (AR-12 invariant)
+- [ ] **MEM-06**: Retrieval tests verify sequential queries return full episodes (no duplicates)
+- [ ] **MEM-07**: Retrieval tests verify contextual queries use hybrid search (temporal + semantic)
+- [ ] **MEM-08**: Lifecycle tests verify decay (90-day threshold, 180-day archival)
+- [ ] **MEM-09**: Lifecycle tests verify consolidation (similarity-based merging)
+- [ ] **MEM-10**: Graduation tests verify episode count thresholds (10/25/50)
+- [ ] **MEM-11**: Graduation tests verify intervention rate thresholds (50%/20%/0%)
+- [ ] **MEM-12**: Graduation tests verify constitutional score thresholds (0.70/0.85/0.95)
+
+**Differentiators:** Performance SLAs, canvas/feedback integration
+
+- [ ] **MEM-13**: Performance tests verify episode creation <5s
+- [ ] **MEM-14**: Performance tests verify temporal retrieval <10ms
+- [ ] **MEM-15**: Performance tests verify semantic retrieval <100ms
+- [ ] **MEM-16**: Canvas-aware episodes track all canvas interactions (present, submit, close, update, execute)
+- [ ] **MEM-17**: Feedback-linked episodes aggregate user feedback scores for retrieval weighting
+
+### Platform Coverage Completion
+
+**Table stakes:** Mobile and desktop test coverage completion
+
+- [ ] **PLAT-01**: Resolve Expo SDK 50 + Jest compatibility issue (mobile auth tests can run)
+- [ ] **PLAT-02**: Complete DeviceContext tests for React Native (iOS + Android platforms)
+- [ ] **PLAT-03**: Platform-specific permissions tests (iOS vs Android differences documented)
+- [ ] **PLAT-04**: Desktop coverage completion with cargo-tarpaulin (80% coverage target)
+- [ ] **PLAT-05**: Desktop CI/CD integration for automated test execution
+
+**Differentiators:** Dual-platform CI, real device testing
+
+- [ ] **PLAT-06**: Dual-platform CI (iOS + Android) to catch platform differences early
+- [ ] **PLAT-07**: Real device testing infrastructure (not just simulators)
+
+### Coverage & Quality Validation
+
+**Table stakes:** 80% coverage achieved, test quality validated
+
+- [ ] **QUAL-01**: Governance domain achieves 80% coverage (agent_governance_service.py, governance_cache.py, trigger_interceptor.py)
+- [ ] **QUAL-02**: Security domain achieves 80% coverage (auth/, crypto/, validation/)
+- [ ] **QUAL-03**: Episodic memory domain achieves 80% coverage (segmentation, retrieval, lifecycle, graduation)
+- [ ] **QUAL-04**: Core backend achieves 80% coverage (backend/core/, backend/api/, backend/tools/)
+- [ ] **QUAL-05**: Test suite executes in parallel with zero shared state
+- [ ] **QUAL-06**: Test suite has zero flaky tests (3 consecutive runs with identical results)
+- [ ] **QUAL-07**: Full test suite completes in <5 minutes
+
+**Differentiators:** Quality gates, trending documentation
+
+- [ ] **QUAL-08**: Assertion density quality gate enforced (70%+ assertion density)
+- [ ] **QUAL-09**: Coverage trending setup tracks coverage.json over time
+- [ ] **QUAL-10**: Comprehensive test documentation (TEST_STANDARDS.md, INVARIANTS.md)
+
+### Documentation Updates
+
+**Table stakes:** All documentation reflects v2.0 features
+
+- [ ] **DOCS-01**: README.md updated with Community Skills and test coverage achievements
+- [ ] **DOCS-02**: CANVAS_IMPLEMENTATION_COMPLETE.md updated with Phase 20-23 features
+- [ ] **DOCS-03**: EPISODIC_MEMORY_IMPLEMENTATION.md updated with canvas/feedback integration
+- [ ] **DOCS-04**: COMMUNITY_SKILLS.md verified for production status
+- [ ] **DOCS-05**: AGENT_GRADUATION_GUIDE.md updated with latest criteria (including skill metrics)
+- [ ] **DOCS-06**: INSTALLATION.md verified for Personal/Enterprise editions
+
+---
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| 100% coverage goal | Diminishing returns, focus on 80% critical paths |
-| E2E UI testing | Too slow/fragile for 2-week sprint, integration tests for critical workflows |
-| Load testing | Performance tests beyond coverage, defer to v2 |
-| Chaos engineering | Resilience testing, defer to v2 |
-| Visual regression | UI snapshot testing, defer to v2 |
-| Mutation testing in CI | Too slow (10x-100x runtime), run nightly/weekly |
-| Fuzzy testing for all inputs | High false positive rate, security-critical only |
-| Test-Driven Development (TDD) | Conflicts with 2-week goal, test-after for existing codebase |
+| E2E UI testing with Playwright/Cypress | Separate tooling needed, defer to v3.0 |
+| Load testing and performance benchmarks | Performance tests beyond coverage, defer to v3.0 |
+| Chaos engineering and resilience testing | Requires production infrastructure, defer to v3.0 |
+| Visual regression testing with snapshot comparison | UI snapshot testing, defer to v3.0 |
+| 100% code coverage goal | Diminishing returns, 80% critical paths is industry standard |
+
+---
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
+*Populated during roadmap creation*
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
-| INFRA-07 | Phase 1 | Pending |
-| PROP-01 | Phase 2 | Pending |
-| PROP-02 | Phase 2 | Pending |
-| PROP-03 | Phase 2 | Pending |
-| PROP-04 | Phase 2 | Pending |
-| PROP-05 | Phase 2 | Pending |
-| PROP-06 | Phase 2 | Pending |
-| PROP-07 | Phase 2 | Pending |
-| INTG-01 | Phase 3 | Pending |
-| INTG-02 | Phase 3 | Pending |
-| INTG-03 | Phase 3 | Pending |
-| INTG-04 | Phase 3 | Pending |
-| INTG-05 | Phase 3 | Pending |
-| INTG-06 | Phase 3 | Pending |
-| INTG-07 | Phase 3 | Pending |
-| SECU-01 | Phase 3 | Pending |
-| SECU-02 | Phase 3 | Pending |
-| SECU-03 | Phase 3 | Pending |
-| SECU-04 | Phase 3 | Pending |
-| SECU-05 | Phase 3 | Pending |
-| SECU-06 | Phase 3 | Pending |
-| SECU-07 | Phase 3 | Pending |
-| MOBL-01 | Phase 4 | Pending |
-| MOBL-02 | Phase 4 | Pending |
-| MOBL-03 | Phase 4 | Pending |
-| MOBL-04 | Phase 4 | Pending |
-| MOBL-05 | Phase 4 | Pending |
-| DSKP-01 | Phase 4 | Pending |
-| DSKP-02 | Phase 4 | Pending |
-| DSKP-03 | Phase 4 | Pending |
-| DSKP-04 | Phase 4 | Pending |
-| COVR-01 | Phase 5 | Pending |
-| COVR-02 | Phase 5 | Pending |
-| COVR-03 | Phase 5 | Pending |
-| COVR-04 | Phase 5 | Pending |
-| COVR-05 | Phase 5 | Pending |
-| COVR-06 | Phase 5 | Pending |
-| COVR-07 | Phase 5 | Pending |
-| QUAL-01 | Phase 5 | Pending |
-| QUAL-02 | Phase 5 | Pending |
-| QUAL-03 | Phase 5 | Pending |
-| QUAL-04 | Phase 2 | Pending |
-| QUAL-05 | Phase 2 | Pending |
-| QUAL-06 | Phase 1 | Pending |
-| QUAL-07 | Phase 5 | Pending |
-| DOCS-01 | Phase 5 | Pending |
-| DOCS-02 | Phase 2 | Pending |
-| DOCS-03 | Phase 5 | Pending |
-| DOCS-04 | Phase 1 | Pending |
-| DOCS-05 | Phase 1 | Pending |
+| SKILLS-01 through SKILLS-14 | Phase 14 | Pending |
+| TEST-01 through TEST-10 | Phase 10 | Pending |
+| COV-01 through COV-10 | Phase 12 | Pending |
+| AGENT-01 through AGENT-11 | Phase 17 | Pending |
+| MEM-01 through MEM-17 | Phase 3 | Pending |
+| PLAT-01 through PLAT-07 | Phase 4, 5 | Pending |
+| QUAL-01 through QUAL-10 | Phase 5 | Pending |
+| DOCS-01 through DOCS-06 | Phase 24 | Pending |
 
 **Coverage:**
-- v1 requirements: 50 total
-- Mapped to phases: 50
+- v2.0 requirements: 73 total
+- Mapped to phases: 73 (Phase 3, 10, 12, 14, 17, plus gap closures)
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-02-10*
-*Last updated: 2026-02-10 after initial definition*
+*Requirements defined: 2026-02-18*
+*Last updated: 2026-02-18 for Milestone v2.0*
