@@ -1009,6 +1009,121 @@ def get_skill_image_status(skill_id: str):
         )
 
 
+# ============================================================================
+# npm List and Cleanup Endpoints (Plan 04)
+# ============================================================================
+
+@router.get("/npm", response_model=PackageListResponse)
+def list_npm_packages(
+    status: Optional[str] = Query(None, description="Filter by status (untrusted, active, banned, pending)"),
+    db: Session = Depends(get_db)
+):
+    """
+    List all npm packages in registry.
+
+    Returns paginated list of npm packages with governance status.
+    Optionally filter by status (e.g., status=pending for approval queue).
+    """
+    try:
+        packages = get_governance().list_packages(status=status, package_type="npm", db=db)
+
+        package_responses = [
+            PackageResponse(
+                id=p.id,
+                name=p.name,
+                version=p.version,
+                min_maturity=p.min_maturity,
+                status=p.status,
+                ban_reason=p.ban_reason,
+                approved_by=p.approved_by,
+                approved_at=p.approved_at.isoformat() if p.approved_at else None
+            )
+            for p in packages
+        ]
+
+        logger.info(f"Listed {len(package_responses)} npm packages (status filter: {status})")
+
+        return {
+            "packages": package_responses,
+            "count": len(package_responses)
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing npm packages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/npm/{skill_id}")
+def cleanup_npm_skill_image(
+    skill_id: str,
+    agent_id: str = Query(..., description="Agent ID requesting cleanup")
+):
+    """
+    Remove skill's npm Docker image to free disk space.
+
+    Image must not be in use by active executions.
+
+    Returns success even if image not found (idempotent).
+    """
+    success = get_npm_installer().cleanup_skill_image(skill_id)
+
+    if success:
+        logger.info(f"Agent {agent_id} cleaned up npm image for skill {skill_id}")
+        return {
+            "success": True,
+            "skill_id": skill_id,
+            "message": "npm image removed successfully"
+        }
+    else:
+        logger.warning(f"Cleanup for npm skill {skill_id}: image not found or already removed")
+        return {
+            "success": False,
+            "skill_id": skill_id,
+            "message": "npm image not found or already removed"
+        }
+
+
+@router.get("/npm/{skill_id}/status")
+def get_npm_skill_image_status(skill_id: str):
+    """
+    Check if npm skill image exists and get image details.
+
+    Returns image metadata (size, created_at, tags).
+
+    Useful for checking if POST /api/packages/npm/install has been called for a skill.
+    """
+    import docker
+
+    image_tag = f"atom-npm-skill:{skill_id.replace('/', '-')}-v1"
+
+    try:
+        client = docker.from_env()
+        image = client.images.get(image_tag)
+
+        return {
+            "skill_id": skill_id,
+            "image_exists": True,
+            "image_tag": image_tag,
+            "size_bytes": image.attrs.get("Size", 0),
+            "created": image.attrs.get("Created", ""),
+            "tags": image.attrs.get("RepoTags", [])
+        }
+
+    except docker.errors.ImageNotFound:
+        return {
+            "skill_id": skill_id,
+            "image_exists": False,
+            "image_tag": image_tag,
+            "message": "npm image not found - run POST /api/packages/npm/install first"
+        }
+    except Exception as e:
+        logger.error(f"Error checking npm image status for {skill_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"Failed to check npm image status: {str(e)}"}
+        )
+
+
 @router.get("/audit")
 def list_package_operations(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
