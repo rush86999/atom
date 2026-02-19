@@ -17,7 +17,7 @@ VALIDATED_BUGS documented from prior testing:
 
 import pytest
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis import strategies as st
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, datetimes, timedeltas
 from datetime import datetime, timedelta
 from uuid import uuid4
 from typing import List, Dict, Any
@@ -30,9 +30,9 @@ class TestGraduationReadinessInvariants:
     """Property-based tests for graduation readiness score invariants."""
 
     @given(
-        episode_count=st.integers(min_value=0, max_value=100),
-        intervention_count=st.integers(min_value=0, max_value=50),
-        constitutional_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+        episode_count=integers(min_value=0, max_value=100),
+        intervention_count=integers(min_value=0, max_value=50),
+        constitutional_score=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
     @example(episode_count=50, intervention_count=5, constitutional_score=0.95)
     @example(episode_count=10, intervention_count=8, constitutional_score=0.7)  # Low readiness
@@ -75,10 +75,10 @@ class TestGraduationReadinessInvariants:
             f"Readiness score {readiness} must be in [0.0, 1.0]"
 
     @given(
-        current_maturity=st.sampled_from(["STUDENT", "INTERN", "SUPERVISED"]),
-        episode_count=st.integers(min_value=0, max_value=100),
-        intervention_rate=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-        constitutional_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+        current_maturity=sampled_from(["STUDENT", "INTERN", "SUPERVISED"]),
+        episode_count=integers(min_value=0, max_value=100),
+        intervention_rate=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        constitutional_score=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=100)
     def test_readiness_thresholds_by_maturity(
@@ -119,8 +119,8 @@ class TestGraduationReadinessInvariants:
                 "Graduation should require ALL thresholds to be met"
 
     @given(
-        feedback_scores=st.lists(
-            st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        feedback_scores=lists(
+            floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
             min_size=1,
             max_size=50
         )
@@ -163,8 +163,8 @@ class TestGraduationExamInvariants:
     """Property-based tests for graduation exam invariants."""
 
     @given(
-        episode_count=st.integers(min_value=10, max_value=100),
-        constitutional_violations=st.integers(min_value=0, max_value=10)
+        episode_count=integers(min_value=10, max_value=100),
+        constitutional_violations=integers(min_value=0, max_value=10)
     )
     @settings(max_examples=100)
     def test_graduation_exam_requires_100_percent_compliance(
@@ -195,7 +195,7 @@ class TestGraduationExamInvariants:
                 "Graduation should require 100% constitutional compliance (0 violations)"
 
     @given(
-        episode_count=st.integers(min_value=0, max_value=100)
+        episode_count=integers(min_value=0, max_value=100)
     )
     @example(episode_count=0)  # No episodes
     @example(episode_count=10)  # Minimum for STUDENT->INTERN
@@ -225,8 +225,8 @@ class TestGraduationExamInvariants:
                 "Graduation should require minimum 10 episodes for STUDENT->INTERN"
 
     @given(
-        episodes_with_canvas=st.integers(min_value=0, max_value=50),
-        episodes_without_canvas=st.integers(min_value=0, max_value=50)
+        episodes_with_canvas=integers(min_value=0, max_value=50),
+        episodes_without_canvas=integers(min_value=0, max_value=50)
     )
     @settings(max_examples=100)
     def test_canvas_aware_episodes_provide_context(
@@ -273,8 +273,8 @@ class TestInterventionRateInvariants:
     """Property-based tests for intervention rate invariants."""
 
     @given(
-        episode_counts=st.lists(
-            st.integers(min_value=10, max_value=100),
+        episode_counts=lists(
+            integers(min_value=10, max_value=100),
             min_size=2,
             max_size=5
         )
@@ -309,8 +309,8 @@ class TestInterventionRateInvariants:
                 "Intervention rate should generally decrease with experience"
 
     @given(
-        episode_count=st.integers(min_value=10, max_value=100),
-        intervention_count=st.integers(min_value=0, max_value=100)
+        episode_count=integers(min_value=10, max_value=100),
+        intervention_count=integers(min_value=0, max_value=100)
     )
     @settings(max_examples=100)
     def test_intervention_rate_bounds(
@@ -341,8 +341,8 @@ class TestGraduationIntegrationInvariants:
     """Property-based tests for graduation workflow integration."""
 
     @given(
-        agent_id=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz'),
-        target_maturity=st.sampled_from(["INTERN", "SUPERVISED", "AUTONOMOUS"])
+        agent_id=text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        target_maturity=sampled_from(["INTERN", "SUPERVISED", "AUTONOMOUS"])
     )
     @settings(max_examples=50)
     def test_graduation_workflow_uses_episodic_memory(
