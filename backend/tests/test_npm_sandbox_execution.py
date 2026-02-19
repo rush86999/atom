@@ -21,6 +21,9 @@ from core.skill_sandbox import HazardSandbox
 # Create mock exception classes for testing
 class MockContainerError(Exception):
     """Mock ContainerError for testing."""
+    # Set __name__ to match real ContainerError type check
+    __name__ = 'ContainerError'
+
     def __init__(self, message, exit_status=None, command=None, stderr=None):
         super().__init__(message)
         self.exit_status = exit_status
@@ -30,13 +33,16 @@ class MockContainerError(Exception):
 
 class MockAPIError(Exception):
     """Mock APIError for testing."""
+    # Set __name__ to match real APIError type check
+    __name__ = 'APIError'
+
     pass
 
 
 @pytest.fixture
 def mock_docker_client():
     """Mock Docker client."""
-    with patch('core.skill_sandbox.docker.from_env') as mock_from_env:
+    with patch('docker.from_env') as mock_from_env:
         client = MagicMock()
         mock_from_env.return_value = client
         client.ping.return_value = True
@@ -229,8 +235,16 @@ class TestExecuteNodejsErrorHandling:
 
     def test_execute_nodejs_container_error(self, sandbox, mock_docker_client):
         """Test ContainerError is caught and returned."""
+        # Create a custom exception class with ContainerError as the name
+        class ContainerError(Exception):
+            def __init__(self, message, exit_status=None, command=None, stderr=None):
+                super().__init__(message)
+                self.exit_status = exit_status
+                self.command = command
+                self.stderr = stderr
+
         # Mock container error
-        error = MockContainerError(
+        error = ContainerError(
             "Test error",
             exit_status=1,
             command="node -e 'code'",
@@ -249,8 +263,12 @@ class TestExecuteNodejsErrorHandling:
 
     def test_execute_nodejs_api_error(self, sandbox, mock_docker_client):
         """Test Docker API error is caught and returned."""
+        # Create a custom exception class with APIError as the name
+        class APIError(Exception):
+            pass
+
         # Mock API error
-        mock_docker_client.containers.run.side_effect = MockAPIError("Docker daemon not responding")
+        mock_docker_client.containers.run.side_effect = APIError("Docker daemon not responding")
 
         result = sandbox.execute_nodejs(
             code="console.log('test')",
