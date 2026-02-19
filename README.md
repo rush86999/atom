@@ -112,6 +112,8 @@ That's it! 🚀
 - **5,000+ OpenClaw/ClawHub skills**: Import community-built tools
 - **Enterprise security**: LLM-powered scanning with hazard sandbox
 - **Skills Registry**: Import with status tracking (Untrusted → Active → Banned)
+- **Python Package Support**: NumPy, Pandas, and 350K+ PyPI packages
+- **npm Package Support**: Lodash, Express, and 2M+ npm packages ✨ NEW
 - [Community Skills Guide →](docs/COMMUNITY_SKILLS.md)
 
 ### 🔍 Browser & Device Automation
@@ -163,13 +165,16 @@ cp .env.personal .env
 - **Encrypted Storage**: Sensitive data encrypted at-rest
 - **Audit Logs**: Every agent action logged and traceable
 - **Human-in-the-Loop**: Configurable approval policies
+- **Package Security**: Vulnerability scanning, postinstall script blocking, container isolation ✨ NEW
 
 ---
 
 ## Documentation
 
 ### Core
-- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - 5,000+ skills
+- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - 5,000+ skills with Python & npm packages
+- [Python Package Support](docs/PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
+- [npm Package Support](docs/NPM_PACKAGE_SUPPORT.md) - Lodash, Express, 2M+ packages ✨ NEW
 - [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Learning system
 - [Agent Graduation](docs/AGENT_GRADUATION_GUIDE.md) - Promotion framework
 - [Student Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity routing
