@@ -10,13 +10,13 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 1 of 6 (Test Failure Fixes & Quality Foundation)
-Plan: 3 of 6 in current phase
+Plan: 4 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-19 — Phase 29-03 COMPLETE: Graduation Governance Tests - Verified all 28 graduation governance tests passing across 3 consecutive runs. Confirmed AgentFactory correctly uses `configuration` field for agent metadata. No fixes needed (plan based on outdated information). 0 commits, 3 minutes duration, 0 files modified. Tests verified passing: maturity transitions, confidence thresholds, permission matrix, audit logging, supervision metrics.
+Last activity: 2026-02-19 — Phase 29-04 COMPLETE: Agent Task Cancellation Tests - Fixed 3 flaky tests by replacing arbitrary sleep with explicit async synchronization. test_unregister_task uses polling loop (1s max timeout). test_register_task and test_get_all_running_agents have explicit cleanup. AgentTaskRegistry.cancel_task() now waits for task completion with asyncio.wait_for(). All 15 tests pass in sequential and parallel execution. 3 atomic commits (6852448f, 5f3b27bb, 3b8bbaba), 7 minutes duration, 2 files modified.
 
-Previous: 2026-02-18 — Phase 27-03 COMPLETE: Documentation Update - Updated PERSONAL_EDITION.md with comprehensive Valkey integration documentation across 5 sections. Added "Included Services" section, Valkey troubleshooting guide, and Personal vs Full Edition comparison. 22 mentions of Valkey/Redis (exceeds 10 minimum). 1 atomic commit (a82955bb), 2 minutes duration, 1 file modified. Zero deviations.
+Previous: 2026-02-19 — Phase 29-03 COMPLETE: Graduation Governance Tests - Verified all 28 graduation governance tests passing across 3 consecutive runs. Confirmed AgentFactory correctly uses `configuration` field for agent metadata. No fixes needed (plan based on outdated information). 0 commits, 3 minutes duration, 0 files modified. Tests verified passing: maturity transitions, confidence thresholds, permission matrix, audit logging, supervision metrics.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [█░░░░░░░░░] 3% (v2.0: 1/31 plans)
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [██░░░░░░░░] 6% (v2.0: 2/31 plans)
 
 ## Performance Metrics
 
@@ -36,7 +36,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 - Trend: Stable (v1.0 complete, v2.0 ready to start)
 
 *Updated: 2026-02-18 (v2.0 initialization)*
-| Phase 29 P03 | 3 | 3 tasks | 0 files |
+| Phase 29 P04 | 7 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -45,6 +45,8 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 29 Plan 04**: Use polling loops instead of arbitrary sleep for async cleanup (more robust on slow CI)
+- **Phase 29 Plan 04**: AgentTaskRegistry.cancel_task() waits for task completion with asyncio.wait_for() before unregistering
 - **Phase 29**: Stabilize test suite before coverage push (fix all 40+ failures first)
 - **Phase 30**: Target 28% coverage with 6 highest-impact files (>500 lines, <20% coverage)
 - **Phase 31**: Comprehensive agent and memory coverage with property-based invariants
@@ -71,8 +73,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18 10:30
-Stopped at: Roadmap creation complete, ready for Phase 29 planning
+Last session: 2026-02-19 00:52
+Stopped at: Phase 29-04 complete - fixed agent task cancellation flaky tests
 Resume file: None
 
 ---
