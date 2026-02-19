@@ -21,7 +21,7 @@ from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.chat_context_manager import get_chat_context_manager
 from core.chat_session_manager import get_chat_session_manager
-from core.database import get_db_session
+from core.database import get_db_session, SessionLocal
 from core.episode_integration import trigger_episode_creation
 from core.lancedb_handler import get_chat_history_manager
 from core.llm.byok_handler import BYOKHandler, QueryComplexity
@@ -95,7 +95,7 @@ async def execute_agent_chat(
         # GOVERNANCE: Agent Resolution & Validation
         # ============================================
         if governance_enabled and not emergency_bypass:
-            db_session = get_db_session()
+            db_session = SessionLocal()
             resolver = AgentContextResolver(db_session)
             governance = AgentGovernanceService(db_session)
 
@@ -116,10 +116,10 @@ async def execute_agent_chat(
                 governance_check = governance.can_perform_action(
                     agent_id=agent.id,
                     action_type="chat",
-                    action_complexity=1  # Chat is low complexity
+                    require_approval=False
                 )
 
-                if not governance_check.get("proceed", False):
+                if not governance_check.get("allowed", False):
                     reason = governance_check.get("reason", "Governance policy denied this action")
                     logger.warning(f"Governance blocked agent chat: {reason}")
                     return {
