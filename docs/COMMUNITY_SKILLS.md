@@ -411,8 +411,9 @@ docker ps
 1. **Use prompt skills when possible** - Safer and work for all agents
 2. **Document inputs clearly** - Include schema in SKILL.md
 3. **Handle errors gracefully** - Return meaningful error messages
-4. **Avoid external dependencies** - Use only Python standard library
+4. **Minimize external dependencies** - If using Python packages, declare in SKILL.md `requirements:` field
 5. **Test in sandbox first** - Verify skill works in isolated environment
+6. **Declare package dependencies** - All Python packages scanned for vulnerabilities before installation (Phase 35)
 
 ### For Skill Consumers
 
