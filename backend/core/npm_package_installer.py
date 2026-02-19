@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.npm_dependency_scanner import NpmDependencyScanner
+from core.npm_script_analyzer import NpmScriptAnalyzer
 from core.skill_sandbox import HazardSandbox
 
 logger = logging.getLogger(__name__)
@@ -42,13 +43,14 @@ class NpmPackageInstaller:
 
     def __init__(self, snyk_api_key: Optional[str] = None):
         """
-        Initialize Docker client, scanner, and sandbox.
+        Initialize Docker client, scanner, sandbox, and script analyzer.
 
         Args:
             snyk_api_key: Optional Snyk API key for commercial vulnerability DB
         """
         self._client = None
         self._scanner = None
+        self._script_analyzer = None
         self._sandbox = None
         self._snyk_api_key = snyk_api_key
         logger.info("NpmPackageInstaller initialized (lazy loading)")
@@ -66,6 +68,13 @@ class NpmPackageInstaller:
         if self._scanner is None:
             self._scanner = NpmDependencyScanner(sny_api_key=self._snyk_api_key)
         return self._scanner
+
+    @property
+    def script_analyzer(self):
+        """Lazy load script analyzer."""
+        if self._script_analyzer is None:
+            self._script_analyzer = NpmScriptAnalyzer()
+        return self._script_analyzer
 
     @property
     def sandbox(self):
@@ -97,20 +106,37 @@ class NpmPackageInstaller:
                 - success: bool
                 - image_tag: str (Docker image tag)
                 - vulnerabilities: List (if scanned)
+                - script_warnings: Dict (from NpmScriptAnalyzer)
                 - build_logs: List[str] (Docker build logs)
                 - error: str (if failed)
         """
-        # Handle empty packages
+        # Step 1: Script analysis (Shai-Hulud attack prevention)
+        script_warnings = self.script_analyzer.analyze_package_scripts(packages)
+
+        if script_warnings["malicious"]:
+            logger.error(f"Malicious postinstall scripts detected: {script_warnings['warnings']}")
+            return {
+                "success": False,
+                "error": "Malicious postinstall/preinstall scripts detected",
+                "script_warnings": script_warnings,
+                "image_tag": None
+            }
+
+        if script_warnings["warnings"]:
+            logger.warning(f"Suspicious scripts detected: {script_warnings['warnings']}")
+
+        # Step 2: Handle empty packages
         if not packages:
             return {
                 "success": True,
                 "image_tag": None,
                 "vulnerabilities": [],
+                "script_warnings": script_warnings,
                 "build_logs": [],
                 "warning": "No packages specified"
             }
 
-        # Step 1: Vulnerability scan (if enabled)
+        # Step 3: Vulnerability scan (if enabled)
         vulnerabilities = []
         if scan_for_vulnerabilities:
             logger.info(f"Scanning {len(packages)} npm packages for vulnerabilities...")
@@ -123,12 +149,13 @@ class NpmPackageInstaller:
                     "success": False,
                     "error": "Vulnerabilities detected during scanning",
                     "vulnerabilities": vulnerabilities,
+                    "script_warnings": script_warnings,
                     "image_tag": None
                 }
 
             logger.info(f"Scan complete: {len(vulnerabilities)} vulnerabilities found")
 
-        # Step 2: Build Docker image with packages
+        # Step 4: Build Docker image with packages
         image_tag = f"atom-npm-skill:{skill_id.replace('/', '-')}-v1"
 
         try:
@@ -146,6 +173,7 @@ class NpmPackageInstaller:
                 "success": True,
                 "image_tag": image_tag,
                 "vulnerabilities": vulnerabilities,
+                "script_warnings": script_warnings,
                 "build_logs": build_logs
             }
 
@@ -155,6 +183,7 @@ class NpmPackageInstaller:
                 "success": False,
                 "error": str(e),
                 "vulnerabilities": vulnerabilities,
+                "script_warnings": script_warnings,
                 "image_tag": None
             }
 
