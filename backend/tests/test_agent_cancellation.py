@@ -27,7 +27,11 @@ class TestAgentTaskRegistry:
 
     @pytest.mark.asyncio
     async def test_register_task(self):
-        """Test registering a new task"""
+        """Test registering a new task
+
+        Note: Global registry is reset via autouse fixture in conftest.py,
+        but we also provide explicit cleanup for defense in depth.
+        """
         task_id = str(uuid.uuid4())
         agent_id = str(uuid.uuid4())
         agent_run_id = str(uuid.uuid4())
@@ -52,8 +56,9 @@ class TestAgentTaskRegistry:
         assert task_id in agent_task_registry._tasks
         assert agent_task_registry.get_task(task_id) is not None
 
-        # Cleanup
+        # Explicit cleanup (defense in depth, even though autouse fixture resets)
         task.cancel()
+        await asyncio.sleep(0.1)  # Allow cancellation to propagate
         agent_task_registry.unregister_task(task_id)
 
     @pytest.mark.asyncio
@@ -156,7 +161,11 @@ class TestAgentTaskRegistry:
 
     @pytest.mark.asyncio
     async def test_get_all_running_agents(self):
-        """Test getting all running agents"""
+        """Test getting all running agents
+
+        Note: Global registry is reset via autouse fixture in conftest.py,
+        which prevents state pollution from previous tests.
+        """
         # Register tasks for multiple agents
         agents = [str(uuid.uuid4()) for _ in range(3)]
 
@@ -182,7 +191,7 @@ class TestAgentTaskRegistry:
             assert agent_id in running
             assert len(running[agent_id]) > 0
 
-        # Cleanup
+        # Explicit cleanup (cancel_agent_tasks already handles this)
         for agent_id in agents:
             await agent_task_registry.cancel_agent_tasks(agent_id)
 
