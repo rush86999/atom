@@ -1506,6 +1506,9 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 - **Phase 32: Platform & Quality Validation** - Mobile/desktop completion, 80% coverage validation
 - **Phase 33: Community Skills Integration** - 5,000+ OpenClaw skills with Docker sandbox security
 - **Phase 34: Documentation & Verification** - Update all docs for v2.0 features
+- [x] **Phase 35: Python Package Support** - Safe Python package execution with governance ✅ COMPLETE
+  - Plan 01-07: Governance, scanner, installer, API, security, integration, docs (117 tests, production-ready)
+- [ ] **Phase 36: npm Package Support** - Safe npm/Node.js package execution (matching OpenClaw)
 
 ### Phase 35: Python Package Support for Agent Skills
 
@@ -1538,10 +1541,55 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 - Wave 4: Plan 07 (Documentation)
 
 **Estimated**: 10-14 days for all 7 plans
+**Status**: ✅ COMPLETE (all 7 plans executed, 117 tests passing, production-ready)
 
 ---
 
-**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35 new feature
+### Phase 36: npm Package Support for Agent Skills
+
+**Goal**: Enable agents to safely execute npm/Node.js packages with comprehensive sandboxing, security scanning, and governance integration (matching OpenClaw capabilities)
+
+**Depends on**: Phase 35 (Python Package Support infrastructure)
+
+**Success Criteria** (what must be TRUE):
+  1. Agents can execute npm packages in isolated Docker containers with resource limits
+  2. Package permission system enforces maturity-based restrictions (STUDENT blocked, INTERN+ approved)
+  3. Dependency scanner detects version conflicts and security advisories before execution (npm audit, Snyk, yarn audit)
+  4. Whitelist/blocklist system integrates with governance cache for <1ms lookups (reuse from Phase 35)
+  5. Package version isolation prevents conflicts between skills (node_modules per skill)
+  6. Security tests validate escape scenarios (container breakout, resource exhaustion, package.json exploits)
+  7. Audit trail tracks all package installations and executions
+  8. SKILL.md supports `node_packages` field for npm dependencies (matching OpenClaw format)
+
+**Rationale**: OpenClaw supports npm packages for Node.js skills (installed via `npm install -g openclaw@latest`). Atom should match this capability to maintain feature parity and enable the vast npm ecosystem (2M+ packages) for agent skills.
+
+**Key Differences from Python Packages**:
+- Package manager: npm/yarn/pnpm (vs pip for Python)
+- Dependency file: package.json (vs requirements.txt)
+- Security tools: npm audit, Snyk, yarn audit (vs pip-audit, Safety for Python)
+- Installation: npm install in container (vs pip install in Python venv)
+- Execution: node script.js (vs python script.py)
+
+**Plans**: 7 plans (parallel to Phase 35 structure)
+- [ ] 36-npm-package-support-01-PLAN.md — Extend package governance service for npm packages (reuse PackageRegistry with package_type field)
+- [ ] 36-npm-package-support-02-PLAN.md — npm dependency scanner with npm audit and Snyk integration
+- [ ] 36-npm-package-support-03-PLAN.md — Node.js Docker image builder with package installation (per-skill node_modules)
+- [ ] 36-npm-package-support-04-PLAN.md — REST API endpoints for npm package management (extend package_routes.py)
+- [ ] 36-npm-package-support-05-PLAN.md — Security testing for npm packages (package.json exploits, typosquatting, cryptojackers)
+- [ ] 36-npm-package-support-06-PLAN.md — Skill integration with npm packages (extend SkillParser for node_packages field)
+- [ ] 36-npm-package-support-07-PLAN.md — Documentation for npm package support (user guide, security best practices)
+
+**Wave Structure**:
+- Wave 1 (Parallel): Plan 01 (Package Governance Extension), Plan 02 (npm Dependency Scanner)
+- Wave 2 (Parallel): Plan 03 (Node.js Package Installer), Plan 04 (REST API Extension)
+- Wave 3 (Parallel): Plan 05 (Security Testing), Plan 06 (Skill Integration)
+- Wave 4: Plan 07 (Documentation)
+
+**Estimated**: 8-12 days for all 7 plans (leverages Phase 35 infrastructure)
+
+---
+
+**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36 new features
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
 
 ---
