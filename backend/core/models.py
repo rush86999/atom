@@ -1108,6 +1108,58 @@ class SkillExecution(Base):
     workspace = relationship("Workspace", backref="skill_executions")
     package = relationship("PackageRegistry", back_populates="executions")
 
+class SkillCache(Base):
+    """
+    Local cache for Atom SaaS marketplace skills with TTL expiration.
+
+    Caches skill data from Atom SaaS API for performance and offline resilience.
+    Skills are automatically refreshed when TTL expires.
+
+    Phase 60 Plan 01 - Skill Marketplace with Atom SaaS integration.
+    """
+    __tablename__ = "skill_cache"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String(255), unique=True, nullable=False, index=True)
+    skill_data = Column(JSON, nullable=False)  # Full skill data from Atom SaaS
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)  # TTL-based expiration
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('idx_skill_cache_expires', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, expires_at={self.expires_at})>"
+
+
+class CategoryCache(Base):
+    """
+    Local cache for Atom SaaS marketplace categories with TTL expiration.
+
+    Caches category data from Atom SaaS API for performance and offline resilience.
+    Categories are automatically refreshed when TTL expires.
+
+    Phase 60 Plan 01 - Skill Marketplace with Atom SaaS integration.
+    """
+    __tablename__ = "category_cache"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    category_name = Column(String(100), unique=True, nullable=False, index=True)
+    category_data = Column(JSON, nullable=False)  # Full category data with counts
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)  # TTL-based expiration
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('idx_category_cache_expires', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(category_name={self.category_name}, expires_at={self.expires_at})>"
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).
