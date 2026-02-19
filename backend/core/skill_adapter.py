@@ -24,7 +24,7 @@ Reference: Phase 36 Plan 06 - npm Skill Integration
 
 import logging
 import re
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field, ConfigDict

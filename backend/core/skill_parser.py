@@ -304,7 +304,8 @@ class SkillParser:
 
         # Check for regular packages (name or name@version or name@range)
         # Allow alphanumeric, hyphens, underscores, @ for version, and special semver chars
-        valid_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.@^~*+<>|")
+        # Valid semver ranges include: ^, ~, >=, <=, >, <, *, ||, -, x, X
+        valid_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.@^~*+<>|=xX")
         return all(c in valid_chars for c in package)
 
     def _extract_package_manager(self, metadata: Dict[str, Any], file_path: str) -> str:
