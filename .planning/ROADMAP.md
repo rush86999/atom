@@ -1483,3 +1483,28 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
   - [x] 28-01-PLAN.md — Canvas API Unit Tests (Jest) (Wave 1) ✅
   - [x] 28-02-PLAN.md — Canvas Accessibility Tree Tests (RTL) (Wave 1) ✅
   - [x] 28-03-PLAN.md — Tauri Manual Verification Guide (Wave 2) ✅
+
+---
+
+## 📋 Milestone v2.0: Feature & Coverage Complete
+
+**Status:** Roadmap Created (2026-02-18)
+
+Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage while integrating Community Skills feature for 5,000+ OpenClaw skills.
+
+**Full Roadmap:** See [ROADMAP_V2.md](./ROADMAP_V2.md) for complete v2.0 roadmap with Phases 29-34.
+
+**Quick Summary:**
+- **Phase 29: Test Failure Fixes & Quality Foundation** - Fix all 40+ test failures, establish quality infrastructure
+- **Phase 30: Tier 1 Coverage Push** - Achieve 28% overall coverage (6 highest-impact files)
+- **Phase 31: Agent Layer & Memory Coverage** - Comprehensive governance, graduation, episodic memory testing
+- **Phase 32: Platform & Quality Validation** - Mobile/desktop completion, 80% coverage validation
+- **Phase 33: Community Skills Integration** - 5,000+ OpenClaw skills with Docker sandbox security
+- **Phase 34: Documentation & Verification** - Update all docs for v2.0 features
+
+**Requirements:** 73 total (100% mapped to Phases 29-34)
+**Starting Phase:** 29 (Phase 28 completed in v1.0)
+
+---
+
+*End of Roadmap*
