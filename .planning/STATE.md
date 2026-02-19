@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 35-36 of 37 (Package Support - Python & npm)
-Plan: Phase 36-04 complete
-Status: Phase 36-04 COMPLETE - npm Package REST API Endpoints (4/7 plans, 7 tasks, production-ready)
-Last activity: 2026-02-19 — Phase 36-04 COMPLETE: npm Package REST API Endpoints - Created 9 npm REST endpoints for package governance, installation, execution, and management. Added NpmPackageCheckRequest, NpmPackageInstallRequest, NpmPackageExecuteRequest models. Integrated NpmScriptAnalyzer for malicious postinstall script blocking (Shai-Hulud attack prevention). Added AuditType.PACKAGE and create_package_audit method for comprehensive audit trail. All npm operations logged with agent_id, package_name, version, package_type, governance_decision. 18 comprehensive tests covering all endpoints and permission scenarios (STUDENT blocked, INTERN approval, AUTONOMOUS allowed). package_type='npm' parameter in all governance calls for Python/npm separation. 7 atomic commits, 4 files created/modified, 16 minutes duration. Endpoints: /npm/check, /npm/request, /npm/approve, /npm/ban, /npm/install, /npm/execute, /npm, /npm/{skill_id}, /npm/{skill_id}/status.
+Plan: Phase 36-05 complete
+Status: Phase 36-05 COMPLETE - npm Security Testing (5/7 plans, 4 tasks, 40 tests)
+Last activity: 2026-02-19 — Phase 36-05 COMPLETE: npm Security Testing - Created comprehensive security test suite (40 tests, 100% pass rate) validating npm package isolation and attack prevention. Test files (1,797 lines) covering container escape prevention (Docker socket, host filesystem, privileged mode, network, read-only filesystem, non-root user), resource exhaustion protection (memory limits, CPU quotas, timeout enforcement, fork bombs, file descriptors, swap, disk limits), typosquatting detection (exprss vs express, AI hallucinations, new packages, suspicious maintainers, high version numbers), and supply chain attack prevention (Shai-Hulud postinstall scripts, credential theft, command execution, Base64 obfuscation, eval detection, npm audit CVEs, Snyk vulnerabilities). 4 atomic commits (ec58bd83, f4ddb618, 7a6d3efb, 9e5a9cd1), 4 files created, 17 minutes duration. All npm threat scenarios from RESEARCH.md now covered with comprehensive test validation.
 
 Previous: 2026-02-19 — Phase 35-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 75K+ bytes, 161+ sections) for Python Package Support. PYTHON_PACKAGES.md (19K bytes, 52 sections) - user guide with quick start, version formats, governance rules, security features, API usage, troubleshooting, best practices, and examples. PACKAGE_GOVERNANCE.md (15K bytes, 37 sections) - maturity-based access matrix, approval workflow, banning procedures, cache performance, API reference, audit trail. PACKAGE_SECURITY.md (21K bytes, 34 sections) - threat model (dependency confusion, typosquatting, transitive dependencies, container escape, resource exhaustion, data exfiltration), security constraints, vulnerability scanning, static code analysis, security testing, incident response. PYTHON_PACKAGES_DEPLOYMENT.md (20K bytes, 38 sections) - pre-deployment checklist, post-deployment verification, rollback procedures, production readiness, monitoring. Updated .env.example with SAFETY_API_KEY and cache configuration. Updated COMMUNITY_SKILLS.md with package dependency syntax examples. Updated CLAUDE.md with Python Package Support section and recent changes. 1 atomic commit (8211af2a), 7 files created/modified, 7 minutes duration. Phase 35 complete - all 7 plans executed, production-ready with comprehensive documentation.
 
@@ -79,6 +79,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 36-npm-package-support P01 | 4min | 4 tasks | 3 files |
 | Phase 36-npm-package-support P03 | 9 | 7 tasks | 4 files |
 | Phase 36-npm-package-support P04 | 16 | 7 tasks | 4 files |
+| Phase 36-npm-package-support P06 | 20 | 5 tasks | 4 files |
 
 ## Accumulated Context
 
