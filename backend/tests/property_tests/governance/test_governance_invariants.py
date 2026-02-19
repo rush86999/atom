@@ -13,7 +13,7 @@ These tests protect against governance bypasses and unauthorized agent actions.
 
 import pytest
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis import strategies as st
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, booleans, dictionaries
 from sqlalchemy.orm import Session
 from unittest.mock import Mock, patch
 import time
@@ -41,11 +41,11 @@ class TestConfidenceScoreInvariants:
     """Property-based tests for confidence score invariants."""
 
     @given(
-        initial_confidence=st.floats(
+        initial_confidence=floats(
             min_value=0.0, max_value=1.0,
             allow_nan=False, allow_infinity=False
         ),
-        boost_amount=st.floats(
+        boost_amount=floats(
             min_value=-0.5, max_value=0.5,
             allow_nan=False, allow_infinity=False
         )
@@ -91,8 +91,8 @@ class TestConfidenceScoreInvariants:
             f"Confidence {agent.confidence_score} outside [0.0, 1.0] bounds"
 
     @given(
-        confidence_scores=st.lists(
-            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        confidence_scores=lists(
+            floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
             min_size=1,
             max_size=100
         )
@@ -144,13 +144,13 @@ class TestMaturityRoutingInvariants:
     """Property-based tests for maturity routing invariants."""
 
     @given(
-        agent_maturity=st.sampled_from([
+        agent_maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,
             AgentStatus.AUTONOMOUS.value
         ]),
-        action_complexity=st.integers(min_value=1, max_value=4)
+        action_complexity=integers(min_value=1, max_value=4)
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_maturity_action_matrix_invariant(
@@ -190,7 +190,7 @@ class TestMaturityRoutingInvariants:
                 f"{agent_maturity} should NOT execute complexity {action_complexity}"
 
     @given(
-        confidence=st.floats(
+        confidence=floats(
             min_value=0.0, max_value=1.0,
             allow_nan=False, allow_infinity=False
         )
@@ -233,7 +233,7 @@ class TestMaturityRoutingInvariants:
                 f"Confidence {confidence} should be AUTONOMOUS, got {maturity}"
 
     @given(
-        current_maturity=st.sampled_from([
+        current_maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,
@@ -288,7 +288,7 @@ class TestActionComplexityInvariants:
     """Property-based tests for action complexity invariants."""
 
     @given(
-        complexity=st.integers(min_value=1, max_value=4)
+        complexity=integers(min_value=1, max_value=4)
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_action_complexity_bounds_invariant(
@@ -317,8 +317,8 @@ class TestActionComplexityInvariants:
             f"Complexity {complexity} not in valid levels {valid_complexities}"
 
     @given(
-        capabilities=st.lists(
-            st.sampled_from([
+        capabilities=lists(
+            sampled_from([
                 "canvas", "browser", "device",
                 "local_agent", "social", "skills"
             ]),
@@ -377,8 +377,8 @@ class TestGovernanceCacheInvariants:
     """Property-based tests for governance cache performance invariants."""
 
     @given(
-        agent_count=st.integers(min_value=10, max_value=100),
-        lookup_count=st.integers(min_value=1, max_value=50)
+        agent_count=integers(min_value=10, max_value=100),
+        lookup_count=integers(min_value=1, max_value=50)
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_performance_invariant(
@@ -441,7 +441,7 @@ class TestGovernanceCacheInvariants:
             f"Average lookup time {avg_lookup_time:.2f}ms exceeds 5ms target"
 
     @given(
-        agent_id=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')
+        agent_id=text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_hit_rate_invariant(
@@ -478,13 +478,13 @@ class TestPermissionInvariants:
     """Property-based tests for permission check invariants."""
 
     @given(
-        agent_maturity=st.sampled_from([
+        agent_maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,
             AgentStatus.AUTONOMOUS.value
         ]),
-        capability=st.sampled_from([
+        capability=sampled_from([
             "canvas", "browser", "device", "local_agent", "social", "skills"
         ])
     )
@@ -531,13 +531,13 @@ class TestPermissionInvariants:
             "Permission checks must be deterministic"
 
     @given(
-        maturity=st.sampled_from([
+        maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,
             AgentStatus.AUTONOMOUS.value
         ]),
-        complexity=st.integers(min_value=1, max_value=4)
+        complexity=integers(min_value=1, max_value=4)
     )
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_student_blocked_from_critical_invariant(
@@ -571,13 +571,13 @@ class TestTriggerInterceptionInvariants:
     """Property-based tests for trigger interception invariants."""
 
     @given(
-        agent_maturity=st.sampled_from([
+        agent_maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,
             AgentStatus.AUTONOMOUS.value
         ]),
-        confidence_score=st.floats(
+        confidence_score=floats(
             min_value=0.0, max_value=1.0,
             allow_nan=False, allow_infinity=False
         )
@@ -621,7 +621,7 @@ class TestTriggerInterceptionInvariants:
                 f"Confidence {confidence_score} should map to STUDENT maturity"
 
     @given(
-        agent_maturity=st.sampled_from([
+        agent_maturity=sampled_from([
             AgentStatus.STUDENT.value,
             AgentStatus.INTERN.value,
             AgentStatus.SUPERVISED.value,

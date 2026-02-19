@@ -18,7 +18,8 @@ Tests governance cache invariants:
 import pytest
 import time
 from datetime import datetime, timedelta
-from hypothesis import given, strategies as st, assume, settings, example
+from hypothesis import given, assume, settings, example
+from hypothesis.strategies import text, integers, floats, lists, sampled_from, booleans, tuples, one_of
 from uuid import uuid4
 from typing import Dict, Any, List
 import sys
@@ -35,8 +36,8 @@ class TestCacheGetSetInvariants:
     """Tests for cache get/set invariants"""
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_type=text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
     @settings(max_examples=100)
     def test_cache_miss_returns_none(self, agent_id, action_type):
@@ -54,8 +55,8 @@ class TestCacheGetSetInvariants:
         assert result is None, "Cache miss should return None"
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_type=text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
     @example(agent_id='TestAgent', action_type='stream_chat')
     @example(agent_id='testagent', action_type='stream_chat')  # Bug: case sensitivity
@@ -84,8 +85,8 @@ class TestCacheGetSetInvariants:
         assert result["allowed"] == data["allowed"], "Cached value should match"
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_type=text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
     @settings(max_examples=100)
     def test_cache_key_uniqueness(self, agent_id, action_type):
@@ -120,7 +121,7 @@ class TestTTLExpirationInvariants:
     """Tests for TTL expiration invariants"""
 
     @given(
-        ttl_seconds=st.integers(min_value=1, max_value=2)  # Reduced to 1-2 seconds for faster tests
+        ttl_seconds=integers(min_value=1, max_value=2)  # Reduced to 1-2 seconds for faster tests
     )
     @settings(max_examples=10, deadline=5000)  # Reduced examples and increased deadline to 5 seconds
     def test_cache_expires_after_ttl(self, ttl_seconds):
@@ -154,8 +155,8 @@ class TestTTLExpirationInvariants:
         assert result is None, "Should expire after TTL"
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_type=st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_type=text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_')
     )
     @settings(max_examples=10, deadline=5000)  # Reduced examples and increased deadline
     def test_cache_refresh_on_set(self, agent_id, action_type):
@@ -194,8 +195,8 @@ class TestLRUEvictionInvariants:
     """Tests for LRU eviction invariants"""
 
     @given(
-        max_size=st.integers(min_value=1, max_value=20),
-        num_agents=st.integers(min_value=1, max_value=50)
+        max_size=integers(min_value=1, max_value=20),
+        num_agents=integers(min_value=1, max_value=50)
     )
     @settings(max_examples=50)
     def test_cache_size_limit_enforced(self, max_size, num_agents):
@@ -222,8 +223,8 @@ class TestLRUEvictionInvariants:
         assert stats["size"] <= max_size, "Final cache size should respect max"
 
     @given(
-        cache_size=st.integers(min_value=5, max_value=20),
-        num_accesses=st.integers(min_value=10, max_value=100)
+        cache_size=integers(min_value=5, max_value=20),
+        num_accesses=integers(min_value=10, max_value=100)
     )
     @settings(max_examples=50)
     def test_lru_eviction_oldest_first(self, cache_size, num_accesses):
@@ -250,9 +251,9 @@ class TestLRUEvictionInvariants:
         assert cache.get(new_agent_id, action_type) is not None, "New entry should be cached"
 
     @given(
-        cache_size=st.integers(min_value=5, max_value=20),
-        access_pattern=st.lists(
-            st.integers(min_value=0, max_value=19),
+        cache_size=integers(min_value=5, max_value=20),
+        access_pattern=lists(
+            integers(min_value=0, max_value=19),
             min_size=5,
             max_size=50
         )
@@ -287,8 +288,8 @@ class TestThreadSafetyInvariants:
     """Tests for thread-safety invariants"""
 
     @given(
-        num_threads=st.integers(min_value=1, max_value=10),
-        num_operations=st.integers(min_value=10, max_value=100)
+        num_threads=integers(min_value=1, max_value=10),
+        num_operations=integers(min_value=10, max_value=100)
     )
     @settings(max_examples=50)
     def test_concurrent_read_safety(self, num_threads, num_operations):
@@ -327,8 +328,8 @@ class TestThreadSafetyInvariants:
             assert result.get("value") == 42, "Concurrent reads should be consistent"
 
     @given(
-        num_threads=st.integers(min_value=1, max_value=5),
-        num_writes=st.integers(min_value=1, max_value=20)
+        num_threads=integers(min_value=1, max_value=5),
+        num_writes=integers(min_value=1, max_value=20)
     )
     @settings(max_examples=50)
     def test_concurrent_write_safety(self, num_threads, num_writes):
@@ -369,8 +370,8 @@ class TestHitRateInvariants:
     """Tests for hit rate calculation invariants"""
 
     @given(
-        cache_hits=st.integers(min_value=0, max_value=100),
-        cache_misses=st.integers(min_value=0, max_value=100)
+        cache_hits=integers(min_value=0, max_value=100),
+        cache_misses=integers(min_value=0, max_value=100)
     )
     @settings(max_examples=50)
     def test_hit_rate_calculation(self, cache_hits, cache_misses):
@@ -386,7 +387,7 @@ class TestHitRateInvariants:
             assert True, "Hit rate is 0 when no requests"
 
     @given(
-        hit_rate=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
+        hit_rate=floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
     def test_hit_rate_bounds(self, hit_rate):
@@ -394,8 +395,8 @@ class TestHitRateInvariants:
         assert 0.0 <= hit_rate <= 100.0, "Hit rate must be in [0, 100]"
 
     @given(
-        cache_size=st.integers(min_value=10, max_value=100),
-        sequential_accesses=st.integers(min_value=1, max_value=100)
+        cache_size=integers(min_value=10, max_value=100),
+        sequential_accesses=integers(min_value=1, max_value=100)
     )
     @settings(max_examples=50)
     def test_high_hit_rate_with_warm_cache(self, cache_size, sequential_accesses):
@@ -424,9 +425,9 @@ class TestInvalidationInvariants:
     """Tests for cache invalidation invariants"""
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_types=st.lists(
-            st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_types=lists(
+            text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_'),
             min_size=2,  # Need at least 2 to test invalidation properly
             max_size=10,
             unique=True  # Ensure unique action types
@@ -463,9 +464,9 @@ class TestInvalidationInvariants:
             assert cache.get(agent_id, action_type) is not None, "Other actions should remain cached"
 
     @given(
-        agent_id=st.text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
-        action_types=st.lists(
-            st.text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_'),
+        agent_id=text(min_size=5, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'),
+        action_types=lists(
+            text(min_size=3, max_size=30, alphabet='abcdefghijklmnopqrstuvwxyz_'),
             min_size=1,
             max_size=10
         )
@@ -488,8 +489,8 @@ class TestInvalidationInvariants:
             assert cache.get(agent_id, action_type) is None, "All agent actions should be invalidated"
 
     @given(
-        num_agents=st.integers(min_value=1, max_value=20),
-        num_actions=st.integers(min_value=1, max_value=10)
+        num_agents=integers(min_value=1, max_value=20),
+        num_actions=integers(min_value=1, max_value=10)
     )
     @settings(max_examples=50)
     def test_clear_removes_all_entries(self, num_agents, num_actions):
@@ -520,7 +521,7 @@ class TestPerformanceInvariants:
     """Tests for performance requirements"""
 
     @given(
-        cache_size=st.integers(min_value=10, max_value=100)
+        cache_size=integers(min_value=10, max_value=100)
     )
     @settings(max_examples=50)
     def test_lookup_latency_performance(self, cache_size):
@@ -551,7 +552,7 @@ class TestPerformanceInvariants:
         assert avg_latency_ms < 10.0, f"Lookup latency {avg_latency_ms:.2f}ms should be <10ms"
 
     @given(
-        target_hit_rate=st.floats(min_value=50.0, max_value=99.0, allow_nan=False, allow_infinity=False)
+        target_hit_rate=floats(min_value=50.0, max_value=99.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
     def test_hit_rate_requirement(self, target_hit_rate):
@@ -583,8 +584,8 @@ class TestStatisticsAccuracyInvariants:
     """Tests for statistics accuracy invariants"""
 
     @given(
-        hits=st.integers(min_value=0, max_value=1000),
-        misses=st.integers(min_value=0, max_value=1000)
+        hits=integers(min_value=0, max_value=1000),
+        misses=integers(min_value=0, max_value=1000)
     )
     @settings(max_examples=50)
     def test_statistics_accuracy(self, hits, misses):
@@ -608,10 +609,10 @@ class TestStatisticsAccuracyInvariants:
         assert stats["hit_rate"] == expected_hit_rate_rounded, f"Hit rate should match calculated value (expected {expected_hit_rate_rounded}, got {stats['hit_rate']})"
 
     @given(
-        operations=st.lists(
-            st.one_of(
-                st.tuples(st.sampled_from(["hit"]), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')),
-                st.tuples(st.sampled_from(["miss"]), st.text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'))
+        operations=lists(
+            one_of(
+                tuples(sampled_from(["hit"]), text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789')),
+                tuples(sampled_from(["miss"]), text(min_size=5, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz0123456789'))
             ),
             min_size=10,
             max_size=100
@@ -638,8 +639,8 @@ class TestKeyFormatInvariants:
     """Tests for cache key format invariants"""
 
     @given(
-        agent_id=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-'),
-        action_type=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-_')
+        agent_id=text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-'),
+        action_type=text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-_')
     )
     @settings(max_examples=50)
     def test_key_format_consistency(self, agent_id, action_type):
@@ -658,9 +659,9 @@ class TestKeyFormatInvariants:
         assert len(parts) == 2, "Key should have 2 parts"
 
     @given(
-        agent_id=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-'),
-        action_type1=st.text(min_size=1, max_size=50, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
-        action_type2=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz')
+        agent_id=text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789-'),
+        action_type1=text(min_size=1, max_size=50, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'),
+        action_type2=text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz')
     )
     @settings(max_examples=50)
     def test_case_insensitive_action_type(self, agent_id, action_type1, action_type2):
@@ -683,8 +684,8 @@ class TestCacheCapacityInvariants:
     """Tests for cache capacity limits"""
 
     @given(
-        max_size=st.integers(min_value=1, max_value=1000),
-        entries_to_add=st.integers(min_value=1, max_value=2000)
+        max_size=integers(min_value=1, max_value=1000),
+        entries_to_add=integers(min_value=1, max_value=2000)
     )
     @settings(max_examples=50)
     def test_max_size_limit_enforced(self, max_size, entries_to_add):
@@ -706,8 +707,8 @@ class TestCacheCapacityInvariants:
         assert final_stats["size"] <= max_size, f"Final size {final_stats['size']} should not exceed max {max_size}"
 
     @given(
-        max_size=st.integers(min_value=1, max_value=100),  # Added min_value=1
-        num_evictions=st.integers(min_value=1, max_value=50)
+        max_size=integers(min_value=1, max_value=100),  # Added min_value=1
+        num_evictions=integers(min_value=1, max_value=50)
     )
     @settings(max_examples=50)
     def test_eviction_counter_increments(self, max_size, num_evictions):
@@ -740,9 +741,9 @@ class TestConcurrentAccessInvariants:
     """Tests for concurrent access patterns"""
 
     @given(
-        num_readers=st.integers(min_value=2, max_value=10),
-        num_writers=st.integers(min_value=1, max_value=5),
-        operations_per_thread=st.integers(min_value=5, max_value=50)
+        num_readers=integers(min_value=2, max_value=10),
+        num_writers=integers(min_value=1, max_value=5),
+        operations_per_thread=integers(min_value=5, max_value=50)
     )
     @settings(max_examples=50)
     def test_read_write_consistency(self, num_readers, num_writers, operations_per_thread):
