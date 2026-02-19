@@ -410,6 +410,171 @@ def get_cache_stats():
 
 
 # ============================================================================
+# npm Governance Endpoints (Plan 04)
+# ============================================================================
+
+@router.post("/npm/request")
+def request_npm_package_approval(
+    request: PackageRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Request approval for npm package version.
+
+    Creates or updates package registry entry with status='pending'.
+    Admins can then review and approve via POST /api/packages/npm/approve.
+    """
+    try:
+        package = get_governance().request_package_approval(
+            package_name=request.package_name,
+            version=request.version,
+            requested_by=request.requested_by,
+            reason=request.reason,
+            db=db,
+            package_type="npm"
+        )
+
+        logger.info(
+            f"npm package approval requested: {request.package_name}@{request.version} "
+            f"by {request.requested_by}"
+        )
+
+        return {
+            "package_id": package.id,
+            "status": package.status,
+            "package_type": "npm",
+            "message": "npm package approval request created"
+        }
+
+    except Exception as e:
+        logger.error(f"Error requesting npm package approval: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/npm/check", response_model=PackagePermissionResponse)
+def check_npm_package_permission(
+    agent_id: str = Query(..., description="Agent ID"),
+    package_name: str = Query(..., description="npm package name"),
+    version: str = Query(..., description="Package version"),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if agent can use specific npm package version.
+
+    Returns permission decision with maturity requirement and reason if blocked.
+    Uses cached results for <1ms performance on repeat checks.
+
+    Governance rules:
+    - STUDENT agents: Always blocked
+    - INTERN agents: Require explicit approval
+    - SUPERVISED/AUTONOMOUS: Must meet min_maturity requirement
+    - Banned packages: Always blocked
+    """
+    try:
+        result = get_governance().check_package_permission(
+            agent_id, package_name, version, db, package_type="npm"
+        )
+
+        logger.info(
+            f"npm package check: agent={agent_id}, package={package_name}@{version}, "
+            f"allowed={result['allowed']}, maturity_required={result['maturity_required']}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error checking npm package permission: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/npm/approve")
+def approve_npm_package(
+    request: PackageApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Approve npm package for specified maturity level (admin endpoint).
+
+    Grants permission for agents at or above the specified maturity level.
+    Invalidates cache to ensure immediate effect.
+
+    Requires admin privileges (implement authorization middleware).
+    """
+    try:
+        package = get_governance().approve_package(
+            package_name=request.package_name,
+            version=request.version,
+            min_maturity=request.min_maturity,
+            approved_by=request.approved_by,
+            db=db,
+            package_type="npm"
+        )
+
+        logger.info(
+            f"npm package approved: {request.package_name}@{request.version} "
+            f"for maturity {request.min_maturity}+ by {request.approved_by}"
+        )
+
+        return {
+            "package_id": package.id,
+            "status": package.status,
+            "package_type": "npm",
+            "min_maturity": package.min_maturity,
+            "approved_by": package.approved_by,
+            "approved_at": package.approved_at.isoformat() if package.approved_at else None,
+            "message": "npm package approved successfully"
+        }
+
+    except ValueError as e:
+        logger.error(f"Invalid maturity level: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error approving npm package: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/npm/ban")
+def ban_npm_package(
+    request: PackageBanRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Ban npm package version (admin endpoint).
+
+    Banned packages are blocked for ALL agents regardless of maturity.
+    Use for security vulnerabilities, malicious code, or policy violations.
+    Invalidates cache to ensure immediate effect.
+
+    Requires admin privileges (implement authorization middleware).
+    """
+    try:
+        package = get_governance().ban_package(
+            package_name=request.package_name,
+            version=request.version,
+            reason=request.reason,
+            db=db,
+            package_type="npm"
+        )
+
+        logger.warning(
+            f"npm package banned: {request.package_name}@{request.version} "
+            f"reason: {request.reason}"
+        )
+
+        return {
+            "package_id": package.id,
+            "status": package.status,
+            "package_type": "npm",
+            "ban_reason": package.ban_reason,
+            "message": "npm package banned successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Error banning npm package: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # Package Management Endpoints (Plan 04)
 # ============================================================================
 
