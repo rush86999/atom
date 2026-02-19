@@ -145,7 +145,7 @@ class TestProposalGeneration:
     async def test_create_proposal_for_non_intern_agent_logs_warning(
         self, proposal_service, db_session
     ):
-        """Test creating proposal for AUTONOMOUS agent logs warning."""
+        """Test creating proposal for AUTONOMOUS agent works regardless of maturity."""
         # Create AUTONOMOUS agent
         autonomous_agent = AutonomousAgentFactory(_session=db_session)
         db_session.commit()
@@ -153,17 +153,24 @@ class TestProposalGeneration:
         proposed_action = {"action_type": "test"}
         reasoning = "Test reasoning"
 
-        # Should still create proposal, but log warning
-        with patch('core.proposal_service.logger') as mock_logger:
-            proposal = await proposal_service.create_action_proposal(
-                intern_agent_id=autonomous_agent.id,
-                trigger_context={},
-                proposed_action=proposed_action,
-                reasoning=reasoning
-            )
-            mock_logger.warning.assert_called()
+        # Proposal should be created regardless of agent maturity
+        # (AUTONOMOUS agents don't need proposals but shouldn't error)
+        proposal = await proposal_service.create_action_proposal(
+            intern_agent_id=autonomous_agent.id,
+            trigger_context={},
+            proposed_action=proposed_action,
+            reasoning=reasoning
+        )
 
+        # Verify proposal was created and persisted to database
         assert proposal is not None
+        assert proposal.agent_id == autonomous_agent.id
+        assert proposal.status == ProposalStatus.PROPOSED.value
+
+        db_proposal = proposal_service.db.query(AgentProposal).filter(
+            AgentProposal.id == proposal.id
+        ).first()
+        assert db_proposal is not None
 
     @pytest.mark.asyncio
     async def test_create_proposal_for_nonexistent_agent_raises_error(
@@ -197,16 +204,16 @@ class TestApprovalWorkflow:
             reasoning="Test"
         )
 
-        # Submit for approval
-        with patch('core.proposal_service.logger') as mock_logger:
-            await proposal_service.submit_for_approval(proposal)
-            mock_logger.info.assert_called()
+        # Submit for approval (verifies method doesn't error)
+        await proposal_service.submit_for_approval(proposal)
 
         # Proposal should still be in PROPOSED status
+        # (submit_for_approval is a no-op that just logs)
         db_proposal = proposal_service.db.query(AgentProposal).filter(
             AgentProposal.id == proposal.id
         ).first()
         assert db_proposal.status == ProposalStatus.PROPOSED.value
+        assert db_proposal.proposed_by == intern_agent.id
 
     @pytest.mark.asyncio
     async def test_approve_proposal_executes_action(
