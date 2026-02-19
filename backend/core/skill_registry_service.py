@@ -1081,6 +1081,83 @@ class SkillRegistryService:
             self.db.rollback()
             return None
 
+    def load_skill_dynamically(
+        self,
+        skill_id: str,
+        skill_path: str
+    ) -> Dict[str, Any]:
+        """
+        Load skill dynamically using SkillDynamicLoader.
+
+        Enables runtime skill loading without restart.
+
+        Args:
+            skill_id: Unique skill identifier
+            skill_path: Absolute path to skill file
+
+        Returns:
+            Dict with load result
+        """
+        try:
+            from core.skill_dynamic_loader import get_global_loader
+
+            loader = get_global_loader()
+            module = loader.load_skill(skill_id, skill_path)
+
+            if module is None:
+                return {
+                    "success": False,
+                    "error": "Failed to load skill module"
+                }
+
+            return {
+                "success": True,
+                "skill_id": skill_id,
+                "loaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Dynamic skill loading failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def reload_skill_dynamically(self, skill_id: str) -> Dict[str, Any]:
+        """
+        Hot-reload skill using SkillDynamicLoader.
+
+        Args:
+            skill_id: Skill identifier to reload
+
+        Returns:
+            Dict with reload result
+        """
+        try:
+            from core.skill_dynamic_loader import get_global_loader
+
+            loader = get_global_loader()
+            module = loader.reload_skill(skill_id)
+
+            if module is None:
+                return {
+                    "success": False,
+                    "error": "Skill not loaded or reload failed"
+                }
+
+            return {
+                "success": True,
+                "skill_id": skill_id,
+                "reloaded_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Skill hot-reload failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     def promote_skill(self, skill_id: str) -> Dict[str, Any]:
         """
         Promote a skill from Untrusted to Active status.
