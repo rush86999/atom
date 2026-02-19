@@ -10,9 +10,10 @@
 2. [Security & Governance](#security--governance)
 3. [Importing Skills](#importing-skills)
 4. [Using Skills](#using-skills)
-5. [Managing Skills](#managing-skills)
-6. [API Reference](#api-reference)
-7. [Troubleshooting](#troubleshooting)
+5. [Python Packages for Skills](#python-packages-for-skills)
+6. [Managing Skills](#managing-skills)
+7. [API Reference](#api-reference)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -25,6 +26,7 @@
 - **Governance Integration** - Skills respect agent maturity levels (Student → Autonomous)
 - **Audit Trail** - All skill executions logged with full metadata
 - **Episodic Memory Integration** - Skill executions create EpisodeSegments for agent learning (Phase 14)
+- **Python Package Support** - Skills can use numpy, pandas, and other packages with dependency isolation (Phase 35)
 - **Atom CLI Skills** - 6 built-in skills for controlling the Atom OS CLI (Phase 25)
 
 **Types of Skills:**
@@ -233,6 +235,93 @@ curl -X POST http://localhost:8000/api/skills/execute \
 ```
 
 **See:** [ATOM_CLI_SKILLS_GUIDE.md](./ATOM_CLI_SKILLS_GUIDE.md) for complete documentation.
+
+---
+
+## Python Packages for Skills
+
+Skills can now use Python packages (numpy, pandas, requests, etc.) through per-skill Docker images with dependency isolation.
+
+### Installing Packages
+
+```bash
+curl -X POST http://localhost:8000/api/packages/install \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent_789",
+    "skill_id": "data-analysis-skill",
+    "requirements": [
+      "numpy==1.21.0",
+      "pandas>=1.3.0",
+      "matplotlib>=3.4.0"
+    ],
+    "scan_for_vulnerabilities": true
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "image_tag": "atom-skill:data-analysis-skill-v1",
+  "packages_installed": [
+    {"name": "numpy", "version": "==1.21.0"},
+    {"name": "pandas", "version": ">=1.3.0"}
+  ],
+  "vulnerabilities": [],
+  "build_logs": ["Successfully built abc123"]
+}
+```
+
+### Executing with Packages
+
+```bash
+curl -X POST http://localhost:8000/api/packages/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent_789",
+    "skill_id": "data-analysis-skill",
+    "code": "import numpy as np; print(np.array([1, 2, 3]))"
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "skill_id": "data-analysis-skill",
+  "output": "[1 2 3]"
+}
+```
+
+### Package Governance
+
+| Agent Level | Package Access |
+|-------------|---------------|
+| **STUDENT** | ❌ Blocked (educational restriction) |
+| **INTERN** | ⚠️ Approval Required for each package |
+| **SUPERVISED** | ✅ If package approved for SUPERVISED+ |
+| **AUTONOMOUS** | ✅ If package approved for AUTONOMOUS |
+
+### Security Features
+
+- ✅ **Vulnerability Scanning** - pip-audit + Safety DB before installation
+- ✅ **Per-Skill Isolation** - No dependency conflicts (Skill A uses numpy 1.21, Skill B uses 1.24)
+- ✅ **Read-Only Filesystem** - No persistent storage in containers
+- ✅ **Non-Root User** - Skills run as unprivileged user
+- ✅ **Resource Limits** - Memory and CPU quotas enforced
+- ✅ **Audit Trail** - All package operations logged
+
+### Cleanup
+
+Remove skill image when no longer needed:
+
+```bash
+curl -X DELETE http://localhost:8000/api/packages/data-analysis-skill?agent_id=agent_789
+```
+
+**See:** [API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management) for complete reference.
 
 ---
 
