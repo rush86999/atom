@@ -425,13 +425,28 @@ def is_typosquatting_attempt(package_name: str, package_type: str = "python") ->
     """
     popular_packages = TYPOSQUATTING_PACKAGES.get(package_type, [])
 
+    # First, check if package_name exactly matches a known typosquatting package
     for target in popular_packages:
-        if target["mimics"].lower() in package_name.lower() and package_name != target["mimics"]:
+        if package_name == target["name"]:
             return {
                 "is_typosquatting": True,
                 "target_package": target["mimics"],
                 "threat": target["threat"],
-                "confidence": "HIGH" if package_name in target["name"] else "MEDIUM"
+                "confidence": "HIGH"
+            }
+
+    # Then, check for partial matches (typosquatting packages with variations)
+    for target in popular_packages:
+        # Check if package name contains the typosquatting base or mimics the popular package
+        if (target["name"] in package_name.lower() or
+            package_name.lower() in target["name"] or
+            target["mimics"].lower() in package_name.lower()) and \
+            package_name.lower() != target["mimics"].lower():
+            return {
+                "is_typosquatting": True,
+                "target_package": target["mimics"],
+                "threat": target["threat"],
+                "confidence": "MEDIUM"
             }
 
     # Check for common typosquatting patterns
