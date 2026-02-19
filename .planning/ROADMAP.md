@@ -1592,7 +1592,52 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 
 ---
 
-**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36 new features
+### Phase 60: Advanced Skill Execution & Package Testing
+
+**Goal**: Build advanced skill execution features that leverage package management (dynamic skill loading, skill marketplace, skill composition) and comprehensive E2E testing of package security and performance
+
+**Depends on**: Phase 35 (Python Package Support), Phase 36 (npm Package Support), Phase 33 (Community Skills Integration)
+
+**Success Criteria** (what must be TRUE):
+  1. Dynamic skill loading from marketplace with package auto-installation
+  2. Skill marketplace allows skill discovery, installation, and rating
+  3. Skill composition enables multi-step workflows with skill chaining
+  4. Comprehensive E2E tests validate package security (Python + npm)
+  5. Performance benchmarking confirms package installation < 5 seconds
+  6. 100% audit log coverage verified through testing
+  7. Documentation complete with troubleshooting guides
+
+**Rationale**: Phases 35-36 established Python and npm package support. Phase 60 builds advanced marketplace and composition features on top of this foundation, enabling users to discover, share, and compose skills with automatic dependency management. Comprehensive E2E testing ensures package security and performance at scale.
+
+**Key Features**:
+- **Skill Marketplace**: Central hub for discovering, rating, and installing community skills
+- **Dynamic Skill Loading**: Load skills at runtime without service restart
+- **Skill Composition**: Chain multiple skills together for complex workflows
+- **Auto-Installation**: Automatically install Python/npm dependencies when importing skills
+- **E2E Testing**: Comprehensive security and performance tests for package workflows
+- **Performance Benchmarks**: Package installation < 5 seconds, skill loading < 1 second
+- **Audit Verification**: 100% coverage of all package and skill operations
+
+**Plans**: 7 plans (estimated)
+- [ ] 60-01-PLAN.md — Skill Marketplace Backend (discovery, search, ratings, downloads)
+- [ ] 60-02-PLAN.md — Dynamic Skill Loading System (runtime skill loading, hot-reload)
+- [ ] 60-03-PLAN.md — Skill Composition Engine (workflow chaining, data passing)
+- [ ] 60-04-PLAN.md — Auto-Installation Workflow (dependency resolution, batch installation)
+- [ ] 60-05-PLAN.md — E2E Security Testing (real-world package threat scenarios)
+- [ ] 60-06-PLAN.md — Performance Benchmarking (installation timing, load testing, optimization)
+- [ ] 60-07-PLAN.md — Documentation & Troubleshooting (marketplace guide, composition patterns, performance tuning)
+
+**Wave Structure**:
+- Wave 1 (Parallel): Plan 01 (Marketplace Backend), Plan 02 (Dynamic Loading)
+- Wave 2 (Parallel): Plan 03 (Composition Engine), Plan 04 (Auto-Installation)
+- Wave 3 (Parallel): Plan 05 (E2E Security), Plan 06 (Performance)
+- Wave 4: Plan 07 (Documentation)
+
+**Estimated**: 12-15 days for all 7 plans
+
+---
+
+**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60 new features
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
 
 ---
