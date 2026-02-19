@@ -10,8 +10,15 @@ Extended for Python package support (Phase 35):
 - Validates package format using packaging.requirements.Requirement
 - Returns packages list in parsed skill metadata
 
+Extended for npm package support (Phase 36):
+- Extracts node_packages from SKILL.md frontmatter
+- Parses package_manager field (npm, yarn, pnpm)
+- Validates npm package format (name@version or name@range)
+- Distinguishes Python vs Node.js packages
+
 Reference: Phase 14 Plan 01 - Skill Adapter
 Reference: Phase 35 Plan 06 - Skill Integration
+Reference: Phase 36 Plan 06 - npm Skill Integration
 """
 
 import ast
@@ -43,7 +50,13 @@ class SkillParser:
     - Validates package format using Requirement()
     - Returns packages list in parsed skill metadata
 
-    Example SKILL.md with packages:
+    Extended for npm package support (Phase 36):
+    - Extracts node_packages from SKILL.md frontmatter
+    - Parses package_manager field (npm, yarn, pnpm)
+    - Validates npm package format (name@version or name@range)
+    - Returns node_packages and package_manager in parsed skill metadata
+
+    Example SKILL.md with Python packages:
     ```yaml
     ---
     name: "Data Processing Skill"
@@ -51,6 +64,18 @@ class SkillParser:
       - numpy==1.21.0
       - pandas>=1.3.0
       - requests
+    ---
+    ```
+
+    Example SKILL.md with npm packages:
+    ```yaml
+    ---
+    name: "Web Scraper Skill"
+    node_packages:
+      - lodash@4.17.21
+      - express@^4.18.0
+      - axios
+    package_manager: npm
     ---
     ```
     """
@@ -100,6 +125,14 @@ class SkillParser:
             packages = self._extract_packages(metadata, file_path)
             metadata['packages'] = packages
 
+            # Extract node_packages from frontmatter (Phase 36)
+            node_packages = self._extract_node_packages(metadata, file_path)
+            metadata['node_packages'] = node_packages
+
+            # Extract package_manager (Phase 36)
+            package_manager = self._extract_package_manager(metadata, file_path)
+            metadata['package_manager'] = package_manager
+
             # Auto-fix missing required fields
             metadata = self._auto_fix_metadata(metadata, body, file_path)
 
@@ -117,11 +150,11 @@ class SkillParser:
         except FileNotFoundError:
             logger.warning(f"File not found: {file_path}")
             # Return minimal metadata to allow import to continue
-            return {"name": "Unnamed Skill", "description": "", "skill_type": "prompt_only", "packages": []}, ""
+            return {"name": "Unnamed Skill", "description": "", "skill_type": "prompt_only", "packages": [], "node_packages": [], "package_manager": "npm"}, ""
         except Exception as e:
             logger.warning(f"Failed to parse {file_path}: {e}")
             # Return minimal metadata to allow import to continue
-            return {"name": "Unnamed Skill", "description": "", "skill_type": "prompt_only", "packages": []}, ""
+            return {"name": "Unnamed Skill", "description": "", "skill_type": "prompt_only", "packages": [], "node_packages": [], "package_manager": "npm"}, ""
 
     def _auto_fix_metadata(
         self,
@@ -200,6 +233,103 @@ class SkillParser:
         )
 
         return valid_packages
+
+    def _extract_node_packages(self, metadata: Dict[str, Any], file_path: str) -> List[str]:
+        """
+        Extract npm packages from SKILL.md frontmatter.
+
+        Validates npm package format (name@version or name@range).
+        Invalid package formats are filtered out with error logging.
+
+        Args:
+            metadata: Parsed YAML frontmatter
+            file_path: File path for logging
+
+        Returns:
+            List of valid npm package specifiers (e.g., ["lodash@4.17.21", "express@^4.18.0"])
+        """
+        # Extract node_packages from frontmatter
+        node_packages = metadata.get('node_packages', [])
+
+        # Normalize node_packages (ensure list)
+        if not isinstance(node_packages, list):
+            logger.warning(
+                f"node_packages field must be a list in {file_path}, got {type(node_packages).__name__}"
+            )
+            node_packages = []
+
+        # Validate npm package format
+        valid_node_packages = []
+        for pkg in node_packages:
+            if self._validate_npm_package_format(pkg):
+                valid_node_packages.append(pkg)
+            else:
+                logger.error(
+                    f"Invalid npm package specifier '{pkg}' in {file_path}. "
+                    f"Expected format: name@version or name@range (e.g., lodash@4.17.21, express@^4.18.0)"
+                )
+
+        logger.debug(
+            f"Extracted {len(valid_node_packages)}/{len(node_packages)} valid npm packages from {file_path}"
+        )
+
+        return valid_node_packages
+
+    def _validate_npm_package_format(self, package: str) -> bool:
+        """
+        Validate npm package format.
+
+        Args:
+            package: Package specifier (e.g., "lodash@4.17.21", "express@^4.18.0", "@scope/name@1.0.0")
+
+        Returns:
+            True if format is valid, False otherwise
+        """
+        if not package or not isinstance(package, str):
+            return False
+
+        # Trim whitespace
+        package = package.strip()
+
+        # Empty package
+        if not package:
+            return False
+
+        # Check for scoped packages (@scope/name or @scope/name@version)
+        if package.startswith('@'):
+            # Scoped package must have at least @scope/name
+            if '@' not in package[1:]:  # Check after the initial @
+                return False
+            return True
+
+        # Check for regular packages (name or name@version or name@range)
+        # Allow alphanumeric, hyphens, underscores, @ for version, and special semver chars
+        valid_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.@^~*+<>|")
+        return all(c in valid_chars for c in package)
+
+    def _extract_package_manager(self, metadata: Dict[str, Any], file_path: str) -> str:
+        """
+        Extract package_manager field from SKILL.md frontmatter.
+
+        Args:
+            metadata: Parsed YAML frontmatter
+            file_path: File path for logging
+
+        Returns:
+            Package manager string ("npm", "yarn", or "pnpm", defaults to "npm")
+        """
+        package_manager = metadata.get('package_manager', 'npm')
+
+        # Validate package manager
+        valid_managers = ['npm', 'yarn', 'pnpm']
+        if package_manager not in valid_managers:
+            logger.warning(
+                f"Invalid package_manager '{package_manager}' in {file_path}. "
+                f"Valid options: {valid_managers}. Defaulting to 'npm'."
+            )
+            return 'npm'
+
+        return package_manager
 
     def _detect_skill_type(self, metadata: Dict[str, Any], body: str) -> str:
         """
