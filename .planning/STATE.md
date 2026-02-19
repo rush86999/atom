@@ -10,9 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 35-36 of 37 (Package Support - Python & npm)
-Plan: Phase 35 complete, Phase 36 ready to plan
-Status: Phase 35 COMPLETE - Python Package Support (7/7 plans, 117 tests, production-ready)
-Last activity: 2026-02-19 — Phase 35-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 75K+ bytes, 161+ sections) for Python Package Support. PYTHON_PACKAGES.md (19K bytes, 52 sections) - user guide with quick start, version formats, governance rules, security features, API usage, troubleshooting, best practices, and examples. PACKAGE_GOVERNANCE.md (15K bytes, 37 sections) - maturity-based access matrix, approval workflow, banning procedures, cache performance, API reference, audit trail. PACKAGE_SECURITY.md (21K bytes, 34 sections) - threat model (dependency confusion, typosquatting, transitive dependencies, container escape, resource exhaustion, data exfiltration), security constraints, vulnerability scanning, static code analysis, security testing, incident response. PYTHON_PACKAGES_DEPLOYMENT.md (20K bytes, 38 sections) - pre-deployment checklist, post-deployment verification, rollback procedures, production readiness, monitoring. Updated .env.example with SAFETY_API_KEY and cache configuration. Updated COMMUNITY_SKILLS.md with package dependency syntax examples. Updated CLAUDE.md with Python Package Support section and recent changes. 1 atomic commit (8211af2a), 7 files created/modified, 7 minutes duration. Phase 35 complete - all 7 plans executed, production-ready with comprehensive documentation.
+Plan: Phase 36-02 complete
+Status: Phase 36-02 COMPLETE - npm Dependency & Script Scanners (2/7 plans, 33 tests, production-ready)
+Last activity: 2026-02-19 — Phase 36-02 COMPLETE: npm Dependency & Script Scanners - Implemented NpmDependencyScanner with npm/yarn/pnpm audit integration and optional Snyk support for comprehensive vulnerability scanning. Created NpmScriptAnalyzer detecting 10 malicious postinstall patterns (fetch, axios, child_process, eval, process.env, fs, atob/btoa) and 3 suspicious package combinations (trufflehog+axios, dotenv+axios, node-fetch+fs) to prevent Shai-Hulud/Sha1-Hulud credential theft attacks. 33 comprehensive tests (15 scanner + 18 analyzer, 100% pass rate) covering npm audit JSON parsing, Snyk integration, timeout handling, malicious pattern detection, npm registry API integration, and scoped package parsing. 4 atomic commits (d994a3d4, 4880a292, 5ff9740f, cdcd9db6), 4 files created, 18 minutes duration. Timeout handling returns safe=True (scanning failure != security issue). Snyk integration optional - scanner works with npm audit alone.
+
+Previous: 2026-02-19 — Phase 35-07 COMPLETE: Documentation - Created comprehensive documentation suite (4 files, 75K+ bytes, 161+ sections) for Python Package Support. PYTHON_PACKAGES.md (19K bytes, 52 sections) - user guide with quick start, version formats, governance rules, security features, API usage, troubleshooting, best practices, and examples. PACKAGE_GOVERNANCE.md (15K bytes, 37 sections) - maturity-based access matrix, approval workflow, banning procedures, cache performance, API reference, audit trail. PACKAGE_SECURITY.md (21K bytes, 34 sections) - threat model (dependency confusion, typosquatting, transitive dependencies, container escape, resource exhaustion, data exfiltration), security constraints, vulnerability scanning, static code analysis, security testing, incident response. PYTHON_PACKAGES_DEPLOYMENT.md (20K bytes, 38 sections) - pre-deployment checklist, post-deployment verification, rollback procedures, production readiness, monitoring. Updated .env.example with SAFETY_API_KEY and cache configuration. Updated COMMUNITY_SKILLS.md with package dependency syntax examples. Updated CLAUDE.md with Python Package Support section and recent changes. 1 atomic commit (8211af2a), 7 files created/modified, 7 minutes duration. Phase 35 complete - all 7 plans executed, production-ready with comprehensive documentation.
 
 Previous: 2026-02-19 — Phase 35-05 COMPLETE: Security Testing - Created comprehensive security test suite (34 tests, 100% pass rate) validating defense-in-depth protections for Python package execution. Test file (893 lines) with malicious fixtures (504 lines) covering container escape prevention (privileged mode, Docker socket, host mounts), resource exhaustion protection (memory, CPU, timeout), network isolation, filesystem isolation, malicious pattern detection (subprocess, eval, base64, pickle), vulnerability scanning, and governance blocking. 3 atomic commits (7d9134db, 67bb3957, 7e58b217), 5 files created/modified, 7 minutes duration. Updated CODE_QUALITY_STANDARDS.md, COMMUNITY_SKILLS.md, and CLAUDE.md with security testing patterns and documentation.
 
@@ -26,7 +28,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 35% (v2.0: 11/31 plans) - Phase 35 complete
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 35% (v2.0: 12/31 plans) - Phase 36-02 complete
 
 ## Upcoming: Phase 36 - npm Package Support
 
@@ -72,6 +74,7 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 35 P05 | 420 | 2 tasks | 5 files |
 | Phase 35 P06 | 15 | 4 tasks | 4 files |
 | Phase 35 P07 | 463 | 4 tasks | 7 files |
+| Phase 36-npm-package-support P02 | 18 | 5 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -134,8 +137,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-19 16:03
-Stopped at: Phase 35-02 complete - Package Dependency Scanner implemented
+Last session: 2026-02-19 17:43
+Stopped at: Phase 36-02 complete - npm Dependency & Script Scanners implemented
 Resume file: None
 
 ---
