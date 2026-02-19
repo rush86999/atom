@@ -860,6 +860,7 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 3. **Review Security Scans**: Check scan results before activation
 4. **Monitor Executions**: Review execution logs regularly
 5. **Contribute Skills**: Create and share your own skills
+6. **✨ Explore Advanced Features**: Skill marketplace, composition, and dynamic loading (Phase 60)
 
 ---
 
@@ -870,7 +871,12 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 - [Episodic Memory →](EPISODIC_MEMORY_IMPLEMENTATION.md) - Skill executions create EpisodeSegments for learning
 - [Agent Graduation →](AGENT_GRADUATION_GUIDE.md) - Community skills count toward graduation readiness
 - [API Documentation →](../backend/docs/API_DOCUMENTATION.md)
+- **✨ Phase 60: Advanced Skill Execution**
+  - [Advanced Skill Execution →](ADVANCED_SKILL_EXECUTION.md) - Marketplace, composition, auto-installation overview
+  - [Skill Marketplace Guide →](SKILL_MARKETPLACE_GUIDE.md) - Discovery, search, ratings, installation
+  - [Skill Composition Patterns →](SKILL_COMPOSITION_PATTERNS.md) - Workflow design with DAG patterns
+  - [Performance Tuning →](PERFORMANCE_TUNING.md) - Optimization and monitoring guide
 
 ---
 
-**Last Updated**: February 18, 2026
+**Last Updated**: February 19, 2026 (Phase 60 documentation added)
