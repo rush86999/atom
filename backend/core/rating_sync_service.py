@@ -336,7 +336,17 @@ class RatingSyncService:
                 "reason": "Invalid remote timestamp format"
             }
 
-        # Compare timestamps
+        # Compare timestamps (handle timezone-aware vs naive)
+        # Ensure both are timezone-aware for comparison
+        if local_time.tzinfo is None:
+            # Local is naive, assume UTC
+            from datetime import timezone as dt_timezone
+            local_time = local_time.replace(tzinfo=dt_timezone.utc)
+        if remote_time.tzinfo is None:
+            # Remote is naive, assume UTC
+            from datetime import timezone as dt_timezone
+            remote_time = remote_time.replace(tzinfo=dt_timezone.utc)
+
         if remote_time > local_time:
             # Remote is newer - update local
             local_rating.rating = remote_rating.get("rating", local_rating.rating)
