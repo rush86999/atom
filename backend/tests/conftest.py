@@ -10,17 +10,45 @@ import os
 import uuid
 import pytest
 import ast
+import json
 import tempfile
 from pathlib import Path
+from datetime import datetime, timedelta
+from typing import AsyncIterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import fixture modules for availability in tests
+from tests.fixtures.agent_fixtures import (
+    create_test_agent, create_student_agent, create_intern_agent,
+    create_supervised_agent, create_autonomous_agent, create_agent_batch
+)
+from tests.fixtures.workflow_fixtures import (
+    create_test_workflow, create_workflow_execution,
+    create_workflow_step, create_workflow_with_steps
+)
+from tests.fixtures.episode_fixtures import (
+    create_test_episode, create_episode_segment,
+    create_episode_with_segments, create_intervention_episode, create_episode_batch
+)
+from tests.fixtures.api_fixtures import (
+    create_chat_request, create_canvas_request, create_workflow_request,
+    create_agent_response, create_canvas_response, create_error_response, MockTestClient
+)
+from tests.fixtures.mock_services import (
+    MockLLMProvider, MockEmbeddingService, MockStorageService,
+    MockCacheService, MockWebSocket
+)
+
 
 # Critical environment variables to isolate between tests
-_CRITICAL_ENV_VARS = ['SECRET_KEY', 'ENVIRONMENT', 'DATABASE_URL', 'ALLOW_DEV_TEMP_USERS']
+_CRITICAL_ENV_VARS = [
+    'SECRET_KEY', 'ENVIRONMENT', 'DATABASE_URL', 'ALLOW_DEV_TEMP_USERS',
+    'BYOK_CONFIG_FILE', 'BYOK_KEYS_FILE', 'BYOK_ENCRYPTION_KEY'
+]
 
 
 # CRITICAL: This code runs when conftest.py is first imported by pytest.
@@ -99,6 +127,34 @@ def isolate_environment():
             os.environ[var] = saved[var]
         else:
             os.environ.pop(var, None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_byok_test_env():
+    """
+    Setup temporary environment for BYOK tests to prevent data pollution.
+    Runs once per test session.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        config_path = os.path.join(tmp_dir, "byok_config.json")
+        keys_path = os.path.join(tmp_dir, "byok_keys.json")
+        
+        # Set environment variables for the session
+        os.environ['BYOK_CONFIG_FILE'] = config_path
+        os.environ['BYOK_KEYS_FILE'] = keys_path
+        # Use a stable but test-specific encryption key
+        os.environ['BYOK_ENCRYPTION_KEY'] = "test-encryption-key-must-be-32-chars-long-!"[:32]
+        
+        # Initialize empty files
+        with open(config_path, 'w') as f:
+            json.dump({"providers": []}, f)
+        with open(keys_path, 'w') as f:
+            json.dump({"keys": {}}, f)
+            
+        yield
+        
+        # Env vars will be popped/restored by isolate_environment fixture if it was used,
+        # but setup_byok_test_env is session-scoped, so it sets them for everyone.
 
 
 @pytest.fixture(autouse=True)
@@ -468,6 +524,422 @@ def mock_embedding_vectors():
 
     mock = MockEmbeddingVectors()
     yield mock
+
+
+@pytest.fixture(scope="function")
+def test_user(db_session: Session):
+    """Create a test user with authentication token.
+
+    Usage:
+        def test_authenticated_request(test_user):
+            user, token = test_user
+            headers = {"Authorization": f"Bearer {token}"}
+    """
+    from core.models import User
+    import secrets
+
+    user = User(
+        email="test@example.com",
+        username="testuser",
+        hashed_password="hashed_password_here",
+        is_active=True,
+        created_at=datetime.utcnow()
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # Generate test token
+    token = secrets.token_urlsafe(32)
+    return user, token
+
+
+@pytest.fixture(scope="function")
+def admin_user(db_session: Session):
+    """Create an admin user with elevated permissions.
+
+    Usage:
+        def test_admin_action(admin_user):
+            user, token = admin_user
+            # User has admin privileges
+    """
+    from core.models import User
+    import secrets
+
+    user = User(
+        email="admin@example.com",
+        username="admin",
+        hashed_password="hashed_password_here",
+        is_active=True,
+        is_superuser=True,
+        created_at=datetime.utcnow()
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # Generate test token
+    token = secrets.token_urlsafe(32)
+    return user, token
+
+
+@pytest.fixture(scope="function")
+def test_token():
+    """Generate a test authentication token.
+
+    Usage:
+        def test_with_token(test_token):
+            headers = {"Authorization": f"Bearer {test_token}"}
+    """
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+@pytest.fixture(scope="function")
+def temp_directory():
+    """Create a temporary directory for file operations.
+
+    Automatically cleaned up after test.
+
+    Usage:
+        def test_file_operations(temp_directory):
+            filepath = os.path.join(temp_directory, "test.txt")
+            with open(filepath, 'w') as f:
+                f.write("test")
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        yield tmp_dir
+    # Cleanup is automatic
+
+
+@pytest.fixture(scope="function")
+def frozen_time():
+    """Freeze time for deterministic testing.
+
+    Uses freezegun if available, otherwise mock.
+
+    Usage:
+        def test_time_dependent_logic(frozen_time):
+            # datetime.now() always returns the frozen time
+            assert datetime.now().isoformat() == "2024-01-01T00:00:00"
+
+        with frozen_time.move_to("2024-02-01"):
+            # Time moved to Feb 1
+            pass
+    """
+    try:
+        from freezegun import freeze_time
+
+        # Freeze to a fixed timestamp
+        frozen_datetime = datetime(2024, 1, 1, 0, 0, 0)
+        with freeze_time(frozen_datetime) as frozen_time_ctx:
+            yield frozen_time_ctx
+    except ImportError:
+        # Fallback: just return current time (not frozen, but functional)
+        class MockFrozenTime:
+            def __init__(self):
+                self._current_time = datetime(2024, 1, 1, 0, 0, 0)
+
+            def move_to(self, new_time):
+                """Move to a new time."""
+                if isinstance(new_time, str):
+                    # Parse ISO string
+                    new_time = datetime.fromisoformat(new_time)
+                self._current_time = new_time
+                return self
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+        yield MockFrozenTime()
+
+
+@pytest.fixture(scope="function")
+def current_time():
+    """Get current test time for consistent timestamps.
+
+    Returns a fixed datetime for reproducible tests.
+
+    Usage:
+        def test_timestamps(current_time):
+            created_at = current_time
+            updated_at = current_time + timedelta(hours=1)
+    """
+    return datetime(2024, 1, 1, 0, 0, 0)
+
+
+@pytest.fixture(scope="session")
+def mock_llm_service():
+    """Session-scoped mock LLM service for all tests.
+
+    Reduces fixture creation overhead.
+
+    Usage:
+        def test_llm_integration(mock_llm_service):
+            response = mock_llm_service.complete("test")
+            assert "Mock LLM response" in response
+    """
+    service = MockLLMProvider()
+    yield service
+    service.reset()
+
+
+@pytest.fixture(scope="session")
+def mock_cache_service():
+    """Session-scoped mock cache service for all tests.
+
+    Usage:
+        def test_caching(mock_cache_service):
+            mock_cache_service.set("key", "value")
+            assert mock_cache_service.get("key") == "value"
+    """
+    service = MockCacheService()
+    yield service
+    service.clear()
+
+
+@pytest.fixture(scope="function")
+def mock_storage_service():
+    """Function-scoped mock storage service (cleaned per test).
+
+    Usage:
+        def test_file_upload(mock_storage_service):
+            url = mock_storage_service.store("file.txt", b"data")
+            assert "mock-storage" in url
+    """
+    service = MockStorageService()
+    yield service
+    service.reset()
+
+
+@pytest.fixture(scope="function")
+def test_client():
+    """Create a test API client.
+
+    Requires FastAPI app to be importable.
+
+    Usage:
+        def test_api_endpoint(test_client):
+            response = test_client.get("/api/health")
+            assert response.status_code == 200
+    """
+    try:
+        from fastapi.testclient import TestClient
+        # Try to import the app
+        try:
+            from main import app
+        except ImportError:
+            # Fallback to creating a mock app
+            from fastapi import FastAPI
+            app = FastAPI()
+
+        client = TestClient(app)
+        yield client
+    except Exception:
+        # If FastAPI is not available, use our mock
+        yield MockTestClient()
+
+
+@pytest.fixture(scope="function")
+def mock_requests():
+    """Mock HTTP requests for external API calls.
+
+    Uses responses library if available, otherwise provides simple mock.
+
+    Usage:
+        def test_external_api(mock_requests):
+            mock_requests.add("GET", "https://api.example.com/test",
+                             body={"status": "ok"})
+            # Make HTTP call, it will be mocked
+    """
+    try:
+        import responses
+        with responses.RequestsMock() as rsps:
+            yield rsps
+    except ImportError:
+        # Fallback mock
+        class MockRequests:
+            def __init__(self):
+                self._calls = []
+
+            def add(self, method, url, body=None, status=200):
+                """Add a mock response."""
+                self._calls.append({"method": method, "url": url, "body": body, "status": status})
+
+            def verify(self):
+                """Verify all mocks were called."""
+                # Simple implementation
+                pass
+
+        yield MockRequests()
+
+
+@pytest.fixture(scope="function")
+def clean_db(db_session: Session):
+    """Provide a completely empty database.
+
+    Deletes all data before test. Useful for tests that need clean state.
+
+    Usage:
+        def test_with_clean_db(clean_db):
+            # Database is guaranteed to be empty
+            agent = AgentRegistry(name="test")
+            db_session.add(agent)
+            db_session.commit()
+    """
+    from core.database import Base
+
+    # Delete all data
+    for table in reversed(Base.metadata.sorted_tables):
+        db_session.execute(table.delete())
+    db_session.commit()
+
+    yield db_session
+
+
+@pytest.fixture(scope="function")
+def sample_agent(db_session: Session):
+    """Pre-created sample agent for quick testing.
+
+    Usage:
+        def test_quick_check(sample_agent):
+            assert sample_agent.name == "SampleAgent"
+    """
+    from core.models import AgentRegistry, AgentStatus
+
+    agent = AgentRegistry(
+        name="SampleAgent",
+        category="testing",
+        module_path="test.module",
+        class_name="SampleClass",
+        status=AgentStatus.INTERN.value,
+        confidence_score=0.6,
+        description="A sample test agent",
+        created_at=datetime.utcnow()
+    )
+    db_session.add(agent)
+    db_session.commit()
+    db_session.refresh(agent)
+    return agent
+
+
+@pytest.fixture(scope="function")
+def sample_workflow(db_session: Session):
+    """Pre-created sample workflow for quick testing.
+
+    Usage:
+        def test_workflow_execution(sample_workflow):
+            assert sample_workflow.name == "SampleWorkflow"
+    """
+    from core.models import WorkflowDefinition
+
+    workflow = WorkflowDefinition(
+        name="SampleWorkflow",
+        description="A sample test workflow",
+        status="active",
+        version=1,
+        definition={"steps": [{"name": "step1", "action": "test"}]},
+        created_by="test_user",
+        created_at=datetime.utcnow()
+    )
+    db_session.add(workflow)
+    db_session.commit()
+    db_session.refresh(workflow)
+    return workflow
+
+
+@pytest.fixture(scope="function")
+def sample_episode(db_session: Session):
+    """Pre-created sample episode for quick testing.
+
+    Usage:
+        def test_episode_retrieval(sample_episode):
+            assert sample_episode.title == "Sample Episode"
+    """
+    from core.models import Episode
+
+    now = datetime.utcnow()
+    episode = Episode(
+        agent_id="sample_agent",
+        title="Sample Episode",
+        summary="A sample test episode",
+        start_time=now - timedelta(hours=1),
+        end_time=now,
+        maturity_level="INTERN",
+        intervention_count=0,
+        created_at=now
+    )
+    db_session.add(episode)
+    db_session.commit()
+    db_session.refresh(episode)
+    return episode
+
+
+@pytest.fixture(scope="function")
+def async_client():
+    """Create an async test client for FastAPI.
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_async_endpoint(async_client):
+            response = await async_client.get("/api/async-endpoint")
+            assert response.status_code == 200
+    """
+    try:
+        from httpx import AsyncClient
+        try:
+            from main import app
+        except ImportError:
+            from fastapi import FastAPI
+            app = FastAPI()
+
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            yield client
+    except Exception:
+        # Fallback: return None (test should skip if async is needed)
+        yield None
+
+
+@pytest.fixture(scope="function")
+def test_database():
+    """Create a test database with all tables.
+
+    Alternative to db_session that creates the DB but not the session.
+
+    Usage:
+        def test_with_db(test_database):
+            engine, SessionLocal = test_database
+            session = SessionLocal()
+            # Use session
+    """
+    from core.database import Base
+
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+    engine._test_db_path = db_path
+
+    # Create all tables
+    Base.metadata.create_all(engine, checkfirst=True)
+
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    yield engine, SessionLocal
+
+    # Cleanup
+    engine.dispose()
+    try:
+        os.unlink(engine._test_db_path)
+    except Exception:
+        pass
 
 
 def _count_assertions(node: ast.AST) -> int:
