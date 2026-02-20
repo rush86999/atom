@@ -1,11 +1,11 @@
 /**
  * MessageList Component
  *
- * Displays a list of chat messages with governance badges, timestamps,
- * and episode context chips. Supports both user and agent messages.
+ * Enhanced message list with message grouping, timestamps, actions,
+ * scroll management, and read receipts.
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useTheme, Avatar, Badge } from 'react-native-paper';
-import { formatDistanceToNow } from 'date-fns';
+import { useTheme, Avatar, Badge, Menu, FAB } from 'react-native-paper';
+import { Icon } from 'react-native-paper';
+import { formatDistanceToNow, differenceInDays, isToday, isYesterday } from 'date-fns';
 import StreamingText from './StreamingText';
 
 // Types
@@ -47,6 +48,10 @@ interface MessageListProps {
   loading?: boolean;
   ListHeaderComponent?: React.ComponentType;
   ListFooterComponent?: React.ComponentType;
+  onMessageCopy?: (messageId: string) => void;
+  onMessageFeedback?: (messageId: string, rating: number) => void;
+  onMessageRegenerate?: (messageId: string) => void;
+  onMessageDelete?: (messageId: string) => void;
 }
 
 /**
@@ -58,10 +63,23 @@ interface MessageItemProps {
   message: Message;
   onEpisodePress?: (episodeId: string) => void;
   onAgentPress?: (agentId: string) => void;
+  onMessageCopy?: (messageId: string) => void;
+  onMessageFeedback?: (messageId: string, rating: number) => void;
+  onMessageRegenerate?: (messageId: string) => void;
+  onMessageDelete?: (messageId: string) => void;
 }
 
-const MessageItem: React.FC<MessageItemProps> = ({ message, onEpisodePress, onAgentPress }) => {
+const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  onEpisodePress,
+  onAgentPress,
+  onMessageCopy,
+  onMessageFeedback,
+  onMessageRegenerate,
+  onMessageDelete,
+}) => {
   const theme = useTheme();
+  const [menuVisible, setMenuVisible] = useState(false);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
@@ -208,48 +226,132 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, onEpisodePress, onAg
   };
 
   return (
-    <View
-      style={[
-        styles.messageContainer,
-        isUser ? styles.userMessage : styles.agentMessage,
-      ]}
+    <TouchableOpacity
+      onLongPress={() => setMenuVisible(true)}
+      delayLongPress={500}
     >
-      {!isUser && renderAvatar()}
-
       <View
         style={[
-          styles.messageBubble,
-          { backgroundColor: isUser ? theme.colors.primaryContainer : theme.colors.surfaceVariant },
+          styles.messageContainer,
+          isUser ? styles.userMessage : styles.agentMessage,
         ]}
       >
-        {!isUser && message.agent_name && (
-          <Text style={[styles.agentName, { color: theme.colors.onSurfaceVariant }]}>
-            {message.agent_name}
-          </Text>
-        )}
+        {!isUser && renderAvatar()}
 
-        {message.isStreaming ? (
-          <StreamingText
-            text={message.content}
-            isStreaming={true}
-            textStyle={[styles.messageText, { color: theme.colors.onSurface }]}
-          />
-        ) : (
-          <Text style={[styles.messageText, { color: theme.colors.onSurface }]}>
-            {message.content}
-          </Text>
-        )}
+        <View
+          style={[
+            styles.messageBubble,
+            { backgroundColor: isUser ? theme.colors.primaryContainer : theme.colors.surfaceVariant },
+          ]}
+        >
+          {/* Show agent name for first message in group */}
+          {!isUser && message.agent_name && (message as any).showTimestamp !== false && (
+            <Text style={[styles.agentName, { color: theme.colors.onSurfaceVariant }]}>
+              {message.agent_name}
+            </Text>
+          )}
 
-        {renderEpisodeContext()}
-        {renderGovernanceBadges()}
+          {message.isStreaming ? (
+            <StreamingText
+              text={message.content}
+              isStreaming={true}
+              textStyle={[styles.messageText, { color: theme.colors.onSurface }]}
+            />
+          ) : (
+            <Text style={[styles.messageText, { color: theme.colors.onSurface }]}>
+              {message.content}
+            </Text>
+          )}
 
-        <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
-          {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
-        </Text>
+          {renderEpisodeContext()}
+          {renderGovernanceBadges()}
+
+          {/* Show timestamp for first message in group or last message */}
+          {(message as any).showTimestamp !== false && (
+            <View style={styles.timestampRow}>
+              <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
+                {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
+              </Text>
+
+              {/* Read receipts for user messages */}
+              {isUser && (message as any).read && (
+                <Icon
+                  source="check-all"
+                  size={14}
+                  color={theme.colors.primary}
+                  style={styles.readReceipt}
+                />
+              )}
+            </View>
+          )}
+
+          {/* Action menu */}
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <TouchableOpacity style={{ position: 'absolute', top: 0, right: 0, padding: 4 }}>
+                <Icon
+                  source="dots-vertical"
+                  size={16}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+            }
+          >
+            <Menu.Item
+              leadingIcon="content-copy"
+              onPress={() => {
+                onMessageCopy?.(message.id);
+                setMenuVisible(false);
+              }}
+              title="Copy"
+            />
+            {!isUser && onMessageFeedback && (
+              <>
+                <Menu.Item
+                  leadingIcon="thumb-up"
+                  onPress={() => {
+                    onMessageFeedback(message.id, 1);
+                    setMenuVisible(false);
+                  }}
+                  title="Thumbs Up"
+                />
+                <Menu.Item
+                  leadingIcon="thumb-down"
+                  onPress={() => {
+                    onMessageFeedback(message.id, -1);
+                    setMenuVisible(false);
+                  }}
+                  title="Thumbs Down"
+                />
+                <Menu.Item
+                  leadingIcon="refresh"
+                  onPress={() => {
+                    onMessageRegenerate?.(message.id);
+                    setMenuVisible(false);
+                  }}
+                  title="Regenerate"
+                />
+              </>
+            )}
+            {isUser && onMessageDelete && (
+              <Menu.Item
+                leadingIcon="delete"
+                onPress={() => {
+                  onMessageDelete(message.id);
+                  setMenuVisible(false);
+                }}
+                title="Delete"
+                titleStyle={{ color: theme.colors.error }}
+              />
+            )}
+          </Menu>
+        </View>
+
+        {isUser && renderAvatar()}
       </View>
-
-      {isUser && renderAvatar()}
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -265,29 +367,141 @@ export const MessageList: React.FC<MessageListProps> = ({
   loading = false,
   ListHeaderComponent,
   ListFooterComponent,
+  onMessageCopy,
+  onMessageFeedback,
+  onMessageRegenerate,
+  onMessageDelete,
 }) => {
+  const theme = useTheme();
   const flatListRef = useRef<FlatList>(null);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   /**
-   * Auto-scroll to bottom when new messages arrive
+   * Auto-scroll to bottom when new messages arrive (only if already at bottom)
    */
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && isScrolledToBottom) {
       flatListRef.current?.scrollToEnd({ animated: true });
     }
+  }, [messages, isScrolledToBottom]);
+
+  /**
+   * Handle scroll events
+   */
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 20;
+    const isAtBottom =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+
+    setIsScrolledToBottom(isAtBottom);
+    setShowScrollButton(!isAtBottom);
+  };
+
+  /**
+   * Scroll to bottom
+   */
+  const scrollToBottom = () => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+    setShowScrollButton(false);
+  };
+
+  /**
+   * Render date separator
+   */
+  const renderDateSeparator = (date: Date) => {
+    let dateText = '';
+    if (isToday(date)) {
+      dateText = 'Today';
+    } else if (isYesterday(date)) {
+      dateText = 'Yesterday';
+    } else {
+      dateText = new Date(date).toLocaleDateString();
+    }
+
+    return (
+      <View style={styles.dateSeparator}>
+        <Text style={[styles.dateSeparatorText, { color: theme.colors.onSurfaceVariant }]}>
+          {dateText}
+        </Text>
+      </View>
+    );
+  };
+
+  /**
+   * Group messages by sender and date
+   */
+  const [groupedMessages, setGroupedMessages] = useState<Array<{
+    id: string;
+    type: 'date' | 'message';
+    data?: Message;
+    date?: Date;
+  }>>([]);
+
+  useEffect(() => {
+    const groups: Array<{
+      id: string;
+      type: 'date' | 'message';
+      data?: Message;
+      date?: Date;
+    }> = [];
+
+    let lastDate: Date | null = null;
+    let lastSender: string | null = null;
+
+    messages.forEach((message) => {
+      const messageDate = new Date(message.timestamp);
+      const messageDateOnly = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+
+      // Add date separator if date changed
+      if (!lastDate || differenceInDays(messageDateOnly, lastDate) !== 0) {
+        groups.push({
+          id: `date_${messageDateOnly.getTime()}`,
+          type: 'date',
+          date: messageDateOnly,
+        });
+        lastDate = messageDateOnly;
+        lastSender = null;
+      }
+
+      // Add message (show timestamp only for first message in group)
+      const showTimestamp = message.agent_id !== lastSender;
+      lastSender = message.agent_id || 'user';
+
+      groups.push({
+        id: message.id,
+        type: 'message',
+        data: { ...message, showTimestamp },
+      });
+    });
+
+    setGroupedMessages(groups);
   }, [messages]);
 
   /**
-   * Render each message
+   * Render each item
    */
-  const renderItem = ({ item }: { item: Message }) => {
-    return (
-      <MessageItem
-        message={item}
-        onEpisodePress={onEpisodePress}
-        onAgentPress={onAgentPress}
-      />
-    );
+  const renderItem = ({ item }: { item: { type: string; data?: Message; date?: Date } }) => {
+    if (item.type === 'date' && item.date) {
+      return renderDateSeparator(item.date);
+    }
+
+    if (item.type === 'message' && item.data) {
+      return (
+        <MessageItem
+          message={item.data}
+          onEpisodePress={onEpisodePress}
+          onAgentPress={onAgentPress}
+          onMessageCopy={onMessageCopy}
+          onMessageFeedback={onMessageFeedback}
+          onMessageRegenerate={onMessageRegenerate}
+          onMessageDelete={onMessageDelete}
+        />
+      );
+    }
+
+    return null;
   };
 
   /**
@@ -305,23 +519,53 @@ export const MessageList: React.FC<MessageListProps> = ({
     return ListFooterComponent ? <ListFooterComponent /> : null;
   };
 
+  /**
+   * Render empty state
+   */
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Icon source="message-text-outline" size={64} color={theme.colors.onSurfaceDisabled} />
+      <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
+        No messages yet
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Start a conversation to see messages here
+      </Text>
+    </View>
+  );
+
   return (
-    <FlatList
-      ref={flatListRef}
-      data={messages}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.listContent}
-      ListHeaderComponent={ListHeaderComponent}
-      ListFooterComponent={renderFooter}
-      scrollEventThrottle={16}
-    />
+    <>
+      <FlatList
+        ref={flatListRef}
+        data={groupedMessages}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={ListHeaderComponent}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmptyState}
+        onScroll={handleScroll}
+        scrollEventThrottle={250}
+      />
+
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <FAB
+          icon="arrow-down"
+          style={[styles.scrollButton, { backgroundColor: theme.colors.primary }]}
+          onPress={scrollToBottom}
+          size="small"
+        />
+      )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   listContent: {
     padding: 16,
+    flexGrow: 1,
   },
   messageContainer: {
     flexDirection: 'row',
@@ -350,9 +594,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   timestamp: {
     fontSize: 11,
-    marginTop: 4,
+  },
+  readReceipt: {
+    marginLeft: 4,
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -391,6 +642,36 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     fontStyle: 'italic',
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  scrollButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
   },
 });
 
