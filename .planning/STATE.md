@@ -46,7 +46,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [████░░░░░] 62% (v2.0: 29/47 plans) - Phase 62: 11/11 complete (100% execution, partial achievement)
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [████░░░░░] 61% (v2.0: 29/48 plans) - Phase 62: 11/11 complete, Phase 63-64 added
 
 ## Upcoming: Phase 63 - Legacy Documentation Updates
 
@@ -59,21 +59,28 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 - Update legacy docs or mark as deprecated with links to current docs
 - Verify Python and npm package support clearly documented in COMMUNITY_SKILLS.md
 
-**Example Use Case**: Users reading COMMUNITY_SKILLS.md should see both Python (Phase 35) and npm (Phase 36) packages are supported, not just legacy Python-only docs
+**Example Use Case**: Users reading COMMUNITY_SKILLS.md should see both Python (Phase 35) and npm (Phase 36) packages are supported
 
 **Estimated**: 1-2 days for comprehensive audit and updates
 
-**Key Features**:
-- npm/yarn/pnpm package manager support (2M+ packages in npm ecosystem)
-- Security scanning with npm audit, Snyk, yarn audit
-- Per-skill node_modules isolation (Docker-based)
-- Governance integration (reuse from Phase 35)
-- package.json dependency management
-- SKILL.md `node_packages` field support
+---
 
-**Rationale**: OpenClaw supports npm packages for Node.js skills (npm install -g openclaw@latest). Atom should match this capability for feature parity.
+## Phase 64: E2E Test Suite (NEW)
 
-**Dependencies**: Phase 35 (Python Package Support infrastructure)
+**Goal**: Create comprehensive end-to-end tests with real services (databases, LLM providers, APIs) in Docker environment
+
+**Key Tasks**:
+- MCP Tool E2E (CRM, tasks, tickets, knowledge, canvas, finance, WhatsApp, Shopify)
+- Database Integration E2E (PostgreSQL, SQLite, migrations, connection pooling)
+- LLM Provider E2E (OpenAI, Anthropic, DeepSeek with real API calls)
+- External Service Integration E2E (Tavily, Slack, WhatsApp, Shopify)
+- Critical User Workflows (agent execution, skill loading, package installation)
+
+**Rationale**: Phase 62-07 revealed unit tests with heavy mocking only achieved 26.56% coverage. E2E tests with real dependencies validate actual behavior and provide production confidence.
+
+**Estimated**: 2-3 days (5 plans)
+
+**Target**: 60-70% coverage for tool implementations (vs 26.56% with mocks)
 
 ## Performance Metrics
 

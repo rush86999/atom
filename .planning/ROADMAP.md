@@ -1512,6 +1512,8 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
   - Plan 01-07: Governance extension, npm scanner, Docker installer, REST API, security tests, skill integration, docs (170 tests, 8/8 criteria verified)
 - [ ] **Phase 63: Legacy Documentation Updates (Git History Analysis)** - Update all legacy documentation to reflect current capabilities by analyzing git history and identifying feature gaps ⏳ NOT STARTED
   - Plans: 4-5 plans (git history audit, documentation inventory, gap analysis, updates, verification)
+- [ ] **Phase 64: E2E Test Suite for Tool Implementations** - Create comprehensive end-to-end tests with real services (databases, LLM providers, APIs) in Docker environment ⏳ NOT STARTED
+  - Plans: 5 plans (MCP tools, database integration, LLM providers, external services, critical workflows)
 
 ### Phase 35: Python Package Support for Agent Skills
 
@@ -1782,7 +1784,154 @@ git log --oneline --since="2025-02-19" -- "backend/core/package_*.py"
 
 ---
 
-**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60-63 new features
+### Phase 64: E2E Test Suite for Tool Implementations
+
+**Goal**: Create comprehensive end-to-end test suite for MCP tool implementations and critical service integrations using real dependencies (databases, LLM providers, external APIs) in isolated Docker environment
+
+**Depends on**: Phase 62 (unit/integration test infrastructure), Phase 60 (advanced skill execution), Phase 61 (Atom SaaS marketplace sync)
+
+**Success Criteria** (what must be TRUE):
+  1. E2E test suite validates all MCP tool implementations with real services (CRM, tasks, tickets, knowledge, canvas, finance, WhatsApp, Shopify)
+  2. Real database integration tested (PostgreSQL and SQLite with production-like schemas)
+  3. Real LLM provider integration validated (OpenAI, Anthropic, DeepSeek with live API calls)
+  4. External service integration tested (Tavily search, APIs, webhooks)
+  5. Docker-based test environment for reproducible E2E tests
+  6. Critical user workflows smoke tested (agent execution, skill loading, package installation)
+  7. E2E tests achieve 60-70% coverage for tool implementations (vs 26.56% with mocks)
+  8. Test execution time <10 minutes (optimized with parallelization and caching)
+
+**Rationale**: Phase 62-07 revealed that unit tests with heavy mocking only achieved 26.56% coverage for MCP service because tool implementations require real external services. E2E tests with real dependencies validate actual behavior, catch integration issues, and provide confidence that tools work in production. Docker ensures tests are reproducible and isolated from developer's local environment.
+
+**Key Features**:
+- **Real Service Integration**: Test MCP tools with actual databases, LLM providers, APIs (not mocks)
+- **Docker Test Environment**: docker-compose-e2e.yml with PostgreSQL, Redis, mock external services
+- **Critical Workflows**: Smoke tests for agent execution → skill loading → package installation → tool invocation
+- **Data Seeding**: Test data factories for realistic test scenarios (CRM contacts, tasks, tickets, knowledge bases)
+- **Provider Rotation**: Test BYOK handler with real OpenAI, Anthropic, DeepSeek API calls
+- **Webhook Testing**: Real webhook endpoints for Slack, WhatsApp, Shopify integrations
+- **Performance Validation**: Ensure E2E tests complete in <10 minutes with parallelization
+- **Failure Recovery**: Test retry logic, fallback mechanisms, error handling
+
+**Test Scenarios**:
+1. **MCP Tool E2E** (Plan 01):
+   - CRM tool: Create contact → Update contact → Search contact → Delete contact (real PostgreSQL)
+   - Tasks tool: Create task → Assign task → Complete task → Query tasks (real database)
+   - Tickets tool: Create ticket → Add comment → Change status → Resolve ticket
+   - Knowledge tool: Upload document → Search content → Retrieve context → Delete document
+   - Canvas tool: Create canvas → Add component → Update state → Export canvas
+   - Finance tool: Query balance → Create transaction → Generate report (real accounting integration)
+   - WhatsApp tool: Send message → Receive webhook → Update conversation
+   - Shopify tool: List products → Create order → Update inventory → Webhook handling
+
+2. **Database Integration** (Plan 02):
+   - PostgreSQL E2E: Run migrations → Seed data → Execute queries → Test transactions → Rollback scenarios
+   - SQLite E2E: Personal Edition database operations → Cross-platform compatibility
+   - Connection pooling: Test concurrent connections → Connection reuse → Pool exhaustion
+   - Database migrations: Alembic up/down → Schema validation → Data integrity
+   - Backup/restore: Dump database → Restore from backup → Verify data consistency
+
+3. **LLM Provider E2E** (Plan 03):
+   - OpenAI: Real GPT-4 API calls → Streaming responses → Token counting → Cost tracking
+   - Anthropic: Real Claude API calls → Structured outputs → Error handling
+   - DeepSeek: Real API integration → Cost comparison → Performance benchmarking
+   - BYOK handler: Provider fallback → Cost optimization → Budget enforcement
+   - Context window management: Long contexts → Truncation → Chunking strategies
+
+4. **External Service Integration** (Plan 04):
+   - Tavily search: Real search API → Result parsing → Error handling → Rate limiting
+   - Slack API: Real webhook → Message posting → Event handling → Signature verification
+   - WhatsApp Business API: Real message sending → Delivery receipts → Media handling
+   - Shopify API: Real product queries → Webhook processing → Rate limiting
+   - Atom SaaS sync: Real marketplace sync → Skill updates → Rating sync
+
+5. **Critical User Workflows** (Plan 05):
+   - Agent execution flow: Create agent → Execute task → Monitor progress → Retrieve result
+   - Skill loading: Import skill → Scan security → Install packages → Execute skill
+   - Package installation: Python packages → npm packages → Dependency resolution → Governance approval
+   - Multi-provider LLM: OpenAI failure → Anthropic fallback → DeepSeek retry
+   - Canvas presentation: Create canvas → LLM generates content → User interacts → Feedback loop
+
+**Plans**: 5 plans (2 waves)
+- Plan 01: MCP Tool E2E Tests (Docker environment, real databases, 8+ tools)
+- Plan 02: Database Integration E2E (PostgreSQL, SQLite, migrations, connection pooling)
+- Plan 03: LLM Provider E2E (OpenAI, Anthropic, DeepSeek, real API calls)
+- Plan 04: External Service Integration E2E (Tavily, Slack, WhatsApp, Shopify)
+- Plan 05: Critical Workflow E2E (Agent execution, skill loading, package installation)
+
+**Estimated Duration**: 2-3 days (5 plans, ~4-6 hours each)
+
+**Docker Test Environment**:
+```yaml
+# docker-compose-e2e.yml
+services:
+  postgres-e2e:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: atom_e2e_test
+      POSTGRES_USER: e2e_tester
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5433:5432"
+
+  redis-e2e:
+    image: valkey/valkey:8
+    ports:
+      - "6380:6379"
+
+  mock-tavily:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1080:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/tavily_expectations.json
+
+  atom-backend:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://e2e_tester:test_password@postgres-e2e:5432/atom_e2e_test
+      REDIS_URL: redis://redis-e2e:6379
+      OPENAI_API_KEY: ${E2E_OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${E2E_ANTHROPIC_API_KEY}
+      TAVILY_API_KEY: ${E2E_TAVILY_API_KEY}
+    depends_on:
+      - postgres-e2e
+      - redis-e2e
+```
+
+**Test Execution**:
+```bash
+# Start E2E test environment
+docker-compose -f docker-compose-e2e.yml up -d
+
+# Run E2E tests
+pytest tests/e2e/ --e2e --cov=integrations/mcp_service --cov-report=html
+
+# Tear down
+docker-compose -f docker-compose-e2e.yml down -v
+```
+
+**Success Metrics**:
+- 60-70% coverage for MCP tool implementations (vs 26.56% with mocks)
+- <10 minute execution time
+- All critical workflows validated end-to-end
+- Real API integration verified (OpenAI, Anthropic, DeepSeek, Tavily)
+- Docker environment reproducible across developers
+
+**Files Created**:
+- `tests/e2e/test_mcp_tools_e2e.py` (800+ lines)
+- `tests/e2e/test_database_integration_e2e.py` (600+ lines)
+- `tests/e2e/test_llm_providers_e2e.py` (500+ lines)
+- `tests/e2e/test_external_services_e2e.py` (600+ lines)
+- `tests/e2e/test_critical_workflows_e2e.py` (500+ lines)
+- `docker-compose-e2e.yml` (100+ lines)
+- `tests/e2e/conftest.py` (Docker fixtures, test data seeding)
+- `tests/e2e/fixtures/test_data_factory.py` (CRM, tasks, tickets, knowledge base data)
+
+**Status**: ⏳ NOT STARTED (January 20, 2026)
+
+---
+
+**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60-64 new features
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
 
 ---
