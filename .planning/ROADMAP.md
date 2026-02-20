@@ -1529,17 +1529,73 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
     7. Mobile and menu bar apps deployment-ready (TestFlight, Google Play, Homebrew)
   - Plans: 8 plans (mobile screens, WebSocket integration, canvas mobile, menu bar app, deployment, testing)
   - Estimated: 2-3 weeks
-- [ ] **Phase 66: Personal Edition Enhancements - Media, Creative & Smart Home** - Extend Personal Edition with media control, creative tools, and smart home integration for OpenClaw parity
+
+### Phase 66: Personal Edition Enhancements - Media, Creative & Smart Home
+
+**Goal**: Personal Edition provides parity with OpenClaw's personal assistant capabilities (Spotify, Sonos, Philips Hue, Home Assistant, media editing)
+
+**Depends on**: Phase 65 (mobile app completion)
+
+**Success Criteria** (what must be TRUE):
+1. Media integration (Spotify, Sonos, Apple Music playback control)
+2. Smart home control (Philips Hue, Elgato, Home Assistant, HomeKit)
+3. Creative tools (image generation, video editing, audio processing)
+4. Personal productivity integrations (Notion, Obsidian, calendar sync)
+5. Local-only execution (no cloud dependencies for privacy)
+6. Simple setup for personal users (Docker Compose, single command)
+
+**Media Integration:**
+- **Spotify Control**: Playback, pause, skip, volume, playlist management, search
+- **Sonos Integration**: Multi-room audio, grouping, playback sync
+- **Apple Music**: Library access, playlist management, Siri control
+- **Privacy**: OAuth tokens stored locally, no cloud relays
+
+**Smart Home Control:**
+- **Philips Hue**: Light control (brightness, color, scenes, schedules)
+- **Elgato**: Key lights, stream deck, control center integration
+- **Home Assistant**: Local API integration, entity control, automation triggers
+- **HomeKit**: Siri shortcuts, scene control, accessory management
+
+**Creative Tools:**
+- **Image Generation**: DALL-E, Stable Diffusion integration (local first)
+- **Video Editing**: FFmpeg bindings for trimming, compression, format conversion
+- **Audio Processing**: Waveform visualization, volume normalization, format conversion
+
+**Personal Productivity:**
+- **Notion Integration**: Database access, page editing, task management
+- **Obsidian Sync**: Vault management, note creation, link resolution
+- **Calendar Sync**: Google Calendar, Apple Calendar, event creation, reminders
+
+**Local-First Privacy:**
+- All credentials stored in encrypted SQLite database
+- No cloud relays or external dependencies
+- OAuth flow redirects to localhost
+- Docker Compose with isolated network
+
+**Plans**: 7 plans
+
+**Estimated**: 1-2 weeks
+
+**Plan List:**
+- [ ] 66-01-PLAN.md — Media Control Integration (Spotify, Sonos with OAuth)
+- [ ] 66-02-PLAN.md — Smart Home Integration (Hue API v2, Home Assistant)
+- [ ] 66-03-PLAN.md — Creative Tools (FFmpeg video/audio processing)
+- [ ] 66-04-PLAN.md — Local-First Security (token encryption, audit logging)
+- [ ] 66-05-PLAN.md — Productivity Integration (Notion API with OAuth)
+- [ ] 66-06-PLAN.md — Personal Edition Docker Compose (enhanced setup)
+- [ ] 66-07-PLAN.md — Testing & Documentation (test suite, user guide)
+
+---
   - Goal: Personal Edition provides parity with OpenClaw's personal assistant capabilities (Spotify, Sonos, Philips Hue, Home Assistant, media editing)
   - Depends on: Phase 65 (mobile app completion)
   - Success Criteria:
-    1. Media integration (Spotify, Sonos, Apple Music playback control)
-    2. Smart home control (Philips Hue, Elgato, Home Assistant, HomeKit)
-    3. Creative tools (image generation, video editing, audio processing)
-    4. Personal productivity integrations (Notion, Obsidian, calendar sync)
+    1. Media integration (Spotify, Sonos playback control)
+    2. Smart home control (Philips Hue, Home Assistant)
+    3. Creative tools (FFmpeg video/audio editing)
+    4. Personal productivity (Notion API)
     5. Local-only execution (no cloud dependencies for privacy)
-    6. Simple setup for personal users (Docker Compose, single command)
-  - Plans: 6-8 plans (media services, smart home hubs, creative tools, productivity integrations, personal setup guide, documentation)
+    6. Simple setup (Docker Compose, single command)
+  - Plans: 7 plans (media, smarthome, creative, security, productivity, docker, testing)
   - Estimated: 1-2 weeks
 - [ ] **Phase 67: CI/CD Pipeline Fixes** - Fix failing CI pipeline to achieve passing status across all workflows
   - Goal: All GitHub Actions workflows passing with 100% success rate for test, build, and deploy jobs
