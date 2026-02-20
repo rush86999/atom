@@ -1,0 +1,139 @@
+# Prometheus Alerting Rules for Atom Deployment Monitoring
+# Source: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+#
+# Load these rules in Prometheus:
+#   promtool check rules .prometheus/alerts.yml
+#   prometheus --config.file=prometheus.yml --web.enable-lifecycle
+#   curl -X POST http://prometheus:9090/-/reload
+
+groups:
+  - name: deployment_alerts
+    interval: 30s
+    rules:
+      # High deployment error rate
+      - alert: DeploymentHighErrorRate
+        expr: |
+          (
+            sum(rate(deployment_total{status="failed"}[5m])) /
+            sum(rate(deployment_total[5m]))
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          environment: "{{ $labels.environment }}"
+        annotations:
+          summary: "High deployment error rate detected"
+          description: "Deployment error rate is {{ $value | humanizePercentage }} (threshold: 10%) in environment {{ $labels.environment }}"
+
+      # Deployment rollback detected
+      - alert: DeploymentRollbackDetected
+        expr: increase(deployment_rollback_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          environment: "{{ $labels.environment }}"
+        annotations:
+          summary: "Deployment rollback detected"
+          description: "Deployment rollback triggered in {{ $labels.environment }}. Reason: {{ $labels.reason }}"
+
+      # Smoke test failures
+      - alert: SmokeTestFailing
+        expr: |
+          (
+            sum(rate(smoke_test_total{result="failed"}[5m])) /
+            sum(rate(smoke_test_total[5m]))
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          environment: "{{ $labels.environment }}"
+        annotations:
+          summary: "Smoke test failure rate high"
+          description: "Smoke test failure rate is {{ $value | humanizePercentage }} (threshold: 5%) in {{ $labels.environment }}"
+
+      # High application error rate (staging)
+      - alert: HighErrorRateStaging
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5..", environment="staging"}[5m])) /
+            sum(rate(http_requests_total{environment="staging"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+          environment: staging
+        annotations:
+          summary: "High error rate in staging"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%) in staging"
+
+      # High application error rate (production)
+      - alert: HighErrorRateProduction
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5..", environment="production"}[5m])) /
+            sum(rate(http_requests_total{environment="production"}[5m]))
+          ) > 0.001
+        for: 1m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "Critical error rate in production"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 0.1%) in production"
+
+      # High latency P95 (staging)
+      - alert: HighLatencyStaging
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{environment="staging"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          environment: staging
+        annotations:
+          summary: "High latency in staging"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 500ms) in staging"
+
+      # High latency P95 (production)
+      - alert: HighLatencyProduction
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{environment="production"}[5m])) by (le)
+          ) > 0.2
+        for: 3m
+        labels:
+          severity: critical
+          environment: production
+        annotations:
+          summary: "Critical latency in production"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 200ms) in production"
+
+      # Deployment frequency anomaly (too many deployments)
+      - alert: DeploymentFrequencyAnomaly
+        expr: |
+          (
+            sum(rate(deployment_total[1h])) by (environment)
+          ) > 2
+        for: 5m
+        labels:
+          severity: info
+          environment: "{{ $labels.environment }}"
+        annotations:
+          summary: "High deployment frequency detected"
+          description: "Deployment frequency is {{ $value | humanize }} deployments/hour in {{ $labels.environment }} (threshold: 2/hour)"
+
+      # Prometheus query failures (monitoring check failing)
+      - alert: PrometheusQueryFailing
+        expr: |
+          (
+            sum(rate(prometheus_query_total{result="failed"}[5m])) /
+            sum(rate(prometheus_query_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          workflow: "{{ $labels.workflow }}"
+        annotations:
+          summary: "Prometheus query failure rate high"
+          description: "Prometheus query failure rate is {{ $value | humanizePercentage }} in workflow {{ $labels.workflow }} (threshold: 10%)"
