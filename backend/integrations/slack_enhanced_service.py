@@ -426,10 +426,15 @@ class SlackEnhancedService:
                 self.db.commit()
             else:
                 # Save to cache (development)
+                # Convert datetime objects to ISO format strings for JSON serialization
+                workspace_dict = asdict(workspace)
+                workspace_dict['created_at'] = workspace.created_at.isoformat() if workspace.created_at else None
+                workspace_dict['last_sync'] = workspace.last_sync.isoformat() if workspace.last_sync else None
+
                 self.redis_client.setex(
                     f"workspace:{workspace.team_id}",
                     3600,  # 1 hour
-                    json.dumps(asdict(workspace))
+                    json.dumps(workspace_dict)
                 )
             
             # Update connection status
@@ -568,15 +573,17 @@ class SlackEnhancedService:
         
         except SlackApiError as e:
             self.connection_status[workspace_id] = SlackConnectionStatus.ERROR
-            if e.response['error'] == 'ratelimited':
+            # Check if rate limited (response structure varies)
+            error_data = e.response.get('data', {}) if hasattr(e, 'response') and isinstance(e.response, dict) else {}
+            if error_data.get('error') == 'ratelimited':
                 self.connection_status[workspace_id] = SlackConnectionStatus.RATE_LIMITED
                 return {
                     'connected': False,
                     'error': 'Rate limited',
-                    'retry_after': e.response.headers.get('Retry-After', 60),
+                    'retry_after': e.response.headers.get('Retry-After', 60) if hasattr(e.response, 'headers') else 60,
                     'status': 'rate_limited'
                 }
-            
+
             return {
                 'connected': False,
                 'error': str(e),
@@ -864,6 +871,7 @@ class SlackEnhancedService:
                     channel_id=channel_id,
                     workspace_id=workspace_id,
                     timestamp=file_data['timestamp'],
+                    created=datetime.fromtimestamp(float(file_data['timestamp'])),  # Convert timestamp to datetime
                     is_public=file_data.get('is_public', False),
                     is_editable=file_data.get('is_editable', True),
                     external_type=file_data.get('external_type'),
