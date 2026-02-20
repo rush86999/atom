@@ -1598,21 +1598,48 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
     6. Simple setup (Docker Compose, single command)
   - Plans: 7 plans (media, smarthome, creative, security, productivity, docker, testing)
   - Estimated: 1-2 weeks
-- [ ] **Phase 67: CI/CD Pipeline Fixes** - Fix failing CI pipeline to achieve passing status across all workflows
-  - Goal: All GitHub Actions workflows passing with 100% success rate for test, build, and deploy jobs
-  - Depends on: Phase 62 (test infrastructure), Phase 64 (E2E tests)
-  - Success Criteria:
-    1. Test workflow passes consistently (>95% pass rate, <5min execution)
-    2. Build workflow completes successfully (Docker images, no cache failures)
-    3. Deploy workflow validates health checks before deployment
-    4. Type checking (MyPy) passes without errors
-    5. Linting (Ruff, ESLint) passes with zero violations
-    6. Security scans pass (pip-audit, npm audit, Snyk)
-    7. All workflows idempotent (re-runnable without manual cleanup)
-  - Plans: 4-5 plans (test fixes, build fixes, deployment validation, security scanning, workflow optimization)
-  - Estimated: 3-5 days
+**Status**: ✅ COMPLETE (2026-02-20) - All 7 plans executed, 49/49 must_haves verified (100%)
 
-### Phase 68: BYOK Cognitive Tier System & Cost-Optimized Routing
+---
+
+### Phase 67: CI/CD Pipeline Fixes
+
+**Goal**: All GitHub Actions workflows passing with 100% success rate for test, build, and deploy jobs
+
+**Depends on**: Phase 62 (test infrastructure), Phase 64 (E2E tests)
+
+**Success Criteria** (what must be TRUE):
+1. Test workflow passes consistently (>95% pass rate, <5min execution)
+2. Build workflow completes successfully (Docker images, no cache failures)
+3. Deploy workflow validates health checks before deployment
+4. Type checking (MyPy) passes without errors
+5. Linting (Ruff, ESLint) passes with zero violations
+6. Security scans pass (pip-audit, npm audit, Snyk)
+7. All workflows idempotent (re-runnable without manual cleanup)
+
+**Current CI/CD Issues**:
+- Test workflow: Flaky tests causing inconsistent failures
+- Build workflow: Docker layer caching issues causing rebuilds
+- Deploy workflow: Missing health check validation before deployment
+- Type checking: MyPy errors blocking builds
+- Linting: Ruff/ESLint violations in new code
+- Security: pip-audit/npm audit finding vulnerabilities
+- Idempotency: State cleanup issues causing re-run failures
+
+**Fix Strategy**:
+1. **Test Stabilization** - Identify and fix flaky tests (pytest-xdist, async cleanup, database state)
+2. **Build Optimization** - Fix Docker layer caching, optimize cache keys, fix multi-stage builds
+3. **Deployment Safety** - Add health check verification, rollback on failure
+4. **Type Safety** - Fix MyPy errors incrementally, add type hints where missing
+5. **Code Quality** - Fix Ruff/ESLint violations, establish pre-commit hooks
+6. **Security Hardening** - Address vulnerabilities, update dependencies
+7. **Workflow Idempotency** - Add cleanup jobs, ensure stateless operations
+
+**Plans**: 4-5 plans (test fixes, build fixes, deployment validation, security scanning, workflow optimization)
+
+**Estimated**: 3-5 days
+
+- [ ] **Phase 68: BYOK Cognitive Tier System & Cost-Optimized Routing**
 
 **Goal**: Optimize LLM costs through intelligent 5-tier cognitive classification, cache-aware routing, and automatic escalation while maintaining quality
 
@@ -1727,39 +1754,16 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
     - Quality vs Cost trade-off visualizer
     - Recommended tier based on use case questionnaire
   - Plans: 8-10 plans (cognitive tier system, cache-aware routing, MiniMax integration, escalation logic, onboarding UI, cost optimization, monitoring, testing, documentation)
-  - Estimated: 2-3 weeks
+  - Estimated: **Plans**: 5 plans (test fixes, build optimization, deployment safety, monitoring enhancement, documentation)
 
-### Phase 35: Python Package Support for Agent Skills
+**Plan List**:
+- [ ] 67-01-PLAN.md - Test Suite Stabilization (remove test ignores, enforce 98% pass rate)
+- [ ] 67-02-PLAN.md - Docker Build Optimization (layer caching, 75% time reduction)
+- [ ] 67-03-PLAN.md - Deployment Safety Hardening (auth smoke tests, auto-rollback)
+- [ ] 67-04-PLAN.md - Monitoring & Alerting Enhancement (Prometheus validation, canary deployment)
+- [ ] 67-05-PLAN.md - CI/CD Pipeline Documentation (runbook, deployment guide, troubleshooting)
 
-**Goal**: Enable agents to safely execute Python packages with comprehensive sandboxing, security scanning, and governance integration
-
-**Depends on**: Phase 33 (Community Skills Docker sandbox infrastructure)
-
-**Success Criteria** (what must be TRUE):
-  1. Agents can execute Python packages in isolated Docker containers with resource limits
-  2. Package permission system enforces maturity-based restrictions (STUDENT blocked, INTERN+ approved)
-  3. Dependency scanner detects version conflicts and security advisories before execution
-  4. Whitelist/blocklist system integrates with governance cache for <1ms lookups
-  5. Package version isolation prevents conflicts between skills
-  6. Security tests validate escape scenarios (container breakout, resource exhaustion)
-  7. Audit trail tracks all package installations and executions
-
-**Plans**: 7 plans
-- [x] 35-python-package-support-01-PLAN.md — Package governance service with maturity-based permissions
-- [x] 35-python-package-support-02-PLAN.md — Dependency scanner with pip-audit and Safety integration
-- [x] 35-python-package-support-03-PLAN.md — Docker-based package installation with per-skill images
-- [x] 35-python-package-support-04-PLAN.md — REST API integration for package management
-- [x] 35-python-package-support-05-PLAN.md — Security testing for container escape scenarios
-- [x] 35-python-package-support-06-PLAN.md — Skill integration with package support
-- [x] 35-python-package-support-07-PLAN.md — Documentation and deployment
-
-**Wave Structure**:
-- Wave 1 (Parallel): Plan 01 (Package Governance), Plan 02 (Dependency Scanner)
-- Wave 2 (Parallel): Plan 03 (Package Installer), Plan 04 (REST API)
-- Wave 3 (Parallel): Plan 05 (Security Testing), Plan 06 (Skill Integration)
-- Wave 4: Plan 07 (Documentation)
-
-**Estimated**: 10-14 days for all 7 plans
+**Estimated**: 3-5 days for all 7 plans
 **Status**: ✅ COMPLETE (all 7 plans executed, 117 tests passing, production-ready)
 
 ---
