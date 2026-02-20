@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineSyncService } from './offlineSyncService';
 import { ApiResponse } from '../types/common';
 import { ChatMessage, ChatSession, EpisodeContext } from '../types/agent';
+import { OfflineActionType } from './offlineSyncService';
 
 const STORAGE_KEYS = {
   PENDING_MESSAGES: 'chat_pending_messages',
@@ -145,13 +146,18 @@ class ChatService {
       this.pendingMessages.set(pendingMessage.id, pendingMessage);
       await this.savePendingMessages();
 
-      // Add to offline sync queue
-      await offlineSyncService.queueOperation({
-        id: pendingMessage.id,
-        type: 'send_message',
-        data: pendingMessage,
-        priority: 'high',
-      });
+      // Add to offline sync queue (get user and device IDs from storage or use defaults)
+      const userId = await AsyncStorage.getItem('atom_user_id') || 'unknown_user';
+      const deviceId = await AsyncStorage.getItem('atom_device_id') || 'mobile_device';
+
+      await offlineSyncService.queueAction(
+        'agent_message' as OfflineActionType,
+        pendingMessage,
+        7, // High priority
+        userId,
+        deviceId,
+        'last_write_wins'
+      );
 
       return {
         success: false,
