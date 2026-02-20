@@ -319,37 +319,88 @@ jobs:
         env:
           SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
           SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          STAGING_URL: ${{ secrets.STAGING_URL }}
         run: |
+          set -euo pipefail
+
+          echo "=== Waiting for rollout to complete ==="
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=5m
+
+          echo "=== Waiting for pods to be ready ==="
+          kubectl wait --for=condition=ready pod -l app=atom --timeout=300s
+
+          echo "=== Running smoke tests ==="
+
+          # Get staging URL from secret or environment variable
+          STAGING_URL="${STAGING_URL:-https://staging.atom.example.com}"
+          echo "Testing against: $STAGING_URL"
+
           # Login and get auth token
-          TOKEN=$(curl -s -X POST https://staging.atom.example.com/api/auth/login \
+          echo "Step 1: Authenticate smoke test user..."
+          LOGIN_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/auth/login" \
             -H "Content-Type: application/json" \
-            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}" \
-            | jq -r '.access_token')
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}")
+
+          TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
 
           if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
             echo "❌ Smoke test authentication failed"
+            echo "Response: $LOGIN_RESPONSE"
             exit 1
           fi
-
           echo "✅ Authentication successful"
 
           # Test health endpoints (no auth required)
-          curl -f https://staging.atom.example.com/health/live || exit 1
-          curl -f https://staging.atom.example.com/health/ready || exit 1
+          echo "Step 2: Test health endpoints..."
+          curl -f "$STAGING_URL/health/live" || { echo "❌ Liveness probe failed"; exit 1; }
+          echo "✅ Liveness probe passed"
+
+          curl -f "$STAGING_URL/health/ready" || { echo "❌ Readiness probe failed"; exit 1; }
+          echo "✅ Readiness probe passed"
+
+          # Test database connectivity
+          curl -f "$STAGING_URL/health/db" || { echo "❌ Database connectivity check failed"; exit 1; }
+          echo "✅ Database connectivity verified"
 
           # Test authenticated agent execution endpoint
-          curl -f -X POST https://staging.atom.example.com/api/agents/execute \
+          echo "Step 3: Test authenticated API endpoints..."
+          AGENT_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/agents/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"agent_id": "test", "query": "hello"}' || exit 1
+            -d '{"agent_id": "test", "query": "hello"}')
+
+          # Check for errors in response
+          if echo "$AGENT_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Agent execution failed: $AGENT_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Agent execution endpoint passed"
 
           # Test authenticated canvas presentation endpoint
-          curl -f -X POST https://staging.atom.example.com/api/canvas/present \
+          CANVAS_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/canvas/present" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"canvas_type": "generic", "content": "smoke test"}' || exit 1
+            -d '{"canvas_type": "generic", "content": "smoke test"}')
 
-          echo "✅ All smoke tests passed"
+          if echo "$CANVAS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Canvas presentation failed: $CANVAS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Canvas presentation endpoint passed"
+
+          # Test skills endpoint (coverage for additional API routes)
+          echo "Step 4: Test skills endpoint..."
+          SKILLS_RESPONSE=$(curl -s -X GET "$STAGING_URL/api/skills" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if echo "$SKILLS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Skills endpoint failed: $SKILLS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Skills endpoint passed"
+
+          echo "=== ✅ All smoke tests passed ==="
 
       - name: Update Grafana dashboards
         if: success()
@@ -552,37 +603,88 @@ jobs:
         env:
           SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
           SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
+          set -euo pipefail
+
+          echo "=== Waiting for rollout to complete ==="
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=10m
+
+          echo "=== Waiting for pods to be ready ==="
+          kubectl wait --for=condition=ready pod -l app=atom --timeout=600s
+
+          echo "=== Running smoke tests ==="
+
+          # Get production URL from secret or environment variable
+          PRODUCTION_URL="${PRODUCTION_URL:-https://atom.example.com}"
+          echo "Testing against: $PRODUCTION_URL"
+
           # Login and get auth token
-          TOKEN=$(curl -s -X POST https://atom.example.com/api/auth/login \
+          echo "Step 1: Authenticate smoke test user..."
+          LOGIN_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/auth/login" \
             -H "Content-Type: application/json" \
-            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}" \
-            | jq -r '.access_token')
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}")
+
+          TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
 
           if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
             echo "❌ Smoke test authentication failed"
+            echo "Response: $LOGIN_RESPONSE"
             exit 1
           fi
-
           echo "✅ Authentication successful"
 
           # Test health endpoints (no auth required)
-          curl -f https://atom.example.com/health/live || exit 1
-          curl -f https://atom.example.com/health/ready || exit 1
+          echo "Step 2: Test health endpoints..."
+          curl -f "$PRODUCTION_URL/health/live" || { echo "❌ Liveness probe failed"; exit 1; }
+          echo "✅ Liveness probe passed"
+
+          curl -f "$PRODUCTION_URL/health/ready" || { echo "❌ Readiness probe failed"; exit 1; }
+          echo "✅ Readiness probe passed"
+
+          # Test database connectivity
+          curl -f "$PRODUCTION_URL/health/db" || { echo "❌ Database connectivity check failed"; exit 1; }
+          echo "✅ Database connectivity verified"
 
           # Test authenticated agent execution endpoint
-          curl -f -X POST https://atom.example.com/api/agents/execute \
+          echo "Step 3: Test authenticated API endpoints..."
+          AGENT_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/agents/execute" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"agent_id": "test", "query": "hello"}' || exit 1
+            -d '{"agent_id": "test", "query": "hello"}')
+
+          # Check for errors in response
+          if echo "$AGENT_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Agent execution failed: $AGENT_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Agent execution endpoint passed"
 
           # Test authenticated canvas presentation endpoint
-          curl -f -X POST https://atom.example.com/api/canvas/present \
+          CANVAS_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/canvas/present" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"canvas_type": "generic", "content": "smoke test"}' || exit 1
+            -d '{"canvas_type": "generic", "content": "smoke test"}')
 
-          echo "✅ All smoke tests passed"
+          if echo "$CANVAS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Canvas presentation failed: $CANVAS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Canvas presentation endpoint passed"
+
+          # Test skills endpoint (coverage for additional API routes)
+          echo "Step 4: Test skills endpoint..."
+          SKILLS_RESPONSE=$(curl -s -X GET "$PRODUCTION_URL/api/skills" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if echo "$SKILLS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Skills endpoint failed: $SKILLS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Skills endpoint passed"
+
+          echo "=== ✅ All smoke tests passed ==="
 
       - name: Progressive canary deployment
         if: success()
