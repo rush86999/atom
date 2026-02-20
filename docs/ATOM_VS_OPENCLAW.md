@@ -1,6 +1,6 @@
 # Atom vs OpenClaw: A Feature Comparison
 
-> **Last Updated**: February 6, 2026
+> **Last Updated**: February 20, 2026
 
 ---
 
@@ -97,9 +97,17 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 |---------|------|----------|
 | **Pre-Built Integrations** | ✅ 46+ business integrations | ✅ 50+ integrations (smart home, productivity, media) |
 | **Integration Focus** | Business: CRM (HubSpot, Salesforce), support (Zendesk), dev (GitHub) | Personal: Smart home (Philips Hue, Home Assistant), media (Spotify, Sonos), productivity (Notion, Obsidian) |
-| **Custom Skills** | ✅ Dynamic Skills (agents build tools on-the-fly) | ✅ AgentSkills (100+ community-built skills) |
+| **Community Skills** | ✅ 5,000+ OpenClaw/ClawHub skills with security scanning | ✅ AgentSkills (100+ community-built skills) |
+| **Python Packages** | ✅ NumPy, Pandas, 350K+ PyPI packages with vulnerability scanning | ❌ No Python package support |
+| **npm Packages** | ✅ Lodash, Express, 2M+ npm packages with governance | ✅ Native npm ecosystem |
+| **Skill Marketplace** | ✅ PostgreSQL-based with search, ratings, categories | ✅ ClawHub community registry |
+| **Dynamic Skill Loading** | ✅ importlib-based hot-reload with watchdog monitoring | ✅ Module loading |
+| **Skill Composition** | ✅ DAG workflows with parallel execution | ⚠️ Manual composition |
+| **Auto-Installation** | ✅ Python + npm with conflict detection and rollback | ⚠️ Manual installation |
 | **Deep Linking** | ✅ `atom://` protocol for external apps | ❌ No equivalent |
 | **Device Capabilities** | ✅ Camera, Screen Recording, Location, Notifications, Command Execution | ✅ Smart home control, browser automation |
+
+**Key Difference (Updated Feb 2026)**: Atom now supports both Python (350K+ PyPI packages) and npm (2M+ packages) with enterprise-grade security scanning, governance, and per-skill isolation. OpenClaw has native npm support but no Python package system.
 
 **Key Difference**: Atom targets business workflows (CRM, support, development). OpenClaw targets personal productivity (smart home, media, notes).
 
@@ -152,6 +160,8 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Audit Logging** | ✅ Structured, queryable, comprehensive | ⚠️ Basic logging available |
 | **Permission System** | ✅ 4-tier maturity, action complexity levels (1-4) | ⚠️ All-or-nothing access |
 | **Sandboxing** | ✅ Governance-based (e.g., STUDENT=read-only) | ⚠️ Optional, manual enable |
+| **Package Security** | ✅ Vulnerability scanning (pip-audit, Safety), container isolation, malicious pattern detection | ⚠️ Manual npm audit |
+| **Supply Chain Security** | ✅ Typosquatting detection, dependency confusion prevention, postinstall malware blocking | ⚠️ Standard npm security |
 | **SECRET_KEY Validation** | ✅ Auto-validation in production, temp key generation in dev | ❌ N/A |
 | **Webhook Verification** | ✅ HMAC-SHA256 (Slack), Bearer tokens (Teams), Pub/Sub (Gmail) | ⚠️ Basic webhook support |
 | **OAuth Validation** | ✅ User ID/email format validation, injection prevention | ⚠️ Standard OAuth |
@@ -177,17 +187,20 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 
 ---
 
-## Production Readiness (February 2026)
+## Production Readiness (February 20, 2026)
 
 ### Testing & Validation
 
 | Aspect | Atom | OpenClaw |
 |--------|------|----------|
-| **Test Suite** | ✅ 83 tests across 6 test files | ⚠️ Community tests |
-| **Pass Rate** | ✅ 95% (76 passing, 4 minor issues) | N/A |
-| **Test Coverage** | ✅ Security: 100%, Webhooks: 95%, OAuth: 100% | N/A |
-| **CI/CD** | ✅ Pre-commit hooks, pytest configuration | ⚠️ Manual testing |
+| **Test Suite** | ✅ 300+ tests (unit, integration, E2E) | ⚠️ Community tests |
+| **Pass Rate** | ✅ 99%+ (TQ-02 standard) | N/A |
+| **Test Coverage** | ✅ 17-27% overall (expanding to 80%), 60-70% for MCP service | N/A |
+| **E2E Testing** | ✅ Docker-based with real services (PostgreSQL, Redis) | ⚠️ Manual testing |
+| **Property-Based Testing** | ✅ Hypothesis framework for invariants | ❌ No property tests |
+| **CI/CD** | ✅ GitHub Actions (test, build, deploy-staging, deploy-production) | ⚠️ Manual testing |
 | **Production Checklist** | ✅ Comprehensive deployment checklist | ⚠️ Basic setup guide |
+| **Performance Targets** | ✅ <60min full suite, <30s per test | N/A |
 
 ### Security Hardening
 
@@ -293,4 +306,4 @@ Both are excellent choices depending on your use case. For business workflows re
 
 ---
 
-*This comparison is accurate as of February 6, 2026. Both projects are actively evolving.*
+*This comparison is accurate as of February 20, 2026. Both projects are actively evolving.*
