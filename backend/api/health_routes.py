@@ -427,3 +427,56 @@ async def sync_health_probe():
 
     finally:
         db_session.close()
+
+
+@router.get(
+    "/metrics/sync",
+    summary="Sync Metrics",
+    description=(
+        "Prometheus metrics for Atom SaaS sync operations. "
+        "Returns sync-specific metrics including duration, success rate, cache size, "
+        "WebSocket status, rating sync, and conflict resolution metrics. "
+        "Scraped by Prometheus server for monitoring and alerting."
+    ),
+    tags=["Health", "Monitoring", "Sync"],
+    responses={
+        200: {
+            "description": "Prometheus metrics in text format",
+            "content": {
+                "text/plain": {
+                    "example": "# HELP sync_duration_seconds Duration of sync operations\n# TYPE sync_duration_seconds histogram\nsync_duration_seconds_bucket{operation=\"skills\",status=\"success\",le=\"1.0\"} 45\nsync_duration_seconds_sum{operation=\"skills\",status=\"success\"} 123.45\n"
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-prometheus-scrape": True,
+        "x-content-type": "text/plain; version=0.0.4; charset=utf-8",
+        "x-subsystem": "sync"
+    }
+)
+async def sync_prometheus_metrics():
+    """
+    Sync-specific Prometheus metrics endpoint.
+
+    Returns metrics for:
+    - Sync operations (duration, success, errors)
+    - Cache size (skills, categories)
+    - WebSocket status (connection, reconnections, messages)
+    - Rating sync (duration, pending, failed uploads)
+    - Conflict resolution (detected, resolved, unresolved)
+
+    Returns:
+        Response with content-type: text/plain; version=0.0.4; charset=utf-8
+    """
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY
+    from fastapi.responses import Response
+
+    # Import sync metrics to register them
+    import monitoring.sync_metrics
+
+    # Generate metrics for all registered collectors
+    metrics = generate_latest(REGISTRY)
+
+    return Response(content=metrics, media_type=CONTENT_TYPE_LATEST)
