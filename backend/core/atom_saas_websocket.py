@@ -254,6 +254,11 @@ class AtomSaaSWebSocketClient:
             raw_message: JSON string from WebSocket
         """
         try:
+            # Check message size limit
+            if len(raw_message.encode('utf-8')) > self.MAX_MESSAGE_SIZE:
+                logger.warning(f"Message exceeds size limit: {len(raw_message)} bytes")
+                return
+
             # Rate limiting
             now = time.time()
             self._message_timestamps = [t for t in self._message_timestamps if now - t < 1.0]
@@ -268,11 +273,11 @@ class AtomSaaSWebSocketClient:
             message = json.loads(raw_message)
 
             # Validate message structure
-            if not isinstance(message, dict) or "type" not in message:
-                logger.warning(f"Invalid message structure: {raw_message[:100]}")
+            if not self._validate_message(message):
                 return
 
             message_type = message["type"]
+            data = message["data"]
 
             # Handle heartbeat messages
             if message_type == MessageType.PONG:
@@ -283,21 +288,8 @@ class AtomSaaSWebSocketClient:
                 await self.send_message({"type": MessageType.PONG})
                 return
 
-            # Validate message type
-            valid_types = [
-                MessageType.SKILL_UPDATE,
-                MessageType.CATEGORY_UPDATE,
-                MessageType.RATING_UPDATE,
-                MessageType.SKILL_DELETE
-            ]
-
-            if message_type not in valid_types:
-                logger.warning(f"Unknown message type: {message_type}")
-                return
-
-            # Validate data field
-            if "data" not in message:
-                logger.warning(f"Message missing 'data' field: {message_type}")
+            # Validate data fields for each message type
+            if not self._validate_message_data(message_type, data):
                 return
 
             # Update database state
@@ -305,16 +297,96 @@ class AtomSaaSWebSocketClient:
 
             # Call message handler
             if self._message_handler:
-                await self._message_handler(message_type, message["data"])
+                await self._message_handler(message_type, data)
 
                 # Update cache based on message type
-                await self._update_cache(message_type, message["data"])
+                await self._update_cache(message_type, data)
 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse message JSON: {e}")
 
         except Exception as e:
             logger.error(f"Error handling message: {e}")
+
+    def _validate_message(self, message: Any) -> bool:
+        """
+        Validate message structure.
+
+        Args:
+            message: Parsed message object
+
+        Returns:
+            True if message is valid
+        """
+        # Must be a dictionary
+        if not isinstance(message, dict):
+            logger.warning(f"Invalid message type: {type(message)}, expected dict")
+            return False
+
+        # Must have 'type' field
+        if "type" not in message:
+            logger.warning("Message missing 'type' field")
+            return False
+
+        # Must have 'data' field (except ping/pong)
+        if message["type"] not in [MessageType.PING, MessageType.PONG] and "data" not in message:
+            logger.warning(f"Message missing 'data' field: {message['type']}")
+            return False
+
+        return True
+
+    def _validate_message_data(self, message_type: str, data: Any) -> bool:
+        """
+        Validate data fields for specific message types.
+
+        Args:
+            message_type: Type of message
+            data: Message data payload
+
+        Returns:
+            True if data is valid
+        """
+        # Data must be a dictionary
+        if not isinstance(data, dict):
+            logger.warning(f"Invalid data type for {message_type}: {type(data)}, expected dict")
+            return False
+
+        # Validate required fields for each message type
+        if message_type == MessageType.SKILL_UPDATE:
+            required_fields = ["skill_id", "name"]
+            missing = [f for f in required_fields if f not in data]
+            if missing:
+                logger.warning(f"SKILL_UPDATE missing required fields: {missing}")
+                return False
+
+        elif message_type == MessageType.CATEGORY_UPDATE:
+            required_fields = ["name"]
+            missing = [f for f in required_fields if f not in data]
+            if missing:
+                logger.warning(f"CATEGORY_UPDATE missing required fields: {missing}")
+                return False
+
+        elif message_type == MessageType.RATING_UPDATE:
+            required_fields = ["skill_id", "rating"]
+            missing = [f for f in required_fields if f not in data]
+            if missing:
+                logger.warning(f"RATING_UPDATE missing required fields: {missing}")
+                return False
+
+            # Rating must be 1-5
+            rating = data.get("rating")
+            if not isinstance(rating, int) or not 1 <= rating <= 5:
+                logger.warning(f"Invalid rating value: {rating}, must be 1-5")
+                return False
+
+        elif message_type == MessageType.SKILL_DELETE:
+            required_fields = ["skill_id"]
+            missing = [f for f in required_fields if f not in data]
+            if missing:
+                logger.warning(f"SKILL_DELETE missing required fields: {missing}")
+                return False
+
+        return True
 
     async def _update_cache(self, message_type: str, data: Dict[str, Any]) -> None:
         """
