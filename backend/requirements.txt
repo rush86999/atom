@@ -135,3 +135,9 @@ gunicorn==21.2.0
 playwright==1.40.0
 instructor>=1.0.0
 networkx>=3.0
+
+# Smart Home Control (Phase 66)
+python-hue-v2>=0.20.0  # Philips Hue API v2 integration
+# Media control (Phase 66-01)
+spotipy>=2.24.0  # Spotify Web API client
+SoCo>=0.31.0  # Sonos speaker control library
