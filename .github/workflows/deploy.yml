@@ -351,6 +351,109 @@ jobs:
 
           echo "✅ All smoke tests passed"
 
+      - name: Update Grafana dashboards
+        if: success()
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          echo "=== Updating Grafana Dashboards ==="
+
+          # Check if Grafana credentials provided
+          if [ -z "$GRAFANA_URL" ] || [ -z "$GRAFANA_API_KEY" ]; then
+            echo "⚠️ Grafana URL or API key not set"
+            echo "Dashboard update skipped (non-blocking)"
+            exit 0
+          fi
+
+          echo "Grafana URL: $GRAFANA_URL"
+
+          # List of dashboards to update
+          DASHBOARDS=(
+            "backend/monitoring/grafana/deployment-overview.json"
+          )
+
+          for DASHBOARD in "${DASHBOARDS[@]}"; do
+            if [ ! -f "$DASHBOARD" ]; then
+              echo "⚠️ Dashboard not found: $DASHBOARD (skipping)"
+              continue
+            fi
+
+            echo "Processing dashboard: $DASHBOARD"
+
+            # Extract dashboard UID from JSON
+            DASHBOARD_UID=$(jq -r '.uid' "$DASHBOARD")
+
+            if [ "$DASHBOARD_UID" == "null" ]; then
+              echo "❌ Dashboard missing UID field"
+              continue
+            fi
+
+            # Update dashboard via Grafana API
+            echo "Updating dashboard: $DASHBOARD_UID"
+
+            RESPONSE=$(curl -s -X POST "$GRAFANA_URL/api/dashboards/db" \
+              -H "Authorization: Bearer $GRAFANA_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"dashboard\": $(cat "$DASHBOARD"),
+                \"overwrite\": true,
+                \"message\": \"Updated via deploy.yml - Commit: ${{ github.sha }}\"
+              }")
+
+            # Check for API errors
+            if echo "$RESPONSE" | jq -e '.status == "success"' > /dev/null; then
+              echo "✅ Dashboard updated: $DASHBOARD_UID"
+            else
+              echo "❌ Dashboard update failed: $DASHBOARD_UID"
+              echo "Response: $RESPONSE"
+            fi
+          done
+
+          echo "✅ Grafana dashboard update complete"
+
+      - name: Verify Grafana dashboard version
+        if: success()
+        id: verify_dashboard
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          # Verify dashboard was updated with deployment metadata
+          DASHBOARD_UID="atom-deployment-overview"
+
+          DASHBOARD_INFO=$(curl -s -X GET "$GRAFANA_URL/api/dashboards/uid/$DASHBOARD_UID" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY")
+
+          UPDATED=$(echo "$DASHBOARD_INFO" | jq -r '.dashboard.updatedAt')
+          VERSION=$(echo "$DASHBOARD_INFO" | jq -r '.dashboard.version')
+
+          echo "Dashboard: $DASHBOARD_UID"
+          echo "Updated: $UPDATED"
+          echo "Version: $VERSION"
+
+          # Store version for rollback capability
+          echo "grafana_dashboard_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Rollback Grafana dashboard on failure
+        if: failure()
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          # Rollback dashboard to previous version
+          DASHBOARD_UID="atom-deployment-overview"
+          PREVIOUS_VERSION=$((${{ steps.verify_dashboard.outputs.grafana_dashboard_version }} - 1))
+
+          echo "Rolling back dashboard to version: $PREVIOUS_VERSION"
+
+          curl -s -X POST "$GRAFANA_URL/api/dashboards/db/$DASHBOARD_UID/revert/$PREVIOUS_VERSION" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY"
+
+          echo "✅ Dashboard rolled back"
+
       - name: Notify success
         if: success()
         run: |
