@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment.
-**Current focus:** Phase 63 - Legacy Documentation Updates (Git History Analysis)
+**Current focus:** Phase 64 - E2E Test Suite (Real Service Integration)
 
 ## Current Position
 
-Phase: 63-legacy-documentation-updates
-Plan: NOT STARTED
-Status: Phase 62 EXECUTION COMPLETE - All 11 plans executed with ~567 tests created across ~9,000 lines. Coverage target NOT MET (17.12% → 17.12%, 50% target missed). Test infrastructure production-ready (29 fixtures, quality standards TQ-01 through TQ-05, CI/CD gates). Root causes in 62-VERIFICATION.md: import errors (92 tests), unregistered routes (50 tests), integration tests excluded (~172 tests), heavy mocking. Gap closure: fix imports, register routes, include integration tests. Estimated post-fix coverage: 27-35%. Next: Phase 63 documentation audit via git history to ensure Python/npm packages documented.
+Phase: 64-e2e-test-suite
+Plan: 01 COMPLETE
+Status: Phase 64-01 EXECUTION COMPLETE - Docker Compose E2E environment with PostgreSQL 16 and Valkey 8, enhanced E2E conftest (832 lines) with database and MCP service fixtures, test data factory module (507 lines) with 6 reusable factory classes. Infrastructure ready for real service E2E testing (ports 5433, 6380, no conflicts with dev services). Next: Plan 64-02 MCP Tool E2E Tests.
 
-Previous: Phase 62-09 COMPLETE - API Routes Testing (1,165 lines, 50 tests, 15 min). 62-10 COMPLETE - Core Services Batch Testing (1,778 lines, 92 tests, import errors, 15 min).
+Previous: Phase 64-01 COMPLETE - Docker E2E Environment and Test Infrastructure (3 tasks, 4 files, 4 min). Created docker-compose-e2e.yml with PostgreSQL and Redis services, extended conftest.py with e2e_docker_compose, e2e_postgres_db, mcp_service, e2e_redis fixtures, created test_data_factory.py with 6 factory classes (CRM, tasks, tickets, knowledge, canvas, finance). All line counts exceed minimum requirements (88, 832, 507 lines). Graceful degradation for Docker unavailable. 3 atomic commits (f4f61ff5, f6419f49, 67671e4d).
 
 Previous: Phase 61-09 COMPLETE - Atom SaaS Platform Requirements Documentation (2 tasks, 1 file, 1,731 lines). Created comprehensive requirements specification for Atom SaaS platform. Gap 2 CLOSED (documented as external dependency). 2 atomic commits, 8 minutes duration.
 
@@ -169,6 +169,11 @@ Recent decisions affecting current work:
 - **Phase 32**: Platform completion and quality validation (80% governance/security/episodic memory/core)
 - **Phase 33**: Community Skills integration with Docker sandbox and LLM security scanning
 - **Phase 34**: Documentation updates and production verification
+- [Phase 64-01]: PostgreSQL 16-alpine for E2E tests (real database not SQLite, Alpine for fast startup, port 5433)
+- [Phase 64-01]: Valkey 8 (Redis-compatible) on port 6380 for WebSocket/pubsub E2E testing
+- [Phase 64-01]: Session-scoped Docker Compose fixture (start once per test session, reuse across tests)
+- [Phase 64-01]: Function-scoped database fixtures (fresh tables per test for isolation)
+- [Phase 64-01]: UUID v4 for all unique values in test data (prevents parallel test collisions)
 - [Phase 35]: Lazy initialization for PackageInstaller to avoid Docker import dependency
 - [Phase 35]: Per-skill Docker image tagging format: atom-skill:{skill_id}-v1
 - [Phase 35]: Non-root user execution (UID 1000) in skill containers for security
@@ -227,8 +232,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20 01:37
-Stopped at: Phase 61-09 COMPLETE - Atom SaaS Platform Requirements Documentation (Gap 2 closure)
+Last session: 2026-02-20 12:23
+Stopped at: Phase 64-01 COMPLETE - Docker E2E Environment and Test Infrastructure
 Resume file: None
 
 ---
