@@ -308,6 +308,7 @@ class RatingSyncService:
         - Compare local rating.created_at with remote rating.timestamp
         - If remote is newer: update local rating
         - If local is newer: push to Atom SaaS (TODO when API supports updates)
+        - Logs conflict to ConflictLog for tracking
 
         Args:
             local_rating: Local SkillRating object
@@ -316,6 +317,8 @@ class RatingSyncService:
         Returns:
             Resolution dict with action taken and reason
         """
+        from core.models import ConflictLog
+
         local_time = local_rating.created_at
         remote_time_str = remote_rating.get("created_at") or remote_rating.get("timestamp")
 
@@ -346,6 +349,40 @@ class RatingSyncService:
             # Remote is naive, assume UTC
             from datetime import timezone as dt_timezone
             remote_time = remote_time.replace(tzinfo=dt_timezone.utc)
+
+        # Detect conflict
+        conflict_detected = (local_time != remote_time and
+                            (local_rating.rating != remote_rating.get("rating") or
+                             local_rating.comment != remote_rating.get("comment")))
+
+        if conflict_detected:
+            # Log to ConflictLog
+            try:
+                conflict = ConflictLog(
+                    skill_id=local_rating.skill_id,
+                    conflict_type="CONTENT_MISMATCH",  # Rating content differs
+                    severity="LOW",  # Rating conflicts are low severity
+                    local_data={
+                        "rating_id": local_rating.id,
+                        "rating": local_rating.rating,
+                        "comment": local_rating.comment,
+                        "created_at": local_time.isoformat()
+                    },
+                    remote_data={
+                        "rating_id": remote_rating.get("id"),
+                        "rating": remote_rating.get("rating"),
+                        "comment": remote_rating.get("comment"),
+                        "created_at": remote_time.isoformat()
+                    },
+                    resolution_strategy="remote_wins" if remote_time > local_time else "local_wins",
+                    resolved_data=None,  # Will be set after resolution
+                    resolved_at=datetime.now(timezone.utc),
+                    resolved_by="system"
+                )
+                self.db.add(conflict)
+                self.db.commit()
+            except Exception as e:
+                logger.error(f"Failed to log rating conflict: {e}")
 
         if remote_time > local_time:
             # Remote is newer - update local
@@ -389,8 +426,10 @@ class RatingSyncService:
         Get rating sync metrics for monitoring.
 
         Returns:
-            Dict with pending_count, synced_count, failed_count
+            Dict with pending_count, synced_count, failed_count, conflicts_count
         """
+        from core.models import ConflictLog
+
         pending_count = (
             self.db.query(func.count(SkillRating.id))
             .filter(SkillRating.synced_to_saas == False)  # noqa: E712
@@ -408,8 +447,16 @@ class RatingSyncService:
             .scalar()
         )
 
+        # Count rating conflicts (CONTENT_MISMATCH type for ratings)
+        conflicts_count = (
+            self.db.query(func.count(ConflictLog.id))
+            .filter(ConflictLog.conflict_type == "CONTENT_MISMATCH")
+            .scalar()
+        )
+
         return {
             "pending_count": pending_count or 0,
             "synced_count": synced_count or 0,
-            "failed_count": failed_count or 0
+            "failed_count": failed_count or 0,
+            "conflicts_count": conflicts_count or 0
         }
