@@ -9,8 +9,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 Phase: 66-personal-edition-enhancements
-Plan: 06 COMPLETE
-Status: Phase 66-06 EXECUTION COMPLETE - Docker Compose Personal Edition Enhancements (4 tasks, 4 files, 6 min). Single-command Personal Edition startup with all Phase 66 integrations pre-configured. Updated docker-compose-personal.yml with comprehensive environment variables (ATOM_LOCAL_ONLY, SPOTIFY, HUE, HOME_ASSISTANT, NOTION, FFMPEG), networks section, and detailed documentation. Updated .env.personal with Phase 66 sections including local-only mode, media integrations (Spotify OAuth), smart home (Hue, Home Assistant), productivity (Notion OAuth + API key), creative tools (FFmpeg), and usage notes. Updated backend/Dockerfile with curl for health checks, Personal Edition directory creation (media/input, media/output, exports, lancedb, logs), and HEALTHCHECK instruction. Created docker/personal-entrypoint.sh with startup validation (encryption key checks, AI provider validation, local-only mode status), directory creation, FFmpeg detection, and helpful warnings. All integrations pre-configured for zero-configuration startup beyond API keys. 4 atomic commits (2f3aafb5, b1a291a4, 94890091, 94f262db).
+Plan: 04 COMPLETE
+Status: Phase 66-04 EXECUTION COMPLETE - Local-First Privacy Architecture (5 tasks, 6 files created, 2 files modified, 10 min). Implemented local-first privacy architecture with encrypted token storage, local-only mode enforcement, and comprehensive audit logging. Created LocalOnlyGuard service (417 lines) with singleton pattern, blocks 23 cloud services (Spotify, Notion, OpenAI, etc.) when ATOM_LOCAL_ONLY=true, allows 18 local services (Sonos, Hue, Home Assistant, FFmpeg). Created token_encryption utilities (494 lines) with Fernet symmetric encryption, key management, rotation support, and backward compatibility. Created AuditLogger (545 lines) with structured JSON logging, daily rotation, gzip compression, 90-day retention. Created core.privsec package (104 lines) exporting all security utilities. Added LocalOnlyModeError exception to core.models (44 lines). Updated .env.personal with local-only mode, encryption keys, audit logging, and privacy documentation (29 lines). Package renamed from security/ to privsec/ to avoid conflict with existing core/security.py file. 5 atomic commits (b5f1f5b8, 31d59ce9, 0be93166, 2064bf58, fd3faea1).
 
 Previous: Phase 68-06 COMPLETE
 
@@ -171,6 +171,11 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 66-04**: Package renamed from 'security' to 'privsec' to avoid conflict with existing core/security.py (RateLimitMiddleware, SecurityHeadersMiddleware)
+- **Phase 66-04**: Local-only mode defaults to disabled (ATOM_LOCAL_ONLY=false) to avoid breaking existing integrations
+- **Phase 66-04**: Fernet symmetric encryption for all tokens at rest with BYOK_ENCRYPTION_KEY environment variable
+- **Phase 66-04**: Audit logs in JSON format with daily rotation, gzip compression, 90-day retention (AUDIT_LOG_RETENTION_DAYS)
+- **Phase 66-04**: Backward compatible token decryption (allow_plaintext=True) to avoid breaking existing OAuthToken records
 - **Phase 36 (New Feature)**: Add npm package support to match OpenClaw capabilities (2M+ packages in npm ecosystem)
 - **Phase 36**: Reuse Phase 35 infrastructure (PackageGovernanceService, governance cache, REST API) with package_type field for npm vs Python
 - **Phase 36**: Security tools: npm audit, Snyk, yarn audit (vs pip-audit, Safety for Python)
@@ -271,8 +276,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20 14:48
-Stopped at: Phase 66-06 COMPLETE - Docker Compose Personal Edition Enhancements
+Last session: 2026-02-20 19:54
+Stopped at: Phase 66-04 COMPLETE - Local-First Privacy Architecture
 Resume file: None
 
 ---
