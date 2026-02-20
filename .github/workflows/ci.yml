@@ -493,32 +493,83 @@ jobs:
           echo ""
           echo "See TEST_QUALITY_STANDARDS.md for details on each quality gate."
 
-  docker-build:
+  build-docker:
     runs-on: ubuntu-latest
     needs: [backend-test, backend-test-full, frontend-build]
-    steps:
-      - name: Free Disk Space (Ubuntu)
-        run: |
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/share/powershell
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/local/.ghcup
-          sudo docker image prune -a -f
 
-      - uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend Docker image
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Docker image (CI only, no push)
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          push: false
+          push: false  # Don't push to registry (CI only)
           tags: atom-backend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
+          cache-from: |
+            type=gha  # Restore from GitHub Actions cache
+            type=registry,ref=atom-backend:buildcache  # Restore from registry cache
+          cache-to: |
+            type=gha,mode=max  # Save to GitHub Actions cache (all layers)
+            type=inline,mode=max  # Embed cache in image for distributed builds
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            ENABLE_DOCLING=false
+
+      - name: Report build cache metrics
+        run: |
+          echo "=== Docker Build Cache Metrics ==="
+          echo "Image: atom-backend:ci"
+          docker images atom-backend:ci --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+
+          # Report cache size
+          if [ -d "/tmp/.buildx-cache" ]; then
+            CACHE_SIZE=$(du -sh /tmp/.buildx-cache | cut -f1)
+            echo "BuildKit cache size: $CACHE_SIZE"
+          fi
+
+          # Report layer count
+          LAYERS=$(docker history atom-backend:ci --format "{{.ID}}" | wc -l)
+          echo "Total layers: $LAYERS"
+
+          # Report cache hit rate (if available in build output)
+          # BuildKit outputs cache hit/miss statistics in build output
+          echo "✅ Build completed - check build output for cache hit/miss statistics"
+
+      - name: Validate layer caching
+        run: |
+          echo "=== Validating Layer Caching ==="
+
+          # Check if requirements layer is cached
+          docker history atom-backend:ci --format "{{.CreatedBy}}" | grep -q "requirements.txt" && \
+            echo "✅ Requirements layer found" || \
+            echo "⚠️ Requirements layer not found"
+
+          # Check if build cache mount was used
+          docker history atom-backend:ci --format "{{.CreatedBy}}" | grep -q "/root/.cache/pip" && \
+            echo "✅ BuildKit cache mount used" || \
+            echo "⚠️ BuildKit cache mount not detected"
+
+          # Verify multi-stage build
+          STAGES=$(docker history atom-backend:ci --format "{{.CreatedBy}}" | grep -c "FROM python")
+          if [ "$STAGES" -ge 2 ]; then
+            echo "✅ Multi-stage build detected ($STAGES stages)"
+          else
+            echo "⚠️ Multi-stage build not detected"
+          fi
 
       - name: Build frontend Docker image
         uses: docker/build-push-action@v5
@@ -527,8 +578,12 @@ jobs:
           file: ./frontend-nextjs/Dockerfile.production
           push: false
           tags: atom-frontend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
+          cache-from: |
+            type=gha
+            type=registry,ref=atom-frontend:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=inline,mode=max
           build-args: |
              SKIP_ENV_VALIDATION=true
 
