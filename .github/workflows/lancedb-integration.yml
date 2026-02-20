@@ -1,0 +1,67 @@
+name: LanceDB Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Manual trigger for debugging
+
+jobs:
+  lancedb-integration:
+    runs-on: ubuntu-latest
+    services:
+      lancedb:
+        image: lancedb/lancedb:latest
+        ports:
+          - 8080:8080
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lancedb-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lancedb-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lancedb pytest pytest-asyncio
+
+      - name: Run LanceDB integration tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          LANCEDB_URI: "sqlite:///tmp/lancedb_test.db"
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: false  # Use real LanceDB service
+        run: |
+          pytest tests/integration/episodes/test_lancedb_integration.py \
+            tests/integration/episodes/test_graduation_validation.py \
+            tests/integration/episodes/test_episode_lifecycle_lancedb.py \
+            -v --tb=short --maxfail=5
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lancedb-test-results
+          path: backend/test-results/
+          retention-days: 7
