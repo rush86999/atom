@@ -138,6 +138,18 @@ jobs:
           # BuildKit outputs: "CACHED" for cached layers, "DONE" for new layers
           echo "✅ Build completed - check GitHub Actions log for cache hit/miss statistics"
 
+      - name: Monitor cache size
+        run: |
+          # Check GitHub Actions cache size
+          echo "GitHub Actions cache usage:"
+          gh cache list --repo ${{ github.repository }} --json key,sizeInBytes --jq '.[] | select(.key | contains("buildx")) | "\(.key): \(.sizeInBytes / 1024 / 1024) MB"'
+
+          # Warn if cache exceeds 5GB
+          CACHE_SIZE=$(gh cache list --repo ${{ github.repository }} --json sizeInBytes --jq '[.[] | select(.key | contains("buildx")) | .sizeInBytes] | add / 1024 / 1024 / 1024')
+          if (( $(echo "$CACHE_SIZE > 5" | bc -l) )); then
+            echo "⚠️ Cache size large: $CACHE_SIZE GB (consider cleanup)"
+          fi
+
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
