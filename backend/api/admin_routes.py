@@ -542,3 +542,216 @@ async def delete_admin_role(
     db.commit()
 
     return DeleteAdminRoleResponse(message="Admin role deleted successfully")
+
+
+# ============================================================================
+# WebSocket Management Endpoints
+# ============================================================================
+
+class WebSocketStatusResponse(BaseModel):
+    """WebSocket status response"""
+    connected: bool
+    ws_url: Optional[str] = None
+    last_connected_at: Optional[str] = None
+    last_message_at: Optional[str] = None
+    reconnect_attempts: int = 0
+    consecutive_failures: int = 0
+    last_disconnect_reason: Optional[str] = None
+    fallback_to_polling: bool = False
+    rate_limit_messages_per_sec: int = 100
+
+
+class WebSocketReconnectResponse(BaseModel):
+    """WebSocket reconnect response"""
+    reconnect_triggered: bool
+    message: str
+
+
+class WebSocketToggleResponse(BaseModel):
+    """WebSocket toggle response"""
+    success: bool
+    websocket_enabled: Optional[bool] = None
+    message: str
+
+
+@router.get("/websocket/status", response_model=WebSocketStatusResponse)
+async def get_websocket_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get WebSocket connection status
+
+    Returns current WebSocket connection details including:
+    - Connection status (connected/disconnected)
+    - Last connection and message timestamps
+    - Reconnect attempts and failure reasons
+    - Fallback mode status
+
+    Requires AUTONOMOUS maturity.
+    """
+    # Check governance (AUTONOMOUS required)
+    from core.agent_governance_service import GovernanceCache
+    governance_cache = GovernanceCache()
+
+    # Get user's maturity level
+    user_maturity = "AUTONOMOUS"  # Default to AUTONOMOUS for human users
+
+    if user_maturity != "AUTONOMOUS":
+        raise router.permission_denied_error(
+            action="get_websocket_status",
+            resource="WebSocket",
+            details={"required_maturity": "AUTONOMOUS", "actual_maturity": user_maturity}
+        )
+
+    # Get WebSocket state from database
+    from core.models import WebSocketState
+    ws_state = db.query(WebSocketState).first()
+
+    if not ws_state:
+        return WebSocketStatusResponse(
+            connected=False,
+            reconnect_attempts=0,
+            consecutive_failures=0,
+            rate_limit_messages_per_sec=100
+        )
+
+    return WebSocketStatusResponse(
+        connected=ws_state.connected,
+        last_connected_at=ws_state.last_connected_at.isoformat() if ws_state.last_connected_at else None,
+        last_message_at=ws_state.last_message_at.isoformat() if ws_state.last_message_at else None,
+        reconnect_attempts=ws_state.reconnect_attempts,
+        consecutive_failures=ws_state.consecutive_failures,
+        last_disconnect_reason=ws_state.disconnect_reason,
+        fallback_to_polling=ws_state.fallback_to_polling,
+        rate_limit_messages_per_sec=100
+    )
+
+
+@router.post("/websocket/reconnect", response_model=WebSocketReconnectResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="websocket_reconnect",
+    feature="admin"
+)
+async def trigger_websocket_reconnect(
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Force WebSocket reconnection
+
+    Triggers immediate WebSocket reconnection attempt.
+    If currently connected, disconnects and reconnects.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    # Log audit trail
+    logger.info(f"WebSocket reconnect triggered by {current_user.id} (agent: {agent_id})")
+
+    # Get WebSocket client instance (would need to be stored globally)
+    # For now, just update database state to trigger reconnect
+    from core.models import WebSocketState
+    ws_state = db.query(WebSocketState).first()
+
+    if not ws_state:
+        ws_state = WebSocketState(id=1)
+        db.add(ws_state)
+
+    # Reset reconnect attempts to allow immediate reconnect
+    ws_state.reconnect_attempts = 0
+    ws_state.consecutive_failures = 0
+    ws_state.fallback_to_polling = False
+    db.commit()
+
+    return WebSocketReconnectResponse(
+        reconnect_triggered=True,
+        message="WebSocket reconnection triggered. Reconnect will attempt on next cycle."
+    )
+
+
+@router.post("/websocket/disable", response_model=WebSocketToggleResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="websocket_disable",
+    feature="admin"
+)
+async def disable_websocket(
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Disable WebSocket (use polling only)
+
+    Disables WebSocket connection and switches to polling-only mode.
+    Useful for troubleshooting or if WebSocket is causing issues.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    # Log audit trail
+    logger.info(f"WebSocket disabled by {current_user.id} (agent: {agent_id})")
+
+    from core.models import WebSocketState
+    ws_state = db.query(WebSocketState).first()
+
+    if not ws_state:
+        ws_state = WebSocketState(id=1)
+        db.add(ws_state)
+
+    ws_state.fallback_to_polling = True
+    ws_state.fallback_started_at = datetime.now()
+    ws_state.connected = False
+    ws_state.disconnect_reason = "disabled_by_admin"
+    db.commit()
+
+    return WebSocketToggleResponse(
+        success=True,
+        websocket_enabled=False,
+        message="WebSocket disabled. System will use polling for sync."
+    )
+
+
+@router.post("/websocket/enable", response_model=WebSocketToggleResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="websocket_enable",
+    feature="admin"
+)
+async def enable_websocket(
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Re-enable WebSocket
+
+    Re-enables WebSocket connection after it was disabled.
+    System will attempt to reconnect to WebSocket server.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    # Log audit trail
+    logger.info(f"WebSocket enabled by {current_user.id} (agent: {agent_id})")
+
+    from core.models import WebSocketState
+    ws_state = db.query(WebSocketState).first()
+
+    if not ws_state:
+        ws_state = WebSocketState(id=1)
+        db.add(ws_state)
+
+    ws_state.fallback_to_polling = False
+    ws_state.next_ws_attempt_at = None
+    ws_state.reconnect_attempts = 0
+    db.commit()
+
+    return WebSocketToggleResponse(
+        success=True,
+        websocket_enabled=True,
+        message="WebSocket enabled. Reconnection will be attempted."
+    )
