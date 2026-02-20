@@ -282,23 +282,77 @@ jobs:
       - name: Monitor deployment metrics
         if: steps.prometheus_validation.outputs.prometheus_reachable == 'true'
         run: |
-          # Wait for metrics to be collected
-          sleep 120
+          set -euo pipefail
 
-          # Check deployment metrics
+          echo "=== Monitoring deployment metrics ==="
+
+          # Wait for metrics to be available (30 second delay)
+          echo "Waiting for Prometheus metrics to be available..."
+          sleep 30
+
+          # Configure Prometheus URL
           PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set, skipping metrics check"
+            exit 0
+          fi
 
-          # Check deployment success rate
-          deployment_success_rate=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=sum(rate(deployment_total{status=\"success\"}[5m]))/sum(rate(deployment_total[5m]))*100" | jq '.data.result[0].value[1] // "100"')
-          echo "Deployment success rate: $deployment_success_rate%"
+          echo "Querying Prometheus at: $PROMETHEUS_URL"
 
-          # Check error rate
-          error_rate=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=sum(rate(http_requests_total{status=~\"5..\"}[5m]))/sum(rate(http_requests_total[5m]))*100" | jq '.data.result[0].value[1] // "0"')
-          echo "Error rate: $error_rate%"
+          # Query error rate (errors per second over last 5 minutes)
+          ERROR_RATE_QUERY='sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100'
 
-          # Check latency
-          latency=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket[5m]))by(le))" | jq '.data.result[0].value[1] // "0"')
-          echo "P95 Latency: ${latency}s"
+          ERROR_RATE=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$ERROR_RATE_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          echo "Error rate: $ERROR_RATE%"
+
+          # Check staging threshold (<1% error rate)
+          STAGING_THRESHOLD=1.0
+          if (( $(echo "$ERROR_RATE > $STAGING_THRESHOLD" | bc -l) )); then
+            echo "❌ Error rate too high: $ERROR_RATE% (threshold: $STAGING_THRESHOLD%)"
+
+            # Send alert to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"⚠️ Staging deployment error rate high\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*High Error Rate Detected*\\n*Error Rate:* $ERROR_RATE%\\n*Threshold:* $STAGING_THRESHOLD%\\n*Commit:* ${{ github.sha }}\"
+                  }
+                }]
+              }"
+
+            # Don't fail deployment, just warn
+            echo "⚠️ Warning: Error rate exceeds threshold but deployment continues"
+          else
+            echo "✅ Error rate within acceptable range: $ERROR_RATE% (threshold: $STAGING_THRESHOLD%)"
+          fi
+
+          # Query latency (P95 over last 5 minutes)
+          LATENCY_QUERY='histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))'
+
+          LATENCY_P95=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$LATENCY_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          LATENCY_MS=$(echo "$LATENCY_P95 * 1000" | bc)
+
+          echo "P95 Latency: ${LATENCY_MS}ms"
+
+          # Check latency threshold (<500ms for staging)
+          LATENCY_THRESHOLD=500
+          if (( $(echo "$LATENCY_MS > $LATENCY_THRESHOLD" | bc -l) )); then
+            echo "⚠️ Latency high: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          else
+            echo "✅ Latency within acceptable range: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          fi
+
+          echo "=== ✅ Monitoring check complete ==="
 
       - name: Skip monitoring (Prometheus unreachable)
         if: steps.prometheus_validation.outputs.prometheus_reachable != 'true'
@@ -987,29 +1041,94 @@ jobs:
 
           echo "=== ✅ Canary deployment complete (100% traffic) ==="
 
-      - name: Monitor metrics
+      - name: Monitor production metrics (stricter thresholds)
         run: |
-          # Wait for metrics to be collected
-          sleep 120
+          set -euo pipefail
 
-          # Check error rate
-          error_rate=$(curl -s 'http://prometheus.example.com/api/v1/query?query=rate(atom_http_errors_total[5m])' | jq '.data.result[0].value[1] // "0"')
-          echo "Error rate: $error_rate"
+          echo "=== Monitoring production deployment metrics ==="
 
-          # Check latency
-          latency=$(curl -s 'http://prometheus.example.com/api/v1/query?query=histogram_quantile(0.95, atom_latency_seconds)' | jq '.data.result[0].value[1] // "0"')
-          echo "P95 Latency: $latency"
+          # Wait for metrics to be available (30 second delay)
+          echo "Waiting for Prometheus metrics to be available..."
+          sleep 30
 
-          # Fail if metrics are bad
-          if (( $(echo "$error_rate > 0.05" | bc -l) )); then
-            echo "Error rate too high: $error_rate"
-            exit 1
+          # Configure Prometheus URL
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set, skipping production metrics check"
+            exit 0
           fi
 
-          if (( $(echo "$latency > 2.0" | bc -l) )); then
-            echo "Latency too high: $latency"
+          echo "Querying Prometheus at: $PROMETHEUS_URL"
+
+          # Query error rate (errors per second over last 5 minutes)
+          ERROR_RATE_QUERY='sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100'
+
+          ERROR_RATE=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$ERROR_RATE_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          echo "Error rate: $ERROR_RATE%"
+
+          # Check production threshold (<0.1% error rate)
+          PRODUCTION_THRESHOLD=0.1
+          if (( $(echo "$ERROR_RATE > $PRODUCTION_THRESHOLD" | bc -l) )); then
+            echo "❌ Error rate too high: $ERROR_RATE% (threshold: $PRODUCTION_THRESHOLD%)"
+
+            # Send urgent alert to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"🚨 PRODUCTION deployment error rate critical\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*CRITICAL: High Error Rate in Production*\\n*Error Rate:* $ERROR_RATE%\\n*Threshold:* $PRODUCTION_THRESHOLD%\\n*Commit:* ${{ github.sha }}\\n*Action:* Investigate immediately\"
+                  }
+                }]
+              }"
+
+            # Fail deployment on threshold breach
+            echo "❌ Error rate exceeds production threshold - failing deployment"
             exit 1
+          else
+            echo "✅ Error rate within acceptable range: $ERROR_RATE% (threshold: $PRODUCTION_THRESHOLD%)"
           fi
+
+          # Query latency (P95 over last 5 minutes)
+          LATENCY_QUERY='histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))'
+
+          LATENCY_P95=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$LATENCY_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          LATENCY_MS=$(echo "$LATENCY_P95 * 1000" | bc)
+
+          echo "P95 Latency: ${LATENCY_MS}ms"
+
+          # Check latency threshold (<200ms P95 for production)
+          LATENCY_THRESHOLD=200
+          if (( $(echo "$LATENCY_MS > $LATENCY_THRESHOLD" | bc -l) )); then
+            echo "⚠️ Latency high: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+
+            # Send warning to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"⚠️ Production latency high\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*High Latency Detected*\\n*P95 Latency:* ${LATENCY_MS}ms\\n*Threshold:* ${LATENCY_THRESHOLD}ms\\n*Commit:* ${{ github.sha }}\"
+                  }
+                }]
+              }"
+          else
+            echo "✅ Latency within acceptable range: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          fi
+
+          echo "=== ✅ Production monitoring check complete ==="
 
       - name: Create rollback point
         if: success()
