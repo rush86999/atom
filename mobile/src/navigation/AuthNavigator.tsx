@@ -54,24 +54,99 @@ const LoadingScreen: React.FC = () => (
 
 /**
  * Linking configuration for deep links
+ *
+ * Supported deep link patterns:
+ * - Auth: atom://auth/login, atom://auth/register, atom://auth/reset, atom://auth/biometric
+ * - Main: atom://workflows, atom://analytics, atom://agents, atom://chat, atom://settings
+ * - Resources: atom://agent/{agent_id}, atom://workflow/{workflow_id}, atom://canvas/{canvas_id}
+ * - Executions: atom://execution/{execution_id}, atom://execution/{execution_id}/logs
+ * - Conversations: atom://chat/{conversation_id}
+ *
+ * Also supports HTTPS links: https://atom.ai/...
  */
 const linking = {
-  prefixes: ['atom://'],
+  prefixes: ['atom://', 'https://atom.ai'],
   config: {
     screens: {
-      Login: 'auth/login',
-      Register: 'auth/register',
-      ForgotPassword: 'auth/reset',
-      BiometricAuth: 'auth/biometric',
+      // Auth screens
+      Login: {
+        path: 'auth/login',
+      },
+      Register: {
+        path: 'auth/register',
+      },
+      ForgotPassword: {
+        path: 'auth/reset',
+      },
+      BiometricAuth: {
+        path: 'auth/biometric',
+      },
+
+      // Main app screens with nested navigation
       Main: {
         screens: {
-          WorkflowsTab: 'workflows',
-          AnalyticsTab: 'analytics',
-          AgentsTab: 'agents',
-          ChatTab: 'chat',
-          SettingsTab: 'settings',
+          // Workflows tab
+          WorkflowsTab: {
+            screens: {
+              WorkflowsList: {
+                path: 'workflows',
+              },
+              WorkflowDetail: {
+                path: 'workflow/:workflowId',
+              },
+              WorkflowTrigger: {
+                path: 'workflow/:workflowId/trigger',
+              },
+              ExecutionProgress: {
+                path: 'execution/:executionId',
+              },
+              WorkflowLogs: {
+                path: 'execution/:executionId/logs',
+              },
+            },
+          },
+
+          // Analytics tab
+          AnalyticsTab: {
+            path: 'analytics',
+          },
+
+          // Agents tab
+          AgentsTab: {
+            screens: {
+              AgentList: {
+                path: 'agents',
+              },
+              AgentChat: {
+                path: 'agent/:agentId',
+              },
+            },
+          },
+
+          // Chat tab
+          ChatTab: {
+            screens: {
+              ChatTab: {
+                path: 'chat',
+              },
+              AgentChat: {
+                path: 'chat/:conversationId',
+              },
+            },
+          },
+
+          // Settings tab
+          SettingsTab: {
+            path: 'settings',
+          },
         },
       },
+
+      // Direct resource deep links (convenience shortcuts)
+      Agent: 'agent/:agentId',
+      Workflow: 'workflow/:workflowId',
+      Canvas: 'canvas/:canvasId',
+      Execution: 'execution/:executionId',
     },
   },
 };
