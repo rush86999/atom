@@ -1,0 +1,198 @@
+groups:
+  - name: atomsaas_sync_alerts
+    interval: 30s
+    rules:
+      # Alert if sync is stale (last sync > 45 minutes)
+      - alert: SyncStale
+        expr: |
+          (time() - sync_last_success_timestamp{instance=~".+"}) / 60 > 45
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Sync is stale for instance {{ $labels.instance }}"
+          description: "Last successful sync was {{ $value | humanizeDuration }} ago (threshold: 45 minutes)"
+          runbook: "https://docs.atomsaas.com/runbooks/sync-stale"
+          impact: "Skills and categories may be outdated in local cache"
+
+      # Alert if sync is very stale (last sync > 60 minutes)
+      - alert: SyncVeryStale
+        expr: |
+          (time() - sync_last_success_timestamp{instance=~".+"}) / 60 > 60
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Sync is very stale for instance {{ $labels.instance }}"
+          description: "Last successful sync was {{ $value | humanizeDuration }} ago (threshold: 60 minutes)"
+          runbook: "https://docs.atomsaas.com/runbooks/sync-stale"
+          impact: "Local cache is significantly outdated, manual sync may be required"
+
+      # Alert if health check returns unhealthy for 5 minutes
+      - alert: SyncUnhealthy
+        expr: |
+          sync_health_status{instance=~".+" == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Sync subsystem unhealthy for instance {{ $labels.instance }}"
+          description: "Health check has been returning unhealthy status for 5 minutes"
+          runbook: "https://docs.atomsaas.com/runbooks/sync-unhealthy"
+          impact: "Sync operations may be failing, check logs for errors"
+
+      # Alert if WebSocket disconnected for 5 minutes
+      - alert: WebSocketDisconnected
+        expr: |
+          websocket_connected{instance=~".+" == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "WebSocket disconnected for instance {{ $labels.instance }}"
+          description: "WebSocket has been disconnected for 5 minutes"
+          runbook: "https://docs.atomsaas.com/runbooks/websocket-disconnected"
+          impact: "Real-time updates from Atom SaaS are not being received"
+
+      # Alert if WebSocket disconnected for 15 minutes (critical)
+      - alert: WebSocketDisconnectedCritical
+        expr: |
+          websocket_connected{instance=~".+" == 0
+        for: 15m
+        labels:
+          severity: critical
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "WebSocket critically disconnected for instance {{ $labels.instance }}"
+          description: "WebSocket has been disconnected for 15 minutes, automatic reconnection failing"
+          runbook: "https://docs.atomsaas.com/runbooks/websocket-disconnected"
+          impact: "Real-time updates unavailable, sync may be delayed"
+
+      # Alert if sync error rate is high (>10% for 10 minutes)
+      - alert: HighSyncErrorRate
+        expr: |
+          rate(sync_errors_total{instance=~".+"}[10m]) / (rate(sync_success_total{instance=~".+"}[10m]) + rate(sync_errors_total{instance=~".+"}[10m])) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "High sync error rate for instance {{ $labels.instance }}"
+          description: "Sync error rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+          runbook: "https://docs.atomsaas.com/runbooks/high-error-rate"
+          impact: "Many sync operations are failing, check Atom SaaS API status"
+
+      # Alert if sync error rate is very high (>25% for 5 minutes)
+      - alert: VeryHighSyncErrorRate
+        expr: |
+          rate(sync_errors_total{instance=~".+"}[5m]) / (rate(sync_success_total{instance=~".+"}[5m]) + rate(sync_errors_total{instance=~".+"}[5m])) > 0.25
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Very high sync error rate for instance {{ $labels.instance }}"
+          description: "Sync error rate is {{ $value | humanizePercentage }} (threshold: 25%)"
+          runbook: "https://docs.atomsaas.com/runbooks/high-error-rate"
+          impact: "Most sync operations are failing, immediate investigation required"
+
+      # Alert if rating sync is stale (>60 minutes)
+      - alert: RatingSyncStale
+        expr: |
+          (time() - rating_sync_last_success_timestamp{instance=~".+"}) / 60 > 60
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Rating sync is stale for instance {{ $labels.instance }}"
+          description: "Last successful rating sync was {{ $value | humanizeDuration }} ago (threshold: 60 minutes)"
+          runbook: "https://docs.atomsaas.com/runbooks/rating-sync-stale"
+          impact: "User ratings may not be synced to Atom SaaS"
+
+      # Alert if too many unresolved conflicts (>100 for 24 hours)
+      - alert: UnresolvedConflictsHigh
+        expr: |
+          conflicts_unresolved{instance=~".+"} > 100
+        for: 24h
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "High number of unresolved conflicts for instance {{ $labels.instance }}"
+          description: "{{ $value }} unresolved conflicts (threshold: 100)"
+          runbook: "https://docs.atomsaas.com/runbooks/unresolved-conflicts"
+          impact: "Many conflicts require manual resolution, sync may be incomplete"
+
+      # Alert if critical number of unresolved conflicts (>500 for 1 hour)
+      - alert: UnresolvedConflictsCritical
+        expr: |
+          conflicts_unresolved{instance=~".+"} > 500
+        for: 1h
+        labels:
+          severity: critical
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Critical number of unresolved conflicts for instance {{ $labels.instance }}"
+          description: "{{ $value }} unresolved conflicts (threshold: 500)"
+          runbook: "https://docs.atomsaas.com/runbooks/unresolved-conflicts"
+          impact: "Sync operations may be blocked, immediate conflict resolution required"
+
+      # Alert if WebSocket reconnection rate is high (>5 reconnections in 5 minutes)
+      - alert: HighWebSocketReconnectionRate
+        expr: |
+          rate(websocket_reconnects_total{instance=~".+"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "High WebSocket reconnection rate for instance {{ $labels.instance }}"
+          description: "WebSocket reconnecting {{ $value | humanize }} times per second"
+          runbook: "https://docs.atomsaas.com/runbooks/websocket-reconnects"
+          impact: "WebSocket connection is unstable, real-time updates may be delayed"
+
+      # Alert if failed rating uploads are accumulating (>1000)
+      - alert: FailedRatingUploadsHigh
+        expr: |
+          rating_sync_failed_uploads{instance=~".+"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "High number of failed rating uploads for instance {{ $labels.instance }}"
+          description: "{{ $value }} failed rating uploads (threshold: 1000)"
+          runbook: "https://docs.atomsaas.com/runbooks/failed-uploads"
+          impact: "User ratings are not being synced to Atom SaaS"
+
+      # Alert if cache is empty (0 skills for 1 hour after startup)
+      - alert: SyncCacheEmpty
+        expr: |
+          sync_skills_cached{instance=~".+"} == 0
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+          service: atomsaas-sync
+        annotations:
+          summary: "Sync cache is empty for instance {{ $labels.instance }}"
+          description: "No skills in cache for 1 hour, sync may not be running"
+          runbook: "https://docs.atomsaas.com/runbooks/empty-cache"
+          impact: "Local marketplace has no skills, check if sync is enabled"
