@@ -4,7 +4,7 @@
  */
 
 export { LoginScreen } from './LoginScreen';
+export { RegisterScreen } from './RegisterScreen';
 // Additional auth screens will be added in subsequent tasks
-// export { RegisterScreen } from './RegisterScreen';
 // export { ForgotPasswordScreen } from './ForgotPasswordScreen';
 // export { BiometricAuthScreen } from './BiometricAuthScreen';
