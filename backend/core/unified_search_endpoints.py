@@ -86,21 +86,27 @@ async def hybrid_search(request: SearchRequest):
 
         # Construct filter expression if needed
         filter_expr = None
-        if request.filters:
-            conditions = []
-            if request.filters.doc_type:
-                types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
-                # Filter on metadata.doc_type since it's nested in the struct
-                conditions.append(f"metadata.doc_type IN ({types})")
+        # NOTE: metadata.doc_type SQL filtering is disabled because metadata is stored as JSON string
+        # We will filter in Python instead.
+        # if request.filters:
+        #     conditions = []
+        #     if request.filters.doc_type:
+        #         types = ", ".join([f"'{t}'" for t in request.filters.doc_type])
+        #         # Filter on metadata.doc_type since it's nested in the struct
+        #         conditions.append(f"metadata.doc_type IN ({types})")
             
-            if conditions:
-                filter_expr = " AND ".join(conditions)
+        #     if conditions:
+        #         filter_expr = " AND ".join(conditions)
 
         # Perform vector search
         logger.info(f"DEBUG SEARCH: Query='{request.query}', User='{request.user_id}', Workspace='{request.workspace_id}'")
         logger.info(f"DEBUG SEARCH: Filter Expr: {filter_expr}")
         
-        results = handler.search("documents", request.query, limit=request.limit, filter_str=filter_expr, user_id=request.user_id)
+        # Ensure user_id is passed to handler search
+        # We increase limit slightly to account for post-filtering
+        search_limit = request.limit * 2 if request.filters and request.filters.doc_type else request.limit
+        results = handler.search("documents", request.query, limit=search_limit, filter_str=filter_expr, user_id=request.user_id)
+        
         logger.info(f"DEBUG SEARCH: Raw Results Count: {len(results)}")
         if results:
              logger.info(f"DEBUG SEARCH: First Result Metadata: {results[0].get('metadata')}")
@@ -110,6 +116,12 @@ async def hybrid_search(request: SearchRequest):
             # Reconstruct document structure
             metadata = res.get("metadata", {})
             
+            # Post-retrieval filtering for doc_type
+            doc_type = metadata.get("doc_type", "unknown")
+            if request.filters and request.filters.doc_type:
+                if doc_type not in request.filters.doc_type:
+                    continue
+
             # Calculate scores (LanceDB returns distance, we converted to similarity in handler)
             similarity_score = res.get("score", 0.0)
             
@@ -138,13 +150,17 @@ async def hybrid_search(request: SearchRequest):
                 id=res["id"],
                 title=metadata.get("title", "Untitled"),
                 content=res.get("text", ""),
-                doc_type=metadata.get("doc_type", "unknown"),
+                doc_type=doc_type,
                 source_uri=res.get("source", ""),
                 similarity_score=similarity_score,
                 keyword_score=keyword_score,
                 combined_score=combined_score,
                 metadata=metadata
             ))
+            
+            if len(search_results) >= request.limit:
+                break
+
         
         # Sort by combined score
         search_results.sort(key=lambda x: x.combined_score or 0, reverse=True)

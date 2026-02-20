@@ -118,7 +118,7 @@ export const ProjectCommandCenter: React.FC = () => {
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
                         Project Command Center
                     </h1>
                     <p className="text-muted-foreground mt-1">
@@ -130,24 +130,23 @@ export const ProjectCommandCenter: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
-                        className="bg-white/5 border-white/10"
                     >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
                     </Button>
-                    <button
+                    <Button
                         onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg transition-all text-sm font-semibold"
+                        className="flex items-center gap-2"
                     >
                         <Plus className="w-4 h-4" />
                         Quick Create
-                    </button>
+                    </Button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder="Search tasks..."
-                            className="pl-10 pr-10 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-white"
+                            className="pl-10 pr-10 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm w-64 text-foreground"
                             value={searchQuery}
                             onChange={handleSearch}
                         />
@@ -156,7 +155,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                 onClick={() => { setSearchQuery(''); setShowSearchResults(false); clearSearch(); }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2"
                             >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-white" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </button>
                         )}
                     </div>
@@ -164,15 +163,15 @@ export const ProjectCommandCenter: React.FC = () => {
             </div>
 
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-[#121212] border border-white/10 rounded-xl p-6 w-[400px] shadow-2xl animate-in zoom-in-95 duration-300">
-                        <h2 className="text-xl font-bold mb-4 text-white">Quick Create Task</h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-card border border-border rounded-xl p-6 w-[400px] shadow-2xl animate-in zoom-in-95 duration-300">
+                        <h2 className="text-xl font-bold mb-4 text-card-foreground">Quick Create Task</h2>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs text-muted-foreground uppercase font-bold mb-1.5 block">Task Title</label>
                                 <input
                                     autoFocus
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                                    className="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                                     placeholder="Enter task summary..."
                                     value={newTask.title}
                                     onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
@@ -187,7 +186,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                             onClick={() => setNewTask({ ...newTask, platform: p })}
                                             className={`py-2 rounded-lg border text-sm capitalize transition-all ${newTask.platform === p
                                                 ? 'bg-primary/20 border-primary text-primary'
-                                                : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10'
+                                                : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
                                                 }`}
                                         >
                                             {p}
@@ -199,18 +198,18 @@ export const ProjectCommandCenter: React.FC = () => {
                                 <button
                                     disabled={creating}
                                     onClick={() => setShowCreateModal(false)}
-                                    className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all text-sm"
+                                    className="flex-1 py-2 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground transition-all text-sm"
                                 >
                                     Cancel
                                 </button>
-                                <button
+                                <Button
                                     disabled={creating || !newTask.title}
                                     onClick={handleCreateTask}
-                                    className="flex-1 py-2 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground font-bold transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="flex-1"
                                 >
-                                    {creating && <div className="w-3 h-3 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin" />}
+                                    {creating && <div className="w-3 h-3 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin mr-2" />}
                                     {creating ? 'Creating...' : 'Create Task'}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -222,7 +221,7 @@ export const ProjectCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
+                        <h2 className="text-xl font-semibold text-foreground">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearchQuery(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -230,45 +229,45 @@ export const ProjectCommandCenter: React.FC = () => {
                     ) : searchResults.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {searchResults.map((result) => (
-                                <Card key={result.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors pointer-cursor">
+                                <Card key={result.id} className="hover:bg-muted/50 transition-colors pointer-cursor">
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="capitalize text-[10px]">{result.app_type}</Badge>
-                                                <span className="font-semibold text-white">{result.subject || result.sender}</span>
+                                                <span className="font-semibold text-card-foreground">{result.subject || result.sender}</span>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{new Date(result.timestamp).toLocaleString()}</span>
                                         </div>
-                                        <p className="text-sm text-gray-300 line-clamp-2">{result.content}</p>
+                                        <p className="text-sm text-muted-foreground line-clamp-2">{result.content}</p>
                                     </CardContent>
                                 </Card>
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical records found for &quot;{searchQuery}&quot;.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">No historical records found for &quot;{searchQuery}&quot;.</div>
                     )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="lg:col-span-3 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Total Tasks</CardTitle>
                                     <Layout className="w-4 h-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{tasks.length}</div>
+                                    <div className="text-2xl font-bold text-card-foreground">{tasks.length}</div>
                                     <p className="text-xs text-muted-foreground mt-1">+2 from yesterday</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Active Platforms</CardTitle>
-                                    <Clock className="w-4 h-4 text-blue-400" />
+                                    <Clock className="w-4 h-4 text-blue-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">
+                                    <div className="text-2xl font-bold text-card-foreground">
                                         {Object.keys(stats.tasks_by_platform || {}).length || 0}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1 font-mono">
@@ -276,13 +275,13 @@ export const ProjectCommandCenter: React.FC = () => {
                                     </p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Critical Overdue</CardTitle>
-                                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">
+                                    <div className="text-2xl font-bold text-card-foreground">
                                         {stats.overdue_count}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">High Priority</p>
@@ -290,10 +289,10 @@ export const ProjectCommandCenter: React.FC = () => {
                             </Card>
                         </div>
 
-                        <Card className="bg-black/40 border-white/5 backdrop-blur-xl overflow-hidden">
+                        <Card className="overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-muted-foreground uppercase bg-white/5">
+                                    <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                                         <tr>
                                             <th className="px-6 py-4 font-semibold">ID</th>
                                             <th className="px-6 py-4 font-semibold">Task</th>
@@ -302,24 +301,24 @@ export const ProjectCommandCenter: React.FC = () => {
                                             <th className="px-6 py-4 font-semibold">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-white/5">
+                                    <tbody className="divide-y divide-border">
                                         {loading ? (
                                             Array.from({ length: 3 }).map((_, i) => (
                                                 <tr key={i} className="animate-pulse">
-                                                    <td colSpan={5} className="px-6 py-8 h-16 bg-white/2" />
+                                                    <td colSpan={5} className="px-6 py-8 h-16 bg-muted/20" />
                                                 </tr>
                                             ))
                                         ) : tasks.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())).map((task) => (
                                             <tr
                                                 key={task.id}
-                                                className={`hover:bg-white/5 transition-all duration-500 group ${highlightTaskId === task.id ? 'bg-primary/10 border-l-2 border-l-primary ring-1 ring-primary/20' : ''
+                                                className={`hover:bg-muted/50 transition-all duration-500 group ${highlightTaskId === task.id ? 'bg-primary/10 border-l-2 border-l-primary ring-1 ring-primary/20' : ''
                                                     }`}
                                             >
                                                 <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
                                                     {task.id}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-medium text-white group-hover:text-primary transition-colors">
+                                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors">
                                                         {task.title}
                                                     </div>
                                                 </td>
@@ -331,7 +330,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                                 <td className="px-6 py-4">
                                                     <span className="flex items-center gap-2 text-muted-foreground">
                                                         {task.status === 'Done' || task.status === 'Completed' ? (
-                                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                                            <CheckCircle2 className="w-4 h-4 text-green-500" />
                                                         ) : (
                                                             <Circle className="w-4 h-4" />
                                                         )}

@@ -61,14 +61,15 @@ export default function MarketplacePage() {
         try {
             setLoading(true)
             const url = selectedCategory
-                ? `/api/workflows/templates?category=${selectedCategory}`
-                : '/api/workflows/templates'
+                ? `/api/workflow-templates?category=${selectedCategory}`
+                : '/api/workflow-templates'
 
             const response = await fetch(url)
             if (!response.ok) throw new Error('Failed to fetch templates')
             const data = await response.json()
-            setTemplates((data.templates || []).map((t: any) => ({
+            setTemplates((data || []).map((t: any) => ({ // Direct list, not data.templates
                 ...t,
+                id: t.template_id, // Map template_id to id
                 integrations: t.tags || [], // Map tags to integrations
                 downloads: t.usage_count || 0,
                 rating: t.rating || 0,
@@ -85,7 +86,7 @@ export default function MarketplacePage() {
 
     const handleImport = async (id: string) => {
         try {
-            const response = await fetch(`/api/workflows/templates/${id}/import`, {
+            const response = await fetch(`/api/workflow-templates/${id}/import`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -100,6 +101,11 @@ export default function MarketplacePage() {
             console.error('Import error:', error)
             toast.error('Failed to connect to server')
         }
+    }
+
+    const openPreview = (template: WorkflowTemplate) => {
+        setPreviewTemplate(template)
+        setIsPreviewOpen(true)
     }
 
     const filteredTemplates = templates.filter(t =>

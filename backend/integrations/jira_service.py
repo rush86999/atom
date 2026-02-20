@@ -401,8 +401,12 @@ class JiraService:
             return []
 
 # Singleton instance for global access
-jira_service = JiraService()
+try:
+    jira_service = JiraService()
+except ValueError as e:
+    logger.warning(f"JiraService not initialized: {e}")
+    jira_service = None
 
-def get_jira_service() -> JiraService:
+def get_jira_service() -> Optional[JiraService]:
     """Get Jira service instance"""
     return jira_service
