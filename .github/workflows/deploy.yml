@@ -402,6 +402,111 @@ jobs:
 
           echo "=== ✅ All smoke tests passed ==="
 
+      - name: Automatic rollback on smoke test failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=kubeconfig
+
+          echo "=== 🚨 Smoke tests failed - initiating automatic rollback ==="
+
+          # Rollback to previous deployment
+          echo "Step 1: Rolling back deployment..."
+          kubectl rollout undo deployment/atom
+
+          # Wait for rollback to complete
+          echo "Step 2: Waiting for rollback to complete..."
+          kubectl rollout status deployment/atom --timeout=5m
+
+          # Verify rollback succeeded
+          echo "Step 3: Verifying rollback..."
+          kubectl rollout history deployment/atom --revision=0
+
+          echo "=== ✅ Rollback completed ==="
+
+      - name: Send rollback notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slackWebhook = '${{ secrets.SLACK_WEBHOOK_URL }}';
+
+            // Send Slack notification
+            if (slackWebhook) {
+              await fetch(slackWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: '🚨 Deployment rolled back due to smoke test failure',
+                  blocks: [
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '*Automatic Rollback Triggered*\n' +
+                              '*Commit:* `${{ github.sha }}`\n' +
+                              '*Author:* ${{ github.actor }}\n' +
+                              '*Environment:* Staging\n' +
+                              '*Reason:* Smoke test failure\n' +
+                              '*Action:* `kubectl rollout undo deployment/atom`\n' +
+                              '*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+                      }
+                    },
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '_Please investigate the failure and fix the issue before retrying deployment._'
+                      }
+                    }
+                  ]
+                })
+              });
+            }
+
+      - name: Create GitHub issue for investigation
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Deployment Rollback - Smoke Test Failed (Staging)',
+              body: `
+              ## Automatic Rollback Triggered
+
+              **Commit:** ${{ github.sha }}
+              **Author:** ${{ github.actor }}
+              **Environment:** Staging
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+              ### Rollback Details
+              - **Trigger:** Smoke test failure
+              - **Action:** \`kubectl rollout undo deployment/atom\`
+              - **Timestamp:** ${new Date().toISOString()}
+
+              ### Next Steps
+              1. Review smoke test failure logs in workflow run
+              2. Identify root cause of failure
+              3. Fix the issue in a new commit
+              4. Re-run deployment after fix verified
+
+              ### Relevant Files
+              - Workflow: \`.github/workflows/deploy.yml\`
+              - Health Routes: \`backend/api/health_routes.py\`
+              - Smoke Test User: \`backend/alembic/versions/20260220_create_smoke_test_user.py\`
+
+              /assign @${{ github.actor }}
+              /label "deployment"
+              /label "rollback"
+              /label "bug"
+              `,
+              labels: ['deployment', 'rollback', 'bug', 'staging']
+            });
+
+            console.log('Created issue:', issue.data.html_url);
+
       - name: Update Grafana dashboards
         if: success()
         env:
@@ -685,6 +790,121 @@ jobs:
           echo "✅ Skills endpoint passed"
 
           echo "=== ✅ All smoke tests passed ==="
+
+      - name: Automatic rollback on smoke test failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=kubeconfig
+
+          echo "=== 🚨 PRODUCTION SMOKE TESTS FAILED - INITIATING AUTOMATIC ROLLBACK ==="
+
+          # Rollback to previous deployment
+          echo "Step 1: Rolling back deployment..."
+          kubectl rollout undo deployment/atom
+
+          # Wait for rollback to complete
+          echo "Step 2: Waiting for rollback to complete..."
+          kubectl rollout status deployment/atom --timeout=10m
+
+          # Verify rollback succeeded
+          echo "Step 3: Verifying rollback..."
+          kubectl rollout history deployment/atom --revision=0
+
+          echo "=== ✅ PRODUCTION ROLLBACK COMPLETED ==="
+
+      - name: Send production rollback notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slackWebhook = '${{ secrets.SLACK_WEBHOOK_URL }}';
+
+            // Send urgent Slack notification
+            if (slackWebhook) {
+              await fetch(slackWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: '🚨🚨 PRODUCTION ROLLBACK 🚨🚨',
+                  blocks: [
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '*PRODUCTION Rollback Triggered*\n' +
+                              '*Commit:* `${{ github.sha }}`\n' +
+                              '*Author:* ${{ github.actor }}\n' +
+                              '*Environment:* PRODUCTION\n' +
+                              '*Reason:* Smoke test failure\n' +
+                              '*Action:* `kubectl rollout undo deployment/atom`\n' +
+                              '*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n' +
+                              '*URGENT:* Investigate immediately!'
+                      }
+                    },
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '_Production deployment was rolled back. All hands on deck to investigate and fix._'
+                      }
+                    }
+                  ]
+                })
+              });
+            }
+
+      - name: Create production GitHub issue for investigation
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨🚨 PRODUCTION ROLLBACK - Smoke Test Failed 🚨🚨',
+              body: `
+              ## 🚨 AUTOMATIC PRODUCTION ROLLBACK TRIGGERED 🚨
+
+              **Commit:** ${{ github.sha }}
+              **Author:** ${{ github.actor }}
+              **Environment:** PRODUCTION
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+              ### Rollback Details
+              - **Trigger:** Smoke test failure
+              - **Action:** \`kubectl rollout undo deployment/atom\`
+              - **Timestamp:** ${new Date().toISOString()}
+              - **URGENCY:** CRITICAL
+
+              ### Immediate Action Required
+              1. **URGENT:** Review smoke test failure logs in workflow run
+              2. **URGENT:** Identify root cause of failure
+              3. **URGENT:** Fix the issue in a hotfix commit
+              4. **URGENT:** Re-run deployment after fix verified
+              5. Monitor production metrics closely for 1 hour post-fix
+
+              ### Relevant Files
+              - Workflow: \`.github/workflows/deploy.yml\`
+              - Health Routes: \`backend/api/health_routes.py\`
+              - Smoke Test User: \`backend/alembic/versions/20260220_create_smoke_test_user.py\`
+
+              ### Database Backup Location
+              - S3: s3://atom-backups/production/backup_\$(date).sql
+              - Restored via \`kubectl apply -f backup.yaml\`
+
+              /assign @${{ github.actor }}
+              /label "deployment"
+              /label "rollback"
+              /label "bug"
+              /label "production"
+              /label "critical"
+              /priority "critical"
+              `,
+              labels: ['deployment', 'rollback', 'bug', 'production', 'critical']
+            });
+
+            console.log('Created production issue:', issue.data.html_url);
 
       - name: Progressive canary deployment
         if: success()
