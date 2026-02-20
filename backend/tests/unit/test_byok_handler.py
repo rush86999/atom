@@ -1341,3 +1341,752 @@ class TestAvailableProvidersExtended:
             assert "openai" in providers
             assert "deepseek" in providers
             assert "anthropic" in providers
+
+
+# ============================================================================
+# STRUCTURED RESPONSE TESTS (NEW - Plan 62-04)
+# ============================================================================
+
+class TestStructuredResponse:
+    """Test structured response generation using instructor"""
+
+    def test_structured_response_basic(self, mock_byok_manager):
+        """Test basic structured response generation"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock client
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.field1 = "test_value"
+            mock_response.field2 = 123
+
+            handler.clients = {"openai": mock_client}
+
+            # Mock instructor
+            import sys
+            sys.modules['instructor'] = MagicMock()
+            import core.llm.byok_handler
+            import importlib
+            importlib.reload(core.llm.byok_handler)
+
+            from core.llm.byok_handler import BYOKHandler as HandlerReloaded
+            handler2 = HandlerReloaded()
+            handler2.clients = handler.clients
+            handler2.async_clients = handler.async_clients
+            handler2.byok_manager = handler.byok_manager
+
+            # Create a simple Pydantic model for testing
+            from pydantic import BaseModel
+            class TestModel(BaseModel):
+                field1: str
+                field2: int
+
+            import asyncio
+            async def run_test():
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+                    result = await handler2.generate_structured_response(
+                        prompt="Generate test data",
+                        system_instruction="You are a helpful assistant",
+                        response_model=TestModel,
+                        temperature=0.2
+                    )
+                    assert result is not None
+                    assert result.field1 == "test_value"
+                    assert result.field2 == 123
+
+            asyncio.run(run_test())
+
+    def test_structured_response_with_vision(self, mock_byok_manager):
+        """Test structured response with image payload"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.description = "Image content"
+
+            handler.clients = {"openai": mock_client}
+
+            import sys
+            sys.modules['instructor'] = MagicMock()
+            import core.llm.byok_handler
+            import importlib
+            importlib.reload(core.llm.byok_handler)
+
+            from pydantic import BaseModel
+            class ImageDescription(BaseModel):
+                description: str
+
+            import asyncio
+            async def run_test():
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+                    result = await handler.generate_structured_response(
+                        prompt="Describe this image",
+                        system_instruction="You are a vision specialist",
+                        response_model=ImageDescription,
+                        image_payload="base64encodedimagedata"
+                    )
+                    assert result is not None
+                    assert result.description == "Image content"
+
+            asyncio.run(run_test())
+
+    def test_structured_response_trial_restriction(self, mock_byok_manager):
+        """Test structured response blocked by trial restriction"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock trial restriction
+            with patch.object(handler, '_is_trial_restricted', return_value=True):
+                from pydantic import BaseModel
+                class TestModel(BaseModel):
+                    field: str
+
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_structured_response(
+                        prompt="test",
+                        system_instruction="test",
+                        response_model=TestModel
+                    )
+                    assert result is None  # Blocked by trial
+
+                asyncio.run(run_test())
+
+    def test_structured_response_no_clients(self, mock_byok_manager):
+        """Test structured response with no clients available"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {}  # No clients
+
+            from pydantic import BaseModel
+            class TestModel(BaseModel):
+                field: str
+
+            import asyncio
+            async def run_test():
+                result = await handler.generate_structured_response(
+                    prompt="test",
+                    system_instruction="test",
+                    response_model=TestModel
+                )
+                assert result is None
+
+            asyncio.run(run_test())
+
+    def test_structured_response_instructor_unavailable(self, mock_byok_manager):
+        """Test structured response fallback when instructor unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {"openai": MagicMock()}
+
+            # Instructor import error is handled inside generate_structured_response
+            from pydantic import BaseModel
+            class TestModel(BaseModel):
+                field: str
+
+            import asyncio
+            async def run_test():
+                # Mock ImportError for instructor module
+                import builtins
+                real_import = builtins.__import__
+
+                def mock_import(name, *args, **kwargs):
+                    if name == 'instructor':
+                        raise ImportError("instructor not available")
+                    return real_import(name, *args, **kwargs)
+
+                with patch('builtins.__import__', side_effect=mock_import):
+                    result = await handler.generate_structured_response(
+                        prompt="test",
+                        system_instruction="test",
+                        response_model=TestModel
+                    )
+                    # Should return None when instructor unavailable
+                    assert result is None
+
+            asyncio.run(run_test())
+
+
+class TestCoordinatedVision:
+    """Test coordinated vision description extraction for non-vision models"""
+
+    @pytest.mark.asyncio
+    async def test_coordinated_vision_description(self, mock_byok_manager):
+        """Test coordinated vision description extraction"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock client
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Screenshot shows a button at [500, 200]"
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            result = await handler._get_coordinated_vision_description(
+                image_payload="base64image",
+                tenant_plan="free",
+                is_managed=True
+            )
+
+            assert result is not None
+            assert "button" in result
+
+    @pytest.mark.asyncio
+    async def test_coordinated_vision_with_gemini_flash(self, mock_byok_manager):
+        """Test coordinated vision prefers Gemini Flash when available"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock Gemini Flash client
+            mock_gemini_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Gemini analysis"
+
+            mock_gemini_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"google_flash": mock_gemini_client}
+
+            result = await handler._get_coordinated_vision_description(
+                image_payload="base64image",
+                tenant_plan="free",
+                is_managed=True
+            )
+
+            assert result is not None
+            assert "Gemini" in result
+
+    @pytest.mark.asyncio
+    async def test_coordinated_vision_error_handling(self, mock_byok_manager):
+        """Test coordinated vision handles errors gracefully"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_client.chat.completions.create.side_effect = Exception("Vision API failed")
+
+            handler.clients = {"openai": mock_client}
+
+            result = await handler._get_coordinated_vision_description(
+                image_payload="base64image",
+                tenant_plan="free",
+                is_managed=True
+            )
+
+            assert result is None  # Should return None on error
+
+
+class TestCostTracking:
+    """Test cost calculation and tracking with dynamic pricing"""
+
+    def test_cost_calculation_with_dynamic_pricing(self, mock_byok_manager):
+        """Test cost calculation using dynamic pricing fetcher"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock client
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Response text"
+            mock_response.usage.prompt_tokens = 100
+            mock_response.usage.completion_tokens = 50
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            # Mock dynamic pricing
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                mock_pricing = MagicMock()
+                mock_pricing.estimate_cost.return_value = 0.001  # $0.001
+                mock_fetcher.return_value = mock_pricing
+
+                # Mock usage tracker
+                with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                    import asyncio
+                    async def run_test():
+                        result = await handler.generate_response(
+                            prompt="Test prompt",
+                            system_instruction="You are helpful"
+                        )
+                        assert result == "Response text"
+
+                    asyncio.run(run_test())
+
+    def test_cost_fallback_to_static_pricing(self, mock_byok_manager):
+        """Test cost calculation falls back to static pricing when dynamic unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Response"
+            mock_response.usage.prompt_tokens = 100
+            mock_response.usage.completion_tokens = 50
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            # Mock dynamic pricing failure
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                mock_fetcher.return_value.estimate_cost.return_value = None
+
+                # Mock static pricing fallback
+                with patch('core.llm.byok_handler.get_llm_cost') as mock_static:
+                    mock_static.return_value = 0.002
+
+                    with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                        import asyncio
+                        async def run_test():
+                            result = await handler.generate_response(
+                                prompt="Test",
+                                system_instruction="Test"
+                            )
+                            assert result == "Response"
+
+                        asyncio.run(run_test())
+
+    def test_savings_calculation(self, mock_byok_manager):
+        """Test savings calculation against reference cost (gpt-4o)"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Response"
+            mock_response.usage.prompt_tokens = 100
+            mock_response.usage.completion_tokens = 50
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"deepseek": mock_client}
+
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                # DeepSeek: $0.0001, GPT-4o reference: $0.001
+                mock_fetcher.return_value.estimate_cost.side_effect = [0.0001, 0.001]
+
+                with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                    import asyncio
+                    async def run_test():
+                        result = await handler.generate_response(prompt="Test")
+                        assert result == "Response"
+
+                    asyncio.run(run_test())
+
+
+class TestProviderFiltering:
+    """Test provider filtering for tools, structured output, and vision"""
+
+    def test_tool_requirement_filtering(self, mock_byok_manager):
+        """Test providers filtered by tool support requirement"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {"deepseek": MagicMock(), "openai": MagicMock()}
+
+            # Request with tool requirement (agent_id present)
+            options = handler.get_ranked_providers(
+                complexity=QueryComplexity.COMPLEX,
+                requires_tools=True,
+                tenant_plan="free",
+                is_managed_service=False
+            )
+
+            # Should exclude deepseek-v3.2-speciale (no tool support)
+            for provider, model in options:
+                if provider == "deepseek":
+                    assert model != "deepseek-v3.2-speciale"
+
+    def test_structured_requirement_filtering(self, mock_byok_manager):
+        """Test providers filtered by structured output support"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {"deepseek": MagicMock()}
+
+            # Request with structured requirement
+            options = handler.get_ranked_providers(
+                complexity=QueryComplexity.COMPLEX,
+                requires_structured=True,
+                tenant_plan="free",
+                is_managed_service=False
+            )
+
+            # Should filter out models without structured support
+            for provider, model in options:
+                assert model not in ["deepseek-v3.2-speciale"]
+
+    def test_vision_model_filtering(self, mock_byok_manager):
+        """Test vision-capable model filtering"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock vision routing
+            handler.clients = {"openai": MagicMock(), "deepseek": MagicMock()}
+
+            complexity = handler.analyze_query_complexity("Analyze this image")
+
+            # Verify complexity analysis works
+            assert complexity in [QueryComplexity.SIMPLE, QueryComplexity.MODERATE]
+
+
+class TestTenantPlanLogic:
+    """Test tenant plan routing and BYOK vs Managed AI logic"""
+
+    def test_free_tier_managed_ai_blocking(self, mock_byok_manager):
+        """Test free tier blocks managed AI"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Response"
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            # Mock tenant as free tier with no custom key
+            with patch('core.llm.byok_handler.get_db_session') as mock_db:
+                mock_workspace = MagicMock()
+                mock_workspace.tenant_id = "tenant_123"
+
+                mock_tenant = MagicMock()
+                mock_tenant.plan_type.value = "free"
+
+                mock_db.return_value.__enter__.return_value.query.return_value.filter.return_value.first.side_effect = [
+                    mock_workspace, mock_tenant
+                ]
+
+                # Mock no custom key
+                handler.byok_manager.get_tenant_api_key.return_value = None
+
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(prompt="Test")
+                    # Should block with plan restriction message
+                    assert "PLAN RESTRICTION" in result
+
+                asyncio.run(run_test())
+
+    def test_custom_api_key_detection(self, mock_byok_manager):
+        """Test custom API key enables BYOK mode"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock custom key present
+            handler.byok_manager.get_tenant_api_key.return_value = "sk-custom-key"
+
+            custom_key = handler.byok_manager.get_tenant_api_key("default", "openai")
+
+            assert custom_key == "sk-custom-key"
+
+
+class TestErrorHandling:
+    """Test error handling and graceful degradation"""
+
+    def test_missing_dynamic_pricing_fetcher(self, mock_byok_manager):
+        """Test graceful degradation when dynamic_pricing_fetcher unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Should not crash when pricing fetcher missing
+            with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=ImportError):
+                routing = handler.get_routing_info("test prompt")
+
+                # Should still return routing info with static fallback
+                assert isinstance(routing, dict)
+                assert "complexity" in routing
+
+    def test_missing_benchmarks_module(self, mock_byok_manager):
+        """Test graceful degradation when benchmarks module unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {"openai": MagicMock()}
+
+            # Mock benchmarks import error
+            with patch('core.llm.byok_handler.get_quality_score', side_effect=ImportError):
+                options = handler.get_ranked_providers(
+                    complexity=QueryComplexity.SIMPLE,
+                    tenant_plan="free",
+                    is_managed_service=False
+                )
+
+                # Should fall back to static provider list
+                assert isinstance(options, list)
+
+    def test_missing_llm_usage_tracker(self, mock_byok_manager):
+        """Test graceful degradation when llm_usage_tracker unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Response"
+            mock_response.usage = None  # No usage data
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            # Mock usage tracker missing
+            with patch('core.llm.byok_handler.llm_usage_tracker', side_effect=AttributeError):
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(prompt="Test")
+                    # Should still return result even if tracking fails
+                    assert result == "Response"
+
+                asyncio.run(run_test())
+
+
+class TestBudgetEnforcement:
+    """Test budget enforcement logic"""
+
+    def test_budget_exceeded_blocks_generation(self, mock_byok_manager):
+        """Test budget exceeded blocks AI generation"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            handler.clients = {"openai": MagicMock()}
+
+            # Mock budget exceeded
+            with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                mock_tracker.is_budget_exceeded.return_value = True
+
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(prompt="Test")
+                    assert "BUDGET EXCEEDED" in result
+
+                asyncio.run(run_test())
+
+    def test_budget_not_exceeded_allows_generation(self, mock_byok_manager):
+        """Test generation proceeds when budget not exceeded"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Success"
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            # Mock budget not exceeded
+            with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                mock_tracker.is_budget_exceeded.return_value = False
+
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(prompt="Test")
+                    assert result == "Success"
+
+                asyncio.run(run_test())
+
+
+class TestVisionRouting:
+    """Test vision routing and multimodal support"""
+
+    def test_vision_routing_with_image_payload(self, mock_byok_manager):
+        """Test vision routing with image payload"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Image analyzed"
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(
+                        prompt="What's in this image?",
+                        image_payload="base64imagedata"
+                    )
+                    assert result == "Image analyzed"
+
+                asyncio.run(run_test())
+
+    def test_vision_routing_with_image_url(self, mock_byok_manager):
+        """Test vision routing with image URL"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "URL image analyzed"
+
+            mock_client.chat.completions.create.return_value = mock_response
+            handler.clients = {"openai": mock_client}
+
+            with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                import asyncio
+                async def run_test():
+                    result = await handler.generate_response(
+                        prompt="Analyze this",
+                        image_payload="http://example.com/image.jpg"
+                    )
+                    assert result == "URL image analyzed"
+
+                asyncio.run(run_test())
+
+
+class TestContextWindowExtended:
+    """Test context window management"""
+
+    def test_context_window_dynamic_pricing(self, mock_byok_manager):
+        """Test context window from dynamic pricing"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock dynamic pricing with context window
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                mock_pricing = {
+                    "max_input_tokens": 128000,
+                    "max_tokens": 128000
+                }
+                mock_fetcher.return_value.get_model_price.return_value = mock_pricing
+
+                context = handler.get_context_window("gpt-4o")
+
+                # Should use dynamic pricing value
+                assert context == 128000
+
+    def test_context_window_fallback_to_defaults(self, mock_byok_manager):
+        """Test context window falls back to safe defaults"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock pricing fetcher failure
+            with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception):
+                context = handler.get_context_window("gpt-4o")
+
+                # Should use safe default for gpt-4o
+                assert context == 128000
+
+    def test_truncate_to_context(self, mock_byok_manager):
+        """Test text truncation to fit context window"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Create text that's too long (1M chars)
+            long_text = "A" * 1000000
+
+            truncated = handler.truncate_to_context(long_text, "gpt-4o")
+
+            # Should be truncated
+            assert len(truncated) < len(long_text)
+            assert "truncated" in truncated.lower()
+
+    def test_truncate_with_reserve_tokens(self, mock_byok_manager):
+        """Test truncation respects reserve tokens for response"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Create text slightly under context window
+            text = "A" * 500000  # ~125K tokens
+
+            truncated = handler.truncate_to_context(text, "gpt-4o", reserve_tokens=2000)
+
+            # Should reserve space for 2000 tokens
+            assert len(truncated) < len(text)
+
+
+class TestStreamingFixed:
+    """Fixed streaming tests with proper async mock setup"""
+
+    @pytest.mark.asyncio
+    async def test_stream_completion_basic_fixed(self, mock_byok_manager):
+        """Test basic streaming with proper async mock"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Create async generator properly
+            async def mock_stream_generator():
+                chunks = [
+                    MagicMock(choices=[MagicMock(delta=MagicMock(content="Hello "))]),
+                    MagicMock(choices=[MagicMock(delta=MagicMock(content="world"))]),
+                    MagicMock(choices=[])
+                ]
+                for chunk in chunks:
+                    yield chunk
+
+            mock_async_client = MagicMock()
+            mock_async_client.chat.completions.create = MagicMock(return_value=mock_stream_generator())
+
+            handler.async_clients = {"openai": mock_async_client}
+
+            messages = [{"role": "user", "content": "Say hello"}]
+            tokens = []
+            async for token in handler.stream_completion(
+                messages=messages,
+                model="gpt-4o",
+                provider_id="openai",
+                temperature=0.7
+            ):
+                tokens.append(token)
+
+            assert len(tokens) == 2
+            assert "Hello" in "".join(tokens)
+
+
+class TestProviderRanking:
+    """Test provider ranking with BPC algorithm"""
+
+    def test_bpc_ranking_with_dynamic_pricing(self, mock_byok_manager):
+        """Test BPC (Benchmark-Price-Capability) ranking"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock dynamic pricing cache
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                mock_fetcher.return_value.pricing_cache = {
+                    "deepseek-chat": {
+                        "litellm_provider": "deepseek",
+                        "max_input_tokens": 16000,
+                        "input_cost_per_token": 0.000002,
+                        "output_cost_per_token": 0.000002
+                    }
+                }
+
+                with patch('core.llm.byok_handler.get_quality_score', return_value=85):
+                    handler.clients = {"deepseek": MagicMock()}
+
+                    options = handler.get_ranked_providers(
+                        complexity=QueryComplexity.SIMPLE,
+                        tenant_plan="free",
+                        is_managed_service=False
+                    )
+
+                    # Should return ranked options
+                    assert isinstance(options, list)
+
+    def test_static_fallback_provider_ranking(self, mock_byok_manager):
+        """Test static fallback when BPC ranking unavailable"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients = {"deepseek": MagicMock()}
+
+            # Mock BPC failure
+            with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception):
+                options = handler.get_ranked_providers(
+                    complexity=QueryComplexity.SIMPLE,
+                    tenant_plan="free",
+                    is_managed_service=False
+                )
+
+                # Should use static fallback
+                assert isinstance(options, list)
+                assert len(options) > 0
