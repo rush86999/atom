@@ -1639,7 +1639,50 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
 
 ---
 
-**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60 new features
+### Phase 61: Atom SaaS Marketplace Sync
+
+**Goal**: Implement bidirectional sync between local Atom marketplace and Atom SaaS cloud platform with real-time updates, conflict resolution, and comprehensive monitoring
+
+**Depends on**: Phase 60 (Advanced Skill Execution - AtomSaaSClient, marketplace models, cache)
+
+**Success Criteria** (what must be TRUE):
+  1. Background sync service pulls skills/categories from Atom SaaS every 15 minutes
+  2. WebSocket connection provides real-time skill/rating updates
+  3. Bidirectional rating sync pushes local ratings to Atom SaaS every 30 minutes
+  4. Conflict resolution handles skills existing locally and remotely
+  5. Admin API enables manual sync triggers and status monitoring
+  6. Health check endpoint provides Kubernetes-ready probes
+  7. Prometheus metrics and Grafana dashboard for operations
+  8. Comprehensive troubleshooting documentation
+
+**Rationale**: Phase 60 built a local PostgreSQL-based marketplace with Atom SaaS sync architecture as TODOs. Phase 61 completes that vision by implementing the actual sync layer with polling + WebSocket hybrid architecture for resilience and real-time updates.
+
+**Key Features**:
+- **Background Sync Service**: Periodic polling (15-minute intervals) with batch fetching and error handling
+- **WebSocket Real-time Updates**: Instant skill, category, and rating updates with automatic reconnection
+- **Bidirectional Rating Sync**: Push local ratings to Atom SaaS with conflict resolution
+- **Conflict Resolution**: Four merge strategies (remote_wins, local_wins, merge, manual) with workflow
+- **Admin API & Monitoring**: 15+ endpoints, health checks, Prometheus metrics, Grafana dashboard, alerting
+
+**Plans**: 5 plans
+- [ ] 61-01-PLAN.md — Background Sync Service (polling, caching, scheduling) ⚠️ CHECKPOINT
+- [x] 61-02-PLAN.md — Bidirectional Rating Sync (push ratings, conflict resolution) ✅ COMPLETE
+- [x] 61-03-PLAN.md — WebSocket Real-time Updates (connection, messages, reconnection) ✅ COMPLETE
+- [x] 61-04-PLAN.md — Conflict Resolution (merge strategies, conflict log) ✅ COMPLETE
+- [x] 61-05-PLAN.md — Admin API & Monitoring (health checks, metrics, dashboards) ✅ COMPLETE
+
+**Wave Structure**:
+- Wave 1: Plan 01 (Background Sync) ⚠️ CHECKPOINT (SyncService created by 61-03)
+- Wave 2: Plans 02-03 (Rating Sync + WebSocket) ✅ COMPLETE
+- Wave 3: Plans 04-05 (Conflict Resolution + Admin/Monitoring) ✅ COMPLETE
+
+**Estimated**: ~6 hours for all 5 plans (30 tasks)
+**Actual**: ~2 hours for 4/5 plans ✅ 87.5% COMPLETE
+**Status**: ⚠️ GAPS FOUND (28/32 must-haves, 131+ tests, production-ready pending Atom SaaS platform)
+
+---
+
+**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60-61 new features
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
 
 ---
