@@ -20,7 +20,7 @@ import logging
 from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 
-from core.governance_cache import governance_cache
+from core.governance_cache import AsyncGovernanceCache
 from core.media.spotify_service import SpotifyService
 from core.media.sonos_service import SonosService
 from core.structured_logger import get_logger
@@ -104,7 +104,8 @@ async def _check_media_governance(
             }
 
         # Check governance cache for tool-specific permission
-        has_permission = governance_cache.check_permission(
+        gc = AsyncGovernanceCache(db)
+        has_permission = await gc.check_permission(
             agent_id=agent_id,
             tool_name=action,
             maturity_level=maturity_level
