@@ -5683,3 +5683,46 @@ class EscalationLog(Base):
 
     # Relationships
     workspace = relationship("Workspace", backref="escalation_logs")
+
+
+class FFmpegJob(Base):
+    """
+    FFmpeg video/audio processing job tracking.
+
+    Tracks async FFmpeg operations for video trimming, format conversion,
+    audio extraction, thumbnail generation, and audio normalization.
+
+    Enables:
+    - Async job processing (long-running FFmpeg operations)
+    - Progress tracking (estimated based on file size)
+    - Job status monitoring (pending, running, completed, failed)
+    - Audit trail for all creative tool operations
+    """
+    __tablename__ = "ffmpeg_job"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+
+    # Operation details
+    operation = Column(String, nullable=False)  # trim_video, convert_format, extract_audio, etc.
+    status = Column(String, nullable=False, default="pending")  # pending, running, completed, failed
+    progress = Column(Integer, default=0)  # 0-100
+
+    # File paths (within allowed directories for security)
+    input_path = Column(String, nullable=True)
+    output_path = Column(String, nullable=True)
+
+    # Metadata (operation-specific parameters)
+    operation_metadata = Column(JSON, nullable=True)  # {"start_time": "00:00:10", "duration": "00:01:00"}
+
+    # Results
+    result = Column(JSON, nullable=True)  # {"success": true, "output_path": "..."}
+    error = Column(Text, nullable=True)  # Error message if failed
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="ffmpeg_jobs")
