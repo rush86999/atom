@@ -518,6 +518,13 @@ try:
         logger.warning(f"Failed to load composition routes: {e}")
 
     try:
+        from api.cognitive_tier_routes import router as cognitive_tier_router
+        app.include_router(cognitive_tier_router)
+        logger.info("✓ Cognitive Tier Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load cognitive tier routes: {e}")
+
+    try:
         from api.ai_accounting_routes import router as accounting_router
         app.include_router(accounting_router, prefix="/api/accounting", tags=["ai-accounting"])
     except ImportError as e:
