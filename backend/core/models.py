@@ -80,6 +80,54 @@ def _decrypt_token(encrypted_token: str) -> str:
         return encrypted_token
 
 
+# ============================================================================
+# Local-Only Mode Exception
+# ============================================================================
+
+class LocalOnlyModeError(Exception):
+    """
+    Raised when external service is blocked in local-only mode.
+
+    Used by LocalOnlyGuard (core.privsec.local_only_guard) to enforce
+    local-only mode for Personal Edition privacy.
+
+    Attributes:
+        service: Name of blocked service (e.g., "spotify", "notion")
+        reason: Optional reason for blocking (e.g., "OAuth requires cloud")
+        suggested_alternatives: Optional list of local alternatives
+
+    Message format:
+        "Service '{service}' is blocked in local-only mode: {reason}.
+         Disable local-only mode or use local services only."
+
+    Usage:
+        raise LocalOnlyModeError(
+            service="spotify",
+            reason="OAuth requires cloud API access"
+        )
+    """
+    def __init__(
+        self,
+        service: str,
+        reason: Optional[str] = None,
+        suggested_alternatives: Optional[list] = None
+    ):
+        self.service = service
+        self.reason = reason
+        self.suggested_alternatives = suggested_alternatives or []
+
+        message = f"Service '{service}' is blocked in local-only mode"
+        if reason:
+            message += f": {reason}"
+
+        if suggested_alternatives:
+            message += f"\n\nLocal alternatives: {', '.join(suggested_alternatives)}"
+
+        message += ".\n\nDisable local-only mode or use local services only."
+
+        super().__init__(message)
+
+
 # Enums
 class UserRole(str, enum.Enum):
     """
