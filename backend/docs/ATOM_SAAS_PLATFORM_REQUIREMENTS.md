@@ -1310,13 +1310,15 @@ curl http://localhost:8000/api/admin/sync/errors?limit=10
 
 ---
 
-## Appendix A: Example .env File
+## Environment Variable Examples
+
+### Production Configuration
 
 ```bash
-# Atom SaaS Configuration
+# Atom SaaS Configuration - Production
 ATOM_SAAS_ENABLED=true
 ATOM_SAAS_API_URL=https://api.atomsaas.com
-ATOM_SAAS_API_TOKEN=your_token_here
+ATOM_SAAS_API_TOKEN=prod_token_here_from_secrets_manager
 ATOM_SAAS_WS_URL=wss://api.atomsaas.com/ws
 ATOM_SAAS_SYNC_INTERVAL_MINUTES=15
 ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=30
@@ -1324,8 +1326,238 @@ ATOM_SAAS_WS_RECONNECT_ATTEMPTS=10
 ATOM_SAAS_CONFLICT_STRATEGY=remote_wins
 ATOM_SAAS_WS_ENABLED=true
 ATOM_SAAS_API_TIMEOUT_SECONDS=30
+```
 
-# Local Marketplace Mode (fallback)
+### Development Configuration
+
+```bash
+# Atom SaaS Configuration - Development
+ATOM_SAAS_ENABLED=true
+ATOM_SAAS_API_URL=http://localhost:5058/api
+ATOM_SAAS_API_TOKEN=dev_token_12345
+ATOM_SAAS_WS_URL=ws://localhost:5058/api/ws/satellite/connect
+ATOM_SAAS_SYNC_INTERVAL_MINUTES=5
+ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=10
+ATOM_SAAS_WS_RECONNECT_ATTEMPTS=5
+ATOM_SAAS_CONFLICT_STRATEGY=local_wins
+ATOM_SAAS_WS_ENABLED=true
+ATOM_SAAS_API_TIMEOUT_SECONDS=10
+```
+
+### Testing/Mock Configuration
+
+```bash
+# Atom SaaS Configuration - Testing with Mock Server
+ATOM_SAAS_ENABLED=true
+ATOM_SAAS_API_URL=http://localhost:8080
+ATOM_SAAS_API_TOKEN=test_token_67890
+ATOM_SAAS_WS_URL=ws://localhost:8080/ws
+ATOM_SAAS_SYNC_INTERVAL_MINUTES=1
+ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=2
+ATOM_SAAS_WS_RECONNECT_ATTEMPTS=3
+ATOM_SAAS_CONFLICT_STRATEGY=manual
+ATOM_SAAS_WS_ENABLED=false  # Disable WebSocket for tests
+ATOM_SAAS_API_TIMEOUT_SECONDS=5
+```
+
+### Local Marketplace Only (No Sync)
+
+```bash
+# Atom SaaS Configuration - Local Marketplace Only
+ATOM_SAAS_ENABLED=false
+# All other ATOM_SAAS_* variables are ignored when enabled=false
+```
+
+---
+
+## Environment Variable Validation
+
+### Startup Validation
+
+Atom validates environment variables at startup:
+
+```python
+# Required when ATOM_SAAS_ENABLED=true
+if ATOM_SAAS_ENABLED:
+    assert ATOM_SAAS_API_URL, "ATOM_SAAS_API_URL required when sync enabled"
+    assert ATOM_SAAS_API_TOKEN, "ATOM_SAAS_API_TOKEN required when sync enabled"
+
+# Range validation
+assert 5 <= ATOM_SAAS_SYNC_INTERVAL_MINUTES <= 60, "Sync interval must be 5-60 minutes"
+assert 10 <= ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES <= 120, "Rating sync interval must be 10-120 minutes"
+assert 1 <= ATOM_SAAS_WS_RECONNECT_ATTEMPTS <= 100, "Reconnect attempts must be 1-100"
+
+# Enum validation
+assert ATOM_SAAS_CONFLICT_STRATEGY in ["remote_wins", "local_wins", "merge", "manual"]
+```
+
+**Startup Failure:** If validation fails, Atom logs error and exits with status code 1
+
+---
+
+## Environment Variable precedence
+
+### Configuration Precedence (Highest to Lowest)
+
+1. **Environment Variables** (runtime configuration)
+2. **.env file** (local development)
+3. **Default values** (hardcoded in code)
+
+### Example Override Behavior
+
+```bash
+# .env file
+ATOM_SAAS_SYNC_INTERVAL_MINUTES=15
+
+# Environment variable (takes precedence)
+export ATOM_SAAS_SYNC_INTERVAL_MINUTES=30
+
+# Result: Sync interval is 30 minutes
+```
+
+---
+
+## Secrets Management
+
+### Production Secrets Storage
+
+**Recommended Approaches:**
+
+1. **AWS Secrets Manager:**
+   ```bash
+   aws secretsmanager get-secret-value --secret-id atom/saas/api-token
+   ```
+
+2. **HashiCorp Vault:**
+   ```bash
+   vault kv get -field=api_token secret/atom/saas
+   ```
+
+3. **Kubernetes Secrets:**
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: atom-saas-token
+   type: Opaque
+   data:
+     api-token: <base64-encoded-token>
+   ```
+
+4. **Docker Secrets:**
+   ```bash
+   echo "your_token_here" | docker secret create atom_saas_api_token -
+   ```
+
+**Never:**
+- Commit secrets to git
+- Log secrets in application logs
+- Pass secrets via CLI arguments (visible in ps aux)
+- Store secrets in config files
+
+---
+
+## Appendix A: Complete .env.example File
+
+```bash
+# =============================================================================
+# Atom SaaS Configuration
+# =============================================================================
+
+# Enable/disable Atom SaaS sync
+# When false: Local marketplace only, no API calls, no WebSocket
+ATOM_SAAS_ENABLED=true
+
+# -----------------------------------------------------------------------------
+# Required Configuration (when ATOM_SAAS_ENABLED=true)
+# -----------------------------------------------------------------------------
+
+# Atom SaaS API base URL
+# Format: https://api.atomsaas.com (production) or http://localhost:5058 (dev)
+ATOM_SAAS_API_URL=https://api.atomsaas.com
+
+# Atom SaaS API authentication token
+# Format: UUID v4 (e.g., 550e8400-e29b-41d4-a716-446655440000) or JWT
+# Security: Never commit to git, use secrets manager in production
+ATOM_SAAS_API_TOKEN=your_token_here
+
+# -----------------------------------------------------------------------------
+# Optional Configuration
+# -----------------------------------------------------------------------------
+
+# Atom SaaS WebSocket URL for real-time updates
+# Format: wss://api.atomsaas.com/ws (production) or ws://localhost:5058/ws (dev)
+# Default: Derived from ATOM_SAAS_API_URL if not set
+ATOM_SAAS_WS_URL=wss://api.atomsaas.com/ws
+
+# Skill sync interval in minutes
+# Default: 15
+# Range: 5-60
+# Recommended: 15 for production, 5 for development
+ATOM_SAAS_SYNC_INTERVAL_MINUTES=15
+
+# Rating sync interval in minutes
+# Default: 30
+# Range: 10-120
+# Recommended: 30 for production, 10 for development
+ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=30
+
+# WebSocket reconnection max attempts
+# Default: 10
+# Range: 1-100
+# Recommended: 10 for production, 5 for development
+ATOM_SAAS_WS_RECONNECT_ATTEMPTS=10
+
+# Default conflict resolution strategy
+# Default: remote_wins
+# Options:
+#   - remote_wins: Atom SaaS data overwrites local (recommended)
+#   - local_wins: Local data overwrites Atom SaaS
+#   - merge: Merge fields (description/tags merge, code stays local)
+#   - manual: Require admin intervention for all conflicts
+ATOM_SAAS_CONFLICT_STRATEGY=remote_wins
+
+# Enable WebSocket real-time updates
+# Default: true
+# Options: true, false
+# When false: Polling mode only (every ATOM_SAAS_SYNC_INTERVAL_MINUTES)
+ATOM_SAAS_WS_ENABLED=true
+
+# API request timeout in seconds
+# Default: 30
+# Range: 10-120
+# Recommended: 30 for production, 10 for development
+ATOM_SAAS_API_TIMEOUT_SECONDS=30
+
+# -----------------------------------------------------------------------------
+# Local Marketplace Only Mode (fallback)
+# -----------------------------------------------------------------------------
+# To disable Atom SaaS sync and use local marketplace only:
+# 1. Set ATOM_SAAS_ENABLED=false
+# 2. All other ATOM_SAAS_* variables are ignored
+# 3. Only skills in CommunitySkill table are available
+# 4. Skills must be manually imported via API
+
+# ATOM_SAAS_ENABLED=false
+
+# -----------------------------------------------------------------------------
+# Development Examples
+# -----------------------------------------------------------------------------
+
+# Development with local Atom SaaS mock server:
+# ATOM_SAAS_API_URL=http://localhost:5058/api
+# ATOM_SAAS_WS_URL=ws://localhost:5058/api/ws/satellite/connect
+# ATOM_SAAS_SYNC_INTERVAL_MINUTES=5
+# ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=10
+# ATOM_SAAS_API_TIMEOUT_SECONDS=10
+
+# Testing with WireMock:
+# ATOM_SAAS_API_URL=http://localhost:8080
+# ATOM_SAAS_WS_ENABLED=false
+# ATOM_SAAS_SYNC_INTERVAL_MINUTES=1
+# ATOM_SAAS_API_TIMEOUT_SECONDS=5
+
+# Local marketplace only (offline mode):
 # ATOM_SAAS_ENABLED=false
 ```
 
