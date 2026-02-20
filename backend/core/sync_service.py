@@ -10,12 +10,14 @@ Features:
 - Cache management (SkillCache, CategoryCache)
 - Error handling with exponential backoff
 - Fallback to polling when WebSocket unavailable
+- Conflict resolution for skill synchronization
 
-Phase 61-01/61-03 - Background Sync & WebSocket Updates
+Phase 61-01/61-03/61-04 - Background Sync, WebSocket Updates, Conflict Resolution
 """
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -38,12 +40,19 @@ class SyncService:
     - Real-time updates via WebSocket
     - Cache invalidation (TTL-based)
     - Error handling and retry logic
+    - Conflict resolution for skill sync
     """
 
     # Configuration
     DEFAULT_SYNC_INTERVAL_MINUTES = 15
     CACHE_TTL_HOURS = 24  # Cache expires after 24 hours
     MAX_BATCH_SIZE = 100  # Fetch 100 skills at a time
+
+    # Conflict resolution configuration
+    DEFAULT_CONFLICT_STRATEGY = os.getenv(
+        "ATOM_SAAS_CONFLICT_STRATEGY",
+        "remote_wins"
+    ).lower()  # remote_wins, local_wins, merge, manual
 
     def __init__(self, saas_client: AtomSaaSClient, ws_client: Optional[AtomSaaSWebSocketClient] = None):
         """
@@ -58,7 +67,12 @@ class SyncService:
         self._syncing = False
         self._websocket_enabled = False
 
-        logger.info("SyncService initialized")
+        # Conflict resolution metrics
+        self._conflicts_detected = 0
+        self._conflicts_resolved = 0
+        self._conflicts_manual = 0
+
+        logger.info(f"SyncService initialized (conflict strategy: {self.DEFAULT_CONFLICT_STRATEGY})")
 
     @property
     def is_syncing(self) -> bool:
@@ -129,6 +143,7 @@ class SyncService:
             }
 
         self._syncing = True
+        self.reset_conflict_metrics()  # Reset metrics for this sync
         start_time = datetime.now(timezone.utc)
 
         try:
@@ -160,10 +175,15 @@ class SyncService:
                 "skills_synced": skill_count,
                 "categories_synced": category_count,
                 "duration_seconds": duration,
-                "websocket_enabled": self._websocket_enabled
+                "websocket_enabled": self._websocket_enabled,
+                "conflicts": self.get_conflict_metrics()
             }
 
-            logger.info(f"Sync completed: {skill_count} skills, {category_count} categories in {duration:.2f}s")
+            logger.info(
+                f"Sync completed: {skill_count} skills, {category_count} categories "
+                f"in {duration:.2f}s | Conflicts: {self._conflicts_detected} detected, "
+                f"{self._conflicts_resolved} resolved, {self._conflicts_manual} manual"
+            )
             return result
 
         except Exception as e:
@@ -241,12 +261,14 @@ class SyncService:
 
     async def cache_skill(self, skill_data: Dict[str, Any]) -> None:
         """
-        Cache skill data in SkillCache.
+        Cache skill data in SkillCache with conflict resolution.
 
         Args:
             skill_data: Skill data from Atom SaaS
         """
         try:
+            from core.conflict_resolution_service import ConflictResolutionService
+
             with SessionLocal() as db:
                 skill_id = skill_data.get("skill_id") or skill_data.get("id")
                 if not skill_id:
@@ -258,15 +280,70 @@ class SyncService:
                     hour=23, minute=59, second=59, microsecond=0
                 )
 
-                # Upsert to cache
+                # Check for existing skill (potential conflict)
                 existing = db.query(SkillCache).filter(
                     SkillCache.skill_id == skill_id
                 ).first()
 
                 if existing:
-                    existing.skill_data = skill_data
-                    existing.expires_at = expires_at
+                    # Conflict detected: skill exists locally
+                    local_skill_data = existing.skill_data
+
+                    # Initialize conflict resolution service
+                    resolver = ConflictResolutionService(db)
+
+                    # Detect conflict
+                    conflict_type = resolver.detect_skill_conflict(local_skill_data, skill_data)
+
+                    if conflict_type:
+                        # Calculate severity
+                        severity = resolver.calculate_severity(
+                            local_skill_data,
+                            skill_data,
+                            conflict_type
+                        )
+
+                        self._conflicts_detected += 1
+                        logger.info(f"Conflict detected for {skill_id}: {conflict_type} ({severity})")
+
+                        # Apply configured strategy
+                        strategy = self.DEFAULT_CONFLICT_STRATEGY
+
+                        if strategy == "manual":
+                            # Log conflict for manual resolution
+                            resolver.log_conflict(
+                                skill_id=skill_id,
+                                conflict_type=conflict_type,
+                                severity=severity,
+                                local_data=local_skill_data,
+                                remote_data=skill_data
+                            )
+                            self._conflicts_manual += 1
+                            logger.warning(f"Manual conflict logged for {skill_id}")
+                            return  # Don't cache manual conflicts
+
+                        # Auto-resolve with strategy
+                        resolved_data = resolver.auto_resolve_conflict(
+                            local_skill_data,
+                            skill_data,
+                            strategy
+                        )
+
+                        if resolved_data:
+                            # Cache resolved data
+                            existing.skill_data = resolved_data
+                            existing.expires_at = expires_at
+                            self._conflicts_resolved += 1
+                            logger.info(f"Resolved conflict for {skill_id} using {strategy}")
+                        else:
+                            # Manual strategy logged conflict, don't cache
+                            return
+                    else:
+                        # No conflict, update normally
+                        existing.skill_data = skill_data
+                        existing.expires_at = expires_at
                 else:
+                    # No existing skill, cache normally
                     cache_entry = SkillCache(
                         skill_id=skill_id,
                         skill_data=skill_data,
@@ -413,6 +490,15 @@ class SyncService:
                     state.successful_syncs += 1
                     state.last_successful_sync_at = datetime.now(timezone.utc)
                     state.pending_actions_count = 0
+
+                    # Log conflict metrics
+                    if self._conflicts_detected > 0:
+                        logger.info(
+                            f"Sync conflict metrics: "
+                            f"{self._conflicts_detected} detected, "
+                            f"{self._conflicts_resolved} auto-resolved, "
+                            f"{self._conflicts_manual} manual"
+                        )
                 elif status == "error":
                     state.failed_syncs += 1
                     state.pending_actions_count = 1  # Trigger retry
@@ -423,6 +509,25 @@ class SyncService:
 
         except Exception as e:
             logger.error(f"Failed to update sync state: {e}")
+
+    def get_conflict_metrics(self) -> Dict[str, int]:
+        """
+        Get conflict resolution metrics for current sync session.
+
+        Returns:
+            Dictionary with conflict counts
+        """
+        return {
+            "conflicts_detected": self._conflicts_detected,
+            "conflicts_resolved": self._conflicts_resolved,
+            "conflicts_manual": self._conflicts_manual
+        }
+
+    def reset_conflict_metrics(self) -> None:
+        """Reset conflict metrics (called after each sync)."""
+        self._conflicts_detected = 0
+        self._conflicts_resolved = 0
+        self._conflicts_manual = 0
 
 
 def get_sync_status() -> Dict[str, Any]:
