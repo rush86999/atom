@@ -355,3 +355,241 @@ class ConflictResolutionService:
         return self.db.query(ConflictLog).filter(
             ConflictLog.id == conflict_id
         ).first()
+
+    # ========================================================================
+    # Merge Strategies
+    # ========================================================================
+
+    def remote_wins(
+        self,
+        local_skill: Dict[str, Any],
+        remote_skill: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Remote wins strategy: Atom SaaS is source of truth.
+
+        Args:
+            local_skill: Local skill data (ignored)
+            remote_skill: Remote skill data (used)
+
+        Returns:
+            Remote skill data
+        """
+        logger.info(f"Using remote_wins strategy for skill: {remote_skill.get('skill_id')}")
+        return remote_skill.copy()
+
+    def local_wins(
+        self,
+        local_skill: Dict[str, Any],
+        remote_skill: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Local wins strategy: Local skill takes precedence.
+
+        Args:
+            local_skill: Local skill data (used)
+            remote_skill: Remote skill data (ignored)
+
+        Returns:
+            Local skill data
+        """
+        logger.info(f"Using local_wins strategy for skill: {local_skill.get('skill_id')}")
+        return local_skill.copy()
+
+    def merge(
+        self,
+        local_skill: Dict[str, Any],
+        remote_skill: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Merge strategy: Intelligently combine fields from both skills.
+
+        Merge rules:
+        - Automatic fields (use most recent): description, tags, examples, metadata
+        - Critical fields (keep local): code, command, local_files
+        - Dependencies (merge both sets): python_packages, npm_packages
+        - Calculate merged version: {local_version}+merged+{remote_version}
+
+        Args:
+            local_skill: Local skill data
+            remote_skill: Remote skill data
+
+        Returns:
+            Merged skill data
+        """
+        skill_id = local_skill.get('skill_id') or remote_skill.get('skill_id')
+        logger.info(f"Using merge strategy for skill: {skill_id}")
+
+        # Start with local skill as base
+        merged = local_skill.copy()
+
+        # Merge automatic fields (use most recent by updated_at)
+        automatic_fields = ['description', 'tags', 'examples', 'metadata']
+        for field in automatic_fields:
+            local_val = local_skill.get(field)
+            remote_val = remote_skill.get(field)
+
+            # Use remote if it exists and local doesn't, or if remote has more content
+            if remote_val and (not local_val or len(str(remote_val)) > len(str(local_val))):
+                merged[field] = remote_val
+
+        # Keep critical fields from local (safety first)
+        critical_fields = ['code', 'command', 'local_files']
+        for field in critical_fields:
+            if field in local_skill:
+                merged[field] = local_skill[field]
+
+        # Merge dependencies (combine both sets, avoid duplicates)
+        for dep_field in ['python_packages', 'npm_packages']:
+            local_deps = set(local_skill.get(dep_field) or [])
+            remote_deps = set(remote_skill.get(dep_field) or [])
+            merged[dep_field] = sorted(list(local_deps | remote_deps))
+
+        # Calculate merged version
+        local_version = local_skill.get('version', '1.0.0')
+        remote_version = remote_skill.get('version', '1.0.0')
+        merged['version'] = f"{local_version}+merged+{remote_version}"
+
+        # Merge metadata timestamps
+        local_updated = local_skill.get('updated_at')
+        remote_updated = remote_skill.get('updated_at')
+        if local_updated and remote_updated:
+            # Use the more recent timestamp
+            if isinstance(local_updated, str):
+                local_updated = datetime.fromisoformat(local_updated.replace('Z', '+00:00'))
+            if isinstance(remote_updated, str):
+                remote_updated = datetime.fromisoformat(remote_updated.replace('Z', '+00:00'))
+            merged['updated_at'] = max(local_updated, remote_updated)
+
+        return merged
+
+    def manual(
+        self,
+        local_skill: Dict[str, Any],
+        remote_skill: Dict[str, Any],
+        skill_id: str,
+        conflict_type: ConflictType,
+        severity: Severity
+    ) -> None:
+        """
+        Manual strategy: Create conflict log for human review.
+
+        Does not return merged data - requires human intervention.
+
+        Args:
+            local_skill: Local skill data
+            remote_skill: Remote skill data
+            skill_id: Skill identifier
+            conflict_type: Type of conflict
+            severity: Severity level
+
+        Returns:
+            None (conflict logged for manual resolution)
+        """
+        logger.info(f"Using manual strategy for skill: {skill_id} - logging conflict")
+
+        # Log conflict to database
+        self.log_conflict(
+            skill_id=skill_id,
+            conflict_type=conflict_type,
+            severity=severity,
+            local_data=local_skill,
+            remote_data=remote_skill
+        )
+
+        # Return None to indicate manual resolution needed
+        return None
+
+    def resolve_conflict(
+        self,
+        conflict_id: int,
+        strategy: ResolutionStrategy,
+        resolved_by: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Resolve a logged conflict using specified strategy.
+
+        Args:
+            conflict_id: Conflict log ID
+            strategy: Resolution strategy to apply
+            resolved_by: User or system performing resolution
+
+        Returns:
+            Resolved skill data or None if strategy is 'manual'
+        """
+        # Get conflict record
+        conflict = self.get_conflict_by_id(conflict_id)
+        if not conflict:
+            logger.error(f"Conflict not found: {conflict_id}")
+            return None
+
+        local_data = conflict.local_data
+        remote_data = conflict.remote_data
+
+        # Apply strategy
+        resolved_data = None
+        if strategy == "remote_wins":
+            resolved_data = self.remote_wins(local_data, remote_data)
+        elif strategy == "local_wins":
+            resolved_data = self.local_wins(local_data, remote_data)
+        elif strategy == "merge":
+            resolved_data = self.merge(local_data, remote_data)
+        elif strategy == "manual":
+            # Manual strategy keeps conflict unresolved
+            return None
+
+        # Update conflict record
+        conflict.resolution_strategy = strategy
+        conflict.resolved_data = resolved_data
+        conflict.resolved_at = datetime.utcnow()
+        conflict.resolved_by = resolved_by
+
+        self.db.commit()
+        self.db.refresh(conflict)
+
+        logger.info(f"Resolved conflict {conflict_id} using {strategy} by {resolved_by}")
+        return resolved_data
+
+    def auto_resolve_conflict(
+        self,
+        local_skill: Dict[str, Any],
+        remote_skill: Dict[str, Any],
+        strategy: ResolutionStrategy
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Automatically resolve a conflict without logging.
+
+        Used during sync for automatic conflict resolution.
+
+        Args:
+            local_skill: Local skill data
+            remote_skill: Remote skill data
+            strategy: Resolution strategy to apply
+
+        Returns:
+            Resolved skill data or None if strategy is 'manual'
+        """
+        # Detect conflict type and severity
+        conflict_type = self.detect_skill_conflict(local_skill, remote_skill)
+        if not conflict_type:
+            # No conflict, return remote (default)
+            return remote_skill
+
+        severity = self.calculate_severity(local_skill, remote_skill, conflict_type)
+
+        # Apply strategy
+        if strategy == "remote_wins":
+            return self.remote_wins(local_skill, remote_skill)
+        elif strategy == "local_wins":
+            return self.local_wins(local_skill, remote_skill)
+        elif strategy == "merge":
+            return self.merge(local_skill, remote_skill)
+        elif strategy == "manual":
+            # Log conflict for manual resolution
+            skill_id = local_skill.get('skill_id') or remote_skill.get('skill_id', 'unknown')
+            self.manual(local_skill, remote_skill, skill_id, conflict_type, severity)
+            return None
+
+        logger.error(f"Unknown resolution strategy: {strategy}")
+        return None
+
