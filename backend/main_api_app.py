@@ -177,6 +177,13 @@ async def lifespan(app: FastAPI):
                 logger.info("✓ Rating Sync scheduled")
             except Exception as e:
                 logger.warning(f"Failed to initialize rating sync: {e}")
+
+            # Initialize skill sync job (Phase 61 Plan 07)
+            try:
+                scheduler.initialize_skill_sync()
+                logger.info("✓ Skill Sync scheduled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize skill sync: {e}")
         except ImportError:
             logger.warning("Agent Scheduler module not found.")
 
