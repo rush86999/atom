@@ -9,8 +9,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 Phase: 67-ci-cd-pipeline-fixes
-Plan: 67-03
-Status: Phase 67 Plan 02 COMPLETE - Docker Build Optimization (5 tasks, 2 minutes). Optimized Dockerfile with multi-stage build, BuildKit layer caching (mode=max), dependency preloading. Requirements.txt copied before source code, cache mounts for pip downloads. CI and deploy workflows updated with inline cache export, registry cache fallback, cache metrics monitoring. .dockerignore created (101 lines) for 80% build context reduction. Expected build time reduction: 6m 42s → <2m 40s (75% faster). 5 atomic commits (efafef4c, 2f944284, 1428b70b, 8518d081, f0c16374). Next: Plan 67-03 Deployment Safety Hardening (smoke test auth, auto-rollback, proper thresholds).
+Plan: 67-02
+Status: Phase 67 Plan 01 COMPLETE - Test Suite Stabilization (5 tasks, 6 minutes). Stabilized CI test suite by removing 14+ test ignores, implementing external service mocks (LanceDB, Knowledge Graph, Prometheus, Grafana), creating dedicated LanceDB integration workflow, enforcing 98% pass rate quality gate with pytest-json-report, and adding authenticated smoke tests with migration-created test user. Zero --ignore flags in ci.yml (down from 64). 4 external service mocking fixtures in conftest.py. pytest-random-order, pytest-rerunfailures, pytest-json-report added to requirements-testing. Pass rate calculation script (parse_pytest_output.py) enforces 98% threshold. Smoke test user migration with bcrypt hashed credentials. deploy.yml updated with authentication flow. 5 atomic commits (247d2517, e2e3ec4a, 992815ed, 73272532, 2d39f795). Next: Plan 67-02 Docker Build Optimization.
 
 Previous: Phase 66-07 COMPLETE
 
@@ -166,6 +166,7 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 | Phase 66 P05 | 15 | 4 tasks | 4 files |
 | Phase 66 P07 | 1771618929m | 6 tasks | 7 files |
 | Phase 67 P02 | 2 | 5 tasks | 4 files |
+| Phase 67-ci-cd-pipeline-fixes P67-01 | 392 | 5 tasks | 7 files |
 
 ## Accumulated Context
 
