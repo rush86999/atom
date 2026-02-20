@@ -435,7 +435,7 @@ def estimate_cost(
         cache_aware_available = False
 
         for model_id in models:
-            pricing = pricing_fetcher.get_pricing(model_id)
+            pricing = pricing_fetcher.get_model_price(model_id)
             if pricing:
                 input_cost = pricing.get("input_cost_per_token", 0)
                 output_cost = pricing.get("output_cost_per_token", 0)
@@ -525,7 +525,7 @@ def compare_tiers(
         cache_aware_support = False
 
         for model_id in models:
-            pricing = pricing_fetcher.get_pricing(model_id)
+            pricing = pricing_fetcher.get_model_price(model_id)
             if pricing:
                 input_cost = pricing.get("input_cost_per_token", 0)
                 output_cost = pricing.get("output_cost_per_token", 0)
