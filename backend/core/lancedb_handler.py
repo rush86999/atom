@@ -726,6 +726,7 @@ class LanceDBHandler:
     def search(self, table_name: str, query: str, user_id: str = None, limit: int = 10,
                filter_str: str = None) -> List[Dict[str, Any]]:
         """Search for documents in memory with optional user filtering"""
+        self._ensure_db()
         if self.db is None:
             return []
         
@@ -786,15 +787,12 @@ class LanceDBHandler:
                         "source": row['source'],
                         "metadata": metadata,
                         "created_at": row['created_at'],
-                        "score": 1.0 - row.get('_distance', 0.0) # Convert distance to similarity score
+                        "score": max(0.0, 1.0 - row.get('_distance', 2.0))  # Clamp to [0,1]
                     }
                     results_list.append(result)
                 except Exception as e:
                     logger.warning(f"Error parsing search result: {e}")
                     continue
-            
-            return results_list
-            
             
             return results_list
             

@@ -27,7 +27,7 @@ class SearchFilters(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
-    user_id: str
+    user_id: Optional[str] = None
     workspace_id: Optional[str] = None
     filters: Optional[SearchFilters] = None
     limit: int = Field(default=20, ge=1, le=100)
@@ -71,6 +71,10 @@ async def hybrid_search(request: SearchRequest):
     """
     try:
         handler = get_lancedb_handler(request.workspace_id)
+        
+        # Trigger lazy initialization before checking availability
+        handler._ensure_db()
+        handler._ensure_embedder()
         
         # Check if LanceDB is available
         if handler.db is None:
@@ -182,7 +186,7 @@ async def hybrid_search(request: SearchRequest):
 @router.get("/suggestions", response_model=SuggestionsResponse)
 async def get_suggestions(
     query: str = Query(..., min_length=1),
-    user_id: str = Query(...),
+    user_id: Optional[str] = Query(None),
     workspace_id: Optional[str] = Query(None),
     limit: int = Query(default=5, ge=1, le=10)
 ):

@@ -51,6 +51,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
     return (
         <div className={cn("relative flex items-center", className)}>
             <Button
+                type="button"
                 variant={isListening ? "destructive" : "ghost"}
                 size="icon"
                 onClick={toggleListening}
@@ -65,6 +66,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
 
             {/* Wake Word Toggle */}
             <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => {

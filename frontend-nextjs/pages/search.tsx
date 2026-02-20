@@ -56,8 +56,6 @@ const SearchPage: React.FC = () => {
     min_score: -1.0,
   });
 
-  // Mock user ID - in real app this would come from auth context
-  const userId = "user-123";
 
   // Popular search suggestions
   const popularSearches = [
@@ -97,7 +95,7 @@ const SearchPage: React.FC = () => {
   const fetchSuggestions = async (partialQuery: string) => {
     try {
       const response = await fetch(
-        `/api/lancedb-search/suggestions?query=${encodeURIComponent(partialQuery)}&user_id=${userId}&limit=5`,
+        `/api/lancedb-search/suggestions?query=${encodeURIComponent(partialQuery)}&limit=5`,
       );
       const data = await response.json();
       if (data.success) {
@@ -123,7 +121,6 @@ const SearchPage: React.FC = () => {
         },
         body: JSON.stringify({
           query: searchTerm,
-          user_id: userId,
           filters: filters,
           limit: 20,
           search_type: searchType,
