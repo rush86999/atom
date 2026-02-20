@@ -1,45 +1,98 @@
 {
   "cli": {
-    "version": ">= 5.2.0"
+    "version": ">= 7.0.0",
+    "requireCommit": true
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "resourceClass": "m1-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
+      },
+      "env": {
+        "API_BASE_URL": "http://localhost:8000",
+        "WEBSOCKET_URL": "ws://localhost:8000",
+        "ENVIRONMENT": "development",
+        "DEBUG_MODE": "true"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "ios": {
+        "autoIncrement": true,
+        "buildConfiguration": "Release",
+        "bundleIdentifier": "com.atomplatform.ai.staging",
+        "enterpriseProvisioning": "universal"
+      },
+      "android": {
+        "autoIncrement": true,
+        "buildType": "apk",
+        "generateApk": true
+      },
+      "env": {
+        "API_BASE_URL": "https://staging-api.atom-platform.com",
+        "WEBSOCKET_URL": "wss://staging-api.atom-platform.com",
+        "ENVIRONMENT": "staging"
       }
     },
     "production": {
       "ios": {
         "autoIncrement": true,
         "buildConfiguration": "Release",
-        "bundleIdentifier": "com.atomplatform.ai",
-        "enterpriseProvisioning": "universal"
+        "bundleIdentifier": "com.atomplatform.ai"
       },
       "android": {
         "autoIncrement": true,
         "buildType": "apk",
-        "generateApk": true,
-        "keystorePath": "./atom-keystore.jks"
+        "generateApk": true
+      }
+    },
+    "production-testflight": {
+      "ios": {
+        "autoIncrement": true,
+        "buildConfiguration": "Release",
+        "bundleIdentifier": "com.atomplatform.ai"
+      },
+      "android": {
+        "autoIncrement": false
+      }
+    },
+    "production-play-internal": {
+      "ios": {
+        "autoIncrement": false
+      },
+      "android": {
+        "autoIncrement": true,
+        "buildType": "app-bundle",
+        "generateApk": false
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID",
-        "password": "@env:APPLE_APP_SPECIFIC_PASSWORD"
+        "appleId": "@env:APPLE_ID",
+        "ascAppId": "@env:ASC_APP_ID",
+        "appleTeamId": "@env:APPLE_TEAM_ID",
+        "password": "@env:APPLE_APP_SPECIFIC_PASSWORD",
+        "sku": "ATOM001",
+        "appleIdPassword": "@env:APPLE_APP_SPECIFIC_PASSWORD"
       },
       "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
+        "serviceAccountKeyPath": "@env:GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
+        "track": "internal",
+        "jsonKeyPath": "@env:GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
       }
+    }
+  },
+  "hooks": {
+    "prebuild": {
+      "command": "npm run test"
     }
   }
 }
