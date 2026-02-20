@@ -9,8 +9,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 Phase: 67-ci-cd-pipeline-fixes
-Plan: 67-02
-Status: Phase 67 Plan 01 COMPLETE - Test Suite Stabilization (5 tasks, 6 minutes). Stabilized CI test suite by removing 14+ test ignores, implementing external service mocks (LanceDB, Knowledge Graph, Prometheus, Grafana), creating dedicated LanceDB integration workflow, enforcing 98% pass rate quality gate with pytest-json-report, and adding authenticated smoke tests with migration-created test user. Zero --ignore flags in ci.yml (down from 64). 4 external service mocking fixtures in conftest.py. pytest-random-order, pytest-rerunfailures, pytest-json-report added to requirements-testing. Pass rate calculation script (parse_pytest_output.py) enforces 98% threshold. Smoke test user migration with bcrypt hashed credentials. deploy.yml updated with authentication flow. 5 atomic commits (247d2517, e2e3ec4a, 992815ed, 73272532, 2d39f795). Next: Plan 67-02 Docker Build Optimization.
+Plan: 67-04
+Status: Phase 67 Plan 04 COMPLETE - Monitoring & Alerting Enhancement (5 tasks, 7 minutes). Enhanced CI/CD pipeline with deployment metrics tracking (9 metrics: deployment_total, deployment_duration_seconds, deployment_rollback_total, deployment_frequency, canary_traffic_percentage, smoke_test_total, smoke_test_duration_seconds, prometheus_query_total, prometheus_query_duration_seconds), Prometheus query validation with graceful degradation (/-/healthy check, promtool rule validation, sample query test), Grafana dashboard auto-update (3 panels: Deployment Success Rate, Rollback Rate, Smoke Test Pass Rate), and progressive canary deployment strategy (10% → 50% → 100% traffic over 15 minutes with automatic rollback on error rate >0.1%). 9 Prometheus alerting rules configured with proper thresholds and severities (DeploymentHighErrorRate, DeploymentRollbackDetected, SmokeTestFailing, HighErrorRateStaging/Production, HighLatencyStaging/Production, DeploymentFrequencyAnomaly, PrometheusQueryFailing). 5 atomic commits (c0d5a368, 22527285, 3d584fc1, a46161e0, 6f5942c7). Next: Plan 67-05 Docker Build Optimization.
 
 Previous: Phase 66-07 COMPLETE
 
@@ -167,6 +167,7 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 | Phase 66 P07 | 1771618929m | 6 tasks | 7 files |
 | Phase 67 P02 | 2 | 5 tasks | 4 files |
 | Phase 67-ci-cd-pipeline-fixes P67-01 | 392 | 5 tasks | 7 files |
+| Phase 67 P04 | 460 | 5 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -268,6 +269,9 @@ Recent decisions affecting current work:
 - [Phase 67]: Requirements.txt copied before source code in Dockerfile for dependency layer caching
 - [Phase 67]: Inline cache export (type=inline,mode=max) for distributed build acceleration across CI runners
 - [Phase 67]: Registry cache fallback for multi-runner environments
+- [Phase 67]: Graceful degradation for Prometheus/Grafana - Deployments continue successfully even if monitoring services unreachable (enhances rather than blocks deployments)
+- [Phase 67]: Canary deployment 5-minute wait between steps (10% → 50% → 100%) balances detection speed with sufficient validation time
+- [Phase 67]: Production error rate threshold 0.1% (1 error per 1000 requests) for canary rollback detects issues before impacting users
 
 ### Pending Todos
 
