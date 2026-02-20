@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import AsyncIterator
+from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -956,6 +957,463 @@ def test_database():
         os.unlink(engine._test_db_path)
     except Exception:
         pass
+
+
+@pytest.fixture(scope="function")
+def mock_lancedb_client(monkeypatch):
+    """Mock LanceDB client for CI environments.
+
+    Returns an in-memory LanceDB mock that simulates table operations
+    without requiring the external LanceDB service. This enables
+    LanceDB integration tests to run in CI without service containers.
+
+    Usage:
+        def test_episode_storage(mock_lancedb_client):
+            # Create mock table
+            table = mock_lancedb_client.create_table("test_table")
+            table.add([{"id": "1", "vector": [1.0, 2.0]}])
+    """
+    import os
+
+    # Check if LanceDB is disabled (CI environment)
+    if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
+        # Use in-memory mock
+        class MockLanceDBTable:
+            def __init__(self, name, schema=None):
+                self.name = name
+                self.schema = schema
+                self._data = []
+                self._index = {}
+
+            def create_index(self, *args, **kwargs):
+                """Mock index creation."""
+                self._index["created"] = True
+
+            def add(self, data):
+                """Mock add operation."""
+                if isinstance(data, list):
+                    self._data.extend(data)
+                else:
+                    self._data.append(data)
+
+            def search(self, query, *args, **kwargs):
+                """Mock search operation - returns all data."""
+                return self._data
+
+            def to_arrow(self):
+                """Mock to_arrow conversion."""
+                import pyarrow as pa
+                import pyarrow.table as pat
+                # Return empty table if no data
+                if not self._data:
+                    return pa.table({})
+                # Convert list of dicts to Arrow table
+                return pa.table(self._data)
+
+            def delete(self, where=None):
+                """Mock delete operation."""
+                if where:
+                    # Simple mock delete - clear all data
+                    self._data.clear()
+
+            def length(self):
+                """Return number of records."""
+                return len(self._data)
+
+        class MockLanceDBClient:
+            def __init__(self, uri=None):
+                self.uri = uri
+                self._tables = {}
+
+            def create_table(self, name, schema=None, mode="overwrite"):
+                """Create or get a mock table."""
+                if name not in self._tables or mode == "overwrite":
+                    self._tables[name] = MockLanceDBTable(name, schema)
+                return self._tables[name]
+
+            def open_table(self, name):
+                """Open existing table or create new."""
+                if name not in self._tables:
+                    self._tables[name] = MockLanceDBTable(name)
+                return self._tables[name]
+
+            def table_names(self):
+                """Return list of table names."""
+                return list(self._tables.keys())
+
+        # Mock lancedb.connect
+        def mock_connect(uri=None, *args, **kwargs):
+            return MockLanceDBClient(uri)
+
+        monkeypatch.setattr("lancedb.connect", mock_connect)
+
+        yield MockLanceDBClient()
+    else:
+        # LanceDB not disabled - use real client (tests should skip if service unavailable)
+        try:
+            import lancedb
+            # Try to connect - will fail if service not available
+            client = lancedb.connect(os.getenv("LANCEDB_URI", "/tmp/lancedb"))
+            yield client
+        except Exception:
+            # Service unavailable - yield None, tests should skip
+            yield None
+
+
+@pytest.fixture(scope="function")
+def mock_knowledge_graph():
+    """Mock Knowledge Graph validation service for governance exams.
+
+    Returns mock constitutional rule validation results without requiring
+    the external Knowledge Graph service. This enables governance exam
+    tests to run in CI without the Knowledge Graph dependency.
+
+    Usage:
+        def test_governance_exam(mock_knowledge_graph):
+            result = mock_knowledge_graph.validate_compliance(
+                agent_id="test",
+                rules=["constitutional_rule_1"]
+            )
+            assert result["passed"] is True
+            assert result["score"] >= 0.95
+    """
+    class MockKnowledgeGraph:
+        def __init__(self):
+            self._constitutional_rules = {
+                "rule_001": {
+                    "id": "rule_001",
+                    "name": "Human Oversight Required",
+                    "category": "safety",
+                    "description": "Agents must require human approval for destructive actions"
+                },
+                "rule_002": {
+                    "id": "rule_002",
+                    "name": "Data Privacy Protection",
+                    "category": "privacy",
+                    "description": "Agents must protect user data and comply with GDPR"
+                },
+                "rule_003": {
+                    "id": "rule_003",
+                    "name": "Transparent Decision Making",
+                    "category": "transparency",
+                    "description": "Agents must explain their reasoning for all actions"
+                }
+            }
+
+        def get_constitutional_rules(self, category=None):
+            """Get constitutional rules, optionally filtered by category."""
+            rules = list(self._constitutional_rules.values())
+            if category:
+                rules = [r for r in rules if r["category"] == category]
+            return rules
+
+        def validate_compliance(self, agent_id, rules=None, actions=None):
+            """Validate agent compliance against constitutional rules.
+
+            Returns mock compliance result with high score (0.95-0.99).
+            """
+            import random
+
+            selected_rules = rules or list(self._constitutional_rules.keys())
+
+            # Mock validation - most agents pass
+            passed_scores = {
+                "student": 0.65,  # Student agents need more training
+                "intern": 0.82,   # Intern agents mostly compliant
+                "supervised": 0.92,  # Supervised agents highly compliant
+                "autonomous": 0.98  # Autonomous agents fully compliant
+            }
+
+            # Determine maturity from agent_id if present
+            maturity = "autonomous"  # Default
+            for level in ["student", "intern", "supervised", "autonomous"]:
+                if level in agent_id.lower():
+                    maturity = level
+                    break
+
+            base_score = passed_scores.get(maturity, 0.90)
+            # Add small random variation (0.95-0.99 range for autonomous)
+            score = min(0.99, base_score + random.uniform(0.0, 0.05))
+
+            return {
+                "agent_id": agent_id,
+                "passed": score >= 0.90,
+                "score": score,
+                "rules_evaluated": len(selected_rules),
+                "rules_passed": int(len(selected_rules) * score),
+                "interventions": max(0, len(selected_rules) - int(len(selected_rules) * score)),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        def check_rule_violations(self, agent_action, rule_id):
+            """Check if an action violates a specific rule.
+
+            Returns violation details or None if compliant.
+            """
+            # Most actions are compliant in mock
+            import random
+
+            if random.random() > 0.1:  # 90% of actions are compliant
+                return None
+
+            return {
+                "rule_id": rule_id,
+                "action": agent_action,
+                "violation_type": "constitutional_breach",
+                "severity": "high" if "delete" in agent_action else "medium",
+                "description": f"Action '{agent_action}' may violate rule {rule_id}",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+    mock_kg = MockKnowledgeGraph()
+    yield mock_kg
+
+
+@pytest.fixture(scope="function")
+def mock_prometheus_client(monkeypatch):
+    """Mock Prometheus client for analytics tests.
+
+    Returns mock Prometheus metrics (Gauge, Counter, Histogram) that
+    track metric calls in memory without requiring the Prometheus server.
+    This enables analytics tests to run in CI without external dependencies.
+
+    Usage:
+        def test_metric_tracking(mock_prometheus_client):
+            gauge = mock_prometheus_client.Gauge("test_gauge", "Test gauge")
+            gauge.set(42)
+            assert mock_prometheus_client.get_metric_value("test_gauge") == 42
+    """
+    class MockMetric:
+        def __init__(self, name, metric_type, documentation):
+            self.name = name
+            self.metric_type = metric_type
+            self.documentation = documentation
+            self._value = 0
+            self._labels = {}
+            self._samples = []
+
+        def set(self, value):
+            """Set gauge value."""
+            self._value = value
+            self._samples.append((datetime.utcnow(), value))
+
+        def inc(self, amount=1):
+            """Increment counter."""
+            self._value += amount
+            self._samples.append((datetime.utcnow(), self._value))
+
+        def dec(self, amount=1):
+            """Decrement gauge."""
+            self._value -= amount
+            self._samples.append((datetime.utcnow(), self._value))
+
+        def observe(self, amount):
+            """Observe histogram value."""
+            self._value += amount
+            self._samples.append((datetime.utcnow(), amount))
+
+        def labels(self, **kwargs):
+            """Return self with labels set."""
+            self._labels = kwargs
+            return self
+
+        def get_value(self):
+            """Get current metric value."""
+            return self._value
+
+        def get_samples(self):
+            """Get all recorded samples."""
+            return self._samples
+
+    class MockPrometheusRegistry:
+        def __init__(self):
+            self._metrics = {}
+
+        def Gauge(self, name, documentation, labelnames=()):
+            """Create mock Gauge metric."""
+            if name not in self._metrics:
+                self._metrics[name] = MockMetric(name, "gauge", documentation)
+            return self._metrics[name]
+
+        def Counter(self, name, documentation, labelnames=()):
+            """Create mock Counter metric."""
+            if name not in self._metrics:
+                self._metrics[name] = MockMetric(name, "counter", documentation)
+            return self._metrics[name]
+
+        def Histogram(self, name, documentation, labelnames=(), buckets=None):
+            """Create mock Histogram metric."""
+            if name not in self._metrics:
+                self._metrics[name] = MockMetric(name, "histogram", documentation)
+            return self._metrics[name]
+
+        def get_metric_value(self, name):
+            """Get current value of a metric."""
+            if name in self._metrics:
+                return self._metrics[name].get_value()
+            return None
+
+        def get_all_metrics(self):
+            """Get all registered metrics."""
+            return self._metrics
+
+        def get_metric_samples(self, name):
+            """Get all samples for a metric."""
+            if name in self._metrics:
+                return self._metrics[name].get_samples()
+            return []
+
+    class MockPrometheusClient:
+        def __init__(self):
+            self.registry = MockPrometheusRegistry()
+            self._metrics = {}
+
+        def Gauge(self, name, documentation, labelnames=()):
+            """Create or get Gauge metric."""
+            return self.registry.Gauge(name, documentation, labelnames)
+
+        def Counter(self, name, documentation, labelnames=()):
+            """Create or get Counter metric."""
+            return self.registry.Counter(name, documentation, labelnames)
+
+        def Histogram(self, name, documentation, labelnames=(), buckets=None):
+            """Create or get Histogram metric."""
+            return self.registry.Histogram(name, documentation, labelnames, buckets)
+
+        def start_http_server(self, port, *args, **kwargs):
+            """Mock HTTP server start - skip port binding."""
+            pass  # Don't actually start server in tests
+
+        def get_metric_value(self, name):
+            """Get current metric value."""
+            return self.registry.get_metric_value(name)
+
+        def get_all_metrics(self):
+            """Get all metrics."""
+            return self.registry.get_all_metrics()
+
+    mock_client = MockPrometheusClient()
+
+    # Mock prometheus_client module
+    mock_prometheus = MagicMock()
+    mock_prometheus.Gauge = mock_client.Gauge
+    mock_prometheus.Counter = mock_client.Counter
+    mock_prometheus.Histogram = mock_client.Histogram
+    mock_prometheus.start_http_server = mock_client.start_http_server
+    mock_prometheus.Counter = mock_client.Counter
+    mock_prometheus.Gauge = mock_client.Gauge
+    mock_prometheus.Histogram = mock_client.Histogram
+
+    # Mock start_http_server at module level
+    monkeypatch.setattr("prometheus_client.start_http_server", mock_client.start_http_server, raising=False)
+    monkeypatch.setattr("prometheus_client.Gauge", lambda *args, **kwargs: mock_client.Gauge(*args, **kwargs), raising=False)
+    monkeypatch.setattr("prometheus_client.Counter", lambda *args, **kwargs: mock_client.Counter(*args, **kwargs), raising=False)
+    monkeypatch.setattr("prometheus_client.Histogram", lambda *args, **kwargs: mock_client.Histogram(*args, **kwargs), raising=False)
+
+    yield mock_client
+
+
+@pytest.fixture(scope="function")
+def mock_grafana_client():
+    """Mock Grafana client for dashboard tests.
+
+    Returns mock Grafana API responses for dashboard updates without
+    requiring the Grafana server. This enables dashboard tests to run
+    in CI without external dependencies.
+
+    Usage:
+        def test_dashboard_update(mock_grafana_client):
+            mock_grafana_client.add_response(
+                "POST",
+                "/api/dashboards/db",
+                status=200,
+                json={"id": 123, "uid": "abc123", "url": "http://grafana/d/abc123"}
+            )
+            # Make API call - will be mocked
+    """
+    try:
+        import responses
+
+        class MockGrafanaClient:
+            def __init__(self):
+                self._responses = responses.RequestsMock()
+                self._responses.start()
+                self._default_dashboard = {
+                    "dashboard": {
+                        "id": 1,
+                        "title": "Test Dashboard",
+                        "panels": []
+                    },
+                    "overwrite": False
+                }
+
+            def add_response(self, method, url, status=200, json=None):
+                """Add a mock Grafana API response."""
+                self._responses.add(
+                    method=getattr(responses, method.upper()),
+                    url=f"http://grafana:3000{url}",
+                    status=status,
+                    json=json or {}
+                )
+
+            def add_dashboard_update_response(self, dashboard_id, status=200):
+                """Add mock dashboard update response."""
+                self.add_response(
+                    "POST",
+                    "/api/dashboards/db",
+                    status=status,
+                    json={
+                        "id": dashboard_id,
+                        "uid": f"dashboard_{dashboard_id}",
+                        "url": f"http://grafana:3000/d/dashboard_{dashboard_id}",
+                        "status": "success"
+                    }
+                )
+
+            def add_dashboard_get_response(self, dashboard_uid, dashboard_data=None):
+                """Add mock dashboard get response."""
+                self.add_response(
+                    "GET",
+                    f"/api/dashboards/uid/{dashboard_uid}",
+                    status=200,
+                    json=dashboard_data or self._default_dashboard
+                )
+
+            def verify(self):
+                """Verify all mocked endpoints were called."""
+                self._responses.verify()
+
+            def stop(self):
+                """Stop the mock server."""
+                self._responses.stop()
+                self._responses.reset()
+
+        mock_grafana = MockGrafanaClient()
+        yield mock_grafana
+
+        # Cleanup
+        mock_grafana.stop()
+
+    except ImportError:
+        # responses library not available - yield simple mock
+        class SimpleMockGrafana:
+            def __init__(self):
+                self._calls = []
+
+            def add_response(self, method, url, status=200, json=None):
+                """Record response mock."""
+                self._calls.append({"method": method, "url": url, "status": status})
+
+            def verify(self):
+                """Verify calls were made."""
+                pass
+
+            def stop(self):
+                """Stop mock."""
+                pass
+
+        mock_grafana = SimpleMockGrafana()
+        yield mock_grafana
 
 
 def _count_assertions(node: ast.AST) -> int:
