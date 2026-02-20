@@ -4,9 +4,15 @@
 mod commands;
 mod menu;
 mod websocket;
+mod hotkeys;
+mod autolaunch;
+mod notifications;
 
+use autolaunch::*;
 use commands::*;
+use hotkeys::*;
 use menu::create_menu;
+use notifications::*;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -47,6 +53,19 @@ async fn main() {
             quick_chat,
             show_window,
             hide_window,
+            get_hotkeys,
+            update_hotkeys,
+            trigger_hotkey,
+            get_auto_launch_status,
+            update_auto_launch,
+            disable_auto_launch,
+            get_notifications,
+            get_unread_notifications,
+            mark_notification_read,
+            mark_all_notifications_read,
+            dismiss_notification,
+            get_notification_stats,
+            send_notification,
         ])
         .setup(|app| {
             // Create system tray

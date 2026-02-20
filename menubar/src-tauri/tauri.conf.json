@@ -57,6 +57,15 @@
       ],
       "dialog": true,
       "pubkey": "YOUR_PUBLIC_KEY_HERE"
+    },
+    "autostart": {
+      "apps": [
+        {
+          "name": "Atom Menu Bar",
+          "path": "Atom Menu Bar",
+          "args": ["--hidden"]
+        }
+      ]
     }
   }
 }
