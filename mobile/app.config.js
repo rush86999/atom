@@ -55,6 +55,54 @@ export default {
   // Deep linking
   schemes: ['atom'],
 
+  // Deep linking configuration for React Navigation
+  linking: {
+    prefixes: ['atom://', 'https://atom.ai'],
+    config: {
+      // Auth screens
+      screens: {
+        Login: 'auth/login',
+        Register: 'auth/register',
+        ForgotPassword: 'auth/reset',
+        BiometricAuth: 'auth/biometric',
+
+        // Main app screens
+        Main: {
+          screens: {
+            WorkflowsTab: {
+              screens: {
+                WorkflowsList: 'workflows',
+                WorkflowDetail: 'workflow/:workflowId',
+                WorkflowTrigger: 'workflow/:workflowId/trigger',
+                ExecutionProgress: 'execution/:executionId',
+                WorkflowLogs: 'execution/:executionId/logs',
+              },
+            },
+            AnalyticsTab: 'analytics',
+            AgentsTab: {
+              screens: {
+                AgentList: 'agents',
+                AgentChat: 'agent/:agentId',
+              },
+            },
+            ChatTab: {
+              screens: {
+                ChatTab: 'chat',
+                AgentChat: 'chat/:conversationId',
+              },
+            },
+            SettingsTab: 'settings',
+          },
+        },
+
+        // Specific resource deep links
+        Canvas: 'canvas/:canvasId',
+        Workflow: 'workflow/:workflowId',
+        Agent: 'agent/:agentId',
+      },
+    },
+  },
+
   // Environment variables
   env: {
     API_BASE_URL: process.env.API_BASE_URL || 'https://api.atom-platform.com',
