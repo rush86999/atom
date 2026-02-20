@@ -60,8 +60,8 @@ def local_rating(db_session):
         comment="Great skill!",
         created_at=datetime.now(timezone.utc) - timedelta(days=1)
     )
-    db.add(rating)
-    db.commit()
+    db_session.add(rating)
+    db_session.commit()
     return rating
 
 
@@ -74,7 +74,7 @@ class TestConflictDetection:
 
     def test_version_mismatch_detected(self, db_session, local_skill, remote_skill):
         """VERSION_MISMATCH detected when versions differ"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         conflict_type = resolver.detect_skill_conflict(local_skill, remote_skill)
 
@@ -82,7 +82,7 @@ class TestConflictDetection:
 
     def test_content_mismatch_detected(self, db_session):
         """CONTENT_MISMATCH detected when code differs"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -101,7 +101,7 @@ class TestConflictDetection:
 
     def test_dependency_conflict_detected(self, db_session):
         """DEPENDENCY_CONFLICT detected when packages differ"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -122,7 +122,7 @@ class TestConflictDetection:
 
     def test_no_conflict_when_identical(self, db_session):
         """No conflict when skills are identical"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         skill = {
             "skill_id": "test-001",
@@ -136,7 +136,7 @@ class TestConflictDetection:
 
     def test_severity_critical_for_code_change(self, db_session):
         """CRITICAL severity when code differs"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "code": "local code"}
         remote = {"skill_id": "test-001", "code": "remote code"}
@@ -147,7 +147,7 @@ class TestConflictDetection:
 
     def test_severity_high_for_version_change(self, db_session):
         """HIGH severity when version differs"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "version": "1.0.0"}
         remote = {"skill_id": "test-001", "version": "2.0.0"}
@@ -158,7 +158,7 @@ class TestConflictDetection:
 
     def test_severity_low_for_description_change(self, db_session):
         """LOW severity when only description differs"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -179,7 +179,7 @@ class TestConflictDetection:
 
     def test_compare_versions_true(self, db_session):
         """compare_versions returns True when versions differ"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         result = resolver.compare_versions(
             {"version": "1.0.0"},
@@ -190,7 +190,7 @@ class TestConflictDetection:
 
     def test_compare_versions_false(self, db_session):
         """compare_versions returns False when versions match"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         result = resolver.compare_versions(
             {"version": "1.0.0"},
@@ -201,7 +201,7 @@ class TestConflictDetection:
 
     def test_compare_content_true(self, db_session):
         """compare_content returns True when code differs"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         result = resolver.compare_content(
             {"code": "local code"},
@@ -212,7 +212,7 @@ class TestConflictDetection:
 
     def test_compare_dependencies_true(self, db_session):
         """compare_dependencies returns True when packages differ"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         result = resolver.compare_dependencies(
             {"python_packages": ["pandas==1.0.0"]},
@@ -223,7 +223,7 @@ class TestConflictDetection:
 
     def test_calculate_content_hash(self, db_session):
         """calculate_content_hash generates SHA256 hash"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         skill_data = {
             "skill_id": "test-001",
@@ -246,7 +246,7 @@ class TestConflictStrategies:
 
     def test_remote_wins_returns_remote(self, db_session):
         """remote_wins returns remote skill data"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
@@ -257,7 +257,7 @@ class TestConflictStrategies:
 
     def test_local_wins_returns_local(self, db_session):
         """local_wins returns local skill data"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
@@ -268,7 +268,7 @@ class TestConflictStrategies:
 
     def test_merge_combines_fields(self, db_session):
         """merge strategy combines fields intelligently"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -303,7 +303,7 @@ class TestConflictStrategies:
 
     def test_merge_preserves_critical_fields(self, db_session):
         """merge preserves critical fields from local"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -326,7 +326,7 @@ class TestConflictStrategies:
 
     def test_manual_logs_conflict(self, db_session):
         """manual strategy logs conflict to database"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
@@ -357,7 +357,7 @@ class TestMergeLogic:
 
     def test_automatic_fields_use_most_recent(self, db_session):
         """Automatic fields (description, tags, examples, metadata) use most recent"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         # Test description (longer = more recent)
         local = {"skill_id": "test-001", "description": "Short"}
@@ -375,7 +375,7 @@ class TestMergeLogic:
 
     def test_dependencies_union(self, db_session):
         """Dependencies merged as union (no duplicates)"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {
             "skill_id": "test-001",
@@ -396,7 +396,7 @@ class TestMergeLogic:
 
     def test_version_format_merged(self, db_session):
         """Merged version has correct format: local+merged+remote"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "version": "1.0.0"}
         remote = {"skill_id": "test-001", "version": "2.0.0"}
@@ -415,7 +415,7 @@ class TestSyncIntegration:
 
     def test_auto_resolve_no_conflict(self, db_session):
         """auto_resolve_conflict returns remote when no conflict"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         skill = {"skill_id": "test-001", "version": "1.0.0"}
 
@@ -425,7 +425,7 @@ class TestSyncIntegration:
 
     def test_auto_resolve_with_conflict(self, db_session):
         """auto_resolve_conflict applies strategy when conflict detected"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
@@ -436,7 +436,7 @@ class TestSyncIntegration:
 
     def test_auto_resolve_manual_logs_conflict(self, db_session):
         """auto_resolve_conflict with manual strategy logs conflict"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
@@ -452,7 +452,7 @@ class TestSyncIntegration:
 
     def test_log_conflict_creates_record(self, db_session):
         """log_conflict creates ConflictLog record"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         conflict = resolver.log_conflict(
             skill_id="test-001",
@@ -470,7 +470,7 @@ class TestSyncIntegration:
 
     def test_get_unresolved_conflicts(self, db_session):
         """get_unresolved_conflicts returns unresolved conflicts"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         # Create 3 conflicts
         for i in range(3):
@@ -489,7 +489,7 @@ class TestSyncIntegration:
 
     def test_get_conflict_by_id(self, db_session):
         """get_conflict_by_id returns specific conflict"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         conflict = resolver.log_conflict(
             skill_id="test-001",
@@ -516,7 +516,7 @@ class TestRatingConflicts:
         """Rating conflicts are logged to ConflictLog"""
         from core.rating_sync_service import RatingSyncService
 
-        sync_service = RatingSyncService(db)
+        sync_service = RatingSyncService(db_session)
 
         remote_rating = {
             "id": "remote-123",
@@ -529,7 +529,7 @@ class TestRatingConflicts:
         result = sync_service.resolve_rating_conflict(local_rating, remote_rating)
 
         # Conflict should be logged
-        conflicts = db.query(ConflictLog).filter(
+        conflicts = db_session.query(ConflictLog).filter(
             ConflictLog.skill_id == local_rating.skill_id
         ).all()
 
@@ -539,7 +539,7 @@ class TestRatingConflicts:
         """Newest rating wins based on timestamp"""
         from core.rating_sync_service import RatingSyncService
 
-        sync_service = RatingSyncService(db)
+        sync_service = RatingSyncService(db_session)
 
         # Remote is newer (future timestamp)
         remote_rating = {
@@ -565,7 +565,7 @@ class TestAdminEndpoints:
 
     def test_list_conflicts_filter_by_severity(self, db_session):
         """Can filter conflicts by severity"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         # Create conflicts with different severities
         resolver.log_conflict("test-1", "VERSION_MISMATCH", "LOW", {}, {})
@@ -579,7 +579,7 @@ class TestAdminEndpoints:
 
     def test_list_conflicts_filter_by_type(self, db_session):
         """Can filter conflicts by type"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         # Create conflicts with different types
         resolver.log_conflict("test-1", "VERSION_MISMATCH", "LOW", {}, {})
@@ -593,7 +593,7 @@ class TestAdminEndpoints:
 
     def test_resolve_conflict_updates_log(self, db_session):
         """resolve_conflict updates ConflictLog record"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         # Create conflict
         conflict = resolver.log_conflict(
@@ -627,7 +627,7 @@ class TestEdgeCases:
 
     def test_none_values_in_comparison(self, db_session):
         """Comparisons handle None values gracefully"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "version": None}
         remote = {"skill_id": "test-001", "version": "1.0.0"}
@@ -638,7 +638,7 @@ class TestEdgeCases:
 
     def test_empty_packages_list(self, db_session):
         """Empty package lists don't cause conflicts"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "python_packages": []}
         remote = {"skill_id": "test-001", "python_packages": []}
@@ -649,7 +649,7 @@ class TestEdgeCases:
 
     def test_large_json_data(self, db_session):
         """Large JSON data in conflict log handled correctly"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         large_data = {"key": "value" * 10000}  # Large data
 
@@ -666,7 +666,7 @@ class TestEdgeCases:
 
     def test_resolve_nonexistent_conflict(self, db_session):
         """Resolving non-existent conflict returns None"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         result = resolver.resolve_conflict(
             conflict_id=99999,  # Non-existent
@@ -678,7 +678,7 @@ class TestEdgeCases:
 
     def test_invalid_strategy_in_auto_resolve(self, db_session):
         """Invalid strategy in auto_resolve_conflict handled gracefully"""
-        resolver = ConflictResolutionService(db)
+        resolver = ConflictResolutionService(db_session)
 
         local = {"skill_id": "test-001", "name": "Local"}
         remote = {"skill_id": "test-001", "name": "Remote"}
