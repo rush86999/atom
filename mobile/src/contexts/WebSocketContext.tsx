@@ -21,6 +21,7 @@ interface WebSocketContextType {
   isConnected: boolean;
   isConnecting: boolean;
   connectionError: string | null;
+  connectionQuality: 'excellent' | 'good' | 'poor' | 'offline';
 
   // Methods
   connect: () => void;
@@ -30,6 +31,27 @@ interface WebSocketContextType {
   off: (event: string, callback?: (...args: any[]) => void) => void;
   joinRoom: (room: string) => void;
   leaveRoom: (room: string) => void;
+
+  // Chat-specific methods
+  sendStreamingMessage: (
+    agentId: string,
+    message: string,
+    sessionId: string,
+    callbacks: {
+      onChunk: (chunk: { token: string; metadata?: any }) => void;
+      onComplete: () => void;
+      onError: (error: string) => void;
+    }
+  ) => () => void; // Returns unsubscribe function
+  subscribeToStream: (
+    sessionId: string,
+    onChunk: (chunk: { token: string; metadata?: any }) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ) => () => void; // Returns unsubscribe function
+  subscribeToTyping: (
+    callback: (agents: Array<{ id: string; name: string }>) => void
+  ) => () => void; // Returns unsubscribe function
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -52,6 +74,15 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionQuality, setConnectionQuality] = useState<'excellent' | 'good' | 'poor' | 'offline'>('offline');
+  const streamCallbacksRef = useRef<Map<string, {
+    onChunk: (chunk: { token: string; metadata?: any }) => void;
+    onComplete: () => void;
+    onError: (error: string) => void;
+  }>>(new Map());
+  const typingCallbacksRef = useRef<Array<(agents: Array<{ id: string; name: string }>) => void>>([]);
+  const pendingMessagesRef = useRef<Array<{ agentId: string; message: string; sessionId: string }>>([]);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Get current access token
@@ -108,10 +139,22 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
           setIsConnected(true);
           setIsConnecting(false);
           setConnectionError(null);
+          setConnectionQuality('good');
           reconnectAttemptsRef.current = 0;
+
+          // Start heartbeat
+          startHeartbeat();
 
           // Re-join previously joined rooms
           await rejoinRooms();
+
+          // Send any pending messages
+          while (pendingMessagesRef.current.length > 0) {
+            const pending = pendingMessagesRef.current.shift();
+            if (pending) {
+              socket.emit('agent:chat', pending);
+            }
+          }
         });
 
         socket.on('disconnect', (reason) => {
@@ -163,11 +206,47 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
         socket.on('agent:streaming', (data) => {
           console.log('Agent streaming update:', data);
           // Handle streaming updates
+          const { stream_id, token, metadata } = data;
+          const callbacks = streamCallbacksRef.current.get(stream_id);
+          if (callbacks) {
+            callbacks.onChunk({ token, metadata });
+          }
+        });
+
+        socket.on('agent:streaming_complete', (data) => {
+          console.log('Agent streaming complete:', data);
+          const { stream_id } = data;
+          const callbacks = streamCallbacksRef.current.get(stream_id);
+          if (callbacks) {
+            callbacks.onComplete();
+            streamCallbacksRef.current.delete(stream_id);
+          }
+        });
+
+        socket.on('agent:streaming_error', (data) => {
+          console.error('Agent streaming error:', data);
+          const { stream_id, error } = data;
+          const callbacks = streamCallbacksRef.current.get(stream_id);
+          if (callbacks) {
+            callbacks.onError(error);
+            streamCallbacksRef.current.delete(stream_id);
+          }
+        });
+
+        socket.on('agent:typing', (data) => {
+          console.log('Agent typing:', data);
+          const { agents } = data;
+          typingCallbacksRef.current.forEach(callback => callback(agents));
         });
 
         socket.on('agent:canvas_present', (data) => {
           console.log('Canvas presented:', data);
           // Handle canvas presentation
+        });
+
+        // Heartbeat handlers
+        socket.on('pong', () => {
+          // Handled in heartbeat interval
         });
 
         // Error handler
@@ -191,6 +270,9 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
       reconnectTimeoutRef.current = null;
     }
 
+    // Stop heartbeat
+    stopHeartbeat();
+
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -198,6 +280,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     setIsConnected(false);
     setIsConnecting(false);
+    setConnectionQuality('offline');
   };
 
   /**
@@ -285,6 +368,145 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   /**
+   * Send streaming message with callbacks
+   */
+  const sendStreamingMessage = (
+    agentId: string,
+    message: string,
+    sessionId: string,
+    callbacks: {
+      onChunk: (chunk: { token: string; metadata?: any }) => void;
+      onComplete: () => void;
+      onError: (error: string) => void;
+    }
+  ) => {
+    const streamId = `${sessionId}_${Date.now()}`;
+
+    // Store callbacks
+    streamCallbacksRef.current.set(streamId, callbacks);
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('agent:streaming_chat', {
+        agent_id: agentId,
+        message,
+        session_id: sessionId,
+        stream_id,
+        platform: 'mobile',
+      });
+    } else {
+      // Queue for later send
+      pendingMessagesRef.current.push({ agentId, message, sessionId });
+      callbacks.onError('Not connected');
+    }
+
+    // Return unsubscribe function
+    return () => {
+      streamCallbacksRef.current.delete(streamId);
+    };
+  };
+
+  /**
+   * Subscribe to stream updates
+   */
+  const subscribeToStream = (
+    sessionId: string,
+    onChunk: (chunk: { token: string; metadata?: any }) => void,
+    onComplete: () => void,
+    onError: (error: string) => void
+  ) => {
+    const streamId = `subscribe_${sessionId}`;
+
+    streamCallbacksRef.current.set(streamId, { onChunk, onComplete, onError });
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('subscribe_stream', { session_id: sessionId, stream_id });
+    }
+
+    // Return unsubscribe function
+    return () => {
+      streamCallbacksRef.current.delete(streamId);
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('unsubscribe_stream', { stream_id: streamId });
+      }
+    };
+  };
+
+  /**
+   * Subscribe to typing indicators
+   */
+  const subscribeToTyping = (
+    callback: (agents: Array<{ id: string; name: string }>) => void
+  ) => {
+    typingCallbacksRef.current.push(callback);
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('subscribe_typing');
+    }
+
+    // Return unsubscribe function
+    return () => {
+      const index = typingCallbacksRef.current.indexOf(callback);
+      if (index > -1) {
+        typingCallbacksRef.current.splice(index, 1);
+      }
+    };
+  };
+
+  /**
+   * Start heartbeat for connection health
+   */
+  const startHeartbeat = () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+    }
+
+    let latencySum = 0;
+    let latencyCount = 0;
+
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (socketRef.current?.connected) {
+        const start = Date.now();
+        socketRef.current.emit('ping');
+
+        const onPong = () => {
+          const latency = Date.now() - start;
+          latencySum += latency;
+          latencyCount++;
+
+          // Update connection quality based on latency
+          if (latencyCount >= 3) {
+            const avgLatency = latencySum / latencyCount;
+            if (avgLatency < 100) {
+              setConnectionQuality('excellent');
+            } else if (avgLatency < 300) {
+              setConnectionQuality('good');
+            } else {
+              setConnectionQuality('poor');
+            }
+
+            latencySum = 0;
+            latencyCount = 0;
+          }
+        };
+
+        socketRef.current.once('pong', onPong);
+      } else {
+        setConnectionQuality('offline');
+      }
+    }, 30000); // Every 30 seconds
+  };
+
+  /**
+   * Stop heartbeat
+   */
+  const stopHeartbeat = () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  };
+
+  /**
    * Auto-connect when authenticated
    */
   useEffect(() => {
@@ -313,6 +535,7 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     isConnected,
     isConnecting,
     connectionError,
+    connectionQuality,
     connect,
     disconnect,
     emit,
@@ -320,6 +543,9 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     off,
     joinRoom,
     leaveRoom,
+    sendStreamingMessage,
+    subscribeToStream,
+    subscribeToTyping,
   };
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
