@@ -318,3 +318,112 @@ async def prometheus_metrics():
     from fastapi.responses import Response
     metrics = generate_latest()
     return Response(content=metrics, media_type=CONTENT_TYPE_LATEST)
+
+
+@router.get(
+    "/health/sync",
+    summary="Sync Subsystem Health",
+    description=(
+        "Health check for Atom SaaS sync subsystem. "
+        "Checks sync status, WebSocket connection, and recent errors. "
+        "Used by monitoring systems and orchestration platforms to verify sync health."
+    ),
+    tags=["Health", "Sync"],
+    responses={
+        200: {
+            "description": "Sync subsystem is healthy or degraded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "last_sync": "2026-02-19T10:00:00Z",
+                        "sync_age_minutes": 5,
+                        "websocket_connected": True,
+                        "scheduler_running": True,
+                        "recent_errors": 0,
+                        "checks": {
+                            "last_sync": {"healthy": True},
+                            "websocket": {"healthy": True},
+                            "scheduler": {"healthy": True},
+                            "errors": {"healthy": True}
+                        },
+                        "details": {
+                            "failed_checks": [],
+                            "degraded_checks": [],
+                            "total_checks": 4
+                        }
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "Sync subsystem is unhealthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "unhealthy",
+                        "last_sync": "2026-02-19T08:00:00Z",
+                        "sync_age_minutes": 125,
+                        "websocket_connected": False,
+                        "scheduler_running": True,
+                        "recent_errors": 5,
+                        "checks": {
+                            "last_sync": {"healthy": False},
+                            "websocket": {"healthy": False}
+                        },
+                        "details": {
+                            "failed_checks": ["last_sync", "websocket"],
+                            "degraded_checks": [],
+                            "total_checks": 4
+                        }
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-kubernetes-probe": "custom",
+        "x-subsystem": "sync"
+    }
+)
+async def sync_health_probe():
+    """
+    Sync subsystem health check.
+
+    Checks the health of the Atom SaaS sync subsystem including:
+    - Last sync age (should be within 30 minutes)
+    - WebSocket connection status
+    - Scheduler status
+    - Recent error count
+
+    Returns:
+        - 200: Sync subsystem is healthy or degraded
+        - 503: Sync subsystem is unhealthy
+
+    Health status:
+    - healthy: All checks passed
+    - degraded: Some checks failed but not critical (e.g., sync is stale but not critical)
+    - unhealthy: Critical checks failed (e.g., WebSocket disconnected, scheduler stopped)
+    """
+    from core.sync_health_monitor import get_sync_health_monitor
+
+    monitor = get_sync_health_monitor()
+    db = get_db()
+    db_session = next(db)
+
+    try:
+        health_status = monitor.check_health(db_session)
+        http_status = monitor.get_http_status(health_status)
+
+        if http_status != 200:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=http_status,
+                content=health_status
+            )
+
+        return health_status
+
+    finally:
+        db_session.close()
