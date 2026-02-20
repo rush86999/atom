@@ -218,6 +218,81 @@ class AgentScheduler:
         logger.info(f"Scheduled rating sync job {job_id} every {interval_minutes} minutes")
         return job_id
 
+    def schedule_skill_sync(self, sync_service, interval_minutes: int = 15):
+        """
+        Schedule periodic skill sync with Atom SaaS.
+
+        Args:
+            sync_service: SyncService instance
+            interval_minutes: Sync interval in minutes (default: 15)
+
+        Returns:
+            job_id: Scheduled job ID
+        """
+        job_id = "skill-sync-atom-saas"
+
+        async def sync_wrapper():
+            """Async wrapper for skill sync."""
+            try:
+                result = await sync_service.sync_all(enable_websocket=True)
+                logger.info(
+                    f"Skill sync completed: {result.get('skills_synced')} skills, "
+                    f"{result.get('categories_synced')} categories in "
+                    f"{result.get('duration_seconds'):.2f}s"
+                )
+            except Exception as e:
+                logger.error(f"Skill sync failed: {e}")
+
+        def sync_job():
+            """Sync job wrapper for ThreadPool scheduler."""
+            import asyncio
+            asyncio.run(sync_wrapper())
+
+        # Remove existing job if it exists
+        if self.scheduler.get_job(job_id):
+            self.scheduler.remove_job(job_id)
+            logger.info(f"Removed existing skill sync job {job_id}")
+
+        # Add new interval job
+        self.scheduler.add_job(
+            sync_job,
+            'interval',
+            id=job_id,
+            minutes=interval_minutes,
+            name='Skill Sync with Atom SaaS',
+            replace_existing=True
+        )
+
+        logger.info(f"Scheduled skill sync job {job_id} every {interval_minutes} minutes")
+        return job_id
+
+    def initialize_skill_sync(self):
+        """
+        Initialize skill sync job from environment configuration.
+
+        Reads ATOM_SAAS_SYNC_INTERVAL_MINUTES from environment.
+        Default: 15 minutes
+        """
+        interval = int(os.getenv("ATOM_SAAS_SYNC_INTERVAL_MINUTES", "15"))
+
+        # Lazy import to avoid circular dependency
+        from core.sync_service import SyncService
+        from core.atom_saas_client import AtomSaaSClient
+        from core.atom_saas_websocket import AtomSaaSWebSocketClient
+
+        # Create clients
+        db = get_db_session()
+        try:
+            saas_client = AtomSaaSClient()
+            ws_client = AtomSaaSWebSocketClient()
+            sync_service = SyncService(saas_client, ws_client)
+
+            # Schedule the job
+            self.schedule_skill_sync(sync_service, interval)
+            logger.info(f"Initialized skill sync with {interval} minute interval")
+        finally:
+            db.close()
+
     def initialize_rating_sync(self):
         """
         Initialize rating sync job from environment configuration.
