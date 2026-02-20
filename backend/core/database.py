@@ -8,7 +8,6 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 load_dotenv()
-
 # CRITICAL: Production database configuration
 logger = logging.getLogger(__name__)
 logger.debug(f"Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}")

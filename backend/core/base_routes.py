@@ -393,7 +393,8 @@ class BaseAPIRouter(APIRouter):
     def internal_error(
         self,
         message: str = "An internal error occurred",
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
+        detail: Optional[Union[str, Dict[str, Any]]] = None  # Backward compatibility
     ) -> HTTPException:
         """
         Convenience method for internal server errors.
@@ -401,10 +402,20 @@ class BaseAPIRouter(APIRouter):
         Args:
             message: Error message
             details: Additional context
-
-        Returns:
-            HTTPException with 500 status code
+            detail: Alias for message (if str) or details (if dict) - for Starlette compatibility
         """
+        if detail:
+            if isinstance(detail, dict):
+                if not details:
+                    details = detail
+            else:
+                 # If message is default, overwrite it with detail string
+                 if message == "An internal error occurred":
+                     message = str(detail)
+                 # If message is already set, append detail
+                 else:
+                     message = f"{message}: {detail}"
+
         return self.error_response(
             error_code="INTERNAL_ERROR",
             message=message,

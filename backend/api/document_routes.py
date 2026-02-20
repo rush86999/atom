@@ -239,20 +239,37 @@ async def search_documents(
         raise router.internal_error(message=str(e))
 
 @router.get("/{doc_id}")
-async def get_document(doc_id: str):
-    """Get a specific document by ID (Not efficiently supported by LanceDB yet, stubbing)"""
-    # LanceDB doesn't easily support get_by_id without a filter search
-    # For now, we return a stub or perform a metadata search
-    return router.success_response(
-        data={
-            "id": doc_id,
-            "title": "Document Details Unavailable",
-            "type": "unknown",
-            "content_preview": "Direct retrieval by ID not supported in vector store mode.",
-            "metadata": {},
-            "ingested_at": datetime.now().isoformat()
-        }
-    )
+async def get_document(
+    doc_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get a specific document by ID"""
+    try:
+        # Dynamic workspace resolution
+        ws_id = None
+        if current_user and current_user.workspaces:
+             ws_id = current_user.workspaces[0].id
+
+        lancedb_handler = get_lancedb_handler(ws_id)
+        if not lancedb_handler:
+             raise router.internal_error("Search database not available")
+
+        doc = lancedb_handler.get_document_by_id("documents", doc_id)
+        
+        if not doc:
+            raise router.not_found(f"Document {doc_id} not found")
+
+        return router.success_response(data={
+            "id": doc["id"],
+            "title": doc.get("metadata", {}).get("title", "Untitled"),
+            "content": doc.get("text", ""), # Full content
+            "type": doc.get("metadata", {}).get("file_type", "unknown"),
+            "metadata": doc.get("metadata", {}),
+            "ingested_at": doc.get("created_at")
+        })
+    except Exception as e:
+        logger.error(f"Failed to get document {doc_id}: {e}")
+        raise router.internal_error(message=str(e))
 
 @router.delete("/{doc_id}")
 @require_governance(
@@ -292,10 +309,28 @@ async def delete_document(
     return router.success_response(message=f"Document '{doc_id}' deletion scheduled")
 
 @router.get("")
-async def list_documents(limit: int = 100):
-    """List recent documents (Mock/Stub for now as LanceDB is vector-first)"""
-    # To list all, we'd need to query all rows which can be expensive
-    return router.success_response(
-        data=[],
-        metadata={"total": 0, "note": "Listing all documents not supported by current vector index"}
-    )
+async def list_documents(
+    limit: int = 100,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user)
+):
+    """List recent documents"""
+    try:
+        # Dynamic workspace resolution
+        ws_id = None
+        if current_user and current_user.workspaces:
+             ws_id = current_user.workspaces[0].id
+
+        lancedb_handler = get_lancedb_handler(ws_id)
+        if not lancedb_handler:
+             return router.success_response(data=[], metadata={"total": 0})
+
+        docs = lancedb_handler.list_documents("documents", limit=limit, offset=offset)
+        
+        return router.success_response(
+            data=docs,
+            metadata={"total": len(docs), "limit": limit, "offset": offset}
+        )
+    except Exception as e:
+        logger.error(f"Failed to list documents: {e}")
+        return router.internal_error(message=str(e))

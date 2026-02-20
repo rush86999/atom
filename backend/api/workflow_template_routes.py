@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Request
+from fastapi import Body, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -229,6 +229,46 @@ async def instantiate_template(template_id: str, request: InstantiateRequest):
         logger.error(f"Failed to instantiate template: {e}")
         raise router.internal_error(
             message="Failed to instantiate template",
+            details={"error": str(e)}
+        )
+
+@router.post("/{template_id}/import")
+@require_governance(ActionComplexity.LOW, "import_template", "workflow")
+async def import_template(
+    template_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    body: Optional[Dict[str, Any]] = None
+):
+    """Import a template as a new workflow (Simplified Instantiation)"""
+    try:
+        manager = get_template_manager()
+        template = manager.get_template(template_id)
+        if not template:
+             raise router.not_found_error("Template", template_id)
+
+        result = manager.create_workflow_from_template(
+            template_id=template_id,
+            workflow_name=f"Imported {template.name}",
+            template_parameters={}
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Template imported as '{result.get('workflow_name')}'",
+            "workflow_id": result.get("workflow_id")
+        }
+        
+    except ValueError as e:
+        raise router.validation_error(
+            field="template_id",
+            message=str(e),
+            details={"template_id": template_id}
+        )
+    except Exception as e:
+        logger.error(f"Failed to import template: {e}")
+        raise router.internal_error(
+            message="Failed to import template",
             details={"error": str(e)}
         )
 
