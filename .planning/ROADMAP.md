@@ -1554,6 +1554,54 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
     7. All workflows idempotent (re-runnable without manual cleanup)
   - Plans: 4-5 plans (test fixes, build fixes, deployment validation, security scanning, workflow optimization)
   - Estimated: 3-5 days
+- [ ] **Phase 68: BYOK Cognitive Tier System & Cost-Optimized Routing** - Implement intelligent 5-tier cognitive system with cache-aware routing and automatic escalation
+  - Goal: Optimize LLM costs through cognitive tier classification, cache-aware routing, and automatic escalation while maintaining quality
+  - Depends on: Phase 13 (BYOK multi-provider support)
+  - Success Criteria:
+    1. 5-tier cognitive system implemented (Micro, Standard, Versatile, Heavy, Complex)
+    2. Cache cost awareness in routing decisions (prompt caching reduces effective costs)
+    3. Automatic escalation on quality/failure issues (tier → tier+1 with monitoring)
+    4. MiniMax M2.5 integration with paygo pricing support
+    5. Onboarding UI for cognitive tier selection with cost estimates
+    6. 30%+ cost reduction through cache optimization and tier routing
+    7. <100ms routing latency with cognitive tier selection
+  - Cognitive Tiers:
+    - **Tier 1: Micro (Fast/Inexpensive)** - Gemini 2.5 Flash-Lite ($0.075/1M tokens, $0.30/1M cached)
+      - Use cases: Quick lookups, simple classification, status checks
+      - Cache benefit: 96% cost reduction with prompt caching
+    - **Tier 2: Standard (Balanced)** - deepseek-chat, MiniMax M2.5
+      - Use cases: Standard chat, document analysis, routine tasks
+      - Pricing: deepseek-chat ($0.27/1M input, $1.10/1M output), MiniMax M2.5 (paygo rates)
+    - **Tier 3: Versatile (Multi-modal)** - Gemini 3 Flash
+      - Use cases: Code generation, multi-modal tasks, complex reasoning
+      - Pricing: $0.15/1M tokens (90% cheaper than Flash 2.0)
+    - **Tier 4: Heavy (Deep Reasoning)** - deepseek-reasoner
+      - Use cases: Complex problem-solving, strategic analysis, research
+      - Pricing: $1.00/1M input tokens, 2x slower but higher quality
+    - **Tier 5: Complex (Enterprise)** - GPT-4o, Claude Opus (premium models)
+      - Use cases: Critical business decisions, compliance, highest accuracy required
+  - Cache Cost Optimization:
+    - Prompt caching reduces effective costs: cached tokens cost 10% of uncached
+    - Routing algorithm weighs (base_cost + cached_cost * cache_hit_probability)
+    - Cache-aware model selection: Prefer models with better cache ratios for repetitive prompts
+    - Automatic cache invalidation: 24-hour TTL for system prompts
+  - Automatic Escalation Logic:
+    - Trigger on: Low confidence scores (<70%), hallucination detection, rate limits
+    - Escalation path: Tier N → Tier N+1 with 3-retry limit
+    - Monitoring: Track escalation rate, cost impact, quality improvements
+    - Fallback: Tier N-1 if Tier N+1 fails (with degraded quality warning)
+  - MiniMax Integration:
+    - API Endpoint: https://platform.minimax.io/docs/guides/pricing-paygo
+    - Model: MiniMax M2.5 (Tier 2: Standard)
+    - Pricing: Paygo rates (see pricing documentation)
+    - Features: Cost-effective for Chinese/English, fast inference
+  - Onboarding UI Components:
+    - Cognitive tier selector with model previews
+    - Cost calculator with caching estimates
+    - Quality vs Cost trade-off visualizer
+    - Recommended tier based on use case questionnaire
+  - Plans: 8-10 plans (cognitive tier system, cache-aware routing, MiniMax integration, escalation logic, onboarding UI, cost optimization, monitoring, testing, documentation)
+  - Estimated: 2-3 weeks
 
 ### Phase 35: Python Package Support for Agent Skills
 
