@@ -108,11 +108,14 @@ async def get_current_user(
         token = token[1:-1]
         
     try:
-        # logger.info(f"AUTH DEBUG: Attempting to decode token: {token[:15]}...")
+        print(f"AUTH DEBUG: Attempting to decode token: {token[:15]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
+        print(f"AUTH DEBUG: Decoded payload. sub={user_id}, id={payload.get('id')}")
+        
         if user_id is None:
             # Try "id" field if "sub" is missing (NextAuth sometimes differs)
+            user_id = payload.get("id")
             user_id = payload.get("id")
             if user_id is None:
                 print("AUTH DEBUG: Token payload missing 'sub' and 'id'")
