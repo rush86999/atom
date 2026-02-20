@@ -1270,6 +1270,49 @@ class FailedRatingUpload(Base):
         return f"<{self.__class__.__name__}(rating_id={self.rating_id}, retries={self.retry_count})>"
 
 
+class ConflictLog(Base):
+    """
+    Track conflicts and resolutions for skill synchronization.
+
+    Records conflicts when skills exist both locally (Community Skills)
+    and remotely (Atom SaaS) with different metadata/versions.
+    Tracks resolution strategy and outcome.
+
+    Phase 61 Plan 04 - Conflict Resolution
+    """
+    __tablename__ = "conflict_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    skill_id = Column(String(255), nullable=False, index=True)
+
+    # Conflict classification
+    conflict_type = Column(String(50), nullable=False, index=True)  # VERSION_MISMATCH, CONTENT_MISMATCH, DEPENDENCY_CONFLICT, OTHER
+    severity = Column(String(20), nullable=False, index=True)  # LOW, MEDIUM, HIGH, CRITICAL
+
+    # Conflict data
+    local_data = Column(JSON, nullable=False)  # Local skill data
+    remote_data = Column(JSON, nullable=False)  # Remote skill data
+
+    # Resolution
+    resolution_strategy = Column(String(50), nullable=True)  # remote_wins, local_wins, merge, manual
+    resolved_data = Column(JSON, nullable=True)  # Final resolved skill data
+    resolved_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    resolved_by = Column(String(255), nullable=True)  # User or "system"
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('idx_conflict_log_skill_id', 'skill_id'),
+        Index('idx_conflict_log_type', 'conflict_type'),
+        Index('idx_conflict_log_severity', 'severity'),
+        Index('idx_conflict_log_resolved_at', 'resolved_at'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, type={self.conflict_type}, severity={self.severity}, resolved={self.resolved_at is not None})>"
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).
