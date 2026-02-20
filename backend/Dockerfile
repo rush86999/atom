@@ -35,6 +35,7 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     libpq5 \
+    curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,12 +49,23 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Create directories for Personal Edition
+RUN mkdir -p /app/data/media/input \
+    /app/data/media/output \
+    /app/data/exports \
+    /app/data/lancedb \
+    /app/logs
+
 # Change ownership of the app directory to appuser
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
 EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
 
 # Run with Gunicorn
 CMD ["gunicorn", "-c", "gunicorn_conf.py", "main_api_app:app"]
