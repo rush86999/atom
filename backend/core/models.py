@@ -5612,3 +5612,35 @@ class PackageRegistry(Base):
     # Relationships
     approver = relationship("User", foreign_keys=[approved_by])
     executions = relationship("SkillExecution", back_populates="package")
+
+class CognitiveTierPreference(Base):
+    """Per-workspace cognitive tier routing preferences"""
+    __tablename__ = "cognitive_tier_preferences"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, unique=True, index=True)
+
+    # Tier selection
+    default_tier = Column(String, nullable=False, default="standard")  # micro, standard, versatile, heavy, complex
+    min_tier = Column(String, nullable=True)  # Never route below this tier
+    max_tier = Column(String, nullable=True)  # Never route above this tier (cost control)
+
+    # Cost controls
+    monthly_budget_cents = Column(Integer, nullable=True)  # Budget in cents
+    max_cost_per_request_cents = Column(Integer, nullable=True)  # Per-request limit
+
+    # Feature flags
+    enable_cache_aware_routing = Column(Boolean, default=True)
+    enable_auto_escalation = Column(Boolean, default=True)
+    enable_minimax_fallback = Column(Boolean, default=True)
+
+    # Provider preferences (ordered list)
+    preferred_providers = Column(JSON, default=list)  # ["deepseek", "openai"]
+
+    # Metadata
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="cognitive_tier_preference")
