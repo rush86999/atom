@@ -2149,7 +2149,116 @@ docker-compose -f docker-compose-e2e.yml down -v
 
 ---
 
-**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60-64 new features
+### Phase 69: Software Development Life Cycle with AI Agents
+
+**Goal**: Document and institutionalize the AI-assisted SDLC methodology proven across 62 plans and 9 phases, creating a repeatable framework for AI-human co-development
+
+**Depends on**: Phases 60-68 (v2.0 complete - all patterns proven in production)
+
+**Success Criteria** (what must be TRUE):
+  1. AI agent roles documented with specific capabilities and limitations (researcher, planner, executor, verifier, debugger)
+  2. Workflow patterns documented for each SDLC stage (planning, research, implementation, testing, deployment, verification)
+  3. Agent coordination patterns documented (orchestrator-subagent, parallel execution, checkpoint handling, state management)
+  4. Quality gates and validation checkpoints defined for each workflow stage
+  5. Anti-patterns and failure modes documented with detection/mitigation strategies
+  6. Context management strategies documented (context budgeting, state persistence, resume protocols)
+  7. Tool usage patterns documented (when to use Task tool vs direct execution, parallel vs sequential)
+
+**Rationale**: Over 62 executed plans, we've developed proven patterns for AI-assisted software development. The GSD (Get Shit Done) workflow system has demonstrated:
+- 95%+ plan success rate with proper research and verification loops
+- Sub-5min task execution for autonomous agents with fresh context
+- Wave-based parallelization reducing total execution time by 60-70%
+- Checkpoint-based human verification preventing scope creep
+- State persistence surviving context resets and /clear
+
+These patterns should be documented as institutional knowledge for:
+- Training new AI agents on project-specific workflows
+- Onboarding developers to AI-assisted development
+- Creating reusable templates for common development tasks
+- Establishing quality standards for AI-generated code
+
+**Key Features**:
+
+1. **Agent Role Definitions** (Plan 01):
+   - **Orchestrator**: Lean coordination, delegates to specialists, manages wave execution
+   - **Researcher**: Deep domain analysis, surveys options, identifies risks, produces RESEARCH.md
+   - **Planner**: Creates executable prompts with tasks, verification criteria, dependencies
+   - **Executor**: Implements code with atomic commits, follows plan specifications
+   - **Verifier**: Goal-backward validation, gap detection, human verification requirements
+   - **Debugger**: Systematic investigation, hypothesis-driven diagnosis, fix verification
+
+2. **Workflow Patterns** (Plan 02):
+   - **Plan Phase**: Research → Plan → Verify → Execute (max 3 revision loops)
+   - **Execute Phase**: Discover plans → Group waves → Spawn agents → Handle checkpoints → Verify
+   - **Verify Work**: Extract tests → Present sequentially → Process responses → Diagnose issues → Plan fixes
+   - **Debug Phase**: Investigate symptoms → Form hypothesis → Test hypothesis → Implement fix → Verify
+
+3. **Coordination Patterns** (Plan 03):
+   - **Orchestrator-Subagent**: Fresh 200k context per subagent, orchestrator at ~15%
+   - **Wave-Based Parallelization**: Dependency analysis, task grouping, parallel execution
+   - **Checkpoint Handling**: State serialization, continuation agents, user response routing
+   - **State Management**: STATE.md updates, commit messages, artifact tracking
+
+4. **Quality Gates** (Plan 04):
+   - **Plan Verification**: Frontmatter validation, dependency analysis, goal-backward checking
+   - **Execution Verification**: Atomic commits, SUMMARY.md creation, artifact existence
+   - **Phase Verification**: Goal achievement assessment, gap analysis, human testing requirements
+   - **Code Quality Standards**: Type hints, docstrings, error handling, testing patterns
+
+5. **Anti-Patterns Documentation** (Plan 05):
+   - **Context Bleed**: Sharing context between parallel agents causing contamination
+   - **Over-Engineering**: Adding unnecessary features beyond plan specifications
+   - **Premature Optimization**: Optimizing before measurements and baselines
+   - **Mock Overuse**: Heavy mocking preventing real integration testing
+   - **Skipping Verification**: Skipping plan/execute verification causing rework
+
+6. **Context Management** (Plan 06):
+   - **Budget Allocation**: Orchestrator ~15%, subagents 100% fresh context
+   - **State Persistence**: STATE.md, SUMMARY.md, VERIFICATION.md as resume points
+   - **Checkpoint Serialization**: Saving agent state for human verification continuation
+   - **Resume Protocols**: Reading state files, continuing from checkpoints, /clear recovery
+
+7. **Tool Usage Patterns** (Plan 07):
+   - **Task Tool**: When to delegate (complex tasks, parallel execution, fresh context needed)
+   - **Direct Execution**: When to execute directly (simple operations, file reads, single commits)
+   - **Parallel Tool Calls**: When to call multiple tools in one message (independent operations)
+   - **Sequential Calls**: When to sequence tool calls (dependent operations, error handling)
+
+**Plans**: 7 plans (3 waves)
+- Plan 01: Agent Role Definitions - Document all agent types with capabilities and examples
+- Plan 02: Workflow Patterns - Document each SDLC workflow with step-by-step guides
+- Plan 03: Coordination Patterns - Document agent-to-agent communication patterns
+- Plan 04: Quality Gates - Document validation checkpoints for each workflow stage
+- Plan 05: Anti-Patterns - Document common failure modes with detection/mitigation
+- Plan 06: Context Management - Document context budgeting, state persistence, resume protocols
+- Plan 07: Tool Usage - Document when to use Task tool vs direct execution
+
+**Estimated Duration**: 2-3 days (7 plans, ~2-4 hours each)
+
+**Documentation Structure**:
+```
+docs/
+├── AI_AGENT_SDLC.md (main guide, 2,000+ lines)
+├── AGENT_ROLES.md (role definitions, 800+ lines)
+├── WORKFLOW_PATTERNS.md (workflow guides, 1,200+ lines)
+├── COORDINATION_PATTERNS.md (agent communication, 1,000+ lines)
+├── QUALITY_GATES.md (validation checkpoints, 600+ lines)
+├── ANTI_PATTERNS.md (failure modes, 800+ lines)
+├── CONTEXT_MANAGEMENT.md (state handling, 700+ lines)
+└── TOOL_USAGE_PATTERNS.md (Task tool guide, 500+ lines)
+```
+
+**Example Outputs**:
+- "Planning phase workflow: Research (gsd-phase-researcher) → Plan (gsd-planner) → Verify (gsd-plan-checker) → Execute"
+- "Agent roles: Orchestrator coordinates only, never implements; Planner creates detailed tasks; Executor commits atomically"
+- "Quality gate: All plans must have frontmatter with wave, depends_on, autonomous flags"
+- "Anti-pattern: Don't share context between parallel agents - causes contamination, use fresh 200k per agent"
+
+**Status**: ⏳ NOT STARTED (February 20, 2026)
+
+---
+
+**Requirements:** 73 total (100% mapped to Phases 29-34) + Phase 35-36, 60-64, 69 new features
 **Starting Phase:** 29 (Phase 28 completed in v1.0)
 
 ---
