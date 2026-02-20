@@ -1,22 +1,43 @@
 version: '3.8'
 
-# Personal Edition - Simplified Docker Compose for Local Development
-# This configuration uses SQLite (no PostgreSQL) and minimal services for easy local setup
+# ==============================================================================
+# Atom Personal Edition - Docker Compose Configuration
+# ==============================================================================
+# Simplified Docker Compose for Local Development with Phase 66 Integrations
 #
 # Quick Start:
-#   1. Copy .env.personal to .env and fill in your API keys
-#   2. docker-compose -f docker-compose-personal.yml up -d
-#   3. Access at http://localhost:8000
+#   1. Copy .env.personal to .env: cp .env.personal .env
+#   2. Edit .env with your API keys and preferences
+#   3. Start: docker-compose -f docker-compose-personal.yml up -d
+#   4. Access: http://localhost:8000 (API) or http://localhost:3000 (Frontend)
+#
+# Minimum Required:
+#   - One AI provider key (OpenAI, Anthropic, or DeepSeek)
+#   - Encryption keys (generate with: openssl rand -base64 32)
 #
 # Features:
 #   - SQLite database (no external DB required)
 #   - Backend API with hot reload
 #   - Frontend Next.js dev server
+#   - Valkey (Redis-compatible) for agent communication
 #   - Browser automation (optional)
+#   - Phase 66 Integrations (pre-configured):
+#     * Media: Spotify (OAuth)
+#     * Smart Home: Philips Hue, Home Assistant (local)
+#     * Productivity: Notion (OAuth)
+#     * Creative: FFmpeg (pre-installed)
 #   - All data persists in ./data directory
+#
+# Local-Only Mode:
+#   Set ATOM_LOCAL_ONLY=true in .env to block all cloud services (Spotify, Notion, etc.)
+#   Local services continue to work: Hue, Home Assistant, FFmpeg, Sonos
+# ==============================================================================
 
 services:
-  # Backend API with SQLite
+  # ==============================================================================
+  # Backend API Service
+  # ==============================================================================
+  # Main Atom backend with all Phase 66 integrations pre-configured
   atom-backend:
     build:
       context: ./backend
@@ -25,7 +46,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Use SQLite for personal edition (simpler setup)
+      # Database (SQLite for Personal Edition)
       - DATABASE_URL=sqlite:///./data/atom.db
       - SQLITE_PATH=./data/atom.db
 
@@ -34,33 +55,64 @@ services:
       - LOG_LEVEL=INFO
       - PYTHONUNBUFFERED=1
 
-      # API Keys (set in .env file)
+      # AI Providers (required - at least one)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
 
-      # Encryption keys (generate with: openssl rand -base64 32)
-      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:-default-personal-key-change-me}
+      # Encryption keys (required - generate with: openssl rand -base64 32)
+      - BYOK_ENCRYPTION_KEY=${BYOK_ENCRYPTION_KEY:-default-insecure-key-change-me}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-jwt-secret-change-me}
 
-      # Storage paths (mounted to ./data)
+      # Vector embeddings (local, fast, free)
       - LANCEDB_PATH=./data/lancedb
       - ENABLE_LANCEDB=true
+      - EMBEDDING_PROVIDER=fastembed
+      - FASTEMBED_MODEL=BAAI/bge-small-en-v1.5
 
-      # Creative tools (Phase 66-03) - FFmpeg allowed directories
+      # Redis (Valkey for agent communication)
+      - REDIS_URL=redis://valkey:6379
+
+      # ==============================================================================
+      # PHASE 66: Personal Edition Enhancements
+      # ==============================================================================
+
+      # Local-Only Mode (Privacy Feature)
+      # When enabled, blocks all cloud-based services (Spotify, Notion, etc.)
+      # Local services continue to work: Sonos, Hue, Home Assistant, FFmpeg
+      - ATOM_LOCAL_ONLY=${ATOM_LOCAL_ONLY:-false}
+
+      # Media Integrations (OAuth)
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+      - SPOTIFY_REDIRECT_URI=http://localhost:8000/integrations/spotify/callback
+
+      # Smart Home (Local - work in local-only mode)
+      - HUE_BRIDGE_IP=${HUE_BRIDGE_IP:-}  # Auto-discovered if not set
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://host.docker.internal:8123}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+
+      # Productivity (OAuth - blocked in local-only mode)
+      - NOTION_CLIENT_ID=${NOTION_CLIENT_ID:-}
+      - NOTION_CLIENT_SECRET=${NOTION_CLIENT_SECRET:-}
+      - NOTION_REDIRECT_URI=http://localhost:8000/integrations/notion/callback
+      - NOTION_API_KEY=${NOTION_API_KEY:-}  # Alternative to OAuth
+
+      # Creative Tools (Local - work in local-only mode)
       - FFMPEG_ALLOWED_DIRS=/app/data/media,/app/data/exports
 
-      # Redis-compatible database for agent communication (Valkey)
-      - REDIS_URL=redis://valkey:6379
+      # Security & Audit
+      - AUDIT_LOG_PATH=logs/audit.log
+      - AUDIT_LOG_RETENTION_DAYS=${AUDIT_LOG_RETENTION_DAYS:-90}
 
       # Optional: Browser automation
       - BROWSER_HOST=browser-node
       - BROWSER_PORT=3000
 
     volumes:
-      # Persist all data to ./data directory
+      # Persist all data
       - ./data:/app/data
-      - ./backend:/app
+      - ./backend:/app  # Hot reload for development
     working_dir: /app
     command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
@@ -73,10 +125,17 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - atom-local
+    # Extra hosts for local network access
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  # Valkey (Redis-compatible database) for agent communication
+  # ==============================================================================
+  # Valkey (Redis-Compatible) Service
+  # ==============================================================================
   # Valkey is a Linux Foundation project (LGPL-3.0) - 100% Redis protocol compatible
-  # Personal Edition: In-memory only (no persistence) for faster development and clean restarts
+  # Personal Edition: In-memory only (no persistence) for faster development
   valkey:
     image: valkey/valkey:latest
     container_name: atom-personal-valkey
@@ -89,8 +148,13 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    networks:
+      - atom-local
 
-  # Frontend Next.js (Development Mode)
+  # ==============================================================================
+  # Frontend Next.js Service
+  # ==============================================================================
+  # React frontend for Atom Personal Edition
   atom-frontend:
     build:
       context: ./frontend-nextjs
@@ -112,8 +176,13 @@ services:
     depends_on:
       - atom-backend
       - valkey
+    networks:
+      - atom-local
 
-  # Browser Automation (Optional - comment out if not needed)
+  # ==============================================================================
+  # Browser Automation Service (Optional)
+  # ==============================================================================
+  # Comment out this service if not needed for browser automation
   browser-node:
     image: browserless/chrome:latest
     container_name: atom-personal-browser
@@ -125,7 +194,23 @@ services:
       - PREBOOT_CHROME=true
       - CONNECTION_TIMEOUT=60000
     restart: unless-stopped
+    networks:
+      - atom-local
 
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  atom-local:
+    driver: bridge
+    internal: false  # Allow outbound for OAuth, local-only mode controls this
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
 volumes:
   # All data persisted in ./data directory on host
   atom-personal-data:
