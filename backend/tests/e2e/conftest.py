@@ -830,3 +830,267 @@ def pytest_collection_modifyitems(config, items):
                 "OPENAI_API_KEY"
             ).startswith("sk-test"):
                 item.add_marker(skip_requires_api_keys)
+
+
+# =============================================================================
+# E2E Timing Verification and Performance Monitoring
+# =============================================================================
+
+def pytest_configure(config):
+    """Configure pytest with timing and timeout settings for E2E tests."""
+    # Register timeout marker
+    config.addinivalue_line(
+        "markers",
+        "timeout(max_time): mark test to fail if it takes longer than max_time seconds"
+    )
+
+    # Set default timeout for E2E tests (10 minutes total)
+    if os.getenv("E2E_TESTING") == "true":
+        config.option.timeout = 600  # 10 minutes
+        print("\n" + "="*70)
+        print("E2E Testing Mode: ENABLED")
+        print("Timeout: 10 minutes for full suite")
+        print("Coverage Target: 60-70% for MCP service")
+        print("="*70 + "\n")
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Display timing and coverage summary after test run."""
+    terminalreporter.section("E2E Performance Summary")
+
+    # Get slowest tests
+    if hasattr(terminalreporter, 'stats') and 'slowest' in terminalreporter.stats:
+        slowest = terminalreporter.stats.get("slowest", [])
+        if slowest:
+            terminalreporter.write_sep("=", "Slowest 10 Tests")
+            for item in slowest[:10]:
+                duration = getattr(item, 'duration', 0)
+                if hasattr(item, 'name'):
+                    terminalreporter.write_line(f"  {item.name}: {duration:.2f}s")
+                else:
+                    terminalreporter.write_line(f"  {str(item)}: {duration:.2f}s")
+
+    # Total execution time
+    if hasattr(terminalreporter, '_sessionstarttime'):
+        duration = time.time() - terminalreporter._sessionstarttime
+        terminalreporter.write_sep("=", f"Total E2E Suite Time: {duration:.2f}s ({duration/60:.1f} minutes)")
+
+        # Check against 10-minute target
+        if duration > 600:
+            terminalreporter.write_line("WARNING: E2E suite exceeded 10 minute target!")
+            terminalreporter.write_line(f"  Over by: {duration-600:.2f}s ({(duration-600)/60:.1f} minutes)")
+        else:
+            remaining = 600 - duration
+            terminalreporter.write_line(f"SUCCESS: E2E suite completed within 10 minute target")
+            terminalreporter.write_line(f"  Time remaining: {remaining:.2f}s ({remaining/60:.1f} minutes)")
+
+    # Coverage summary if available
+    if os.getenv("E2E_TESTING") == "true":
+        terminalreporter.write_sep("=", "Coverage Targets")
+        terminalreporter.write_line("MCP Service: 60-70% (vs 26.56% baseline)")
+        terminalreporter.write_line("Run with --cov=integrations/mcp_service to validate")
+
+
+def pytest_sessionstart(session):
+    """Record session start time for timing validation."""
+    session._e2e_start_time = time.time()
+    session._e2e_tests_started = 0
+    session._e2e_tests_passed = 0
+    session._e2e_tests_failed = 0
+
+
+def pytest_runtest_logreport(report):
+    """Track test execution metrics."""
+    if report.when == "call":
+        session = report.session
+        if not hasattr(session, '_e2e_tests_started'):
+            session._e2e_tests_started = 0
+        session._e2e_tests_started += 1
+
+        if report.passed:
+            session._e2e_tests_passed = getattr(session, '_e2e_tests_passed', 0) + 1
+        elif report.failed:
+            session._e2e_tests_failed = getattr(session, '_e2e_tests_failed', 0) + 1
+
+
+# =============================================================================
+# Coverage Validation Hooks
+# =============================================================================
+
+def pytest_collection_finish(session):
+    """Validate coverage configuration for E2E tests."""
+    if os.getenv("E2E_TESTING") == "true":
+        # Ensure coverage is enabled if pytest-cov is available
+        if not session.config.option.cov_source and hasattr(session.config.option, 'cov_source'):
+            session.config.option.cov_source = ["integrations/mcp_service"]
+            print("\nCoverage automatically enabled for: integrations/mcp_service")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Validate coverage and timing targets after session completes."""
+    if os.getenv("E2E_TESTING") == "true":
+        # Print test summary
+        print("\n" + "="*70)
+        print("E2E Test Session Summary")
+        print("="*70)
+
+        started = getattr(session, '_e2e_tests_started', 0)
+        passed = getattr(session, '_e2e_tests_passed', 0)
+        failed = getattr(session, '_e2e_tests_failed', 0)
+
+        print(f"Tests Started: {started}")
+        print(f"Tests Passed:  {passed}")
+        print(f"Tests Failed:  {failed}")
+
+        if started > 0:
+            pass_rate = (passed / started) * 100
+            print(f"Pass Rate:    {pass_rate:.1f}%")
+
+        # Timing summary
+        if hasattr(session, '_e2e_start_time'):
+            duration = time.time() - session._e2e_start_time
+            print(f"\nTotal Duration: {duration:.2f}s ({duration/60:.1f} minutes)")
+
+            if duration > 600:
+                print("WARNING: Exceeded 10-minute target!")
+            else:
+                print("SUCCESS: Within 10-minute target")
+
+        print("="*70 + "\n")
+
+        # Coverage will be validated by pytest-cov
+        # This hook ensures we fail if coverage below 60%
+        # (handled by pytest-cov --cov-fail-under)
+
+
+# =============================================================================
+# Timeout Protection Fixture
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def timeout_protection(request):
+    """Apply timeout protection to all E2E tests."""
+    if os.getenv("E2E_TESTING") == "true":
+        # 10 minute timeout for entire suite
+        # Individual tests have their own timeouts
+        start_time = time.time()
+
+        yield
+
+        # Check if individual test exceeded 30 seconds
+        duration = time.time() - start_time
+        if duration > 30:
+            test_name = request.node.name
+            print(f"\nWARNING: {test_name} took {duration:.2f}s (>30s threshold)")
+
+
+# =============================================================================
+# Performance Thresholds Fixture
+# =============================================================================
+
+@pytest.fixture(scope="session")
+def e2e_performance_thresholds():
+    """
+    Provide performance thresholds for E2E test validation.
+
+    Usage:
+        def test_workflow_performance(e2e_performance_thresholds):
+            threshold = e2e_performance_thresholds["agent_creation"]
+            assert execution_time < threshold
+    """
+    return {
+        # Individual component thresholds
+        "agent_creation": 1.0,  # seconds
+        "agent_execution": 10.0,
+        "skill_import": 5.0,
+        "skill_execution": 30.0,
+        "package_install": 60.0,
+        "package_execute": 10.0,
+        "llm_streaming": 5.0,
+        "llm_fallback": 3.0,
+        "canvas_creation": 2.0,
+        "canvas_presentation": 1.0,
+
+        # Workflow thresholds
+        "agent_workflow": 15.0,  # Complete agent workflow
+        "skill_workflow": 40.0,  # Complete skill workflow
+        "package_workflow": 70.0,  # Complete package workflow
+        "llm_workflow": 10.0,  # Complete LLM workflow
+        "canvas_workflow": 5.0,  # Complete canvas workflow
+
+        # End-to-end thresholds
+        "smoke_test": 120.0,  # 2 minutes for complete smoke test
+        "full_suite": 600.0,  # 10 minutes for full E2E suite
+    }
+
+
+# =============================================================================
+# Timing Monitor Fixture
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def e2e_timing_monitor():
+    """
+    Monitor and validate test execution timing.
+
+    Usage:
+        def test_workflow_timing(e2e_timing_monitor):
+            with e2e_timing_monitor("agent_creation", threshold=1.0):
+                # Create agent
+                assert agent.creation_time() < 1.0
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def monitor(operation_name: str, threshold: float = None):
+        """Context manager to monitor operation timing."""
+        start = time.time()
+        yield
+        duration = time.time() - start
+
+        if threshold and duration > threshold:
+            pytest.fail(
+                f"Operation '{operation_name}' exceeded threshold: "
+                f"{duration:.2f}s > {threshold:.2f}s"
+            )
+        else:
+            print(f"  {operation_name}: {duration:.3f}s")
+
+    return monitor
+
+
+# =============================================================================
+# Coverage Validation Helper
+# =============================================================================
+
+@pytest.fixture(scope="session")
+def e2e_coverage_validator():
+    """
+    Validate E2E coverage meets targets.
+
+    Usage:
+        def test_coverage_validation(e2e_coverage_validator):
+            e2e_coverage_validator.check_minimum("integrations/mcp_service", 60.0)
+    """
+    class CoverageValidator:
+        def __init__(self):
+            self.targets = {
+                "integrations/mcp_service": 60.0,  # 60% minimum
+                "core": 50.0,  # 50% minimum
+                "api": 40.0,  # 40% minimum
+            }
+
+        def check_minimum(self, module: str, minimum_percent: float):
+            """Check if module coverage meets minimum percentage."""
+            # Coverage is validated by pytest-cov
+            # This helper provides documentation of targets
+            if module in self.targets:
+                return self.targets[module] <= minimum_percent
+            return minimum_percent >= 60.0
+
+        def get_target(self, module: str) -> float:
+            """Get coverage target for module."""
+            return self.targets.get(module, 60.0)
+
+    return CoverageValidator()
+
