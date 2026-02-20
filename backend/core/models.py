@@ -1215,6 +1215,7 @@ class SkillRating(Base):
     Ratings are aggregated for average score display.
 
     Phase 60 Plan 01 - Skill Marketplace with local ratings storage.
+    Phase 61 Plan 02 - Rating sync tracking fields added.
     """
     __tablename__ = "skill_ratings"
 
@@ -1225,12 +1226,18 @@ class SkillRating(Base):
     comment = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Rating sync tracking (Phase 61 Plan 02)
+    synced_at = Column(DateTime(timezone=True), nullable=True)  # Timestamp when rating was last synced to Atom SaaS
+    synced_to_saas = Column(Boolean, default=False, nullable=False)  # Whether rating has been synced
+    remote_rating_id = Column(String(255), nullable=True)  # Rating ID from Atom SaaS (for updates)
+
     __table_args__ = (
         Index('idx_skill_rating_skill_user', 'skill_id', 'user_id', unique=True),
+        Index('idx_skill_rating_synced_to_saas', 'synced_to_saas'),  # For efficient pending ratings query
     )
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, user_id={self.user_id}, rating={self.rating})>"
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, user_id={self.user_id}, rating={self.rating}, synced={self.synced_to_saas})>"
 
 
 class AgentExecution(Base):
@@ -3014,12 +3021,45 @@ class SyncState(Base):
     device = relationship("MobileDevice", backref=backref("sync_state", uselist=False))
     user = relationship("User", backref="sync_states")
 
-    # Indexes
-    __table_args__ = (
-        Index('ix_sync_states_device', 'device_id'),
-        Index('ix_sync_states_user', 'user_id'),
-        Index('ix_sync_states_last_sync', 'last_sync_at'),
-    )
+
+class WebSocketState(Base):
+    """
+    Track Atom SaaS WebSocket connection state for real-time sync.
+
+    Purpose:
+    - Track WebSocket connection status (connected/disconnected/fallback)
+    - Monitor connection health (last message, heartbeat status)
+    - Track reconnection attempts and failure reasons
+    - Support fallback to polling when WebSocket unavailable
+
+    Singleton Pattern:
+    - Only one row (id=1) should exist
+    - Updated on connect/disconnect/reconnect events
+
+    Phase 61 Plan 03 - WebSocket Updates with Atom SaaS
+    """
+    __tablename__ = "websocket_state"
+
+    id = Column(Integer, primary_key=True, default=1)  # Singleton
+    connected = Column(Boolean, default=False, nullable=False, index=True)
+
+    # Connection tracking
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    last_message_at = Column(DateTime(timezone=True), nullable=True)
+    disconnect_reason = Column(Text, nullable=True)
+
+    # Reconnection tracking
+    reconnect_attempts = Column(Integer, default=0, nullable=False)
+    consecutive_failures = Column(Integer, default=0, nullable=False)
+
+    # Fallback mode
+    fallback_to_polling = Column(Boolean, default=False, nullable=False)
+    fallback_started_at = Column(DateTime(timezone=True), nullable=True)
+    next_ws_attempt_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 # ============================================================================
