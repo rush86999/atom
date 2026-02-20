@@ -5644,3 +5644,42 @@ class CognitiveTierPreference(Base):
 
     # Relationships
     workspace = relationship("Workspace", backref="cognitive_tier_preference")
+
+
+class EscalationLog(Base):
+    """
+    Database log of all tier escalations for analytics and auditing.
+
+    Tracks every escalation event across the system to enable:
+    - Cost analysis (which tiers are being used most)
+    - Quality monitoring (how often quality triggers escalation)
+    - Provider reliability (rate limiting, error rates)
+    - Optimization opportunities (repeated escalations indicate model mismatch)
+    """
+    __tablename__ = "escalation_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    request_id = Column(String, nullable=False, index=True)  # Track escalations per request
+
+    # Escalation details
+    from_tier = Column(String, nullable=False)  # micro, standard, versatile, heavy, complex
+    to_tier = Column(String, nullable=False)
+    reason = Column(String, nullable=False)  # EscalationReason enum value
+    trigger_value = Column(Float, nullable=True)  # quality_score or confidence that triggered
+
+    # Response context
+    provider_id = Column(String, nullable=True)  # openai, deepseek, etc.
+    model = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Metadata
+    prompt_length = Column(Integer, nullable=True)
+    estimated_tokens = Column(Integer, nullable=True)
+    metadata_json = Column(JSON, nullable=True)  # Flexible context storage
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="escalation_logs")
