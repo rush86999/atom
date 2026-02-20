@@ -5734,3 +5734,76 @@ class FFmpegJob(Base):
 
     # Relationships
     user = relationship("User", backref="ffmpeg_jobs")
+
+
+# ============================================================================
+# Smart Home Integration Models (Phase 66)
+# ============================================================================
+
+class HueBridge(Base):
+    """
+    Philips Hue bridge connection credentials.
+
+    Stores encrypted API keys for Hue bridge authentication.
+    Uses API v2 (python-hue-v2 library) for newer bridges.
+
+    Enables:
+    - Local-only Hue control (no cloud relay)
+    - Multiple bridge support per user
+    - Encrypted credential storage
+    - Audit trail for Hue device operations
+    """
+    __tablename__ = "hue_bridges"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Bridge identification
+    bridge_ip = Column(String, nullable=False)  # Local network IP (plaintext for easy reference)
+    bridge_id = Column(String, nullable=True)  # Hue bridge ID from API
+    name = Column(String, nullable=True)  # User-defined name (e.g., "Living Room Bridge")
+
+    # Encrypted credentials
+    api_key = Column(String, nullable=False)  # Encrypted Hue API v2 key
+
+    # Metadata
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="hue_bridges")
+
+
+class HomeAssistantConnection(Base):
+    """
+    Home Assistant connection credentials.
+
+    Stores encrypted long-lived access tokens for Home Assistant REST API.
+    Local-only execution (no cloud relay).
+
+    Enables:
+    - Local Home Assistant control
+    - Multiple instance support per user
+    - Encrypted token storage
+    - Audit trail for HA device operations
+    """
+    __tablename__ = "home_assistant_connections"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Connection details
+    url = Column(String, nullable=False)  # Home Assistant URL (plaintext for easy reference)
+    name = Column(String, nullable=True)  # User-defined name (e.g., "Home Server")
+
+    # Encrypted credentials
+    token = Column(String, nullable=False)  # Encrypted long-lived access token
+
+    # Metadata
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="ha_connections")
