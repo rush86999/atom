@@ -81,7 +81,7 @@ class DynamicPricingFetcher:
                 response = await client.get(LITELLM_PRICING_URL)
                 response.raise_for_status()
                 data = response.json()
-                
+
                 # Transform to our format
                 pricing = {}
                 for model_name, model_data in data.items():
@@ -97,10 +97,22 @@ class DynamicPricingFetcher:
                             "source": "litellm",
                             "supports_cache": model_data.get("supports_cache", False),  # Cache support metadata
                         }
-                
+
+                # Add MiniMax M2.5 fallback if not in LiteLLM yet (API access closed as of Feb 2026)
+                if "minimax-m2.5" not in pricing:
+                    pricing["minimax-m2.5"] = {
+                        "input_cost_per_token": 0.000001,  # $1/M estimated
+                        "output_cost_per_token": 0.000001,
+                        "max_tokens": 128000,
+                        "litellm_provider": "minimax",
+                        "mode": "chat",
+                        "source": "estimated",  # Mark as estimated
+                        "supports_cache": False,
+                    }
+
                 logger.info(f"Fetched {len(pricing)} model prices from LiteLLM")
                 return pricing
-                
+
         except Exception as e:
             logger.error(f"Failed to fetch LiteLLM pricing: {e}")
             return {}
@@ -345,6 +357,29 @@ class DynamicPricingFetcher:
             return 1024
         else:
             return 0
+
+    def is_pricing_estimated(self, model_name: str) -> bool:
+        """
+        Check if pricing for a model is estimated (not from official source).
+
+        Useful for UI disclaimers and cost estimation warnings.
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            True if pricing is estimated, False if from official source
+
+        Examples:
+            >>> fetcher.is_pricing_estimated("minimax-m2.5")
+            True  # Estimated until official pricing announced
+            >>> fetcher.is_pricing_estimated("gpt-4o")
+            False  # Official from LiteLLM
+        """
+        pricing = self.get_model_price(model_name)
+        if pricing:
+            return pricing.get("source") == "estimated"
+        return False
 
 
 # Singleton instance
