@@ -155,6 +155,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-testing.txt
+          pip install pytest-random-order pytest-rerunfailures pytest-json-report
 
       - name: Run tests with coverage (parallel)
         working-directory: ./backend
@@ -166,20 +167,7 @@ jobs:
           ATOM_MOCK_DATABASE: true
         run: |
           pytest tests/ -v -n auto \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_ai_conversation_intelligence_lightweight.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_basic_analytics.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_phase3_lightweight.py \
-            --ignore=tests/test_chat_interface_phase3_with_memory.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
+            --json-report --json-report-file=pytest_report.json \
             --cov=core \
             --cov=api \
             --cov=tools \
@@ -210,18 +198,29 @@ jobs:
         working-directory: ./backend
         if: always()
         run: |
-          # Calculate pass rate from pytest exit code
-          # Pytest returns 0 if all tests passed, 1 if any failed
-          # This is a simple check - for more detailed analysis, parse pytest output
-          if [ $? -eq 0 ]; then
-            echo "✓ All tests passed (100% pass rate)"
+          # Calculate pass rate from pytest JSON report
+          echo "=== Calculating Test Pass Rate ==="
+
+          if [ -f pytest_report.json ]; then
+            python tests/scripts/parse_pytest_output.py pytest_report.json
+            EXIT_CODE=$?
+
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Pass rate meets 98% threshold"
+            else
+              echo "❌ Pass rate below 98% threshold"
+              exit 1
+            fi
           else
-            echo "⚠ Some tests failed or had errors"
-            echo "Note: Pass rate threshold enforcement pending detailed output parsing"
-            echo "For now, this check is informational only"
+            echo "⚠️ pytest_report.json not found - using exit code check"
+            # Fallback: check if tests passed via exit code
+            if [ $? -eq 0 ]; then
+              echo "✓ All tests passed (100% pass rate)"
+            else
+              echo "⚠ Some tests failed or had errors"
+              exit 1
+            fi
           fi
-          # TODO: Parse pytest output to calculate exact pass rate
-          # Example: "324 failed, 2065 passed" -> pass_rate = 2065 / (2065 + 324) = 86.4%
 
       - name: Generate coverage trend
         working-directory: ./backend
@@ -258,6 +257,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-testing.txt
+          pip install pytest-random-order pytest-rerunfailures pytest-json-report
           pip install pytest-random-order pytest-rerunfailures
 
       # TQ-01: Test Independence
@@ -271,17 +271,8 @@ jobs:
           ATOM_MOCK_DATABASE: true
         run: |
           echo "=== TQ-01: Test Independence Check ==="
-          pytest tests/ --random-order -v --tb=short \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
+          pytest tests/ --random-order --random-order-seed=random \
+            -v --tb=short \
             --maxfail=5
 
       # TQ-02: Pass Rate
@@ -297,16 +288,6 @@ jobs:
           echo "=== TQ-02: Pass Rate Check ==="
           # Run tests and capture output
           pytest tests/ -v --tb=no --reruns 2 \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
             | tee test_output.txt
 
           # Parse output for pass rate
@@ -352,16 +333,6 @@ jobs:
           echo "=== TQ-03: Performance Check ==="
           # Run with duration tracking
           pytest tests/ --durations=20 --tb=no -q \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
             | tee test_durations.txt
 
           # Check for slow tests (>30s)
@@ -404,30 +375,10 @@ jobs:
           # Run tests twice with random order
           echo "Run 1 (random order)..."
           pytest tests/ --random-order --tb=no -q \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
             | tee run1.txt
 
           echo "Run 2 (random order)..."
           pytest tests/ --random-order --tb=no -q \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
             | tee run2.txt
 
           # Compare results
@@ -467,16 +418,6 @@ jobs:
           pytest tests/ --cov=core --cov=api --cov=tools \
             --cov-report=term-missing:skip-covered \
             --cov-fail-under=50 \
-            --ignore=tests/integration/episodes/test_lancedb_integration.py \
-            --ignore=tests/integration/episodes/test_graduation_validation.py \
-            --ignore=tests/integration/episodes/test_episode_lifecycle_lancedb.py \
-            --ignore=tests/integration/governance/test_graduation_exams.py \
-            --ignore=tests/test_ai_conversation_intelligence.py \
-            --ignore=tests/test_analytics_dashboard.py \
-            --ignore=tests/test_chat_interface_phase3.py \
-            --ignore=tests/test_chat_interface_server.py \
-            --ignore=tests/test_enterprise_auth.py \
-            --ignore=tests/test_phase15_infra.py \
             || echo "Coverage below 50% threshold (informational for now)"
 
       - name: Quality gate summary
