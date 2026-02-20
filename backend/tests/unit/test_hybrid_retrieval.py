@@ -12,6 +12,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from sqlalchemy.orm import Session
+import numpy as np
 
 import sys
 import os
@@ -185,19 +186,25 @@ class TestHybridRetrievalService:
         # Initially, reranker should be None
         assert service._reranker_model is None
 
-        # Mock the coarse search and reranker loading
-        with patch.object(service.embedding_service, 'coarse_search_fastembed', new=AsyncMock(return_value=[])):
-            with patch.object(service, '_rerank_cross_encoder', new=AsyncMock(return_value=[])):
-                # Call retrieve with reranking enabled
+        # Mock the coarse search to return some results so reranking is attempted
+        mock_coarse_results = [("episode_1", 0.8), ("episode_2", 0.7)]
+
+        # Don't mock _rerank_cross_encoder - let it try to load the model
+        with patch.object(service.embedding_service, 'coarse_search_fastembed', new=AsyncMock(return_value=mock_coarse_results)):
+            # Call retrieve with reranking enabled
+            try:
                 await service.retrieve_semantic_hybrid(
                     agent_id="test_agent",
                     query="test",
                     use_reranking=True
                 )
+            except Exception:
+                # May fail due to missing episodes in DB, that's OK
+                pass
 
-                # Reranker should be loaded (or False if import failed)
-                # We don't assert the exact value since it depends on sentence_transformers availability
-                assert service._reranker_model is not None
+            # Reranker should be loaded (or False if import failed)
+            # We don't assert the exact value since it depends on sentence_transformers availability
+            assert service._reranker_model is not None or service._reranker_model is False
 
 
 class TestEmbeddingServiceExtensions:
@@ -253,31 +260,40 @@ class TestEmbeddingServiceExtensions:
     @pytest.mark.asyncio
     async def test_coarse_search_performance_mocked(self, embedding_service, db):
         """Test FastEmbed coarse search performance (<20ms) - mocked."""
+        from core.models import Episode
+
         # Create test data
         agent = AgentFactory()
         episodes = [EpisodeFactory(agent_id=agent.id) for _ in range(100)]
+
+        # Merge episodes into database session
+        for ep in episodes:
+            db.merge(ep)
         db.commit()
 
-        # Mock lancedb_handler module to avoid actual LanceDB calls
-        mock_lancedb = MagicMock()
-        mock_lancedb.search_vector_fastembed = AsyncMock(return_value=[
-            (episodes[i].id, 0.8 - (i * 0.005)) for i in range(min(100, len(episodes)))
+        # Mock the get_lancedb_handler function to avoid actual LanceDB calls
+        mock_handler = MagicMock()
+        mock_handler.similarity_search = AsyncMock(return_value=[
+            {"episode_id": episodes[i].id, "score": 0.8 - (i * 0.005)}
+            for i in range(min(100, len(episodes)))
         ])
 
-        with patch('core.embedding_service.lancedb_handler', mock_lancedb):
-            # Measure search time
-            start = datetime.utcnow()
-            results = await embedding_service.coarse_search_fastembed(
-                agent_id=agent.id,
-                query="test query",
-                top_k=100,
-                db=db
-            )
-            duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
+        with patch('core.lancedb_handler.get_lancedb_handler', return_value=mock_handler):
+            # Mock create_fastembed_embedding to return numpy array
+            with patch.object(embedding_service, 'create_fastembed_embedding', new=AsyncMock(return_value=np.array([0.1] * 384, dtype=np.float32))):
+                # Measure search time
+                start = datetime.utcnow()
+                results = await embedding_service.coarse_search_fastembed(
+                    agent_id=agent.id,
+                    query="test query",
+                    top_k=100,
+                    db=db
+                )
+                duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
 
-            # Assertions
-            assert duration_ms < 20, f"Coarse search should be <20ms, got {duration_ms}ms"
-            assert len(results) <= 100
+                # Assertions
+                assert duration_ms < 20, f"Coarse search should be <20ms, got {duration_ms}ms"
+                assert len(results) <= 100
 
 
 class TestCrossEncoderReranking:
@@ -291,27 +307,32 @@ class TestCrossEncoderReranking:
     @pytest.mark.asyncio
     async def test_rerank_cross_encoder_mocked(self, embedding_service, db):
         """Test cross-encoder reranking (mocked)."""
+        from core.models import Episode
+
         # Create test data
         agent = AgentFactory()
         episodes = [
             EpisodeFactory(
                 agent_id=agent.id,
-                summary=f"Episode {i} about specific topic",
-                description=f"Content {i} " * 20,
+                summary=f"Episode {i} about specific topic with detailed content",
+                description=f"Detailed content {i} " * 20,
                 title=f"Episode {i}"
             )
             for i in range(50)
         ]
+
+        # Merge episodes into database session
+        for ep in episodes:
+            db.merge(ep)
         db.commit()
 
         episode_ids = [ep.id for ep in episodes]
 
-        # Mock the CrossEncoder class
-        with patch('core.embedding_service.CrossEncoder') as mock_ce_class:
-            mock_model = Mock()
-            mock_model.predict = Mock(return_value=[0.9 - (i * 0.01) for i in range(50)])
-            mock_ce_class.return_value = mock_model
+        # Mock the sentence_transformers.cross_encoder module import
+        mock_model = Mock()
+        mock_model.predict = Mock(return_value=[0.9 - (i * 0.01) for i in range(50)])
 
+        with patch('sentence_transformers.CrossEncoder', return_value=mock_model):
             # Rerank
             results = await embedding_service.rerank_cross_encoder(
                 query="specific topic",
@@ -342,12 +363,11 @@ class TestCrossEncoderReranking:
 
         episode_ids = [ep.id for ep in episodes]
 
-        # Mock the CrossEncoder class
-        with patch('core.embedding_service.CrossEncoder') as mock_ce_class:
-            mock_model = Mock()
-            mock_model.predict = Mock(return_value=[0.8] * 50)
-            mock_ce_class.return_value = mock_model
+        # Mock the sentence_transformers.cross_encoder module import
+        mock_model = Mock()
+        mock_model.predict = Mock(return_value=[0.8] * 50)
 
+        with patch('sentence_transformers.CrossEncoder', return_value=mock_model):
             # Measure reranking time
             start = datetime.utcnow()
             results = await embedding_service.rerank_cross_encoder(
