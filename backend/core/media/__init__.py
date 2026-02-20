@@ -14,4 +14,4 @@ try:
     from core.media.sonos_service import SonosService
     __all__.append("SonosService")
 except ImportError:
-    pass  # Sonos service not yet implemented
+    pass  # Sonos service import error (e.g., models.py issue)
