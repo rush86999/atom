@@ -27,7 +27,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
-from core.agent_context_resolver import AgentContextResolver
+from core.database import get_db_session
 from core.governance_cache import GovernanceCache
 from core.models import AgentRegistry, User
 from core.smarthome.hue_service import HueService
@@ -39,9 +39,6 @@ logger = get_logger(__name__)
 
 # Initialize governance cache
 _governance_cache = GovernanceCache()
-
-# Initialize agent context resolver
-_agent_resolver = AgentContextResolver()
 
 
 # ============================================================================
@@ -74,28 +71,32 @@ async def _check_hue_permission(
     if cached:
         return cached.get("allowed", False), cached.get("reason")
 
-    # Check agent maturity level
+    # Check agent maturity level from database
     try:
-        agent = await _agent_resolver.get_agent_context(agent_id)
-        if not agent:
-            return False, f"Agent '{agent_id}' not found"
+        with get_db_session() as db:
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
 
-        # Map maturity to allowed
-        maturity = agent.get("maturity_level", "STUDENT")
-        allowed = maturity in ["SUPERVISED", "AUTONOMOUS"]
+            if not agent:
+                return False, f"Agent '{agent_id}' not found"
 
-        reason = None
-        if not allowed:
-            reason = f"Hue control requires SUPERVISED+ maturity (agent is {maturity})"
+            # Map maturity to allowed
+            maturity = agent.maturity_level
+            allowed = maturity in ["SUPERVISED", "AUTONOMOUS"]
 
-        # Cache decision
-        _governance_cache.set(agent_id, "hue_control", {
-            "allowed": allowed,
-            "reason": reason,
-            "maturity": maturity
-        })
+            reason = None
+            if not allowed:
+                reason = f"Hue control requires SUPERVISED+ maturity (agent is {maturity})"
 
-        return allowed, reason
+            # Cache decision
+            _governance_cache.set(agent_id, "hue_control", {
+                "allowed": allowed,
+                "reason": reason,
+                "maturity": maturity
+            })
+
+            return allowed, reason
 
     except Exception as e:
         logger.error("Failed to check Hue permission", agent_id=agent_id, error=str(e))
@@ -298,28 +299,32 @@ async def _check_home_assistant_permission(
     if cached:
         return cached.get("allowed", False), cached.get("reason")
 
-    # Check agent maturity level
+    # Check agent maturity level from database
     try:
-        agent = await _agent_resolver.get_agent_context(agent_id)
-        if not agent:
-            return False, f"Agent '{agent_id}' not found"
+        with get_db_session() as db:
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
 
-        # Map maturity to allowed
-        maturity = agent.get("maturity_level", "STUDENT")
-        allowed = maturity in ["SUPERVISED", "AUTONOMOUS"]
+            if not agent:
+                return False, f"Agent '{agent_id}' not found"
 
-        reason = None
-        if not allowed:
-            reason = f"Home Assistant control requires SUPERVISED+ maturity (agent is {maturity})"
+            # Map maturity to allowed
+            maturity = agent.maturity_level
+            allowed = maturity in ["SUPERVISED", "AUTONOMOUS"]
 
-        # Cache decision
-        _governance_cache.set(agent_id, "home_assistant_control", {
-            "allowed": allowed,
-            "reason": reason,
-            "maturity": maturity
-        })
+            reason = None
+            if not allowed:
+                reason = f"Home Assistant control requires SUPERVISED+ maturity (agent is {maturity})"
 
-        return allowed, reason
+            # Cache decision
+            _governance_cache.set(agent_id, "home_assistant_control", {
+                "allowed": allowed,
+                "reason": reason,
+                "maturity": maturity
+            })
+
+            return allowed, reason
 
     except Exception as e:
         logger.error("Failed to check Home Assistant permission", agent_id=agent_id, error=str(e))
