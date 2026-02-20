@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 61-atom-saas-marketplace-sync
-Plan: 61-04 COMPLETE
-Status: Phase 61-04 COMPLETE - Conflict Resolution for Skill Sync (7 tasks, 5 files, 1,670 lines). ConflictResolutionService (595 lines) with 4 merge strategies (remote_wins, local_wins, merge, manual). Conflict detection (VERSION_MISMATCH, CONTENT_MISMATCH, DEPENDENCY_CONFLICT), severity scoring (LOW/MEDIUM/HIGH/CRITICAL). ConflictLog model for tracking conflicts and resolutions. SyncService integration with automatic conflict detection and resolution. RatingSyncService extended with conflict logging. Admin API (4 endpoints): list conflicts, get details, resolve single, bulk resolve. Comprehensive test suite (36 tests). 7 atomic commits, 9 minutes duration. Deviations: SQLite migration syntax fix (autoincrement, CURRENT_TIMESTAMP), test fixture naming issue (minor, non-blocking).
+Plan: 4/5 COMPLETE (87.5%)
+Status: Phase 61 GAPS FOUND - Atom SaaS Marketplace Sync (4/5 plans complete, 28/32 must-haves, 131+ tests, 3,487 lines). Plans 61-02, 61-03, 61-04, 61-05 complete. Plan 61-01 at checkpoint (SyncService deliverable created by 61-03). Bidirectional Rating Sync (RatingSyncService, 462 lines, 28 tests, batch upload, dead letter queue). WebSocket Real-time Updates (AtomSaaSWebSocketClient, 707 lines, 28 tests, SyncService 598 lines, heartbeat, reconnection). Conflict Resolution (ConflictResolutionService, 595 lines, 36 tests, 4 merge strategies, ConflictLog). Admin API & Monitoring (15+ endpoints, 544 lines, 39 tests, health checks, Prometheus metrics 12, Grafana dashboard 12 panels, alerting rules 12, troubleshooting guide 919 lines). Total: 3,487 lines service code, 131+ tests, 1,498 lines documentation. Gaps: Plan 61-01 dedicated tests (test_sync_service.py), Atom SaaS platform verification (external dependency), scheduler integration confirmation, test fixture references fix. Production-ready pending Atom SaaS platform deployment and API credentials. Verification report: 61-VERIFICATION.md.
 
 Previous: Phase 61-02 COMPLETE - Bidirectional Rating Sync with Atom SaaS (7 tasks, 7 files, 1,657 lines). RatingSyncService (378 lines) with async batch upload (max 10 concurrent via Semaphore), timestamp-based conflict resolution (newest wins), dead letter queue for failed uploads. SkillRating model extended with synced_at, synced_to_saas, remote_rating_id fields. FailedRatingUpload model tracks failed uploads with retry count. Scheduler integration with 30-minute interval (configurable via ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES). Admin endpoints (3): POST /sync/ratings (manual trigger), GET /ratings/failed-uploads, POST /ratings/failed-uploads/{id}/retry with AUTONOMOUS governance. Comprehensive test suite (27 tests, 100% pass rate) covering model extensions, batch upload, pending queries, conflict resolution, dead letter queue, sync orchestration, metrics. 5 atomic commits (ceeb91ea, c6845cad, af71f23a, 755a9c50, 4aa8f94c), 20 minutes duration. Deviations: Manual table creation in migration (previous migration empty), timezone-aware datetime comparison fix, test expectation fix for last_retry_at.
 
@@ -36,9 +36,17 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 52% (v2.0: 16/31 plans) - Phase 61-05 complete
+Progress: [██████████] 99% (v1.0: 200/203 plans complete) → [███░░░░░░░] 55% (v2.0: 17/31 plans) - Phase 61: 4/5 complete (87.5%)
 
-## Upcoming: Phase 36 - npm Package Support
+## Upcoming: Phase 61 Gap Closure
+
+**Goal**: Complete remaining 12.5% of Phase 61 (Plan 61-01 tests, Atom SaaS verification)
+
+**Key Gaps**:
+- Plan 61-01 dedicated test suite (test_sync_service.py with 26+ tests)
+- Atom SaaS platform deployment and API availability verification
+- Scheduler integration confirmation for automatic 15-minute skill sync
+- Test fixture references fix (db → db_session in test_conflict_resolution_service.py)
 
 **Goal**: Enable agents to safely execute npm/Node.js packages with comprehensive sandboxing (matching OpenClaw capabilities)
 
@@ -94,6 +102,10 @@ Progress: [██████████] 99% (v1.0: 200/203 plans complete) �
 | Phase 60-06 P60-06 | 188 | 2 tasks | 2 files |
 | Phase 60 P07 | 12 | 5 tasks | 6 files |
 | Phase 17-agent-layer P03 | 1319 | 71 tasks | 4 files |
+| Phase 61-atom-saas-marketplace-sync P02 | 1657 | 7 tasks | 7 files |
+| Phase 61-atom-saas-marketplace-sync P03 | 1980 | 7 tasks | 6 files |
+| Phase 61-atom-saas-marketplace-sync P04 | 1670 | 7 tasks | 5 files |
+| Phase 61-atom-saas-marketplace-sync P05 | 2509 | 7 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -146,6 +158,28 @@ Recent decisions affecting current work:
 - [Phase 60-06]: Regression threshold set to 1.5x baseline (50% slower triggers alert)
 - [Phase 60-06]: Manual baseline save required (prevents accidental overwriting)
 - [Phase 60-06]: Local JSON storage for baselines (no external APM needed)
+- [Phase 61-02]: Batch rating upload with asyncio.gather and Semaphore (max 10 concurrent) for efficiency
+- [Phase 61-02]: Timestamp-based conflict resolution (newest wins) for rating sync
+- [Phase 61-02]: Dead letter queue (FailedRatingUpload table) for failed uploads with retry tracking
+- [Phase 61-02]: APScheduler interval jobs for periodic rating sync (30-minute default, configurable)
+- [Phase 61-03]: Hybrid sync architecture (Polling + WebSocket) for resilience and real-time updates
+- [Phase 61-03]: WebSocket heartbeat every 30 seconds to detect stale connections quickly
+- [Phase 61-03]: Exponential backoff reconnection (1s→2s→4s→8s→16s max) to prevent server overload
+- [Phase 61-03]: Message validation and rate limiting (100 msg/sec, 1MB size limit) for security
+- [Phase 61-03]: Fallback to polling after 3 consecutive WebSocket failures (1-hour polling-only mode)
+- [Phase 61-03]: Singleton WebSocketState model (id=1) for connection tracking (avoids query bloat)
+- [Phase 61-04]: Four merge strategies (remote_wins as default, local_wins, merge, manual) for conflict resolution
+- [Phase 61-04]: Conflict detection (VERSION_MISMATCH, CONTENT_MISMATCH, DEPENDENCY_CONFLICT) with severity scoring
+- [Phase 61-04]: Automatic merge fields (description, tags, examples use most recent; code, command keep local)
+- [Phase 61-04]: ConflictLog model tracks all conflicts and resolutions with audit trail
+- [Phase 61-05]: Single admin router consolidates all sync endpoints under /api/admin/sync/*
+- [Phase 61-05]: AUTONOMOUS governance required for all admin operations (critical infrastructure control)
+- [Phase 61-05]: Health check separate (/health/sync) for Kubernetes probes (no auth required)
+- [Phase 61-05]: Prometheus metrics exposed at /metrics/sync (12 metrics: duration, success rate, errors, cache size)
+- [Phase 61-05]: Grafana dashboard auto-provision (JSON stored in repo, 12 panels, 30s refresh)
+- [Phase 61-05]: Prometheus alerting rules (12 alerts: SyncStale, SyncUnhealthy, WebSocketDisconnected, etc.)
+- [Phase 61]: Created SyncService inline (Phase 61-03) due to 61-01 checkpoint - core functionality exists but missing dedicated tests
+- [Phase 61]: Production-ready pending Atom SaaS platform deployment (external dependency verification needed)
 
 ### Pending Todos
 
