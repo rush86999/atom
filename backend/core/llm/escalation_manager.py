@@ -206,11 +206,21 @@ class EscalationManager:
 
         # Priority 1: Rate limit errors (immediate escalation)
         if rate_limited:
-            return self._escalate_for_reason(current_tier, EscalationReason.RATE_LIMITED)
+            return self._escalate_for_reason(
+                current_tier, 
+                EscalationReason.RATE_LIMITED,
+                request_id=request_id,
+                error_message=error
+            )
 
         # Priority 2: Error responses
         if error:
-            return self._escalate_for_reason(current_tier, EscalationReason.ERROR_RESPONSE)
+            return self._escalate_for_reason(
+                current_tier, 
+                EscalationReason.ERROR_RESPONSE,
+                request_id=request_id,
+                error_message=error
+            )
 
         # Priority 3: Low quality threshold
         if response_quality is not None:
@@ -219,7 +229,8 @@ class EscalationManager:
                 return self._escalate_for_reason(
                     current_tier,
                     EscalationReason.QUALITY_THRESHOLD,
-                    trigger_value=response_quality
+                    trigger_value=response_quality,
+                    request_id=request_id
                 )
 
         # Priority 4: Low confidence
@@ -229,7 +240,8 @@ class EscalationManager:
                 return self._escalate_for_reason(
                     current_tier,
                     EscalationReason.LOW_CONFIDENCE,
-                    trigger_value=confidence
+                    trigger_value=confidence,
+                    request_id=request_id
                 )
 
         # No escalation needed
@@ -239,7 +251,11 @@ class EscalationManager:
         self,
         current_tier: CognitiveTier,
         reason: EscalationReason,
-        trigger_value: Optional[float] = None
+        trigger_value: Optional[float] = None,
+        request_id: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        model: Optional[str] = None,
+        error_message: Optional[str] = None
     ) -> Tuple[bool, EscalationReason, Optional[CognitiveTier]]:
         """
         Calculate target tier and record escalation.
@@ -251,6 +267,10 @@ class EscalationManager:
             current_tier: The current cognitive tier
             reason: The reason for escalation
             trigger_value: Optional value that triggered escalation (quality/confidence)
+            request_id: Optional request ID for tracking
+            provider_id: Optional provider that was being used
+            model: Optional model that was being used
+            error_message: Optional error message if escalation due to error
 
         Returns:
             Tuple of (should_escalate, reason, target_tier)
@@ -276,7 +296,11 @@ class EscalationManager:
             from_tier=current_tier,
             to_tier=target_tier,
             reason=reason,
-            trigger_value=trigger_value
+            trigger_value=trigger_value,
+            request_id=request_id,
+            provider_id=provider_id,
+            model=model,
+            error_message=error_message
         )
 
         # Set cooldown timestamp
