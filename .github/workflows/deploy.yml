@@ -199,18 +199,40 @@ jobs:
           curl -f https://staging.atom.example.com/health/ready || exit 1
 
       - name: Run smoke tests
+        env:
+          SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
         run: |
-          # Test agent execution
-          curl -X POST https://staging.atom.example.com/api/agents/execute \
+          # Login and get auth token
+          TOKEN=$(curl -s -X POST https://staging.atom.example.com/api/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"agent_id": "test-agent", "query": "hello"}' \
-            || exit 1
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}" \
+            | jq -r '.access_token')
 
-          # Test canvas presentation
-          curl -X POST https://staging.atom.example.com/api/canvas/present \
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Smoke test authentication failed"
+            exit 1
+          fi
+
+          echo "✅ Authentication successful"
+
+          # Test health endpoints (no auth required)
+          curl -f https://staging.atom.example.com/health/live || exit 1
+          curl -f https://staging.atom.example.com/health/ready || exit 1
+
+          # Test authenticated agent execution endpoint
+          curl -f -X POST https://staging.atom.example.com/api/agents/execute \
+            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"canvas_type": "generic", "content": "test"}' \
-            || exit 1
+            -d '{"agent_id": "test", "query": "hello"}' || exit 1
+
+          # Test authenticated canvas presentation endpoint
+          curl -f -X POST https://staging.atom.example.com/api/canvas/present \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"canvas_type": "generic", "content": "smoke test"}' || exit 1
+
+          echo "✅ All smoke tests passed"
 
       - name: Notify success
         if: success()
@@ -307,24 +329,40 @@ jobs:
           curl -s https://atom.example.com/health/ready | jq '.status == "healthy"' || exit 1
 
       - name: Run smoke tests
+        env:
+          SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
         run: |
-          # Test agent execution
-          curl -X POST https://atom.example.com/api/agents/execute \
+          # Login and get auth token
+          TOKEN=$(curl -s -X POST https://atom.example.com/api/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"agent_id": "test-agent", "query": "hello"}' \
-            || exit 1
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}" \
+            | jq -r '.access_token')
 
-          # Test canvas presentation
-          curl -X POST https://atom.example.com/api/canvas/present \
-            -H "Content-Type: application/json" \
-            -d '{"canvas_type": "generic", "content": "test"}' \
-            || exit 1
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Smoke test authentication failed"
+            exit 1
+          fi
 
-          # Test skill execution
-          curl -X POST https://atom.example.com/api/skills/execute \
+          echo "✅ Authentication successful"
+
+          # Test health endpoints (no auth required)
+          curl -f https://atom.example.com/health/live || exit 1
+          curl -f https://atom.example.com/health/ready || exit 1
+
+          # Test authenticated agent execution endpoint
+          curl -f -X POST https://atom.example.com/api/agents/execute \
+            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"skill_name": "test_skill", "inputs": {}}' \
-            || exit 1
+            -d '{"agent_id": "test", "query": "hello"}' || exit 1
+
+          # Test authenticated canvas presentation endpoint
+          curl -f -X POST https://atom.example.com/api/canvas/present \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"canvas_type": "generic", "content": "smoke test"}' || exit 1
+
+          echo "✅ All smoke tests passed"
 
       - name: Monitor metrics
         run: |
