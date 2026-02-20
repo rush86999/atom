@@ -3,7 +3,6 @@ from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from db_connection import get_db_connection
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -121,18 +120,21 @@ async def get_live_project_board(
     # 2. Fetch Jira Issues
     try:
         jira = get_jira_service()
-        # Verify if environmental config is present (Mock/Dev mode)
-        test_conn = jira.test_connection()
-        if test_conn.get("authenticated"):
-             # JQL for open issues assigned to current user fallback
-             # "assignee = currentUser() AND status != Done"
-             jql = "order by created DESC" 
-             raw_data = jira.search_issues(jql=jql, max_results=limit)
-             raw_issues = raw_data.get("issues", [])
-             
-             base_url = jira.base_url
-             tasks.extend([map_jira_issue(i, base_url) for i in raw_issues])
-             providers_status["jira"] = True
+        if jira:
+            # Verify if environmental config is present (Mock/Dev mode)
+            test_conn = jira.test_connection()
+            if test_conn.get("authenticated"):
+                 # JQL for open issues assigned to current user fallback
+                 # "assignee = currentUser() AND status != Done"
+                 jql = "order by created DESC" 
+                 raw_data = jira.search_issues(jql=jql, max_results=limit)
+                 raw_issues = raw_data.get("issues", [])
+                 
+                 base_url = jira.base_url
+                 tasks.extend([map_jira_issue(i, base_url) for i in raw_issues])
+                 providers_status["jira"] = True
+        else:
+             logger.info("Jira service not available (credentials missing)")
     except Exception as e:
         logger.warning(f"Failed to fetch live Jira issues: {e}")
 

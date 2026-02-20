@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ChatMessage, ChatMessageData, ChatAction } from '@/components/GlobalChat/ChatMessage';
 import { useToast } from '@/components/ui/use-toast';
+import { Card } from '@/components/ui/card';
 
 interface Message {
     id: string;
@@ -151,11 +152,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
     };
 
     return (
-        <div className="flex flex-col h-full bg-black/40 border border-white/5 backdrop-blur-xl rounded-xl overflow-hidden shadow-2xl">
-            <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
+        <Card className="flex flex-col h-full overflow-hidden shadow-md border-border bg-card">
+            <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 text-primary" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">{title}</h3>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">{title}</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -165,7 +166,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
 
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
+                className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-card/50"
             >
                 {messages.map((msg) => {
                     // Convert local Message format to ChatMessageData
@@ -194,7 +195,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
                 })}
             </div>
 
-            <div className="p-4 border-t border-white/5 bg-black/20">
+            <div className="p-4 border-t border-border bg-muted/10">
                 <div className="flex gap-2">
                     <input
                         type="text"
@@ -202,18 +203,18 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ channel, title =
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         placeholder={`Discuss ${channel}...`}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-white placeholder:text-muted-foreground"
+                        className="flex-1 bg-background border border-input rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all text-foreground placeholder:text-muted-foreground"
                     />
                     <Button
                         size="icon"
                         onClick={handleSend}
                         disabled={!input.trim()}
-                        className="rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-transform"
+                        className="rounded-xl shadow-sm"
                     >
                         <Send className="w-4 h-4" />
                     </Button>
                 </div>
             </div>
-        </div>
+        </Card>
     );
 };

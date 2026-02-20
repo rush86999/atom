@@ -25,6 +25,7 @@ import {
     BarChart3,
     User,
     LogOut,
+    FileText,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -63,6 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Dashboard", icon: Home, path: "/" },
                 { label: "Chat", icon: MessageSquare, path: "/chat" },
                 { label: "Search", icon: Search, path: "/search" },
+                { label: "Documents", icon: FileText, path: "/documents" },
                 { label: "Tasks", icon: CheckSquare, path: "/tasks" },
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },

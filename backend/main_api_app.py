@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-  
 import os
+print("DEBUG: 1. Imported os", flush=True)
 import sys
 import types
 from unittest.mock import MagicMock
+print("DEBUG: 1.1 Imported sys/types/mock", flush=True)
 
 # Core dependencies (numpy, pandas, lancedb) are now allowed to load normally
 # Reference: System dependency check passed for Python 3.14 environment
@@ -11,15 +13,33 @@ from datetime import datetime
 import logging
 from pathlib import Path
 import threading
+print("DEBUG: 1.2 Imported datetime/logging/pathlib/threading", flush=True)
 from dotenv import load_dotenv
+print("DEBUG: 1.3 Imported dotenv", flush=True)
+print("DEBUG: 1.3.0.1 Importing typing", flush=True)
+import typing
+print("DEBUG: 1.3.0.2 Importing pydantic", flush=True)
+import pydantic
+print("DEBUG: 1.3.0.3 Importing starlette", flush=True)
+import starlette
+print("DEBUG: 1.3.1 Importing FastAPI class", flush=True)
 from fastapi import FastAPI, HTTPException
+print("DEBUG: 1.3.2 Importing CORSMiddleware", flush=True)
 from fastapi.middleware.cors import CORSMiddleware
+print("DEBUG: 1.3.3 Importing TrustedHostMiddleware", flush=True)
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+print("DEBUG: 1.3.4 Importing docs", flush=True)
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+print("DEBUG: 1.4 Imported fastapi", flush=True)
 import uvicorn
+print("DEBUG: 1.4.1 Imported uvicorn", flush=True)
 
+print("DEBUG: 1.5 Importing circuit_breaker", flush=True)
 from core.circuit_breaker import circuit_breaker
+print("DEBUG: 2.1 Imported core.circuit_breaker", flush=True)
+print("DEBUG: 2.1 Importing core.database", flush=True)
 from core.database import SessionLocal, get_db
+print("DEBUG: 2. Imported core.database", flush=True)
 
 # --- V2 IMPORTS (Architecture) ---
 from core.lazy_integration_registry import (
@@ -32,6 +52,7 @@ import core.models
 import core.models_registration  # Fixes circular relationship issues
 from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
+print("DEBUG: 3. Imported core.security", flush=True)
 
 try:
     from core.integration_loader import (
@@ -40,6 +61,7 @@ try:
 except ImportError:
     IntegrationLoader = None
     print("⚠️ WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
+print("DEBUG: 4. IntegrationLoader block done", flush=True)
 
 # --- CONFIGURATION & LOGGING ---
 logging.basicConfig(
@@ -47,6 +69,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("ATOM_SERVER")
+print("DEBUG: 5. Logging configured", flush=True)
 
 # Load environment variables
 env_path = Path(__file__).parent.parent / ".env"
@@ -839,7 +862,7 @@ try:
     # 13.5 Workflow Templates Routes (Fix for 404s)
     try:
         from api.workflow_template_routes import router as wf_template_router
-        app.include_router(wf_template_router, prefix="/api/workflow-templates", tags=["Workflow Templates"])
+        app.include_router(wf_template_router)
         logger.info("✓ Workflow Template Routes Loaded")
     except ImportError as e:
         logger.warning(f"Workflow Template routes not found: {e}")
@@ -1444,3 +1467,4 @@ if __name__ == "__main__":
         port=config.server.port,
         reload=config.server.reload
     )
+# Forced reload trigger

@@ -9,66 +9,88 @@ import logging
 import os
 
 logger = logging.getLogger(__name__)
-
+# Lazy load Numpy to prevent Windows hang
 try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("numpy") is not None:
+        NUMPY_AVAILABLE = True
+    else:
+        NUMPY_AVAILABLE = False
 except (ImportError, BaseException) as e:
     NUMPY_AVAILABLE = False
-    logger.warning(f"Numpy not available: {e}")
+    logger.warning(f"Numpy check failed: {e}")
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# Lazy load Pandas to prevent Windows hang
 try:
-    import pandas as pd
-    PANDAS_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("pandas") is not None:
+        PANDAS_AVAILABLE = True
+    else:
+        PANDAS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     PANDAS_AVAILABLE = False
-    logger.warning(f"Pandas not available: {e}")
+    logger.warning(f"Pandas check failed: {e}")
 
+# Lazy load LanceDB (Crucial for Windows hang prevention)
 try:
-    import lancedb
-    from lancedb.db import LanceDBConnection
-    from lancedb.pydantic import LanceModel, Vector
-    from lancedb.table import Table
-    import pyarrow as pa
-
-    # Allow disabling via env var (crucial for CI reliability)
-    if os.getenv("ATOM_DISABLE_LANCEDB", "false").lower() == "true":
-        LANCEDB_AVAILABLE = False
-        logger.info("LanceDB disabled via ATOM_DISABLE_LANCEDB env var")
-    else:
+    import importlib.util
+    if importlib.util.find_spec("lancedb") is not None:
         LANCEDB_AVAILABLE = True
+        # Don't import here, let methods import it locally or use TYPE_CHECKING
+    else:
+        LANCEDB_AVAILABLE = False
 except (ImportError, BaseException) as e:
     LANCEDB_AVAILABLE = False
-    logger.warning(f"LanceDB not available: {e}")
+    logger.warning(f"LanceDB check failed: {e}")
+
+# Define placeholders for type hints
+print("DEBUG: check_lancedb_init trace - After LanceDB check")
+Table = Any
+LanceDBConnection = Any
 
 # Define Table type alias if not available to prevent NameError in type hints
 if not 'Table' in locals():
     Table = Any
 
-# Import sentence transformers for embeddings
+# Import sentence transformers for embeddings (Lazy load to prevent Windows hang)
 try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
+    import importlib.util
+    # Check if installed without importing
+    if importlib.util.find_spec("sentence_transformers") is not None:
+        SENTENCE_TRANSFORMERS_AVAILABLE = True
+    else:
+        SENTENCE_TRANSFORMERS_AVAILABLE = False
 except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    logger.warning(f"Sentence transformers not available: {e}")
+    logger.warning(f"Sentence transformers check failed: {e}")
+
+print("DEBUG: check_lancedb_init trace - After SentenceTransformers check")
 
 # Import OpenAI for embeddings
+# Import OpenAI for embeddings (Lazy load)
 try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("openai") is not None:
+        OPENAI_AVAILABLE = True
+    else:
+        OPENAI_AVAILABLE = False
 except (ImportError, Exception) as e:
     OPENAI_AVAILABLE = False
-    logger.warning(f"OpenAI not available: {e}")
+    logger.warning(f"OpenAI check failed: {e}")
+
+print("DEBUG: check_lancedb_init trace - After OpenAI check")
 
 # BYOK Integration
 try:
     from core.byok_endpoints import get_byok_manager
 except ImportError:
     get_byok_manager = None
+
+print("DEBUG: check_lancedb_init trace - After BYOK import")
 
 
 class MockEmbedder:
@@ -134,13 +156,26 @@ class LanceDBHandler:
             logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
             self.byok_manager = None
 
-        # Initialize LanceDB if available
+        # Initialize LanceDB if available (LAZY LOAD)
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
-        if LANCEDB_AVAILABLE:
+        # if LANCEDB_AVAILABLE:
+        #     self._initialize_db()
+
+        # Initialize embedder (LAZY LOAD on first use to prevent import block)
+        # self._initialize_embedder() 
+        self.embedder = None
+
+    def _ensure_db(self):
+        """Ensure DB is initialized before use"""
+        if self.db is None and LANCEDB_AVAILABLE:
+            logger.info("Lazy loading LanceDB connection...")
             self._initialize_db()
 
-        # Initialize embedder
-        self._initialize_embedder()
+    def _ensure_embedder(self):
+        """Ensure embedder is initialized before use"""
+        if self.embedder is None:
+            logger.info("Lazy loading embedder on first use...")
+            self._initialize_embedder()
     
     def _initialize_db(self):
         """Initialize LanceDB connection"""
@@ -169,6 +204,8 @@ class LanceDBHandler:
                 if region:
                     storage_options["region"] = region
             
+            # Lazy import LanceDB to avoid module-level hang
+            import lancedb
             self.db = lancedb.connect(self.db_path, storage_options=storage_options)
             logger.info(f"LanceDB connected at {self.db_path} (options: {list(storage_options.keys())})")
             
@@ -192,6 +229,8 @@ class LanceDBHandler:
                     self.embedding_provider = "local"
                     self._init_local_embedder()
                 else:
+                    # Lazy import OpenAI
+                    from openai import OpenAI
                     self.openai_client = OpenAI(api_key=api_key)
                     logger.info("OpenAI embeddings initialized (BYOK enabled)")
             else:
@@ -205,26 +244,46 @@ class LanceDBHandler:
         """Initialize local sentence transformer or fallback to mock"""
         try:
             if SENTENCE_TRANSFORMERS_AVAILABLE:
-                # Add timeout/protection for import hanging
+                logger.info(f"Attempting to load SentenceTransformer: {self.embedding_model}")
                 try:
-                    import signal
-                    def handler(signum, frame):
-                        raise TimeoutError("SentenceTransformer initialization timed out")
+                    # Use threading for cross-platform timeout (Windows compatible)
+                    import threading
+                    import queue
+
+                    def load_model(q, model_name):
+                        try:
+                            # Suppress tokenizers warning parallelism
+                            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+                            # Lazy import inside the thread to prevent main thread blocking
+                            from sentence_transformers import SentenceTransformer
+                            model = SentenceTransformer(model_name)
+                            q.put(model)
+                        except Exception as ex:
+                            q.put(ex)
+
+                    q = queue.Queue()
+                    t = threading.Thread(target=load_model, args=(q, self.embedding_model))
+                    t.daemon = True # Daemonize to avoid blocking exit
+                    t.start()
+                    t.join(timeout=15) # 15 second timeout
+
+                    if t.is_alive():
+                        logger.warning(f"SentenceTransformer initialization timed out for {self.embedding_model}")
+                        # We proceed to fallback. The daemon thread will eventually die or persist harmlessly.
+                        raise TimeoutError("Loading timed out")
                     
-                    # Only set alarm on Unix-like systems where signal.ALRM is available
-                    if hasattr(signal, 'SIGALRM'):
-                        signal.signal(signal.SIGALRM, handler)
-                        signal.alarm(10) # 10 second timeout
-                    
-                    self.embedder = SentenceTransformer(self.embedding_model)
-                    
-                    if hasattr(signal, 'SIGALRM'):
-                        signal.alarm(0) # Disable alarm
-                        
-                    logger.info(f"Local embedding model loaded: {self.embedding_model}")
-                    return
+                    if not q.empty():
+                        result = q.get_nowait()
+                        if isinstance(result, Exception):
+                            raise result
+                        self.embedder = result
+                        logger.info(f"Local embedding model loaded: {self.embedding_model}")
+                        return
+                    else:
+                         raise Exception("Thread finished but returned no result")
+
                 except Exception as e:
-                    logger.warning(f"Failed to load SentenceTransformer: {e}")
+                    logger.warning(f"Failed to load SentenceTransformer (attempting fallback): {e}")
                     # Fallthrough to mock
             
             logger.warning("Sentence transformers not available or failed to load. Using MockEmbedder.")
@@ -244,6 +303,7 @@ class LanceDBHandler:
                 "connected": False
             }
         
+        self._ensure_db()
         try:
             if self.db is None:
                 return {
@@ -285,6 +345,7 @@ class LanceDBHandler:
         Returns:
             LanceDB Table object or None if failed
         """
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
@@ -354,6 +415,7 @@ class LanceDBHandler:
     
     def get_table(self, table_name: str) -> Optional[Table]:
         """Get existing table"""
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
@@ -371,6 +433,7 @@ class LanceDBHandler:
     
     def drop_table(self, table_name: str) -> bool:
         """Drop a table"""
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return False
@@ -387,6 +450,7 @@ class LanceDBHandler:
     
     def embed_text(self, text: str) -> Optional[Any]:
         """Embed text using configured provider"""
+        self._ensure_embedder()
         try:
             if self.embedding_provider == "openai" and self.openai_client:
                 response = self.openai_client.embeddings.create(
@@ -731,8 +795,102 @@ class LanceDBHandler:
             
             return results_list
             
+            
+            return results_list
+            
         except Exception as e:
             logger.error(f"Failed to search in '{table_name}': {e}")
+            return []
+
+    def get_document_by_id(self, table_name: str, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a single document by ID"""
+        self._ensure_db()
+        if self.db is None:
+            return None
+        
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return None
+            
+            # Use PyArrow filtering or LanceDB specific filtering
+            # Note: filtering syntax depends on LanceDB version, assuming standard SQL-like
+            results = table.search().where(f"id = '{doc_id}'").limit(1).to_pandas()
+            
+            if results.empty:
+                return None
+            
+            row = results.iloc[0]
+            metadata = row.get('metadata', {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except:
+                    metadata = {}
+            elif metadata is None:
+                metadata = {}
+                
+            return {
+                "id": row['id'],
+                "text": row['text'],
+                "source": row.get('source', ''),
+                "metadata": metadata,
+                "created_at": row.get('created_at', ''),
+                "vector": row.get('vector', []) if 'vector' in row else []
+            }
+        except Exception as e:
+            logger.error(f"Failed to get document {doc_id}: {e}")
+            return None
+
+    def list_documents(self, table_name: str, limit: int = 20, offset: int = 0) -> List[Dict[str, Any]]:
+        """List documents (recent first)"""
+        self._ensure_db()
+        if self.db is None:
+            return []
+            
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return []
+            
+            # Retrieve all (or limit) and sort by created_at desc if possible
+            # LanceDB might not support efficient global sorting without an index, 
+            # so we fetch and sort in memory for small batches
+            df = table.search().limit(limit + offset).to_pandas()
+            
+            if df.empty:
+                return []
+            
+            # Sort by created_at if available
+            if 'created_at' in df.columns:
+                df = df.sort_values('created_at', ascending=False)
+            
+            # Apply offset/limit
+            df = df.iloc[offset:offset+limit]
+            
+            docs = []
+            for _, row in df.iterrows():
+                metadata = row.get('metadata', {})
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata)
+                    except:
+                        metadata = {}
+                elif metadata is None:
+                    metadata = {}
+
+                docs.append({
+                    "id": row['id'],
+                    "title": metadata.get('title') or row.get('source') or "Untitled",
+                    "text_preview": (row['text'] or "")[:200],
+                    "metadata": metadata,
+                    "created_at": row.get('created_at', '')
+                })
+            
+            return docs
+            
+        except Exception as e:
+            logger.error(f"Failed to list documents: {e}")
             return []
 
     def query_knowledge_graph(self, query: str, user_id: str = None, limit: int = 20) -> List[Dict[str, Any]]:
@@ -771,6 +929,7 @@ class LanceDBHandler:
         Raises:
             ValueError: If dimension mismatch
         """
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return False
@@ -850,6 +1009,7 @@ class LanceDBHandler:
         Raises:
             ValueError: If dimension mismatch
         """
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return []

@@ -448,3 +448,73 @@ async def parse_document_file(
             error=str(e)
         )
 
+
+@router.post("/upload", response_model=Dict[str, Any])
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually upload a document to the knowledge base.
+    Parses content and adds to LanceDB 'documents' table.
+    """
+    try:
+        content = await file.read()
+        file_name = file.filename
+        file_ext = file_name.split(".")[-1].lower() if "." in file_name else "txt"
+        
+        # 1. Parse Document
+        text = ""
+        metadata = {"source": "manual_upload", "file_name": file_name, "file_type": file_ext}
+        
+        from core.docling_processor import get_docling_processor, is_docling_available
+        if is_docling_available():
+            processor = get_docling_processor()
+            result = await processor.process_document(content, file_ext, file_name=file_name)
+            if result.get("success"):
+                text = result.get("content", "")
+                metadata.update(result.get("metadata", {}))
+            else:
+                 # Fallback
+                 from core.auto_document_ingestion import DocumentParser
+                 text = await DocumentParser.parse_document(content, file_ext, file_name)
+        else:
+             from core.auto_document_ingestion import DocumentParser
+             text = await DocumentParser.parse_document(content, file_ext, file_name)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Could not extract text from document")
+
+        # 2. Add to LanceDB
+        from core.lancedb_handler import LanceDBHandler
+        db_handler = LanceDBHandler()
+        
+        # Check connection
+        if not db_handler.get_table("documents"):
+             db_handler.create_table("documents")
+        
+        success = db_handler.add_document(
+            table_name="documents",
+            text=text,
+            source=file_name,
+            metadata=metadata,
+            user_id=str(current_user.id)
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to store document in vector database")
+            
+        return router.success_response(
+            data={
+                "file_name": file_name,
+                "size_bytes": len(content),
+                "extracted_chars": len(text)
+            },
+            message="Document uploaded and indexed successfully"
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Upload failed: {e}")
+        raise router.internal_error(detail=str(e))

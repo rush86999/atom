@@ -1,47 +1,46 @@
-import sys
-import os
+
 import sqlite3
-from sqlalchemy import create_engine, text
+import os
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from core.database import DATABASE_URL
+DB_PATH = 'dev.db'
 
 def fix_schema():
-    print(f"Connecting to database: {DATABASE_URL}")
-    
-    # Handle SQLite specifically
-    if DATABASE_URL.startswith("sqlite"):
-        db_path = DATABASE_URL.replace("sqlite:///", "")
-        
-        # Check if file exists
-        if not os.path.exists(db_path):
-            print(f"Database file not found at {db_path}")
-            return
+    if not os.path.exists(DB_PATH):
+        print(f"Database {DB_PATH} not found!")
+        return
 
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    try:
+        # Check existing columns
+        cursor.execute("PRAGMA table_info(workspaces)")
+        columns_info = cursor.fetchall()
+        existing_columns = [col[1] for col in columns_info]
         
-        try:
-            # Check if column exists
-            cursor.execute("PRAGMA table_info(users)")
-            columns = [info[1] for info in cursor.fetchall()]
-            
-            if "email_verified" not in columns:
-                print("Adding missing column 'email_verified'...")
-                cursor.execute("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 0")
-                conn.commit()
-                print("✓ Column added successfully.")
+        print(f"Existing columns in 'workspaces': {existing_columns}")
+
+        missing_cols = {
+            'satellite_api_key': 'TEXT',
+            'is_startup': 'BOOLEAN DEFAULT 0',
+            'learning_phase_completed': 'BOOLEAN DEFAULT 0',
+            'metadata_json': 'TEXT DEFAULT "{}"'
+        }
+
+        for col, col_type in missing_cols.items():
+            if col not in existing_columns:
+                print(f"Adding missing column '{col}'...")
+                cursor.execute(f"ALTER TABLE workspaces ADD COLUMN {col} {col_type}")
+                print(f"Column '{col}' added successfully.")
             else:
-                print("Column 'email_verified' already exists.")
-                
-        except Exception as e:
-            print(f"Error updating schema: {e}")
-        finally:
-            conn.close()
-    else:
-        print("Not using SQLite, manual migration might be needed for:", DATABASE_URL)
+                print(f"Column '{col}' already exists.")
+
+        conn.commit()
+
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     fix_schema()

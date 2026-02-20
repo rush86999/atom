@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/router";
 import { Search, ChevronDown, Star } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -38,6 +39,7 @@ interface SearchFilters {
 }
 
 const SearchPage: React.FC = () => {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -362,13 +364,14 @@ const SearchPage: React.FC = () => {
               {results.map((result) => (
                 <Card
                   key={result.id}
-                  className="shadow-md hover:shadow-lg transition-shadow"
+                  className="shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                   data-testid="search-result-item"
+                  onClick={() => router.push(`/documents/${result.id}`)}
                 >
                   <CardContent className="pt-6">
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-400">
+                        <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-400 hover:underline">
                           {result.title}
                         </h3>
                         <Badge className={getDocTypeColor(result.doc_type)}>
