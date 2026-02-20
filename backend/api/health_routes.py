@@ -15,15 +15,17 @@ References:
 import asyncio
 import logging
 import psutil
+import time
 from datetime import datetime
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.database import get_db
+from core.database import get_db, engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Health"])
@@ -242,6 +244,131 @@ async def _execute_db_query(db) -> bool:
     except Exception as e:
         logger.error(f"Database query failed: {e}")
         raise
+
+
+@router.get(
+    "/health/db",
+    summary="Database Connectivity Check",
+    description=(
+        "Database connectivity health check for deployment verification. "
+        "Checks database is accessible and responsive with query timing. "
+        "Includes connection pool status for monitoring. "
+        "Used by smoke tests to verify database after deployment."
+    ),
+    tags=["Health"],
+    responses={
+        200: {
+            "description": "Database is healthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "timestamp": "2026-02-20T10:00:00Z",
+                        "database": {
+                            "connected": True,
+                            "query_time_ms": 5.23,
+                            "pool_status": {
+                                "size": 5,
+                                "checked_in": 5,
+                                "checked_out": 0,
+                                "overflow": 0,
+                                "max_overflow": 10
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "Database is unreachable or slow",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "unhealthy",
+                        "timestamp": "2026-02-20T10:00:00Z",
+                        "database": {
+                            "connected": False,
+                            "error": "Database timeout after 5.0s"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "x-auth-required": False,
+        "x-kubernetes-probe": "custom",
+        "x-smoke-test": True
+    }
+)
+async def check_database_connectivity(db=Depends(get_db)) -> Dict[str, Any]:
+    """
+    Database connectivity health check.
+
+    Checks database is accessible and responsive with query timing.
+    Includes connection pool status for monitoring.
+
+    Returns:
+        {"status": "healthy", "database": {"connected": bool, "query_time_ms": float, "pool_status": {...}}}
+
+    Raises:
+        HTTPException 503: If database is unreachable or slow
+    """
+    start_time = time.time()
+
+    try:
+        # Get database session from dependency
+        db_session = next(db)
+
+        # Test database connection with simple query
+        result = db_session.execute(text("SELECT 1"))
+        result.fetchone()
+
+        query_time = (time.time() - start_time) * 1000  # Convert to ms
+
+        # Check connection pool status
+        pool_status = {
+            "size": engine.pool.size(),
+            "checked_in": engine.pool.checkedin(),
+            "checked_out": engine.pool.checkedout(),
+            "overflow": engine.pool.overflow(),
+            "max_overflow": engine.pool.max_overflow
+        }
+
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": {
+                "connected": True,
+                "query_time_ms": round(query_time, 2),
+                "pool_status": pool_status
+            }
+        }
+
+        # Warn if query time >100ms
+        if query_time > 100:
+            health_status["database"]["warning"] = f"Slow query ({query_time:.2f}ms)"
+            logger.warning(f"Database health check slow: {query_time:.2f}ms")
+
+        return health_status
+
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status": "unhealthy",
+                "timestamp": datetime.utcnow().isoformat(),
+                "database": {
+                    "connected": False,
+                    "error": str(e)
+                }
+            }
+        )
+    finally:
+        # Ensure session is closed
+        if 'db_session' in locals():
+            db_session.close()
 
 
 async def _check_disk_space() -> Dict[str, Any]:
