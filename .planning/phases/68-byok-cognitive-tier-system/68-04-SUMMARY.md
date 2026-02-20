@@ -235,3 +235,22 @@ MiniMax M2.5 (launched Feb 12, 2026) offers competitive reasoning at ~$1/M token
 ## Summary
 
 MiniMax M2.5 integration complete with full API wrapper, pricing integration, BYOK routing, and comprehensive test coverage (89.58%, 19 tests, 100% pass rate). Positioned as cost-effective Standard tier provider with estimated $1/M pricing and graceful fallback when API unavailable. Zero breaking changes to existing BYOK infrastructure. Ready for production use when MiniMax API access opens.
+
+## Self-Check: PASSED
+
+**Files Created:**
+- ✓ backend/core/llm/minimax_integration.py - MiniMax API wrapper
+- ✓ backend/tests/test_minimax_integration.py - Integration tests
+- ✓ .planning/phases/68-byok-cognitive-tier-system/68-04-SUMMARY.md - Summary doc
+
+**Commits Verified:**
+- ✓ 483c4502: feat(68-04): create MiniMaxIntegration API wrapper
+- ✓ e484c44b: feat(68-04): add MiniMax to benchmarks and pricing fetcher
+- ✓ d51eff61: feat(68-04): integrate MiniMax into BYOK tier routing
+- ✓ 1bc40b90: test(68-04): create MiniMax integration tests
+- ✓ bc206e7a: docs(68-04): complete MiniMax M2.5 integration plan
+
+**STATE.md Updated:**
+- ✓ Phase 68-04 completion recorded
+- ✓ Progress updated to 75% (36/48 plans complete)
+- ✓ Metrics recorded: 8 min duration, 4 tasks, 5 files
