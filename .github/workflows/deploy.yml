@@ -189,6 +189,123 @@ jobs:
           export KUBECONFIG=kubeconfig
           kubectl rollout status deployment/atom --timeout=5m
 
+      - name: Validate Prometheus connectivity and queries
+        id: prometheus_validation
+        run: |
+          set -euo pipefail
+
+          echo "=== Validating Prometheus Configuration ==="
+
+          # Configure Prometheus URL
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set"
+            echo "Monitoring check will be skipped (graceful degradation)"
+            echo "prometheus_reachable=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Prometheus URL: $PROMETHEUS_URL"
+
+          # Test Prometheus connectivity
+          echo "Step 1: Testing Prometheus connectivity..."
+          PROMETHEUS_START=$(date +%s)
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROMETHEUS_URL/-/healthy" || echo "000")
+
+          PROMETHEUS_DURATION=$(($(date +%s) - PROMETHEUS_START))
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Prometheus unreachable (HTTP $HTTP_CODE)"
+            echo "Monitoring check will be skipped (graceful degradation)"
+            echo "prometheus_reachable=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Prometheus reachable (${PROMETHEUS_DURATION}s)"
+
+          # Validate alerting rules
+          echo "Step 2: Validating alerting rules..."
+          if [ -f ".prometheus/alerts.yml" ]; then
+            # Install promtool if not available
+            if ! command -v promtool &> /dev/null; then
+              echo "Installing promtool..."
+              wget -q https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
+              tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
+              PATH="$PATH:$(pwd)/prometheus-2.45.0.linux-amd64"
+            fi
+
+            promtool check rules .prometheus/alerts.yml
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Alerting rules valid"
+            else
+              echo "⚠️ Alerting rules have errors (non-blocking)"
+            fi
+          else
+            echo "⚠️ .prometheus/alerts.yml not found (skipping validation)"
+          fi
+
+          # Test sample query
+          echo "Step 3: Testing sample query..."
+          QUERY_START=$(date +%s)
+
+          TEST_QUERY='up{job="atom"}'
+          QUERY_RESULT=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$TEST_QUERY" \
+            --max-time 10)
+
+          QUERY_DURATION=$(($(date +%s) - QUERY_START))
+
+          if echo "$QUERY_RESULT" | jq -e '.status == "success"' > /dev/null; then
+            echo "✅ Sample query successful (${QUERY_DURATION}s)"
+          else
+            echo "⚠️ Sample query failed (non-blocking)"
+          fi
+
+          # Record Prometheus query metric
+          echo "Step 4: Recording Prometheus query metrics..."
+          METRICS_ENDPOINT="${{ secrets.METRICS_ENDPOINT }}"
+          if [ -n "$METRICS_ENDPOINT" ]; then
+            curl -s -X POST "$METRICS_ENDPOINT" \
+              -H "Content-Type: plain/text" \
+              --data "# TYPE prometheus_query_total counter\n\
+    prometheus_query_total{workflow=\"deploy-staging\",result=\"success\"} 1\n\
+    # TYPE prometheus_query_duration_seconds gauge\n\
+    prometheus_query_duration_seconds{workflow=\"deploy-staging\"} ${PROMETHEUS_DURATION}" || true
+          fi
+
+          echo "prometheus_reachable=true" >> $GITHUB_OUTPUT
+          echo "✅ Prometheus validation complete"
+
+      - name: Monitor deployment metrics
+        if: steps.prometheus_validation.outputs.prometheus_reachable == 'true'
+        run: |
+          # Wait for metrics to be collected
+          sleep 120
+
+          # Check deployment metrics
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+
+          # Check deployment success rate
+          deployment_success_rate=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=sum(rate(deployment_total{status=\"success\"}[5m]))/sum(rate(deployment_total[5m]))*100" | jq '.data.result[0].value[1] // "100"')
+          echo "Deployment success rate: $deployment_success_rate%"
+
+          # Check error rate
+          error_rate=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=sum(rate(http_requests_total{status=~\"5..\"}[5m]))/sum(rate(http_requests_total[5m]))*100" | jq '.data.result[0].value[1] // "0"')
+          echo "Error rate: $error_rate%"
+
+          # Check latency
+          latency=$(curl -s "$PROMETHEUS_URL/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket[5m]))by(le))" | jq '.data.result[0].value[1] // "0"')
+          echo "P95 Latency: ${latency}s"
+
+      - name: Skip monitoring (Prometheus unreachable)
+        if: steps.prometheus_validation.outputs.prometheus_reachable != 'true'
+        run: |
+          echo "⚠️ Monitoring check skipped (Prometheus unreachable)"
+          echo "Deployment continues without Prometheus monitoring"
+
       - name: Verify deployment
         run: |
           # Wait for pods to be ready
