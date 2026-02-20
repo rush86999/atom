@@ -755,3 +755,264 @@ async def enable_websocket(
         websocket_enabled=True,
         message="WebSocket enabled. Reconnection will be attempted."
     )
+
+
+# ============================================================================
+# Rating Sync Admin Endpoints (Phase 61 Plan 02)
+# ============================================================================
+
+class RatingSyncRequest(BaseModel):
+    """Request to trigger rating sync"""
+    upload_all: bool = Field(default=False, description="Upload all ratings (default: only pending)")
+
+
+class RatingSyncResponse(BaseModel):
+    """Response from rating sync"""
+    success: bool
+    uploaded: int
+    failed: int
+    skipped: int
+    pending_count: int
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+
+class FailedRatingUploadResponse(BaseModel):
+    """Failed rating upload details"""
+    id: str
+    rating_id: str
+    error_message: str
+    failed_at: datetime
+    retry_count: int
+    last_retry_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetryRatingUploadResponse(BaseModel):
+    """Response from retrying failed upload"""
+    success: bool
+    message: str
+    retry_triggered: bool
+
+
+@router.post("/sync/ratings", response_model=RatingSyncResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="rating_sync",
+    feature="admin"
+)
+async def trigger_rating_sync(
+    request: RatingSyncRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Trigger manual rating sync with Atom SaaS
+
+    Manually trigger rating sync to upload pending ratings to Atom SaaS.
+    Returns 503 if sync is already in progress.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    - Manual sync is a high-complexity administrative action
+    - AUTONOMOUS maturity required for agents
+
+    Args:
+        request: Sync request with upload_all flag
+        current_user: Authenticated user
+        db: Database session
+        agent_id: Agent ID if triggered by agent
+
+    Returns:
+        RatingSyncResponse with upload counts
+    """
+    from core.rating_sync_service import RatingSyncService
+    from core.atom_saas_client import AtomSaaSClient
+
+    # Log audit trail
+    logger.info(
+        f"Rating sync triggered by {current_user.id} "
+        f"(agent: {agent_id}, upload_all: {request.upload_all})"
+    )
+
+    # Create sync service
+    client = AtomSaaSClient()
+    sync_service = RatingSyncService(db, client)
+
+    # Check if sync is already in progress
+    if sync_service._sync_in_progress:
+        from fastapi import status
+        raise router.api_error(
+            error_code="RATING_SYNC_IN_PROGRESS",
+            message="Rating sync is already in progress",
+            http_status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    # Get pending count before sync
+    pending_count = len(sync_service.get_pending_ratings())
+
+    # Trigger sync
+    import asyncio
+    result = await sync_service.sync_ratings(upload_all=request.upload_all)
+
+    logger.info(
+        f"Rating sync completed for {current_user.id}: "
+        f"{result.get('uploaded')} uploaded, {result.get('failed')} failed"
+    )
+
+    return RatingSyncResponse(
+        success=result.get("success", False),
+        uploaded=result.get("uploaded", 0),
+        failed=result.get("failed", 0),
+        skipped=result.get("skipped", 0),
+        pending_count=pending_count,
+        message=result.get("message"),
+        error=result.get("error")
+    )
+
+
+@router.get("/ratings/failed-uploads", response_model=List[FailedRatingUploadResponse])
+async def get_failed_rating_uploads(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get failed rating uploads (dead letter queue)
+
+    Returns list of failed rating uploads for inspection and manual retry.
+    Failed uploads are stored when rating sync encounters errors.
+
+    Requires AUTONOMOUS maturity.
+    """
+    from core.agent_governance_service import GovernanceCache
+    governance_cache = GovernanceCache()
+
+    # Get user's maturity level
+    user_maturity = "AUTONOMOUS"  # Default to AUTONOMOUS for human users
+
+    if user_maturity != "AUTONOMOUS":
+        raise router.permission_denied_error(
+            action="get_failed_rating_uploads",
+            resource="RatingUpload",
+            details={"required_maturity": "AUTONOMOUS", "actual_maturity": user_maturity}
+        )
+
+    from core.models import FailedRatingUpload
+
+    # Query failed uploads, ordered by failed_at desc
+    failed_uploads = (
+        db.query(FailedRatingUpload)
+        .order_by(FailedRatingUpload.failed_at.desc())
+        .limit(100)  # Pagination limit
+        .all()
+    )
+
+    return [
+        FailedRatingUploadResponse(
+            id=failed.id,
+            rating_id=failed.rating_id,
+            error_message=failed.error_message,
+            failed_at=failed.failed_at,
+            retry_count=failed.retry_count,
+            last_retry_at=failed.last_retry_at
+        )
+        for failed in failed_uploads
+    ]
+
+
+@router.post("/ratings/failed-uploads/{failed_id}/retry", response_model=RetryRatingUploadResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="retry_rating_upload",
+    feature="admin"
+)
+async def retry_failed_rating_upload(
+    failed_id: str,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Retry failed rating upload
+
+    Manually retry a failed rating upload from the dead letter queue.
+    Deletes the failed upload record on success.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    from core.models import FailedRatingUpload, SkillRating
+    from core.rating_sync_service import RatingSyncService
+    from core.atom_saas_client import AtomSaaSClient
+
+    # Log audit trail
+    logger.info(
+        f"Retry failed rating upload {failed_id} by {current_user.id} "
+        f"(agent: {agent_id})"
+    )
+
+    # Fetch failed upload record
+    failed = (
+        db.query(FailedRatingUpload)
+        .filter(FailedRatingUpload.id == failed_id)
+        .first()
+    )
+
+    if not failed:
+        raise router.not_found_error("FailedRatingUpload", failed_id)
+
+    # Fetch the rating
+    rating = (
+        db.query(SkillRating)
+        .filter(SkillRating.id == failed.rating_id)
+        .first()
+    )
+
+    if not rating:
+        # Rating was deleted, remove failed record
+        db.delete(failed)
+        db.commit()
+        return RetryRatingUploadResponse(
+            success=False,
+            message="Rating no longer exists, failed record removed",
+            retry_triggered=False
+        )
+
+    # Create sync service and retry upload
+    client = AtomSaaSClient()
+    sync_service = RatingSyncService(db, client)
+
+    # Upload single rating
+    import asyncio
+    result = await sync_service.upload_rating(rating)
+
+    if result.get("success"):
+        # Success - mark as synced and remove failed record
+        remote_id = result.get("rating_id")
+        if remote_id:
+            sync_service.mark_as_synced(rating.id, remote_id)
+
+        db.delete(failed)
+        db.commit()
+
+        logger.info(f"Retry successful for failed upload {failed_id}")
+        return RetryRatingUploadResponse(
+            success=True,
+            message=f"Rating uploaded successfully (remote_id: {remote_id})",
+            retry_triggered=True
+        )
+    else:
+        # Failed again - increment retry count
+        failed.retry_count += 1
+        failed.last_retry_at = datetime.now()
+        failed.error_message = result.get("error", "Unknown error")
+        db.commit()
+
+        logger.error(f"Retry failed for {failed_id}: {result.get('error')}")
+        return RetryRatingUploadResponse(
+            success=False,
+            message=f"Retry failed: {result.get('error')}",
+            retry_triggered=True
+        )
