@@ -168,8 +168,15 @@ async def lifespan(app: FastAPI):
         # 3. Start Agent Scheduler (Upstream compatibility)
         try:
             from core.scheduler import AgentScheduler
-            AgentScheduler.get_instance()
+            scheduler = AgentScheduler.get_instance()
             logger.info("✓ Agent Scheduler running")
+
+            # Initialize rating sync job (Phase 61 Plan 02)
+            try:
+                scheduler.initialize_rating_sync()
+                logger.info("✓ Rating Sync scheduled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize rating sync: {e}")
         except ImportError:
             logger.warning("Agent Scheduler module not found.")
 
