@@ -543,6 +543,12 @@ try:
         logger.warning(f"Failed to load AP/AR routes: {e}")
 
     try:
+        from api.media_routes import router as media_router
+        app.include_router(media_router, prefix="/api", tags=["media", "integrations"])
+    except ImportError as e:
+        logger.warning(f"Failed to load media routes: {e}")
+
+    try:
         from api.graphrag_routes import router as graphrag_router
         app.include_router(graphrag_router, prefix="/api/graphrag", tags=["graphrag"])
     except ImportError as e:
