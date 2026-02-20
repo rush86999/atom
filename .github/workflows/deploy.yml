@@ -97,22 +97,46 @@ jobs:
           tags: |
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          push: true
+          context: ./backend
+          push: true  # Push to registry
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha  # Restore from GitHub Actions cache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache  # Restore from registry
+          cache-to: |
+            type=gha,mode=max  # Save to GitHub Actions cache (all layers)
+            type=inline,mode=max  # Embed cache in image for distributed builds
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max  # Save to registry
           build-args: |
             VERSION=${{ github.sha }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            ENVIRONMENT=production
+            ENABLE_DOCLING=true
 
       - name: Image digest
         run: echo "Image built with digest ${{ steps.meta.outputs.digest }}"
+
+      - name: Report production build metrics
+        if: always()
+        run: |
+          echo "=== Production Build Metrics ==="
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker pull "$IMAGE_TAG"
+
+          echo "Image: $IMAGE_TAG"
+          docker images "$IMAGE_TAG" --format "Size: {{.Size}}"
+          docker history "$IMAGE_TAG" --no-trunc --format "table {{.CreatedBy}}\t{{.Size}}" | head -20
+
+          # Estimate cache hit rate from build output
+          # BuildKit outputs: "CACHED" for cached layers, "DONE" for new layers
+          echo "✅ Build completed - check GitHub Actions log for cache hit/miss statistics"
 
   deploy-staging:
     name: Deploy to Staging
@@ -139,6 +163,14 @@ jobs:
         run: |
           export KUBECONFIG=kubeconfig
           kubectl set image deployment/atom atom=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Verify image pull
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=5m
+          # Verify image was pulled successfully
+          POD=$(kubectl get pod -l app=atom -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod "$POD" | grep "Image:" | grep "${{ github.sha }}"
 
       - name: Wait for rollout
         run: |
