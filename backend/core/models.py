@@ -871,6 +871,14 @@ class OAuthToken(Base):
             return False  # Tokens without expiration (like Notion) don't expire
         return datetime.datetime.now(self.expires_at.tzinfo) > self.expires_at
 
+    def needs_refresh(self) -> bool:
+        """Check if token needs refresh (expires within 5 minutes)"""
+        if self.expires_at is None:
+            return False  # Tokens without expiration don't need refresh
+        # Refresh if token expires within 5 minutes
+        refresh_threshold = datetime.datetime.now(self.expires_at.tzinfo) + datetime.timedelta(minutes=5)
+        return self.expires_at <= refresh_threshold
+
 class WorkflowSnapshot(Base):
     """
     Time-Travel Debugging: Immutable snapshot of execution state at a specific step.
