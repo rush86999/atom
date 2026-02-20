@@ -1512,7 +1512,7 @@ class TestMCPToolsDataValidation:
         # Should sanitize input and not cause SQL errors
 
     @pytest.mark.asyncio
-    async def test_mwp_malformed_json(self, mcp_service, e2e_postgres_db):
+    async def test_mcp_malformed_json(self, mcp_service, e2e_postgres_db):
         """Test handling of malformed JSON in data parameters."""
         response = await mcp_service.call_tool(
             "update_task",
