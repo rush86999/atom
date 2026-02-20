@@ -41,7 +41,7 @@ const AutomationsPage: React.FC = () => {
       </Head>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         {/* Header with Tabs */}
-        <div className="bg-white border-b sticky top-0 z-20">
+        <div className="bg-white border-b">
           <div className="max-w-screen-2xl mx-auto px-4">
             <div className="flex items-center justify-between py-4">
               <div className="flex items-center gap-3">
