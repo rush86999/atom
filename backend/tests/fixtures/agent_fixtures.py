@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from core.models import AgentRegistry, AgentStatus, AgentMaturity
+from core.models import AgentRegistry, AgentStatus
 
 
 def create_test_agent(

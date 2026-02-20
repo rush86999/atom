@@ -21,23 +21,26 @@ from sqlalchemy.orm import Session, sessionmaker
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import fixture modules for availability in tests
-from tests.fixtures.agent_fixtures import (
-    create_test_agent, create_student_agent, create_intern_agent,
-    create_supervised_agent, create_autonomous_agent, create_agent_batch
-)
-from tests.fixtures.workflow_fixtures import (
-    create_test_workflow, create_workflow_execution,
-    create_workflow_step, create_workflow_with_steps
-)
-from tests.fixtures.episode_fixtures import (
-    create_test_episode, create_episode_segment,
-    create_episode_with_segments, create_intervention_episode, create_episode_batch
-)
-from tests.fixtures.api_fixtures import (
-    create_chat_request, create_canvas_request, create_workflow_request,
-    create_agent_response, create_canvas_response, create_error_response, MockTestClient
-)
+# Import fixture modules for availability in tests (avoid circular imports)
+# Note: Some fixture modules contain placeholder implementations
+# TODO: Implement actual models in workflow_fixtures.py and episode_fixtures.py
+
+# from tests.fixtures.agent_fixtures import (
+#     create_test_agent, create_student_agent, create_intern_agent,
+#     create_supervised_agent, create_autonomous_agent, create_agent_batch
+# )
+# from tests.fixtures.workflow_fixtures import (
+#     create_test_workflow, create_workflow_execution,
+#     create_workflow_step, create_workflow_with_steps
+# )
+# from tests.fixtures.episode_fixtures import (
+#     create_test_episode, create_episode_segment,
+#     create_episode_with_segments, create_intervention_episode, create_episode_batch
+# )
+# from tests.fixtures.api_fixtures import (
+#     create_chat_request, create_canvas_request, create_workflow_request,
+#     create_agent_response, create_canvas_response, create_error_response, MockTestClient
+# )
 from tests.fixtures.mock_services import (
     MockLLMProvider, MockEmbeddingService, MockStorageService,
     MockCacheService, MockWebSocket
@@ -888,6 +891,7 @@ def async_client():
             response = await async_client.get("/api/async-endpoint")
             assert response.status_code == 200
     """
+    import asyncio
     try:
         from httpx import AsyncClient
         try:
@@ -896,8 +900,20 @@ def async_client():
             from fastapi import FastAPI
             app = FastAPI()
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            yield client
+        # Create async client using a helper coroutine
+        async def get_client():
+            async with AsyncClient(app=app, base_url="http://test") as client:
+                yield client
+
+        # Run the async generator
+        loop = asyncio.get_event_loop()
+        gen = get_client()
+        client = loop.run_until_complete(gen.__anext__())
+        yield client
+        try:
+            loop.run_until_complete(gen.__anext__())
+        except StopAsyncIteration:
+            pass
     except Exception:
         # Fallback: return None (test should skip if async is needed)
         yield None
