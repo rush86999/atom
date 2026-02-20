@@ -94,7 +94,8 @@ class DynamicPricingFetcher:
                             "max_output_tokens": model_data.get("max_output_tokens", 0),
                             "litellm_provider": model_data.get("litellm_provider", "unknown"),
                             "mode": model_data.get("mode", "chat"),
-                            "source": "litellm"
+                            "source": "litellm",
+                            "supports_cache": model_data.get("supports_cache", False),  # Cache support metadata
                         }
                 
                 logger.info(f"Fetched {len(pricing)} model prices from LiteLLM")
@@ -249,11 +250,101 @@ class DynamicPricingFetcher:
         pricing = self.get_model_price(model_name)
         if not pricing:
             return None
-        
+
         input_cost = pricing.get("input_cost_per_token", 0) * input_tokens
         output_cost = pricing.get("output_cost_per_token", 0) * output_tokens
-        
+
         return input_cost + output_cost
+
+    def model_supports_cache(self, model_name: str) -> bool:
+        """
+        Check if a model supports prompt caching.
+
+        Uses the supports_cache field from pricing data if available.
+        Falls back to provider-based inference for known caching providers.
+
+        Args:
+            model_name: Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet")
+
+        Returns:
+            True if model supports caching, False otherwise
+
+        Examples:
+            >>> fetcher.model_supports_cache("gpt-4o")
+            True
+            >>> fetcher.model_supports_cache("deepseek-chat")
+            False
+        """
+        pricing = self.get_model_price(model_name)
+        if pricing:
+            # Use explicit supports_cache field if available
+            if "supports_cache" in pricing:
+                return pricing["supports_cache"]
+
+        # Fallback: Infer from provider
+        provider = self._infer_provider(model_name)
+        return provider in ["openai", "anthropic", "google"]
+
+    def _infer_provider(self, model_name: str) -> str:
+        """
+        Infer provider from model name.
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            Provider name (lowercase)
+        """
+        model_lower = model_name.lower()
+
+        if "gpt" in model_lower or "openai" in model_lower:
+            return "openai"
+        elif "claude" in model_lower or "anthropic" in model_lower:
+            return "anthropic"
+        elif "deepseek" in model_lower:
+            return "deepseek"
+        elif "gemini" in model_lower or "google" in model_lower:
+            return "google"
+        elif "minimax" in model_lower:
+            return "minimax"
+        else:
+            return "unknown"
+
+    def get_cache_min_tokens(self, model_name: str) -> int:
+        """
+        Get minimum token threshold for prompt caching.
+
+        Returns the minimum prompt length required for caching to be applied.
+        Returns 0 if the model doesn't support caching.
+
+        Args:
+            model_name: Model identifier
+
+        Returns:
+            Minimum token count (1024 for OpenAI/Gemini, 2048 for Anthropic, 0 for no cache)
+
+        Examples:
+            >>> fetcher.get_cache_min_tokens("gpt-4o")
+            1024
+            >>> fetcher.get_cache_min_tokens("claude-3-5-sonnet")
+            2048
+            >>> fetcher.get_cache_min_tokens("deepseek-chat")
+            0
+        """
+        if not self.model_supports_cache(model_name):
+            return 0
+
+        provider = self._infer_provider(model_name)
+
+        # Research-verified minimum token thresholds
+        if provider == "openai":
+            return 1024
+        elif provider == "anthropic":
+            return 2048
+        elif provider == "google":
+            return 1024
+        else:
+            return 0
 
 
 # Singleton instance
