@@ -43,11 +43,17 @@ try:
     logger.info("python-hue-v2 library loaded - Hue integration enabled")
 except ImportError as e:
     HUE_AVAILABLE = False
+    Hue = None  # Type placeholder for when library not available
+    BridgeFinder = None
     logger.warning("python-hue-v2 library not available", error=str(e))
     logger.warning("Hue integration will fail - install with: pip install python-hue-v2")
 
 # Cache for bridge connections (in-memory)
-_bridge_cache: Dict[str, Hue] = {}
+# Use Any type when Hue is not available to avoid NameError
+if HUE_AVAILABLE:
+    _bridge_cache: Dict[str, Hue] = {}
+else:
+    _bridge_cache: Dict[str, Any] = {}
 
 
 # ============================================================================
