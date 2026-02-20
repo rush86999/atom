@@ -1,15 +1,20 @@
 # Atom Documentation Index
 
-> **Last Updated**: February 18, 2026
+> **Last Updated**: February 20, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 ---
 
 ## 🚀 Recent Updates (February 2026)
 
-- [Canvas AI Accessibility Guide](CANVAS_AI_ACCESSIBILITY.md) - Phase 20: Dual representation for AI agents with hidden accessibility trees
-- [Canvas State API](CANVAS_STATE_API.md) - Phase 20: JavaScript API for canvas state access during agent tasks
-- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - Phase 21: Semantic summaries for episodic memory integration (80%+ richness)
+- **Phase 64**: E2E Test Suite - 217+ E2E tests with real services (PostgreSQL, Redis, Docker)
+- **Phase 63**: Documentation Audit - 98/100 health score, all features documented
+- **Phase 61**: Atom SaaS Sync - Bidirectional marketplace sync for skills and ratings
+- **Phase 60**: Advanced Skill Execution - Marketplace, composition, dynamic loading
+- **Phase 36**: npm Package Support - 2M+ packages with governance
+- **Phase 35**: Python Package Support - 350K+ packages with vulnerability scanning
+- [Canvas AI Accessibility Guide](CANVAS_AI_ACCESSIBILITY.md) - Phase 20: Dual representation for AI agents
+- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - Phase 21: Semantic summaries for episodic memory
 
 ---
 
@@ -26,11 +31,20 @@
 
 ---
 
-## 🌐 Community Skills
+## 🌐 Community Skills & Package Support
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 16, 2026 |
+| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
+| [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Feb 19, 2026 |
+| [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
+| [PACKAGE_SECURITY.md](PACKAGE_SECURITY.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
+| [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
+| [NPM_PACKAGE_SUPPORT.md](NPM_PACKAGE_SUPPORT.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
+| [ADVANCED_SKILL_EXECUTION.md](ADVANCED_SKILL_EXECUTION.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
+| [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
+| [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
+| [PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md) | Performance optimization and benchmarks | Feb 19, 2026 |
 
 ---
 
@@ -193,9 +207,17 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [backend/tests/e2e/README.md](../backend/tests/e2e/README.md) | **E2E testing guide (Docker, real services, 217+ tests)** | Feb 20, 2026 |
 | [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
+
+**E2E Test Coverage (Phase 64)**:
+- 217+ E2E tests across 14 test files
+- Docker Compose environment (PostgreSQL + Redis)
+- MCP tools, database, LLM providers, external services
+- Critical workflow validation
+- Performance monitoring (<10 min target)
 
 ---
 

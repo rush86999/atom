@@ -104,16 +104,22 @@ That's it! 🚀
 - Every action logged, timestamped, and traceable
 
 ### 🔌 Deep Integrations
-- **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce
+- **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce, Zendesk
 - **9 messaging platforms**: Real-time communication
+- **Atom SaaS Sync**: Bidirectional sync with Atom marketplace for skills and ratings ✨ NEW
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
-### 🌐 Community Skills ✨
+### 🌐 Community Skills & Package Marketplace ✨
 - **5,000+ OpenClaw/ClawHub skills**: Import community-built tools
-- **Enterprise security**: LLM-powered scanning with hazard sandbox
+- **Skill Marketplace**: PostgreSQL-based with search, ratings, categories
+- **Enterprise security**: LLM-powered scanning (21+ malicious patterns) with hazard sandbox
 - **Skills Registry**: Import with status tracking (Untrusted → Active → Banned)
-- **Python Package Support**: NumPy, Pandas, and 350K+ PyPI packages
-- **npm Package Support**: Lodash, Express, and 2M+ npm packages ✨ NEW
+- **Dynamic Skill Loading**: importlib-based hot-reload with watchdog monitoring
+- **Skill Composition**: DAG workflows with parallel execution and rollback
+- **Auto-Installation**: Python + npm with conflict detection and automatic rollback
+- **Python Package Support**: NumPy, Pandas, 350K+ PyPI packages with vulnerability scanning
+- **npm Package Support**: Lodash, Express, 2M+ npm packages with governance
+- **Supply Chain Security**: Typosquatting detection, dependency confusion prevention, postinstall malware blocking
 - [Community Skills Guide →](docs/COMMUNITY_SKILLS.md)
 
 ### 🔍 Browser & Device Automation
@@ -162,10 +168,12 @@ cp .env.personal .env
 
 - **Self-Hosted Only**: Your data never leaves your environment
 - **BYOK**: Bring your own OpenAI, Anthropic, Gemini, or DeepSeek keys
-- **Encrypted Storage**: Sensitive data encrypted at-rest
+- **Encrypted Storage**: Sensitive data encrypted at-rest (Fernet)
 - **Audit Logs**: Every agent action logged and traceable
 - **Human-in-the-Loop**: Configurable approval policies
-- **Package Security**: Vulnerability scanning, postinstall script blocking, container isolation ✨ NEW
+- **Package Security**: Vulnerability scanning (pip-audit, Safety), postinstall script blocking, container isolation
+- **Supply Chain Protection**: Typosquatting detection, dependency confusion prevention, malicious pattern detection
+- **Comprehensive Testing**: 300+ tests with 99%+ pass rate, E2E validation with real services
 
 ---
 
