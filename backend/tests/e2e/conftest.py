@@ -108,6 +108,196 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 
 
 # =============================================================================
+# E2E Docker Compose Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="session")
+def e2e_docker_compose():
+    """
+    Start docker-compose for E2E tests.
+
+    This fixture starts PostgreSQL and Redis services in Docker for the entire test session.
+    Tests run on the host machine and connect to these services.
+    """
+    import subprocess
+    from pathlib import Path
+
+    compose_file = Path(__file__).parent.parent.parent / "docker-compose-e2e.yml"
+
+    if not compose_file.exists():
+        pytest.skip(f"Docker compose file not found: {compose_file}")
+
+    print(f"\n=== Starting E2E Docker Environment ===")
+    print(f"Compose file: {compose_file}")
+
+    # Start docker-compose
+    try:
+        result = subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "up", "-d"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        print("Docker compose output:", result.stdout)
+    except subprocess.TimeoutExpired:
+        pytest.skip("Docker compose start timed out - Docker may not be running")
+    except subprocess.CalledProcessError as e:
+        pytest.skip(f"Failed to start docker-compose: {e.stderr}\nDocker may not be running")
+
+    # Wait for services to be healthy
+    print("Waiting for services to be ready...")
+    max_wait = 30
+    start_wait = time.time()
+
+    while time.time() - start_wait < max_wait:
+        try:
+            # Check if PostgreSQL is ready
+            result = subprocess.run(
+                ["docker-compose", "-f", str(compose_file), "ps", "postgres-e2e"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if "healthy" in result.stdout or "Up" in result.stdout:
+                print("PostgreSQL service is ready")
+                break
+        except Exception:
+            pass
+        time.sleep(2)
+    else:
+        print("Warning: Services may not be fully ready, proceeding anyway")
+
+    yield
+
+    # Cleanup: Stop and remove containers, volumes
+    print("\n=== Stopping E2E Docker Environment ===")
+    try:
+        subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "down", "-v"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        print("Docker compose stopped successfully")
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: Failed to stop docker-compose: {e.stderr}")
+
+
+@pytest.fixture(scope="function")
+def e2e_postgres_db(e2e_docker_compose):
+    """
+    Create PostgreSQL connection for E2E tests.
+
+    This fixture provides a real PostgreSQL database connection for E2E testing.
+    Tables are created fresh for each test function.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # PostgreSQL connection string (connects to Docker container on localhost:5433)
+    database_url = "postgresql://e2e_tester:test_password@localhost:5433/atom_e2e_test"
+
+    print(f"\n=== Creating E2E PostgreSQL Connection ===")
+    print(f"Database URL: {database_url}")
+
+    # Create engine with connection pooling for tests
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True,  # Verify connections before using
+        pool_size=5,
+        max_overflow=10,
+        echo=False,  # Set to True for SQL query debugging
+    )
+
+    # Create all tables
+    print("Creating database tables...")
+    try:
+        Base.metadata.create_all(engine, checkfirst=True)
+        print("Tables created successfully")
+    except Exception as e:
+        print(f"Warning: Some tables may have failed to create: {e}")
+
+    # Create session
+    SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    session = SessionLocal()
+
+    yield session
+
+    # Cleanup
+    print("\n=== Cleaning up E2E PostgreSQL Connection ===")
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def mcp_service(e2e_postgres_db):
+    """
+    Initialize MCP service with test database.
+
+    This fixture provides an MCP service instance configured for E2E testing.
+    The service is initialized with test mode enabled for safer execution.
+    """
+    try:
+        from integrations.mcp_service import MCPService
+    except ImportError:
+        pytest.skip("MCP service not available - integrations module not found")
+
+    print("\n=== Initializing MCP Service ===")
+
+    service = MCPService()
+    service.test_mode = True  # Enable test mode for safer execution
+    service.db_session = e2e_postgres_db
+
+    yield service
+
+    print("\n=== MCP Service cleanup ===")
+
+
+@pytest.fixture(scope="function")
+def e2e_redis(e2e_docker_compose):
+    """
+    Create Redis connection for E2E tests.
+
+    This fixture provides a real Redis (Valkey) connection for WebSocket and pubsub testing.
+    Database is flushed after each test for isolation.
+    """
+    try:
+        import redis
+    except ImportError:
+        pytest.skip("Redis library not available - install with: pip install redis")
+
+    print("\n=== Creating E2E Redis Connection ===")
+
+    # Connect to Redis container on localhost:6380
+    client = redis.Redis(
+        host="localhost",
+        port=6380,
+        decode_responses=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+    )
+
+    # Verify connection
+    try:
+        client.ping()
+        print("Redis connection successful")
+    except redis.ConnectionError as e:
+        pytest.skip(f"Failed to connect to Redis: {e}")
+
+    yield client
+
+    # Cleanup: Flush all data and close connection
+    print("\n=== Cleaning up E2E Redis Connection ===")
+    try:
+        client.flushall()  # Clear all keys for test isolation
+        client.close()
+    except Exception as e:
+        print(f"Warning: Redis cleanup failed: {e}")
+
+
+# =============================================================================
 # FastAPI Test Client Fixtures
 # =============================================================================
 
@@ -395,7 +585,155 @@ def performance_monitor():
 
 
 # =============================================================================
-# Test Data Fixtures
+# Test Data Factory Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def crm_contact_factory():
+    """Create test CRM contact data."""
+    import uuid
+
+    def create_contact(**kwargs):
+        defaults = {
+            "first_name": "Test",
+            "last_name": "User",
+            "email": f"test.user.{uuid.uuid4()}@example.com",
+            "phone": "+15551234567",
+            "company": "Test Corp",
+            "status": "lead",
+            "source": "e2e_test",
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    return create_contact
+
+
+@pytest.fixture(scope="function")
+def task_factory():
+    """Create test task data."""
+    import uuid
+
+    def create_task(**kwargs):
+        defaults = {
+            "title": f"Test Task {uuid.uuid4()}",
+            "description": "Test task description",
+            "status": "todo",
+            "priority": "medium",
+            "assignee": "test-user",
+            "due_date": None,
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    return create_task
+
+
+@pytest.fixture(scope="function")
+def ticket_factory():
+    """Create test support ticket data."""
+    import uuid
+
+    def create_ticket(**kwargs):
+        defaults = {
+            "subject": f"Test Issue {uuid.uuid4()}",
+            "description": "Test ticket description",
+            "priority": "normal",
+            "status": "open",
+            "customer_email": f"customer.{uuid.uuid4()}@example.com",
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    return create_ticket
+
+
+@pytest.fixture(scope="function")
+def knowledge_doc_factory():
+    """Create test knowledge document data."""
+    import uuid
+
+    def create_document(**kwargs):
+        defaults = {
+            "title": f"Test Doc {uuid.uuid4()}",
+            "content": "Test knowledge content",
+            "source": "e2e_test",
+            "doc_type": "text",
+            "tags": ["test", "e2e"],
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    def create_business_fact(**kwargs):
+        defaults = {
+            "fact": "Test business fact",
+            "citations": ["test/doc.pdf"],
+            "reason": "For testing",
+            "source": "e2e_test",
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    return {"create_document": create_document, "create_business_fact": create_business_fact}
+
+
+@pytest.fixture(scope="function")
+def canvas_data_factory():
+    """Create test canvas presentation data."""
+    import uuid
+
+    def create_chart_data(chart_type="line"):
+        return {
+            "type": chart_type,
+            "title": f"Test Chart {uuid.uuid4()}",
+            "data": {
+                "labels": ["A", "B", "C", "D", "E"],
+                "datasets": [
+                    {
+                        "label": "Dataset 1",
+                        "data": [10, 20, 30, 40, 50],
+                        "borderColor": "rgb(75, 192, 192)",
+                    }
+                ],
+            },
+        }
+
+    def create_form_data():
+        return {
+            "type": "form",
+            "title": f"Test Form {uuid.uuid4()}",
+            "fields": [
+                {"name": "email", "type": "email", "label": "Email", "required": True},
+                {"name": "name", "type": "text", "label": "Full Name", "required": True},
+                {"name": "consent", "type": "checkbox", "label": "I agree", "required": True},
+            ],
+        }
+
+    return {"create_chart_data": create_chart_data, "create_form_data": create_form_data}
+
+
+@pytest.fixture(scope="function")
+def finance_data_factory():
+    """Create test finance data."""
+    import uuid
+
+    def create_invoice(**kwargs):
+        defaults = {
+            "customer_id": f"cust_{uuid.uuid4().hex[:8]}",
+            "amount": 100.00,
+            "currency": "USD",
+            "description": "Test invoice",
+            "status": "pending",
+            "due_date": None,
+        }
+        defaults.update(kwargs)
+        return defaults
+
+    return create_invoice
+
+
+# =============================================================================
+# Legacy Test Data Fixtures (kept for backward compatibility)
 # =============================================================================
 
 @pytest.fixture(scope="function")
