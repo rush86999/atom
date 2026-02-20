@@ -433,9 +433,89 @@ jest.mock('@react-native-community/netinfo', () => ({
 }));
 
 // ============================================================================
-// Global cleanup
+// Mock Timers for Async Tests
 // ============================================================================
 
+beforeEach(() => {
+  // Use fake timers for all tests to prevent flaky async behavior
+  jest.useFakeTimers();
+});
+
 afterEach(() => {
+  // Restore real timers after each test
+  jest.useRealTimers();
   jest.clearAllMocks();
 });
+
+// ============================================================================
+// Mock WebSocket (for service layer tests)
+// ============================================================================
+
+global.MockWebSocket = class MockWebSocket {
+  static url: string;
+  static protocols: string | string[];
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  onopen: ((event: any) => void) | null = null;
+  onmessage: ((event: any) => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+  onclose: ((event: any) => void) | null = null;
+
+  readyState = MockWebSocket.OPEN;
+  url: string;
+
+  constructor(url: string, protocols?: string | string[]) {
+    this.url = url;
+    MockWebSocket.url = url;
+    MockWebSocket.protocols = protocols || [];
+
+    // Simulate connection in next tick
+    setTimeout(() => {
+      this.readyState = MockWebSocket.OPEN;
+      if (this.onopen) {
+        this.onopen({ type: 'open' });
+      }
+    }, 0);
+  }
+
+  send(data: string) {
+    // Simulate message handling
+    setTimeout(() => {
+      if (this.onmessage) {
+        this.onmessage({
+          type: 'message',
+          data: JSON.stringify({ type: 'pong', data: JSON.parse(data) }),
+        });
+      }
+    }, 0);
+  }
+
+  close(code?: number, reason?: string) {
+    this.readyState = MockWebSocket.CLOSED;
+    if (this.onclose) {
+      this.onclose({
+        type: 'close',
+        code: code || 1000,
+        reason: reason || '',
+        wasClean: true,
+      });
+    }
+  }
+
+  addEventListener(type: string, listener: (event: any) => void) {
+    if (type === 'open') this.onopen = listener;
+    if (type === 'message') this.onmessage = listener;
+    if (type === 'error') this.onerror = listener;
+    if (type === 'close') this.onclose = listener;
+  }
+
+  removeEventListener(type: string, listener: (event: any) => void) {
+    if (type === 'open' && this.onopen === listener) this.onopen = null;
+    if (type === 'message' && this.onmessage === listener) this.onmessage = null;
+    if (type === 'error' && this.onerror === listener) this.onerror = null;
+    if (type === 'close' && this.onclose === listener) this.onclose = null;
+  }
+};
