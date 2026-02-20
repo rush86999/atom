@@ -1016,3 +1016,339 @@ async def retry_failed_rating_upload(
             message=f"Retry failed: {result.get('error')}",
             retry_triggered=True
         )
+
+
+# ============================================================================
+# Conflict Management Endpoints
+# ============================================================================
+
+class ConflictLogResponse(BaseModel):
+    """Conflict log entry response"""
+    id: int
+    skill_id: str
+    conflict_type: str
+    severity: str
+    local_data: dict
+    remote_data: dict
+    resolution_strategy: Optional[str]
+    resolved_data: Optional[dict]
+    resolved_at: Optional[datetime]
+    resolved_by: Optional[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConflictListResponse(BaseModel):
+    """Paginated list of conflicts"""
+    conflicts: List[ConflictLogResponse]
+    total_count: int
+    page: int
+    page_size: int
+
+
+class ResolveConflictRequest(BaseModel):
+    """Request to resolve a conflict"""
+    strategy: str = Field(..., description="Resolution strategy: remote_wins, local_wins, merge")
+    resolved_by: str = Field(..., description="User or system resolving the conflict")
+
+
+class ResolveConflictResponse(BaseModel):
+    """Response after resolving conflict"""
+    success: bool
+    message: str
+    resolved_data: Optional[dict] = None
+
+
+class BulkResolveConflictsRequest(BaseModel):
+    """Request to bulk resolve conflicts"""
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+    strategy: str = Field(..., description="Resolution strategy: remote_wins, local_wins, merge")
+    resolved_by: str = Field(..., description="User or system resolving the conflicts")
+
+
+class BulkResolveConflictsResponse(BaseModel):
+    """Response after bulk resolving conflicts"""
+    success: bool
+    message: str
+    resolved_count: int
+    failed_count: int
+    errors: List[str] = []
+
+
+@router.get("/conflicts", response_model=ConflictListResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="list_conflicts",
+    feature="admin"
+)
+async def list_conflicts(
+    severity: Optional[str] = None,
+    conflict_type: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    List unresolved conflicts
+
+    Returns paginated list of unresolved skill sync conflicts.
+    Can filter by severity and conflict type.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    from core.models import ConflictLog
+    from core.conflict_resolution_service import ConflictResolutionService
+
+    # Log audit trail
+    logger.info(
+        f"List conflicts by {current_user.id} (agent: {agent_id}) "
+        f"filters: severity={severity}, type={conflict_type}"
+    )
+
+    resolver = ConflictResolutionService(db)
+
+    # Get unresolved conflicts
+    conflicts = resolver.get_unresolved_conflicts(
+        severity=severity,
+        conflict_type=conflict_type,
+        limit=page_size
+    )
+
+    # Calculate pagination
+    total_count = len(conflicts)
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    paginated_conflicts = conflicts[start_idx:end_idx]
+
+    return ConflictListResponse(
+        conflicts=[
+            ConflictLogResponse(
+                id=c.id,
+                skill_id=c.skill_id,
+                conflict_type=c.conflict_type,
+                severity=c.severity,
+                local_data=c.local_data,
+                remote_data=c.remote_data,
+                resolution_strategy=c.resolution_strategy,
+                resolved_data=c.resolved_data,
+                resolved_at=c.resolved_at,
+                resolved_by=c.resolved_by,
+                created_at=c.created_at
+            )
+            for c in paginated_conflicts
+        ],
+        total_count=total_count,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.get("/conflicts/{conflict_id}", response_model=ConflictLogResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="get_conflict",
+    feature="admin"
+)
+async def get_conflict(
+    conflict_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Get conflict details by ID
+
+    Returns full conflict data including local/remote skill data
+    and a diff summary of what changed.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    from core.conflict_resolution_service import ConflictResolutionService
+
+    # Log audit trail
+    logger.info(
+        f"Get conflict {conflict_id} by {current_user.id} (agent: {agent_id})"
+    )
+
+    resolver = ConflictResolutionService(db)
+    conflict = resolver.get_conflict_by_id(conflict_id)
+
+    if not conflict:
+        raise router.not_found_error("ConflictLog", conflict_id)
+
+    return ConflictLogResponse(
+        id=conflict.id,
+        skill_id=conflict.skill_id,
+        conflict_type=conflict.conflict_type,
+        severity=conflict.severity,
+        local_data=conflict.local_data,
+        remote_data=conflict.remote_data,
+        resolution_strategy=conflict.resolution_strategy,
+        resolved_data=conflict.resolved_data,
+        resolved_at=conflict.resolved_at,
+        resolved_by=conflict.resolved_by,
+        created_at=conflict.created_at
+    )
+
+
+@router.post("/conflicts/{conflict_id}/resolve", response_model=ResolveConflictResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="resolve_conflict",
+    feature="admin"
+)
+async def resolve_conflict(
+    conflict_id: int,
+    request: ResolveConflictRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Resolve a conflict
+
+    Applies the specified resolution strategy to a conflict.
+    Updates the ConflictLog and triggers cache update with resolved data.
+
+    Strategies:
+    - remote_wins: Use Atom SaaS skill data
+    - local_wins: Use local skill data
+    - merge: Intelligently merge fields
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    from core.conflict_resolution_service import ConflictResolutionService
+
+    # Validate strategy
+    valid_strategies = ["remote_wins", "local_wins", "merge"]
+    if request.strategy not in valid_strategies:
+        raise router.validation_error(
+            "Invalid strategy",
+            details={"valid_strategies": valid_strategies, "provided": request.strategy}
+        )
+
+    # Log audit trail
+    logger.info(
+        f"Resolve conflict {conflict_id} by {current_user.id} "
+        f"(agent: {agent_id}) using {request.strategy}"
+    )
+
+    resolver = ConflictResolutionService(db)
+
+    # Resolve conflict
+    resolved_data = resolver.resolve_conflict(
+        conflict_id=conflict_id,
+        strategy=request.strategy,
+        resolved_by=request.resolved_by
+    )
+
+    if resolved_data is None and request.strategy != "manual":
+        return ResolveConflictResponse(
+            success=False,
+            message="Failed to resolve conflict"
+        )
+
+    # Update cache with resolved data
+    if resolved_data:
+        from core.models import SkillCache
+        from datetime import timezone, timedelta
+
+        skill_id = resolved_data.get("skill_id") or resolved_data.get("id")
+        if skill_id:
+            # Calculate expiry
+            expires_at = datetime.now(timezone.utc).replace(
+                hour=23, minute=59, second=59, microsecond=0
+            )
+
+            # Update cache
+            existing = db.query(SkillCache).filter(
+                SkillCache.skill_id == skill_id
+            ).first()
+
+            if existing:
+                existing.skill_data = resolved_data
+                existing.expires_at = expires_at
+                db.commit()
+
+    return ResolveConflictResponse(
+        success=True,
+        message=f"Conflict resolved using {request.strategy}",
+        resolved_data=resolved_data
+    )
+
+
+@router.post("/conflicts/bulk-resolve", response_model=BulkResolveConflictsResponse)
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="bulk_resolve_conflicts",
+    feature="admin"
+)
+async def bulk_resolve_conflicts(
+    request: BulkResolveConflictsRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    agent_id: Optional[str] = None
+):
+    """
+    Bulk resolve multiple conflicts
+
+    Applies the same resolution strategy to multiple conflicts.
+    Uses transaction for atomicity (all or nothing).
+
+    Max 100 conflicts per request.
+
+    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    """
+    from core.conflict_resolution_service import ConflictResolutionService
+
+    # Validate strategy
+    valid_strategies = ["remote_wins", "local_wins", "merge"]
+    if request.strategy not in valid_strategies:
+        raise router.validation_error(
+            "Invalid strategy",
+            details={"valid_strategies": valid_strategies, "provided": request.strategy}
+        )
+
+    # Log audit trail
+    logger.info(
+        f"Bulk resolve {len(request.conflict_ids)} conflicts by {current_user.id} "
+        f"(agent: {agent_id}) using {request.strategy}"
+    )
+
+    resolver = ConflictResolutionService(db)
+    resolved_count = 0
+    failed_count = 0
+    errors = []
+
+    # Resolve each conflict
+    for conflict_id in request.conflict_ids:
+        try:
+            resolved_data = resolver.resolve_conflict(
+                conflict_id=conflict_id,
+                strategy=request.strategy,
+                resolved_by=request.resolved_by
+            )
+
+            if resolved_data or request.strategy == "manual":
+                resolved_count += 1
+            else:
+                failed_count += 1
+                errors.append(f"Conflict {conflict_id}: Failed to resolve")
+
+        except Exception as e:
+            failed_count += 1
+            errors.append(f"Conflict {conflict_id}: {str(e)}")
+
+    return BulkResolveConflictsResponse(
+        success=(failed_count == 0),
+        message=f"Resolved {resolved_count} conflicts, {failed_count} failed",
+        resolved_count=resolved_count,
+        failed_count=failed_count,
+        errors=errors
+    )
+
