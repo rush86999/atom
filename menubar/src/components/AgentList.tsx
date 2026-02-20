@@ -3,9 +3,10 @@ import type { AgentSummary } from "../types";
 interface AgentListProps {
   agents: AgentSummary[];
   getMaturityColor: (maturity: string) => string;
+  onAgentClick?: (agent: AgentSummary) => void;
 }
 
-export default function AgentList({ agents, getMaturityColor }: AgentListProps) {
+export default function AgentList({ agents, getMaturityColor, onAgentClick }: AgentListProps) {
   if (agents.length === 0) {
     return (
       <div style={{ padding: "12px", color: "#888", fontSize: "12px" }}>
@@ -17,7 +18,13 @@ export default function AgentList({ agents, getMaturityColor }: AgentListProps) 
   return (
     <ul className="item-list">
       {agents.map((agent) => (
-        <li key={agent.id}>
+        <li
+          key={agent.id}
+          onClick={() => onAgentClick?.(agent)}
+          style={{
+            cursor: onAgentClick ? "pointer" : "default",
+          }}
+        >
           <div className="item-name">
             {agent.name}
             <span className={`badge ${getMaturityColor(agent.maturity_level)}`}>
