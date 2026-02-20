@@ -1,0 +1,88 @@
+# Docker Compose for End-to-End Testing
+# This configuration provides PostgreSQL and Redis services for E2E testing
+# Tests run on the host machine, connecting to containers for dependencies
+#
+# Quick Start:
+#   docker-compose -f docker-compose-e2e.yml up -d
+#   cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/e2e/ -v
+#   docker-compose -f docker-compose-e2e.yml down -v
+#
+# Features:
+#   - PostgreSQL 16 on port 5433 (avoids conflict with dev DB on 5432)
+#   - Redis (Valkey) on port 6380 (avoids conflict with dev Redis on 6379)
+#   - Health checks for service readiness
+#   - Automatic cleanup with docker-compose down -v
+
+services:
+  # PostgreSQL Database for E2E Testing
+  postgres-e2e:
+    image: postgres:16-alpine
+    container_name: atom-e2e-postgres
+    environment:
+      # Database credentials
+      - POSTGRES_DB=atom_e2e_test
+      - POSTGRES_USER=e2e_tester
+      - POSTGRES_PASSWORD=test_password
+
+      # Performance tuning for testing
+      - POSTGRES_SHARED_BUFFERS=256MB
+      - POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+      - POSTGRES_MAINTENANCE_WORK_MEM=128MB
+      - POSTGRES_WORK_MEM=16MB
+
+      # Logging (minimal for faster tests)
+      - POSTGRES_LOG_STATEMENT=none
+      - POSTGRES_LOG_MIN_DURATION_STATEMENT=-1
+
+    ports:
+      # Use 5433 to avoid conflict with development database on 5432
+      - "5433:5432"
+
+    volumes:
+      # Named volume for data persistence (can be destroyed with -v)
+      - postgres_e2e_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U e2e_tester -d atom_e2e_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+
+    network_mode: bridge
+
+  # Redis (Valkey) for WebSocket/PubSub Testing
+  # Valkey is a Linux Foundation project (LGPL-3.0) - 100% Redis protocol compatible
+  redis-e2e:
+    image: valkey/valkey:8
+    container_name: atom-e2e-redis
+    ports:
+      # Use 6380 to avoid conflict with development Redis on 6379
+      - "6380:6379"
+
+    # Redis/Valkey doesn't require persistent storage for E2E tests
+    # All data is flushed between tests
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+    restart: unless-stopped
+
+    network_mode: bridge
+
+# Named volumes for data persistence
+volumes:
+  postgres_e2e_data:
+    driver: local
+
+# Network configuration (using default bridge network)
+networks:
+  default:
+    name: atom-e2e-network
+    driver: bridge
