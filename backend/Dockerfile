@@ -1,71 +1,76 @@
-# Use multi-stage build for smaller image size
+# Source: https://docs.docker.com/build/cache/backends/gha/
+# Multi-stage build with layer caching optimization
+
 FROM python:3.11-slim as builder
 
-# Build argument for optional Docling OCR support
+# Build arguments for optional dependencies
 ARG ENABLE_DOCLING=false
+ARG ENVIRONMENT=production
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
     libpq-dev \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install core dependencies
-COPY requirements.txt .
-# Optimization: Install CPU-only torch first to avoid downloading huge CUDA binaries
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+# Copy requirements FIRST (before source code)
+# This layer is cached unless requirements.txt changes
+COPY requirements.txt requirements-testing.txt requirements-docling.txt* ./
+
+# Use BuildKit cache mount for pip cache
+# --mount=type=cache caches pip downloads across builds
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Optionally install Docling for advanced OCR
-COPY requirements-docling.txt* ./
-RUN if [ "$ENABLE_DOCLING" = "true" ] && [ -f requirements-docling.txt ]; then \
-    pip install --no-cache-dir -r requirements-docling.txt; \
+# Optional: Test dependencies (separate layer)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ -f requirements-testing.txt ]; then \
+        pip install --no-cache-dir -r requirements-testing.txt; \
     fi
 
-# Final stage
-FROM python:3.11-slim
+# Optional: Docling dependencies (separate layer, only if enabled)
+RUN if [ "$ENABLE_DOCLING" = "true" ] && [ -f requirements-docling.txt ]; then \
+        pip install --no-cache-dir -r requirements-docling.txt; \
+    fi
 
-WORKDIR /app
-
-# Install runtime dependencies
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
-    curl \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy installed packages from builder
-COPY --from=builder /usr/local /usr/local
-
-# Copy application code
+# Copy source code AFTER dependencies
+# This layer is rebuilt on every code change (but dependencies remain cached)
 COPY . .
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+# Create non-root user
+RUN useradd -m -u 1000 atomuser && \
+    chown -R atomuser:atomuser /app
 
-# Create directories for Personal Edition
-RUN mkdir -p /app/data/media/input \
-    /app/data/media/output \
-    /app/data/exports \
-    /app/data/lancedb \
-    /app/logs
+# Production stage
+FROM python:3.11-slim as production
 
-# Change ownership of the app directory to appuser
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
+# Copy Python dependencies from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code from builder stage
+COPY --from=builder --chown=atomuser:atomuser /app /app
+
+# Set working directory and user
+WORKDIR /app
+USER atomuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health/live || exit 1
-
-# Run with Gunicorn
-CMD ["gunicorn", "-c", "gunicorn_conf.py", "main_api_app:app"]
+# Run application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
