@@ -1,6 +1,6 @@
 /**
  * Mobile App Navigation Structure
- * Defines all navigation routes and tab navigation
+ * Defines all navigation routes and tab navigation for authenticated users
  */
 
 import React from 'react';
@@ -16,7 +16,12 @@ import { WorkflowTriggerScreen } from '../screens/workflows/WorkflowTriggerScree
 import { ExecutionProgressScreen } from '../screens/workflows/ExecutionProgressScreen';
 import { WorkflowLogsScreen } from '../screens/workflows/WorkflowLogsScreen';
 import { AnalyticsDashboardScreen } from '../screens/analytics/AnalyticsDashboardScreen';
+import { AgentListScreen } from '../screens/agent/AgentListScreen';
+import { AgentChatScreen } from '../screens/agent/AgentChatScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
+
+// Placeholder for ChatTabScreen (to be implemented in Task 07)
+const ChatTabScreen = () => null;
 
 // Stack Navigator for Workflows
 const WorkflowStack = createNativeStackNavigator();
@@ -105,6 +110,78 @@ function AnalyticsStackNavigator() {
   );
 }
 
+// Stack Navigator for Agents
+const AgentStack = createNativeStackNavigator();
+
+function AgentStackNavigator() {
+  return (
+    <AgentStack.Navigator
+      initialRouteName="AgentList"
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#2196F3',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <AgentStack.Screen
+        name="AgentList"
+        component={AgentListScreen}
+        options={{
+          title: 'Agents',
+          headerShown: false,
+        }}
+      />
+      <AgentStack.Screen
+        name="AgentChat"
+        component={AgentChatScreen}
+        options={{
+          title: 'Chat',
+        }}
+      />
+    </AgentStack.Navigator>
+  );
+}
+
+// Stack Navigator for Chat
+const ChatStack = createNativeStackNavigator();
+
+function ChatStackNavigator() {
+  return (
+    <ChatStack.Navigator
+      initialRouteName="ChatTab"
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#2196F3',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <ChatStack.Screen
+        name="ChatTab"
+        component={ChatTabScreen}
+        options={{
+          title: 'Chat',
+          headerShown: false,
+        }}
+      />
+      <ChatStack.Screen
+        name="AgentChat"
+        component={AgentChatScreen}
+        options={{
+          title: 'Chat',
+        }}
+      />
+    </ChatStack.Navigator>
+  );
+}
+
 // Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
 
@@ -120,8 +197,10 @@ export function AppNavigator() {
               iconName = focused ? 'flash' : 'flash-outline';
             } else if (route.name === 'AnalyticsTab') {
               iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-            } else if (route.name === 'TemplatesTab') {
-              iconName = focused ? 'copy' : 'copy-outline';
+            } else if (route.name === 'AgentsTab') {
+              iconName = focused ? 'people' : 'people-outline';
+            } else if (route.name === 'ChatTab') {
+              iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
             } else if (route.name === 'SettingsTab') {
               iconName = focused ? 'settings' : 'settings-outline';
             } else {
@@ -158,10 +237,17 @@ export function AppNavigator() {
           }}
         />
         <Tab.Screen
-          name="TemplatesTab"
-          component={WorkflowStackNavigator} // Re-use for now, will be TemplatesScreen later
+          name="AgentsTab"
+          component={AgentStackNavigator}
           options={{
-            tabBarLabel: 'Templates',
+            tabBarLabel: 'Agents',
+          }}
+        />
+        <Tab.Screen
+          name="ChatTab"
+          component={ChatStackNavigator}
+          options={{
+            tabBarLabel: 'Chat',
           }}
         />
         <Tab.Screen
@@ -180,7 +266,8 @@ export function AppNavigator() {
 export type RootStackParamList = {
   WorkflowsTab: undefined;
   AnalyticsTab: undefined;
-  TemplatesTab: undefined;
+  AgentsTab: undefined;
+  ChatTab: undefined;
   SettingsTab: undefined;
 };
 
@@ -194,6 +281,16 @@ export type WorkflowStackParamList = {
 
 export type AnalyticsStackParamList = {
   AnalyticsDashboard: undefined;
+};
+
+export type AgentStackParamList = {
+  AgentList: undefined;
+  AgentChat: { agentId: string; agentName?: string };
+};
+
+export type ChatStackParamList = {
+  ChatTab: undefined;
+  AgentChat: { agentId: string; conversationId?: string };
 };
 
 export default AppNavigator;
