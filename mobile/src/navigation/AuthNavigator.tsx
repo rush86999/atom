@@ -17,17 +17,13 @@ import * as Linking from 'expo-linking';
 // Context
 import { useAuth } from '../contexts/AuthContext';
 
-// Screen Imports (to be created in subsequent tasks)
-// import { LoginScreen } from '../screens/auth/LoginScreen';
-// import { RegisterScreen } from '../screens/auth/RegisterScreen';
-// import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
-// import { BiometricAuthScreen } from '../screens/auth/BiometricAuthScreen';
+// Screen Imports
+import { LoginScreen } from '../screens/auth';
 import { AppNavigator } from './AppNavigator';
 
 const Stack = createNativeStackNavigator();
 
 // Placeholder screens until implemented in subsequent tasks
-const LoginScreen = () => null;
 const RegisterScreen = () => null;
 const ForgotPasswordScreen = () => null;
 const BiometricAuthScreen = () => null;
