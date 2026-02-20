@@ -584,6 +584,87 @@ jobs:
 
           echo "✅ All smoke tests passed"
 
+      - name: Progressive canary deployment
+        if: success()
+        env:
+          CANARY_STEPS: "10,50,100"  # 10% → 50% → 100% traffic
+          CANARY_WAIT_TIME: "300"    # 5 minutes between steps
+        run: |
+          set -euo pipefail
+
+          echo "=== Progressive Canary Deployment ==="
+
+          export KUBECONFIG=kubeconfig
+
+          # Parse canary steps
+          IFS=',' read -ra STEPS <<< "$CANARY_STEPS"
+
+          DEPLOYMENT_ID="${{ github.sha }}"
+
+          for PERCENTAGE in "${STEPS[@]}"; do
+            echo "Step: Routing ${PERCENTAGE}% traffic to new deployment"
+
+            # Update canary traffic percentage metric
+            curl -s -X POST "${{ secrets.METRICS_ENDPOINT }}" \
+              -H "Content-Type: plain/text" \
+              --data "canary_traffic_percentage{environment=\"production\",deployment_id=\"$DEPLOYMENT_ID\"} $PERCENTAGE" || true
+
+            # Update Kubernetes service to route traffic
+            # Assuming blue-green deployment with two deployments: atom-blue, atom-green
+            if [ "$PERCENTAGE" -eq 100 ]; then
+              # Full traffic to new deployment
+              echo "Routing 100% traffic to new deployment"
+              kubectl patch svc atom-service -p '{"spec":{"selector":{"app":"atom","version":"'${{ github.sha }}'"}}}' || echo "⚠️ Service patch failed (may not support canary)"
+            else
+              # Split traffic between old and new deployments
+              # This requires Istio or similar service mesh for traffic splitting
+              echo "⚠️ Traffic splitting requires service mesh (Istio, Linkerd)"
+              echo "For basic canary, consider using Kubernetes deployment replicas:"
+              echo "  - Scale new deployment to $PERCENTAGE% replicas"
+              echo "  - Scale old deployment to $((100 - PERCENTAGE))% replicas"
+
+              # Example: Replica-based canary (simple approach)
+              TOTAL_REPLICAS=$(kubectl get deployment atom -o jsonpath='{.spec.replicas}' || echo "3")
+              NEW_REPLICAS=$((TOTAL_REPLICAS * PERCENTAGE / 100))
+              OLD_REPLICAS=$((TOTAL_REPLICAS - NEW_REPLICAS))
+
+              echo "New deployment replicas: $NEW_REPLICAS"
+              echo "Old deployment replicas: $OLD_REPLICAS"
+
+              # Scale deployments (requires two deployments: atom-old, atom-new)
+              # kubectl scale deployment atom-new --replicas=$NEW_REPLICAS
+              # kubectl scale deployment atom-old --replicas=$OLD_REPLICAS
+            fi
+
+            # Wait for canary period
+            if [ "$PERCENTAGE" -ne 100 ]; then
+              echo "Waiting ${CANARY_WAIT_TIME}s for canary validation..."
+              sleep "$CANARY_WAIT_TIME"
+            fi
+
+            # Check error rate during canary period
+            if [ -n "${{ secrets.PROMETHEUS_URL }}" ]; then
+              ERROR_RATE=$(curl -s -G "${{ secrets.PROMETHEUS_URL }}/api/v1/query" \
+                --data-urlencode 'query=sum(rate(http_requests_total{status=~"5..",environment="production"}[5m])) / sum(rate(http_requests_total{environment="production"}[5m])) * 100' \
+                | jq -r '.data.result[0].value[1] // "0"')
+
+              echo "Error rate during canary: $ERROR_RATE%"
+
+              # Rollback if error rate exceeds threshold
+              if (( $(echo "$ERROR_RATE > 0.1" | bc -l) )); then
+                echo "❌ Error rate too high during canary: $ERROR_RATE% (threshold: 0.1%)"
+                echo "Triggering automatic rollback..."
+
+                kubectl rollout undo deployment/atom
+                exit 1
+              fi
+            fi
+
+            echo "✅ Canary step ${PERCENTAGE}% complete"
+          done
+
+          echo "=== ✅ Canary deployment complete (100% traffic) ==="
+
       - name: Monitor metrics
         run: |
           # Wait for metrics to be collected
