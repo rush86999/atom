@@ -14,6 +14,7 @@ except ImportError:
     AsyncOpenAI = None
 
 from core.byok_endpoints import get_byok_manager
+from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,11 @@ class BYOKHandler:
         self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
         self._initialize_clients()
+
+        # Initialize cache-aware router for cost optimization
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        from core.llm.cache_aware_router import CacheAwareRouter
+        self.cache_router = CacheAwareRouter(get_pricing_fetcher())
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
@@ -293,18 +299,38 @@ class BYOKHandler:
         raise ValueError("No LLM providers available. Please configure BYOK keys.")
 
     def get_ranked_providers(
-        self, 
-        complexity: QueryComplexity, 
+        self,
+        complexity: QueryComplexity,
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         tenant_plan: str = "free",
         is_managed_service: bool = True,
         requires_tools: bool = False, # Phase 6.6
-        requires_structured: bool = False # Phase 6.6
+        requires_structured: bool = False, # Phase 6.6
+        estimated_tokens: int = 1000, # Cache-aware routing
+        workspace_id: str = "default", # Cache-aware routing
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
         This objectively ranks models based on their value proposition.
+
+        Cache-Aware Extension:
+        When estimated_tokens and workspace_id are provided, uses cache-aware effective cost
+        calculation to prioritize models with good prompt caching support.
+
+        Args:
+            complexity: Query complexity level
+            task_type: Optional task type hint
+            prefer_cost: Whether to prefer cost over quality
+            tenant_plan: Tenant plan for model restrictions
+            is_managed_service: Whether this is managed service or BYOK
+            requires_tools: Whether model must support tool calling
+            requires_structured: Whether model must support structured output
+            estimated_tokens: Estimated input token count (for cache hit prediction)
+            workspace_id: Workspace ID for cache history lookup
+
+        Returns:
+            List of (provider, model) tuples ranked by value score
         """
         ranked_options = []
         
@@ -353,16 +379,23 @@ class BYOKHandler:
                 quality_score = get_quality_score(model_id)
                 if quality_score < min_quality:
                     continue
-                
-                # Calculate BPC Value Score
+
+                # Calculate BPC Value Score with Cache-Aware Cost
                 # Value = (Quality^2) / Cost. We use 1e6 to make costs readable.
-                input_cost = pricing.get("input_cost_per_token", 0.00001)
-                output_cost = pricing.get("output_cost_per_token", 0.00001)
-                avg_cost = (input_cost + output_cost) / 2
-                
+
+                # Generate prompt hash for cache prediction
+                import hashlib
+                prompt_hash = hashlib.sha256(f"{workspace_id}:{model_id}".encode()).hexdigest()
+                cache_hit_prob = self.cache_router.predict_cache_hit_probability(prompt_hash, workspace_id)
+
+                # Calculate cache-aware effective cost
+                effective_cost = self.cache_router.calculate_effective_cost(
+                    model_id, active_provider, estimated_tokens, cache_hit_prob
+                )
+
                 # Avoid division by zero and handle free models
-                normalized_cost = max(avg_cost, 1e-9) 
-                
+                normalized_cost = max(effective_cost, 1e-9)
+
                 # BPC Score: Higher is better value
                 # Squaring quality penalizes low-end models regardless of price for complex tasks
                 value_score = (quality_score ** 2) / (normalized_cost * 1e6)
@@ -671,7 +704,28 @@ class BYOKHandler:
                                 logger.info(f"LLM Cost Attributed ({'Managed' if is_managed else 'BYOK'}): {model} - ${cost:.6f} (Saved: ${savings_usd:.6f})")
                         except Exception as cost_err:
                             logger.warning(f"Could not attribute LLM cost: {cost_err}")
-                    
+
+                        # --- Cache Outcome Recording (Phase 68) ---
+                        # Record whether the request hit the prompt cache for future predictions
+                        try:
+                            import hashlib
+                            prompt_hash = hashlib.sha256(f"{self.workspace_id}:{provider_id}:{model}".encode()).hexdigest()
+
+                            # Check if response usage includes caching info
+                            was_cached = False
+                            if hasattr(usage, 'prompt_cache_hit_tokens'):
+                                # Anthropic provides explicit cache hit token count
+                                was_cached = getattr(usage, 'prompt_cache_hit_tokens', 0) > 0
+                            elif hasattr(response, 'cache_controls'):
+                                # OpenAI provides cache controls in response
+                                was_cached = True  # If cache controls were present, it was cached
+
+                            # Record outcome for future predictions
+                            self.cache_router.record_cache_outcome(prompt_hash, self.workspace_id, was_cached)
+                            logger.debug(f"Cache outcome recorded: {prompt_hash[:16]} -> {was_cached}")
+                        except Exception as cache_err:
+                            logger.debug(f"Could not record cache outcome: {cache_err}")
+
                     # Log for analytics
                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
                     return result
