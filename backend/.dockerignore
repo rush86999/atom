@@ -1,34 +1,98 @@
-# Exclude virtual environments
-venv/
-.venv/
-env/
-.env/
+# Git
+.git
+.gitignore
+.github
 
-# Exclude Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info
+dist
+build
+.eggs
+.pip-cache
+.pip
+.pytest_cache
+.mypy_cache
+.coverage
+.cover
+*.cover
+htmlcov
+.tox
+.venv
+venv
+env
+ENV
+env.bak
+venv.bak
+
+# Development
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+tests
+test_*.py
+*_test.py
+.pytest_cache
+coverage.xml
+*.cover
 .coverage
 htmlcov/
 
-# Exclude data and logs
-*.log
+# Documentation
+docs
+*.md
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+circle.yml
+.circleci
+codecov.yml
+
+# Planning
+.planning
+
+# Data files
 data/
-lancedb/
-lancedb+file:/
-*.sqlite
-*.db
+*.csv
+*.json
+*.xlsx
+*.parquet
 
-# Exclude IDE and OS files
-.vscode/
-.idea/
+# LanceDB (not needed in container)
+data/lancedb/
+*.lance
+
+# Alembic (not needed in production image)
+alembic/versions/*.pyc
+alembic/versions/__pycache__
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
 .DS_Store
-.git/
-.github/
 
-# Exclude massive test reports
+# Comprehensive test reports (exclude from build context)
 comprehensive_e2e_validation_report_*.json
 complex_workflow_bugs_*.json
 service_health_report_*.json
