@@ -9,8 +9,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 Phase: 66-personal-edition-enhancements
-Plan: 04 COMPLETE
-Status: Phase 66-04 EXECUTION COMPLETE - Local-First Privacy Architecture (5 tasks, 6 files created, 2 files modified, 10 min). Implemented local-first privacy architecture with encrypted token storage, local-only mode enforcement, and comprehensive audit logging. Created LocalOnlyGuard service (417 lines) with singleton pattern, blocks 23 cloud services (Spotify, Notion, OpenAI, etc.) when ATOM_LOCAL_ONLY=true, allows 18 local services (Sonos, Hue, Home Assistant, FFmpeg). Created token_encryption utilities (494 lines) with Fernet symmetric encryption, key management, rotation support, and backward compatibility. Created AuditLogger (545 lines) with structured JSON logging, daily rotation, gzip compression, 90-day retention. Created core.privsec package (104 lines) exporting all security utilities. Added LocalOnlyModeError exception to core.models (44 lines). Updated .env.personal with local-only mode, encryption keys, audit logging, and privacy documentation (29 lines). Package renamed from security/ to privsec/ to avoid conflict with existing core/security.py file. 5 atomic commits (b5f1f5b8, 31d59ce9, 0be93166, 2064bf58, fd3faea1).
+Plan: 05 COMPLETE
+Status: Phase 66-05 EXECUTION COMPLETE - Notion Integration (4 tasks, 4 files, 15 min). Implemented Notion API integration with OAuth 2.0 authentication, database querying, page CRUD operations, and read/write governance enforcement. Created NotionService (772 lines) with official notion-sdk-py client, OAuth flow, workspace search, database query with pagination, page CRUD, rate limiting (3 req/s), block content extraction. Created NotionTool (477 lines) with async interface, INTERN+ read/SUPERVISED+ write maturity gates, GovernanceCache integration, LocalOnlyGuard enforcement, 9 Notion actions. Created productivity REST API (598 lines, 10 endpoints): OAuth authorize/callback, workspace search, database list/query/schema, page get/create/update/append. Extended OAuthToken model with Notion workspace fields (workspace_id, workspace_name, workspace_icon, bot_id, owner, extra_data). Fixed 6 bugs during execution (BaseTool import, get_current_user path, Pydantic field shadowing, SQLAlchemy metadata reserved name, NotionService field usage, datetime syntax). 4 atomic commits (2c4d1c12, 1419bd12, 5858903f).
 
 Previous: Phase 68-06 COMPLETE
 
@@ -163,6 +163,7 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 | Phase 68 P03 | 13 | 4 tasks | 5 files |
 | Phase 68 P08 | 10 | 3 tasks | 3 files |
 | Phase 66 P01 | 15min | 6 tasks | 8 files |
+| Phase 66 P05 | 15 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,10 @@ Recent decisions affecting current work:
 - [Phase 66]: File security boundaries with allowed directories whitelist and path traversal prevention
 - [Phase 66]: Codec copy for fast video trimming (no re-encoding when possible)
 - [Phase 66]: Job status tracking model (FFmpegJob) for audit trail and debugging
+- [Phase 66]: Notion tokens don't expire - set expires_at to 2099-12-31 for permanent access
+- [Phase 66]: INTERN+ maturity for Notion read operations, SUPERVISED+ for write operations
+- [Phase 66]: Notion blocked in local-only mode (requires cloud API)
+- [Phase 66]: Individual OAuthToken fields instead of nested metadata (metadata reserved in SQLAlchemy)
 
 ### Pending Todos
 
@@ -276,8 +281,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20 19:54
-Stopped at: Phase 66-04 COMPLETE - Local-First Privacy Architecture
+Last session: 2026-02-20 19:58
+Stopped at: Phase 66-05 COMPLETE - Notion Integration
 Resume file: None
 
 ---
