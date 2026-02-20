@@ -1240,6 +1240,36 @@ class SkillRating(Base):
         return f"<{self.__class__.__name__}(skill_id={self.skill_id}, user_id={self.user_id}, rating={self.rating}, synced={self.synced_to_saas})>"
 
 
+class FailedRatingUpload(Base):
+    """
+    Dead letter queue for failed rating uploads to Atom SaaS.
+
+    Stores failed uploads for manual inspection and retry.
+    Tracks retry count and timestamps for monitoring.
+
+    Phase 61 Plan 02 - Rating Sync Dead Letter Queue
+    """
+    __tablename__ = "failed_rating_uploads"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    rating_id = Column(String(36), ForeignKey("skill_ratings.id"), nullable=False)
+    error_message = Column(Text, nullable=False)
+    failed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    retry_count = Column(Integer, default=0, nullable=False)
+    last_retry_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    rating = relationship("SkillRating", backref=backref("failed_uploads", uselist=True))
+
+    __table_args__ = (
+        Index('idx_failed_rating_uploads_rating_id', 'rating_id'),
+        Index('idx_failed_rating_uploads_failed_at', 'failed_at'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(rating_id={self.rating_id}, retries={self.retry_count})>"
+
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).
