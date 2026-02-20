@@ -5,12 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment.
-**Current focus:** Phase 64 - E2E Test Suite (Real Service Integration)
+**Current focus:** Phase 66 - Personal Edition Enhancements (Media Control & Smart Home)
 
 ## Current Position
-Phase: 68-byok-cognitive-tier-system
-Plan: 06 COMPLETE
-Status: Phase 68-06 EXECUTION COMPLETE - CognitiveTierService Orchestration (3 tasks, 3 files, 20 min). Created CognitiveTierService orchestration layer integrating classifier, cache-aware router, and escalation manager with workspace preferences and budget constraints. cognitive_tier_service.py (521 lines) with 7 core methods: select_tier() (classification + preferences), get_optimal_model() (cache-aware routing), calculate_request_cost() (token estimation + cache discount), check_budget_constraint() (monthly + per-request limits), handle_escalation() (auto-escalation), get_workspace_preference() (DB loading), record_cache_outcome() (cache tracking). BYOKHandler integration (193 lines) with generate_with_cognitive_tier() async method implementing full pipeline: tier selection → budget check → model selection → generation → escalation loop (max 2 attempts). Comprehensive test suite (554 lines, 28 tests, 100% pass rate, 88% coverage) covering tier selection (5), model selection (4), cost calculation (4), budget constraints (3), escalation handling (4), BYOK integration (6), performance (2). Performance targets met: select_tier <20ms, get_optimal_model <50ms (both <100ms target). Zero breaking changes (opt-in integration). Service orchestration diagram validates end-to-end flow. 3 atomic commits (cfb1783c, b20ca157, 835240f4).
+Phase: 66-personal-edition-enhancements
+Plan: 01 COMPLETE
+Status: Phase 66-01 EXECUTION COMPLETE - Spotify Web API and Sonos Speaker Control (6 tasks, 8 files, 15 min). Implemented Spotify OAuth 2.0 integration with encrypted token storage using existing OAuthToken model. Created SpotifyService (540 lines) with authorization flow, token refresh, and playback control (play, pause, skip next/previous, volume, devices). Created SonosService (336 lines) with SoCo library integration for SSDP/mDNS speaker discovery and group management. Created media_tool.py (468 lines) with governance-enforced async functions (7 Spotify, 5 Sonos). SUPERVISED+ maturity required for control operations, INTERN+ for read-only. Created REST API endpoints (504 lines, 14 endpoints) with Pydantic models. Registered router in main_api_app.py. Added spotipy>=2.24.0 and SoCo>=0.31.0 to requirements.txt. Added needs_refresh() method to OAuthToken model for proactive token refresh. 7 atomic commits (a0c7a889, f65620f5, 1b35020c, 5f943710, c8e78575, 261e1e83, 415c63c7).
+
+Previous: Phase 68-06 COMPLETE
 
 Previous: Phase 65-08 COMPLETE
 
@@ -160,6 +162,7 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 | Phase 68 P04 | 8 | 4 tasks | 5 files |
 | Phase 68 P03 | 13 | 4 tasks | 5 files |
 | Phase 68 P08 | 10 | 3 tasks | 3 files |
+| Phase 66 P01 | 15min | 6 tasks | 8 files |
 
 ## Accumulated Context
 
