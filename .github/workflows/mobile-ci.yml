@@ -1,0 +1,303 @@
+name: Mobile CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  workflow_dispatch:
+    inputs:
+      build_profile:
+        description: 'EAS build profile'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+          - production-testflight
+          - production-play-internal
+
+env:
+  NODE_VERSION: '18.x'
+  EXPO_CLI_VERSION: '7.0.0'
+  EAS_CLI_VERSION: '7.0.0'
+
+jobs:
+  # ============================================================================
+  # Test Job
+  # ============================================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./mobile
+        run: npm run lint --if-present
+
+      - name: Run TypeScript type check
+        working-directory: ./mobile
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        working-directory: ./mobile
+        run: npm test -- --coverage --maxWorkers=2
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./mobile/coverage/lcov.info
+          flags: mobile
+          name: mobile-coverage
+          fail_ci_if_error: false
+
+      - name: Check test coverage threshold
+        working-directory: ./mobile
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "Coverage below 70% threshold"
+            exit 1
+          fi
+
+  # ============================================================================
+  # Build Job - iOS
+  # ============================================================================
+  build-ios:
+    name: Build iOS
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli@${{ env.EAS_CLI_VERSION }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Determine build profile
+        id: profile
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "profile=${{ github.event.inputs.build_profile }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "profile=production" >> $GITHUB_OUTPUT
+          else
+            echo "profile=development" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build iOS with EAS
+        working-directory: ./mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform ios \
+            --profile ${{ steps.profile.outputs.profile }} \
+            --non-interactive \
+            --output ./build-ios.tar.gz
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build-${{ steps.profile.outputs.profile }}
+          path: mobile/build-ios.tar.gz
+          retention-days: 30
+
+  # ============================================================================
+  # Build Job - Android
+  # ============================================================================
+  build-android:
+    name: Build Android
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli@${{ env.EAS_CLI_VERSION }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Determine build profile
+        id: profile
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "profile=${{ github.event.inputs.build_profile }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "profile=production" >> $GITHUB_OUTPUT
+          else
+            echo "profile=development" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Android with EAS
+        working-directory: ./mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android \
+            --profile ${{ steps.profile.outputs.profile }} \
+            --non-interactive \
+            --output ./build-android.apk
+
+      - name: Upload Android build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-build-${{ steps.profile.outputs.profile }}
+          path: mobile/build-android.apk
+          retention-days: 30
+
+  # ============================================================================
+  # Deploy to TestFlight (on tag)
+  # ============================================================================
+  deploy-testflight:
+    name: Deploy to TestFlight
+    needs: build-ios
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli@${{ env.EAS_CLI_VERSION }}
+
+      - name: Submit to TestFlight
+        working-directory: ./mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          eas submit --platform ios \
+            --profile production \
+            --non-interactive \
+            --latest
+
+  # ============================================================================
+  # Deploy to Google Play Internal (on tag)
+  # ============================================================================
+  deploy-play-internal:
+    name: Deploy to Google Play Internal
+    needs: build-android
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli@${{ env.EAS_CLI_VERSION }}
+
+      - name: Create Google Play service account JSON
+        run: |
+          echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > mobile/google-service-account.json
+
+      - name: Submit to Google Play Internal
+        working-directory: ./mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas submit --platform android \
+            --profile production \
+            --non-interactive \
+            --latest
+
+      - name: Cleanup service account file
+        run: rm mobile/google-service-account.json
+
+  # ============================================================================
+  # Notify on failure
+  # ============================================================================
+  notify-failure:
+    name: Notify on Failure
+    needs: [test, build-ios, build-android]
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Mobile CI/CD Pipeline Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *Mobile CI/CD Pipeline Failed*\n\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref }}\n*Commit:* ${{ github.sha }}\n*Actor:* ${{ github.actor }}\n*Workflow:* ${{ github.workflow }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow Run",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": "View Commit",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
