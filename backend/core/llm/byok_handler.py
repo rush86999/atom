@@ -135,6 +135,17 @@ class BYOKHandler:
         from core.llm.cache_aware_router import CacheAwareRouter
         self.cache_router = CacheAwareRouter(get_pricing_fetcher())
 
+        # Phase 68-06: Initialize Cognitive Tier Service for orchestration
+        from core.database import get_db_session
+        try:
+            self.db_session = get_db_session().__enter__()  # Get session for service
+        except Exception as e:
+            logger.warning(f"Could not create database session for tier service: {e}")
+            self.db_session = None
+
+        from core.llm.cognitive_tier_service import CognitiveTierService
+        self.tier_service = CognitiveTierService(workspace_id, self.db_session)
+
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
         if not OpenAI:
@@ -774,6 +785,188 @@ class BYOKHandler:
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             return f"Error generating response: {str(e)}"
+
+    async def generate_with_cognitive_tier(
+        self,
+        prompt: str,
+        system_instruction: str = "You are a helpful assistant.",
+        task_type: Optional[str] = None,
+        user_tier_override: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        image_payload: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate response using full cognitive tier pipeline.
+
+        Phase 68-06: Integrates CognitiveTierService for end-to-end intelligent routing.
+
+        Pipeline:
+        1. Select cognitive tier (classification + workspace preferences)
+        2. Check budget constraints (monthly + per-request)
+        3. Get optimal model (cache-aware cost scoring)
+        4. Generate with automatic escalation on quality issues
+
+        Args:
+            prompt: The user query
+            system_instruction: System prompt for the LLM
+            task_type: Optional task type hint (code, chat, analysis, etc.)
+            user_tier_override: Optional user-specified tier (bypasses classification)
+            agent_id: Optional agent ID for cost tracking
+            image_payload: Optional base64/URL image for multimodal input
+
+        Returns:
+            Dictionary with keys:
+            - response: Generated text response
+            - tier: Cognitive tier used
+            - provider: Provider ID used
+            - model: Model name used
+            - cost_cents: Estimated cost in cents
+            - escalated: Whether escalation occurred
+
+        Example:
+            >>> handler = BYOKHandler()
+            >>> result = await handler.generate_with_cognitive_tier(
+            ...     "explain quantum computing",
+            ...     task_type="analysis"
+            ... )
+            >>> print(result["response"])
+            >>> print(f"Tier: {result['tier']}, Model: {result['model']}")
+        """
+        import uuid
+        request_id = str(uuid.uuid4())
+
+        # Phase 68-06: Step 1 - Select tier using CognitiveTierService
+        tier = self.tier_service.select_tier(prompt, task_type, user_tier_override)
+
+        # Phase 68-06: Step 2 - Check budget constraints
+        estimated_cost = self.tier_service.calculate_request_cost(prompt, tier, None)
+        if not self.tier_service.check_budget_constraint(estimated_cost.get('cost_cents', 0)):
+            logger.warning(f"Budget exceeded for request {request_id}")
+            return {
+                "error": "Budget exceeded",
+                "tier": tier.value,
+                "estimated_cost_cents": estimated_cost.get('cost_cents', 0)
+            }
+
+        # Phase 68-06: Step 3 - Get optimal model (cache-aware)
+        estimated_tokens = len(prompt) // 4
+        requires_tools = agent_id is not None or task_type == "agentic"
+
+        provider_id, model = self.tier_service.get_optimal_model(
+            tier, estimated_tokens, requires_tools
+        )
+
+        if not provider_id or not model:
+            logger.warning(f"No models available for tier: {tier.value}")
+            return {
+                "error": "No models available for this tier",
+                "tier": tier.value
+            }
+
+        # Phase 68-06: Step 4 - Generate with escalation loop
+        current_tier = tier
+        max_escalations = 2
+        escalated = False
+
+        for attempt in range(max_escalations + 1):
+            try:
+                # Generate response
+                response = await self.generate_response(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    model_type=model,  # Use specific model from tier service
+                    task_type=task_type,
+                    agent_id=agent_id,
+                    image_payload=image_payload
+                )
+
+                # Phase 68-06: Step 5 - Check for escalation
+                should_escalate, reason, target_tier = self.tier_service.handle_escalation(
+                    current_tier, None, None, False, request_id
+                )
+
+                if not should_escalate:
+                    # Success - return response with metadata
+                    return {
+                        "response": response,
+                        "tier": current_tier.value,
+                        "provider": provider_id,
+                        "model": model,
+                        "cost_cents": estimated_cost.get('cost_cents', 0),
+                        "escalated": escalated,
+                        "request_id": request_id
+                    }
+
+                # Escalate and retry
+                logger.info(
+                    f"Escalating request {request_id} from {current_tier.value} "
+                    f"to {target_tier.value} (reason: {reason.value})"
+                )
+                current_tier = target_tier
+                escalated = True
+
+                # Get new model for escalated tier
+                provider_id, model = self.tier_service.get_optimal_model(
+                    current_tier, estimated_tokens, requires_tools
+                )
+
+                if not provider_id or not model:
+                    logger.warning(f"No models available for escalated tier: {current_tier.value}")
+                    # Return response from previous attempt
+                    return {
+                        "response": response,
+                        "tier": tier.value,
+                        "provider": provider_id,
+                        "model": model,
+                        "cost_cents": estimated_cost.get('cost_cents', 0),
+                        "escalated": escalated,
+                        "request_id": request_id
+                    }
+
+            except Exception as e:
+                # Check for rate limit escalation
+                is_rate_limited = "rate limit" in str(e).lower()
+
+                should_escalate, reason, target_tier = self.tier_service.handle_escalation(
+                    current_tier, None, str(e), is_rate_limited, request_id
+                )
+
+                if should_escalate and target_tier and attempt < max_escalations:
+                    logger.warning(
+                        f"Escalating request {request_id} due to error: {reason.value}"
+                    )
+                    current_tier = target_tier
+                    escalated = True
+
+                    # Get new model for escalated tier
+                    provider_id, model = self.tier_service.get_optimal_model(
+                        current_tier, estimated_tokens, requires_tools
+                    )
+
+                    if not provider_id or not model:
+                        # No fallback available - return error
+                        return {
+                            "error": str(e),
+                            "tier": current_tier.value,
+                            "escalated": escalated
+                        }
+
+                    continue  # Retry with escalated tier
+
+                # Max escalations reached or non-escalatable error
+                logger.error(f"Generation failed after {attempt + 1} attempts: {e}")
+                return {
+                    "error": str(e),
+                    "tier": current_tier.value,
+                    "escalated": escalated
+                }
+
+        # Should not reach here, but return last response if loop completes
+        return {
+            "response": "Max escalation limit reached",
+            "tier": current_tier.value,
+            "escalated": escalated
+        }
 
     async def generate_structured_response(
         self,
