@@ -47,6 +47,9 @@ services:
       - LANCEDB_PATH=./data/lancedb
       - ENABLE_LANCEDB=true
 
+      # Creative tools (Phase 66-03) - FFmpeg allowed directories
+      - FFMPEG_ALLOWED_DIRS=/app/data/media,/app/data/exports
+
       # Redis-compatible database for agent communication (Valkey)
       - REDIS_URL=redis://valkey:6379
 
