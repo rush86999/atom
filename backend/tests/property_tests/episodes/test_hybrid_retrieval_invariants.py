@@ -36,9 +36,9 @@ class TestRecallAtK:
     """
 
     @pytest.fixture
-    def service(self, db):
+    def service(self, db_session):
         """Create HybridRetrievalService."""
-        return HybridRetrievalService(db)
+        return HybridRetrievalService(db_session)
 
     @given(
         query=text(min_size=5, max_size=100).filter(lambda x: x.strip()),
@@ -47,7 +47,7 @@ class TestRecallAtK:
     @settings(max_examples=20)
     @pytest.mark.asyncio
     async def test_recall_at_10_gt_90_percent_mocked(
-        self, service, db, query, num_episodes
+        self, service, db_session, query, num_episodes
     ):
         """
         Recall@10 >90% invariant (mocked).
@@ -59,7 +59,7 @@ class TestRecallAtK:
         """
         # Create agent
         agent = AgentFactory()
-        db.commit()
+        db_session.commit()
 
         # Simulate episodes with relevance grades
         episodes = []
@@ -79,7 +79,7 @@ class TestRecallAtK:
                 episode._test_relevance = 0.0  # Irrelevant
             episodes.append(episode)
 
-        db.commit()
+        db_session.commit()
 
         # Mock retrieval to return top results
         from unittest.mock import AsyncMock, patch
@@ -127,9 +127,9 @@ class TestNDCGAtK:
     """
 
     @pytest.fixture
-    def service(self, db):
+    def service(self, db_session):
         """Create HybridRetrievalService."""
-        return HybridRetrievalService(db)
+        return HybridRetrievalService(db_session)
 
     @given(
         query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
@@ -138,7 +138,7 @@ class TestNDCGAtK:
     @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_ndcg_at_10_gt_085_mocked(
-        self, service, db, query, num_episodes
+        self, service, db_session, query, num_episodes
     ):
         """
         NDCG@10 >0.85 invariant (mocked).
@@ -150,7 +150,7 @@ class TestNDCGAtK:
         """
         # Create agent
         agent = AgentFactory()
-        db.commit()
+        db_session.commit()
 
         # Create episodes with known relevance grades (0-3)
         episodes = []
@@ -166,7 +166,7 @@ class TestNDCGAtK:
             episode._test_relevance_grade = relevance_grade
             episodes.append(episode)
 
-        db.commit()
+        db_session.commit()
 
         # Mock retrieval to return sorted results (best first)
         sorted_episodes = sorted(episodes, key=lambda ep: ep._test_relevance_grade, reverse=True)
@@ -211,9 +211,9 @@ class TestMonotonicImprovement:
     """
 
     @pytest.fixture
-    def service(self, db):
+    def service(self, db_session):
         """Create HybridRetrievalService."""
-        return HybridRetrievalService(db)
+        return HybridRetrievalService(db_session)
 
     @given(
         query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
@@ -222,7 +222,7 @@ class TestMonotonicImprovement:
     @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_reranking_monotonic_improvement_mocked(
-        self, service, db, query, num_episodes
+        self, service, db_session, query, num_episodes
     ):
         """
         Reranking monotonic improvement invariant (mocked).
@@ -235,7 +235,7 @@ class TestMonotonicImprovement:
         # Create agent and episodes
         agent = AgentFactory()
         episodes = [EpisodeFactory(agent_id=agent.id) for _ in range(num_episodes)]
-        db.commit()
+        db_session.commit()
 
         # Mock coarse and reranked results
         coarse_results = [(ep.id, 0.5 + (i * 0.01)) for i, ep in enumerate(episodes[:20])]
@@ -264,9 +264,9 @@ class TestTopKCompleteness:
     """
 
     @pytest.fixture
-    def service(self, db):
+    def service(self, db_session):
         """Create HybridRetrievalService."""
-        return HybridRetrievalService(db)
+        return HybridRetrievalService(db_session)
 
     @given(
         query=text(min_size=5, max_size=50).filter(lambda x: x.strip()),
@@ -275,7 +275,7 @@ class TestTopKCompleteness:
     @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_top_k_includes_best_matches_mocked(
-        self, service, db, query, num_episodes
+        self, service, db_session, query, num_episodes
     ):
         """
         Top-K completeness invariant (mocked).
@@ -311,7 +311,7 @@ class TestTopKCompleteness:
             episode._test_is_perfect = False
             episodes.append(episode)
 
-        db.commit()
+        db_session.commit()
 
         # Mock retrieval to prioritize perfect matches
         perfect_matches = [ep for ep in episodes if ep._test_is_perfect]
