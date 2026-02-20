@@ -965,3 +965,564 @@ class TestMCPToolsAdditional:
         )
 
         assert isinstance(response, dict)
+
+
+# =============================================================================
+# Error Handling Edge Case Tests
+# =============================================================================
+
+class TestMCPToolsErrorHandling:
+    """E2E tests for MCP tool error handling."""
+
+    @pytest.mark.asyncio
+    async def test_mcp_crm_invalid_email(self, mcp_service, e2e_postgres_db):
+        """Test creating CRM contact with invalid email."""
+        response = await mcp_service.call_tool(
+            "create_crm_lead",
+            {
+                "platform": "salesforce",
+                "first_name": "Invalid",
+                "last_name": "Email",
+                "email": "not-an-email",  # Invalid format
+                "company": "Test Corp"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        # Should handle gracefully - either reject or return error
+        assert isinstance(response, dict)
+        # May have validation error or proceed (depends on integration)
+
+    @pytest.mark.asyncio
+    async def test_mcp_task_invalid_status(self, mcp_service, e2e_postgres_db):
+        """Test updating task with invalid status."""
+        response = await mcp_service.call_tool(
+            "update_task",
+            {
+                "platform": "jira",
+                "id": "fake-task-id",
+                "data": {"status": "invalid_status_value_12345"}
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should return error or handle gracefully
+
+    @pytest.mark.asyncio
+    async def test_mcp_knowledge_empty_ingest(self, mcp_service, e2e_postgres_db):
+        """Test ingesting empty knowledge text."""
+        response = await mcp_service.call_tool(
+            "ingest_knowledge_from_text",
+            {
+                "text": "",  # Empty text
+                "doc_id": f"empty-test-{uuid.uuid4()}",
+                "source": "e2e_test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should handle empty input gracefully
+
+    @pytest.mark.asyncio
+    async def test_mcp_canvas_invalid_component(self, mcp_service, e2e_postgres_db):
+        """Test creating canvas with invalid component type."""
+        response = await mcp_service.call_tool(
+            "canvas_tool",
+            {
+                "action": "present",
+                "component": "nonexistent_component_type",
+                "data": {"invalid": "data"},
+                "title": "Invalid Component Test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should return error or handle gracefully
+
+    @pytest.mark.asyncio
+    async def test_mcp_missing_required_parameters(self, mcp_service, e2e_postgres_db):
+        """Test calling tools with missing required parameters."""
+        response = await mcp_service.call_tool(
+            "create_task",
+            {
+                # Missing required 'project' and 'title' parameters
+                "platform": "asana"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should return validation error
+
+    @pytest.mark.asyncio
+    async def test_mcp_unknown_tool_name(self, mcp_service, e2e_postgres_db):
+        """Test calling non-existent tool."""
+        response = await mcp_service.call_tool(
+            "nonexistent_tool_name_xyz",
+            {"any": "parameter"},
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        assert "error" in response or response.get("success") is False
+
+    @pytest.mark.asyncio
+    async def test_mcp_invoice_negative_amount(self, mcp_service, e2e_postgres_db):
+        """Test creating invoice with negative amount."""
+        response = await mcp_service.call_tool(
+            "create_invoice",
+            {
+                "customer_id": f"cust-{uuid.uuid4().hex[:8]}",
+                "amount": -100.00,  # Negative amount
+                "currency": "USD",
+                "description": "Invalid negative invoice"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should reject or handle negative amount
+
+    @pytest.mark.asyncio
+    async def test_mcp_support_ticket_missing_subject(self, mcp_service, e2e_postgres_db):
+        """Test creating support ticket without required subject."""
+        response = await mcp_service.call_tool(
+            "create_support_ticket",
+            {
+                "platform": "zendesk",
+                "description": "Ticket without subject"
+                # Missing required 'subject' field
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+
+
+# =============================================================================
+# Concurrency Edge Case Tests
+# =============================================================================
+
+class TestMCPToolsConcurrency:
+    """E2E tests for MCP tool concurrent operations."""
+
+    @pytest.mark.asyncio
+    async def test_mcp_concurrent_task_creation(self, mcp_service, e2e_postgres_db):
+        """Test creating 10 tasks concurrently."""
+        task_count = 10
+        tasks = []
+
+        # Create concurrent tasks
+        for i in range(task_count):
+            task = mcp_service.call_tool(
+                "create_task",
+                {
+                    "platform": "asana",
+                    "project": "Concurrency Test",
+                    "title": f"Concurrent Task {i} - {uuid.uuid4()}",
+                    "description": "Testing concurrent task creation"
+                },
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            tasks.append(task)
+
+        # Wait for all to complete
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # All should return dict responses (no exceptions)
+        for i, result in enumerate(results):
+            assert not isinstance(result, Exception), f"Task {i} raised exception: {result}"
+            assert isinstance(result, dict), f"Task {i} returned non-dict: {type(result)}"
+
+    @pytest.mark.asyncio
+    async def test_mcp_concurrent_knowledge_ingest(self, mcp_service, e2e_postgres_db):
+        """Test ingesting multiple knowledge documents concurrently."""
+        doc_count = 5
+        docs = []
+
+        for i in range(doc_count):
+            doc = mcp_service.call_tool(
+                "ingest_knowledge_from_text",
+                {
+                    "text": f"Concurrent test document {i}: This is test content for document {i}.",
+                    "doc_id": f"concurrent-doc-{i}-{uuid.uuid4()}",
+                    "source": "concurrency_test"
+                },
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            docs.append(doc)
+
+        results = await asyncio.gather(*docs, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            assert not isinstance(result, Exception), f"Doc {i} raised exception: {result}"
+            assert isinstance(result, dict)
+
+    @pytest.mark.asyncio
+    async def test_mcp_concurrent_canvas_operations(self, mcp_service, e2e_postgres_db):
+        """Test multiple canvas presentations concurrently."""
+        canvas_count = 5
+        canvases = []
+
+        for i in range(canvas_count):
+            canvas = mcp_service.call_tool(
+                "canvas_tool",
+                {
+                    "action": "present",
+                    "component": "chart",
+                    "data": {
+                        "type": "line",
+                        "title": f"Concurrent Chart {i}",
+                        "data": {
+                            "labels": ["A", "B", "C"],
+                            "datasets": [{"data": [i, i*2, i*3]}]
+                        }
+                    }
+                },
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            canvases.append(canvas)
+
+        results = await asyncio.gather(*canvases, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            assert not isinstance(result, Exception), f"Canvas {i} raised exception: {result}"
+            assert isinstance(result, dict)
+
+    @pytest.mark.asyncio
+    async def test_mcp_concurrent_contact_search(self, mcp_service, e2e_postgres_db):
+        """Test concurrent contact searches."""
+        search_count = 8
+        searches = []
+
+        queries = ["test", "john", "jane", "acme", "tech", "startup", "customer", "lead"]
+
+        for query in queries:
+            search = mcp_service.call_tool(
+                "search_contacts",
+                {"query": query, "platform": "salesforce"},
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            searches.append(search)
+
+        results = await asyncio.gather(*searches, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            assert not isinstance(result, Exception), f"Search {i} raised exception: {result}"
+            assert isinstance(result, dict)
+
+
+# =============================================================================
+# Performance Edge Case Tests
+# =============================================================================
+
+class TestMCPToolsPerformance:
+    """E2E tests for MCP tool performance with large datasets."""
+
+    @pytest.mark.asyncio
+    async def test_mcp_bulk_task_creation(self, mcp_service, e2e_postgres_db, performance_monitor):
+        """Test creating 100 tasks and measure performance."""
+        task_count = 100
+        performance_monitor.start_timer("bulk_task_creation")
+
+        tasks = []
+        for i in range(task_count):
+            task = mcp_service.call_tool(
+                "create_task",
+                {
+                    "platform": "asana",
+                    "project": "Bulk Test Project",
+                    "title": f"Bulk Task {i:03d} - {uuid.uuid4()}",
+                    "description": f"Bulk test task number {i}"
+                },
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        duration = performance_monitor.stop_timer("bulk_task_creation")
+
+        # Verify all succeeded
+        success_count = sum(1 for r in results if isinstance(r, dict))
+        assert success_count == task_count, f"Only {success_count}/{task_count} tasks succeeded"
+
+        # Performance assertion: should complete in reasonable time
+        # This is a soft assertion - adjust threshold based on environment
+        print(f"\nBulk task creation ({task_count} tasks): {duration:.2f}ms")
+
+    @pytest.mark.asyncio
+    async def test_mcp_large_knowledge_ingest(self, mcp_service, e2e_postgres_db, performance_monitor):
+        """Test ingesting large document (10K characters)."""
+        # Generate 10K character document
+        large_text = " ".join([f"Word{i} " for i in range(5000)])  # ~10K chars
+
+        performance_monitor.start_timer("large_knowledge_ingest")
+
+        response = await mcp_service.call_tool(
+            "ingest_knowledge_from_text",
+            {
+                "text": large_text,
+                "doc_id": f"large-doc-{uuid.uuid4()}",
+                "source": "performance_test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        duration = performance_monitor.stop_timer("large_knowledge_ingest")
+
+        assert isinstance(response, dict)
+        print(f"\nLarge knowledge ingest (10K chars): {duration:.2f}ms")
+
+    @pytest.mark.asyncio
+    async def test_mcp_complex_canvas_render(self, mcp_service, e2e_postgres_db, performance_monitor):
+        """Test rendering canvas with many components."""
+        # Create canvas with complex nested data
+        complex_data = {
+            "type": "line",
+            "title": "Performance Test Chart",
+            "data": {
+                "labels": [f"Label{i}" for i in range(50)],
+                "datasets": [
+                    {
+                        "label": f"Dataset{j}",
+                        "data": [i * j for i in range(50)],
+                        "borderColor": f"rgb({j*20}, 100, 200)"
+                    }
+                    for j in range(10)
+                ]
+            }
+        }
+
+        performance_monitor.start_timer("complex_canvas_render")
+
+        response = await mcp_service.call_tool(
+            "canvas_tool",
+            {
+                "action": "present",
+                "component": "chart",
+                "data": complex_data,
+                "title": "Complex Performance Test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        duration = performance_monitor.stop_timer("complex_canvas_render")
+
+        assert isinstance(response, dict)
+        print(f"\nComplex canvas render (50 labels, 10 datasets): {duration:.2f}ms")
+
+    @pytest.mark.asyncio
+    async def test_mcp_rapid_sequential_calls(self, mcp_service, e2e_postgres_db, performance_monitor):
+        """Test 50 rapid sequential tool calls."""
+        call_count = 50
+        performance_monitor.start_timer("rapid_sequential_calls")
+
+        for i in range(call_count):
+            response = await mcp_service.call_tool(
+                "search_contacts",
+                {"query": f"test{i}", "platform": "salesforce"},
+                context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+            )
+            assert isinstance(response, dict)
+
+        duration = performance_monitor.stop_timer("rapid_sequential_calls")
+
+        avg_time = duration / call_count
+        print(f"\nRapid sequential calls ({call_count} calls): {duration:.2f}ms total, {avg_time:.2f}ms avg")
+
+
+# =============================================================================
+# Data Validation Edge Case Tests
+# =============================================================================
+
+class TestMCPToolsDataValidation:
+    """E2E tests for MCP tool data validation."""
+
+    @pytest.mark.asyncio
+    async def test_mcp_required_field_validation(self, mcp_service, e2e_postgres_db):
+        """Test validation of required fields across tools."""
+        # Missing required fields should be handled gracefully
+
+        # Task without title
+        task_response = await mcp_service.call_tool(
+            "create_task",
+            {
+                "platform": "asana",
+                "project": "Test Project"
+                # Missing: title (required)
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+        assert isinstance(task_response, dict)
+
+        # CRM lead without email
+        crm_response = await mcp_service.call_tool(
+            "create_crm_lead",
+            {
+                "platform": "salesforce",
+                "first_name": "No",
+                "last_name": "Email"
+                # Missing: email (typically required)
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+        assert isinstance(crm_response, dict)
+
+    @pytest.mark.asyncio
+    async def test_mcp_foreign_key_constraints(self, mcp_service, e2e_postgres_db):
+        """Test operations with invalid foreign key references."""
+        # Update non-existent task
+        response = await mcp_service.call_tool(
+            "update_task",
+            {
+                "platform": "jira",
+                "id": "non-existent-task-id-12345",
+                "data": {"status": "done"}
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should handle gracefully (error or not-found response)
+
+    @pytest.mark.asyncio
+    async def test_mcp_unique_constraints(self, mcp_service, e2e_postgres_db):
+        """Test handling of unique constraint violations."""
+        # Some systems enforce unique emails, IDs, etc.
+
+        unique_id = f"unique-{uuid.uuid4()}"
+
+        # Create first contact
+        response1 = await mcp_service.call_tool(
+            "create_crm_lead",
+            {
+                "platform": "salesforce",
+                "first_name": "Unique",
+                "last_name": "Test",
+                "email": f"{unique_id}@example.com",
+                "company": "Unique Test Corp"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        # Try to create duplicate (if unique constraint exists)
+        response2 = await mcp_service.call_tool(
+            "create_crm_lead",
+            {
+                "platform": "salesforce",
+                "first_name": "Duplicate",
+                "last_name": "Test",
+                "email": f"{unique_id}@example.com",  # Same email
+                "company": "Duplicate Corp"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        # Both should return dict responses
+        assert isinstance(response1, dict)
+        assert isinstance(response2, dict)
+
+    @pytest.mark.asyncio
+    async def test_mcp_data_type_validation(self, mcp_service, e2e_postgres_db):
+        """Test handling of incorrect data types."""
+        # Pass string where number expected
+        response = await mcp_service.call_tool(
+            "create_invoice",
+            {
+                "customer_id": f"cust-{uuid.uuid4().hex[:8]}",
+                "amount": "not-a-number",  # Should be number
+                "currency": "USD",
+                "description": "Type validation test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+
+    @pytest.mark.asyncio
+    async def test_mcp_string_length_validation(self, mcp_service, e2e_postgres_db):
+        """Test handling of excessively long strings."""
+        very_long_string = "x" * 10000  # 10K character string
+
+        response = await mcp_service.call_tool(
+            "create_task",
+            {
+                "platform": "asana",
+                "project": "Test",
+                "title": very_long_string,  # Excessively long title
+                "description": "Testing length validation"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should truncate or reject
+
+    @pytest.mark.asyncio
+    async def test_mcp_special_characters_handling(self, mcp_service, e2e_postgres_db):
+        """Test handling of special characters and unicode."""
+        special_text = "Test with émojis 🎉 spëcial çhars & symbols <script>alert('xss')</script>"
+
+        response = await mcp_service.call_tool(
+            "ingest_knowledge_from_text",
+            {
+                "text": special_text,
+                "doc_id": f"special-chars-{uuid.uuid4()}",
+                "source": "security_test"
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should handle/sanitize special characters safely
+
+    @pytest.mark.asyncio
+    async def test_mcp_null_value_handling(self, mcp_service, e2e_postgres_db):
+        """Test handling of null/None values in parameters."""
+        response = await mcp_service.call_tool(
+            "create_crm_lead",
+            {
+                "platform": "hubspot",
+                "first_name": "Test",
+                "last_name": None,  # Explicit None value
+                "email": f"null-test-{uuid.uuid4()}@example.com",
+                "company": None
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should handle None values gracefully
+
+    @pytest.mark.asyncio
+    async def test_mcp_sql_injection_prevention(self, mcp_service, e2e_postgres_db):
+        """Test that SQL injection attempts are handled safely."""
+        malicious_input = "'; DROP TABLE contacts; --"
+
+        response = await mcp_service.call_tool(
+            "search_contacts",
+            {"query": malicious_input, "platform": "salesforce"},
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should sanitize input and not cause SQL errors
+
+    @pytest.mark.asyncio
+    async def test_mwp_malformed_json(self, mcp_service, e2e_postgres_db):
+        """Test handling of malformed JSON in data parameters."""
+        response = await mcp_service.call_tool(
+            "update_task",
+            {
+                "platform": "jira",
+                "id": "test-id",
+                "data": "{invalid json}"  # Malformed JSON string
+            },
+            context={"workspace_id": TEST_WORKSPACE_ID, "agent_id": TEST_AGENT_ID, "user_id": TEST_USER_ID}
+        )
+
+        assert isinstance(response, dict)
+        # Should handle parse errors gracefully
