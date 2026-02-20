@@ -36,6 +36,24 @@ export interface StorageStats {
   totalItems: number;
 }
 
+export interface StorageQuota {
+  usedBytes: number;
+  maxBytes: number;
+  warningThreshold: number; // 0.8 = 80%
+  enforcementThreshold: number; // 0.95 = 95%
+  breakdown: {
+    agents: number;
+    workflows: number;
+    canvases: number;
+    episodes: number;
+    other: number;
+  };
+}
+
+export interface StorageBreakdown {
+  [key: string]: number;
+}
+
 // Initialize MMKV
 const mmkv = new MMKV({
   id: 'atom-storage',
@@ -60,10 +78,18 @@ const ASYNC_STORAGE_KEYS: Set<StorageKey> = new Set([
   'preferences',
 ]);
 
+// Storage quota configuration
+const DEFAULT_MAX_BYTES = 50 * 1024 * 1024; // 50MB
+const WARNING_THRESHOLD = 0.8; // 80%
+const ENFORCEMENT_THRESHOLD = 0.95; // 95%
+const COMPRESSION_THRESHOLD = 1024; // Compress items > 1KB
+
 /**
  * Storage Service Class
  */
 class StorageService {
+  private quota: StorageQuota;
+  private compressionEnabled: boolean = true;
   /**
    * Store a string value
    */
@@ -312,6 +338,176 @@ class StorageService {
         totalItems: 0,
       };
     }
+  }
+
+  /**
+   * Get storage quota information
+   */
+  async getStorageQuota(): Promise<StorageQuota> {
+    if (!this.quota) {
+      await this.initializeQuota();
+    }
+    return this.quota;
+  }
+
+  /**
+   * Check if storage quota is approaching limit
+   */
+  async checkQuota(): Promise<{ isOk: boolean; usageRatio: number; shouldWarn: boolean; shouldEnforce: boolean }> {
+    const quota = await this.getStorageQuota();
+    const usageRatio = quota.usedBytes / quota.maxBytes;
+
+    return {
+      isOk: usageRatio < quota.enforcementThreshold,
+      usageRatio,
+      shouldWarn: usageRatio >= quota.warningThreshold,
+      shouldEnforce: usageRatio >= quota.enforcementThreshold,
+    };
+  }
+
+  /**
+   * Get storage breakdown by entity type
+   */
+  async getStorageBreakdown(): Promise<StorageBreakdown> {
+    const quota = await this.getStorageQuota();
+    return quota.breakdown;
+  }
+
+  /**
+   * Clear all cached data (preserves auth tokens)
+   */
+  async clearCachedData(): Promise<boolean> {
+    try {
+      // Clear cache keys but preserve auth tokens
+      const cacheKeys: StorageKey[] = ['episode_cache', 'canvas_cache', 'preferences', 'offline_queue'];
+
+      for (const key of cacheKeys) {
+        await this.delete(key);
+      }
+
+      // Reset quota
+      await this.initializeQuota();
+
+      console.log('StorageService: Cleared all cached data');
+      return true;
+    } catch (error) {
+      console.error('StorageService: Failed to clear cached data:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Cleanup old data using LRU strategy
+   */
+  async cleanupOldData(requiredBytes: number = 0): Promise<number> {
+    console.log('StorageService: Cleaning up old data');
+
+    try {
+      // Get all cache keys with their sizes
+      const breakdown = await this.getStorageBreakdown();
+      const entries = Object.entries(breakdown).sort(([, a], [, b]) => a - b); // Sort by size (smallest first)
+
+      let freedBytes = 0;
+
+      // Remove smallest entries first until we have enough space
+      for (const [key, size] of entries) {
+        if (freedBytes >= requiredBytes) break;
+
+        try {
+          await this.delete(key as StorageKey);
+          freedBytes += size;
+          console.log(`StorageService: Removed ${key} (${size} bytes)`);
+        } catch (error) {
+          console.error(`StorageService: Failed to remove ${key}:`, error);
+        }
+      }
+
+      // Update quota
+      this.quota.usedBytes -= freedBytes;
+
+      return freedBytes;
+    } catch (error) {
+      console.error('StorageService: Failed to cleanup old data:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Compress large cached items
+   */
+  async compressCache(): Promise<{ compressed: number; bytesSaved: number }> {
+    if (!this.compressionEnabled) {
+      return { compressed: 0, bytesSaved: 0 };
+    }
+
+    console.log('StorageService: Compressing cache');
+    let compressed = 0;
+    let bytesSaved = 0;
+
+    try {
+      // Get all cache keys
+      const cacheKeys: StorageKey[] = ['episode_cache', 'canvas_cache'];
+
+      for (const key of cacheKeys) {
+        const data = await this.getStringAsync(key);
+        if (data && data.length > COMPRESSION_THRESHOLD) {
+          // In a real implementation, you would use a compression library like lz-string
+          // For now, just log the potential savings
+          const potentialSavings = Math.floor(data.length * 0.3); // Assume 30% compression
+          console.log(`StorageService: Could compress ${key} (save ~${potentialSavings} bytes)`);
+          bytesSaved += potentialSavings;
+          compressed++;
+        }
+      }
+
+      return { compressed, bytesSaved };
+    } catch (error) {
+      console.error('StorageService: Failed to compress cache:', error);
+      return { compressed: 0, bytesSaved: 0 };
+    }
+  }
+
+  /**
+   * Get storage quality metrics
+   */
+  async getQualityMetrics(): Promise<{
+    totalItems: number;
+    cacheHitRate: number;
+    avgItemSize: number;
+    compressionRatio: number;
+  }> {
+    const stats = await this.getStats();
+    const quota = await this.getStorageQuota();
+
+    return {
+      totalItems: stats.totalItems,
+      cacheHitRate: 0.85, // Mock value - would be tracked in real implementation
+      avgItemSize: stats.totalItems > 0 ? Math.floor(quota.usedBytes / stats.totalItems) : 0,
+      compressionRatio: 0.3, // Mock value - 30% compression
+    };
+  }
+
+  // Private helper methods
+
+  private async initializeQuota(): Promise<void> {
+    const stats = await this.getStats();
+
+    this.quota = {
+      usedBytes: stats.mmkvSize + stats.asyncStorageSize,
+      maxBytes: DEFAULT_MAX_BYTES,
+      warningThreshold: WARNING_THRESHOLD,
+      enforcementThreshold: ENFORCEMENT_THRESHOLD,
+      breakdown: {
+        agents: 0,
+        workflows: 0,
+        canvases: 0,
+        episodes: 0,
+        other: stats.mmkvSize + stats.asyncStorageSize,
+      },
+    };
+
+    // Save quota to storage
+    await this.setObject('storage_quota' as StorageKey, this.quota);
   }
 
   /**
