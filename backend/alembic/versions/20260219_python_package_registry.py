@@ -11,8 +11,8 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '20260219_python_package'
-down_revision: str | None = '20260218_add_canvas'
-branch_labels: str | None = None
+down_revision: str | None = None
+branch_labels: str | None = 'packages_branch'
 depends_on: str | None = None
 
 
