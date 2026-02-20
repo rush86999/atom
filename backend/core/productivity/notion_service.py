@@ -262,20 +262,16 @@ class NotionService:
             if existing:
                 # Update existing token
                 existing.access_token = tokens["access_token"]
-                existing.scopes = tokens.get("workspace_id")  # Use workspace_id as scope identifier
+                existing.scopes = [tokens.get("workspace_id")]  # Use workspace_id as scope identifier
                 existing.expires_at = datetime(2099, 12, 31)  # Notion tokens don't expire
                 existing.status = "active"
 
-                # Update metadata
-                metadata = existing.metadata or {}
-                metadata.update({
-                    "workspace_id": tokens.get("workspace_id"),
-                    "workspace_name": tokens.get("workspace_name"),
-                    "workspace_icon": tokens.get("workspace_icon"),
-                    "bot_id": tokens.get("bot_id"),
-                    "owner": tokens.get("owner")
-                })
-                existing.metadata = metadata
+                # Update Notion-specific fields
+                existing.workspace_id = tokens.get("workspace_id")
+                existing.workspace_name = tokens.get("workspace_name")
+                existing.workspace_icon = tokens.get("workspace_icon")
+                existing.bot_id = tokens.get("bot_id")
+                existing.owner = tokens.get("owner")
             else:
                 # Create new token
                 oauth_token = OAuthToken(
@@ -286,13 +282,11 @@ class NotionService:
                     scopes=[tokens.get("workspace_id")],
                     expires_at=datetime(2099, 12, 31),  # Notion tokens don't expire
                     status="active",
-                    metadata={
-                        "workspace_id": tokens.get("workspace_id"),
-                        "workspace_name": tokens.get("workspace_name"),
-                        "workspace_icon": tokens.get("workspace_icon"),
-                        "bot_id": tokens.get("bot_id"),
-                        "owner": tokens.get("owner")
-                    }
+                    workspace_id=tokens.get("workspace_id"),
+                    workspace_name=tokens.get("workspace_name"),
+                    workspace_icon=tokens.get("workspace_icon"),
+                    bot_id=tokens.get("bot_id"),
+                    owner=tokens.get("owner")
                 )
                 db.add(oauth_token)
 

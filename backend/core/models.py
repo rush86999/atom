@@ -899,6 +899,16 @@ class OAuthToken(Base):
     scopes = Column(JSON, nullable=True)  # List of granted scopes
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Some tokens don't expire (Notion)
 
+    # Notion-specific workspace context (optional, used for all providers)
+    workspace_id = Column(String, nullable=True, index=True)  # Notion workspace ID
+    workspace_name = Column(String, nullable=True)  # Notion workspace name
+    workspace_icon = Column(String, nullable=True)  # Notion workspace icon URL
+    bot_id = Column(String, nullable=True)  # Notion bot ID
+    owner = Column(JSON, nullable=True)  # Token owner info (workspace/user)
+
+    # Provider-specific extra data (for additional context)
+    extra_data = Column(JSON, nullable=True)  # Additional provider-specific data
+
     # Status tracking
     status = Column(String, default="active", index=True)  # active, expired, revoked
     last_used = Column(DateTime(timezone=True), nullable=True)  # Track when token was last used
