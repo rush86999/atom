@@ -519,7 +519,8 @@ class TestEnterpriseUnifiedService:
     def test_audit_enterprise_access(self, enterprise_service: EnterpriseUnifiedService):
         """Test auditing enterprise access"""
         # Arrange
-            datetime.now() - timedelta(days=7),
+        date_range = {
+            "start": datetime.now() - timedelta(days=7),
             "end": datetime.now()
         }
 
@@ -882,7 +883,9 @@ class TestHealthcareCustomizationService:
         """Test auditing healthcare data access"""
         # Arrange
         user_id = "user-001"
-            datetime.now() - timedelta(days=30)
+        date_range = (
+            datetime.now() - timedelta(days=30),
+            datetime.now()
         )
 
         # Act
