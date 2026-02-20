@@ -21,7 +21,10 @@ Performance:
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
 from functools import lru_cache
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -32,6 +35,7 @@ try:
     import numpy as np
     NUMPY_AVAILABLE = True
 except ImportError:
+    np = None  # type: ignore
     NUMPY_AVAILABLE = False
     logger.warning("NumPy not available, some features will be limited")
 
@@ -293,7 +297,7 @@ class EmbeddingService:
     # FastEmbed Coarse Search for Hybrid Retrieval (NEW - Phase 4)
     # ========================================================================
 
-    async def create_fastembed_embedding(self, text: str) -> Optional[List[float]]:
+    async def create_fastembed_embedding(self, text: str) -> "Optional[np.ndarray]":
         """
         Create 384-dimensional FastEmbed embedding for coarse search.
 
@@ -304,20 +308,27 @@ class EmbeddingService:
             text: Text to embed
 
         Returns:
-            List of 384 floats or None if failed
+            np.ndarray of 384 floats or None if failed
         """
         try:
             # Use existing _generate_fastembed_embedding method
-            embedding = await self._generate_fastembed_embedding(text)
+            embedding_list = await self._generate_fastembed_embedding(text)
 
-            # Validate dimension (should be 384 for default model)
-            if NUMPY_AVAILABLE and len(embedding) != 384:
-                logger.warning(
-                    f"FastEmbed embedding dimension is {len(embedding)}, "
-                    f"expected 384 for coarse search"
-                )
+            # Convert to numpy array for consistency
+            if NUMPY_AVAILABLE:
+                embedding = np.array(embedding_list, dtype=np.float32)
 
-            return embedding
+                # Validate dimension (should be 384 for default model)
+                if embedding.shape[0] != 384:
+                    logger.warning(
+                        f"FastEmbed embedding dimension is {embedding.shape[0]}, "
+                        f"expected 384 for coarse search"
+                    )
+
+                return embedding
+            else:
+                # Fallback to list if numpy not available
+                return embedding_list
 
         except Exception as e:
             logger.error(f"Failed to create FastEmbed embedding: {e}")
@@ -593,7 +604,7 @@ class EmbeddingService:
 
         # Create (query, episode_text) pairs
         pairs = [
-            (query, episode_map[ep_id].summary or episode_map[ep_id].content or "")
+            (query, episode_map[ep_id].summary or episode_map[ep_id].description or "")
             for ep_id in episode_ids
             if ep_id in episode_map
         ]
