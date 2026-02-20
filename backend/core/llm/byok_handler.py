@@ -81,6 +81,15 @@ MODELS_WITHOUT_TOOLS = {
     "deepseek-v3.2-speciale",
 }
 
+# Minimum quality scores by CognitiveTier for model filtering
+MIN_QUALITY_BY_TIER = {
+    CognitiveTier.MICRO: 0,
+    CognitiveTier.STANDARD: 80,
+    CognitiveTier.VERSATILE: 86,
+    CognitiveTier.HEAVY: 90,
+    CognitiveTier.COMPLEX: 94,
+}
+
 # Phase 14.5: Coordinated Multimodal Reasoning
 REASONING_MODELS_WITHOUT_VISION = {
     "deepseek-v3.2",
@@ -106,6 +115,7 @@ class BYOKHandler:
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
+        self.cognitive_classifier = CognitiveClassifier()  # Phase 68: Cognitive tier system
         self._initialize_clients()
 
         # Initialize cache-aware router for cost optimization
@@ -309,6 +319,7 @@ class BYOKHandler:
         requires_structured: bool = False, # Phase 6.6
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
+        cognitive_tier: Optional[CognitiveTier] = None  # Phase 68: Cognitive tier system
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
@@ -318,11 +329,16 @@ class BYOKHandler:
         When estimated_tokens and workspace_id are provided, uses cache-aware effective cost
         calculation to prioritize models with good prompt caching support.
 
+        Phase 68 Extension:
+        When cognitive_tier is provided, uses CognitiveTier-based quality filtering instead of
+        QueryComplexity. This enables more granular 5-tier quality control.
+
         Args:
             complexity: Query complexity level
             task_type: Optional task type hint
             prefer_cost: Whether to prefer cost over quality
             tenant_plan: Tenant plan for model restrictions
+            cognitive_tier: Optional CognitiveTier for 5-tier quality filtering (Phase 68)
             is_managed_service: Whether this is managed service or BYOK
             requires_tools: Whether model must support tool calling
             requires_structured: Whether model must support structured output
@@ -348,15 +364,20 @@ class BYOKHandler:
                 QueryComplexity.ADVANCED: 32000
             }
             min_context = MIN_CONTEXT_BY_COMPLEXITY.get(complexity, 8000)
-            
+
             # Filter criteria for benchmarks based on complexity
-            MIN_QUALITY_BY_COMPLEXITY = {
-                QueryComplexity.SIMPLE: 0,
-                QueryComplexity.MODERATE: 80,
-                QueryComplexity.COMPLEX: 88,
-                QueryComplexity.ADVANCED: 94
-            }
-            min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
+            # Phase 68: Use CognitiveTier thresholds if provided
+            if cognitive_tier is not None:
+                min_quality = MIN_QUALITY_BY_TIER.get(cognitive_tier, 0)
+                logger.debug(f"Using CognitiveTier {cognitive_tier.value} quality threshold: {min_quality}")
+            else:
+                MIN_QUALITY_BY_COMPLEXITY = {
+                    QueryComplexity.SIMPLE: 0,
+                    QueryComplexity.MODERATE: 80,
+                    QueryComplexity.COMPLEX: 88,
+                    QueryComplexity.ADVANCED: 94
+                }
+                min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
             
             available_providers = list(self.clients.keys())
             candidates = []
@@ -1213,6 +1234,27 @@ class BYOKHandler:
 
             # If streaming fails, yield error message
             yield f"\n\n[Streaming error: {str(e)}]"
+
+    def classify_cognitive_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
+        """
+        Classify a query into a cognitive tier using the 5-tier system.
+
+        Phase 68: Wrapper method for CognitiveClassifier to enable easy cognitive
+        tier classification from BYOKHandler instances.
+
+        Args:
+            prompt: The query text to classify
+            task_type: Optional task type hint (code, chat, analysis, etc.)
+
+        Returns:
+            CognitiveTier classification for the query
+
+        Example:
+            >>> handler = BYOKHandler()
+            >>> tier = handler.classify_cognitive_tier("explain quantum computing")
+            >>> print(tier.value)  # 'standard' or 'versatile'
+        """
+        return self.cognitive_classifier.classify(prompt, task_type)
 
     def _is_trial_restricted(self) -> bool:
         """
