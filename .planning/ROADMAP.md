@@ -1510,10 +1510,50 @@ Milestone v2.0 completes all 55 remaining phases to achieve 80% overall coverage
   - Plan 01-07: Governance, scanner, installer, API, security, integration, docs (117 tests, production-ready)
 - [x] **Phase 36: npm Package Support** - Safe npm/Node.js package execution (matching OpenClaw) ✅ COMPLETE
   - Plan 01-07: Governance extension, npm scanner, Docker installer, REST API, security tests, skill integration, docs (170 tests, 8/8 criteria verified)
-- [ ] **Phase 63: Legacy Documentation Updates (Git History Analysis)** - Update all legacy documentation to reflect current capabilities by analyzing git history and identifying feature gaps ⏳ NOT STARTED
-  - Plans: 4-5 plans (git history audit, documentation inventory, gap analysis, updates, verification)
-- [ ] **Phase 64: E2E Test Suite for Tool Implementations** - Create comprehensive end-to-end tests with real services (databases, LLM providers, APIs) in Docker environment ⏳ NOT STARTED
-  - Plans: 5 plans (MCP tools, database integration, LLM providers, external services, critical workflows)
+- [x] **Phase 63: Legacy Documentation Updates (Git History Analysis)** - Update all legacy documentation to reflect current capabilities ✅ COMPLETE
+  - Plans: 1 plan (git audit, documentation inventory, gap analysis)
+  - Status: 98/100 documentation health score, 0 critical gaps found
+- [x] **Phase 64: E2E Test Suite for Tool Implementations** - Create comprehensive end-to-end tests with real services ✅ COMPLETE
+  - Plans: 6 plans (Docker environment, MCP tools, database integration, LLM providers, external services, critical workflows)
+  - Status: 217+ E2E tests, 8,852+ lines, Docker Compose environment (PostgreSQL + Redis)
+- [ ] **Phase 65: Mobile App & Menu Bar Completion** - Complete React Native mobile app and create Tauri desktop menu bar application
+  - Goal: Production-ready mobile app (iOS/Android) and desktop menu bar with full feature parity
+  - Depends on: Phase 62 (test infrastructure), Phase 35-36 (package support)
+  - Success Criteria:
+    1. Mobile app completes all screens (auth, chat, canvas, agents, workflows, settings)
+    2. Real-time WebSocket streaming for agent responses
+    3. Canvas presentations render on mobile with WebView
+    4. Device capabilities (camera, location, notifications) integrated
+    5. Offline mode with AsyncStorage sync
+    6. Menu bar app (Tauri) with quick agent access
+    7. Mobile and menu bar apps deployment-ready (TestFlight, Google Play, Homebrew)
+  - Plans: 8 plans (mobile screens, WebSocket integration, canvas mobile, menu bar app, deployment, testing)
+  - Estimated: 2-3 weeks
+- [ ] **Phase 66: Personal Edition Enhancements - Media, Creative & Smart Home** - Extend Personal Edition with media control, creative tools, and smart home integration for OpenClaw parity
+  - Goal: Personal Edition provides parity with OpenClaw's personal assistant capabilities (Spotify, Sonos, Philips Hue, Home Assistant, media editing)
+  - Depends on: Phase 65 (mobile app completion)
+  - Success Criteria:
+    1. Media integration (Spotify, Sonos, Apple Music playback control)
+    2. Smart home control (Philips Hue, Elgato, Home Assistant, HomeKit)
+    3. Creative tools (image generation, video editing, audio processing)
+    4. Personal productivity integrations (Notion, Obsidian, calendar sync)
+    5. Local-only execution (no cloud dependencies for privacy)
+    6. Simple setup for personal users (Docker Compose, single command)
+  - Plans: 6-8 plans (media services, smart home hubs, creative tools, productivity integrations, personal setup guide, documentation)
+  - Estimated: 1-2 weeks
+- [ ] **Phase 67: CI/CD Pipeline Fixes** - Fix failing CI pipeline to achieve passing status across all workflows
+  - Goal: All GitHub Actions workflows passing with 100% success rate for test, build, and deploy jobs
+  - Depends on: Phase 62 (test infrastructure), Phase 64 (E2E tests)
+  - Success Criteria:
+    1. Test workflow passes consistently (>95% pass rate, <5min execution)
+    2. Build workflow completes successfully (Docker images, no cache failures)
+    3. Deploy workflow validates health checks before deployment
+    4. Type checking (MyPy) passes without errors
+    5. Linting (Ruff, ESLint) passes with zero violations
+    6. Security scans pass (pip-audit, npm audit, Snyk)
+    7. All workflows idempotent (re-runnable without manual cleanup)
+  - Plans: 4-5 plans (test fixes, build fixes, deployment validation, security scanning, workflow optimization)
+  - Estimated: 3-5 days
 
 ### Phase 35: Python Package Support for Agent Skills
 
@@ -1851,12 +1891,12 @@ git log --oneline --since="2025-02-19" -- "backend/core/package_*.py"
    - Multi-provider LLM: OpenAI failure → Anthropic fallback → DeepSeek retry
    - Canvas presentation: Create canvas → LLM generates content → User interacts → Feedback loop
 
-**Plans**: 5 plans (2 waves)
-- Plan 01: MCP Tool E2E Tests (Docker environment, real databases, 8+ tools)
-- Plan 02: Database Integration E2E (PostgreSQL, SQLite, migrations, connection pooling)
-- Plan 03: LLM Provider E2E (OpenAI, Anthropic, DeepSeek, real API calls)
-- Plan 04: External Service Integration E2E (Tavily, Slack, WhatsApp, Shopify)
-- Plan 05: Critical Workflow E2E (Agent execution, skill loading, package installation)
+**Plans**: 5 plans (3 waves)
+- [ ] 64-01-PLAN.md — MCP Tool E2E Tests (Docker environment, real databases, 8+ tools)
+- [ ] 64-02-PLAN.md — Database Integration E2E (PostgreSQL, SQLite, migrations, connection pooling)
+- [ ] 64-03-PLAN.md — LLM Provider E2E (OpenAI, Anthropic, DeepSeek, real API calls)
+- [ ] 64-04-PLAN.md — External Service Integration E2E (Tavily, Slack, WhatsApp, Shopify)
+- [ ] 64-05-PLAN.md — Critical Workflow E2E (Agent execution, skill loading, package installation)
 
 **Estimated Duration**: 2-3 days (5 plans, ~4-6 hours each)
 
