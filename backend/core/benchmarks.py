@@ -36,7 +36,8 @@ MODEL_QUALITY_SCORES = {
     "gpt-4o-mini": 85,
     "gemini-2.0-flash": 86,
     "gemini-1.5-flash": 84,
-    
+    "minimax-m2.5": 88,  # Standard tier, between gemini-2.0-flash and deepseek-chat
+
     # Efficiency / Simple
     "deepseek-chat": 80,
     "kimi-k1-5": 79,
