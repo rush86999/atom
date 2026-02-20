@@ -548,6 +548,77 @@ class AtomSaaSWebSocketClient:
             "rate_limit_messages_per_sec": self.RATE_LIMIT_MESSAGES
         }
 
+    def on_message(self, callback: Callable[[str, Dict[str, Any]], None]) -> None:
+        """
+        Register custom message handler callback.
+
+        Args:
+            callback: Async callback function(message_type: str, data: Dict)
+        """
+        self._message_handler = callback
+        logger.info("Custom message handler registered")
+
+    async def handle_skill_update(self, data: Dict[str, Any]) -> None:
+        """
+        Handle skill update message from Atom SaaS.
+
+        Args:
+            data: Skill data payload
+        """
+        logger.info(f"Skill update: {data.get('skill_id') or data.get('id')}")
+        await self._update_cache(MessageType.SKILL_UPDATE, data)
+
+    async def handle_category_update(self, data: Dict[str, Any]) -> None:
+        """
+        Handle category update message from Atom SaaS.
+
+        Args:
+            data: Category data payload
+        """
+        logger.info(f"Category update: {data.get('name') or data.get('category')}")
+        await self._update_cache(MessageType.CATEGORY_UPDATE, data)
+
+    async def handle_rating_update(self, data: Dict[str, Any]) -> None:
+        """
+        Handle rating update message from Atom SaaS.
+
+        Args:
+            data: Rating data payload
+        """
+        skill_id = data.get("skill_id")
+        rating = data.get("rating")
+        logger.info(f"Rating update: skill={skill_id}, rating={rating}")
+
+        # Update skill cache with new rating
+        if skill_id:
+            try:
+                with SessionLocal() as db:
+                    skill_cache = db.query(SkillCache).filter(
+                        SkillCache.skill_id == skill_id
+                    ).first()
+
+                    if skill_cache:
+                        skill_data = skill_cache.skill_data
+                        skill_data["average_rating"] = data.get("average_rating")
+                        skill_data["rating_count"] = data.get("rating_count")
+                        skill_cache.skill_data = skill_data
+                        db.commit()
+                        logger.debug(f"Updated rating in cache: {skill_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to update rating in cache: {e}")
+
+    async def handle_skill_delete(self, data: Dict[str, Any]) -> None:
+        """
+        Handle skill delete message from Atom SaaS.
+
+        Args:
+            data: Delete data payload
+        """
+        skill_id = data.get("skill_id")
+        logger.info(f"Skill delete: {skill_id}")
+        await self._update_cache(MessageType.SKILL_DELETE, data)
+
 
 def get_websocket_state() -> Optional[WebSocketState]:
     """
