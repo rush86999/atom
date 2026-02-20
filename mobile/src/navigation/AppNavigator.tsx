@@ -18,10 +18,8 @@ import { WorkflowLogsScreen } from '../screens/workflows/WorkflowLogsScreen';
 import { AnalyticsDashboardScreen } from '../screens/analytics/AnalyticsDashboardScreen';
 import { AgentListScreen } from '../screens/agent/AgentListScreen';
 import { AgentChatScreen } from '../screens/agent/AgentChatScreen';
+import { ChatTabScreen } from '../screens/chat';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
-
-// Placeholder for ChatTabScreen (to be implemented in Task 07)
-const ChatTabScreen = () => null;
 
 // Stack Navigator for Workflows
 const WorkflowStack = createNativeStackNavigator();
