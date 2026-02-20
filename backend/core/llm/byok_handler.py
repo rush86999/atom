@@ -73,6 +73,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "qwen-3-max",
         QueryComplexity.ADVANCED: "qwen-3-max",
     },
+    "minimax": {
+        QueryComplexity.SIMPLE: "minimax-m2.5",
+        QueryComplexity.MODERATE: "minimax-m2.5",
+        QueryComplexity.COMPLEX: "minimax-m2.5",
+        QueryComplexity.ADVANCED: "minimax-m2.5",
+    },
 }
 
 
@@ -109,6 +115,12 @@ class BYOKHandler:
     """
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
     Automatically routes queries to the most cost-effective provider based on complexity.
+
+    Phase 68-04: MiniMax M2.5 Integration
+    - Positioned in STANDARD tier with estimated $1/M pricing
+    - API access may be closed - graceful fallback to next provider
+    - Quality score 88 (between gemini-2.0-flash @ 86 and deepseek-chat @ 80)
+    - Native agent support, no prompt caching
     """
     def __init__(self, workspace_id: str = "default", provider_id: str = "auto"):
         self.workspace_id = "default" # Single-tenant: always use default
@@ -135,6 +147,7 @@ class BYOKHandler:
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
+            "minimax": {"base_url": "https://api.minimaxi.com/v1"},  # Phase 68-04: MiniMax M2.5 integration
         }
 
         # Separate sync and async clients
@@ -462,13 +475,13 @@ class BYOKHandler:
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "moonshot", "gemini", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "moonshot", "gemini", "openai", "anthropic"]
         elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "gemini", "moonshot", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "gemini", "moonshot", "openai", "anthropic"]
         elif complexity == QueryComplexity.COMPLEX:
-            provider_priority = ["gemini", "deepseek", "anthropic", "openai", "moonshot"]
+            provider_priority = ["gemini", "deepseek", "anthropic", "minimax", "openai", "moonshot"]
         else: # ADVANCED
-            provider_priority = ["openai", "deepseek", "anthropic", "gemini", "moonshot"]
+            provider_priority = ["openai", "deepseek", "anthropic", "gemini", "moonshot", "minimax"]
         
         for provider_id in provider_priority:
             if provider_id in self.clients:
