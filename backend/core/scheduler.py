@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 import uuid
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -169,3 +170,75 @@ class AgentScheduler:
                 logger.info(f"Loaded {count} agents into scheduler.")
             finally:
                 db.close()
+
+    def schedule_rating_sync(self, sync_service, interval_minutes: int = 30):
+        """
+        Schedule periodic rating sync with Atom SaaS.
+
+        Args:
+            sync_service: RatingSyncService instance
+            interval_minutes: Sync interval in minutes (default: 30)
+
+        Returns:
+            job_id: Scheduled job ID
+        """
+        job_id = "rating-sync-atom-saas"
+
+        async def sync_wrapper():
+            """Async wrapper for rating sync."""
+            try:
+                result = await sync_service.sync_ratings()
+                logger.info(
+                    f"Rating sync completed: {result.get('uploaded')} uploaded, "
+                    f"{result.get('failed')} failed"
+                )
+            except Exception as e:
+                logger.error(f"Rating sync failed: {e}")
+
+        def sync_job():
+            """Sync job wrapper for ThreadPool scheduler."""
+            import asyncio
+            asyncio.run(sync_wrapper())
+
+        # Remove existing job if it exists
+        if self.scheduler.get_job(job_id):
+            self.scheduler.remove_job(job_id)
+            logger.info(f"Removed existing rating sync job {job_id}")
+
+        # Add new interval job
+        self.scheduler.add_job(
+            sync_job,
+            'interval',
+            id=job_id,
+            minutes=interval_minutes,
+            name='Rating Sync with Atom SaaS',
+            replace_existing=True
+        )
+
+        logger.info(f"Scheduled rating sync job {job_id} every {interval_minutes} minutes")
+        return job_id
+
+    def initialize_rating_sync(self):
+        """
+        Initialize rating sync job from environment configuration.
+
+        Reads ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES from environment.
+        Default: 30 minutes
+        """
+        interval = int(os.getenv("ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES", "30"))
+
+        # Lazy import to avoid circular dependency
+        from core.rating_sync_service import RatingSyncService
+        from core.atom_saas_client import AtomSaaSClient
+
+        # Create sync service instance
+        db = get_db_session()
+        try:
+            client = AtomSaaSClient()
+            sync_service = RatingSyncService(db, client)
+
+            # Schedule the job
+            self.schedule_rating_sync(sync_service, interval)
+            logger.info(f"Initialized rating sync with {interval} minute interval")
+        finally:
+            db.close()
