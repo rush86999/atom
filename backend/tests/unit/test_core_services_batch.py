@@ -22,7 +22,7 @@ from core.skill_registry_service import SkillRegistryService
 from core.proposal_service import ProposalService
 from core.workflow_debugger import WorkflowDebugger
 from core.workflow_analytics_engine import WorkflowAnalyticsEngine
-from core.auto_document_ingestion import AutoDocumentIngestion
+from core.auto_document_ingestion import AutoDocumentIngestionServiceService
 from core.workflow_versioning_system import WorkflowVersioningSystem
 from core.advanced_workflow_system import AdvancedWorkflowSystem
 from core.atom_meta_agent import AtomMetaAgent
@@ -238,15 +238,15 @@ class TestAtomMetaAgent:
 # 2. Storage Services (6-8 tests)
 # =============================================================================
 
-class TestAutoDocumentIngestion:
+class TestAutoDocumentIngestionService:
     """Test automatic document ingestion and processing"""
 
     @pytest.fixture
     def doc_ingestion(self, db_session: Session):
         """Create document ingestion service instance"""
-        return AutoDocumentIngestion(db_session)
+        return AutoDocumentIngestionService(db_session)
 
-    def test_ingest_document_from_url(self, doc_ingestion: AutoDocumentIngestion):
+    def test_ingest_document_from_url(self, doc_ingestion: AutoDocumentIngestionService):
         """Test ingesting document from URL"""
         # Arrange
         url = "https://example.com/document.pdf"
@@ -261,7 +261,7 @@ class TestAutoDocumentIngestion:
         assert ingestion.status in ["pending", "processing", "completed"]
         assert ingestion.source_url == url
 
-    def test_process_ingested_document(self, doc_ingestion: AutoDocumentIngestion):
+    def test_process_ingested_document(self, doc_ingestion: AutoDocumentIngestionService):
         """Test processing ingested document"""
         # Arrange
         ingestion_id = "ingestion-001"
@@ -275,7 +275,7 @@ class TestAutoDocumentIngestion:
         assert result.extracted_text is not None or result.error is not None
         assert result.processing_time > 0
 
-    def test_extract_document_metadata(self, doc_ingestion: AutoDocumentIngestion):
+    def test_extract_document_metadata(self, doc_ingestion: AutoDocumentIngestionService):
         """Test extracting metadata from document"""
         # Arrange
         document_path = "/path/to/document.pdf"
@@ -289,7 +289,7 @@ class TestAutoDocumentIngestion:
         assert "size" in metadata
         assert "created_at" in metadata
 
-    def test_classify_document_type(self, doc_ingestion: AutoDocumentIngestion):
+    def test_classify_document_type(self, doc_ingestion: AutoDocumentIngestionService):
         """Test automatic document type classification"""
         # Arrange
         document_content = "Financial report Q4 2024"
@@ -301,7 +301,7 @@ class TestAutoDocumentIngestion:
         assert doc_type is not None
         assert doc_type in ["invoice", "report", "contract", "email", "other"]
 
-    def test_index_document_for_search(self, doc_ingestion: AutoDocumentIngestion):
+    def test_index_document_for_search(self, doc_ingestion: AutoDocumentIngestionService):
         """Test indexing document for search"""
         # Arrange
         document_id = "doc-001"
@@ -315,7 +315,7 @@ class TestAutoDocumentIngestion:
         assert index_result.indexed_at is not None
         assert index_result.vector_id is not None
 
-    def test_cleanup_old_ingestions(self, doc_ingestion: AutoDocumentIngestion):
+    def test_cleanup_old_ingestions(self, doc_ingestion: AutoDocumentIngestionService):
         """Test cleanup of old processed documents"""
         # Arrange
         days_old = 30
