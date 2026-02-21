@@ -43,7 +43,7 @@ def db_session():
 def mock_byok_handler():
     """Create mock BYOK handler with predefined responses."""
     handler = MagicMock(spec=BYOKHandler)
-    handler.acomplete = AsyncMock()
+    handler.generate_response = AsyncMock()
     return handler
 
 
@@ -101,7 +101,7 @@ def parser_service(db_session, mock_byok_handler):
 async def test_parse_requirements_simple_feature(parser_service, sample_llm_response):
     """Test parsing a simple feature request."""
     # Mock LLM response
-    parser_service.byok_handler.acomplete.return_value = sample_llm_response
+    parser_service.byok_handler.generate_response.return_value = sample_llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Add OAuth2 login",
@@ -156,7 +156,7 @@ async def test_parse_requirements_with_dependencies(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Add OAuth login",
@@ -176,7 +176,7 @@ async def test_parse_requirements_with_dependencies(parser_service):
 @pytest.mark.asyncio
 async def test_extract_user_stories(parser_service, sample_llm_response):
     """Test user story structure validation."""
-    parser_service.byok_handler.acomplete.return_value = sample_llm_response
+    parser_service.byok_handler.generate_response.return_value = sample_llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Add OAuth2 login",
@@ -225,7 +225,7 @@ async def test_extract_acceptance_criteria_gherkin(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Add user login",
@@ -264,7 +264,7 @@ async def test_estimate_complexity_simple(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Simple feature",
@@ -309,7 +309,7 @@ async def test_estimate_complexity_moderate(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Moderate feature",
@@ -342,7 +342,7 @@ async def test_estimate_complexity_complex(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Complex feature",
@@ -403,7 +403,7 @@ async def test_estimate_complexity_advanced(parser_service):
 }
 ```"""
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Advanced feature",
@@ -465,7 +465,7 @@ async def test_create_workflow_persistence(db_session, mock_byok_handler):
 @pytest.mark.asyncio
 async def test_llm_integration_with_byok(parser_service):
     """Test BYOK handler integration for LLM calls."""
-    parser_service.byok_handler.acomplete.return_value = """```json
+    parser_service.byok_handler.generate_response.return_value = """```json
 {
   "user_stories": [],
   "dependencies": [],
@@ -481,12 +481,12 @@ async def test_llm_integration_with_byok(parser_service):
     )
 
     # Verify BYOK handler was called
-    assert parser_service.byok_handler.acomplete.called
-    call_args = parser_service.byok_handler.acomplete.call_args
+    assert parser_service.byok_handler.generate_response.called
+    call_args = parser_service.byok_handler.generate_response.call_args
 
     # Verify parameters
     assert "prompt" in call_args.kwargs
-    assert "system_prompt" in call_args.kwargs
+    assert "system_instruction" in call_args.kwargs
     assert "temperature" in call_args.kwargs
     assert call_args.kwargs["temperature"] == 0.0  # Deterministic
 
@@ -511,7 +511,7 @@ async def test_error_handling_invalid_input(parser_service):
 async def test_error_handling_llm_failure(parser_service):
     """Test error handling when LLM call fails."""
     # Mock LLM failure
-    parser_service.byok_handler.acomplete.side_effect = Exception("LLM API error")
+    parser_service.byok_handler.generate_response.side_effect = Exception("LLM API error")
 
     with pytest.raises(Exception, match="Failed to get LLM response"):
         await parser_service.parse_requirements(
@@ -550,7 +550,7 @@ async def test_json_markdown_extraction(parser_service):
     Let me know if you need any changes!
     """
 
-    parser_service.byok_handler.acomplete.return_value = llm_response
+    parser_service.byok_handler.generate_response.return_value = llm_response
 
     result = await parser_service.parse_requirements(
         feature_request="Test feature",
@@ -594,7 +594,7 @@ async def test_time_estimation_parsing(parser_service):
 @pytest.mark.asyncio
 async def test_context_in_prompt(parser_service):
     """Test that context is properly included in LLM prompt."""
-    parser_service.byok_handler.acomplete.return_value = """```json
+    parser_service.byok_handler.generate_response.return_value = """```json
 {
   "user_stories": [],
   "dependencies": [],
@@ -617,7 +617,7 @@ async def test_context_in_prompt(parser_service):
     )
 
     # Verify context was included in prompt
-    call_args = parser_service.byok_handler.acomplete.call_args
+    call_args = parser_service.byok_handler.generate_response.call_args
     prompt = call_args.kwargs["prompt"]
     assert "priority" in prompt
     assert "high" in prompt
