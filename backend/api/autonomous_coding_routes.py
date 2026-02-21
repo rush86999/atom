@@ -21,7 +21,8 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm.byok_handler import BYOKHandler
-from core.agent_governance_service import get_governance_cache, AgentMaturity
+from core.agent_governance_service import get_governance_cache
+from core.governance_config import MaturityLevel
 from core.requirement_parser_service import RequirementParserService
 from core.autonomous_coding_orchestrator import AgentOrchestrator, WorkflowPhase
 from core.models import AutonomousWorkflow, AgentLog
@@ -102,7 +103,7 @@ async def check_autonomous_governance() -> None:
     # Placeholder: always allow for development
     # In production, uncomment the following:
     # maturity = governance_cache.get_maturity_level("autonomous-coding-agent")
-    # if maturity != AgentMaturity.AUTONOMOUS:
+    # if maturity != MaturityLevel.AUTONOMOUS:
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Autonomous coding requires AUTONOMOUS maturity level"
