@@ -50,20 +50,19 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask ATOM to schedule meetings, send emails..."
-                    className="min-h-[44px] max-h-[120px] resize-none pr-24 py-3"
+                    className="min-h-[44px] max-h-[120px] resize-none pr-36 py-3"
                     disabled={isLoading}
                 />
 
-                <div className="absolute right-2 bottom-2 flex gap-1">
+                <div className="absolute right-2 bottom-2 flex gap-1 items-center">
                     <VoiceInput
                         onTranscriptChange={(transcript) => setInput(transcript)}
-                        className="h-8 w-8"
                     />
                     <Button
                         size="icon"
                         onClick={handleSend}
                         disabled={!input.trim() || isLoading}
-                        className="h-8 w-8"
+                        className="h-8 w-8 shrink-0"
                     >
                         {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

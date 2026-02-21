@@ -110,19 +110,18 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             setIsLoading(true);
             const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
             const fetchUrl = `${baseUrl}/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
-            console.log('Fetching history from:', fetchUrl);
             const response = await fetch(fetchUrl);
 
             if (response.ok) {
                 try {
                     const data = await response.json();
-                    if (data.messages && data.messages.length > 0) {
-                        const chatMessages: ChatMessageData[] = data.messages.map((msg: any) => ({
+                    const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
+                    if (validMessages.length > 0) {
+                        const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => ({
                             id: msg.id || `msg_${Date.now()}_${Math.random()}`,
                             type: msg.role === 'user' ? 'user' : 'assistant',
                             content: msg.content || '',
                             timestamp: new Date(msg.timestamp || Date.now()),
-                            // Map any additional metadata if backend provides it
                             actions: [] as ChatAction[],
                         }));
                         setMessages(chatMessages);
@@ -134,7 +133,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setMessages([welcomeMsg]);
                 }
             } else {
-                console.warn(`No history found or failed to load: ${response.status}`);
+                // Clear stale session so next open creates a fresh one
+                localStorage.removeItem('atom_chat_session_id');
                 setMessages([welcomeMsg]);
             }
         } catch (error) {

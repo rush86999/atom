@@ -101,17 +101,15 @@ async def get_current_user(
             token = request.cookies.get("__Secure-next-auth.session-token")
             
     if not token:
-        print("AUTH DEBUG: No token found in header or cookie")
         raise credentials_exception
 
     if token.startswith('"') and token.endswith('"'):
         token = token[1:-1]
         
     try:
-        print(f"AUTH DEBUG: Attempting to decode token: {token[:15]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
-        print(f"AUTH DEBUG: Decoded payload. sub={user_id}, id={payload.get('id')}")
+
         
         if user_id is None:
             # Try "id" field if "sub" is missing (NextAuth sometimes differs)

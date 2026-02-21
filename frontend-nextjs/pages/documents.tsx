@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import Layout from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -97,7 +96,7 @@ export default function DocumentsPage() {
     };
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Knowledge Base | Atom</title>
             </Head>
@@ -252,6 +251,6 @@ export default function DocumentsPage() {
                     )}
                 </div>
             </div>
-        </Layout>
+        </>
     );
 }
