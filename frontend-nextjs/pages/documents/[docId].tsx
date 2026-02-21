@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import Layout from '../../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -50,36 +49,32 @@ export default function DocumentDetailsPage() {
 
     if (loading) {
         return (
-            <Layout>
-                <div className="flex justify-center items-center h-[50vh]">
-                    <Spinner className="h-10 w-10 text-primary" />
-                </div>
-            </Layout>
+            <div className="flex justify-center items-center h-[50vh]">
+                <Spinner className="h-10 w-10 text-primary" />
+            </div>
         );
     }
 
     if (error || !document) {
         return (
-            <Layout>
-                <div className="p-6">
-                    <Alert variant="destructive">
-                        <AlertDescription>{error || "Document not found"}</AlertDescription>
-                    </Alert>
-                    <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => router.back()}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Go Back
-                    </Button>
-                </div>
-            </Layout>
+            <div className="p-6">
+                <Alert variant="destructive">
+                    <AlertDescription>{error || "Document not found"}</AlertDescription>
+                </Alert>
+                <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => router.back()}
+                >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Go Back
+                </Button>
+            </div>
         );
     }
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>{document.title} | Atom Knowledge Base</title>
             </Head>
@@ -170,6 +165,6 @@ export default function DocumentDetailsPage() {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 }

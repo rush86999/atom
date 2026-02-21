@@ -48,7 +48,7 @@ except (ImportError, BaseException) as e:
     logger.warning(f"LanceDB check failed: {e}")
 
 # Define placeholders for type hints
-print("DEBUG: check_lancedb_init trace - After LanceDB check")
+
 Table = Any
 LanceDBConnection = Any
 
@@ -68,7 +68,7 @@ except (ImportError, BaseException) as e:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
     logger.warning(f"Sentence transformers check failed: {e}")
 
-print("DEBUG: check_lancedb_init trace - After SentenceTransformers check")
+
 
 # Import OpenAI for embeddings
 # Import OpenAI for embeddings (Lazy load)
@@ -82,7 +82,7 @@ except (ImportError, Exception) as e:
     OPENAI_AVAILABLE = False
     logger.warning(f"OpenAI check failed: {e}")
 
-print("DEBUG: check_lancedb_init trace - After OpenAI check")
+
 
 # BYOK Integration
 try:
@@ -90,7 +90,7 @@ try:
 except ImportError:
     get_byok_manager = None
 
-print("DEBUG: check_lancedb_init trace - After BYOK import")
+
 
 
 class MockEmbedder:
