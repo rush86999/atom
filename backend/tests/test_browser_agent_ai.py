@@ -14,9 +14,12 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
-sys.modules['cv2'] = MagicMock()
-sys.modules['numpy'] = MagicMock()
-sys.modules['pyautogui'] = MagicMock()
+# Only mock cv2 and pyautogui - these are truly optional and not needed by other tests
+# Do NOT mock numpy as it breaks other test files that need real numpy
+if 'cv2' not in sys.modules:
+    sys.modules['cv2'] = MagicMock()
+if 'pyautogui' not in sys.modules:
+    sys.modules['pyautogui'] = MagicMock()
 
 
 class TestComputerAction:

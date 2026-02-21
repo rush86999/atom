@@ -2,11 +2,24 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-# Mock problematic dependencies
-sys.modules["instructor"] = MagicMock()
-sys.modules["numpy"] = MagicMock()
-sys.modules["pandas"] = MagicMock()
-sys.modules["lancedb"] = MagicMock()
+# Mock optional dependencies that are truly not needed by other tests
+# Do NOT mock numpy/pandas as they break other test files that need real versions
+if 'azure' not in sys.modules:
+    sys.modules["azure"] = MagicMock()
+if 'azure.graph' not in sys.modules:
+    sys.modules["azure.graph"] = MagicMock()
+if 'azure.identity' not in sys.modules:
+    sys.modules["azure.identity"] = MagicMock()
+if 'azure.mgmt' not in sys.modules:
+    sys.modules["azure.mgmt"] = MagicMock()
+if 'azure.mgmt.teams' not in sys.modules:
+    sys.modules["azure.mgmt.teams"] = MagicMock()
+if 'msal' not in sys.modules:
+    sys.modules["msal"] = MagicMock()
+if 'instructor' not in sys.modules:
+    sys.modules["instructor"] = MagicMock()
+if 'lancedb' not in sys.modules:
+    sys.modules["lancedb"] = MagicMock()
 
 import asyncio
 from datetime import datetime
