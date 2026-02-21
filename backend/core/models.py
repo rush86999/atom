@@ -5865,3 +5865,143 @@ class HomeAssistantConnection(Base):
 
     # Relationships
     user = relationship("User", backref="ha_connections")
+
+
+# ==================== AUTONOMOUS CODING AGENTS MODELS ====================
+
+class AutonomousWorkflow(Base):
+    """
+    Autonomous coding workflow execution tracking.
+
+    Tracks end-to-end feature development by AI agent swarms:
+    - Requirements parsing (natural language -> structured user stories)
+    - Codebase research (embedding search, AST parsing)
+    - Implementation planning (DAG-based task breakdown)
+    - Code generation (type-safe, tested, documented)
+    - Test generation and fixing (iterative coverage optimization)
+    - Documentation (API docs, usage guides)
+    - Git commits and pull requests
+
+    Governance: AUTONOMOUS maturity required for execution.
+    Checkpoints: Git commit SHA for rollback capability.
+    Audit trail: Full agent execution logs for compliance.
+    """
+    __tablename__ = "autonomous_workflows"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+
+    # Input
+    feature_request = Column(Text, nullable=False)
+
+    # Status tracking
+    status = Column(String, default="pending", index=True)  # pending, running, paused, completed, failed
+    current_phase = Column(String, nullable=True)  # e.g., "parse", "research", "plan", "implement", "test"
+    completed_phases = Column(JSON, default=list)  # List of completed phase names
+
+    # Requirements output
+    requirements = Column(JSON, nullable=True)  # Parsed requirements (dependencies, integration points)
+    user_stories = Column(JSON, nullable=True)  # List of user stories with role/action/value
+    acceptance_criteria = Column(JSON, nullable=True)  # List of Gherkin scenarios (Given/When/Then)
+
+    # Planning output
+    implementation_plan = Column(JSON, nullable=True)  # Task breakdown with DAG
+    estimated_duration_seconds = Column(Integer, nullable=True)
+
+    # Execution output
+    files_created = Column(JSON, default=list)  # List of file paths created
+    files_modified = Column(JSON, default=list)  # List of file paths modified
+    test_results = Column(JSON, nullable=True)  # Test coverage, pass/fail counts
+
+    # Metadata
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Relationships
+    workspace = relationship("Workspace", backref="autonomous_workflows")
+    checkpoints = relationship("AutonomousCheckpoint", back_populates="workflow", cascade="all, delete-orphan")
+    agent_logs = relationship("AgentLog", back_populates="workflow", cascade="all, delete-orphan")
+
+
+class AutonomousCheckpoint(Base):
+    """
+    Workflow checkpoint for pause/resume and rollback capability.
+
+    Captures complete workflow state at specific points:
+    - Git commit SHA for code rollback
+    - Agent states (parser, researcher, planner, coder, tester, etc.)
+    - Shared state (files modified, artifacts created)
+    - Enables human-in-the-loop review points
+    - Fault tolerance: resume from checkpoint on failure
+
+    Rollback strategy: git reset --hard to checkpoint_sha
+    """
+    __tablename__ = "autonomous_checkpoints"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("autonomous_workflows.id"), nullable=False, index=True)
+
+    # Git state
+    checkpoint_sha = Column(String, nullable=False)  # Git commit SHA for rollback
+
+    # Workflow state snapshot
+    phase = Column(String, nullable=True)  # e.g., "parse", "research", "plan", "implement"
+    agent_states = Column(JSON, nullable=True)  # State of all agents (status, output)
+    shared_state = Column(JSON, nullable=True)  # Shared context between agents
+    artifacts = Column(JSON, nullable=True)  # Files created at checkpoint
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_rollback_point = Column(Boolean, default=False)  # Marked as safe rollback point
+
+    # Relationships
+    workflow = relationship("AutonomousWorkflow", back_populates="checkpoints")
+
+
+class AgentLog(Base):
+    """
+    Agent execution log for audit trail and debugging.
+
+    Tracks every agent action during autonomous workflow execution:
+    - Agent ID (parser-01, coder-backend, tester-01, etc.)
+    - Phase (parse, research, plan, implement, test)
+    - Action (specific task performed)
+    - Input/Output data (LLM prompts, responses)
+    - Status (running, completed, failed)
+    - Duration (for performance analysis)
+
+    Use cases:
+    - Audit trail for compliance
+    - Debugging failed workflows
+    - Cost analysis (LLM token usage)
+    - Performance optimization
+    - Learning from past executions (episodic memory)
+    """
+    __tablename__ = "agent_logs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("autonomous_workflows.id"), nullable=False, index=True)
+
+    # Agent identification
+    agent_id = Column(String, nullable=False, index=True)  # e.g., "parser-01", "coder-backend", "tester-01"
+
+    # Execution context
+    phase = Column(String, nullable=True, index=True)  # e.g., "parse", "research", "plan", "implement"
+    action = Column(String, nullable=True)  # Specific action performed
+
+    # Data
+    input_data = Column(JSON, nullable=True)  # Input to agent (LLM prompt, task description)
+    output_data = Column(JSON, nullable=True)  # Output from agent (parsed requirements, generated code)
+
+    # Status
+    status = Column(String, nullable=False, index=True)  # running, completed, failed
+    error_message = Column(Text, nullable=True)  # Error details if failed
+
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True, index=True)  # For performance analysis
+
+    # Relationships
+    workflow = relationship("AutonomousWorkflow", back_populates="agent_logs")
