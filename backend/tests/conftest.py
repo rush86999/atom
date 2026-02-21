@@ -90,6 +90,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: Tests that take >10 seconds")
     config.addinivalue_line("markers", "integration: Tests requiring external services")
     config.addinivalue_line("markers", "last: Test that should run last in the suite")
+    config.addinivalue_line("markers", "benchmark: Performance benchmark tests using pytest-benchmark")
 
 
 @pytest.fixture(autouse=True)
