@@ -227,34 +227,21 @@ class RequirementParserService:
         """
         try:
             # Prefer Anthropic for parsing (best intent understanding)
-            # Use chat completion interface
-            response = await self.byok_handler.acomplete(
+            # Use generate_response interface
+            response = await self.byok_handler.generate_response(
                 prompt=user_prompt,
-                system_prompt=REQUIREMENT_PARSER_SYSTEM_PROMPT,
-                provider_id="anthropic",  # Prefer Anthropic
-                model="claude-3-5-sonnet-20241022",  # Sonnet for good balance of speed/quality
+                system_instruction=REQUIREMENT_PARSER_SYSTEM_PROMPT,
+                model_type="quality",  # Use quality model for better parsing
                 temperature=0.0,  # Deterministic output
-                max_tokens=2000
+                task_type="requirements_parsing"
             )
 
             return response
 
         except Exception as e:
-            logger.warning(f"Anthropic call failed, trying fallback: {e}")
-            # Fallback to OpenAI
-            try:
-                response = await self.byok_handler.acomplete(
-                    prompt=user_prompt,
-                    system_prompt=REQUIREMENT_PARSER_SYSTEM_PROMPT,
-                    provider_id="openai",
-                    model="gpt-4o-mini",
-                    temperature=0.0,
-                    max_tokens=2000
-                )
-                return response
-            except Exception as e2:
-                logger.error(f"LLM call failed completely: {e2}")
-                raise Exception(f"Failed to get LLM response: {e2}")
+            logger.warning(f"LLM call failed: {e}")
+            logger.error(f"LLM call failed completely: {e}")
+            raise Exception(f"Failed to get LLM response: {e}")
 
     def _parse_llm_response(self, llm_response: str) -> Dict[str, Any]:
         """
