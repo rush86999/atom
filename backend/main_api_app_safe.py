@@ -67,6 +67,14 @@ try:
 except Exception as e:
     logger.warning(f"Failed to load Agent routes in safe mode: {e}")
 
+# Load Autonomous Coding Routes
+try:
+    from api.autonomous_coding_routes import router as autonomous_router
+    app.include_router(autonomous_router, tags=["Autonomous Coding"])
+    logger.info("✓ Autonomous Coding Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Failed to load Autonomous Coding routes: {e}")
+
 @app.get("/")
 def health_check():
     return {"status": "ok", "mode": "safe"}
