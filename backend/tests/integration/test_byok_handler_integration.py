@@ -223,8 +223,8 @@ def test_get_ranked_providers_simple_query():
     }
 
     # Mock benchmark/pricing data to avoid real calls
-    with patch('core.llm.byok_handler.get_quality_score') as mock_quality, \
-         patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.benchmarks.get_quality_score') as mock_quality, \
+         patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
 
         mock_quality.return_value = 85
         mock_fetcher = MagicMock()
@@ -232,7 +232,7 @@ def test_get_ranked_providers_simple_query():
             "input_price": 0.0001,
             "max_input_tokens": 128000
         }
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         ranked = handler.get_ranked_providers(QueryComplexity.SIMPLE)
 
@@ -252,12 +252,12 @@ def test_get_ranked_providers_with_cost_preference():
         "anthropic": MagicMock()
     }
 
-    with patch('core.llm.byok_handler.get_quality_score') as mock_quality, \
-         patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.benchmarks.get_quality_score') as mock_quality, \
+         patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
 
         mock_quality.return_value = 85
         mock_fetcher = MagicMock()
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         ranked_cost = handler.get_ranked_providers(
             QueryComplexity.MODERATE,
@@ -459,12 +459,12 @@ def test_cost_efficient_model_selection():
         "anthropic": MagicMock()
     }
 
-    with patch('core.llm.byok_handler.get_quality_score') as mock_quality, \
-         patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.benchmarks.get_quality_score') as mock_quality, \
+         patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
 
         mock_quality.return_value = 85
         mock_fetcher = MagicMock()
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         # Get cost-optimized provider
         provider, model = handler.get_optimal_provider(
@@ -555,10 +555,10 @@ def test_provider_fallback_when_no_optimal():
         "test_provider": MagicMock()
     }
 
-    with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
         mock_fetcher = MagicMock()
         mock_fetcher.get_model_price.return_value = None  # No pricing data
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         # Should fall back to first available provider
         provider, model = handler.get_optimal_provider(QueryComplexity.SIMPLE)
@@ -593,13 +593,13 @@ def test_cognitive_tier_quality_filtering():
         "anthropic": MagicMock()
     }
 
-    with patch('core.llm.byok_handler.get_quality_score') as mock_quality, \
-         patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.benchmarks.get_quality_score') as mock_quality, \
+         patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
 
         # High quality for all models
         mock_quality.return_value = 90
         mock_fetcher = MagicMock()
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         # Should filter by CognitiveTier quality thresholds
         ranked = handler.get_ranked_providers(
@@ -618,12 +618,12 @@ def test_cognitive_tier_micro_has_no_filter():
     handler = BYOKHandler()
     handler.clients = {"openai": MagicMock()}
 
-    with patch('core.llm.byok_handler.get_quality_score') as mock_quality, \
-         patch('core.llm.byok_handler.get_pricing_fetcher') as mock_pricing:
+    with patch('core.benchmarks.get_quality_score') as mock_quality, \
+         patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_pricing:
 
         mock_quality.return_value = 50  # Low quality
         mock_fetcher = MagicMock()
-        mock_pricing.return_value = mock_fetcher
+        mock_get_pricing.return_value = mock_fetcher
 
         # MICRO tier should accept low quality
         ranked = handler.get_ranked_providers(
