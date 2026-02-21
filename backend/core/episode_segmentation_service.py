@@ -1494,3 +1494,146 @@ Topics: {', '.join(episode.topics)}
                 parts.append(f"Result: {result_str}")
 
         return "\n".join(parts)
+
+    async def create_coding_canvas_segment(
+        self,
+        episode_id: str,
+        canvas_id: str,
+        session_id: str,
+        operations: List[Dict[str, Any]],
+        code_content: str,
+        validation_feedback: Optional[Dict[str, Any]],
+        approval_decision: Optional[str],
+        language: str = 'python'
+    ) -> Optional[EpisodeSegment]:
+        """
+        Create an episode segment for coding agent canvas operations.
+
+        Tracks autonomous coding agent sessions for WorldModel recall and
+        episodic memory integration. Captures code generation, test results,
+        validation feedback, and approval decisions.
+
+        Args:
+            episode_id: Episode ID to link segment to
+            canvas_id: Canvas ID for the coding session
+            session_id: Session ID for context tracking
+            operations: List of operations performed (code_generation, test_generation, etc.)
+            code_content: Generated code content
+            validation_feedback: Optional validation results (tests, coverage, failures)
+            approval_decision: Optional human approval decision (approve/reject/retry)
+            language: Programming language (python, typescript, javascript, sql, yaml)
+
+        Returns:
+            Created EpisodeSegment or None if creation failed
+        """
+        try:
+            # Extract operation IDs for canvas_action_ids tracking
+            canvas_action_ids = [op.get('id') for op in operations if op.get('id')]
+
+            # Format operations for content
+            formatted_operations = []
+            for op in operations:
+                op_str = f"- {op.get('type', 'unknown')}: {op.get('status', 'unknown')}"
+                if op.get('error'):
+                    op_str += f" (Error: {op['error'][:100]})"
+                formatted_operations.append(op_str)
+
+            # Build content summary
+            content_parts = [
+                f"Coding Canvas Session: {canvas_id}",
+                f"Language: {language}",
+                f"Operations: {len(operations)}",
+            ]
+
+            if formatted_operations:
+                content_parts.append("Operations performed:")
+                content_parts.extend(formatted_operations)
+
+            if code_content:
+                code_preview = code_content[:500]
+                if len(code_content) > 500:
+                    code_preview += "... (truncated)"
+                content_parts.append(f"Code preview:\n{code_preview}")
+
+            if validation_feedback:
+                content_parts.append(
+                    f"Validation: {validation_feedback.get('passed', 0)}/{validation_feedback.get('total', 0)} tests passed"
+                )
+                if validation_feedback.get('coverage'):
+                    content_parts.append(f"Coverage: {validation_feedback['coverage']}%")
+
+            if approval_decision:
+                content_parts.append(f"Approval decision: {approval_decision}")
+
+            content = "\n".join(content_parts)
+
+            # Build canvas context for semantic understanding
+            canvas_context = {
+                "canvas_type": "coding",
+                "canvas_id": canvas_id,
+                "presentation_summary": f"Autonomous coding agent session with {len(operations)} operations in {language}",
+                "visual_elements": ["code_editor", "operations_feed", "approval_workflow"],
+                "user_interaction": f"User {approval_decision or 'viewed'} code suggestion" if approval_decision else "Agent presented code",
+                "critical_data_points": {
+                    "session_id": session_id,
+                    "language": language,
+                    "operation_count": len(operations),
+                    "has_validation": validation_feedback is not None,
+                    "required_approval": approval_decision is not None,
+                    "approval_decision": approval_decision,
+                    "test_pass_rate": (
+                        validation_feedback.get('passed', 0) / validation_feedback.get('total', 1)
+                        if validation_feedback and validation_feedback.get('total', 0) > 0
+                        else None
+                    ),
+                    "coverage": validation_feedback.get('coverage') if validation_feedback else None
+                }
+            }
+
+            # Build metadata
+            metadata = {
+                "operation_count": len(operations),
+                "language": language,
+                "has_validation": validation_feedback is not None,
+                "required_approval": approval_decision is not None,
+                "approval_decision": approval_decision,
+                "canvas_action_ids": canvas_action_ids,
+                "code_length": len(code_content)
+            }
+
+            # Add validation metadata if present
+            if validation_feedback:
+                metadata["validation_passed"] = validation_feedback.get('passed', 0)
+                metadata["validation_total"] = validation_feedback.get('total', 0)
+                metadata["validation_coverage"] = validation_feedback.get('coverage', 0)
+                metadata["validation_failures"] = len(validation_feedback.get('failures', []))
+
+            # Create segment
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="canvas_operation",
+                sequence_order=0,  # Caller should set proper sequence
+                content=content,
+                content_summary=f"Coding agent session: {len(operations)} operations in {language}",
+                source_type="coding_canvas",
+                source_id=canvas_id,
+                canvas_context=canvas_context,
+                metadata=metadata
+            )
+
+            with get_db_session() as db:
+                db.add(segment)
+                db.commit()
+                db.refresh(segment)
+
+            logger.info(
+                f"Created coding canvas segment {segment.id} for episode {episode_id} "
+                f"({len(operations)} operations, language={language})"
+            )
+
+            return segment
+
+        except Exception as e:
+            logger.error(f"Failed to create coding canvas segment: {e}")
+            return None
