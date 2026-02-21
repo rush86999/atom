@@ -2249,13 +2249,24 @@ docker-compose -f docker-compose-e2e.yml down -v
    - Aggregate results and generate summary
    - Update project state (STATE.md)
 
-**Plans**: 9 plans (4 waves)
+10. **CodingAgentCanvas** (Plan 10):
+   - Real-time canvas component for autonomous coding agent visualization
+   - Code editor UI with syntax highlighting and language detection
+   - Approval workflow UI (approve/retry/reject buttons for agent suggestions)
+   - Validation feedback display (test results, coverage metrics, failure analysis)
+   - History view with diff comparison for code changes
+   - AI accessibility via useAccessibilityMirror hook (hidden mirror div for agent context)
+   - Episode integration (canvas_action_ids tracking for WorldModel recall)
+   - Unit tests for component rendering, hooks, and episode integration
+   - Documentation for canvas usage and AI accessibility patterns
+
+**Plans**: 10 plans (4 waves)
 - Wave 1 (Plans 01-02): Feature parsing, Codebase research
 - Wave 2 (Plans 03-04): Implementation planning, Code generation
 - Wave 3 (Plans 05-06): Test generation, Test execution & fixing
-- Wave 4 (Plans 07-09): Documentation, Commits, Orchestrator
+- Wave 4 (Plans 07-10): Documentation, Commits, Orchestrator, CodingAgent Canvas
 
-**Estimated Duration**: 4-5 days (9 plans, ~3-5 hours each)
+**Estimated Duration**: 4-5 days (10 plans, ~3-5 hours each)
 
 **Architecture**:
 ```
