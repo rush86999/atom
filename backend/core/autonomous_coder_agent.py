@@ -1161,3 +1161,316 @@ Return only the code, no explanations."""
         else:
             # Use base implementation
             return await super()._generate_file_code(task, file_path, language, context)
+
+
+# ============================================================================
+# Task 4: DatabaseCoder Specialization
+# ============================================================================
+
+class DatabaseCoder(CoderAgent):
+    """
+    Specializes in database models and migrations.
+
+    Generates Alembic migration files and SQLAlchemy model extensions.
+    Follows Atom database patterns with proper upgrade/downgrade paths.
+
+    Example:
+        coder = DatabaseCoder(db, byok_handler)
+        migration = await coder.generate_migration(
+            "Add OAuth token table",
+            operations,
+            context
+        )
+    """
+
+    def __init__(self, db: Session, byok_handler: BYOKHandler):
+        """
+        Initialize database coder.
+
+        Args:
+            db: Database session
+            byok_handler: BYOK handler for LLM access
+        """
+        quality_service = CodeQualityService(project_root="backend")
+        super().__init__(db, byok_handler, quality_service, CoderSpecialization.DATABASE)
+
+    async def generate_migration(
+        self,
+        migration_name: str,
+        operations: List[Dict[str, Any]],
+        context: Dict[str, Any],
+    ) -> str:
+        """
+        Generate Alembic migration file.
+
+        Args:
+            migration_name: Description of migration
+            operations: List of operations (create_table, add_column, etc.)
+            context: Existing migration patterns
+
+        Returns:
+            Complete migration file content
+        """
+        logger.info(f"Generating migration: {migration_name}")
+
+        # Generate revision ID (placeholder, Alembic generates real one)
+        revision_id = "xxxxxxxxxxxx"
+
+        # Generate upgrade and downgrade
+        upgrade_code, downgrade_code = await self.generate_upgrade_downgrade(
+            operations
+        )
+
+        prompt = f"""Generate an Alembic migration file:
+
+Migration Name: {migration_name}
+Revision ID: {revision_id}
+
+Upgrade Operations:
+{upgrade_code}
+
+Downgrade Operations:
+{downgrade_code}
+
+Follow this pattern:
+1. Module docstring with migration description
+2. Revision ID and down_revision (None for first migration)
+3. Branch labels (if applicable)
+4. Depends_on (if applicable)
+5. upgrade() function with op operations
+6. downgrade() function with reversal operations
+7. Use op.create_table, op.add_column, op.create_index
+8. Include proper foreign key constraints
+9. Return only the code, no explanations"""
+
+        existing_patterns = context.get("existing_migrations", "")
+        return await self._generate_with_llm(prompt, existing_patterns)
+
+    async def generate_upgrade_downgrade(
+        self,
+        operations: List[Dict[str, Any]],
+    ) -> tuple[str, str]:
+        """
+        Generate upgrade() and downgrade() functions.
+
+        Args:
+            operations: List of database operations
+
+        Returns:
+            (upgrade_code, downgrade_code) tuple
+        """
+        logger.info(f"Generating upgrade/downgrade for {len(operations)} operations")
+
+        upgrade_lines = []
+        downgrade_lines = []
+
+        for op in operations:
+            op_type = op.get("type", "")
+
+            if op_type == "create_table":
+                # Upgrade: create table
+                table_name = op.get("table_name", "table")
+                columns = op.get("columns", [])
+                upgrade_lines.append(f"op.create_table(")
+                upgrade_lines.append(f"    '{table_name}',")
+                upgrade_lines.append("    sa.Column('id', sa.Integer(), primary_key=True),")
+                for col in columns:
+                    col_def = self._generate_column_definition(col)
+                    upgrade_lines.append(f"    {col_def},")
+                upgrade_lines.append(")")
+                # Downgrade: drop table
+                downgrade_lines.append(f"op.drop_table('{table_name}')")
+
+            elif op_type == "add_column":
+                # Upgrade: add column
+                table_name = op.get("table_name", "table")
+                column = op.get("column", {})
+                col_def = self._generate_column_definition(column)
+                upgrade_lines.append(f"op.add_column('{table_name}', {col_def})")
+                # Downgrade: drop column
+                downgrade_lines.append(
+                    f"op.drop_column('{table_name}', '{column.get('name', 'col')}')"
+                )
+
+            elif op_type == "add_index":
+                # Upgrade: create index
+                table_name = op.get("table_name", "table")
+                index_name = op.get("index_name", "idx_table_column")
+                columns = op.get("columns", [])
+                upgrade_lines.append(
+                    f"op.create_index('{index_name}', '{table_name}', {columns})"
+                )
+                # Downgrade: drop index
+                downgrade_lines.append(f"op.drop_index('{index_name}', '{table_name}')")
+
+        upgrade_code = "\n    ".join(upgrade_lines)
+        downgrade_code = "\n    ".join(downgrade_lines)
+
+        return upgrade_code, downgrade_code
+
+    async def generate_model_extensions(
+        self,
+        model_name: str,
+        fields: List[Dict[str, Any]],
+        relationships: List[Dict[str, Any]],
+        context: Dict[str, Any],
+    ) -> str:
+        """
+        Generate SQLAlchemy model extensions for models.py.
+
+        Args:
+            model_name: Name of model class
+            fields: List of field definitions
+            relationships: List of relationship definitions
+            context: Existing model patterns
+
+        Returns:
+            Model class definition with proper relationships
+        """
+        logger.info(f"Generating model extensions for: {model_name}")
+
+        prompt = f"""Generate a SQLAlchemy model extension:
+
+Model Name: {model_name}
+
+Fields:
+{chr(10).join(f'- {f.get(\"name\")}: {f.get(\"type\")}' for f in fields)}
+
+Relationships:
+{chr(10).join(f'- {r.get(\"name\")}: {r.get(\"type\")}' for r in relationships)}
+
+Follow this pattern:
+1. Import Column, Integer, String, Boolean, DateTime, ForeignKey, relationship
+2. Model class with __tablename__
+3. Columns with proper types and constraints
+4. Relationships with back_populates and lazy loading
+5. Indexes on frequently queried columns
+6. __repr__ method for debugging
+7. Return only the code, no explanations"""
+
+        existing_patterns = context.get("existing_models", "")
+        return await self._generate_with_llm(prompt, existing_patterns)
+
+    def _generate_column_definition(
+        self,
+        field: Dict[str, Any],
+    ) -> str:
+        """
+        Generate SQLAlchemy Column definition from field spec.
+
+        Example: {"name": "email", "type": "string", "nullable": false}
+        Returns: Column(String, nullable=False, index=True)
+
+        Args:
+            field: Field specification dict
+
+        Returns:
+            SQLAlchemy Column definition string
+        """
+        name = field.get("name", "column")
+        field_type = field.get("type", "String")
+        nullable = field.get("nullable", True)
+        index = field.get("index", False)
+        primary_key = field.get("primary_key", False)
+
+        # Map type strings to SQLAlchemy types
+        type_map = {
+            "string": "sa.String",
+            "integer": "sa.Integer",
+            "boolean": "sa.Boolean",
+            "datetime": "sa.DateTime",
+            "text": "sa.Text",
+            "float": "sa.Float",
+        }
+
+        sa_type = type_map.get(field_type.lower(), "sa.String")
+
+        # Build column definition
+        parts = [f"sa.Column('{name}'", sa_type]
+
+        if primary_key:
+            parts.append("primary_key=True")
+
+        if not nullable:
+            parts.append("nullable=False")
+
+        if index:
+            parts.append("index=True")
+
+        return f"{', '.join(parts)})"
+
+    def _generate_relationship(
+        self,
+        relationship: Dict[str, Any],
+    ) -> str:
+        """
+        Generate SQLAlchemy relationship definition.
+
+        Example: {"name": "user", "foreign_key": "users.id"}
+        Returns: relationship("User", back_populates="...")
+
+        Args:
+            relationship: Relationship specification dict
+
+        Returns:
+            SQLAlchemy relationship definition string
+        """
+        name = relationship.get("name", "relation")
+        target_model = relationship.get("target_model", "Model")
+        back_populates = relationship.get("back_populates", "")
+        lazy = relationship.get("lazy", "select")
+
+        parts = [f"sa.relationship('{target_model}'"]
+
+        if back_populates:
+            parts.append(f"back_populates='{back_populates}'")
+
+        if lazy:
+            parts.append(f"lazy='{lazy}'")
+
+        parts.append(")")
+
+        return f"{name} = {', '.join(parts)}"
+
+    async def _generate_file_code(
+        self,
+        task: ImplementationTask,
+        file_path: str,
+        language: str,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Generate database file code.
+
+        Routes to specialized methods based on file type.
+
+        Args:
+            task: Implementation task
+            file_path: File to generate
+            language: Programming language
+            context: Codebase context
+
+        Returns:
+            Generated code with any errors
+        """
+        # Determine file type
+        if "migration" in file_path.lower() or "alembic" in file_path.lower():
+            # Extract migration details from task
+            migration_name = task.description.get("migration_name", task.name)
+            operations = task.description.get("operations", [])
+            code = await self.generate_migration(migration_name, operations, context)
+            return {"code": code, "errors": []}
+
+        elif "models" in file_path.lower():
+            # Extract model details from task
+            model_name = task.description.get("model_name", "Model")
+            fields = task.description.get("fields", [])
+            relationships = task.description.get("relationships", [])
+            code = await self.generate_model_extensions(
+                model_name, fields, relationships, context
+            )
+            return {"code": code, "errors": []}
+
+        else:
+            # Use base implementation
+            return await super()._generate_file_code(task, file_path, language, context)
