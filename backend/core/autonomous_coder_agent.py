@@ -321,10 +321,11 @@ Return only the code, no explanations."""
         logger.info(f"Attempting to fix {len(errors)} quality errors")
 
         try:
+            error_list = "\n".join(errors[:10])
             prompt = f"""Fix these quality errors in the code:
 
 Errors:
-{chr(10).join(errors[:10])}  # Limit to first 10
+{error_list}
 
 Code:
 {code}
@@ -459,6 +460,10 @@ Return only the code with docstrings added."""
         Returns:
             Prompt string for LLM
         """
+        # Pre-compute requirements list
+        reqs = context.get("requirements", [])
+        requirements_list = "\n".join(f"- {req}" for req in reqs)
+
         return f"""Generate {language} code for this file:
 
 File: {file_path}
@@ -467,7 +472,7 @@ Description: {task.description}
 Complexity: {task.complexity.value}
 
 Requirements:
-{chr(10).join(f'- {req}' for req in context.get('requirements', []))}
+{requirements_list}
 
 Generate complete, production-ready code that:
 1. Follows Atom coding standards
@@ -525,12 +530,18 @@ class BackendCoder(CoderAgent):
         """
         logger.info(f"Generating service: {service_name}")
 
+        # Pre-compute method list to avoid f-string backslash issues
+        method_list = "\n".join(
+            f'- {m.get("name", "")}({m.get("params", "")}): {m.get("description", "")}'
+            for m in methods
+        )
+
         prompt = f"""Generate a Python service class:
 
 Service Name: {service_name}
 
 Methods:
-{chr(10).join(f'- {m.get("name", "")}({m.get("params", "")}): {m.get("description", "")}' for m in methods)}
+{method_list}
 
 Follow this pattern:
 1. Google-style module docstring
@@ -563,10 +574,16 @@ Return only the code, no explanations."""
         """
         logger.info(f"Generating {len(routes)} routes")
 
+        # Pre-compute route list
+        route_list = "\n".join(
+            f'{r.get("method", "GET").upper()} {r.get("path", "/")}: {r.get("handler", "")}'
+            for r in routes
+        )
+
         prompt = f"""Generate FastAPI routes:
 
 Routes:
-{chr(10).join(f'{r.get("method", "GET").upper()} {r.get("path", "/")}: {r.get("handler", "")}' for r in routes)}
+{route_list}
 
 Follow this pattern:
 1. Import FastAPI, Depends, status
@@ -601,10 +618,16 @@ Return only the code, no explanations."""
         """
         logger.info(f"Generating {len(models)} models")
 
+        # Pre-compute model list
+        model_list = "\n".join(
+            f'- {m.get("name", "")}: {m.get("description", "")}'
+            for m in models
+        )
+
         prompt = f"""Generate SQLAlchemy models:
 
 Models:
-{chr(10).join(f'- {m.get("name", "")}: {m.get("description", "")}' for m in models)}
+{model_list}
 
 Follow this pattern:
 1. Import Column, Integer, String, Boolean, DateTime, ForeignKey, relationship
@@ -998,12 +1021,15 @@ Return only the code, no explanations."""
         """
         logger.info(f"Generating page: {page_name}")
 
+        # Pre-compute component list
+        component_list = "\n".join(f"- {comp}" for comp in components)
+
         prompt = f"""Generate a Next.js page component with TypeScript:
 
 Page Name: {page_name}
 
 Components to Use:
-{chr(10).join(f'- {comp}' for comp in components)}
+{component_list}
 
 Follow this pattern:
 1. Import React components
@@ -1329,15 +1355,19 @@ Follow this pattern:
         """
         logger.info(f"Generating model extensions for: {model_name}")
 
+        # Build field and relationship lists
+        field_list = "\n".join(f'- {f.get("name")}: {f.get("type")}' for f in fields)
+        relationship_list = "\n".join(f'- {r.get("name")}: {r.get("type")}' for r in relationships)
+
         prompt = f"""Generate a SQLAlchemy model extension:
 
 Model Name: {model_name}
 
 Fields:
-{chr(10).join(f'- {f.get(\"name\")}: {f.get(\"type\")}' for f in fields)}
+{field_list}
 
 Relationships:
-{chr(10).join(f'- {r.get(\"name\")}: {r.get(\"type\")}' for r in relationships)}
+{relationship_list}
 
 Follow this pattern:
 1. Import Column, Integer, String, Boolean, DateTime, ForeignKey, relationship
