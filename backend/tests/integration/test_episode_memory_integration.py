@@ -31,7 +31,7 @@ from core.models import (
     ChatMessage,
     CanvasAudit,
     AgentFeedback,
-    MaturityLevel,
+    AgentStatus,
 )
 
 
@@ -53,7 +53,7 @@ def test_agent(db_session: Session):
         id="test-agent-001",
         name="Test Agent",
         description="Test agent for episode memory",
-        maturity=MaturityLevel.STUDENT.value,
+        status=AgentStatus.STUDENT.value,
         system_prompt="You are a test agent",
         created_by="test-user",
     )
@@ -650,7 +650,7 @@ def test_multi_agent_episode_isolation(
     agent1 = AgentRegistry(
         id="agent-1",
         name="Agent 1",
-        maturity=MaturityLevel.STUDENT.value,
+        status=AgentStatus.STUDENT.value,
         created_by="test-user",
     )
     agent2 = AgentRegistry(
