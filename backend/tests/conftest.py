@@ -93,6 +93,24 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "benchmark: Performance benchmark tests using pytest-benchmark")
 
 
+def pytest_collection_finish(session):
+    """
+    Clean up mocked modules after test collection is complete.
+
+    Some test modules (e.g., test_browser_agent_ai.py) mock numpy at module level,
+    which can cause issues for other tests during collection. This hook ensures
+    numpy is properly restored after all tests have been collected.
+    """
+    # Restore numpy/pandas/lancedb/pyarrow modules that may have been mocked
+    for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
+        if mod in sys.modules:
+            module = sys.modules[mod]
+            # Remove if set to None OR mocked as MagicMock
+            # MagicMock has _spec_class attribute that real modules don't have
+            if module is None or hasattr(module, '_spec_class'):
+                sys.modules.pop(mod, None)
+
+
 @pytest.fixture(autouse=True)
 def ensure_numpy_available(request):
     """
