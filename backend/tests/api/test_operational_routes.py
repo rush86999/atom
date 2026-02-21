@@ -35,7 +35,7 @@ class TestOperationalRoutes:
     @pytest.fixture
     def client(self):
         """Create test client"""
-        from main import app as main_app
+        from main_api_app import app as main_app
         return TestClient(main_app)
 
     def test_get_daily_priorities_success(self, client, mock_db):
@@ -474,7 +474,7 @@ class TestOperationalDataValidation:
     @pytest.fixture
     def client(self):
         """Create test client"""
-        from main import app as main_app
+        from main_api_app import app as main_app
         return TestClient(main_app)
 
     def test_simulate_decision_missing_decision_type(self, client):

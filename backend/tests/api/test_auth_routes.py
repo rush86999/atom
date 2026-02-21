@@ -67,7 +67,7 @@ def test_device(db_session: Session, test_user: User):
     device = MobileDevice(
         id=str(uuid.uuid4()),
         user_id=str(test_user.id),
-        device_token="test_device_token_123",
+        device_token=f"test_token_{uuid.uuid4()}",
         platform="ios",
         status="active",
         notification_enabled=True,
@@ -84,10 +84,13 @@ def test_device(db_session: Session, test_user: User):
 @pytest.fixture
 def client():
     """Create TestClient for auth routes"""
-    from main import app
-    app.include_router(router)
+    from main_api_app import app
+    # router is already included usually, but we ensure it matches the prefix
+    # app.include_router(router) 
+    app.dependency_overrides = {}
     with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides = {}
 
 
 # ============================================================================
@@ -170,57 +173,63 @@ class TestBiometricRegistration:
 
     def test_register_biometric_success(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test successful biometric registration"""
-        # Mock get_current_user to return test user
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+        from main_api_app import app
+        app.dependency_overrides[get_current_user] = lambda: test_user
 
-            response = client.post(
-                "/api/auth/mobile/biometric/register",
-                json={
-                    "public_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
-                    "device_token": test_device.device_token,
-                    "platform": "ios"
-                }
-            )
+        response = client.post(
+            "/api/auth/mobile/biometric/register",
+            json={
+                "public_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+                "device_token": test_device.device_token,
+                "platform": "ios"
+            }
+        )
 
-            # Should succeed or not found
-            assert response.status_code in [200, 404, 500]
-            if response.status_code == 200:
-                data = response.json()
-                assert data["success"] is True
-                assert "challenge" in data
+        # Should succeed or not found
+        if response.status_code not in [200, 404, 500]:
+             print(f"DEBUG: Response body: {response.json()}")
+        assert response.status_code in [200, 404, 500]
+        if response.status_code == 200:
+            data = response.json()
+            assert data["success"] is True
+            assert "challenge" in data
 
     def test_register_biometric_device_not_found(self, client: TestClient, test_user: User):
         """Test biometric registration with non-existent device"""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+        from main_api_app import app
+        app.dependency_overrides[get_current_user] = lambda: test_user
 
-            response = client.post(
-                "/api/auth/mobile/biometric/register",
-                json={
-                    "public_key": "test_key",
-                    "device_token": "nonexistent_device",
-                    "platform": "android"
-                }
-            )
+        response = client.post(
+            "/api/auth/mobile/biometric/register",
+            json={
+                "public_key": "test_key",
+                "device_token": "nonexistent_device",
+                "platform": "android"
+            }
+        )
 
-            # Device not found
-            assert response.status_code == 404
+        # Device not found
+        if response.status_code != 404:
+             print(f"DEBUG: Response body: {response.json()}")
+        assert response.status_code == 404
 
     def test_register_biometric_missing_fields(self, client: TestClient, test_user: User):
         """Test biometric registration with missing fields"""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+        from main_api_app import app
+        app.dependency_overrides[get_current_user] = lambda: test_user
 
-            response = client.post(
-                "/api/auth/mobile/biometric/register",
-                json={
-                    "public_key": "test_key"
-                    # Missing device_token, platform
-                }
-            )
+        response = client.post(
+            "/api/auth/mobile/biometric/register",
+            json={
+                "public_key": "test_key"
+                # Missing device_token, platform
+            }
+        )
 
-            assert response.status_code == 422
+        assert response.status_code == 422
 
 
 # ============================================================================
@@ -369,6 +378,8 @@ class TestMobileTokenRefresh:
             )
 
             # Should fail with validation error
+            if response.status_code not in [400, 422, 401]:
+                 print(f"DEBUG: Response body: {response.text}")
             assert response.status_code in [400, 422, 401]
 
     def test_refresh_mobile_token_wrong_type(self, client: TestClient):

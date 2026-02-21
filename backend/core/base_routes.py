@@ -126,18 +126,17 @@ class BaseAPIRouter(APIRouter):
                 page_size=20
             )
         """
-        metadata = {}
+        result_data = {"items": items}
         if total is not None:
-            metadata["total"] = total
+            result_data["total"] = total
         if page is not None:
-            metadata["page"] = page
+            result_data["page"] = page
         if page_size is not None:
-            metadata["page_size"] = page_size
+            result_data["page_size"] = page_size
 
         return self.success_response(
-            data=items,
-            message=message or f"Retrieved {len(items)} items",
-            metadata=metadata if metadata else None
+            data=result_data,
+            message=message or f"Retrieved {len(items)} items"
         )
 
     # ========================================================================
@@ -229,7 +228,7 @@ class BaseAPIRouter(APIRouter):
             error_code="VALIDATION_ERROR",
             message=message,
             details=error_details,
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
 
     def not_found_error(

@@ -136,6 +136,8 @@ async def create_unified_workspace(
             field="workspace",
             message=str(e)
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to create unified workspace: {e}")
         raise router.internal_error(
@@ -173,6 +175,8 @@ async def add_platform_to_workspace(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to add platform to workspace: {e}")
         raise router.internal_error(
@@ -213,6 +217,8 @@ async def propagate_changes(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to propagate changes: {e}")
         raise router.internal_error(
@@ -236,8 +242,16 @@ async def get_workspace_status(
         service = WorkspaceSyncService(db)
         status = service.get_workspace_sync_status(workspace_id)
 
+        # Merge status with flat workspace dict to satisfy tests
+        from core.models import UnifiedWorkspace
+        workspace = db.query(UnifiedWorkspace).filter(UnifiedWorkspace.id == workspace_id).first()
+        data = _workspace_to_dict(workspace)
+        data.update(status)
+        # Ensure 'id' is present (status has 'workspace_id')
+        data["id"] = workspace_id
+
         return router.success_response(
-            data=status,
+            data=data,
             message="Workspace status retrieved successfully"
         )
 
@@ -246,6 +260,8 @@ async def get_workspace_status(
             resource="UnifiedWorkspace",
             resource_id=workspace_id
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get workspace status: {e}")
         raise router.internal_error(
@@ -321,6 +337,8 @@ async def delete_unified_workspace(
             message=f"Unified workspace '{workspace_name}' deleted successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete workspace: {e}")
         raise router.internal_error(

@@ -84,7 +84,6 @@ def test_user(db_session):
     user = User(
         id="test-user-123",
         email="test@example.com",
-        username="testuser",
         created_at=datetime.now(timezone.utc)
     )
     db_session.add(user)

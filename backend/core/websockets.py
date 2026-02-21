@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import logging
 import os
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 from fastapi import WebSocket
 
 from core.auth import get_current_user_ws
@@ -240,6 +240,17 @@ class ConnectionManager:
             self.DEVICE_AUDIT_LOG,
             audit_data
         )
+
+    async def notify_workflow_status(self, user_id: str, execution_id: str, status: str, data: Optional[Dict[str, Any]] = None):
+        """Notify user about workflow status update"""
+        message = {
+            "type": "workflow_status",
+            "execution_id": execution_id,
+            "status": status,
+            "data": data or {},
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await self.send_personal_message(user_id, message)
 
 manager = ConnectionManager()
 

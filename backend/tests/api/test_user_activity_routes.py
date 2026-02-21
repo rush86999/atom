@@ -84,7 +84,7 @@ def mock_supervisor_info():
 @pytest.fixture
 def client():
     """Create TestClient for user activity routes"""
-    from main import app
+    from main_api_app import app
     app.include_router(router)
     with TestClient(app) as test_client:
         yield test_client
