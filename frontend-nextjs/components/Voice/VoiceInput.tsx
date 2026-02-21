@@ -86,12 +86,9 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
             </Button>
 
             {isListening && (
-                <div className="absolute left-full ml-2 flex space-x-1 items-center h-4">
-                    {/* Simple CSS animation for audio wave simulation */}
-                    <span className="w-1 h-3 bg-red-500 rounded-full animate-[bounce_1s_infinite_100ms]"></span>
-                    <span className="w-1 h-5 bg-red-500 rounded-full animate-[bounce_1s_infinite_200ms]"></span>
-                    <span className="w-1 h-4 bg-red-500 rounded-full animate-[bounce_1s_infinite_300ms]"></span>
-                    <span className="text-xs text-red-500 font-medium ml-1 whitespace-nowrap">Listening...</span>
+                <div className="absolute bottom-full right-0 mb-1 flex items-center gap-1 z-50 pointer-events-none bg-white/90 dark:bg-gray-900/90 border border-red-200 dark:border-red-800 rounded-full px-2 py-0.5 shadow-sm whitespace-nowrap -translate-x-1/4">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-xs text-red-500 font-medium">Listening...</span>
                 </div>
             )}
         </div>
