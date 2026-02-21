@@ -315,19 +315,12 @@ class AutoFixerService:
 
         try:
             # Call LLM
-            response = await self.byok_handler.chat_completion(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert Python debugger. Generate minimal fixes for failing tests."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
+            response = await self.byok_handler.generate_response(
+                prompt=prompt,
+                system_instruction="You are an expert Python debugger. Generate minimal fixes for failing tests.",
+                model_type="quality",
                 temperature=0.0,  # Deterministic fixes
-                max_tokens=1000
+                task_type="code_fixing"
             )
 
             # Extract fix from response

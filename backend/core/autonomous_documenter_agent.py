@@ -945,15 +945,16 @@ Generate a docstring that includes:
 Return ONLY the docstring wrapped in triple quotes, no explanations."""
 
             # Generate with LLM
-            response = await self.byok_handler.execute_prompt(
+            response = await self.byok_handler.generate_response(
                 prompt=prompt,
-                provider="anthropic",
-                model="claude-4-sonnet-20250514",
-                cognitive_tier=None,
+                system_instruction="You are an expert technical writer. Generate clear, concise Google-style docstrings.",
+                model_type="quality",
+                temperature=0.2,
+                task_type="documentation"
             )
 
             # Extract docstring from response
-            docstring = response.get("content", "").strip()
+            docstring = response.strip()
 
             # Format if needed
             if not docstring.startswith('"""'):
