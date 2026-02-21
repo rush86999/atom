@@ -1474,3 +1474,346 @@ Follow this pattern:
         else:
             # Use base implementation
             return await super()._generate_file_code(task, file_path, language, context)
+
+
+# ============================================================================
+# Task 6: CodeGeneratorOrchestrator
+# ============================================================================
+
+class CodeGeneratorOrchestrator:
+    """
+    Orchestrates code generation across multiple files.
+
+    Coordinates multiple specialized coders for parallel file generation.
+    Routes tasks to appropriate coders based on agent type.
+    Applies quality gates to all generated files.
+
+    Example:
+        orchestrator = CodeGeneratorOrchestrator(db, byok_handler)
+        result = await orchestrator.generate_from_plan(plan)
+        print(f"Generated {len(result['files_generated'])} files")
+    """
+
+    def __init__(self, db: Session, byok_handler: BYOKHandler):
+        """
+        Initialize orchestrator with all coder specializations.
+
+        Args:
+            db: Database session
+            byok_handler: BYOK handler for LLM access
+        """
+        self.db = db
+        self.byok_handler = byok_handler
+        self.quality_service = CodeQualityService()
+        self.backend_coder = BackendCoder(db, byok_handler)
+        self.frontend_coder = FrontendCoder(db, byok_handler)
+        self.database_coder = DatabaseCoder(db, byok_handler)
+
+    async def generate_from_plan(
+        self,
+        plan: Dict[str, Any],
+        start_index: int = 0,
+        end_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate code for tasks in implementation plan.
+
+        Supports parallel generation by processing task slices.
+
+        Args:
+            plan: Implementation plan from PlanningAgent
+            start_index: Starting task index (for parallelization)
+            end_index: Ending task index (for parallelization)
+
+        Returns:
+            {
+                "files_generated": [
+                    {"path": str, "code": str, "quality_passed": bool}
+                ],
+                "total_lines": int,
+                "quality_summary": {...},
+                "errors": [str]
+            }
+        """
+        logger.info(f"Generating code from plan (tasks {start_index}-{end_index or 'end'})")
+
+        tasks = plan.get("tasks", [])
+        if end_index:
+            tasks = tasks[start_index:end_index]
+        else:
+            tasks = tasks[start_index:]
+
+        files_generated = []
+        all_errors = []
+        total_lines = 0
+
+        # Process tasks
+        for task_dict in tasks:
+            # Convert dict to ImplementationTask
+            task = self._dict_to_task(task_dict)
+
+            # Generate code for this task
+            context = plan.get("context", {})
+            result = await self.generate_task(task, context)
+
+            if result["errors"]:
+                all_errors.extend(result["errors"])
+                continue
+
+            # Collect generated files
+            for file_data in result["files"]:
+                files_generated.append(file_data)
+                total_lines += len(file_data["code"].split("\n"))
+
+        # Build quality summary
+        quality_summary = self._build_quality_summary(files_generated)
+
+        return {
+            "files_generated": files_generated,
+            "total_lines": total_lines,
+            "quality_summary": quality_summary,
+            "errors": all_errors,
+        }
+
+    async def generate_task(
+        self,
+        task: ImplementationTask,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Generate code for a single task.
+
+        Routes to appropriate coder based on agent_type.
+        Applies quality gates before returning.
+
+        Args:
+            task: ImplementationTask to generate code for
+            context: Codebase context
+
+        Returns:
+            {
+                "files": [...],
+                "errors": [str]
+            }
+        """
+        logger.info(f"Generating task: {task.name} (type: {task.agent_type})")
+
+        try:
+            # Select appropriate coder
+            coder = self.select_coder(task.agent_type)
+
+            # Generate code
+            result = await coder.generate_code(task, context)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Task generation failed: {e}")
+            return {
+                "files": [],
+                "errors": [str(e)],
+            }
+
+    async def generate_with_context(
+        self,
+        task: ImplementationTask,
+        existing_code: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """
+        Generate code with awareness of existing files.
+
+        Reads existing files to understand patterns.
+        Integrates new code with existing code.
+
+        Args:
+            task: ImplementationTask
+            existing_code: Dict mapping file paths to existing code
+
+        Returns:
+            Generated files with errors
+        """
+        logger.info(f"Generating task with context: {task.name}")
+
+        # Build context from existing code
+        context = {
+            "existing_code": existing_code,
+            "requirements": task.description.get("requirements", []),
+        }
+
+        # Extract patterns from existing code
+        for file_path, code in existing_code.items():
+            if "service" in file_path.lower():
+                context.setdefault("existing_services", "")
+                context["existing_services"] += "\n\n" + code
+            elif "routes" in file_path.lower():
+                context.setdefault("existing_routes", "")
+                context["existing_routes"] += "\n\n" + code
+            elif "models" in file_path.lower():
+                context.setdefault("existing_models", "")
+                context["existing_models"] += "\n\n" + code
+            elif "component" in file_path.lower() or file_path.endswith(".tsx"):
+                context.setdefault("existing_components", "")
+                context["existing_components"] += "\n\n" + code
+
+        # Generate code with enriched context
+        return await self.generate_task(task, context)
+
+    def select_coder(
+        self,
+        agent_type: AgentType,
+    ) -> CoderAgent:
+        """
+        Select appropriate coder for agent type.
+
+        Args:
+            agent_type: Agent type from ImplementationTask
+
+        Returns:
+            Appropriate coder instance
+
+        Raises:
+            ValueError: If agent type not supported
+        """
+        coder_map = {
+            AgentType.CODER_BACKEND: self.backend_coder,
+            AgentType.CODER_FRONTEND: self.frontend_coder,
+            AgentType.CODER_DATABASE: self.database_coder,
+        }
+
+        coder = coder_map.get(agent_type)
+
+        if not coder:
+            raise ValueError(f"No coder available for agent type: {agent_type}")
+
+        return coder
+
+    async def apply_quality_gates_batch(
+        self,
+        files: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """
+        Apply quality gates to all generated files.
+
+        Args:
+            files: List of {"path": str, "code": str} dicts
+
+        Returns:
+            {
+                "passed_files": int,
+                "failed_files": int,
+                "total_errors": int,
+                "details": [...]
+            }
+        """
+        logger.info(f"Applying quality gates to {len(files)} files")
+
+        passed_files = 0
+        failed_files = 0
+        total_errors = 0
+        details = []
+
+        for file_data in files:
+            file_path = file_data["path"]
+            code = file_data["code"]
+
+            # Apply quality gates
+            result = await self.quality_service.enforce_all_quality_gates(
+                code, file_path
+            )
+
+            if result["passed"]:
+                passed_files += 1
+            else:
+                failed_files += 1
+                total_errors += len(result["errors"])
+
+            details.append({
+                "path": file_path,
+                "passed": result["passed"],
+                "quality_report": result["quality_report"],
+                "errors": result["errors"],
+            })
+
+        return {
+            "passed_files": passed_files,
+            "failed_files": failed_files,
+            "total_errors": total_errors,
+            "details": details,
+        }
+
+    def _build_quality_summary(
+        self,
+        files: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        Build summary of quality check results.
+
+        Args:
+            files: List of generated file data
+
+        Returns:
+            Quality summary dict
+        """
+        total_files = len(files)
+
+        if total_files == 0:
+            return {
+                "total_files": 0,
+                "mypy_passed": 0,
+                "black_formatted": 0,
+                "isort_sorted": 0,
+                "flake8_passed": 0,
+                "pass_rate": 0.0,
+            }
+
+        mypy_passed = sum(
+            1 for f in files
+            if f.get("quality_checks", {}).get("mypy_passed", False)
+        )
+        black_formatted = sum(
+            1 for f in files
+            if f.get("quality_checks", {}).get("black_formatted", False)
+        )
+        isort_sorted = sum(
+            1 for f in files
+            if f.get("quality_checks", {}).get("isort_sorted", False)
+        )
+        flake8_passed = sum(
+            1 for f in files
+            if f.get("quality_checks", {}).get("flake8_passed", False)
+        )
+
+        return {
+            "total_files": total_files,
+            "mypy_passed": mypy_passed,
+            "black_formatted": black_formatted,
+            "isort_sorted": isort_sorted,
+            "flake8_passed": flake8_passed,
+            "pass_rate": (
+                (mypy_passed + black_formatted + isort_sorted + flake8_passed) /
+                (total_files * 4)
+            ) if total_files > 0 else 0.0,
+        }
+
+    def _dict_to_task(self, task_dict: Dict[str, Any]) -> ImplementationTask:
+        """
+        Convert dict to ImplementationTask.
+
+        Args:
+            task_dict: Task dictionary from plan
+
+        Returns:
+            ImplementationTask instance
+        """
+        return ImplementationTask(
+            id=task_dict.get("id", ""),
+            name=task_dict.get("name", ""),
+            agent_type=AgentType(task_dict.get("agent_type", "coder-backend")),
+            description=task_dict.get("description", {}),
+            dependencies=task_dict.get("dependencies", []),
+            files_to_create=task_dict.get("files_to_create", []),
+            files_to_modify=task_dict.get("files_to_modify", []),
+            estimated_time_minutes=task_dict.get("estimated_time_minutes", 0),
+            complexity=TaskComplexity(task_dict.get("complexity", "moderate")),
+            can_parallelize=task_dict.get("can_parallelize", False),
+        )
