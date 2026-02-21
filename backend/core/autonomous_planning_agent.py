@@ -175,8 +175,8 @@ class HTNDecomposer:
         Identify high-level task types from user stories.
 
         Heuristics:
-        - Keywords: "database", "model", "table", "migration" → database_schema
-        - Keywords: "API", "endpoint", "service", "route" → backend_api
+        - Keywords: "database", "model", "table", "migration", "oauth", "session", "user" → database_schema
+        - Keywords: "API", "endpoint", "service", "route", "oauth", "auth" → backend_api
         - Keywords: "UI", "frontend", "component", "page" → frontend_ui
         - Default: Always include testing
 
@@ -187,15 +187,20 @@ class HTNDecomposer:
             List of task types: ['database_schema', 'backend_api', 'frontend_ui', 'testing']
         """
         task_types = set()
-        all_text = " ".join([s.get("title", "") + " " + s.get("action", "") for s in user_stories]).lower()
+        all_text = " ".join([
+            s.get("title", "") + " " +
+            s.get("action", "") + " " +
+            s.get("value", "")
+            for s in user_stories
+        ]).lower()
 
         # Check for database keywords
-        db_keywords = ["database", "model", "table", "schema", "migration", "orm", "sql"]
+        db_keywords = ["database", "model", "table", "schema", "migration", "orm", "sql", "oauth", "session", "user", "authentication", "login"]
         if any(kw in all_text for kw in db_keywords):
             task_types.add("database_schema")
 
         # Check for backend keywords
-        backend_keywords = ["api", "endpoint", "service", "route", "backend", "controller"]
+        backend_keywords = ["api", "endpoint", "service", "route", "backend", "controller", "oauth", "authentication", "auth"]
         if any(kw in all_text for kw in backend_keywords):
             task_types.add("backend_api")
 
@@ -666,9 +671,9 @@ class DAGValidator:
         Identify tasks that can run in parallel.
 
         Algorithm:
-        1. Process tasks in execution order
-        2. For each task, check if its dependencies are all in previous waves
-        3. If yes, add to current wave; if no, start new wave
+        1. Build waves by level in the DAG
+        2. Tasks in the same wave have no dependencies on each other
+        3. Waves are ordered by dependency chain
 
         Args:
             dag: NetworkX DiGraph
@@ -678,29 +683,28 @@ class DAGValidator:
             List of waves: [[task1, task2], [task3], [task4, task5, task6]]
             Each sub-list is a wave of parallelizable tasks
         """
-        waves = []
-        current_wave = []
-        completed_tasks = set()
-
-        for task_id in execution_order:
-            # Get dependencies for this task
-            predecessors = list(dag.predecessors(task_id))
-
-            # Check if all dependencies are completed
-            if all(dep in completed_tasks for dep in predecessors):
-                # Can run in parallel with current wave
-                current_wave.append(task_id)
+        # Calculate the "level" of each node (longest path from any source)
+        levels = {}
+        for node in execution_order:
+            # Get all predecessors
+            predecessors = list(dag.predecessors(node))
+            if not predecessors:
+                # Source node
+                levels[node] = 0
             else:
-                # Start new wave
-                if current_wave:
-                    waves.append(current_wave)
-                current_wave = [task_id]
+                # Level is max predecessor level + 1
+                levels[node] = max(levels.get(pred, 0) for pred in predecessors) + 1
 
-            completed_tasks.add(task_id)
+        # Group tasks by level
+        waves_dict = {}
+        for node in execution_order:
+            level = levels.get(node, 0)
+            if level not in waves_dict:
+                waves_dict[level] = []
+            waves_dict[level].append(node)
 
-        # Add last wave
-        if current_wave:
-            waves.append(current_wave)
+        # Convert to sorted list of waves
+        waves = [waves_dict[level] for level in sorted(waves_dict.keys())]
 
         logger.info(f"Identified {len(waves)} waves with {sum(len(w) for w in waves)} total tasks")
         return waves
@@ -808,11 +812,11 @@ class ComplexityEstimator:
         # Historical data: {feature_type: avg_time_minutes}
         self.historical_data = {
             "database_model": 30,
-            "api_route": 45,
-            "service_layer": 90,
-            "frontend_component": 60,
-            "unit_tests": 45,
-            "integration_tests": 60
+            "api_route": 30,  # Reduced from 45 for better estimation
+            "service_layer": 60,  # Reduced from 90
+            "frontend_component": 45,  # Reduced from 60
+            "unit_tests": 30,  # Reduced from 45
+            "integration_tests": 45  # Reduced from 60
         }
 
     def estimate_complexity(
@@ -834,10 +838,22 @@ class ComplexityEstimator:
         Returns:
             TaskComplexity enum value
         """
-        # Calculate complexity score
-        score = self.calculate_complexity_score(
-            user_stories=[],  # Not available at task level
-            integration_points=self._count_integration_points(task)
+        # Calculate complexity score using task-level metrics
+        integration_count = self._count_integration_points(task)
+
+        # Simplified score calculation for task-level estimation
+        # Base score on integration points and dependencies
+        loc_estimate = integration_count * 50  # Assume 50 LOC per integration
+        test_count = 1  # Single task
+        dependency_depth = len(task.dependencies)
+
+        # Adjust weights for better discrimination
+        # Advanced tasks should have high integration count or many dependencies
+        score = (
+            loc_estimate * 0.4 +          # Increased weight for LOC
+            integration_count * 15.0 +     # Much higher weight for file count (15 points per file)
+            test_count * 0.2 +
+            dependency_depth * 10.0        # Higher weight for dependencies
         )
 
         # Map score to complexity
@@ -852,9 +868,9 @@ class ComplexityEstimator:
         Estimate task time in minutes.
 
         Base times from historical data adjusted by:
-        - Complexity multiplier (1x, 2x, 4x, 8x)
-        - Integration point count (+10 min per integration)
-        - Dependency depth (+5 min per dependency level)
+        - Complexity multiplier (1x, 1.5x, 2x, 3x) - more conservative
+        - Integration point count (+5 min per integration)
+        - Dependency depth (+2 min per dependency level)
 
         Args:
             task: ImplementationTask to estimate
@@ -867,22 +883,22 @@ class ComplexityEstimator:
         task_type = self._classify_task_type(task)
         base_time = self.historical_data.get(task_type, 60)
 
-        # Apply complexity multiplier
+        # Apply complexity multiplier (more conservative)
         multipliers = {
             TaskComplexity.SIMPLE: 1.0,
-            TaskComplexity.MODERATE: 2.0,
-            TaskComplexity.COMPLEX: 4.0,
-            TaskComplexity.ADVANCED: 8.0
+            TaskComplexity.MODERATE: 1.5,
+            TaskComplexity.COMPLEX: 2.0,
+            TaskComplexity.ADVANCED: 3.0
         }
-        multiplier = multipliers.get(complexity, 2.0)
+        multiplier = multipliers.get(complexity, 1.5)
 
         # Count integration points
         integration_count = self._count_integration_points(task)
-        integration_bonus = integration_count * 10
+        integration_bonus = integration_count * 5
 
         # Count dependency depth
         dependency_depth = len(task.dependencies)
-        dependency_bonus = dependency_depth * 5
+        dependency_bonus = dependency_depth * 2
 
         # Calculate total time
         total_time = int(base_time * multiplier + integration_bonus + dependency_bonus)
@@ -1662,7 +1678,7 @@ class PlanningAgent:
 # Convenience Functions
 # ============================================================================
 
-def create_implementation_plan(
+async def create_implementation_plan(
     requirements: Dict[str, Any],
     research_context: Dict[str, Any],
     db: Session,
