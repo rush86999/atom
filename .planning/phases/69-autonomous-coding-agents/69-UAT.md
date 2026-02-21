@@ -65,7 +65,7 @@ skipped: 0
 ## Gaps
 
 - truth: "Autonomous coding API endpoints available and functional"
-  status: failed
+  status: resolved
   reason: "User reported: Backend fails to load autonomous coding routes. Import error: 'cannot import name AgentMaturity from core.agent_governance_service'. The autonomous_coding_routes.py tries to import AgentMaturity enum which doesn't exist. Maturity is stored as strings (STUDENT, INTERN, SUPERVISED, AUTONOMOUS) in database but no enum defined. Backend logs show: 'WARNING:ATOM_SAFE_MODE:Failed to load Autonomous Coding routes: cannot import name AgentMaturity'. All /api/autonomous/* endpoints return 404."
   severity: blocker
   test: 1
@@ -80,3 +80,5 @@ skipped: 0
     - "Update all references to AgentMaturity.AUTONOMOUS to MaturityLevel.AUTONOMOUS"
     - "Verify no other files use AgentMaturity incorrectly"
   debug_session: ""
+  fix_plan: "69-11"
+  fix_summary: "Fixed by changing line 24 import from AgentMaturity to MaturityLevel from core.governance_config. Line 106 updated accordingly. Commit 6e9a3b0d."
