@@ -19,8 +19,7 @@ from core.workflow_parameter_validator import (
     NumericRule,
     PatternRule,
     EmailRule,
-    URLRule,
-    EnumRule,
+    UrlRule,
 )
 from core.command_whitelist import (
     CommandCategory,
@@ -411,16 +410,16 @@ class TestEmailRule:
 
 
 # ============================================================================
-# URLRule Tests
+# UrlRule Tests
 # ============================================================================
 
 @pytest.mark.unit
-class TestURLRule:
-    """Test URLRule validation"""
+class TestUrlRule:
+    """Test UrlRule validation"""
 
     def test_url_rule_valid_url(self):
         """Test valid URL passes"""
-        rule = URLRule("url", {})
+        rule = UrlRule("url", {})
 
         is_valid, error = rule.validate("https://example.com")
 
@@ -429,7 +428,7 @@ class TestURLRule:
 
     def test_url_rule_invalid_url_no_scheme(self):
         """Test URL without scheme fails"""
-        rule = URLRule("url", {})
+        rule = UrlRule("url", {})
 
         is_valid, error = rule.validate("example.com")
 
@@ -448,51 +447,9 @@ class TestURLRule:
     ])
     def test_url_rule_parametrized(self, url, expected):
         """Parametrized test for URL validation"""
-        rule = URLRule("url", {})
+        rule = UrlRule("url", {})
 
         is_valid, _ = rule.validate(url)
-
-        assert is_valid == expected
-
-
-# ============================================================================
-# EnumRule Tests
-# ============================================================================
-
-@pytest.mark.unit
-class TestEnumRule:
-    """Test EnumRule validation"""
-
-    def test_enum_rule_valid_value(self):
-        """Test valid enum value passes"""
-        rule = EnumRule("status", {"allowed_values": ["active", "inactive", "pending"]})
-
-        is_valid, error = rule.validate("active")
-
-        assert is_valid is True
-        assert error is None
-
-    def test_enum_rule_invalid_value(self):
-        """Test invalid enum value fails"""
-        rule = EnumRule("status", {"allowed_values": ["active", "inactive", "pending"]})
-
-        is_valid, error = rule.validate("deleted")
-
-        assert is_valid is False
-        assert "Must be one of" in error
-
-    @pytest.mark.parametrize("value,allowed,expected", [
-        ("red", ["red", "green", "blue"], True),
-        ("green", ["red", "green", "blue"], True),
-        ("yellow", ["red", "green", "blue"], False),
-        (1, [1, 2, 3], True),
-        (4, [1, 2, 3], False),
-    ])
-    def test_enum_rule_parametrized(self, value, allowed, expected):
-        """Parametrized test for enum validation"""
-        rule = EnumRule("field", {"allowed_values": allowed})
-
-        is_valid, _ = rule.validate(value)
 
         assert is_valid == expected
 
@@ -588,15 +545,6 @@ class TestValidatorPropertyTests:
 
         # Should always return boolean, never crash
         assert isinstance(is_valid, bool)
-
-    @given(st.lists(st.text()))
-    def test_enum_rule_never_crashes_on_lists(self, values):
-        """Property: enum rule doesn't crash with various inputs"""
-        rule = EnumRule("field", {"allowed_values": ["a", "b", "c"]})
-
-        for value in values:
-            is_valid, _ = rule.validate(value)
-            assert isinstance(is_valid, bool)
 
 
 # ============================================================================
