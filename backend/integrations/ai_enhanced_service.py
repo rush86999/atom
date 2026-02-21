@@ -159,7 +159,7 @@ class AIRequest:
     user_id: Optional[str] = None
     workspace_id: Optional[str] = None
     channel_id: Optional[str] = None
-    timestamp: datetime = None
+    timestamp: Optional[datetime] = None
     priority: int = 1  # 1-5 (5=highest)
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None

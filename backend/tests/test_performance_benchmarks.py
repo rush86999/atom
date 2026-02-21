@@ -32,8 +32,13 @@ from core.skill_composition_engine import SkillCompositionEngine, SkillStep
 from core.skill_marketplace_service import SkillMarketplaceService
 
 
-# Benchmark configuration
-pytest_plugins = ("pytest_benchmark",)
+# Benchmark configuration - only load pytest_benchmark if available
+# This allows tests to run without the plugin installed
+try:
+    import pytest_benchmark  # noqa: F401
+    pytest_plugins = ("pytest_benchmark",)
+except ImportError:
+    pass  # pytest-benchmark not installed, will use mock fixture from conftest
 
 
 class TestPackageInstallationPerformance:
