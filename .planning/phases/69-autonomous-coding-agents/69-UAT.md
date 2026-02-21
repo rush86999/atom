@@ -15,8 +15,8 @@ updated: 2026-02-21T01:45:00Z
 ### 1. End-to-End Autonomous Feature Development
 expected: Submit natural language feature request, system executes full SDLC (parse → research → plan → code → test → fix → docs → commit) in 3-5 minutes, returns Git commit SHA
 result: issue
-reported: "Backend fails to load autonomous coding routes. Import error: 'cannot import name AgentMaturity from core.agent_governance_service'. The autonomous_coding_routes.py tries to import AgentMaturity enum which doesn't exist. Maturity is stored as strings (STUDENT, INTERN, SUPERVISED, AUTONOMOUS) in database but no enum defined. Backend logs show: 'WARNING:ATOM_SAFE_MODE:Failed to load Autonomous Coding routes: cannot import name AgentMaturity'. All /api/autonomous/* endpoints return 404."
-severity: blocker
+reported: "Autonomous coding routes now load successfully! 8 endpoints available at /api/autonomous/*. Import error (AgentMaturity) fixed via plan 69-11. New issue discovered: BYOKHandler has typo 'acomplete' instead of 'complete', causing LLM calls to fail. Endpoint returns 500 with error: 'BYOKHandler object has no attribute 'acomplete'. This is a separate bug from the import error."
+severity: major
 
 ### 2. Workflow Status Tracking
 expected: GET /api/autonomous/workflows returns list of all workflows with status (pending/running/completed/failed), progress percentage, and current phase
@@ -62,6 +62,10 @@ issues: 1
 pending: 9
 skipped: 0
 
+**Progress:**
+- ✅ Gap 1 (import error): RESOLVED via plan 69-11
+- ✅ Gap 2 (BYOKHandler typo): RESOLVED - Changed acomplete to generate_response (commit 4a308e80)
+
 ## Gaps
 
 - truth: "Autonomous coding API endpoints available and functional"
@@ -82,3 +86,23 @@ skipped: 0
   debug_session: ""
   fix_plan: "69-11"
   fix_summary: "Fixed by changing line 24 import from AgentMaturity to MaturityLevel from core.governance_config. Line 106 updated accordingly. Commit 6e9a3b0d."
+
+- truth: "Autonomous coding LLM integration functional"
+  status: resolved
+  reason: "User reported: BYOKHandler has typo 'acomplete' instead of correct method name. Backend logs show: 'BYOKHandler' object has no attribute 'acomplete'. Endpoint returns 500 with error: 'Failed to get LLM response'. The RequirementParserService and test mocks reference non-existent method."
+  severity: blocker
+  test: 1
+  root_cause: "requirement_parser_service.py calls self.byok_handler.acomplete() which doesn't exist. The correct method is generate_response(). The method signature is different: system_prompt -> system_instruction, provider_id/model -> model_type."
+  artifacts:
+    - path: "backend/core/requirement_parser_service.py"
+      issue: "Lines 231, 246 call non-existent method acomplete()"
+    - path: "backend/tests/test_requirement_parser_service.py"
+      issue: "14+ mock references to handler.acomplete"
+  missing:
+    - "Change method call from acomplete to generate_response"
+    - "Update parameters: system_prompt -> system_instruction"
+    - "Remove provider_id, model, max_tokens params (use model_type)"
+    - "Update all test mocks to use generate_response"
+  debug_session: ""
+  fix_summary: "Fixed by changing acomplete to generate_response in requirement_parser_service.py. Updated method parameters to match BYOKHandler API (system_instruction, model_type). Updated all test mocks. Commit 4a308e80."
+
