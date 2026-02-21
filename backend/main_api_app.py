@@ -1257,6 +1257,46 @@ try:
     except ImportError as e:
         logger.warning(f"WebSocket debugging routes not found: {e}")
 
+    # 15.19 Workspace Routes (NEW - Phase 62 Plan 14)
+    try:
+        from api.workspace_routes import router as workspace_router
+        app.include_router(workspace_router)
+        logger.info("✓ Workspace Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Workspace routes not found: {e}")
+
+    # 15.20 Token Routes (NEW - Phase 62 Plan 14)
+    try:
+        from api.token_routes import router as token_router
+        app.include_router(token_router)
+        logger.info("✓ Token Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Token routes not found: {e}")
+
+    # 15.21 Marketing Routes (NEW - Phase 62 Plan 14)
+    try:
+        from api.marketing_routes import router as marketing_router
+        app.include_router(marketing_router)
+        logger.info("✓ Marketing Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Marketing routes not found: {e}")
+
+    # 15.22 Operational Routes (NEW - Phase 62 Plan 14)
+    try:
+        from api.operational_routes import router as operational_router
+        app.include_router(operational_router)
+        logger.info("✓ Operational Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Operational routes not found: {e}")
+
+    # 15.23 User Activity Routes (NEW - Phase 62 Plan 14)
+    try:
+        from api.user_activity_routes import router as user_activity_router
+        app.include_router(user_activity_router)
+        logger.info("✓ User Activity Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"User Activity routes not found: {e}")
+
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
         from integrations.atom_communication_live_api import router as comm_live_router
