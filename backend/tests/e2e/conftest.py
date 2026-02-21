@@ -803,10 +803,25 @@ def cleanup_test_data(db_session: Session):
 # =============================================================================
 
 def pytest_configure(config):
-    """Configure pytest with custom markers."""
+    """Configure pytest with custom markers and timeout settings."""
+    # Register custom markers
     config.addinivalue_line("markers", "e2e: End-to-end scenario tests")
     config.addinivalue_line("markers", "slow: Tests that take >10 seconds")
     config.addinivalue_line("markers", "integration: Tests requiring external services")
+    config.addinivalue_line("markers", "requires_docker: Tests requiring Docker containers to be running")
+    config.addinivalue_line(
+        "markers",
+        "timeout(max_time): mark test to fail if it takes longer than max_time seconds"
+    )
+
+    # Set default timeout for E2E tests (10 minutes total)
+    if os.getenv("E2E_TESTING") == "true":
+        config.option.timeout = 600  # 10 minutes
+        print("\n" + "="*70)
+        print("E2E Testing Mode: ENABLED")
+        print("Timeout: 10 minutes for full suite")
+        print("Coverage Target: 60-70% for MCP service")
+        print("="*70 + "\n")
 
 
 # =============================================================================
@@ -835,24 +850,6 @@ def pytest_collection_modifyitems(config, items):
 # =============================================================================
 # E2E Timing Verification and Performance Monitoring
 # =============================================================================
-
-def pytest_configure(config):
-    """Configure pytest with timing and timeout settings for E2E tests."""
-    # Register timeout marker
-    config.addinivalue_line(
-        "markers",
-        "timeout(max_time): mark test to fail if it takes longer than max_time seconds"
-    )
-
-    # Set default timeout for E2E tests (10 minutes total)
-    if os.getenv("E2E_TESTING") == "true":
-        config.option.timeout = 600  # 10 minutes
-        print("\n" + "="*70)
-        print("E2E Testing Mode: ENABLED")
-        print("Timeout: 10 minutes for full suite")
-        print("Coverage Target: 60-70% for MCP service")
-        print("="*70 + "\n")
-
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """Display timing and coverage summary after test run."""
