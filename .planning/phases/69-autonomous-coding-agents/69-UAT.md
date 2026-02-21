@@ -64,7 +64,9 @@ skipped: 0
 
 **Progress:**
 - ✅ Gap 1 (import error): RESOLVED via plan 69-11
-- ✅ Gap 2 (BYOKHandler typo): RESOLVED - Changed acomplete to generate_response (commit 4a308e80)
+- ✅ Gap 2 (BYOKHandler acomplete typo): RESOLVED - Changed to generate_response (commit 4a308e80)
+- ✅ Gap 3 (BYOKHandler chat_completion): RESOLVED - Changed to generate_response (commit 05dcff93)
+- ✅ Gap 4 (BYOKHandler execute_prompt): RESOLVED - Changed to generate_response (commit 05dcff93)
 
 ## Gaps
 
@@ -105,4 +107,28 @@ skipped: 0
     - "Update all test mocks to use generate_response"
   debug_session: ""
   fix_summary: "Fixed by changing acomplete to generate_response in requirement_parser_service.py. Updated method parameters to match BYOKHandler API (system_instruction, model_type). Updated all test mocks. Commit 4a308e80."
+
+- truth: "Autonomous coding LLM integration functional"
+  status: resolved
+  reason: "User discovered: auto_fixer_service.py calls non-existent chat_completion() method. autonomous_coder_agent.py, autonomous_committer_agent.py, and autonomous_documenter_agent.py call non-existent execute_prompt() method. All 4 files need to use generate_response() instead."
+  severity: blocker
+  test: 1
+  root_cause: "autonomous coding agents were written with mock BYOKHandler API contract. chat_completion() and execute_prompt() don't exist. The correct method is generate_response() which returns a string (not dict)."
+  artifacts:
+    - path: "backend/core/auto_fixer_service.py"
+      issue: "Line 318 calls chat_completion(messages) - should use generate_response(prompt, system_instruction)"
+    - path: "backend/core/autonomous_coder_agent.py"
+      issue: "Line 230 calls execute_prompt() expecting dict with 'content' key - should use generate_response() returning string"
+    - path: "backend/core/autonomous_committer_agent.py"
+      issue: "Line 371 calls execute_prompt() - same issue as coder"
+    - path: "backend/core/autonomous_documenter_agent.py"
+      issue: "Line 948 calls execute_prompt() - same issue as coder"
+  missing:
+    - "Replace chat_completion with generate_response in auto_fixer_service.py"
+    - "Replace execute_prompt with generate_response in 3 autonomous agent files"
+    - "Convert messages array to prompt + system_instruction parameters"
+    - "Update return handling from dict.get('content') to string"
+  debug_session: ""
+  fix_summary: "Fixed all 4 files by replacing non-existent methods with generate_response(). Converted messages arrays to prompt + system_instruction. Updated all return value handling. Commit 05dcff93."
+
 
