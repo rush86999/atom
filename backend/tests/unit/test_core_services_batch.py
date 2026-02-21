@@ -22,7 +22,7 @@ from core.skill_registry_service import SkillRegistryService
 from core.proposal_service import ProposalService
 from core.workflow_debugger import WorkflowDebugger
 from core.workflow_analytics_engine import WorkflowAnalyticsEngine
-from core.auto_document_ingestion import AutoDocumentIngestionServiceService
+from core.auto_document_ingestion import AutoDocumentIngestionService
 from core.workflow_versioning_system import WorkflowVersioningSystem
 from core.advanced_workflow_system import AdvancedWorkflowSystem
 from core.atom_meta_agent import AtomMetaAgent
