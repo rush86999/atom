@@ -48,3 +48,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net fonts.googleapis.com fonts.gstatic.com; img-src 'self' data: https:;"
         
         return response
+
+async def verify_api_key_ws(websocket, api_key: str, db) -> bool:
+    """
+    Verify API key for WebSocket connections.
+    """
+    from core.models import Workspace
+    workspace = db.query(Workspace).filter(Workspace.satellite_api_key == api_key).first()
+    return workspace is not None

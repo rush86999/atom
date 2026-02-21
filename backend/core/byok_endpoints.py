@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # BYOK Configuration Storage
-BYOK_CONFIG_FILE = "./data/byok_config.json"
-BYOK_KEYS_FILE = "./data/byok_keys.json"
+BYOK_CONFIG_FILE = os.getenv("BYOK_CONFIG_FILE", "./data/byok_config.json")
+BYOK_KEYS_FILE = os.getenv("BYOK_KEYS_FILE", "./data/byok_keys.json")
 
 
 @dataclass

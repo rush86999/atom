@@ -9,12 +9,102 @@
     "last_executed": "2025-11-29T18:04:30.975772"
   },
   "test_workflow": {
-    "execution_count": 335,
+    "execution_count": 365,
     "success_count": 0,
-    "failure_count": 335,
-    "total_duration_seconds": 2.4248900000000004,
+    "failure_count": 365,
+    "total_duration_seconds": 2.5985650000000002,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-02-18T04:22:09.947043"
+    "last_executed": "2026-02-19T11:42:22.973469"
+  },
+  "test-workflow": {
+    "execution_count": 76,
+    "success_count": 22,
+    "failure_count": 54,
+    "total_duration_seconds": 5.435916999999999,
+    "total_time_saved_seconds": 1320.0,
+    "total_business_value": 220.0,
+    "last_executed": "2026-02-19T13:12:07.261218"
+  },
+  "error-recovery-workflow": {
+    "execution_count": 4,
+    "success_count": 0,
+    "failure_count": 4,
+    "total_duration_seconds": 0.24463900000000002,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-02-19T13:12:11.019278"
+  },
+  "background-workflow": {
+    "execution_count": 4,
+    "success_count": 4,
+    "failure_count": 0,
+    "total_duration_seconds": 1.090107,
+    "total_time_saved_seconds": 240.0,
+    "total_business_value": 40.0,
+    "last_executed": "2026-02-19T13:12:12.253790"
+  },
+  "persistence-workflow": {
+    "execution_count": 4,
+    "success_count": 4,
+    "failure_count": 0,
+    "total_duration_seconds": 0.194072,
+    "total_time_saved_seconds": 240.0,
+    "total_business_value": 40.0,
+    "last_executed": "2026-02-19T13:12:12.365003"
+  },
+  "parallel-workflow": {
+    "execution_count": 4,
+    "success_count": 4,
+    "failure_count": 0,
+    "total_duration_seconds": 0.9914860000000001,
+    "total_time_saved_seconds": 240.0,
+    "total_business_value": 40.0,
+    "last_executed": "2026-02-19T13:12:13.210510"
+  },
+  "branching-workflow": {
+    "execution_count": 4,
+    "success_count": 4,
+    "failure_count": 0,
+    "total_duration_seconds": 0.46970500000000004,
+    "total_time_saved_seconds": 240.0,
+    "total_business_value": 40.0,
+    "last_executed": "2026-02-19T13:12:13.593101"
+  },
+  "mapping-workflow": {
+    "execution_count": 3,
+    "success_count": 0,
+    "failure_count": 3,
+    "total_duration_seconds": 0.27527500000000005,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-02-19T13:12:11.560249"
+  },
+  "notification-workflow": {
+    "execution_count": 3,
+    "success_count": 3,
+    "failure_count": 0,
+    "total_duration_seconds": 0.119285,
+    "total_time_saved_seconds": 180.0,
+    "total_business_value": 30.0,
+    "last_executed": "2026-02-19T13:12:12.681802"
+  },
+  "sequential-workflow": {
+    "execution_count": 2,
+    "success_count": 2,
+    "failure_count": 0,
+    "total_duration_seconds": 0.20627800000000002,
+    "total_time_saved_seconds": 120.0,
+    "total_business_value": 20.0,
+    "last_executed": "2026-02-19T13:12:09.894638"
+  },
+  "unknown": {
+    "execution_count": 6,
+    "success_count": 6,
+    "failure_count": 0,
+    "total_duration_seconds": 0.000319,
+    "total_time_saved_seconds": 360.0,
+    "total_business_value": 60.0,
+    "last_executed": "2026-02-20T04:14:02.624535"
   }
 }

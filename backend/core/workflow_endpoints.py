@@ -44,13 +44,13 @@ class WorkflowConnection(BaseModel):
 
 class WorkflowDefinition(BaseModel):
     id: Optional[str] = None
-    name: str
-    description: str
-    version: str
-    nodes: List[WorkflowNode]
-    connections: List[WorkflowConnection]
-    triggers: List[str]
-    enabled: bool
+    name: str = "Unnamed Workflow"
+    description: str = ""
+    version: str = "1.0"
+    nodes: List[WorkflowNode] = []
+    connections: List[WorkflowConnection] = []
+    triggers: List[str] = []
+    enabled: bool = True
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
