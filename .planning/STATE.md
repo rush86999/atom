@@ -59,7 +59,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 100% (v1.0: 203/203 plans complete) → [███████░░░] 77% (v2.0: 38/48 plans complete) - Phase 62: 11/11 complete, Phase 63-01: 1/1 complete, Phase 64: 6/6 complete, Phase 65: 8/8 complete, Phase 66: 3/8 complete, Phase 68: 5/8 complete
+Progress: [██████████] 100% (v1.0: 203/203 plans complete) → [███████░░░] 79% (v2.0: 39/48 plans complete) - Phase 62: 14/19 complete, Phase 63-01: 1/1 complete, Phase 64: 6/6 complete, Phase 65: 8/8 complete, Phase 66: 3/8 complete, Phase 68: 5/8 complete
 
 ## Upcoming: Phase 63 - Legacy Documentation Updates
 
@@ -156,6 +156,7 @@ Progress: [██████████] 100% (v1.0: 203/203 plans complete) �
 | Phase 62 P06 | 12 minutes | 3 tasks | 2 files |
 | Phase 62 P08 | 679 | 3 tasks | 1 files |
 | Phase 62 P11 | 10 | 4 tasks | 10 files |
+| Phase 62 P14 | 4 minutes | 2 tasks | 1 files |
 | Phase 64 P04 | 15 | 2 tasks | 2 files |
 | Phase 64 P03 | 31616115 | 3 tasks | 3 files |
 | Phase 64 P05 | 12 | 2 tasks | 3 files |
@@ -332,33 +333,37 @@ Resume file: None
 *Milestone: v2.0 Feature & Coverage Complete*
 *Next action: Plan Phase 29 (/gsd:plan-phase 29)*
 
-## Phase 62, Plan 13 COMPLETE (Gap Closure)
+## Phase 62, Plan 14 COMPLETE - Register Missing API Routes
 
 **Date:** 2026-02-21
-**Duration:** 13 minutes (837 seconds)
-**Tasks:** 3 tasks, 3 commits
+**Duration:** 4 minutes (243 seconds)
+**Tasks:** 2 tasks, 1 commit
 **Commits:**
-- cb4abdb0: fix(62-13): Update coverage configuration to realistic threshold
-- 5e339506: fix(62-13): Fix import error in test_core_services_batch.py
-- 52369540: verify(62-13): Verify test discovery and coverage measurement
-- dff07bbd: docs(62-13): Complete plan 13 summary
+- ec9976d3: feat(62-14): Register missing API routes in main application
 
-**Summary:** Coverage configuration fixed with realistic 25% threshold (vs 80%), branch coverage enabled via --cov-branch flag, and import errors resolved. Fixed AutoDocumentIngestion → AutoDocumentIngestionService import. Verified 668+ tests discoverable by pytest. Coverage measurement working correctly (27.71% measured for governance_cache.py). HTML and JSON reports generated successfully.
+**Summary:** Registered 5 missing API routes (workspace, token, marketing, operational, user_activity) in main_api_app.py enabling 131 tests to execute production code instead of returning 404. All routes now importable and included in FastAPI app using existing try/except pattern. Coverage increased to 26.09% (above 25% threshold). Tests now call route handlers (23 passed, 37 failed, 76 errors). Failures/errors are due to pre-existing FFmpegJob.user model issue, not route registration.
 
 **Key Changes:**
-- backend/.coveragerc: fail_under changed from 80.0 to 25.0
-- backend/pytest.ini: Added --cov-branch, --cov-report=term-missing, --cov-report=html:htmlcov, --cov-report=json
-- backend/tests/unit/test_core_services_batch.py: Fixed AutoDocumentIngestion import to AutoDocumentIngestionService
+- backend/main_api_app.py: Added 5 route registrations (40 lines)
+  - workspace_router: unified workspace management (33 tests)
+  - token_router: JWT token operations (26 tests)
+  - marketing_router: marketing analytics (22 tests)
+  - operational_router: pricing operations (11 tests)
+  - user_activity_router: user state tracking (39 tests)
+
+**Coverage Impact:** API tests now execute route handlers instead of returning 404. Coverage at 26.09%.
 
 **Remaining Blockers (Pre-existing production code issues):**
-- Integration services have NameError in production code (e.g., atom_enterprise_unified_service.py)
-- Database model relationship errors (FFmpegJob.user missing ForeignKey)
-- API routes not registered in main application (workspace_routes, token_routes, etc.)
+- FFmpegJob.user missing ForeignKey (76 tests fail at database setup)
+- Integration services have NameError in production code
+- Database model relationship errors
 
-**Next:** Continue with Phase 62 remaining plans (62-14 through 62-19) to address remaining blockers incrementally.
+**Next:** Continue with Phase 62 remaining plans (62-15 through 62-19) or address FFmpegJob model fix.
+
+**Previous:** Phase 62-13 COMPLETE
 
 **Coverage Progress:**
 - Baseline: 17.12%
-- Expected after this plan: 25-30% (unlocks existing tests)
-- Gap to 80% target: ~35-45 percentage points remaining
+- After 62-14: 26.09% (routes registered, tests now execute)
+- Gap to 80% target: ~54 percentage points remaining
 
