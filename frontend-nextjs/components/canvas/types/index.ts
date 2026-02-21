@@ -475,6 +475,52 @@ export interface ViewOrchestratorState extends BaseCanvasState {
 }
 
 /**
+ * Coding agent canvas state
+ *
+ * Real-time state for autonomous coding agent operations.
+ * Exposes code generation, test results, approval workflow status,
+ * and operation history for AI agent context and WorldModel recall.
+ */
+export interface CodingAgentCanvasState extends BaseCanvasState {
+  canvas_type: 'coding';
+  component: 'coding_agent_canvas';
+  session_id: string;
+  operations: Array<{
+    id: string;
+    type: 'code_generation' | 'test_generation' | 'validation' | 'documentation' | 'refactoring';
+    status: 'pending' | 'running' | 'complete' | 'failed';
+    timestamp: string;
+    codeContent?: string;
+    testResults?: {
+      passed: number;
+      total: number;
+      coverage: number;
+      failures: Array<{
+        test: string;
+        error: string;
+      }>;
+      duration: number;
+    };
+    error?: string;
+  }>;
+  codeContent: string;
+  language: 'python' | 'typescript' | 'javascript' | 'sql' | 'yaml';
+  validationFeedback?: {
+    passed: number;
+    total: number;
+    coverage: number;
+    failures: Array<{
+      test: string;
+      error: string;
+    }>;
+  } | null;
+  approvalRequired: string | null;
+  currentAction: string | null;
+  agentActive: boolean;
+  codeChangesCount: number;
+}
+
+/**
  * Union type for all canvas states
  */
 export type AnyCanvasState =
@@ -483,7 +529,8 @@ export type AnyCanvasState =
   | FormCanvasState
   | OrchestrationCanvasState
   | AgentOperationState
-  | ViewOrchestratorState;
+  | ViewOrchestratorState
+  | CodingAgentCanvasState;
 
 /**
  * Canvas state API response
