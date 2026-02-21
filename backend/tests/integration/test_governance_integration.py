@@ -10,9 +10,13 @@ Tests cover governance flows that require real database operations:
 - Trigger interceptor database operations
 - Proposal creation and approval workflow
 - Training session tracking
+- Governance cache performance and LRU eviction
+- Maturity-based parametrized permission tests
 
 Uses transaction rollback pattern for test isolation.
 """
+
+import time
 
 import pytest
 from datetime import datetime, timedelta
@@ -665,3 +669,203 @@ class TestGovernanceDatabaseQueries:
 
         expected_avg = sum(ratings) / len(ratings)
         assert abs(avg_rating - expected_avg) < 0.01
+
+
+class TestGovernanceCacheIntegration:
+    """Test governance cache with performance and eviction."""
+
+    def test_governance_cache_performance(self):
+        """Test governance cache provides <1ms lookups."""
+        cache = GovernanceCache(max_size=100, ttl_seconds=60)
+
+        # Warm cache
+        cache.put(
+            agent_id="test-agent",
+            action_type="test-action",
+            data={"allowed": True}
+        )
+
+        # Measure lookup time (should be <1ms)
+        start = time.perf_counter_ns()
+        result = cache.get(agent_id="test-agent", action_type="test-action")
+        elapsed_ns = time.perf_counter_ns() - start
+
+        # Verify result
+        assert result is not None
+        assert result["allowed"] == True
+
+        # Verify performance (<1ms = 1,000,000ns)
+        assert elapsed_ns < 1_000_000, f"Cache lookup took {elapsed_ns}ns, expected <1ms"
+
+    def test_governance_cache_hit_rate(self):
+        """Test cache hit rate calculation."""
+        cache = GovernanceCache(max_size=100, ttl_seconds=60)
+
+        # Add entries to cache
+        for i in range(10):
+            cache.put(
+                agent_id=f"agent-{i}",
+                action_type=f"action-{i}",
+                data={"allowed": True}
+            )
+
+        # Generate hits and misses
+        # First 5 should hit
+        for i in range(5):
+            cache.get(agent_id=f"agent-{i}", action_type=f"action-{i}")
+
+        # Next 5 should miss (non-existent keys)
+        for i in range(5):
+            cache.get(agent_id=f"agent-{i}", action_type=f"action-miss")
+
+        # Check hit rate (5 hits / 10 total = 50%)
+        stats = cache.get_stats()
+        assert stats["hits"] == 5
+        assert stats["misses"] == 5
+        assert stats["hit_rate"] == 50.0
+
+    def test_governance_cache_invalidation(self):
+        """Test cache invalidation for agents."""
+        cache = GovernanceCache(max_size=100, ttl_seconds=60)
+
+        # Add cache entries
+        cache.put(
+            agent_id="agent-1",
+            action_type="action-1",
+            data={"allowed": True}
+        )
+        cache.put(
+            agent_id="agent-1",
+            action_type="action-2",
+            data={"allowed": False}
+        )
+        cache.put(
+            agent_id="agent-2",
+            action_type="action-1",
+            data={"allowed": True}
+        )
+
+        # Invalidate specific action
+        cache.invalidate(agent_id="agent-1", action_type="action-1")
+
+        # Verify specific entry removed
+        result1 = cache.get(agent_id="agent-1", action_type="action-1")
+        assert result1 is None
+
+        # Verify other entries still exist
+        result2 = cache.get(agent_id="agent-1", action_type="action-2")
+        assert result2 is not None
+
+        result3 = cache.get(agent_id="agent-2", action_type="action-1")
+        assert result3 is not None
+
+    def test_governance_cache_agent_invalidation(self):
+        """Test invalidating all cache entries for an agent."""
+        cache = GovernanceCache(max_size=100, ttl_seconds=60)
+
+        # Add multiple entries for same agent
+        for i in range(5):
+            cache.put(
+                agent_id="multi-action-agent",
+                action_type=f"action-{i}",
+                data={"allowed": True}
+            )
+
+        # Invalidate all entries for agent
+        cache.invalidate_agent("multi-action-agent")
+
+        # Verify all entries removed
+        for i in range(5):
+            result = cache.get(
+                agent_id="multi-action-agent",
+                action_type=f"action-{i}"
+            )
+            assert result is None
+
+    def test_governance_cache_lru_eviction(self):
+        """Test LRU eviction when cache is full."""
+        # Create small cache (max_size=3)
+        small_cache = GovernanceCache(max_size=3, ttl_seconds=60)
+
+        # Add 3 entries (fill cache)
+        small_cache.put(agent_id="agent-1", action_type="action-1", data={"value": 1})
+        small_cache.put(agent_id="agent-2", action_type="action-2", data={"value": 2})
+        small_cache.put(agent_id="agent-3", action_type="action-3", data={"value": 3})
+
+        # Access agent-1 to make it recently used
+        small_cache.get(agent_id="agent-1", action_type="action-1")
+
+        # Add 4th entry (should evict agent-2, least recently used)
+        small_cache.put(agent_id="agent-4", action_type="action-4", data={"value": 4})
+
+        # Verify eviction
+        assert small_cache.get(agent_id="agent-1", action_type="action-1") is not None
+        assert small_cache.get(agent_id="agent-2", action_type="action-2") is None  # Evicted
+        assert small_cache.get(agent_id="agent-3", action_type="action-3") is not None
+        assert small_cache.get(agent_id="agent-4", action_type="action-4") is not None
+
+
+class TestMaturityBasedPermissions:
+    """Parametrized tests for maturity-based permissions."""
+
+    @pytest.mark.parametrize("maturity,action_type,expected_allowed", [
+        (AgentStatus.STUDENT.value, "read_memory", False),  # STUDENT blocked from memory
+        (AgentStatus.INTERN.value, "stream_chat", True),  # INTERN allowed to stream
+        (AgentStatus.SUPERVISED.value, "present_form", True),  # SUPERVISED allowed forms
+        (AgentStatus.AUTONOMOUS.value, "delete_data", True),  # AUTONOMOUS full access
+    ])
+    def test_maturity_based_permissions_parametrized(
+        self,
+        db_session: Session,
+        maturity: str,
+        action_type: str,
+        expected_allowed: bool
+    ):
+        """Parametrized test for all maturity levels."""
+        # Create agent with specific maturity
+        agent = AgentRegistry(
+            id=f"agent-{maturity}-{action_type}",
+            name=f"Agent {maturity}",
+            maturity=maturity,
+            status=maturity,
+            module_path="test.module",
+            class_name="TestAgent",
+            created_by="test-user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create governance service
+        governance = AgentGovernanceService(db_session)
+
+        # Check permission
+        result = governance.can_perform_action(
+            agent_id=agent.id,
+            action_type=action_type,
+        )
+
+        assert result["allowed"] == expected_allowed
+
+    @pytest.mark.parametrize("action_complexity", [1, 2, 3, 4])
+    def test_student_agent_blocked_by_complexity(
+        self,
+        db_session: Session,
+        action_complexity: int
+    ):
+        """Test STUDENT agent blocked by action complexity."""
+        # Create STUDENT agent
+        agent = StudentAgentFactory(name="ComplexityStudent", _session=db_session)
+        db_session.commit()
+
+        # Mock action complexity check
+        # Higher complexity actions (3-4) should be blocked for STUDENT
+        governance = AgentGovernanceService(db_session)
+
+        result = governance.can_perform_action(
+            agent_id=agent.id,
+            action_type=f"complexity_{action_complexity}",
+        )
+
+        # STUDENT agents blocked from high-complexity actions
+        if action_complexity >= 3:
+            assert result["allowed"] == False
