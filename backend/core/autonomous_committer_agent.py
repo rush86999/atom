@@ -368,14 +368,15 @@ Rules:
 
 Return only the refined message, no explanations."""
 
-            response = await self.byok_handler.execute_prompt(
+            response = await self.byok_handler.generate_response(
                 prompt=prompt,
-                provider="anthropic",
-                model="claude-4-sonnet-20250514",
-                cognitive_tier=None,
+                system_instruction="You are an expert Git user. Refine commit messages to follow conventional commit format.",
+                model_type="quality",
+                temperature=0.3,
+                task_type="commit_message"
             )
 
-            refined = response.get("content", "").strip()
+            refined = response.strip()
             return refined if refined else draft_message
 
         except Exception as e:

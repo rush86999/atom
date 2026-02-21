@@ -226,15 +226,16 @@ Generate production-ready code that:
 Return only the code, no explanations."""
 
             # Generate using BYOK handler
-            # Use Anthropic for best code quality
-            response = await self.byok_handler.execute_prompt(
+            # Use quality model for best code generation
+            response = await self.byok_handler.generate_response(
                 prompt=full_prompt,
-                provider="anthropic",
-                model="claude-4-sonnet-20250514",
-                cognitive_tier=None,  # Use default
+                system_instruction="You are an expert Python developer. Generate clean, production-ready code.",
+                model_type="quality",
+                temperature=0.2,
+                task_type="code_generation"
             )
 
-            return response.get("content", "")
+            return response  # Already a string
 
         except Exception as e:
             logger.error(f"LLM code generation failed: {e}")
