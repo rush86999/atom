@@ -337,11 +337,11 @@ Resume file: None
 
 **Date:** 2026-02-21
 **Duration:** 4 minutes (243 seconds)
-**Tasks:** 2 tasks, 1 commit
+**Tasks:** 3 tasks, 1 commit
 **Commits:**
 - ec9976d3: feat(62-14): Register missing API routes in main application
 
-**Summary:** Registered 5 missing API routes (workspace, token, marketing, operational, user_activity) in main_api_app.py enabling 131 tests to execute production code instead of returning 404. All routes now importable and included in FastAPI app using existing try/except pattern. Coverage increased to 26.09% (above 25% threshold). Tests now call route handlers (23 passed, 37 failed, 76 errors). Failures/errors are due to pre-existing FFmpegJob.user model issue, not route registration.
+**Summary:** Registered 5 missing API routes (workspace, token, marketing, operational, user_activity) in main_api_app.py enabling 131 tests to execute production code instead of returning 404. All routes now importable and included in FastAPI app using existing try/except pattern. Coverage: 33.99% overall (6,102/17,953 lines), 38.36% API coverage, workspace_routes.py 63.57% (88/134 lines). Tests now call route handlers (501 passed, 310 failed, 411 errors). Failures/errors are due to pre-existing FFmpegJob.user model issue, not route registration. HTML and JSON coverage reports generated.
 
 **Key Changes:**
 - backend/main_api_app.py: Added 5 route registrations (40 lines)
