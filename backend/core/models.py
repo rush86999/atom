@@ -1590,6 +1590,47 @@ class AgentTraceStep(Base):
     execution = relationship("AgentExecution", backref="trace_steps")
 
 
+class AgentEvolutionTrace(Base):
+    """
+    GEA (Group Evolutionary Algorithm) trace record for agent evolution cycles.
+
+    Captures the evolution history of agents including parent lineages,
+    performance benchmarks, and model patches applied during evolution.
+    """
+    __tablename__ = "agent_evolution_traces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    generation = Column(Integer, nullable=False, default=1)
+    parent_agent_ids = Column(JSON, nullable=True)  # List[str]
+    ancestor_count = Column(Integer, nullable=False, default=0)
+
+    # Scoring
+    performance_score = Column(Float, nullable=True)
+    novelty_score = Column(Float, nullable=True)
+    combined_selection_score = Column(Float, nullable=True)
+
+    # Evolution data
+    tool_use_log = Column(JSON, nullable=True)  # List[dict]
+    task_log = Column(Text, nullable=True)
+    evolving_requirements = Column(Text, nullable=True)
+    model_patch = Column(Text, nullable=True)
+
+    # Benchmark results
+    benchmark_passed = Column(Boolean, nullable=False, default=True)
+    benchmark_name = Column(String, nullable=True)
+    benchmark_score = Column(Float, nullable=True)
+    is_high_quality = Column(Boolean, nullable=False, default=True)
+    quality_filter_reason = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="evolution_traces")
+
+
 class BrowserSession(Base):
     """
     Browser session tracking for browser automation.
