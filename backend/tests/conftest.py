@@ -93,6 +93,32 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "benchmark: Performance benchmark tests using pytest-benchmark")
 
 
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_collection(session):
+    """
+    Clean up mocked modules BEFORE test collection begins.
+
+    Some test modules mock numpy/pandas at module level (test_webhook_bridge.py,
+    test_browser_agent_ai.py). This causes collection errors for other test files
+    that import these modules (test_excel_export_analytics.py).
+
+    This hook wraps pytest_collection to ensure cleanup happens before any
+    test files are imported during collection.
+    """
+    # Restore numpy/pandas/lancedb/pyarrow modules that may have been mocked
+    # This needs to happen BEFORE collection starts
+    for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
+        if mod in sys.modules:
+            module = sys.modules[mod]
+            # Remove if set to None OR mocked as MagicMock
+            # MagicMock has _spec_class attribute that real modules don't have
+            if module is None or hasattr(module, '_spec_class'):
+                sys.modules.pop(mod, None)
+
+    # Now proceed with normal collection
+    yield
+
+
 def pytest_collection_finish(session):
     """
     Clean up mocked modules after test collection is complete.
