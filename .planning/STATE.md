@@ -9,8 +9,8 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 Phase: 62-test-coverage-80pct
-Plan: 16
-Status: Phase 62 Plan 16 COMPLETE - Integration Tests for Medium-Impact Files (4 tasks, 9 minutes, 5 commits). Created 52 integration tests for medium-priority modules (episode memory, governance, workspace) using SQLite in-memory databases. Episode memory: 15 tests (690 lines) covering creation, segmentation, retrieval, canvas context, feedback aggregation. Governance: 26 tests (871 lines, 7 new) covering cache performance (<1ms lookups), maturity-based permissions, LRU eviction. Workspace: 11 tests (421 lines) covering CRUD, validation, member management. Fixed import errors: MaturityLevel → AgentStatus, removed WorkspaceMember (use many-to-many). Test creation complete but execution blocked by integration test infrastructure gaps (missing fixtures, DB setup issues). Next: Fix integration test infrastructure or continue with Phase 62-17.
+Plan: 18
+Status: Phase 62 Plan 18 COMPLETE - Integration Tests for Tools and External Services (4 tasks, 16 minutes, 4 commits). Created 37 integration tests (35 passing) for tools (canvas, browser) and external services (Slack) using HTTP-level mocking with respx. Canvas tool: 21 tests (469 lines) covering chart presentations (4 types), markdown, forms, status panels, canvas updates, governance blocking. Browser tool: 14 tests passing (621 lines) covering session lifecycle, manager operations, multiple browser types, cross-user access blocking, error handling. External services: 2 tests passing (382 lines) covering HTTP client GET/POST with respx mocking, JSON parsing errors. Coverage gains: tools/canvas_tool.py 22.83%, tools/browser_tool.py 41.78%. Deviations: 3 auto-fixed (respx install, API syntax, async mocking). Next: Continue with Phase 62-19 or other test coverage plans.
 
 Previous: Phase 67-05 COMPLETE
 
@@ -59,7 +59,7 @@ Previous: 2026-02-19 — Phase 29-06 COMPLETE: Quality Verification - Verified a
 
 Previous: 2026-02-19 — Phase 29-05 COMPLETE: Security Config & Governance Performance Test Fixes - Environment-isolated security tests using monkeypatch for SECRET_KEY/ENVIRONMENT variables, ensuring tests pass regardless of CI environment configuration. Added CI_MULTIPLIER (3x) to all governance performance test thresholds to prevent flaky failures on slower CI servers. Added consistent JWT secret key fixtures (test_secret_key, test_jwt_token, test_expired_jwt_token) to auth endpoint tests for deterministic crypto operations. All governance performance tests passing (10/10). 3 atomic commits (29d29cc5, 26b66214, 970ff1bb), 5 minutes duration, 3 files modified.
 
-Progress: [██████████] 100% (v1.0: 203/203 plans complete) → [███████░░░] 79% (v2.0: 39/48 plans complete) - Phase 62: 14/19 complete, Phase 63-01: 1/1 complete, Phase 64: 6/6 complete, Phase 65: 8/8 complete, Phase 66: 3/8 complete, Phase 68: 5/8 complete
+Progress: [██████████] 100% (v1.0: 203/203 plans complete) → [███████░░░] 81% (v2.0: 40/48 plans complete) - Phase 62: 15/19 complete, Phase 63-01: 1/1 complete, Phase 64: 6/6 complete, Phase 65: 8/8 complete, Phase 66: 3/8 complete, Phase 68: 5/8 complete
 
 ## Upcoming: Phase 63 - Legacy Documentation Updates
 
