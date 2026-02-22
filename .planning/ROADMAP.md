@@ -51,14 +51,17 @@ Plans:
   3. LLM routing and BYOK handler tests cover 80%+ of provider selection and streaming logic
   4. Autonomous coding agents workflow (parse → research → plan → code → test → fix) has 80%+ coverage
   5. Episode and memory management services achieve 80%+ test coverage
-**Plans**: 5 plans
+**Plans**: 8 plans (5 original + 3 gap closure)
 
 Plans:
-- [ ] 71-01-PLAN.md — Agent orchestration service tests (agent_execution_service.py, agent_context_resolver.py)
-- [ ] 71-02-PLAN.md — Agent governance and maturity routing tests (agent_governance_service.py, agent_graduation_service.py, governance_cache.py)
-- [ ] 71-03-PLAN.md — LLM routing and BYOK handler tests (byok_handler.py, cognitive_tier_system.py, cache_aware_router.py)
-- [ ] 71-04-PLAN.md — Autonomous coding agents workflow tests (autonomous_coding_orchestrator.py and 7 specialized agents)
-- [ ] 71-05-PLAN.md — Episode and memory management services tests (episode_lifecycle_service.py, episode_segmentation_service.py, episode_retrieval_service.py)
+- [x] 71-01-PLAN.md — Agent orchestration service tests (agent_execution_service.py, agent_context_resolver.py)
+- [x] 71-02-PLAN.md — Agent governance and maturity routing tests (agent_governance_service.py, agent_graduation_service.py, governance_cache.py)
+- [x] 71-03-PLAN.md — LLM routing and BYOK handler tests (byok_handler.py, cognitive_tier_system.py, cache_aware_router.py)
+- [x] 71-04-PLAN.md — Autonomous coding agents workflow tests (autonomous_coding_orchestrator.py and 7 specialized agents)
+- [x] 71-05-PLAN.md — Episode and memory management services tests (episode_lifecycle_service.py, episode_segmentation_service.py, episode_retrieval_service.py)
+- [ ] 71-06-PLAN.md — Gap closure: Agent execution service error edge cases (71.03% -> 80%+)
+- [ ] 71-07-PLAN.md — Gap closure: BYOK handler coverage documentation (10.88% rationale)
+- [ ] 71-08-PLAN.md — Gap closure: Episode services edge cases (72% -> 80%+)
 
 ### Phase 72: API & Data Layer Coverage
 **Goal**: All REST API routes, WebSocket endpoints, and database operations achieve 80%+ test coverage
