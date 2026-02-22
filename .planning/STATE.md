@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 71: Core AI Services Coverage
+**Current focus:** Phase 72: API & Data Layer Coverage
 
 ## Current Position
 
 Milestone: v3.0 Production Readiness
-Phase: 2 of 5 (Core AI Services Coverage)
-Plan: 6 of 8 in current phase
+Phase: 3 of 5 (API & Data Layer Coverage)
+Plan: 1 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Completed plan 71-06: Agent Execution Service 80%+ Coverage
+Last activity: 2026-02-22 — Completed plan 72-01: REST API Route Coverage
 
 ### v3.0 Milestone Goal
 Achieve 80% test coverage across all backend services and fix all runtime errors to ensure production stability.
@@ -51,6 +51,7 @@ Progress: [██████████] 100% (v1.0 complete) → [███�
 | Phase 71 P02 | 45 | 3 tasks | 3 files |
 | Phase 71 P04 | 42 | 3 tasks | 4 files |
 | Phase 71 P06 | 3 | 1 tasks | 1 files |
+| Phase 72 P01 | 25 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 70]: Use specific exception types instead of bare except to prevent error masking
 - [Phase 70]: Add error logging (logger.error/warning/debug) for all exception handlers
 - [Phase 70]: Configure ruff with E722 rule to enforce no bare except in production code
+- [Phase 72]: Accept 405 (Method Not Allowed) for unimplemented CRUD endpoints in tests
+- [Phase 72]: Document production bugs in tests rather than fixing immediately (test-first approach)
 
 ### Pending Todos
 
@@ -123,5 +126,5 @@ Resume file: None
 
 *State updated: 2026-02-22*
 *Milestone: v3.0 Production Readiness*
-*Phase 71 in progress - 8 of 8 plans complete (71-01, 71-02, 71-03, 71-04, 71-05, 71-06, 71-07, 71-08)*
-*Next action: Phase 72 - API Endpoints Coverage (5 plans)*
+*Phase 72 in progress - 1 of 5 plans complete (72-01)*
+*Next action: Phase 72 - Plan 72-02 (Auth and WebSocket routes coverage)*
