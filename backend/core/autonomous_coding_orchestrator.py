@@ -878,7 +878,7 @@ class AgentOrchestrator:
         self.state_store.state[workflow_id] = initial_state
 
         # Create workflow record in database
-        from core.models import AutonomousWorkflow
+        from core.models import AutonomousWorkflow, Episode
         workflow = AutonomousWorkflow(
             id=workflow_id,
             feature_request=feature_request,
@@ -888,6 +888,39 @@ class AgentOrchestrator:
         )
         self.db.add(workflow)
         self.db.commit()
+
+        # Create Episode for WorldModel recall
+        # Use a system agent_id for autonomous coding workflows
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            title=f"Autonomous Coding: {feature_request[:50]}{'...' if len(feature_request) > 50 else ''}",
+            description=f"Feature request: {feature_request}\n"
+                       f"Workflow ID: {workflow_id}\n"
+                       f"Workspace: {workspace_id}",
+            summary=f"Autonomous coding workflow for: {feature_request[:100]}",
+            agent_id="autonomous_coding_agent",  # System agent for autonomous coding
+            user_id=None,  # No user context for autonomous coding
+            workspace_id=workspace_id,
+            session_id=None,  # No chat session for autonomous coding
+            execution_ids=[workflow_id],
+            started_at=datetime.utcnow(),
+            status="active",
+            topics=["autonomous_coding", "code_generation"],
+            entities=[f"workflow:{workflow_id}"],
+            importance_score=0.7,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            human_edits=[],
+            world_model_state="v1.0"
+        )
+        self.db.add(episode)
+        self.db.commit()
+        self.db.refresh(episode)
+
+        # Store episode_id in state for segment creation
+        await self.state_store.update_state(workflow_id, {
+            "episode_id": str(episode.id)
+        })
 
         # Define phases
         phases = [
