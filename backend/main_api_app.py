@@ -132,6 +132,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Configuration validation failed: {e}")
 
+    # 0.5. Check for common NameError issues in critical modules
+    logger.info("Checking for common NameError issues...")
+    try:
+        from integrations import atom_communication_ingestion_pipeline
+        logger.info("✓ atom_communication_ingestion_pipeline imports successfully")
+    except NameError as e:
+        logger.error(f"✗ NameError in atom_communication_ingestion_pipeline: {e}")
+    except ImportError:
+        logger.info("⚠ atom_communication_ingestion_pipeline not available (optional integration)")
+
+    try:
+        from core import autonomous_coding_orchestrator
+        logger.info("✓ autonomous_coding_orchestrator imports successfully")
+    except NameError as e:
+        logger.error(f"✗ NameError in autonomous_coding_orchestrator: {e}")
+    except ImportError:
+        logger.info("⚠ autonomous_coding_orchestrator not available (optional module)")
+
+    try:
+        from core import advanced_workflow_system
+        logger.info("✓ advanced_workflow_system imports successfully")
+    except NameError as e:
+        logger.error(f"✗ NameError in advanced_workflow_system: {e}")
+
+    try:
+        from core import ai_workflow_optimization_endpoints
+        logger.info("✓ ai_workflow_optimization_endpoints imports successfully")
+    except NameError as e:
+        logger.error(f"✗ NameError in ai_workflow_optimization_endpoints: {e}")
+
     # 1. Initialize Database (Critical for in-memory DB)
     try:
         from analytics.models import WorkflowExecutionLog  # Force registration
@@ -1296,6 +1326,14 @@ try:
         logger.info("✓ User Activity Routes Loaded")
     except ImportError as e:
         logger.warning(f"User Activity routes not found: {e}")
+
+    # 15.24 Autonomous Coding Routes (NEW - Phase 69)
+    try:
+        from api.autonomous_coding_routes import router as autonomous_coding_router
+        app.include_router(autonomous_coding_router)  # Router already has prefix="/api/autonomous"
+        logger.info("✓ Autonomous Coding Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Autonomous Coding routes not found: {e}")
 
     # 16. Live Command Center APIs (Parallel Pipeline)
     try:
