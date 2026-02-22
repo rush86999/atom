@@ -5,17 +5,19 @@ from sqlalchemy import create_engine
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
 
-from accounting.models import *
-from ecommerce.models import *
-from marketing.models import *
-from saas.models import *
-from sales.models import *
-from service_delivery.models import *
+# Import model modules to ensure all models are registered with Base.metadata
+# Using module imports instead of wildcard to avoid NameError issues
+from accounting import models as accounting_models
+from ecommerce import models as ecommerce_models
+from marketing import models as marketing_models
+from saas import models as saas_models
+from sales import models as sales_models
+from service_delivery import models as service_delivery_models
+from core import database
+from core import models as core_models
 
-from core.database import DATABASE_URL, Base
-
-# Import all models to ensure they are registered with Base.metadata
-from core.models import *
+# Use Base from core.models for consistency
+Base = core_models.Base
 
 
 def init_db():
