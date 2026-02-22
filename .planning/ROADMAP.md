@@ -77,14 +77,14 @@ Plans:
   7. SQLAlchemy operations and queries achieve 80%+ test coverage
   8. Database transactions and rollback scenarios are tested
   9. Data integrity constraints (foreign keys, unique constraints) are validated in tests
-**Plans**: TBD
+**Plans**: 5 plans (3 waves)
 
 Plans:
-- [ ] 72-01: Achieve 80%+ coverage for REST API routes and error handling
-- [ ] 72-02: Achieve 80%+ coverage for authentication and WebSocket endpoints
-- [ ] 72-03: Achieve 80%+ coverage for database models and SQLAlchemy operations
-- [ ] 72-04: Test database migrations for forward and rollback scenarios
-- [ ] 72-05: Test database transactions, rollbacks, and data integrity constraints
+- [ ] 72-01-PLAN.md — Achieve 80%+ coverage for REST API routes (agent, canvas, workflow, project)
+- [ ] 72-02-PLAN.md — Achieve 80%+ coverage for authentication and WebSocket endpoints
+- [ ] 72-03-PLAN.md — Achieve 80%+ coverage for database models and SQLAlchemy operations
+- [ ] 72-04-PLAN.md — Test database migrations for forward and rollback scenarios
+- [ ] 72-05-PLAN.md — Test database transactions, rollbacks, and data integrity constraints
 
 ### Phase 73: Test Suite Stability
 **Goal**: Test suite achieves 100% pass rate consistently with execution under 60 minutes and parallel execution support
@@ -141,6 +141,6 @@ Phases execute in numeric order: 70 → 71 → 72 → 73 → 74
 |-------|----------------|--------|-----------|
 | 70. Runtime Error Fixes | 4/4 | Ready for verification | 2025-02-22 |
 | 71. Core AI Services Coverage | 0/5 | Ready to execute | - |
-| 72. API & Data Layer Coverage | 0/5 | Not started | - |
+| 72. API & Data Layer Coverage | 0/5 | Ready to execute | - |
 | 73. Test Suite Stability | 0/5 | Not started | - |
 | 74. Quality Gates & Property Testing | 0/8 | Not started | - |
