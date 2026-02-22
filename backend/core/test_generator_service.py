@@ -1488,8 +1488,11 @@ class TestGeneratorService:
 
     async def generate_until_coverage_target(
         self,
-        source_file: str,
-        target_coverage: float = 0.85
+        source_code_path: str,
+        language: str = "python",
+        target_coverage: float = 85.0,
+        test_type: str = "unit",
+        max_iterations: int = 5
     ) -> Dict[str, Any]:
         """
         Generate tests iteratively until coverage target met.
@@ -1499,29 +1502,32 @@ class TestGeneratorService:
         2. Run coverage
         3. Identify gaps
         4. Generate targeted tests for gaps
-        5. Repeat until target met or max iterations (5)
+        5. Repeat until target met or max iterations
 
         Args:
-            source_file: Source file to test
-            target_coverage: Target coverage percentage (0.0-1.0)
+            source_code_path: Path to source file to test
+            language: Programming language (default: "python")
+            target_coverage: Target coverage percentage (default: 85.0)
+            test_type: Type of test - 'unit', 'integration', or 'e2e' (default: "unit")
+            max_iterations: Maximum iterations to attempt (default: 5)
 
         Returns:
             Final test suite and coverage achieved
         """
-        max_iterations = 5
+        all_tests = []
         all_tests = []
 
         for iteration in range(max_iterations):
             # Generate tests for current iteration
             if iteration == 0:
                 result = await self.generate_tests(
-                    [source_file],
-                    {"iteration": iteration}
+                    [source_code_path],
+                    {"iteration": iteration, "language": language, "test_type": test_type}
                 )
             else:
                 # Generate targeted tests for coverage gaps
                 result = await self._generate_gap_filling_tests(
-                    source_file,
+                    source_code_path,
                     result["coverage_gaps"]
                 )
 
@@ -1530,15 +1536,15 @@ class TestGeneratorService:
             # Run coverage analysis
             test_file = result["test_files"][0]["path"]
             coverage_data = await self.coverage_analyzer.analyze_coverage(
-                source_file,
+                source_code_path,
                 test_file
             )
 
             current_coverage = coverage_data.get("coverage_percent", 0.0)
 
-            # Check if target met
-            if current_coverage >= target_coverage * 100:
-                logger.info(f"Target coverage {target_coverage*100}% reached in iteration {iteration+1}")
+            # Check if target met (target_coverage is already in percentage form)
+            if current_coverage >= target_coverage:
+                logger.info(f"Target coverage {target_coverage}% reached in iteration {iteration+1}")
                 break
 
             # Store coverage gaps for next iteration
@@ -1547,7 +1553,7 @@ class TestGeneratorService:
         return {
             "test_files": all_tests,
             "final_coverage": coverage_data.get("coverage_percent", 0.0),
-            "target_met": coverage_data.get("coverage_percent", 0.0) >= target_coverage * 100,
+            "target_met": coverage_data.get("coverage_percent", 0.0) >= target_coverage,
             "iterations": iteration + 1
         }
 
