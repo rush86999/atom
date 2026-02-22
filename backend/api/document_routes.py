@@ -217,7 +217,8 @@ async def search_documents(
              if isinstance(meta, str):
                   try:
                        meta = json.loads(meta)
-                  except:
+                  except (json.JSONDecodeError, ValueError, TypeError) as e:
+                       logger.debug(f"Failed to parse metadata JSON in search results: {e}")
                        meta = {}
              
              results.append(SearchResult(

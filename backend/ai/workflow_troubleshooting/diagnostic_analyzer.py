@@ -425,7 +425,8 @@ class AIDiagnosticAnalyzer:
                 last = values[-1]
                 if first == 0: return 0.0
                 return (last - first) / first
-            except:
+            except (IndexError, ZeroDivisionError, ValueError) as e:
+                logger.debug(f"Trend calculation fallback failed: {e}")
                 return 0.0
 
         x = np.arange(len(values))
@@ -458,7 +459,8 @@ class AIDiagnosticAnalyzer:
         try:
             correlation = np.corrcoef(values1, values2)[0, 1]
             return correlation if not np.isnan(correlation) else 0.0
-        except:
+        except (ValueError, np.linalg.LinAlgError, IndexError) as e:
+            logger.debug(f"Pearson correlation calculation failed: {e}")
             return 0.0
 
     async def analyze_error_patterns(
