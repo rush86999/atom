@@ -36,7 +36,8 @@ from core.llm.byok_handler import BYOKHandler
 from core.requirement_parser_service import RequirementParserService
 from core.codebase_research_service import CodebaseResearchService
 from core.autonomous_planning_agent import PlanningAgent
-from core.autonomous_coder_agent import CodeGeneratorOrchestrator
+from core.autonomous_coder_agent import CodeGeneratorOrchestrator, QualityGateError
+from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
 from core.test_generator_service import TestGeneratorService
 from core.test_runner_service import TestRunnerService
 from core.episode_segmentation_service import EpisodeSegmentationService
@@ -1201,6 +1202,17 @@ class AgentOrchestrator:
             )
             self.db.add(segment)
             self.db.commit()
+
+        # Quality gate validation before phase transition
+        if QUALITY_ENFORCEMENT_ENABLED and not EMERGENCY_QUALITY_BYPASS:
+            # Validate quality gate passed from code_result
+            quality_results = code_result.get("quality_results", {})
+            if not quality_results.get("passed", False):
+                raise QualityGateError(
+                    f"Quality gate failed in code generation phase.\n"
+                    f"Errors: {quality_results.get('errors', [])}\n"
+                    f"Phase transition blocked."
+                )
 
         return {
             "phase": "generate_code",
