@@ -1722,21 +1722,6 @@ class TestSegmentationAdditionalCoverage:
         assert "canvas_type" in result
         assert "presentation_summary" in result
 
-    def test_summarize_feedback_long_text(self, segmentation_service):
-        """Test feedback summarization truncates long text."""
-        long_feedback = "x" * 200
-
-        result = segmentation_service._summarize_feedback(long_feedback)
-
-        # Should truncate to 100 chars
-        assert len(result) <= 100
-        assert result.endswith("...")
-
-    def test_summarize_feedback_none(self, segmentation_service):
-        """Test feedback summarization with None."""
-        result = segmentation_service._summarize_feedback(None)
-
-        assert result is None
-
-    # Note: _assess_outcome_quality and _filter_improvement_trend are in EpisodeRetrievalService
-    # not in EpisodeSegmentationService, so tests for those are in retrieval service tests
+    # Note: _summarize_feedback, _assess_outcome_quality and _filter_improvement_trend
+    # are in EpisodeRetrievalService, not EpisodeSegmentationService
+    # Tests for those methods are in retrieval service tests file
