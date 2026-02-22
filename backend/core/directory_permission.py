@@ -197,7 +197,8 @@ class DirectoryPermissionService:
             # Resolve blocked directory for comparison (handles /etc -> /private/etc on macOS)
             try:
                 blocked_resolved = str(Path(blocked).resolve())
-            except:
+            except (OSError, PermissionError, RuntimeError) as e:
+                logger.debug(f"Could not resolve blocked directory {blocked}: {e}")
                 blocked_resolved = blocked
 
             # Check if directory starts with blocked path

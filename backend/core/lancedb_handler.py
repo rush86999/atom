@@ -823,7 +823,8 @@ class LanceDBHandler:
             if isinstance(metadata, str):
                 try:
                     metadata = json.loads(metadata)
-                except:
+                except (json.JSONDecodeError, ValueError, TypeError) as e:
+                    logger.debug(f"Failed to parse metadata JSON for doc {doc_id}: {e}")
                     metadata = {}
             elif metadata is None:
                 metadata = {}
@@ -872,7 +873,8 @@ class LanceDBHandler:
                 if isinstance(metadata, str):
                     try:
                         metadata = json.loads(metadata)
-                    except:
+                    except (json.JSONDecodeError, ValueError, TypeError) as e:
+                        logger.debug(f"Failed to parse metadata JSON in list: {e}")
                         metadata = {}
                 elif metadata is None:
                     metadata = {}
