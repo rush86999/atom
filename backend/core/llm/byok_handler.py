@@ -1464,6 +1464,39 @@ class BYOKHandler:
         """
         return self.cognitive_classifier.classify(prompt, task_type)
 
+    def validate_api_key(self, provider_id: str) -> Dict[str, Any]:
+        """
+        Validate API key configuration for a provider.
+
+        Returns dict with:
+            - configured: bool (whether any API key is available)
+            - source: str ("BYOK_MANAGER" or "ENV_VAR" or "NONE")
+            - key_suffix: str (last 4 chars for identification)
+            - provider_id: str
+        """
+        byok_configured = self.byok_manager.is_configured(self.workspace_id, provider_id)
+        api_key = None
+        source = "NONE"
+
+        if byok_configured:
+            api_key = self.byok_manager.get_api_key(provider_id)
+            source = "BYOK_MANAGER"
+        else:
+            env_key = f"{provider_id.upper()}_API_KEY"
+            api_key = os.getenv(env_key)
+            if api_key:
+                source = "ENV_VAR"
+
+        key_suffix = api_key[-4:] if api_key and len(api_key) >= 4 else None
+
+        return {
+            "provider_id": provider_id,
+            "configured": api_key is not None,
+            "source": source,
+            "key_suffix": key_suffix,
+            "has_byok": byok_configured,
+        }
+
     def _is_trial_restricted(self) -> bool:
         """
         Check if the workspace has trial restrictions.
