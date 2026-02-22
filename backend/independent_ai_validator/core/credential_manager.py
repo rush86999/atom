@@ -216,7 +216,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code == 200
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout) as e:
+            logger.debug(f"OpenAI API key validation failed: {e}")
             return False
 
     def _validate_anthropic(self, key: str) -> bool:
@@ -238,7 +239,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code in [200, 201]
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout) as e:
+            logger.debug(f"Anthropic API key validation failed: {e}")
             return False
 
     def _validate_deepseek(self, key: str) -> bool:
@@ -251,7 +253,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code == 200
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout) as e:
+            logger.debug(f"DeepSeek API key validation failed: {e}")
             return False
 
     def _validate_google(self, key: str) -> bool:
@@ -263,7 +266,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code == 200
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout) as e:
+            logger.debug(f"Google API key validation failed: {e}")
             return False
 
     def _validate_slack(self, key: str) -> bool:
@@ -276,7 +280,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code == 200 and response.json().get("ok", False)
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout, json.JSONDecodeError) as e:
+            logger.debug(f"Slack API key validation failed: {e}")
             return False
 
     def _validate_github(self, key: str) -> bool:
@@ -289,7 +294,8 @@ class CredentialManager:
                 timeout=10
             )
             return response.status_code == 200
-        except:
+        except (requests.RequestException, requests.ConnectionError, requests.Timeout) as e:
+            logger.debug(f"GitHub API key validation failed: {e}")
             return False
 
     def get_provider_weights(self) -> Dict[str, float]:

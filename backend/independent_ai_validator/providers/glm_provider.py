@@ -334,7 +334,8 @@ Be thorough and constructive in your analysis.
             try:
                 confidence_value = int(confidence_match.group(1))
                 return min(100.0, max(0.0, confidence_value)) / 100.0
-            except:
+            except (ValueError, AttributeError, TypeError) as e:
+                logger.debug(f"Failed to parse confidence value: {e}")
                 pass
 
         # Look for objectivity score
@@ -343,7 +344,8 @@ Be thorough and constructive in your analysis.
             try:
                 objectivity_value = int(objectivity_match.group(1))
                 return min(100.0, max(0.0, objectivity_value)) / 100.0
-            except:
+            except (ValueError, AttributeError, TypeError) as e:
+                logger.debug(f"Failed to parse objectivity value: {e}")
                 pass
 
         # Default confidence based on content length and quality indicators

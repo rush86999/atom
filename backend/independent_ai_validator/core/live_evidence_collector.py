@@ -288,7 +288,8 @@ class LiveEvidenceCollector:
                 response_data = None
                 try:
                     response_data = await response.json()
-                except:
+                except (json.JSONDecodeError, aiohttp.ContentTypeError) as e:
+                    logger.debug(f"Failed to parse JSON response from {endpoint}: {e}")
                     response_data = await response.text()
 
                 evidence = EvidencePoint(
