@@ -2302,13 +2302,18 @@ docker-compose -f docker-compose-e2e.yml down -v
    - Unit tests for component rendering, hooks, and episode integration
    - Documentation for canvas usage and AI accessibility patterns
 
-**Plans**: 11 plans (4 waves)
+**Plans**: 16 plans (4 waves + gap closure)
 - Wave 1 (Plans 01-02): Feature parsing, Codebase research
 - Wave 2 (Plans 03-04): Implementation planning, Code generation
 - Wave 3 (Plans 05-06): Test generation, Test execution & fixing
-- Wave 4 (Plans 07-10), Gap Closure (Plan 11): Documentation, Commits, Orchestrator, CodingAgent Canvas
+- Wave 4 (Plans 07-14): Documentation, Commits, Orchestrator, CodingAgent Canvas, Quality Gates, Test Retry, Episode Integration, Coverage-Driven Testing
+- Gap Closure (Plans 15-16): Fix ImportError for quality flags, Fix DeepSeek API authentication
 
-**Estimated Duration**: 4-5 days (10 plans, ~3-5 hours each)
+**Estimated Duration**: 4-5 days (16 plans, ~3-5 hours each)
+
+**Gap Closure Plans**:
+- Plan 15: Fix ImportError for QUALITY_ENFORCEMENT_ENABLED and EMERGENCY_QUALITY_BYPASS (export module-level convenience variables in feature_flags.py)
+- Plan 16: Fix DeepSeek API authentication (add debug logging, validation helper, cleanup utility for BYOK key management)
 
 **Architecture**:
 ```
@@ -2348,6 +2353,6 @@ Orchestrator (coordinates everything)
 - Rate limiting to prevent infinite loops
 - Resource limits (CPU, memory, API calls)
 
-**Status**: ✅ IN PROGRESS - Plans 01-10 Complete, Plan 11 Gap Closure (February 20, 2026)
+**Status**: IN PROGRESS - Plans 01-14 Complete (February 22, 2026), Gap Closure Plans 15-16 Created
 
 *End of Roadmap*
