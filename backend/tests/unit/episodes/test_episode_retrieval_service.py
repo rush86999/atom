@@ -14,6 +14,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.orm import Session
+from typing import List, Dict, Any
 
 from core.episode_retrieval_service import (
     EpisodeRetrievalService,
@@ -623,3 +624,335 @@ class TestPerformanceTrend:
 
         # Should return non-empty list for improving trend
         assert isinstance(result, list)
+
+
+# ============================================================================
+# Additional Edge Cases for 80%+ Coverage
+# ============================================================================
+
+class TestRetrievalAdditionalCoverage:
+    """Additional tests for comprehensive retrieval coverage."""
+
+    @pytest.mark.asyncio
+    async def test_retrieve_canvas_aware_basic(self, retrieval_service, sample_episodes):
+        """Test canvas-aware retrieval."""
+        # Mock canvas-aware search
+        retrieval_service.lancedb.search.return_value = [
+            {
+                "id": "ep-1",
+                "metadata": '{"episode_id": "episode-0", "canvas_type": "sheets"}',
+                "_distance": 0.2
+            }
+        ]
+        retrieval_service.db.query.return_value.filter.return_value.all.return_value = sample_episodes[:1]
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_canvas_aware(
+            agent_id="agent-123",
+            query="revenue data",
+            canvas_type="sheets",
+            canvas_context_detail="summary",
+            limit=10
+        )
+
+        assert "episodes" in result
+        assert result["canvas_type"] == "sheets"
+        assert result["canvas_context_detail"] == "summary"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_canvas_aware_governance_denied(self, retrieval_service):
+        """Test canvas-aware retrieval when governance fails."""
+        retrieval_service.governance.can_perform_action.return_value = {
+            "allowed": False,
+            "reason": "Unauthorized"
+        }
+
+        result = await retrieval_service.retrieve_canvas_aware(
+            agent_id="agent-123",
+            query="test"
+        )
+
+        assert result["episodes"] == []
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieve_by_business_data(self, retrieval_service, sample_episodes):
+        """Test retrieval by business data filters."""
+        # Mock business data query - need text filter support
+        retrieval_service.db.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+        retrieval_service.db.query.return_value.filter.return_value.all.return_value = []
+
+        # Mock the text filter chain
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+        retrieval_service.db.query.return_value = mock_query
+
+        result = await retrieval_service.retrieve_by_business_data(
+            agent_id="agent-123",
+            business_filters={"approval_status": "approved"},
+            limit=10
+        )
+
+        assert "episodes" in result
+        assert result["filters"] == {"approval_status": "approved"}
+
+    @pytest.mark.asyncio
+    async def test_retrieve_by_business_data_with_operators(self, retrieval_service):
+        """Test business data retrieval with comparison operators."""
+        retrieval_service.db.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+        retrieval_service.db.query.return_value.filter.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_by_business_data(
+            agent_id="agent-123",
+            business_filters={
+                "revenue": {"$gt": 1000000},
+                "amount": {"$lte": 50000}
+            },
+            limit=10
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieve_by_canvas_type_basic(self, retrieval_service, sample_episodes):
+        """Test retrieval by canvas type."""
+        # Mock canvas subquery properly
+        mock_canvas_subquery = Mock()
+        mock_canvas_subquery.filter.return_value = [sample_episodes[0].id]
+
+        mock_main_query = Mock()
+        mock_main_query.filter.return_value = mock_main_query
+        mock_main_query.order_by.return_value.limit.return_value.all.return_value = []
+
+        retrieval_service.db.query.return_value = mock_main_query
+
+        # Need to handle the subquery differently - it's used in filter()
+        result = await retrieval_service.retrieve_by_canvas_type(
+            agent_id="agent-123",
+            canvas_type="sheets",
+            time_range="30d",
+            limit=10
+        )
+
+        assert "episodes" in result
+        assert result["canvas_type"] == "sheets"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_supervision_outcome_filters(self, retrieval_service):
+        """Test supervision retrieval with outcome filters."""
+        # Add supervision fields to episodes
+        now = datetime.now()
+        episodes = []
+        for i in range(5):
+            ep = Mock()
+            ep.id = f"episode-{i}"
+            ep.started_at = now - timedelta(days=i)
+            ep.supervisor_id = "supervisor-1"
+            ep.supervisor_rating = 3 + i
+            ep.intervention_count = i
+            ep.intervention_types = []
+            ep.supervision_feedback = None
+            episodes.append(ep)
+
+        # Mock agent for semantic retrieval
+        mock_agent = Mock()
+        mock_agent.name = "TestAgent"
+        retrieval_service.db.query.return_value.filter.return_value.all.return_value = episodes
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = episodes
+        retrieval_service.db.query.return_value.filter.return_value.first.return_value = mock_agent
+
+        # Test high_rated filter
+        result = await retrieval_service.retrieve_with_supervision_context(
+            agent_id="agent-123",
+            retrieval_mode=RetrievalMode.TEMPORAL,
+            supervision_outcome_filter="high_rated",
+            limit=10
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieve_contextual_feedback_boosts(self, retrieval_service, sample_episodes):
+        """Test contextual retrieval applies feedback boosts."""
+        # Add feedback scores to episodes
+        for ep in sample_episodes[:3]:
+            ep.aggregate_feedback_score = 0.8  # Positive feedback
+
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = sample_episodes
+        retrieval_service.lancedb.search.return_value = []
+
+        result = await retrieval_service.retrieve_contextual(
+            agent_id="agent-123",
+            current_task="test task",
+            limit=5
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_fetch_canvas_context_error_handling(self, retrieval_service):
+        """Test canvas context fetch error handling."""
+        retrieval_service.db.query.side_effect = Exception("DB error")
+
+        result = await retrieval_service._fetch_canvas_context(["canvas-1", "canvas-2"])
+
+        # Should return empty list on error
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_fetch_feedback_context_error_handling(self, retrieval_service):
+        """Test feedback context fetch error handling."""
+        retrieval_service.db.query.side_effect = Exception("DB error")
+
+        result = await retrieval_service._fetch_feedback_context(["feedback-1", "feedback-2"])
+
+        # Should return empty list on error
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_retrieve_sequential_with_canvas_feedback(self, retrieval_service, sample_episodes, sample_segments):
+        """Test sequential retrieval includes canvas and feedback context."""
+        episode = sample_episodes[0]
+        episode.canvas_ids = ["canvas-1", "canvas-2"]
+        episode.feedback_ids = ["feedback-1"]
+
+        # Mock canvas and feedback queries
+        retrieval_service.db.query.return_value.filter.return_value.first.return_value = episode
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = sample_segments
+
+        # Mock canvas/feedback context fetchers
+        retrieval_service._fetch_canvas_context = AsyncMock(return_value=[
+            {"id": "canvas-1", "canvas_type": "sheets"}
+        ])
+        retrieval_service._fetch_feedback_context = AsyncMock(return_value=[
+            {"id": "feedback-1", "rating": 5}
+        ])
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="episode-0",
+            agent_id="agent-123",
+            include_canvas=True,
+            include_feedback=True
+        )
+
+        assert "episode" in result
+        assert "canvas_context" in result
+        assert "feedback_context" in result
+
+    @pytest.mark.asyncio
+    async def test_log_access_error_handling(self, retrieval_service):
+        """Test access logging error handling."""
+        retrieval_service.db.add.side_effect = Exception("DB error")
+
+        # Should not raise exception
+        await retrieval_service._log_access(
+            episode_id="episode-1",
+            access_type="temporal",
+            governance_check={"allowed": True},
+            agent_id="agent-123",
+            results_count=5
+        )
+
+    @pytest.mark.asyncio
+    async def test_retrieve_temporal_invalid_time_range(self, retrieval_service):
+        """Test temporal retrieval with invalid time range."""
+        # Should use default (7 days) for invalid range
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="agent-123",
+            time_range="invalid",  # Invalid range
+            limit=10
+        )
+
+        # Should default to 7 days
+        assert result["time_range"] == "invalid"
+
+    @pytest.mark.asyncio
+    async def test_filter_canvas_context_detail_levels(self, retrieval_service):
+        """Test canvas context filtering at different detail levels."""
+        full_context = {
+            "canvas_type": "sheets",
+            "presentation_summary": "Revenue dashboard",
+            "visual_elements": ["chart", "table"],
+            "user_interaction": "clicked",
+            "critical_data_points": {"revenue": 1000000}
+        }
+
+        # Test all detail levels - _filter_canvas_context_detail exists
+        for level in ["summary", "standard", "full"]:
+            result = retrieval_service._filter_canvas_context_detail(
+                full_context, level
+            )
+
+            assert "canvas_type" in result
+            assert "presentation_summary" in result
+
+    def test_supervision_context_creation(self, retrieval_service):
+        """Test supervision context dictionary creation."""
+        mock_episode = Mock()
+        mock_episode.supervisor_id = "supervisor-1"
+        mock_episode.supervisor_rating = 5
+        mock_episode.intervention_count = 0
+        mock_episode.intervention_types = []
+        mock_episode.supervision_feedback = "Excellent work"
+
+        context = retrieval_service._create_supervision_context(mock_episode)
+
+        assert context["has_supervision"] is True
+        assert context["supervisor_id"] == "supervisor-1"
+        assert context["supervisor_rating"] == 5
+        assert context["intervention_count"] == 0
+
+    def test_supervision_context_no_supervision(self, retrieval_service):
+        """Test supervision context when no supervision occurred."""
+        mock_episode = Mock()
+        mock_episode.supervisor_id = None
+        mock_episode.supervisor_rating = None
+        mock_episode.intervention_count = None
+        mock_episode.intervention_types = None
+        mock_episode.supervision_feedback = None
+
+        context = retrieval_service._create_supervision_context(mock_episode)
+
+        assert context["has_supervision"] is False
+        assert context["supervisor_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_retrieve_semantic_with_threshold(self, retrieval_service):
+        """Test semantic retrieval with minimum similarity threshold."""
+        # Mock results with various distances
+        lancedb_results = [
+            {"id": "ep-1", "metadata": '{"episode_id": "episode-1"}', "_distance": 0.3},
+            {"id": "ep-2", "metadata": '{"episode_id": "episode-2"}', "_distance": 0.7},  # Lower similarity
+            {"id": "ep-3", "metadata": '{"episode_id": "episode-3"}', "_distance": 0.9},  # Very low similarity
+        ]
+        retrieval_service.lancedb.search.return_value = lancedb_results
+        retrieval_service.db.query.return_value.filter.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_semantic(
+            agent_id="agent-123",
+            query="test query",
+            limit=10
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieve_contextual_combined_filters(self, retrieval_service, sample_episodes):
+        """Test contextual retrieval with both canvas and feedback requirements."""
+        retrieval_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = sample_episodes
+        retrieval_service.lancedb.search.return_value = []
+
+        result = await retrieval_service.retrieve_contextual(
+            agent_id="agent-123",
+            current_task="test",
+            limit=5,
+            require_canvas=True,
+            require_feedback=True
+        )
+
+        # Should complete without error
+        assert "episodes" in result

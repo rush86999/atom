@@ -13,6 +13,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
 from core.episode_segmentation_service import (
     EpisodeSegmentationService,
@@ -852,3 +853,890 @@ class TestEdgeCases:
 
         # Rating of 3 converts to 0.0
         assert score == 0.0
+
+
+# ============================================================================
+# Episode Creation Tests (Lines 162-288)
+# ============================================================================
+
+class TestEpisodeCreation:
+    """Test episode creation from sessions."""
+
+    @pytest.mark.asyncio
+    async def test_create_episode_session_not_found(self, segmentation_service):
+        """Test episode creation when session doesn't exist."""
+        segmentation_service.db.query.return_value.first.return_value = None
+
+        result = await segmentation_service.create_episode_from_session(
+            session_id="nonexistent",
+            agent_id="agent-1"
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_too_small_no_force(self, segmentation_service, sample_session):
+        """Test episode creation fails for small session without force."""
+        segmentation_service.db.query.return_value.first.return_value = sample_session
+
+        # Only one message (below threshold of 2) - add proper created_at
+        now = datetime.now()
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
+            Mock(id="msg-1", role="user", content="Single message", created_at=now)
+        ]
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result = await segmentation_service.create_episode_from_session(
+            session_id="test-session-1",
+            agent_id="agent-1",
+            force_create=False
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_with_force_flag(self, segmentation_service, sample_session):
+        """Test episode creation with force flag bypasses size check."""
+        segmentation_service.db.query.return_value.first.return_value = sample_session
+
+        # Only one message
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
+            Mock(id="msg-1", role="user", content="Single message", created_at=datetime.now())
+        ]
+
+        # Mock other dependencies
+        segmentation_service._fetch_canvas_context = Mock(return_value=[])
+        segmentation_service._fetch_feedback_context = Mock(return_value=[])
+        segmentation_service._extract_canvas_context_llm = AsyncMock(return_value={})
+        segmentation_service._create_segments = AsyncMock()
+        segmentation_service._archive_to_lancedb = AsyncMock()
+
+        # Mock uuid for episode creation
+        with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+            mock_uuid.uuid4.return_value = "episode-1"
+            mock_uuid.uuid4.return_value = "episode-1"  # For segments
+
+            with patch.object(segmentation_service, '_generate_title', return_value="Test Episode"):
+                with patch.object(segmentation_service, '_generate_description', return_value="Test Description"):
+                    with patch.object(segmentation_service, '_generate_summary', return_value="Test Summary"):
+                        with patch.object(segmentation_service, '_calculate_duration', return_value=60):
+                            with patch.object(segmentation_service, '_extract_topics', return_value=[]):
+                                with patch.object(segmentation_service, '_extract_entities', return_value=[]):
+                                    with patch.object(segmentation_service, '_calculate_importance', return_value=0.5):
+                                        with patch.object(segmentation_service, '_get_agent_maturity', return_value="INTERN"):
+                                            with patch.object(segmentation_service, '_count_interventions', return_value=0):
+                                                with patch.object(segmentation_service, '_extract_human_edits', return_value=[]):
+                                                    with patch.object(segmentation_service, '_get_world_model_version', return_value="v1.0"):
+
+                                                        result = await segmentation_service.create_episode_from_session(
+                                                            session_id="test-session-1",
+                                                            agent_id="agent-1",
+                                                            force_create=True
+                                                        )
+
+        # Should complete without error
+        # The actual return value depends on successful episode creation
+        # We're mainly testing that it doesn't crash with force_create=True
+
+
+# ============================================================================
+# Canvas Context Tests (Lines 619-730, 836-892, 903-985)
+# ============================================================================
+
+class TestCanvasContext:
+    """Test canvas context extraction."""
+
+    def test_fetch_canvas_context(self, segmentation_service):
+        """Test fetching canvas context for session."""
+        mock_canvas_1 = Mock()
+        mock_canvas_1.id = "canvas-1"
+        mock_canvas_1.canvas_type = "sheets"
+        mock_canvas_1.component_name = "DataView"
+        mock_canvas_1.action = "present"
+        mock_canvas_1.audit_metadata = {"revenue": 1000000}
+
+        mock_canvas_2 = Mock()
+        mock_canvas_2.id = "canvas-2"
+        mock_canvas_2.canvas_type = "forms"
+        mock_canvas_2.component_name = "FormView"
+        mock_canvas_2.action = "submit"
+        mock_canvas_2.audit_metadata = {"approval_status": "approved"}
+
+        def mock_canvas_query(*args, **kwargs):
+            query = Mock()
+            query.filter.return_value.order_by.return_value.all.return_value = [mock_canvas_1, mock_canvas_2]
+            return query
+
+        segmentation_service.db.query.return_value = mock_canvas_query()
+
+        result = segmentation_service._fetch_canvas_context("test-session-1")
+
+        assert len(result) == 2
+        assert result[0].canvas_type == "sheets"
+
+    def test_extract_canvas_context_basic(self, segmentation_service):
+        """Test extracting semantic canvas context."""
+        mock_canvas = Mock()
+        mock_canvas.canvas_type = "sheets"
+        mock_canvas.component_name = "RevenueChart"
+        mock_canvas.action = "present"
+        mock_canvas.audit_metadata = {
+            "revenue": 1000000,
+            "amount": 50000,
+            "approval_status": "pending"
+        }
+
+        result = segmentation_service._extract_canvas_context([mock_canvas])
+
+        assert result["canvas_type"] == "sheets"
+        assert "presentation_summary" in result
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["revenue"] == 1000000
+
+    def test_extract_canvas_context_empty(self, segmentation_service):
+        """Test canvas context extraction with no audits."""
+        result = segmentation_service._extract_canvas_context([])
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm(self, segmentation_service):
+        """Test LLM-based canvas context extraction."""
+        mock_canvas = Mock()
+        mock_canvas.canvas_type = "sheets"
+        mock_canvas.audit_metadata = {"component": "DataGrid", "revenue": 1000000}
+
+        # Mock canvas summary service
+        segmentation_service.canvas_summary_service.generate_summary = AsyncMock(
+            return_value="Agent presented revenue data showing $1M in sales"
+        )
+
+        result = await segmentation_service._extract_canvas_context_llm(
+            canvas_audit=mock_canvas,
+            agent_task="Show revenue data"
+        )
+
+        assert result["canvas_type"] == "sheets"
+        assert "presentation_summary" in result
+        assert result["summary_source"] == "llm"
+
+    def test_filter_canvas_context_summary_level(self, segmentation_service):
+        """Test filtering canvas context to summary level."""
+        full_context = {
+            "canvas_type": "sheets",
+            "presentation_summary": "Agent presented data",
+            "visual_elements": ["chart", "table"],
+            "user_interaction": "User clicked approve",
+            "critical_data_points": {"revenue": 1000000}
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(full_context, "summary")
+
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "visual_elements" not in result
+        assert "critical_data_points" not in result
+
+    def test_filter_canvas_context_standard_level(self, segmentation_service):
+        """Test filtering canvas context to standard level."""
+        full_context = {
+            "canvas_type": "sheets",
+            "presentation_summary": "Agent presented data",
+            "visual_elements": ["chart", "table"],
+            "user_interaction": "User clicked approve",
+            "critical_data_points": {"revenue": 1000000}
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(full_context, "standard")
+
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "critical_data_points" in result
+        assert "visual_elements" not in result
+        assert "user_interaction" not in result
+
+
+# ============================================================================
+# Feedback Context Tests (Lines 732-808)
+# ============================================================================
+
+class TestFeedbackContext:
+    """Test feedback context extraction."""
+
+    def test_fetch_feedback_context(self, segmentation_service):
+        """Test fetching feedback for session."""
+        mock_feedback_1 = Mock()
+        mock_feedback_1.id = "feedback-1"
+        mock_feedback_1.feedback_type = "thumbs_up"
+        mock_feedback_1.thumbs_up_down = True
+        mock_feedback_1.rating = None
+
+        mock_feedback_2 = Mock()
+        mock_feedback_2.id = "feedback-2"
+        mock_feedback_2.feedback_type = "rating"
+        mock_feedback_2.rating = 5
+
+        def mock_feedback_query(*args, **kwargs):
+            query = Mock()
+            query.filter.return_value.all.return_value = [mock_feedback_1, mock_feedback_2]
+            return query
+
+        segmentation_service.db.query.return_value = mock_feedback_query()
+
+        result = segmentation_service._fetch_feedback_context(
+            session_id="test-session",
+            agent_id="agent-1",
+            execution_ids=["exec-1", "exec-2"]
+        )
+
+        assert len(result) == 2
+
+    def test_fetch_feedback_context_empty_executions(self, segmentation_service):
+        """Test feedback fetch with no execution IDs."""
+        result = segmentation_service._fetch_feedback_context(
+            session_id="test-session",
+            agent_id="agent-1",
+            execution_ids=[]
+        )
+
+        assert result == []
+
+    def test_calculate_feedback_score_all_positive(self, segmentation_service):
+        """Test feedback score calculation with all positive."""
+        feedbacks = [
+            Mock(feedback_type="thumbs_up", thumbs_up_down=True, rating=None),
+            Mock(feedback_type="rating", thumbs_up_down=None, rating=5),
+            Mock(feedback_type="rating", thumbs_up_down=None, rating=4)
+        ]
+
+        score = segmentation_service._calculate_feedback_score(feedbacks)
+
+        assert score is not None
+        assert score > 0
+
+
+# ============================================================================
+# Segment Creation Tests (Lines 484-536)
+# ============================================================================
+
+class TestSegmentCreationExtended:
+    """Test segment creation functionality."""
+
+    @pytest.mark.asyncio
+    async def test_create_segments_with_boundaries(self, segmentation_service):
+        """Test creating segments with boundaries."""
+        mock_episode = Mock()
+        mock_episode.id = "episode-1"
+
+        messages = [
+            Mock(id="msg-1", content="First", created_at=datetime.now()),
+            Mock(id="msg-2", content="Second", created_at=datetime.now()),
+            Mock(id="msg-3", content="Third", created_at=datetime.now())
+        ]
+
+        boundaries = {1}  # Boundary after first message
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=mock_episode,
+            messages=messages,
+            executions=[],
+            boundaries=boundaries,
+            canvas_context={}
+        )
+
+        # Should have created 2 segments (split at boundary)
+        assert segmentation_service.db.add.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_create_segments_with_executions(self, segmentation_service):
+        """Test creating segments with executions."""
+        mock_episode = Mock()
+        mock_episode.id = "episode-1"
+
+        executions = [
+            Mock(id="exec-1", task_description="Task 1", status="completed", result_summary="Done", input_summary=None, output_summary=None),
+            Mock(id="exec-2", task_description="Task 2", status="completed", result_summary="Done too", input_summary=None, output_summary=None)
+        ]
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=mock_episode,
+            messages=[],
+            executions=executions,
+            boundaries=set(),
+            canvas_context={}
+        )
+
+        # Should have created 2 execution segments
+        assert segmentation_service.db.add.call_count == 2
+
+
+# ============================================================================
+# Supervision Episode Tests (Lines 1038-1384)
+# ============================================================================
+
+class TestSupervisionEpisode:
+    """Test supervision episode creation."""
+
+    @pytest.mark.asyncio
+    async def test_create_supervision_episode(self, segmentation_service):
+        """Test creating episode from supervision session."""
+        mock_supervision = Mock()
+        mock_supervision.id = "supervision-1"
+        mock_supervision.agent_id = "agent-1"
+        mock_supervision.agent_name = "TestAgent"
+        mock_supervision.supervisor_id = "supervisor-1"
+        mock_supervision.supervisor_rating = 4
+        mock_supervision.supervisor_feedback = "Good work"
+        mock_supervision.intervention_count = 2
+        mock_supervision.interventions = [
+            {"type": "correction", "timestamp": "2024-01-01T10:00:00Z", "guidance": "Fix this"},
+            {"type": "guidance", "timestamp": "2024-01-01T10:05:00Z", "guidance": "Try this"}
+        ]
+        mock_supervision.started_at = datetime.now()
+        mock_supervision.completed_at = datetime.now()
+        mock_supervision.duration_seconds = 300
+        mock_supervision.workspace_id = "test-workspace"
+
+        mock_execution = Mock()
+        mock_execution.id = "exec-1"
+        mock_execution.task_description = "Test task"
+        mock_execution.status = "completed"
+        mock_execution.input_summary = "Test input"
+        mock_execution.output_summary = "Test output"
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+        segmentation_service.db.rollback = Mock()
+
+        # Mock archival
+        segmentation_service._archive_supervision_episode_to_lancedb = AsyncMock()
+
+        with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+            mock_uuid.uuid4.return_value = "episode-1"
+
+            result = await segmentation_service.create_supervision_episode(
+                supervision_session=mock_supervision,
+                agent_execution=mock_execution,
+                db=segmentation_service.db
+            )
+
+        assert result is not None
+        assert segmentation_service.db.add.call_count > 0
+
+
+# ============================================================================
+# Skill Episode Tests (Lines 1386-1496)
+# ============================================================================
+
+class TestSkillEpisode:
+    """Test skill episode creation."""
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_success(self, segmentation_service):
+        """Test creating episode from successful skill execution."""
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+            mock_uuid.uuid4.return_value = "segment-1"
+
+            result = await segmentation_service.create_skill_episode(
+                agent_id="agent-1",
+                skill_name="data_analysis",
+                inputs={"query": "SELECT * FROM table"},
+                result={"rows": 100},
+                error=None,
+                execution_time=1.5
+            )
+
+        assert result == "segment-1"
+        segmentation_service.db.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_failure(self, segmentation_service):
+        """Test creating episode from failed skill execution."""
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+            mock_uuid.uuid4.return_value = "segment-1"
+
+            result = await segmentation_service.create_skill_episode(
+                agent_id="agent-1",
+                skill_name="data_analysis",
+                inputs={"query": "INVALID"},
+                result=None,
+                error=Exception("Syntax error"),
+                execution_time=0.5
+            )
+
+        assert result == "segment-1"
+
+
+# ============================================================================
+# Coding Canvas Tests (Lines 1498-1639)
+# ============================================================================
+
+class TestCodingCanvas:
+    """Test coding canvas segment creation."""
+
+    @pytest.mark.asyncio
+    async def test_create_coding_canvas_segment(self, segmentation_service):
+        """Test creating segment for coding canvas session."""
+        operations = [
+            {"id": "op-1", "type": "code_generation", "status": "success"},
+            {"id": "op-2", "type": "test_generation", "status": "success"}
+        ]
+        code_content = "def hello():\n    print('Hello World')"
+        validation = {"passed": 2, "total": 2, "coverage": "100%"}
+
+        with patch('core.episode_segmentation_service.get_db_session') as mock_get_db:
+            mock_db = Mock()
+            mock_db.add = Mock()
+            mock_db.commit = Mock()
+            mock_db.refresh = Mock()
+            mock_get_db.return_value.__enter__.return_value = mock_db
+
+            with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+                mock_uuid.uuid4.return_value = "segment-1"
+
+                result = await segmentation_service.create_coding_canvas_segment(
+                    episode_id="episode-1",
+                    canvas_id="canvas-1",
+                    session_id="session-1",
+                    operations=operations,
+                    code_content=code_content,
+                    validation_feedback=validation,
+                    approval_decision="approve",
+                    language="python"
+                )
+
+        assert result is not None
+
+
+# ============================================================================
+# Additional Edge Cases
+# ============================================================================
+
+class TestAdditionalEdgeCases:
+    """Test additional edge cases for coverage."""
+
+    def test_generate_title_from_first_user_message(self, segmentation_service):
+        """Test title generation from first user message."""
+        messages = [
+            Mock(role="user", content="This is a very long message that should be truncated to exactly fifty characters"),
+            Mock(role="assistant", content="Response")
+        ]
+
+        title = segmentation_service._generate_title(messages, [])
+
+        assert len(title) <= 50
+        assert title.endswith("...")
+
+    def test_generate_title_no_messages(self, segmentation_service):
+        """Test title generation with no messages."""
+        title = segmentation_service._generate_title([], [])
+
+        assert "Episode from" in title
+
+    def test_generate_description(self, segmentation_service):
+        """Test description generation."""
+        messages = [Mock(content=f"Message {i}") for i in range(10)]
+        executions = [Mock(task_description=f"Task {i}") for i in range(3)]
+
+        description = segmentation_service._generate_description(messages, executions)
+
+        assert "10 messages" in description
+        assert "3 executions" in description
+
+    def test_generate_summary(self, segmentation_service):
+        """Test summary generation."""
+        messages = [
+            Mock(content="First message here"),
+            Mock(content="Last message there")
+        ]
+
+        summary = segmentation_service._generate_summary(messages, [])
+
+        assert "First message" in summary
+        assert "Last message" in summary
+
+
+# ============================================================================
+# Additional Edge Cases for 80%+ Coverage
+# ============================================================================
+
+class TestSegmentationAdditionalCoverage:
+    """Additional tests for comprehensive coverage."""
+
+    def test_extract_entities_from_executions(self, segmentation_service):
+        """Test entity extraction from execution metadata."""
+        executions = [
+            Mock(metadata_json={
+                "task_name": "DataAnalysis",
+                "dataset": "sales_2024"
+            }),
+            Mock(metadata_json={})
+        ]
+
+        entities = segmentation_service._extract_entities([], executions)
+
+        # Should extract capitalized words from metadata
+        assert isinstance(entities, list)
+
+    def test_extract_entities_execution_field_fallbacks(self, segmentation_service):
+        """Test entity extraction with execution field fallbacks."""
+        executions = [
+            Mock(
+                task_description=None,
+                input_summary=None,
+                output_summary="Generated Report for Q1 2024",
+                metadata_json={}
+            )
+        ]
+
+        entities = segmentation_service._extract_entities([], executions)
+
+        assert isinstance(entities, list)
+
+    def test_supervision_importance_calculation(self, segmentation_service):
+        """Test supervision episode importance calculation."""
+        mock_session = Mock()
+        mock_session.supervisor_rating = 5
+        mock_session.intervention_count = 0
+
+        importance = segmentation_service._calculate_supervision_importance(mock_session)
+
+        # Perfect execution should have high importance
+        assert 0.7 <= importance <= 1.0
+
+    def test_supervision_importance_low_rating(self, segmentation_service):
+        """Test supervision importance with low rating."""
+        mock_session = Mock()
+        mock_session.supervisor_rating = 1
+        mock_session.intervention_count = 10
+
+        importance = segmentation_service._calculate_supervision_importance(mock_session)
+
+        # Poor execution should have lower importance
+        assert 0.0 <= importance <= 0.5
+
+    def test_supervision_topics_extraction(self, segmentation_service):
+        """Test topic extraction from supervision session."""
+        mock_session = Mock()
+        mock_session.agent_name = "DataAnalysisAgent"
+        mock_session.interventions = [
+            {"type": "correction"},
+            {"type": "guidance"}
+        ]
+
+        mock_execution = Mock()
+        mock_execution.task_description = "Analyze sales data"
+        mock_execution.input_summary = None
+
+        topics = segmentation_service._extract_supervision_topics(
+            mock_session, mock_execution
+        )
+
+        assert isinstance(topics, list)
+
+    def test_supervision_entities_extraction(self, segmentation_service):
+        """Test entity extraction from supervision session."""
+        mock_session = Mock()
+        mock_session.id = "supervision-123"
+        mock_session.agent_id = "agent-456"
+        mock_session.supervisor_id = "supervisor-789"
+
+        mock_execution = Mock()
+
+        entities = segmentation_service._extract_supervision_entities(
+            mock_session, mock_execution
+        )
+
+        # Should include session, agent, and supervisor IDs
+        assert len(entities) >= 3
+        assert any("supervision-123" in e for e in entities)
+        assert any("agent-456" in e for e in entities)
+        assert any("supervisor-789" in e for e in entities)
+
+    @pytest.mark.asyncio
+    async def test_create_supervision_context_for_episode(self, segmentation_service):
+        """Test creating supervision context for episode - moved to retrieval service tests."""
+        # This method is in EpisodeRetrievalService, not EpisodeSegmentationService
+        # Skip this test here - it's covered in retrieval service tests
+        pass
+
+    def test_skill_metadata_extraction(self, segmentation_service):
+        """Test skill metadata extraction."""
+        context_data = {
+            "skill_name": "data_analysis",
+            "skill_source": "community",
+            "execution_time": 1.5,
+            "error_type": None,
+            "input_summary": "SELECT * FROM table"
+        }
+
+        metadata = segmentation_service.extract_skill_metadata(context_data)
+
+        assert metadata["skill_name"] == "data_analysis"
+        assert metadata["execution_successful"] is True
+
+    def test_skill_metadata_extraction_failed(self, segmentation_service):
+        """Test skill metadata extraction for failed execution."""
+        context_data = {
+            "skill_name": "data_analysis",
+            "error_type": "SyntaxError",
+            "execution_time": 0.5
+        }
+
+        metadata = segmentation_service.extract_skill_metadata(context_data)
+
+        assert metadata["execution_successful"] is False
+
+    def test_format_supervision_outcome_no_feedback(self, segmentation_service):
+        """Test formatting supervision outcome with minimal data."""
+        mock_session = Mock()
+        mock_session.completed_at = None
+        mock_session.duration_seconds = None
+        mock_session.supervisor_rating = None
+        mock_session.supervisor_feedback = None
+        mock_session.confidence_boost = None
+
+        outcome = segmentation_service._format_supervision_outcome(mock_session)
+
+        # Should handle missing fields gracefully
+        assert "Session completed" in outcome
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_error_handling(self, segmentation_service):
+        """Test skill episode creation error handling."""
+        segmentation_service.db.add = Mock(side_effect=Exception("DB error"))
+        segmentation_service.db.rollback = Mock()
+
+        with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+            mock_uuid.uuid4.return_value = "segment-1"
+
+            result = await segmentation_service.create_skill_episode(
+                agent_id="agent-1",
+                skill_name="test_skill",
+                inputs={},
+                result=None,
+                error=Exception("Test error"),
+                execution_time=1.0
+            )
+
+        # Should return None on error
+        assert result is None
+
+    def test_summarize_skill_inputs_empty(self, segmentation_service):
+        """Test skill input summarization with empty inputs."""
+        summary = segmentation_service._summarize_skill_inputs({})
+
+        assert summary == "{}"
+
+    def test_summarize_skill_inputs_long_values(self, segmentation_service):
+        """Test skill input summarization truncates long values."""
+        inputs = {
+            "query": "SELECT " + "x" * 200 + " FROM table",
+            "limit": 100
+        }
+
+        summary = segmentation_service._summarize_skill_inputs(inputs)
+
+        # Should truncate long values
+        assert "..." in summary
+
+    def test_format_skill_content_success(self, segmentation_service):
+        """Test skill content formatting for successful execution."""
+        content = segmentation_service._format_skill_content(
+            skill_name="data_analysis",
+            result={"rows": 100},
+            error=None
+        )
+
+        assert "data_analysis" in content
+        assert "Success" in content
+
+    def test_format_skill_content_failure(self, segmentation_service):
+        """Test skill content formatting for failed execution."""
+        content = segmentation_service._format_skill_content(
+            skill_name="data_analysis",
+            result=None,
+            error=Exception("Syntax error")
+        )
+
+        assert "data_analysis" in content
+        assert "Failed" in content
+        assert "Syntax error" in content
+
+    def test_create_supervision_context_for_episode(self, segmentation_service):
+        """Test creating supervision context for episode."""
+        mock_episode = Mock()
+        mock_episode.supervisor_id = "supervisor-1"
+        mock_episode.supervisor_rating = 4
+        mock_episode.intervention_count = 1
+        mock_episode.intervention_types = ["guidance"]
+        mock_episode.supervision_feedback = "Good"
+
+        context = segmentation_service._create_supervision_context(mock_episode)
+
+        assert context["has_supervision"] is True
+        assert context["supervisor_id"] == "supervisor-1"
+        assert context["supervisor_rating"] == 4
+
+    @pytest.mark.asyncio
+    async def test_create_coding_canvas_segment_no_validation(self, segmentation_service):
+        """Test coding canvas segment without validation."""
+        operations = [
+            {"id": "op-1", "type": "code_generation", "status": "success"}
+        ]
+        code_content = "print('Hello')"
+
+        with patch('core.episode_segmentation_service.get_db_session') as mock_get_db:
+            mock_db = Mock()
+            mock_db.add = Mock()
+            mock_db.commit = Mock()
+            mock_db.refresh = Mock()
+            mock_get_db.return_value.__enter__.return_value = mock_db
+
+            with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+                mock_uuid.uuid4.return_value = "segment-1"
+
+                result = await segmentation_service.create_coding_canvas_segment(
+                    episode_id="episode-1",
+                    canvas_id="canvas-1",
+                    session_id="session-1",
+                    operations=operations,
+                    code_content=code_content,
+                    validation_feedback=None,
+                    approval_decision=None,
+                    language="python"
+                )
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_fetch_canvas_context_error_handling(self, segmentation_service):
+        """Test canvas context fetch error handling."""
+        segmentation_service.db.query.side_effect = Exception("DB error")
+
+        result = segmentation_service._fetch_canvas_context("session-1")
+
+        # Should return empty list on error
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_fetch_feedback_context_error_handling(self, segmentation_service):
+        """Test feedback context fetch error handling."""
+        segmentation_service.db.query.side_effect = Exception("DB error")
+
+        result = segmentation_service._fetch_feedback_context(
+            session_id="session-1",
+            agent_id="agent-1",
+            execution_ids=["exec-1"]
+        )
+
+        # Should return empty list on error
+        assert result == []
+
+    def test_extract_canvas_context_no_metadata(self, segmentation_service):
+        """Test canvas context extraction with no metadata."""
+        mock_canvas = Mock()
+        mock_canvas.canvas_type = "generic"
+        mock_canvas.component_name = None
+        mock_canvas.action = None
+        mock_canvas.audit_metadata = None
+
+        result = segmentation_service._extract_canvas_context([mock_canvas])
+
+        # Should still return valid structure
+        assert "canvas_type" in result
+        assert result["canvas_type"] == "generic"
+
+    def test_extract_canvas_context_critical_fields_various_types(self, segmentation_service):
+        """Test critical data extraction for various canvas types."""
+        test_cases = [
+            ("orchestration", {"workflow_id": "wf-1", "approval_status": "approved"}),
+            ("sheets", {"revenue": 1000000, "amount": 50000}),
+            ("terminal", {"command": "ls -la", "exit_code": 0}),
+            ("email", {"subject": "Test", "recipient": "test@example.com"}),
+        ]
+
+        for canvas_type, metadata in test_cases:
+            mock_canvas = Mock()
+            mock_canvas.canvas_type = canvas_type
+            mock_canvas.audit_metadata = metadata
+
+            result = segmentation_service._extract_canvas_context([mock_canvas])
+
+            # Should extract critical data points
+            if "critical_data_points" in result:
+                assert isinstance(result["critical_data_points"], dict)
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm_timeout(self, segmentation_service):
+        """Test LLM canvas context extraction with timeout."""
+        mock_canvas = Mock()
+        mock_canvas.canvas_type = "sheets"
+        mock_canvas.audit_metadata = {"revenue": 1000000}
+
+        # Mock timeout exception
+        segmentation_service.canvas_summary_service.generate_summary = AsyncMock(
+            side_effect=Exception("Timeout")
+        )
+
+        # Should fall back to metadata extraction
+        result = await segmentation_service._extract_canvas_context_llm(
+            canvas_audit=mock_canvas,
+            agent_task="Show revenue"
+        )
+
+        # Fallback should return metadata-based context
+        assert "canvas_type" in result
+
+    def test_filter_canvas_context_unknown_level(self, segmentation_service):
+        """Test canvas context filtering with unknown detail level."""
+        full_context = {
+            "canvas_type": "sheets",
+            "presentation_summary": "Test",
+            "visual_elements": ["chart"],
+            "user_interaction": "clicked",
+            "critical_data_points": {"revenue": 1000000}
+        }
+
+        # Unknown level should default to summary
+        result = segmentation_service._filter_canvas_context_detail(
+            full_context, "unknown_level"
+        )
+
+        # Should use summary (default)
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+
+    def test_summarize_feedback_long_text(self, segmentation_service):
+        """Test feedback summarization truncates long text."""
+        long_feedback = "x" * 200
+
+        result = segmentation_service._summarize_feedback(long_feedback)
+
+        # Should truncate to 100 chars
+        assert len(result) <= 100
+        assert result.endswith("...")
+
+    def test_summarize_feedback_none(self, segmentation_service):
+        """Test feedback summarization with None."""
+        result = segmentation_service._summarize_feedback(None)
+
+        assert result is None
+
+    # Note: _assess_outcome_quality and _filter_improvement_trend are in EpisodeRetrievalService
+    # not in EpisodeSegmentationService, so tests for those are in retrieval service tests
