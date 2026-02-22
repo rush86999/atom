@@ -256,7 +256,8 @@ async def get_status(db: Session = Depends(get_db)) -> AgentStatusResponse:
     try:
         db.execute("SELECT 1")
         backend_reachable = True
-    except:
+    except Exception as e:
+        logger.debug(f"Backend health check failed: {e}")
         backend_reachable = False
 
     # Check if there are recent shell sessions (local agent active)

@@ -134,3 +134,16 @@ exclude = ["tests.*", "tests", "*.tests", "*.tests.*"]
 # Include data files
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.txt", "*.yml", "*.yaml"]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "B", "UP"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"tests/" = ["E722"]  # Allow bare except in tests (acceptable pattern)
