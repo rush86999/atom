@@ -285,6 +285,9 @@ class User(Base):
     teams = relationship("Team", secondary=team_members, back_populates="members")
     messages = relationship("TeamMessage", back_populates="sender")
     activity = relationship("UserActivity", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    ffmpeg_jobs = relationship("FFmpegJob", back_populates="user")
+    hue_bridges = relationship("HueBridge", back_populates="user")
+    ha_connections = relationship("HomeAssistantConnection", back_populates="user")
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, email={self.email}, role={self.role})>"
@@ -5832,7 +5835,7 @@ class FFmpegJob(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    user = relationship("User", backref="ffmpeg_jobs")
+    user = relationship("User", back_populates="ffmpeg_jobs")
 
 
 # ============================================================================
@@ -5871,7 +5874,7 @@ class HueBridge(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    user = relationship("User", backref="hue_bridges")
+    user = relationship("User", back_populates="hue_bridges")
 
 
 class HomeAssistantConnection(Base):
@@ -5905,7 +5908,7 @@ class HomeAssistantConnection(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    user = relationship("User", backref="ha_connections")
+    user = relationship("User", back_populates="ha_connections")
 
 
 # ==================== AUTONOMOUS CODING AGENTS MODELS ====================
