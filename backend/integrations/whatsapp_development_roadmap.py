@@ -260,37 +260,42 @@ def create_development_roadmap():
         },
         "development_setup": {
             "environment_preparation": {
-                "step_1": "Set up development database",
-                "commands": [
-                    "brew services start postgresql",
-                    "createdb atom_development",
-                    "python integrations/whatsapp_database_setup.py"
-                ],
-                "estimated_time": "10 minutes"
-            },
-            "step_2": "Install development dependencies",
-                "commands": [
-                    "pip install pytest pytest-asyncio",
-                    "npm install @testing-library/react",
-                    "npm install @testing-library/jest-dom"
-                ],
-                "estimated_time": "5 minutes"
-            },
-            "step_3": "Create development environment",
-                "commands": [
-                    "cp .env.example .env.dev",
-                    "echo 'ENVIRONMENT=development' >> .env.dev",
-                    "echo 'DATABASE_NAME=atom_development' >> .env.dev"
-                ],
-                "estimated_time": "2 minutes"
-            },
-            "step_4": "Set up testing infrastructure",
-                "commands": [
-                    "mkdir -p tests/whatsapp",
-                    "mkdir -p tests/e2e",
-                    "pytest tests/whatsapp --setup-file pytest.ini"
-                ],
-                "estimated_time": "3 minutes"
+                "step_1": {
+                    "name": "Set up development database",
+                    "commands": [
+                        "brew services start postgresql",
+                        "createdb atom_development",
+                        "python integrations/whatsapp_database_setup.py"
+                    ],
+                    "estimated_time": "10 minutes"
+                },
+                "step_2": {
+                    "name": "Install development dependencies",
+                    "commands": [
+                        "pip install pytest pytest-asyncio",
+                        "npm install @testing-library/react",
+                        "npm install @testing-library/jest-dom"
+                    ],
+                    "estimated_time": "5 minutes"
+                },
+                "step_3": {
+                    "name": "Create development environment",
+                    "commands": [
+                        "cp .env.example .env.dev",
+                        "echo 'ENVIRONMENT=development' >> .env.dev",
+                        "echo 'DATABASE_NAME=atom_development' >> .env.dev"
+                    ],
+                    "estimated_time": "2 minutes"
+                },
+                "step_4": {
+                    "name": "Set up testing infrastructure",
+                    "commands": [
+                        "mkdir -p tests/whatsapp",
+                        "mkdir -p tests/e2e",
+                        "pytest tests/whatsapp --setup-file pytest.ini"
+                    ],
+                    "estimated_time": "3 minutes"
+                }
             }
         },
         "feature_prioritization_matrix": {
