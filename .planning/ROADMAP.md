@@ -33,13 +33,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. All ImportError and missing dependency issues are resolved across the codebase
   3. All TypeError and AttributeError issues in production code paths are fixed
   4. Fixes are validated with regression tests to prevent reoccurrence
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 70-01: Fix identified runtime crashes and add regression tests
-- [ ] 70-02: Resolve all unhandled exceptions with proper error handling
-- [ ] 70-03: Fix ImportError and missing dependency issues
-- [ ] 70-04: Fix TypeError and AttributeError in production code paths
+- [ ] 70-01-PLAN.md — Fix SQLAlchemy relationship errors (FFmpegJob.user, HueBridge.user) causing 76 test failures
+- [ ] 70-02-PLAN.md — Resolve ImportError and missing dependency issues with proper error handling
+- [ ] 70-03-PLAN.md — Fix NameError and undefined variables by eliminating wildcard imports
+- [ ] 70-04-PLAN.md — Replace bare except clauses with specific exception types
 
 ### Phase 71: Core AI Services Coverage
 **Goal**: Core AI services (orchestration, governance, LLM routing, autonomous coding, episodes) achieve 80%+ test coverage
