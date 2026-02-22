@@ -787,7 +787,8 @@ class AdvancedOutputValidator:
                             response_times.append(execution_time)
                             return True
                         return False
-            except:
+            except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
+                logger.debug(f"Concurrent request failed: {e}")
                 return False
 
         # Run concurrent requests
