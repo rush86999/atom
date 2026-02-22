@@ -51,14 +51,14 @@ Plans:
   3. LLM routing and BYOK handler tests cover 80%+ of provider selection and streaming logic
   4. Autonomous coding agents workflow (parse → research → plan → code → test → fix) has 80%+ coverage
   5. Episode and memory management services achieve 80%+ test coverage
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 71-01: Achieve 80%+ coverage for agent orchestration service
-- [ ] 71-02: Achieve 80%+ coverage for agent governance and maturity routing
-- [ ] 71-03: Achieve 80%+ coverage for LLM routing and BYOK handler
-- [ ] 71-04: Achieve 80%+ coverage for autonomous coding agents workflow
-- [ ] 71-05: Achieve 80%+ coverage for episode and memory management services
+- [ ] 71-01-PLAN.md — Agent orchestration service tests (agent_execution_service.py, agent_context_resolver.py)
+- [ ] 71-02-PLAN.md — Agent governance and maturity routing tests (agent_governance_service.py, agent_graduation_service.py, governance_cache.py)
+- [ ] 71-03-PLAN.md — LLM routing and BYOK handler tests (byok_handler.py, cognitive_tier_system.py, cache_aware_router.py)
+- [ ] 71-04-PLAN.md — Autonomous coding agents workflow tests (autonomous_coding_orchestrator.py and 7 specialized agents)
+- [ ] 71-05-PLAN.md — Episode and memory management services tests (episode_lifecycle_service.py, episode_segmentation_service.py, episode_retrieval_service.py)
 
 ### Phase 72: API & Data Layer Coverage
 **Goal**: All REST API routes, WebSocket endpoints, and database operations achieve 80%+ test coverage
@@ -136,8 +136,8 @@ Phases execute in numeric order: 70 → 71 → 72 → 73 → 74
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 70. Runtime Error Fixes | 0/4 | Ready to execute | - |
-| 71. Core AI Services Coverage | 0/5 | Not started | - |
+| 70. Runtime Error Fixes | 4/4 | Ready for verification | 2025-02-22 |
+| 71. Core AI Services Coverage | 0/5 | Ready to execute | - |
 | 72. API & Data Layer Coverage | 0/5 | Not started | - |
 | 73. Test Suite Stability | 0/5 | Not started | - |
 | 74. Quality Gates & Property Testing | 0/8 | Not started | - |
