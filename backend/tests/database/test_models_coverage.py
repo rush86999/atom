@@ -379,11 +379,13 @@ class TestUserModels:
 
     def test_user_email_unique_constraint(self, db: Session):
         """Test email uniqueness constraint violation."""
-        user1 = UserFactory(_session=db, email="duplicate@example.com")
+        # Use unique email to avoid conflicts with factory defaults
+        unique_email = f"unique-{uuid.uuid4()}@example.com"
+        user1 = UserFactory(_session=db, email=unique_email)
         db.flush()
 
         with pytest.raises(IntegrityError):
-            user2 = UserFactory(_session=db, email="duplicate@example.com")
+            user2 = UserFactory(_session=db, email=unique_email)
             db.flush()
 
         db.rollback()
