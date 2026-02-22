@@ -878,7 +878,7 @@ class AgentOrchestrator:
         self.state_store.state[workflow_id] = initial_state
 
         # Create workflow record in database
-        from core.models import AutonomousWorkflow, Episode
+        from core.models import AutonomousWorkflow, Episode, EpisodeSegment
         workflow = AutonomousWorkflow(
             id=workflow_id,
             feature_request=feature_request,
@@ -1174,6 +1174,34 @@ class AgentOrchestrator:
             "files_modified": state.get("files_modified", []) + files_modified
         })
 
+        # Create EpisodeSegment for code generation phase
+        episode_id = state.get("episode_id")
+        if episode_id:
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,  # Will be updated by caller
+                content=f"Code generation phase completed. Files created: {len(files_created)}, Files modified: {len(files_modified)}",
+                content_summary=f"Generated {len(files_created)} files, modified {len(files_modified)} files",
+                source_type="autonomous_coding",
+                source_id=workflow_id,
+                canvas_context={
+                    "canvas_type": "code_generation",
+                    "presentation_summary": f"Autonomous code generation: {len(files_created)} files created, {len(files_modified)} modified",
+                    "visual_elements": ["code_editor", "file_tree"],
+                    "user_interaction": "Agent generated code autonomously",
+                    "critical_data_points": {
+                        "files_created": files_created,
+                        "files_modified": files_modified,
+                        "language": state.get("language", "python"),
+                        "phase": "code_generation"
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
+
         return {
             "phase": "generate_code",
             "artifacts": {
@@ -1199,9 +1227,38 @@ class AgentOrchestrator:
 
         # Update state
         test_files = tests_result.get("test_files", [])
+        test_count = tests_result.get("test_count", len(test_files))
         await self.state_store.update_state(workflow_id, {
             "files_created": state.get("files_created", []) + test_files
         })
+
+        # Create EpisodeSegment for test generation phase
+        episode_id = state.get("episode_id")
+        if episode_id:
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,  # Will be updated by caller
+                content=f"Test generation phase completed. Test files created: {len(test_files)}, Tests generated: {test_count}",
+                content_summary=f"Generated {test_count} tests across {len(test_files)} files",
+                source_type="autonomous_coding",
+                source_id=workflow_id,
+                canvas_context={
+                    "canvas_type": "test_generation",
+                    "presentation_summary": f"Autonomous test generation: {test_count} tests across {len(test_files)} files",
+                    "visual_elements": ["test_runner", "coverage_report"],
+                    "user_interaction": "Agent generated tests autonomously",
+                    "critical_data_points": {
+                        "test_files_created": test_files,
+                        "test_count": test_count,
+                        "target_coverage": tests_result.get("target_coverage", 85.0),
+                        "phase": "test_generation"
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
 
         return {
             "phase": "generate_tests",
@@ -1241,6 +1298,41 @@ class AgentOrchestrator:
         await self.state_store.update_state(workflow_id, {
             "test_results": test_results
         })
+
+        # Create EpisodeSegment for validation phase
+        episode_id = state.get("episode_id")
+        if episode_id:
+            tests_run = test_results.get("total", 0)
+            tests_passed = test_results.get("passed", 0)
+            tests_failed = test_results.get("failed", 0)
+            coverage = test_results.get("coverage", 0.0)
+
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,  # Will be updated by caller
+                content=f"Validation phase completed. Tests run: {tests_run}, Passed: {tests_passed}, Failed: {tests_failed}, Coverage: {coverage}%",
+                content_summary=f"Test validation: {tests_passed}/{tests_run} passed, {coverage}% coverage",
+                source_type="autonomous_coding",
+                source_id=workflow_id,
+                canvas_context={
+                    "canvas_type": "validation",
+                    "presentation_summary": f"Autonomous test validation: {tests_passed}/{tests_run} passed, {coverage}% coverage",
+                    "visual_elements": ["test_results", "coverage_badge", "fix_summary"],
+                    "user_interaction": "Agent validated and fixed tests autonomously",
+                    "critical_data_points": {
+                        "tests_run": tests_run,
+                        "tests_passed": tests_passed,
+                        "tests_failed": tests_failed,
+                        "coverage_achieved": coverage,
+                        "flaky_tests_fixed": test_results.get("flaky_fixed", 0),
+                        "phase": "validation"
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
 
         return {
             "phase": "fix_tests",
