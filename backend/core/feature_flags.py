@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Centralized Feature Flags for Atom Platform
 
@@ -287,3 +288,13 @@ def get_feature_status() -> Dict[str, Any]:
         Dictionary with feature flag statuses
     """
     return FeatureFlags.get_all_flags()
+
+
+# ============================================================================
+# Module-Level Convenience Exports
+# ============================================================================
+
+# Export commonly used flags as module-level variables for backward compatibility
+# This allows imports like: from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED
+QUALITY_ENFORCEMENT_ENABLED = FeatureFlags.QUALITY_ENFORCEMENT_ENABLED
+EMERGENCY_QUALITY_BYPASS = FeatureFlags.EMERGENCY_QUALITY_BYPASS
