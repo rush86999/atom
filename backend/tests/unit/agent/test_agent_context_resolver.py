@@ -337,3 +337,62 @@ class TestAgentContextResolver:
 
         assert resolved_agent.id == explicit_agent.id
         assert "explicit_agent_id" in context["resolution_path"]
+
+    @pytest.mark.asyncio
+    async def test_resolution_path_never_empty(self, resolver, db_session):
+        """Resolution path should always be recorded, even when all fail."""
+        # Resolve with nonexistent agent and no session
+        resolved_agent, context = await resolver.resolve_agent_for_request(
+            user_id="test-user",
+            session_id=None,
+            requested_agent_id="nonexistent-agent-id",
+            action_type="chat"
+        )
+
+        # Resolution path should never be empty
+        assert len(context["resolution_path"]) > 0
+        assert "resolution_path" in context
+
+    @pytest.mark.asyncio
+    async def test_resolution_context_has_timestamp(self, resolver, db_session):
+        """Resolution context should always have a timestamp."""
+        resolved_agent, context = await resolver.resolve_agent_for_request(
+            user_id="test-user",
+            requested_agent_id=None,
+            action_type="chat"
+        )
+
+        # Should have timestamp
+        assert "resolved_at" in context
+        assert context["resolved_at"] is not None
+        assert isinstance(context["resolved_at"], str)
+
+    @pytest.mark.asyncio
+    async def test_get_agent_with_invalid_id(self, resolver, db_session):
+        """Getting agent with invalid ID should return None gracefully."""
+        # This is tested indirectly through resolve_agent_for_request
+        # but let's test the internal method behavior
+        result = resolver._get_agent("invalid-agent-id-that-does-not-exist")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_session_agent_with_invalid_session(self, resolver, db_session):
+        """Getting session agent with invalid session should return None."""
+        result = resolver._get_session_agent("nonexistent-session-id")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_resolution_with_no_session_id(self, resolver, db_session):
+        """Resolution with no session_id should skip session level."""
+        resolved_agent, context = await resolver.resolve_agent_for_request(
+            user_id="test-user",
+            session_id=None,  # No session
+            requested_agent_id=None,
+            action_type="chat"
+        )
+
+        # Should still resolve to system default
+        assert resolved_agent is not None
+        assert resolved_agent.name == "Chat Assistant"
+        # Should not have session_agent in path
+        assert "session_agent" not in context["resolution_path"]
