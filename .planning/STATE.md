@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 Milestone: v3.0 Production Readiness
 Phase: 3 of 5 (API & Data Layer Coverage)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Completed plan 72-01: REST API Route Coverage
+Last activity: 2026-02-22 — Completed plan 72-02: Authentication and WebSocket Endpoint Coverage
 
 ### v3.0 Milestone Goal
 Achieve 80% test coverage across all backend services and fix all runtime errors to ensure production stability.
@@ -52,6 +52,7 @@ Progress: [██████████] 100% (v1.0 complete) → [███�
 | Phase 71 P04 | 42 | 3 tasks | 4 files |
 | Phase 71 P06 | 3 | 1 tasks | 1 files |
 | Phase 72 P01 | 25 | 3 tasks | 3 files |
+| Phase 72 P02 | 27 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 70]: Configure ruff with E722 rule to enforce no bare except in production code
 - [Phase 72]: Accept 405 (Method Not Allowed) for unimplemented CRUD endpoints in tests
 - [Phase 72]: Document production bugs in tests rather than fixing immediately (test-first approach)
+- [Phase 72-02]: Used create_access_token for both access and refresh tokens (create_refresh_token doesn't exist)
+- [Phase 72-02]: Added workspace_id to DeviceNode fixtures to satisfy NOT NULL constraint
+- [Phase 72-02]: Fixed missing 'import os' in auth_routes.py line 321
 
 ### Pending Todos
 
@@ -126,5 +130,5 @@ Resume file: None
 
 *State updated: 2026-02-22*
 *Milestone: v3.0 Production Readiness*
-*Phase 72 in progress - 1 of 5 plans complete (72-01)*
-*Next action: Phase 72 - Plan 72-02 (Auth and WebSocket routes coverage)*
+*Phase 72 in progress - 2 of 5 plans complete (72-01, 72-02)*
+*Next action: Phase 72 - Plan 72-03 (Database Models Coverage)*
