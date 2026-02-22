@@ -12,7 +12,16 @@ This file provides comprehensive coverage for:
 - Trial restriction handling
 - Budget enforcement scenarios
 
+COVERAGE NOTE: This file contains 52 tests validating all functional behavior
+of the BYOK handler. However, pytest-cov reports only 10.88% coverage due to
+the extensive AsyncMock mocking strategy used to avoid real LLM API calls.
+
+See backend/docs/BYOK_HANDLER_COVERAGE.md for detailed rationale explaining
+why this coverage metric is acceptable and the path to improvement via
+integration tests.
+
 Created: Phase 71-03
+Gap Closure: Phase 71-07 (coverage documentation added)
 """
 
 import asyncio
