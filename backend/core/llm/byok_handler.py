@@ -1497,6 +1497,36 @@ class BYOKHandler:
             "has_byok": byok_configured,
         }
 
+    def clear_provider_key(self, provider_id: str) -> bool:
+        """
+        Clear a cached API key for a provider from BYOK manager.
+
+        Use this when BYOK manager has stale keys and you want to
+        force fallback to environment variables.
+
+        Args:
+            provider_id: Provider to clear (e.g., 'deepseek', 'openai')
+
+        Returns:
+            True if key was cleared, False if not configured or error
+        """
+        try:
+            if self.byok_manager.is_configured(self.workspace_id, provider_id):
+                # Try to clear via BYOK manager (implementation depends on BYOKManager API)
+                if hasattr(self.byok_manager, 'clear_api_key'):
+                    self.byok_manager.clear_api_key(provider_id)
+                    logger.info(f"Cleared BYOK key for {provider_id}, will use env var on next init")
+                    return True
+                else:
+                    logger.warning(f"BYOK manager does not support clear_api_key method")
+                    return False
+            else:
+                logger.debug(f"No BYOK key to clear for {provider_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to clear BYOK key for {provider_id}: {e}")
+            return False
+
     def _is_trial_restricted(self) -> bool:
         """
         Check if the workspace has trial restrictions.
