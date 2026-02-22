@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import {
     Search,
     MessageSquare,
@@ -204,7 +204,13 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             <p className="text-sm font-bold text-foreground truncate">{session?.user?.name || "Atom User"}</p>
                             <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email || "Premium Agent Ops"}</p>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Sign out"
+                            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                        >
                             <LogOut className="h-4 w-4" />
                         </Button>
                     </div>
@@ -212,9 +218,21 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
                 <div className="flex items-center justify-between">
                     {isCollapsed && (
-                        <div className="mx-auto h-9 w-9 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer">
-                            <User className="h-5 w-5" />
-                        </div>
+                        <>
+                            <div
+                                className="mx-auto h-9 w-9 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                                title={session?.user?.name || 'Atom User'}
+                            >
+                                <User className="h-5 w-5" />
+                            </div>
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                                title="Sign out"
+                                className="mx-auto h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                            >
+                                <LogOut className="h-4 w-4" />
+                            </button>
+                        </>
                     )}
                     <Button
                         variant="ghost"

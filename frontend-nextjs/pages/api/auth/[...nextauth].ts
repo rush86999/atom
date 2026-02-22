@@ -29,10 +29,10 @@ export const authOptions: NextAuthOptions = {
             const res = await fetch("http://127.0.0.1:8000/api/auth/login", {
               method: 'POST',
               headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Type": "application/json",
                 "Accept": "application/json"
               },
-              body: new URLSearchParams({
+              body: JSON.stringify({
                 username: credentials?.email || '',
                 password: credentials?.password || ''
               })
@@ -41,16 +41,15 @@ export const authOptions: NextAuthOptions = {
             const data = await res.json()
 
             if (res.ok && data.access_token) {
-              // Get user details using the token
-              // We could make another call to /api/auth/me here, but for now let's use the basic info
               return {
-                id: "user-from-backend", // Ideally we'd decode the token or get ID from response if available
+                id: data.user?.id || data.id || "user-from-backend",
                 email: credentials?.email,
-                name: "Admin User", // Placeholder until we fetch profile
+                name: data.user?.name || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || "Atom User",
                 token: data.access_token,
               }
             }
 
+            console.error("Login failed:", res.status, data)
             return null
           } catch (error) {
             console.error("Login Check Error:", error)
