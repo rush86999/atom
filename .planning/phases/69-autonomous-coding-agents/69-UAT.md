@@ -3,7 +3,7 @@ status: complete
 phase: 69-autonomous-coding-agents
 source: 69-01-SUMMARY.md, 69-02-SUMMARY.md, 69-03-SUMMARY.md, 69-04-SUMMARY.md, 69-05-SUMMARY.md, 69-06-SUMMARY.md, 69-07-SUMMARY.md, 69-08-SUMMARY.md, 69-09-SUMMARY.md, 69-10-SUMMARY.md
 started: 2026-02-21T01:00:00Z
-updated: 2026-02-21T01:45:00Z
+updated: 2026-02-21T19:30:00Z
 ---
 
 ## Current Test
@@ -73,6 +73,14 @@ skipped: 0
 - ✅ Gap 2 (BYOKHandler acomplete typo): RESOLVED - Changed to generate_response (commit 4a308e80)
 - ✅ Gap 3 (BYOKHandler chat_completion): RESOLVED - Changed to generate_response (commit 05dcff93)
 - ✅ Gap 4 (BYOKHandler execute_prompt): RESOLVED - Changed to generate_response (commit 05dcff93)
+- 📋 Gap 5 (Episode Integration): PLAN CREATED via plan 69-12
+- 📋 Gap 6 (Code Quality Enforcement): PLAN CREATED via plan 69-13
+- 📋 Gap 7 (Test Coverage Requirements): PLAN CREATED via plan 69-14
+
+**Gap Closure Plans:**
+- 69-12: Episode Integration for WorldModel Recall (4 tasks)
+- 69-13: Code Quality Enforcement (7 tasks)
+- 69-14: Test Coverage Requirements (4 tasks)
 
 ## Gaps
 
@@ -159,6 +167,7 @@ skipped: 0
     - "Create EpisodeSegment after each phase (code_generation, test_generation, validation, approval)"
     - "Store canvas_context with phase-specific data: files_created, test_results, coverage, language"
   debug_session: ".planning/debug/gap8-episode-worldmodel-integration.md"
+  fix_plan: "69-12"
 
 - truth: "Code quality gates enforced before commits"
   status: failed
@@ -186,10 +195,11 @@ skipped: 0
     - "Add orchestrator phase gate in _run_generate_code() before return (~15 lines)"
     - "Change autonomous_coder_agent to raise QualityGateError instead of returning best effort (~10 lines)"
   debug_session: ".planning/debug/gap-9-code-quality-enforcement.md"
+  fix_plan: "69-13"
 
 - truth: "Coverage-driven iterative test generation with targets met"
   status: failed
-  reason: "User reported: CoverageAnalyzer class exists with 85% unit and 70% integration targets. generate_until_coverage_target() method defined for iterative generation. However: (1) No 60% E2E coverage target - check_coverage_target_met() only accepts 'unit' or 'integration', not 'e2e', (2) Iterative generation never called - generate_until_coverage_target() defined but not invoked in workflow, (3) Not integrated in orchestrator - autonomous_coding_orchestrator.py doesn't use coverage analysis. Infrastructure exists but workflow integration missing."
+  reason: "User reported: CoverageAnalyzer class exists with 85% unit and 70% integration targets. generate_until_coverage_target() method defined for iterative generation (line 1479). However: (1) No 60% E2E coverage target - check_coverage_target_met() only accepts 'unit' or 'integration', not 'e2e', (2) Iterative generation never called - generate_until_coverage_target() defined but not invoked in workflow, (3) Not integrated in orchestrator - autonomous_coding_orchestrator.py doesn't use coverage analysis. Infrastructure exists but workflow integration missing."
   severity: major
   test: 10
   root_cause: "Three-part gap prevents coverage-driven test generation: (1) Missing E2E target - check_coverage_target_met() at lines 1241-1246 only handles 'unit' (85%) and 'integration' (70%), lacks 'e2e' (60%) case. Falls back to 80% for unknown types, (2) Orphaned method - generate_until_coverage_target() at line 1479 is fully implemented with 5-iteration loop but never invoked in production (only in test file test_test_generator_service.py:758), (3) No orchestrator integration - autonomous_coding_orchestrator.py line 1156 calls single-pass generate_tests() instead of generate_until_coverage_target(), with signature mismatch (passes 4 kwargs, method accepts 2 params)."
@@ -210,5 +220,6 @@ skipped: 0
     - "Add integration test test_orchestrator_iterative_coverage_generation()"
     - "Verify logs show 'Target coverage reached in iteration X' after generation"
   debug_session: ".planning/debug/gap-10-test-coverage-requirements.md"
+  fix_plan: "69-14"
 
 
