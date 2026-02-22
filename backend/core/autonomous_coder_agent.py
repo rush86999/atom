@@ -32,9 +32,15 @@ from core.autonomous_planning_agent import (
     TaskComplexity,
 )
 from core.code_quality_service import CodeQualityService
+from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
 from core.llm.byok_handler import BYOKHandler
 
 logger = logging.getLogger(__name__)
+
+
+class QualityGateError(Exception):
+    """Raised when quality gates fail and enforcement is enabled."""
+    pass
 
 
 # ============================================================================
@@ -294,13 +300,22 @@ Return only the code, no explanations."""
                 # Just warnings, use current code
                 current_code = result["code"]
 
-        # Max iterations reached, return best effort
-        logger.warning(f"Quality gates did not pass after {max_iterations} iterations")
-        return {
-            "code": current_code,
-            "quality_report": result["quality_report"],
-            "warnings": result["warnings"],
-        }
+        # Max iterations reached, enforce quality gate
+        if QUALITY_ENFORCEMENT_ENABLED and not EMERGENCY_QUALITY_BYPASS:
+            if not result.get("passed", False):
+                raise QualityGateError(
+                    f"Code generation failed quality checks after {max_iterations} iterations.\n"
+                    f"Quality errors: {result.get('errors', [])}\n"
+                    f"Set EMERGENCY_QUALITY_BYPASS=true to override."
+                )
+        else:
+            # Advisory mode: return best effort
+            logger.warning(f"Quality gates did not pass after {max_iterations} iterations")
+            return {
+                "code": current_code,
+                "quality_report": result["quality_report"],
+                "warnings": result["warnings"],
+            }
 
     async def _fix_quality_errors(
         self,
