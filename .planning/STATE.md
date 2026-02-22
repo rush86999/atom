@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 Milestone: v3.0 Production Readiness
 Phase: 1 of 5 (Runtime Error Fixes)
-Plan: 2 of 4 in current phase
+Plan: 1 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Completed plan 70-02: ImportError and Missing Dependencies Resolution
+Last activity: 2026-02-22 — Completed plan 70-01: SQLAlchemy Relationship Fixes
 
 ### v3.0 Milestone Goal
 Achieve 80% test coverage across all backend services and fix all runtime errors to ensure production stability.
@@ -45,6 +45,7 @@ Progress: [██████████] 100% (v1.0 complete) → [███�
 
 *Updated after each plan completion*
 | Phase 70-runtime-error-fixes P02 | 6 minutes | 4 tasks | 1 files |
+| Phase 70 P01 | 711 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,8 @@ Recent decisions affecting current work:
 - **Property-Based Testing**: Hypothesis framework with strategic max_examples (50-200) per research findings
 - **Quality Gates Enforcement**: CI/CD blocks deployment if coverage drops below 80%
 - **opencv-python-headless over opencv-python**: Chose headless version for server compatibility (Plan 70-02)
+- [Phase 70]: Use back_populates instead of backref for SQLAlchemy 2.0 relationships
+- [Phase 70]: Create comprehensive regression tests for all bug fixes
 
 ### Pending Todos
 
@@ -68,13 +71,14 @@ None yet.
 
 **From v2.0 incomplete work:**
 - Phase 62-19 at checkpoint (Quality Gates and CI/CD Enforcement) - awaiting verification
-- FFmpegJob.user model issue causing 76 test failures
+- ~~FFmpegJob.user model issue causing 76 test failures~~ FIXED in 70-01
 - Integration services have NameError in production code
-- Database model relationship errors
+- ~~Database model relationship errors~~ FIXED in 70-01
 
 **Resolution for v3.0:**
 - Phase 70 will address all runtime errors including model issues and import errors
 - All blockers will be systematically fixed before coverage expansion
+- ✅ 70-01: Fixed SQLAlchemy relationships (FFmpegJob, HueBridge, HomeAssistantConnection)
 
 ## Session Continuity
 
@@ -91,7 +95,7 @@ Resume file: None
 
 | Category | Requirements | Phase | Status |
 |----------|--------------|-------|--------|
-| Runtime Error Fixes | RUNTIME-01 through RUNTIME-04 | Phase 70 | In Progress (2/4 plans complete) |
+| Runtime Error Fixes | RUNTIME-01 through RUNTIME-04 | Phase 70 | In Progress (1/4 plans complete) |
 | Core AI Services Coverage | AICOV-01 through AICOV-05 | Phase 71 | Pending |
 | API Endpoints Coverage | APICOV-01 through APICOV-05 | Phase 72 | Pending |
 | Data Layer Coverage | DATACOV-01 through DATACOV-05 | Phase 72 | Pending |
@@ -109,4 +113,4 @@ Resume file: None
 
 *State updated: 2026-02-22*
 *Milestone: v3.0 Production Readiness*
-*Next action: Execute plan 70-03 (AttributeError and NameError Resolution)*
+*Next action: Execute plan 70-02 (ImportError and Missing Dependencies Resolution)*
