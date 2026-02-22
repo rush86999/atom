@@ -33,6 +33,34 @@ from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BY
 logger = logging.getLogger(__name__)
 
 
+class QualityCheckResult:
+    """Result of a quality check."""
+
+    def __init__(
+        self,
+        check_name: str,
+        passed: bool,
+        tool_used: str = "",
+        output: str = "",
+        error: str = ""
+    ):
+        self.check_name = check_name
+        self.passed = passed
+        self.tool_used = tool_used
+        self.output = output
+        self.error = error
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "check_name": self.check_name,
+            "passed": self.passed,
+            "tool_used": self.tool_used,
+            "output": self.output,
+            "error": self.error
+        }
+
+
 class CodeQualityService:
     """
     Automated code quality checking and enforcement.
@@ -715,3 +743,109 @@ class CodeQualityService:
         has_returns_pattern = "Returns:" in docstring
 
         return has_google_section or has_args_pattern or has_returns_pattern
+
+    def validate_type_hints(self, file_path: str) -> QualityCheckResult:
+        """
+        Validate that all functions have type hints using AST parsing.
+
+        Args:
+            file_path: Path to Python file to validate
+
+        Returns:
+            QualityCheckResult with functions missing type hints
+        """
+        try:
+            with open(file_path, 'r') as f:
+                tree = ast.parse(f.read(), filename=file_path)
+
+            functions_missing_hints = []
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    # Skip private methods and dunder methods
+                    if node.name.startswith('_'):
+                        continue
+
+                    # Check return type annotation
+                    if node.returns is None:
+                        functions_missing_hints.append(f"{node.name} (line {node.lineno})")
+                        continue
+
+                    # Check parameter annotations
+                    for arg in node.args.args:
+                        if arg.arg == 'self':
+                            continue
+                        if arg.annotation is None:
+                            functions_missing_hints.append(f"{node.name} (line {node.lineno})")
+                            break
+
+            if functions_missing_hints:
+                return QualityCheckResult(
+                    check_name="type_hints",
+                    passed=False,
+                    tool_used="ast",
+                    output="",
+                    error=f"Functions missing type hints: {', '.join(functions_missing_hints[:5])}"
+                )
+
+            return QualityCheckResult(
+                check_name="type_hints",
+                passed=True,
+                tool_used="ast",
+                output=f"All functions have type hints",
+                error=""
+            )
+
+        except Exception as e:
+            return QualityCheckResult(
+                check_name="type_hints",
+                passed=False,
+                tool_used="ast",
+                output="",
+                error=f"Failed to parse type hints: {str(e)}"
+            )
+
+    async def validate_code_quality(
+        self,
+        file_path: str,
+        language: str = "python"
+    ) -> "QualityCheckResults":
+        """
+        Run all quality checks on a file.
+
+        Args:
+            file_path: Path to file to validate
+            language: Programming language (default: python)
+
+        Returns:
+            QualityCheckResults with all check results
+        """
+        results = []
+
+        # Type hints validation
+        if language == "python":
+            type_hint_result = self.validate_type_hints(file_path)
+            results.append(type_hint_result)
+
+        return QualityCheckResults(results)
+
+
+class QualityCheckResults:
+    """Container for multiple quality check results."""
+
+    def __init__(self, results: List[QualityCheckResult]):
+        self.results = results
+
+    @property
+    def all_passed(self) -> bool:
+        """Check if all quality checks passed."""
+        return all(r.passed for r in self.results)
+
+    def get_summary(self) -> str:
+        """Get summary of quality check results."""
+        lines = ["Quality Check Results:"]
+        for result in self.results:
+            status = "✓ PASS" if result.passed else "✗ FAIL"
+            lines.append(f"  {status}: {result.check_name}")
+            if result.error:
+                lines.append(f"    Error: {result.error}")
+        return "\n".join(lines)
