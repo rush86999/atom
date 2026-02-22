@@ -476,7 +476,9 @@ class HostShellService:
                 process.kill()
                 try:
                     stdout, stderr = await process.communicate()
-                except:
+                except (OSError, ProcessLookupError, asyncio.TimeoutError) as e:
+                    # Process already terminated or communication failed
+                    self.logger.debug(f"Process communication error after timeout: {e}")
                     stdout, stderr = b"", b""
                 timed_out = True
 

@@ -352,7 +352,9 @@ class LocalAgentService:
             process.kill()
             try:
                 stdout, stderr = await process.communicate()
-            except:
+            except (OSError, ProcessLookupError, asyncio.TimeoutError) as e:
+                # Process already terminated or communication failed
+                logger.debug(f"Process communication error after timeout: {e}")
                 stdout, stderr = b"", b""
             timed_out = True
 
@@ -440,7 +442,8 @@ class LocalAgentService:
         try:
             response = await self.client.get("/health/live")
             backend_reachable = response.status_code == 200
-        except:
+        except (httpx.NetworkError, httpx.TimeoutException, httpx.ConnectError) as e:
+            logger.debug(f"Backend health check failed: {e}")
             backend_reachable = False
 
         return {
