@@ -39,6 +39,7 @@ from core.autonomous_planning_agent import PlanningAgent
 from core.autonomous_coder_agent import CodeGeneratorOrchestrator
 from core.test_generator_service import TestGeneratorService
 from core.test_runner_service import TestRunnerService
+from core.episode_segmentation_service import EpisodeSegmentationService
 
 logger = logging.getLogger(__name__)
 
@@ -818,6 +819,9 @@ class AgentOrchestrator:
         # Note: Documenter and Committer agents will be added in future plans
         # self.documenter = DocumenterAgent(db, byok_handler)
         # self.committer = CommitterAgent(db, byok_handler)
+
+        # Episode service for WorldModel recall
+        self.episode_service = EpisodeSegmentationService(db, byok_handler)
 
         # Git operations
         self.git_ops = GitOperations()
