@@ -5767,7 +5767,7 @@ class FFmpegJob(Base):
     __tablename__ = "ffmpeg_job"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     # Operation details
     operation = Column(String, nullable=False)  # trim_video, convert_format, extract_audio, etc.
