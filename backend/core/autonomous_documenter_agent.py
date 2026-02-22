@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from core.episode_segmentation_service import EpisodeSegmentationService
 from core.llm.byok_handler import BYOKHandler
 
 logger = logging.getLogger(__name__)
@@ -1381,18 +1382,23 @@ class DocumenterAgent:
         self.markdown_generator = MarkdownGuideGenerator()
         self.docstring_generator = DocstringGenerator(db, byok_handler)
         self.changelog_updater = ChangelogUpdater()
+        # Initialize episode service for WorldModel recall
+        self.episode_service = EpisodeSegmentationService(db, byok_handler)
 
     async def generate_documentation(
         self,
         implementation_result: Dict[str, Any],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        episode_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate complete documentation for implementation.
+        Creates EpisodeSegment for WorldModel recall if episode_id provided.
 
         Args:
             implementation_result: Result from CoderAgent
             context: Implementation context
+            episode_id: Optional episode ID for segment creation
 
         Returns:
             {
@@ -1441,6 +1447,17 @@ class DocumenterAgent:
 
         await self.update_project_docs(feature_name, changes)
         files_updated.extend(["README.md", "CHANGELOG.md"])
+
+        # Create EpisodeSegment for documentation phase
+        if episode_id:
+            await self._create_documentation_segment(
+                episode_id=episode_id,
+                api_docs=bool(api_docs),
+                usage_guides_count=len(usage_guides),
+                docstrings_added=docstrings_added,
+                files_created=len(files_created),
+                files_updated=len(files_updated)
+            )
 
         return {
             "api_docs": api_docs,
@@ -1575,6 +1592,71 @@ class DocumenterAgent:
             "added": total_added,
             "updated": total_updated
         }
+
+    async def _create_documentation_segment(
+        self,
+        episode_id: str,
+        api_docs: bool,
+        usage_guides_count: int,
+        docstrings_added: int,
+        files_created: int,
+        files_updated: int,
+    ):
+        """
+        Create EpisodeSegment for documentation phase.
+
+        Args:
+            episode_id: Episode ID to link segment to
+            api_docs: Whether API docs were generated
+            usage_guides_count: Number of usage guides created
+            docstrings_added: Number of docstrings added
+            files_created: Number of files created
+            files_updated: Number of files updated
+        """
+        import uuid
+        from core.models import EpisodeSegment
+
+        try:
+            doc_types = []
+            if api_docs:
+                doc_types.append("OpenAPI")
+            if usage_guides_count > 0:
+                doc_types.append("Markdown")
+            if docstrings_added > 0:
+                doc_types.append("Docstrings")
+
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,
+                content=f"Documentation generation completed. Types: {', '.join(doc_types)}\n"
+                       f"Usage guides: {usage_guides_count}, Docstrings: {docstrings_added}\n"
+                       f"Files created: {files_created}, Files updated: {files_updated}",
+                content_summary=f"Documentation: {', '.join(doc_types)} ({files_created + files_updated} files)",
+                source_type="autonomous_coding",
+                source_id=str(uuid.uuid4()),
+                canvas_context={
+                    "canvas_type": "documentation",
+                    "presentation_summary": f"Autonomous documentation: {', '.join(doc_types) if doc_types else 'General docs'}",
+                    "visual_elements": ["api_spec", "markdown_guide", "docstring_report"],
+                    "user_interaction": "Agent generated documentation autonomously",
+                    "critical_data_points": {
+                        "doc_types": doc_types,
+                        "api_docs_generated": api_docs,
+                        "usage_guides_count": usage_guides_count,
+                        "docstrings_added": docstrings_added,
+                        "files_created": files_created,
+                        "files_updated": files_updated
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
+            logger.info(f"Created documentation segment {segment.id} for episode {episode_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to create documentation segment: {e}")
 
     async def update_project_docs(
         self,
