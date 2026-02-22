@@ -10,6 +10,10 @@ conflicts with the root conftest.py.
 - fresh_database: Completely fresh in-memory database
 - model_inspector: SQLAlchemy inspector for schema validation
 - constraint_checker: Helper for testing database constraints
+- constraint_violation_checker: Enhanced constraint violation testing
+- transaction_session: Session with explicit transaction control
+- concurrent_sessions: Multiple sessions for concurrency testing
+- constraint_test_data: Pre-configured test data
 
 **Usage:**
 These fixtures are automatically available to all tests in this package.
@@ -18,7 +22,7 @@ These fixtures are automatically available to all tests in this package.
 import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session, sessionmaker
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # Import models and database configuration
 from core.models import Base
@@ -272,12 +276,212 @@ def foreign_key_checker(fresh_database: Session):
     return check_fk
 
 
+@pytest.fixture
+def constraint_violation_checker():
+    """
+    Helper to test constraint violations with enhanced support.
+
+    This fixture provides a helper function that tests constraint violations
+    for different types (unique, foreign_key, not_null).
+
+    **Usage:**
+    ```python
+    def test_email_unique(db_session: Session, constraint_violation_checker):
+        user1 = UserFactory(_session=db_session, email="test@example.com")
+        db_session.flush()
+
+        # Test that duplicate email raises IntegrityError
+        constraint_violation_checker(
+            db_session,
+            UserFactory,
+            "email",
+            "test@example.com",
+            constraint_type="unique"
+        )
+    ```
+
+    **Parameters:**
+        db_session: Database session
+        model_factory: Factory callable (e.g., UserFactory)
+        field: Field name to test
+        value: Value to test (duplicate or invalid)
+        constraint_type: Type of constraint ("unique", "foreign_key", "not_null")
+
+    **Raises:**
+        AssertionError: If constraint is not violated (IntegrityError not raised)
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    def check_violation(
+        db_session: Session,
+        model_factory: Any,
+        field: str,
+        value: Any,
+        constraint_type: str = "unique"
+    ) -> None:
+        """
+        Test that constraint violation raises IntegrityError.
+
+        Args:
+            db_session: Database session
+            model_factory: Factory callable
+            field: Field name to test
+            value: Value that should violate constraint
+            constraint_type: Type of constraint (unique, foreign_key, not_null)
+        """
+        try:
+            if constraint_type == "unique":
+                # First insert should succeed
+                obj1 = model_factory(_session=db_session, **{field: value})
+                db_session.flush()
+
+                # Duplicate should fail
+                with pytest.raises(IntegrityError):
+                    obj2 = model_factory(_session=db_session, **{field: value})
+                    db_session.flush()
+
+            elif constraint_type == "foreign_key":
+                # Invalid FK should fail
+                with pytest.raises(IntegrityError):
+                    obj = model_factory(_session=db_session, **{field: value})
+                    db_session.flush()
+
+            elif constraint_type == "not_null":
+                # NULL should fail
+                with pytest.raises(Exception):  # May be IntegrityError or other
+                    obj = model_factory(_session=db_session, **{field: None})
+                    db_session.flush()
+
+            db_session.rollback()
+
+        except (AssertionError, IntegrityError):
+            # Re-raise for test verification
+            db_session.rollback()
+            raise
+
+    return check_violation
+
+
+@pytest.fixture
+def transaction_session():
+    """
+    Session with explicit transaction control.
+
+    This fixture provides a database session where you have explicit control
+    over transaction begin, commit, and rollback. Unlike db_session which
+    auto-rolls back, this session requires manual transaction management.
+
+    **Usage:**
+    ```python
+    def test_manual_transaction(transaction_session: Session):
+        transaction = transaction_session.begin()
+        try:
+            agent = AgentFactory(_session=transaction_session, name="test")
+            transaction_session.flush()
+            transaction.commit()
+        except Exception:
+            transaction.rollback()
+            raise
+    ```
+
+    **Note:** You must manually commit or rollback the transaction.
+
+    **Yields:**
+        Session: SQLAlchemy session with manual transaction control
+    """
+    db = SessionLocal()
+    transaction = db.begin()
+
+    try:
+        yield db
+        # Rollback if not explicitly committed/rolled back
+        if transaction.is_active:
+            transaction.rollback()
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def concurrent_sessions():
+    """
+    Create multiple database sessions for concurrency testing.
+
+    This fixture provides multiple independent database sessions that can
+    be used to test concurrent access, race conditions, and isolation levels.
+
+    **Usage:**
+    ```python
+    def test_concurrent_access(concurrent_sessions: List[Session]):
+        session1, session2, session3 = concurrent_sessions
+
+        # Use sessions concurrently (e.g., in threads)
+        # Each session is independent
+    ```
+
+    **Yields:**
+        List[Session]: List of 3 independent database sessions
+    """
+    sessions = [SessionLocal() for _ in range(3)]
+
+    try:
+        yield sessions
+    finally:
+        # Close all sessions
+        for session in sessions:
+            try:
+                session.close()
+            except Exception:
+                pass
+
+
+@pytest.fixture
+def constraint_test_data(db_session):
+    """
+    Pre-configured test data for constraint testing.
+
+    This fixture creates common reference data (users, agents, workspaces)
+    that can be used in constraint tests. It flushes the data but doesn't
+    commit, so it's rolled back automatically by db_session.
+
+    **Usage:**
+    ```python
+    def test_fk_constraint(db_session: Session, constraint_test_data):
+        data = constraint_test_data
+        # Use pre-created user, agent, workspace
+        execution = AgentExecutionFactory(
+            _session=db_session,
+            agent_id=data["agent"].id
+        )
+    ```
+
+    **Returns:**
+        dict: Dictionary with 'user', 'agent', 'workspace' keys
+    """
+    # Create reference data
+    user = UserFactory(_session=db_session)
+    agent = AgentFactory(_session=db_session, user_id=user.id)
+    workspace = WorkspaceFactory(_session=db_session)
+
+    # Flush to make visible in current session
+    db_session.flush()
+
+    return {
+        "user": user,
+        "agent": agent,
+        "workspace": workspace
+    }
+
+
 # Export all fixtures for this package
 __all__ = [
     "db_session",
     "fresh_database",
     "model_inspector",
     "constraint_checker",
+    "constraint_violation_checker",
+    "transaction_session",
+    "concurrent_sessions",
+    "constraint_test_data",
     "table_row_counter",
     "foreign_key_checker",
 ]
