@@ -956,3 +956,19 @@ class TestRetrievalAdditionalCoverage:
 
         # Should complete without error
         assert "episodes" in result
+
+    def test_summarize_feedback_long_text(self, retrieval_service):
+        """Test feedback summarization truncates long text."""
+        long_feedback = "x" * 200
+
+        result = retrieval_service._summarize_feedback(long_feedback)
+
+        # Should truncate to 100 chars
+        assert len(result) <= 100
+        assert result.endswith("...")
+
+    def test_summarize_feedback_none(self, retrieval_service):
+        """Test feedback summarization with None."""
+        result = retrieval_service._summarize_feedback(None)
+
+        assert result is None
