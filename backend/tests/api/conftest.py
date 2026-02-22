@@ -3,15 +3,20 @@ Conftest for API integration tests.
 
 Provides database session fixture for API tests with enhanced
 authenticated request factories and API test utilities.
+
+Enhanced with authentication and WebSocket fixtures for comprehensive testing.
 """
 
 import pytest
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
+from datetime import datetime, timedelta
 
 from core.database import SessionLocal
-from core.models import User, UserStatus
+from core.models import User, UserStatus, MobileDevice, UserRole, DeviceNode
+from core.auth import create_access_token, get_password_hash
 from main_api_app import app
 
 
@@ -335,3 +340,194 @@ def validation_error_test_data():
             "extra_field_not_in_model": "should_be_ignored"
         }
     }
+
+
+# =============================================================================
+# Auth Fixtures
+# =============================================================================
+
+@pytest.fixture
+def test_user_tokens(db):
+    """Create test user with access and refresh tokens."""
+    import uuid
+    user_id = str(uuid.uuid4())
+    password_hash = get_password_hash("test_password_123")
+    user = User(
+        id=user_id,
+        email=f"test-{user_id}@example.com",
+        password_hash=password_hash,
+        first_name="Test",
+        last_name="User",
+        role=UserRole.MEMBER,
+        status="active",
+        email_verified=True,
+        two_factor_enabled=False
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_access_token(
+        data={"sub": user.id, "type": "refresh"},
+        expires_delta=timedelta(days=30)
+    )
+    return {
+        "user": user,
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
+
+@pytest.fixture
+def auth_headers(test_user_tokens):
+    """Return headers with Bearer token."""
+    return {"Authorization": f"Bearer {test_user_tokens['access_token']}"}
+
+
+@pytest.fixture
+def expired_token_headers():
+    """Return headers with expired token."""
+    from core.auth import create_access_token
+    expired_token = create_access_token(
+        data={"sub": "test-user"},
+        expires_delta=timedelta(hours=-1)
+    )
+    return {"Authorization": f"Bearer {expired_token}"}
+
+
+@pytest.fixture
+def test_user_with_password(db):
+    """Create test user with known password for login tests."""
+    import uuid
+    user_id = str(uuid.uuid4())
+    password_hash = get_password_hash("test_password_123")
+    user = User(
+        id=user_id,
+        email=f"test-{user_id}@example.com",
+        password_hash=password_hash,
+        first_name="Test",
+        last_name="User",
+        role=UserRole.MEMBER,
+        status="active",
+        email_verified=True,
+        two_factor_enabled=False
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def test_device(db, test_user_with_password):
+    """Create test mobile device."""
+    import uuid
+    device = MobileDevice(
+        id=str(uuid.uuid4()),
+        user_id=str(test_user_with_password.id),
+        device_token=f"test_token_{uuid.uuid4()}",
+        platform="ios",
+        status="active",
+        notification_enabled=True,
+        last_active=datetime.utcnow(),
+        created_at=datetime.utcnow(),
+        device_info={"model": "iPhone 14", "os_version": "16.0"}
+    )
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return device
+
+
+@pytest.fixture
+def rate_limit_mock():
+    """Mock rate limiter for testing."""
+    mock = MagicMock()
+    mock.is_allowed.return_value = True
+    mock.get_remaining_attempts.return_value = 5
+    return mock
+
+
+# =============================================================================
+# WebSocket Fixtures
+# =============================================================================
+
+@pytest.fixture
+def mock_websocket():
+    """Mock WebSocket connection for testing."""
+    from fastapi import WebSocket
+    from unittest.mock import AsyncMock
+    
+    ws = MagicMock(spec=WebSocket)
+    ws.accept = AsyncMock()
+    ws.receive_text = AsyncMock()
+    ws.receive_json = AsyncMock()
+    ws.send_text = AsyncMock()
+    ws.send_json = AsyncMock()
+    ws.close = AsyncMock()
+    return ws
+
+
+@pytest.fixture
+def sample_workspace_id():
+    """Sample workspace ID for WebSocket tests."""
+    return "workspace_123"
+
+
+@pytest.fixture
+def websocket_auth_messages():
+    """Return various WebSocket auth messages for testing."""
+    return {
+        "valid": {"type": "auth", "token": "valid-dev-token"},
+        "missing_token": {"type": "auth"},
+        "invalid_token": {"type": "auth", "token": "invalid-token"},
+        "expired_token": {"type": "auth", "token": "expired-token"},
+        "malformed": {"type": "auth", "data": "not-a-dict"}
+    }
+
+
+@pytest.fixture
+def test_user_with_device(db):
+    """Create test user with device for WebSocket tests."""
+    import uuid
+    user_id = str(uuid.uuid4())
+    device_id = f"device_{uuid.uuid4()}"
+    workspace_id = str(uuid.uuid4())
+
+    user = User(
+        id=user_id,
+        email=f"test-{user_id}@example.com",
+        password_hash="hashed_password",
+        first_name="Test",
+        last_name="User",
+        role=UserRole.MEMBER,
+        status="active"
+    )
+    db.add(user)
+    
+    device = DeviceNode(
+        id=str(uuid.uuid4()),
+        device_id=device_id,
+        user_id=user_id,
+        workspace_id=workspace_id,
+        name=f"Test Device {device_id[:8]}",
+        node_type="mobile",
+        status="offline",
+        platform="ios",
+        capabilities=["camera", "location", "microphone"],
+        last_seen=datetime.utcnow()
+    )
+    db.add(device)
+    db.commit()
+    db.refresh(user)
+    db.refresh(device)
+
+    return {"user": user, "device": device, "workspace_id": workspace_id}
+
+
+@pytest.fixture
+def valid_device_token(test_user_with_device):
+    """Create valid device token."""
+    user = test_user_with_device["user"]
+    return create_access_token(data={"sub": user.id})
