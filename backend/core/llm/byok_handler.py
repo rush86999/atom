@@ -1270,12 +1270,14 @@ class BYOKHandler:
         """
         # Pick a vision-only model (Janus)
         # For now, we'll try to use a specialized provider or default to a cheap vision model if Janus isn't configured
+        provider = None
+        model = None
         # 1. Try Gemini Flash (Cheapest Vision)
         if "google_flash" in self.clients:
             provider = "google_flash"
             model = "gemini-2.0-flash" if "gemini-2.0" in str(self.clients["google_flash"]) else "gemini-1.5-flash"
         # 2. Try Deepseek / Janus
-        elif provider in self.clients:
+        elif "deepseek" in self.clients:
             provider = "deepseek"
             model = "janus-pro-7b"
         # 3. Last resort - GPT-4o-mini
