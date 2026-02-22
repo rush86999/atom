@@ -33,10 +33,17 @@ import httpx
 from sqlalchemy.orm import Session
 
 from core.autonomous_coder_agent import CodeGeneratorOrchestrator
+from core.code_quality_service import CodeQualityService, QualityCheckResults
+from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
 from core.llm.byok_handler import BYOKHandler
 from core.test_runner_service import TestRunnerService
 
 logger = logging.getLogger(__name__)
+
+
+class QualityGateError(Exception):
+    """Raised when quality gates fail and enforcement is enabled."""
+    pass
 
 
 # ============================================================================
@@ -961,6 +968,7 @@ class CommitterAgent:
             repo_name=self._infer_repo_name(),
             github_token=github_token
         )
+        self.quality_service = CodeQualityService()
 
     async def create_commit(
         self,
@@ -1004,6 +1012,24 @@ class CommitterAgent:
         # Stage files
         files_to_stage = summary["files_created"] + summary["files_modified"]
         self.git_ops.stage_files(files_to_stage)
+
+        # Quality gate validation before commit
+        if QUALITY_ENFORCEMENT_ENABLED and not EMERGENCY_QUALITY_BYPASS:
+            # Validate quality on all Python files being committed
+            for file_path in files_to_stage:
+                if file_path.endswith(".py"):
+                    quality_gate_result = self.quality_service.validate_code_quality(
+                        file_path=file_path,
+                        language="python"
+                    )
+
+                    if not quality_gate_result.all_passed:
+                        # Block commit on quality failures
+                        raise QualityGateError(
+                            f"Quality gate failed for {file_path}:\n"
+                            f"{quality_gate_result.get_summary()}\n"
+                            f"Commit blocked. Fix quality issues or set EMERGENCY_QUALITY_BYPASS=true."
+                        )
 
         # Create commit
         commit_sha = self.git_ops.create_commit(commit_message)
