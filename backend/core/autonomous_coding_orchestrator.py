@@ -41,6 +41,7 @@ from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BY
 from core.test_generator_service import TestGeneratorService
 from core.test_runner_service import TestRunnerService
 from core.episode_segmentation_service import EpisodeSegmentationService
+from core.models import EpisodeSegment
 
 logger = logging.getLogger(__name__)
 
