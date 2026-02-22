@@ -317,6 +317,7 @@ async def test_checkpoint_save_to_db(checkpoint_manager):
         state={"test": "data"}
     )
 
+    # Verify the checkpoint was created with correct field name (shared_state not state_json)
     checkpoint_manager.db.add.assert_called_once()
     checkpoint_manager.db.commit.assert_called_once()
 

@@ -4,6 +4,56 @@ Test Suite for Excel Export Functionality
 Tests Discord and Google Chat analytics Excel export features
 """
 
+import sys
+import importlib
+
+# CRITICAL FIX: Ensure numpy/pandas/lancedb/pyarrow/openpyxl are real modules before importing analytics engines.
+#
+# During test collection, pytest imports test modules in alphabetical order. Some test files mock
+# numpy with incomplete implementations (e.g., main_api_app_safe.py creates a mock numpy without
+# the .short attribute). When this file is later collected, importing discord_analytics_engine
+# (which imports openpyxl) fails because openpyxl tries to access numpy.short and other dtypes.
+#
+# Root cause: test_cognitive_tier_e2e.py imports main_api_app_safe.py which mocks numpy as:
+#   np_mock = mock_package("numpy")  # Creates empty module without .short
+#   sys.modules["numpy.core"] = MagicMock()
+#   sys.modules["numpy._core"] = MagicMock()
+#   sys.modules["numpy.core.multiarray"] = MagicMock()
+#   sys.modules["numpy._core.multiarray"] = MagicMock()
+#
+# When discord_analytics_engine later imports openpyxl, openpyxl/compat/numbers.py tries to access
+# numpy.short, which doesn't exist in the mock. Even worse, when we remove the mocked numpy and
+# try to import the real one, the mocked submodules cause import errors.
+#
+# The fix is to detect and remove ALL mocked/incomplete numpy modules (including submodules),
+# forcing a clean import of the real numpy module. We also remove any openpyxl modules that may
+# have cached references to the corrupted numpy.
+#
+# This cleanup must happen at module level, before any imports that might trigger the issue.
+def _is_mocked_module(module, mod_name):
+    """Check if a module is mocked or incomplete."""
+    if module is None:
+        return True
+    # Check for MagicMock (has _spec_class attribute that real modules don't have)
+    if hasattr(module, '_spec_class'):
+        return True
+    # For numpy, check if it has critical attributes
+    if mod_name == "numpy" and not hasattr(module, 'short'):
+        return True
+    return False
+
+_modules_to_clean = ["numpy", "pandas", "lancedb", "pyarrow"]
+for mod in _modules_to_clean:
+    if mod in sys.modules and _is_mocked_module(sys.modules[mod], mod):
+        # Remove the corrupted module and ALL its submodules
+        keys_to_remove = [k for k in sys.modules.keys() if k == mod or k.startswith(mod + '.')]
+        for key in keys_to_remove:
+            sys.modules.pop(key, None)
+        # Also remove any openpyxl modules that might have cached references to it
+        for openpyxl_mod in list(sys.modules.keys()):
+            if openpyxl_mod.startswith('openpyxl'):
+                sys.modules.pop(openpyxl_mod, None)
+
 import asyncio
 import pytest
 import statistics
