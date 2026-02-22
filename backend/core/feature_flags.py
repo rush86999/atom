@@ -75,6 +75,16 @@ class FeatureFlags:
     RECONCILIATION_GOVERNANCE_ENABLED = os.getenv("RECONCILIATION_GOVERNANCE_ENABLED", "true").lower() == "true"
 
     # ============================================================================
+    # Quality Enforcement Settings
+    # ============================================================================
+
+    # Quality enforcement master switch
+    QUALITY_ENFORCEMENT_ENABLED = os.getenv("QUALITY_ENFORCEMENT_ENABLED", "true").lower() == "true"
+
+    # Emergency bypass for quality gates (production incidents)
+    EMERGENCY_QUALITY_BYPASS = os.getenv("EMERGENCY_QUALITY_BYPASS", "false").lower() == "true"
+
+    # ============================================================================
     # Emergency Bypass Flags (Security-Critical: Default to False)
     # ============================================================================
 
