@@ -81,46 +81,46 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RUNTIME-01 | TBD | Pending |
-| RUNTIME-02 | TBD | Pending |
-| RUNTIME-03 | TBD | Pending |
-| RUNTIME-04 | TBD | Pending |
-| AICOV-01 | TBD | Pending |
-| AICOV-02 | TBD | Pending |
-| AICOV-03 | TBD | Pending |
-| AICOV-04 | TBD | Pending |
-| AICOV-05 | TBD | Pending |
-| APICOV-01 | TBD | Pending |
-| APICOV-02 | TBD | Pending |
-| APICOV-03 | TBD | Pending |
-| APICOV-04 | TBD | Pending |
-| APICOV-05 | TBD | Pending |
-| DATACOV-01 | TBD | Pending |
-| DATACOV-02 | TBD | Pending |
-| DATACOV-03 | TBD | Pending |
-| DATACOV-04 | TBD | Pending |
-| DATACOV-05 | TBD | Pending |
-| STABLE-01 | TBD | Pending |
-| STABLE-02 | TBD | Pending |
-| STABLE-03 | TBD | Pending |
-| STABLE-04 | TBD | Pending |
-| STABLE-05 | TBD | Pending |
-| GATES-01 | TBD | Pending |
-| GATES-02 | TBD | Pending |
-| GATES-03 | TBD | Pending |
-| GATES-04 | TBD | Pending |
-| GATES-05 | TBD | Pending |
-| PROP-01 | TBD | Pending |
-| PROP-02 | TBD | Pending |
-| PROP-03 | TBD | Pending |
-| PROP-04 | TBD | Pending |
-| PROP-05 | TBD | Pending |
+| RUNTIME-01 | Phase 70 | Pending |
+| RUNTIME-02 | Phase 70 | Pending |
+| RUNTIME-03 | Phase 70 | Pending |
+| RUNTIME-04 | Phase 70 | Pending |
+| AICOV-01 | Phase 71 | Pending |
+| AICOV-02 | Phase 71 | Pending |
+| AICOV-03 | Phase 71 | Pending |
+| AICOV-04 | Phase 71 | Pending |
+| AICOV-05 | Phase 71 | Pending |
+| APICOV-01 | Phase 72 | Pending |
+| APICOV-02 | Phase 72 | Pending |
+| APICOV-03 | Phase 72 | Pending |
+| APICOV-04 | Phase 72 | Pending |
+| APICOV-05 | Phase 72 | Pending |
+| DATACOV-01 | Phase 72 | Pending |
+| DATACOV-02 | Phase 72 | Pending |
+| DATACOV-03 | Phase 72 | Pending |
+| DATACOV-04 | Phase 72 | Pending |
+| DATACOV-05 | Phase 72 | Pending |
+| STABLE-01 | Phase 73 | Pending |
+| STABLE-02 | Phase 73 | Pending |
+| STABLE-03 | Phase 73 | Pending |
+| STABLE-04 | Phase 73 | Pending |
+| STABLE-05 | Phase 73 | Pending |
+| GATES-01 | Phase 74 | Pending |
+| GATES-02 | Phase 74 | Pending |
+| GATES-03 | Phase 74 | Pending |
+| GATES-04 | Phase 74 | Pending |
+| GATES-05 | Phase 74 | Pending |
+| PROP-01 | Phase 74 | Pending |
+| PROP-02 | Phase 74 | Pending |
+| PROP-03 | Phase 74 | Pending |
+| PROP-04 | Phase 74 | Pending |
+| PROP-05 | Phase 74 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 35 total
-- Mapped to phases: 0
-- Unmapped: 35 ⚠️
+- Mapped to phases: 35
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation*
