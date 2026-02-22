@@ -88,6 +88,20 @@ class GitOperations:
                 capture_output=True
             )
 
+            # Check if there are any changes to commit
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=self.repo_path,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            # If no changes to commit, return current SHA
+            if not status_result.stdout.strip():
+                logger.info("No changes to commit, returning current HEAD SHA")
+                return self.get_current_sha()
+
             # Create commit
             result = subprocess.run(
                 ["git", "commit", "-m", message],
@@ -109,7 +123,7 @@ class GitOperations:
             return sha_result.stdout.strip()
 
         except subprocess.CalledProcessError as e:
-            logger.error(f"Git commit failed: {e.stderr}")
+            logger.error(f"Git commit failed: {e.stderr if e.stderr else str(e)}")
             raise
 
     def get_current_sha(self) -> str:
