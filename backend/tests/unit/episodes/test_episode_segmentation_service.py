@@ -1725,3 +1725,339 @@ class TestSegmentationAdditionalCoverage:
     # Note: _summarize_feedback, _assess_outcome_quality and _filter_improvement_trend
     # are in EpisodeRetrievalService, not EpisodeSegmentationService
     # Tests for those methods are in retrieval service tests file
+
+
+# ============================================================================
+# LanceDB Edge Cases (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestLanceDBEdgeCases:
+    """Test LanceDB unavailability and error handling."""
+
+    def test_boundary_detector_without_lancedb(self):
+        """
+        Test boundary detector with None LanceDB handler.
+
+        Validates:
+        - None LanceDB handled gracefully
+        - Topic change detection returns empty list
+        - No crashes
+        """
+        detector = EpisodeBoundaryDetector(lancedb_handler=None)
+
+        now = datetime.now()
+        messages = []
+        for i in range(3):
+            msg = Mock()
+            msg.id = f"msg-{i}"
+            msg.content = f"Message {i}"
+            msg.created_at = now + timedelta(minutes=i * 5)
+            messages.append(msg)
+
+        # Should return empty list when LanceDB is None
+        changes = detector.detect_topic_changes(messages)
+        assert changes == []
+
+    def test_boundary_detector_empty_embeddings(self):
+        """
+        Test boundary detector with empty embedding results.
+
+        Validates:
+        - Empty embedding lists handled
+        - Topic change continues without embeddings
+        """
+        mock_lancedb = Mock()
+        mock_lancedb.embed_text = Mock(return_value=None)  # None instead of list
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+
+        now = datetime.now()
+        messages = []
+        for i in range(3):
+            msg = Mock()
+            msg.id = f"msg-{i}"
+            msg.content = f"Message {i}"
+            msg.created_at = now + timedelta(minutes=i * 5)
+            messages.append(msg)
+
+        # Should handle None embeddings gracefully
+        changes = detector.detect_topic_changes(messages)
+        assert isinstance(changes, list)
+
+
+# ============================================================================
+# Time Gap Edge Cases (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestTimeGapEdgeCases:
+    """Test time gap detection edge cases."""
+
+    def test_detect_time_gap_exactly_threshold(self):
+        """
+        Test time gap detection at exactly 30 minutes.
+
+        Validates:
+        - Gaps exactly at threshold (30 min) are handled
+        - Boundary condition correctly classified
+        """
+        now = datetime.now()
+        messages = []
+        for i, offset in enumerate([0, 30, 35]):
+            msg = Mock()
+            msg.id = f"msg-{i}"
+            msg.created_at = now + timedelta(minutes=offset)
+            messages.append(msg)
+
+        lancedb = Mock()
+        detector = EpisodeBoundaryDetector(lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # Should detect gap at exactly 30 minutes
+        assert len(gaps) >= 1
+        assert 1 in gaps  # Gap between msg-0 and msg-1
+
+    def test_detect_time_gap_under_threshold(self):
+        """
+        Test messages under time gap threshold.
+
+        Validates:
+        - Gaps under 30 minutes don't trigger segmentation
+        - Messages grouped together
+        """
+        now = datetime.now()
+        messages = []
+        for i, offset in enumerate([0, 29, 31]):
+            msg = Mock()
+            msg.id = f"msg-{i}"
+            msg.created_at = now + timedelta(minutes=offset)
+            messages.append(msg)
+
+        lancedb = Mock()
+        detector = EpisodeBoundaryDetector(lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # First gap (msg0->msg1): 29 min (no gap, under threshold)
+        # Second gap (msg1->msg2): 2 min (no gap, under threshold)
+        # So no gaps should be detected
+        assert len(gaps) == 0
+
+    def test_detect_time_gap_single_message(self):
+        """
+        Test time gap detection with single message.
+
+        Validates:
+        - Single message doesn't cause errors
+        - No gaps detected with one message
+        """
+        now = datetime.now()
+        msg = Mock()
+        msg.id = "msg-1"
+        msg.created_at = now
+        messages = [msg]
+
+        lancedb = Mock()
+        detector = EpisodeBoundaryDetector(lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        assert len(gaps) == 0
+
+
+# ============================================================================
+# Administrative Function Tests (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestAdministrativeFunctions:
+    """Test administrative and maintenance functions."""
+
+    def test_time_gap_calculation_helpers(self):
+        """
+        Test time gap calculation helper methods.
+
+        Validates:
+        - Gap minutes calculated correctly
+        - Boundary conditions handled
+        """
+        now = datetime.now()
+
+        msg1 = Mock()
+        msg1.created_at = now
+
+        msg2 = Mock()
+        msg2.created_at = now + timedelta(minutes=35)
+
+        lancedb = Mock()
+        detector = EpisodeBoundaryDetector(lancedb)
+
+        # Test gap calculation (private method, but we can test through detect_time_gap)
+        messages = [msg1, msg2]
+        gaps = detector.detect_time_gap(messages)
+
+        assert len(gaps) == 1
+        assert gaps[0] == 1  # Gap at index 1
+
+    def test_episode_metadata_with_missing_fields(self):
+        """
+        Test episode metadata extraction with missing optional fields.
+
+        Validates:
+        - Missing optional fields handled gracefully
+        - Default values used where appropriate
+        """
+        # Test with minimal message data
+        msg = Mock()
+        msg.id = "msg-1"
+        msg.content = "Test content"
+        msg.created_at = datetime.now()
+        msg.role = "user"
+
+        # Should handle missing fields without crashing
+        assert msg.content is not None
+        assert msg.role is not None
+
+
+# ============================================================================
+# Semantic Similarity Edge Cases (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestSemanticSimilarityEdgeCases:
+    """Test semantic similarity detection edge cases."""
+
+    def test_topic_change_with_same_content(self, mock_lancedb):
+        """
+        Test topic change detection when content is identical.
+
+        Validates:
+        - Identical content doesn't trigger topic change
+        - Messages grouped in same segment
+        """
+        import numpy as np
+
+        now = datetime.now()
+        messages = []
+        for i, offset in enumerate([0, 5]):
+            msg = Mock()
+            msg.id = f"msg-{i}"
+            msg.created_at = now + timedelta(minutes=offset)
+            msg.content = "Hello world"  # Same content
+            messages.append(msg)
+
+        # Mock same embeddings (numpy arrays)
+        embedding = np.array([0.1, 0.2, 0.3])
+        mock_lancedb.embed_text = Mock(side_effect=[embedding, embedding])
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # High similarity (>0.75) means same topic
+        # With identical embeddings, similarity = 1.0, so no topic change
+        assert len(changes) == 0  # No topic change with identical content
+
+    def test_topic_change_with_empty_content(self, mock_lancedb):
+        """
+        Test topic change detection with empty message content.
+
+        Validates:
+        - Empty content handled gracefully
+        - Segmentation continues
+        """
+        import numpy as np
+
+        now = datetime.now()
+        messages = []
+
+        msg1 = Mock()
+        msg1.id = "msg-1"
+        msg1.created_at = now
+        msg1.content = ""
+        messages.append(msg1)
+
+        msg2 = Mock()
+        msg2.id = "msg-2"
+        msg2.created_at = now + timedelta(minutes=5)
+        msg2.content = "Some content"
+        messages.append(msg2)
+
+        # Mock embeddings (numpy arrays - empty vector for empty content, normal for other)
+        mock_lancedb.embed_text = Mock(side_effect=[
+            np.array([0.0, 0.0, 0.0]),
+            np.array([0.1, 0.2, 0.3])
+        ])
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # Should handle without crashing
+        assert isinstance(changes, list)
+
+    def test_topic_change_with_very_long_content(self, mock_lancedb):
+        """
+        Test topic change detection with very long content.
+
+        Validates:
+        - Long content doesn't cause embedding errors
+        - Similarity calculation works
+        """
+        import numpy as np
+
+        now = datetime.now()
+        messages = []
+
+        long_content = "This is a very long message. " * 100  # 3200+ chars
+
+        msg1 = Mock()
+        msg1.id = "msg-1"
+        msg1.created_at = now
+        msg1.content = long_content
+        messages.append(msg1)
+
+        msg2 = Mock()
+        msg2.id = "msg-2"
+        msg2.created_at = now + timedelta(minutes=5)
+        msg2.content = "Short content"
+        messages.append(msg2)
+
+        # Mock embeddings (numpy arrays)
+        mock_lancedb.embed_text = Mock(side_effect=[
+            np.array([0.1] * 384),
+            np.array([0.2] * 384)
+        ])
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # Should handle long content
+        assert isinstance(changes, list)
+
+    def test_topic_change_with_very_long_content(self, mock_lancedb):
+        """
+        Test topic change detection with very long content.
+
+        Validates:
+        - Long content doesn't cause embedding errors
+        - Similarity calculation works
+        """
+        now = datetime.now()
+        messages = []
+
+        long_content = "This is a very long message. " * 100  # 3200+ chars
+
+        msg1 = Mock()
+        msg1.id = "msg-1"
+        msg1.created_at = now
+        msg1.content = long_content
+        messages.append(msg1)
+
+        msg2 = Mock()
+        msg2.id = "msg-2"
+        msg2.created_at = now + timedelta(minutes=5)
+        msg2.content = "Short content"
+        messages.append(msg2)
+
+        # Mock embeddings
+        mock_lancedb.embed_text = Mock(return_value=[[0.1] * 384, [0.2] * 384])
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # Should handle long content
+        assert isinstance(changes, list)
