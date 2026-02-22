@@ -652,5 +652,73 @@ async def test_full_workflow_checkpoint_cycle(orchestrator, git_ops):
     assert len(result["phases_completed"]) > 0
 
 
+@pytest.mark.asyncio
+async def test_orchestrator_iterative_coverage_generation(db_session, mock_byok_handler):
+    """
+    Test that orchestrator calls generate_until_coverage_target() instead of single-pass generation.
+
+    This ensures coverage-driven iterative test generation is integrated into the workflow.
+    """
+    import uuid
+    from core.models import AutonomousWorkflow, AgentLog
+    from unittest.mock import AsyncMock
+
+    # Create workflow
+    workflow = AutonomousWorkflow(
+        id=str(uuid.uuid4()),
+        requirements_json={"title": "Test Feature", "description": "Test"},
+        status="running",
+        current_phase="GENERATE_TESTS",
+        workspace_id="test-workspace"
+    )
+    db_session.add(workflow)
+    db_session.commit()
+
+    # Mock generate_until_coverage_target to return coverage result
+    mock_test_generator = AsyncMock()
+    mock_test_generator.generate_until_coverage_target = AsyncMock(
+        return_value={
+            "test_files": [{"path": "tests/test_example.py"}],
+            "final_coverage": 87.5,  # Above 85% target
+            "target_met": True,
+            "iterations": 2
+        }
+    )
+
+    # Initialize orchestrator
+    orchestrator = AgentOrchestrator(db_session)
+    orchestrator.test_generator = mock_test_generator
+    orchestrator.state_store = SharedStateStore()
+
+    # Execute test generation phase
+    state = {
+        "workflow_id": str(workflow.id),
+        "phase": "GENERATE_TESTS",
+        "files_created": ["src/example.py"],
+        "workspace_id": "test-workspace"
+    }
+
+    # Store state
+    await orchestrator.state_store.initialize_state(str(workflow.id), state)
+
+    result = await orchestrator._run_generate_tests(str(workflow.id), {})
+
+    # Verify iterative generation was called
+    mock_test_generator.generate_until_coverage_target.assert_called_once()
+    call_args = mock_test_generator.generate_until_coverage_target.call_args
+
+    # Verify correct parameters passed
+    assert call_args[1]["source_code_path"] == "src/example.py"
+    assert call_args[1]["language"] == "python"
+    assert call_args[1]["target_coverage"] == 85.0
+    assert call_args[1]["test_type"] == "unit"
+    assert call_args[1]["max_iterations"] == 5
+
+    # Verify result structure
+    assert result["phase"] == "generate_tests"
+    assert "artifacts" in result
+    assert "test_files" in result["artifacts"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
