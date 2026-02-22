@@ -791,3 +791,442 @@ class TestEdgeCases:
         # Should succeed without governance
         assert result["success"] is True
         assert result["response"] == "No governance"
+
+
+class TestDatabaseErrorHandling:
+    """Test database error handling and graceful degradation."""
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_db_refresh_failure(self, mock_agent, mock_byok_handler):
+        """
+        Test DB session refresh failure during AgentExecution creation.
+
+        Validates:
+        - db.refresh() failure is caught gracefully
+        - Execution continues despite refresh error
+        - Response returned successfully
+        """
+        mock_tokens = ["Success", " despite", " refresh", " error"]
+
+        mock_db = MagicMock()
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
+        mock_db.refresh = Mock(side_effect=Exception("Connection timeout"))
+        mock_db.close = Mock()
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=mock_db):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = MagicMock()
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-refresh-error"
+                                mock_sess_mgr.return_value = mock_session
+
+                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                    result = await execute_agent_chat(
+                                        agent_id=mock_agent.id,
+                                        message="Test refresh error",
+                                        user_id="test-user-refresh-error",
+                                        session_id=None,
+                                        workspace_id="default",
+                                        conversation_history=None,
+                                        stream=False
+                                    )
+
+        # Should succeed despite refresh error
+        assert result["success"] is True
+        assert result["response"] == "Success despite refresh error"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_chat_history_persistence_failure(self, mock_agent, mock_byok_handler):
+        """
+        Test chat history persistence failure handling.
+
+        Validates:
+        - chat_history.add_message() errors are caught
+        - Request doesn't fail on persistence errors
+        - Response still returned to user
+        """
+        mock_tokens = ["Response", " despite", " persistence", " error"]
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = Mock(side_effect=Exception("DB unavailable"))
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-persist-error"
+                                mock_sess_mgr.return_value = mock_session
+
+                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                    result = await execute_agent_chat(
+                                        agent_id=mock_agent.id,
+                                        message="Test persistence error",
+                                        user_id="test-user-persist-error",
+                                        session_id=None,
+                                        workspace_id="default",
+                                        conversation_history=None,
+                                        stream=False
+                                    )
+
+        # Should succeed despite persistence error
+        assert result["success"] is True
+        assert result["response"] == "Response despite persistence error"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_execution_update_failure(self, mock_agent, mock_byok_handler):
+        """
+        Test AgentExecution record update failure handling.
+
+        Validates:
+        - Execution record update errors are caught
+        - Status update failures don't block response
+        - Error logged but not surfaced to user
+        """
+        mock_tokens = ["Response", " despite", " update", " error"]
+
+        mock_db = MagicMock()
+        mock_db.add = Mock()
+        mock_db.commit = Mock(side_effect=[None, Exception("Update failed")])  # Second commit fails
+        mock_db.refresh = Mock()
+        mock_db.close = Mock()
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=mock_db):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = MagicMock()
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-update-error"
+                                mock_sess_mgr.return_value = mock_session
+
+                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                    result = await execute_agent_chat(
+                                        agent_id=mock_agent.id,
+                                        message="Test update error",
+                                        user_id="test-user-update-error",
+                                        session_id=None,
+                                        workspace_id="default",
+                                        conversation_history=None,
+                                        stream=False
+                                    )
+
+        # Should succeed despite update error
+        assert result["success"] is True
+        assert result["response"] == "Response despite update error"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_episode_creation_failure(self, mock_agent, mock_byok_handler):
+        """
+        Test episode creation trigger failure handling.
+
+        Validates:
+        - Episode creation errors are caught gracefully
+        - Response returned despite episode failure
+        - Warning logged but not surfaced
+        """
+        mock_tokens = ["Response", " despite", " episode", " error"]
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = MagicMock()
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-episode-error"
+                                mock_sess_mgr.return_value = mock_session
+
+                                async def mock_episode_failure(**kwargs):
+                                    raise Exception("LanceDB unavailable")
+
+                                with patch("core.agent_execution_service.trigger_episode_creation",
+                                           side_effect=mock_episode_failure):
+                                    result = await execute_agent_chat(
+                                        agent_id=mock_agent.id,
+                                        message="Test episode error",
+                                        user_id="test-user-episode-error",
+                                        session_id=None,
+                                        workspace_id="default",
+                                        conversation_history=None,
+                                        stream=False
+                                    )
+
+        # Should succeed despite episode error
+        assert result["success"] is True
+        assert result["response"] == "Response despite episode error"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_failed_execution_record_update_error(self, mock_agent):
+        """
+        Test error when updating failed execution record itself fails.
+
+        Validates:
+        - Nested error handling (LLM fails + record update fails)
+        - Outer exception still raised correctly
+        - Error response returned to user
+        """
+        with patch("core.agent_execution_service.SessionLocal") as mock_sl:
+            mock_db = MagicMock()
+            mock_db.commit = Mock(side_effect=Exception("DB locked"))
+            mock_sl.return_value = mock_db
+
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler") as MockBYOK:
+                        mock_handler = MagicMock()
+
+                        async def mock_stream_failure(**kwargs):
+                            raise Exception("LLM service unavailable")
+
+                        mock_handler.stream_completion = mock_stream_failure
+                        MockBYOK.return_value = mock_handler
+
+                        result = await execute_agent_chat(
+                            agent_id=mock_agent.id,
+                            message="Test nested error",
+                            user_id="test-user-nested",
+                            session_id=None,
+                            workspace_id="default",
+                            conversation_history=None,
+                            stream=False
+                        )
+
+        assert result["success"] is False
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_chat_db_close_error(self, mock_agent, mock_byok_handler):
+        """
+        Test DB session close error handling in finally block.
+
+        Validates:
+        - db.close() errors in finally block are caught
+        - Response still returned successfully
+        - No exception propagates to caller
+        """
+        mock_tokens = ["Success", " despite", " close", " error"]
+
+        mock_db = MagicMock()
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
+        mock_db.refresh = Mock()
+        mock_db.close = Mock(side_effect=Exception("Connection already closed"))
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=mock_db):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = MagicMock()
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-close-error"
+                                mock_sess_mgr.return_value = mock_session
+
+                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                    result = await execute_agent_chat(
+                                        agent_id=mock_agent.id,
+                                        message="Test close error",
+                                        user_id="test-user-close-error",
+                                        session_id=None,
+                                        workspace_id="default",
+                                        conversation_history=None,
+                                        stream=False
+                                    )
+
+        # Should succeed despite close error
+        assert result["success"] is True
+        assert result["response"] == "Success despite close error"
+
+
+class TestSyncWrapper:
+    """Test synchronous wrapper functionality."""
+
+    def test_execute_agent_chat_sync_basic(self, mock_agent, mock_byok_handler):
+        """
+        Test sync wrapper basic functionality.
+
+        Validates:
+        - execute_agent_chat_sync properly wraps async function
+        - Response returned successfully
+        - All fields present in response
+        """
+        from core.agent_execution_service import execute_agent_chat_sync
+
+        mock_tokens = ["Sync", " response"]
+
+        with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
+
+                with patch("core.agent_execution_service.AgentGovernanceService") as MockGovernance:
+                    mock_governance = MagicMock()
+                    mock_governance.can_perform_action.return_value = {
+                        "allowed": True,
+                        "reason": "Agent is allowed"
+                    }
+                    MockGovernance.return_value = mock_governance
+
+                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                        async def mock_stream(**kwargs):
+                            for token in mock_tokens:
+                                yield token
+
+                        mock_byok_handler.stream_completion = mock_stream
+
+                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                            mock_history = MagicMock()
+                            mock_history.add_message = MagicMock()
+                            mock_hist_mgr.return_value = mock_history
+
+                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                                mock_session = MagicMock()
+                                mock_session.create_session.return_value = "test-session-sync"
+                                mock_sess_mgr.return_value = mock_session
+
+                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                    result = execute_agent_chat_sync(
+                                        agent_id=mock_agent.id,
+                                        message="Sync test",
+                                        user_id="test-sync-user",
+                                    )
+
+        # Should succeed
+        assert result["success"] is True
+        assert result["response"] == "Sync response"
