@@ -1,15 +1,15 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v2.0 Feature & Coverage Complete
+## Current Milestone: v3.0 Production Readiness
 
-**Goal:** Complete all remaining test coverage phases (55 incomplete) and integrate Community Skills feature while achieving 80% overall coverage with 100% test pass rate.
+**Goal:** Achieve 80% test coverage across all backend services and fix all runtime errors to ensure production stability.
 
-**Target features:**
-- Community Skills Integration (5,000+ OpenClaw skills)
-- Agent Layer Testing (governance, graduation, execution)
-- Test failure fixes (all 40+ failures resolved)
-- Tier 1 coverage push (28% overall coverage target)
-- Memory layer verification (episodic memory coverage)
+**Target outcomes:**
+- 80% test coverage across core services, API endpoints, and data layer
+- All runtime errors fixed (crashes, wrong results, exceptions)
+- Stable test suite with 100% pass rate
+- CI/CD quality gates enforcing coverage threshold
+- Production-ready codebase with comprehensive test safety net
 
 **Achievement from v1.0:** 200/203 plans complete (99%), 81 tests passing in Phase 28, production-ready codebase with comprehensive testing infrastructure.
 
@@ -43,14 +43,13 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-<!-- Milestone v2.0: Complete all 55 remaining phases -->
-- [ ] **Community Skills Integration** — Import 5,000+ OpenClaw skills with Docker sandbox security (Phase 14)
-- [ ] **Agent Layer Testing** — Comprehensive governance, graduation, and execution coverage (Phase 17)
-- [ ] **Test Failure Fixes** — Resolve all 40+ remaining test failures across workflow engine, analytics, BYOK, governance (Phases 10, 19)
-- [ ] **Tier 1 Coverage Push** — Achieve 28% overall coverage by testing 6 highest-impact files (>500 lines, <20% coverage) (Phase 12)
-- [ ] **Memory Layer Verification** — Episodic memory coverage with property-based invariants (Phase 3)
-- [ ] **Mobile Coverage Completion** — Resolve Expo SDK 50 compatibility, complete device context tests (Phase 5)
-- [ ] **Documentation Cleanup** — Update all docs to reflect v2.0 features (Phase 24)
+<!-- Milestone v3.0: Production Readiness with 80% coverage -->
+- [ ] **Runtime Error Fixes** — Identify and fix all crashes, exceptions, and runtime errors across backend services
+- [ ] **Core AI Services Coverage** — 80%+ coverage for agent orchestration, governance, LLM routing, autonomous coding
+- [ ] **API Endpoints Coverage** — 80%+ coverage for all REST API routes, authentication, WebSocket, request handling
+- [ ] **Data Layer Coverage** — 80%+ coverage for database models, migrations, SQLAlchemy operations
+- [ ] **Test Suite Stability** — Fix all flaky tests, achieve 100% pass rate consistently
+- [ ] **CI/CD Quality Gates** — Enforce 80% coverage threshold in deployment pipeline
 
 ### Out of Scope
 
@@ -113,4 +112,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-02-18 after Milestone v2.0 initialization*
+*Last updated: 2026-02-22 after Milestone v3.0 initialization*
