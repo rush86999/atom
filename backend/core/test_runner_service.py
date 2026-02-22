@@ -373,6 +373,70 @@ class TestRunnerService:
         """
         return duration_seconds > 30.0
 
+    async def detect_flaky_tests(
+        self,
+        test_file: str,
+        max_retries: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Detect flaky tests by running multiple times and checking for inconsistent results.
+
+        Args:
+            test_file: Path to test file
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Dict with flaky_tests list and retry results
+        """
+        results = []
+        for attempt in range(max_retries + 1):
+            result = await self.run_tests(test_files=[test_file], coverage=False, verbose=False)
+            results.append(result)
+
+            # If test passed consistently (no failures), skip remaining retries
+            if result.get("failed", 0) == 0 and attempt < max_retries:
+                # Quick exit on clean pass
+                break
+
+        # Analyze results for flakiness
+        if len(results) < 2:
+            return {"flaky_tests": [], "total_attempts": len(results)}
+
+        # Track test outcomes across runs
+        test_outcomes = {}  # test_name -> list of outcomes
+
+        for result in results:
+            # Track failed tests
+            for failure in result.get("failures", []):
+                test_name = failure.get("test_name", "unknown")
+                if test_name not in test_outcomes:
+                    test_outcomes[test_name] = []
+                test_outcomes[test_name].append("failed")
+
+        # Find tests that passed sometimes but failed others (flaky)
+        flaky_tests = []
+        for test_name, outcomes in test_outcomes.items():
+            # A test is flaky if it failed in some runs but not all
+            failed_count = outcomes.count("failed")
+            total_runs = len(results)
+
+            if failed_count > 0 and failed_count < total_runs:
+                # Test failed in some runs but passed in others
+                pass_count = total_runs - failed_count
+                flaky_tests.append({
+                    "test_name": test_name,
+                    "outcomes": outcomes,
+                    "pass_rate": pass_count / total_runs,
+                    "failed_count": failed_count,
+                    "total_runs": total_runs
+                })
+
+        return {
+            "flaky_tests": flaky_tests,
+            "total_attempts": len(results),
+            "retry_results": results
+        }
+
 
 # ============================================================================
 # Task 2: StackTraceAnalyzer for failure analysis
