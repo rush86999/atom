@@ -42,6 +42,12 @@ from core.llm.byok_handler import BYOKHandler
 logger = logging.getLogger(__name__)
 
 
+# Coverage target constants
+COVERAGE_TARGET_UNIT = 85.0
+COVERAGE_TARGET_INTEGRATION = 70.0
+COVERAGE_TARGET_E2E = 60.0
+
+
 # ============================================================================
 # Task 1: Test File Structure Generator
 # ============================================================================
@@ -1222,27 +1228,31 @@ class CoverageAnalyzer:
     def check_coverage_target_met(
         self,
         coverage_percent: float,
-        target_type: str  # "unit" or "integration"
+        target_type: str  # "unit", "integration", or "e2e"
     ) -> bool:
         """
-        Check if coverage meets target.
+        Check if coverage meets target for given type.
 
         Args:
             coverage_percent: Current coverage percentage
-            target_type: Type of tests (unit or integration)
+            target_type: 'unit', 'integration', or 'e2e'
 
         Returns:
-            True if coverage target met, False otherwise
+            True if target met, False otherwise
 
         Targets:
         - Unit tests: 85%
         - Integration tests: 70%
+        - E2E tests: 60%
         """
         if target_type == "unit":
-            return coverage_percent >= 85.0
+            return coverage_percent >= COVERAGE_TARGET_UNIT
         elif target_type == "integration":
-            return coverage_percent >= 70.0
+            return coverage_percent >= COVERAGE_TARGET_INTEGRATION
+        elif target_type == "e2e":
+            return coverage_percent >= COVERAGE_TARGET_E2E
         else:
+            # Unknown target type, use conservative 80%
             return coverage_percent >= 80.0
 
     def _identify_missing_branches(
