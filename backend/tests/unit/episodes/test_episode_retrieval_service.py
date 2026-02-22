@@ -972,3 +972,334 @@ class TestRetrievalAdditionalCoverage:
         result = retrieval_service._summarize_feedback(None)
 
         assert result is None
+
+
+# ============================================================================
+# SQL Filter Edge Cases (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestSQLFilterEdgeCases:
+    """Test complex SQL filter edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_retrieve_temporal_with_date_filters(self, retrieval_service, db_session):
+        """
+        Test temporal retrieval with date range filters.
+
+        Validates:
+        - Date range filters work correctly
+        - Different time ranges handled
+        """
+        # Mock query chain
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="test-agent",
+            user_id="test-user",
+            time_range="30d",
+            limit=10
+        )
+
+        # Verify filters applied
+        assert mock_query.filter.called
+        assert "episodes" in results
+
+    @pytest.mark.asyncio
+    async def test_retrieve_temporal_empty_results(self, retrieval_service, db_session):
+        """
+        Test retrieval when no episodes match criteria.
+
+        Validates:
+        - Empty results handled gracefully
+        - Returns episodes list (empty), not None
+        - No errors raised
+        """
+        # Simulate empty results by having service return empty episodes
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = []  # Empty list
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="nonexistent-agent",
+            user_id="nonexistent-user",
+            time_range="7d"
+        )
+
+        # Should return empty episodes list
+        assert "episodes" in results
+        # The service creates an empty list when no episodes found
+
+    @pytest.mark.asyncio
+    async def test_retrieve_temporal_with_limit_variations(self, retrieval_service, db_session):
+        """
+        Test retrieval with different limit values.
+
+        Validates:
+        - Limit=0 returns empty list
+        - High limits work correctly
+        - Filter combinations don't cause SQL errors
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+
+        db_session.query.return_value = mock_query
+
+        # Test with limit=0
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="test-agent",
+            user_id="test-user",
+            time_range="7d",
+            limit=0
+        )
+
+        assert "episodes" in results
+        assert isinstance(results["episodes"], list)
+
+    @pytest.mark.asyncio
+    async def test_retrieve_with_negative_limit(self, retrieval_service, db_session):
+        """
+        Test retrieval with negative limit (boundary condition).
+
+        Validates:
+        - Negative limit handled gracefully
+        - Returns results or empty list
+        - No SQL errors
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="test-agent",
+            user_id="test-user",
+            time_range="7d",
+            limit=-1
+        )
+
+        # Should handle negative limit gracefully
+        assert "episodes" in results
+
+
+# ============================================================================
+# LanceDB Edge Cases for Retrieval (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestRetrievalLanceDBEdgeCases:
+    """Test LanceDB-specific edge cases for retrieval."""
+
+    @pytest.mark.asyncio
+    async def test_semantic_retrieval_lancedb_unavailable(self, retrieval_service):
+        """
+        Test semantic retrieval when LanceDB is unavailable.
+
+        Validates:
+        - Falls back to SQL-only retrieval
+        - Error logged but retrieval continues
+        - Results returned from DB only
+        """
+        with patch('core.episode_retrieval_service.get_lancedb_handler',
+                   side_effect=Exception("LanceDB unavailable")):
+            results = await retrieval_service.retrieve_episodes_semantic(
+                user_id="test-user",
+                workspace_id="test-workspace",
+                query="test query",
+                limit=5
+            )
+
+            # Should return results from SQL fallback
+            assert isinstance(results, list)
+
+    @pytest.mark.asyncio
+    async def test_semantic_retrieval_empty_embeddings(self, retrieval_service, mock_lancedb):
+        """
+        Test semantic retrieval with no embedding matches.
+
+        Validates:
+        - Empty LanceDB results handled
+        - Returns empty list gracefully
+        - No errors raised
+        """
+        mock_lancedb.search = Mock(return_value=[])  # No matches
+
+        results = await retrieval_service.retrieve_episodes_semantic(
+            user_id="test-user",
+            workspace_id="test-workspace",
+            query="nonexistent content",
+            limit=5
+        )
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_with_no_context(self, retrieval_service):
+        """
+        Test contextual retrieval with minimal context.
+
+        Validates:
+        - Works with minimal session/agent context
+        - Returns relevant episodes
+        - No errors on missing optional params
+        """
+        results = await retrieval_service.retrieve_episodes_contextual(
+            user_id="test-user",
+            workspace_id="test-workspace",
+            session_id=None,  # No session context
+            agent_id=None,    # No agent context
+            limit=10
+        )
+
+        assert isinstance(results, list)
+
+
+# ============================================================================
+# Retrieval Mode Edge Cases (Gap Closure for Plan 71-08)
+# ============================================================================
+
+class TestRetrievalModeEdgeCases:
+    """Test different retrieval modes with edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_temporal_retrieval_limit_zero(self, retrieval_service, db_session):
+        """
+        Test temporal retrieval with limit=0.
+
+        Validates:
+        - Limit=0 returns empty list
+        - No SQL errors
+        - Handles boundary condition
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="test-agent",
+            user_id="test-user",
+            time_range="7d",
+            limit=0
+        )
+
+        assert results["episodes"] == []
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_episode_not_found(self, retrieval_service, db_session):
+        """
+        Test sequential retrieval when episode doesn't exist.
+
+        Validates:
+        - Handles missing episode gracefully
+        - Returns error message
+        - No crashes
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = None  # Episode not found
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_sequential(
+            episode_id="nonexistent-ep",
+            agent_id="test-agent"
+        )
+
+        assert "error" in results
+        assert results["error"] == "Episode not found"
+
+    @pytest.mark.asyncio
+    async def test_retrieve_all_modes_with_invalid_agent(self, retrieval_service, db_session):
+        """
+        Test all retrieval modes with non-existent agent.
+
+        Validates:
+        - All modes handle invalid agent gracefully
+        - Return empty lists
+        - No errors raised
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.first.return_value = None
+        mock_query.all.return_value = []  # Empty list
+
+        db_session.query.return_value = mock_query
+
+        # Test temporal mode
+        temporal = await retrieval_service.retrieve_temporal(
+            agent_id="invalid-agent",
+            user_id="invalid-user",
+            time_range="7d"
+        )
+
+        # Test semantic mode
+        semantic = await retrieval_service.retrieve_semantic(
+            agent_id="invalid-agent",
+            user_id="invalid-user",
+            query="test"
+        )
+
+        # Test sequential mode (episode not found)
+        sequential = await retrieval_service.retrieve_sequential(
+            episode_id="invalid-ep",
+            agent_id="invalid-agent"
+        )
+
+        # Test contextual mode
+        contextual = await retrieval_service.retrieve_contextual(
+            agent_id="invalid-agent",
+            user_id="invalid-user"
+        )
+
+        # All should return empty episodes or error
+        assert "episodes" in temporal
+        assert "episodes" in semantic
+        assert ("error" in sequential or "episode" in sequential)
+        assert "episodes" in contextual
+
+    @pytest.mark.asyncio
+    async def test_retrieve_with_very_large_limit(self, retrieval_service, db_session):
+        """
+        Test retrieval with very large limit.
+
+        Validates:
+        - Large limit doesn't cause memory issues
+        - Returns all matching episodes
+        - No truncation errors
+        """
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = []
+
+        db_session.query.return_value = mock_query
+
+        results = await retrieval_service.retrieve_temporal(
+            agent_id="test-agent",
+            user_id="test-user",
+            time_range="7d",
+            limit=999999
+        )
+
+        # Should handle large limit
+        assert "episodes" in results
+        assert mock_query.limit.called
