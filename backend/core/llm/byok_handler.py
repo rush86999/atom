@@ -166,44 +166,46 @@ class BYOKHandler:
 
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
-            if self.byok_manager.is_configured(self.workspace_id, provider_id):
+            byok_configured = self.byok_manager.is_configured(self.workspace_id, provider_id)
+            key_source = None
+            api_key = None
+            key_suffix = None
+
+            if byok_configured:
                 api_key = self.byok_manager.get_api_key(provider_id)
-                try:
-                    self.clients[provider_id] = OpenAI(
-                        api_key=api_key,
-                        base_url=config["base_url"] # base_url can be None for OpenAI
-                    )
-                    if AsyncOpenAI:
-                        self.async_clients[provider_id] = AsyncOpenAI(
-                            api_key=api_key,
-                            base_url=config["base_url"]
-                        )
-                    logger.info(f"Initialized BYOK client for {provider_id}")
-                except Exception as e:
-                    logger.error(f"Failed to initialize {provider_id} client: {e}")
+                key_source = "BYOK_MANAGER"
+                key_suffix = api_key[-4:] if api_key and len(api_key) >= 4 else "None"
+                logger.debug(f"[BYOK] {provider_id}: Using BYOK manager key (ending in {key_suffix})")
             else:
                 # Fallback to env for development if BYOK not configured
                 env_key = f"{provider_id.upper()}_API_KEY"
                 api_key = os.getenv(env_key)
                 if api_key:
-                    try:
-                        if config.get("base_url"):
-                            self.clients[provider_id] = OpenAI(
+                    key_source = "ENV_VAR"
+                    key_suffix = api_key[-4:] if api_key and len(api_key) >= 4 else "None"
+                    logger.debug(f"[BYOK] {provider_id}: Using environment variable {env_key} (key ending in {key_suffix})")
+                else:
+                    logger.debug(f"[BYOK] {provider_id}: No API key found (BYOK not configured, {env_key} not set)")
+
+            if api_key:
+                try:
+                    if config.get("base_url"):
+                        self.clients[provider_id] = OpenAI(
+                            api_key=api_key,
+                            base_url=config["base_url"]
+                        )
+                        if AsyncOpenAI:
+                            self.async_clients[provider_id] = AsyncOpenAI(
                                 api_key=api_key,
                                 base_url=config["base_url"]
                             )
-                            if AsyncOpenAI:
-                                self.async_clients[provider_id] = AsyncOpenAI(
-                                    api_key=api_key,
-                                    base_url=config["base_url"]
-                                )
-                        else:
-                            self.clients[provider_id] = OpenAI(api_key=api_key)
-                            if AsyncOpenAI:
-                                self.async_clients[provider_id] = AsyncOpenAI(api_key=api_key)
-                        logger.info(f"Initialized BYOK client for {provider_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to initialize {provider_id} client: {e}")
+                    else:
+                        self.clients[provider_id] = OpenAI(api_key=api_key)
+                        if AsyncOpenAI:
+                            self.async_clients[provider_id] = AsyncOpenAI(api_key=api_key)
+                    logger.info(f"Initialized BYOK client for {provider_id} (source: {key_source}, key ending in {key_suffix})")
+                except Exception as e:
+                    logger.error(f"Failed to initialize {provider_id} client: {e}")
 
     def get_context_window(self, model_name: str) -> int:
         """
