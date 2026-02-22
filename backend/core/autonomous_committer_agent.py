@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from core.autonomous_coder_agent import CodeGeneratorOrchestrator
 from core.code_quality_service import CodeQualityService, QualityCheckResults
+from core.episode_segmentation_service import EpisodeSegmentationService
 from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
 from core.llm.byok_handler import BYOKHandler
 from core.test_runner_service import TestRunnerService
@@ -969,20 +970,25 @@ class CommitterAgent:
             github_token=github_token
         )
         self.quality_service = CodeQualityService()
+        # Initialize episode service for WorldModel recall
+        self.episode_service = EpisodeSegmentationService(db, byok_handler)
 
     async def create_commit(
         self,
         implementation_result: Dict[str, Any],
         test_results: Dict[str, Any],
-        workflow_id: str
+        workflow_id: str,
+        episode_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create Git commit for implementation.
+        Creates EpisodeSegment for WorldModel recall if episode_id provided.
 
         Args:
             implementation_result: Code generation result
             test_results: Test execution results
             workflow_id: Workflow tracking ID
+            episode_id: Optional episode ID for segment creation
 
         Returns:
             {
@@ -1047,6 +1053,16 @@ class CommitterAgent:
 
         # Save to workflow
         self.save_commit_to_workflow(workflow_id, result)
+
+        # Create EpisodeSegment for commit operation
+        if episode_id:
+            await self._create_commit_segment(
+                episode_id=episode_id,
+                commit_sha=commit_sha,
+                commit_message=commit_message,
+                files_committed=len(files_to_stage),
+                branch=branch
+            )
 
         logger.info(f"Commit created successfully: {commit_sha}")
         return result
@@ -1222,6 +1238,65 @@ class CommitterAgent:
             logger.info(f"Saved commit to workflow {workflow_id}")
         else:
             logger.warning(f"Workflow {workflow_id} not found")
+
+    async def _create_commit_segment(
+        self,
+        episode_id: str,
+        commit_sha: str,
+        commit_message: str,
+        files_committed: int,
+        branch: str,
+    ):
+        """
+        Create EpisodeSegment for commit operation.
+
+        Args:
+            episode_id: Episode ID to link segment to
+            commit_sha: Git commit SHA
+            commit_message: Commit message
+            files_committed: Number of files committed
+            branch: Git branch name
+        """
+        import uuid
+        from core.models import EpisodeSegment
+
+        try:
+            # Extract commit type from message
+            commit_type = "unknown"
+            if ":" in commit_message:
+                commit_type = commit_message.split(":")[0].split("(")[0]
+
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,
+                content=f"Git commit created. SHA: {commit_sha}\n"
+                       f"Message: {commit_message}\n"
+                       f"Files: {files_committed}, Branch: {branch}",
+                content_summary=f"Commit {commit_sha[:8]}: {commit_type} ({files_committed} files)",
+                source_type="autonomous_coding",
+                source_id=commit_sha,
+                canvas_context={
+                    "canvas_type": "git_commit",
+                    "presentation_summary": f"Autonomous commit: {commit_type} change, {files_committed} files",
+                    "visual_elements": ["commit_hash", "branch_indicator", "file_count"],
+                    "user_interaction": "Agent created commit autonomously",
+                    "critical_data_points": {
+                        "commit_sha": commit_sha,
+                        "commit_message": commit_message,
+                        "commit_type": commit_type,
+                        "files_committed": files_committed,
+                        "branch": branch
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
+            logger.info(f"Created commit segment {segment.id} for episode {episode_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to create commit segment: {e}")
 
     def _infer_repo_owner(self) -> str:
         """

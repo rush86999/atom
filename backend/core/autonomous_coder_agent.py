@@ -32,6 +32,7 @@ from core.autonomous_planning_agent import (
     TaskComplexity,
 )
 from core.code_quality_service import CodeQualityService
+from core.episode_segmentation_service import EpisodeSegmentationService
 from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
 from core.llm.byok_handler import BYOKHandler
 
@@ -96,21 +97,26 @@ class CoderAgent:
         self.quality_service = quality_service
         self.specialization = specialization
         self.code_templates = self._load_templates()
+        # Initialize episode service for WorldModel recall
+        self.episode_service = EpisodeSegmentationService(db, byok_handler)
 
     async def generate_code(
         self,
         task: ImplementationTask,
         context: Dict[str, Any],
+        episode_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate code for an implementation task.
 
         Routes to specialized generation method based on task type.
         Applies quality gates before returning generated code.
+        Creates EpisodeSegment for WorldModel recall if episode_id provided.
 
         Args:
             task: ImplementationTask from PlanningAgent
             context: Codebase context, existing code patterns
+            episode_id: Optional episode ID for segment creation
 
         Returns:
             {
@@ -171,6 +177,15 @@ class CoderAgent:
 
                 all_warnings.extend(quality_result["warnings"])
 
+            # Create EpisodeSegment for code generation phase
+            if episode_id and generated_files:
+                await self._create_code_generation_segment(
+                    episode_id=episode_id,
+                    task=task,
+                    generated_files=generated_files,
+                    warnings=all_warnings
+                )
+
             return {
                 "files": generated_files,
                 "errors": all_errors,
@@ -184,6 +199,69 @@ class CoderAgent:
                 "errors": [str(e)],
                 "warnings": [],
             }
+
+    async def _create_code_generation_segment(
+        self,
+        episode_id: str,
+        task: ImplementationTask,
+        generated_files: List[Dict[str, Any]],
+        warnings: List[str],
+    ):
+        """
+        Create EpisodeSegment for code generation phase.
+
+        Args:
+            episode_id: Episode ID to link segment to
+            task: Implementation task that was executed
+            generated_files: List of generated file data
+            warnings: Any warnings from code generation
+        """
+        import uuid
+        from core.models import EpisodeSegment
+
+        try:
+            # Extract file paths and quality info
+            file_paths = [f["path"] for f in generated_files]
+            quality_passed = all(
+                f.get("quality_checks", {}).get("mypy_passed", False)
+                for f in generated_files
+            )
+
+            # Create segment
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,  # Will be updated by caller
+                content=f"Code generation completed for task: {task.name}\n"
+                       f"Files created: {len(generated_files)}\n"
+                       f"Files: {', '.join(file_paths)}\n"
+                       f"Quality checks passed: {quality_passed}",
+                content_summary=f"Generated {len(generated_files)} files for task '{task.name}'",
+                source_type="autonomous_coding",
+                source_id=str(uuid.uuid4()),  # Generate unique ID for this operation
+                canvas_context={
+                    "canvas_type": "code_generation",
+                    "presentation_summary": f"Autonomous code generation: {len(generated_files)} files for task '{task.name}'",
+                    "visual_elements": ["code_editor", "file_tree", "quality_report"],
+                    "user_interaction": "Agent generated code autonomously",
+                    "critical_data_points": {
+                        "files_created": file_paths,
+                        "language": generated_files[0].get("language", "unknown") if generated_files else "unknown",
+                        "quality_checks_passed": quality_passed,
+                        "warnings_count": len(warnings),
+                        "task_name": task.name,
+                        "task_complexity": task.complexity.value if task.complexity else "unknown"
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
+            logger.info(f"Created code generation segment {segment.id} for episode {episode_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to create code generation segment: {e}")
+            # Don't fail code generation if segment creation fails
 
     def _load_templates(self) -> Dict[str, str]:
         """
@@ -1554,22 +1632,27 @@ class CodeGeneratorOrchestrator:
         self.backend_coder = BackendCoder(db, byok_handler)
         self.frontend_coder = FrontendCoder(db, byok_handler)
         self.database_coder = DatabaseCoder(db, byok_handler)
+        # Initialize episode service for WorldModel recall
+        self.episode_service = EpisodeSegmentationService(db, byok_handler)
 
     async def generate_from_plan(
         self,
         plan: Dict[str, Any],
         start_index: int = 0,
         end_index: Optional[int] = None,
+        episode_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate code for tasks in implementation plan.
 
         Supports parallel generation by processing task slices.
+        Creates EpisodeSegment for WorldModel recall if episode_id provided.
 
         Args:
             plan: Implementation plan from PlanningAgent
             start_index: Starting task index (for parallelization)
             end_index: Ending task index (for parallelization)
+            episode_id: Optional episode ID for segment creation
 
         Returns:
             {
@@ -1614,12 +1697,79 @@ class CodeGeneratorOrchestrator:
         # Build quality summary
         quality_summary = self._build_quality_summary(files_generated)
 
+        # Create EpisodeSegment for code generation phase
+        if episode_id and files_generated:
+            await self._create_orchestrator_segment(
+                episode_id=episode_id,
+                plan=plan,
+                files_generated=files_generated,
+                total_lines=total_lines,
+                quality_summary=quality_summary
+            )
+
         return {
             "files_generated": files_generated,
             "total_lines": total_lines,
             "quality_summary": quality_summary,
             "errors": all_errors,
         }
+
+    async def _create_orchestrator_segment(
+        self,
+        episode_id: str,
+        plan: Dict[str, Any],
+        files_generated: List[Dict[str, Any]],
+        total_lines: int,
+        quality_summary: Dict[str, Any],
+    ):
+        """
+        Create EpisodeSegment for orchestrator code generation.
+
+        Args:
+            episode_id: Episode ID to link segment to
+            plan: Implementation plan
+            files_generated: List of generated files
+            total_lines: Total lines of code generated
+            quality_summary: Quality gate results
+        """
+        import uuid
+        from core.models import EpisodeSegment
+
+        try:
+            file_paths = [f["path"] for f in files_generated]
+            quality_passed = quality_summary.get("all_passed", False)
+
+            segment = EpisodeSegment(
+                id=str(uuid.uuid4()),
+                episode_id=episode_id,
+                segment_type="execution",
+                sequence_order=0,
+                content=f"Code orchestration completed. Files: {len(files_generated)}, Lines: {total_lines}\n"
+                       f"Quality passed: {quality_passed}\n"
+                       f"Files: {', '.join(file_paths)}",
+                content_summary=f"Orchestrated generation of {len(files_generated)} files ({total_lines} lines)",
+                source_type="autonomous_coding",
+                source_id=str(uuid.uuid4()),
+                canvas_context={
+                    "canvas_type": "code_generation",
+                    "presentation_summary": f"Autonomous code orchestration: {len(files_generated)} files, {total_lines} lines",
+                    "visual_elements": ["file_tree", "quality_dashboard", "progress_tracker"],
+                    "user_interaction": "Agent orchestrated code generation autonomously",
+                    "critical_data_points": {
+                        "files_created": file_paths,
+                        "total_lines": total_lines,
+                        "quality_passed": quality_passed,
+                        "task_count": len(plan.get("tasks", [])),
+                        "language": files_generated[0].get("language", "unknown") if files_generated else "unknown"
+                    }
+                }
+            )
+            self.db.add(segment)
+            self.db.commit()
+            logger.info(f"Created orchestrator segment {segment.id} for episode {episode_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to create orchestrator segment: {e}")
 
     async def generate_task(
         self,
