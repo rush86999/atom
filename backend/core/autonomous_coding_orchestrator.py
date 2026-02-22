@@ -1218,16 +1218,29 @@ class AgentOrchestrator:
         """Phase 5: Generate tests with TestGeneratorService."""
         state = await self.state_store.get_state(workflow_id)
 
-        tests_result = await self.test_generator.generate_tests(
-            feature_description=state["feature_request"],
-            implementation_plan=state.get("implementation_plan", {}),
-            files_created=state.get("files_created", []),
-            workspace_id=state["workspace_id"]
+        # Get the first generated source file for coverage-driven generation
+        files_created = state.get("files_created", [])
+        if not files_created:
+            logger.warning("No files created yet, skipping test generation")
+            return {
+                "phase": "generate_tests",
+                "artifacts": {"test_files": []}
+            }
+
+        source_file = files_created[0]
+
+        # Generate tests iteratively until coverage target met
+        test_result = await self.test_generator.generate_until_coverage_target(
+            source_code_path=source_file,
+            language="python",
+            target_coverage=85.0,  # 85% unit test target
+            test_type="unit",
+            max_iterations=5
         )
 
         # Update state
-        test_files = tests_result.get("test_files", [])
-        test_count = tests_result.get("test_count", len(test_files))
+        test_files = test_result.get("test_files", [])
+        test_count = test_result.get("test_count", len(test_files))
         await self.state_store.update_state(workflow_id, {
             "files_created": state.get("files_created", []) + test_files
         })
@@ -1252,7 +1265,7 @@ class AgentOrchestrator:
                     "critical_data_points": {
                         "test_files_created": test_files,
                         "test_count": test_count,
-                        "target_coverage": tests_result.get("target_coverage", 85.0),
+                        "target_coverage": test_result.get("final_coverage", 85.0),
                         "phase": "test_generation"
                     }
                 }
