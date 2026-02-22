@@ -27,6 +27,7 @@ from core.advanced_workflow_endpoints import (
     WorkflowStepRequest,
     serialize_workflow
 )
+from core.advanced_workflow_system import WorkflowState
 
 
 # =============================================================================
@@ -61,7 +62,8 @@ def mock_state_manager():
 def mock_execution_engine():
     """Mock execution engine"""
     engine = MagicMock()
-    engine.create_workflow = AsyncMock(return_value=Mock(
+    mock_workflow = Mock()
+    mock_workflow.configure_mock(
         workflow_id="test-workflow-123",
         name="Test Workflow",
         description="Test Description",
@@ -71,12 +73,13 @@ def mock_execution_engine():
         input_schema=[],
         steps=[],
         output_config=None,
-        state="draft",
+        state=WorkflowState.DRAFT,
         current_step=None,
         created_at=datetime.now(),
         updated_at=datetime.now(),
         created_by="test-user"
-    ))
+    )
+    engine.create_workflow = AsyncMock(return_value=mock_workflow)
     engine.start_workflow = AsyncMock(return_value={"status": "started"})
     engine.pause_workflow = MagicMock(return_value=True)
     engine.resume_workflow = MagicMock(return_value={"status": "resumed"})
@@ -159,7 +162,8 @@ class TestHelperFunctions:
 
     def test_serialize_workflow_basic(self, sample_workflow_state):
         """Verify basic workflow serialization"""
-        workflow = Mock(
+        workflow = Mock()
+        workflow.configure_mock(
             workflow_id="workflow-123",
             name="Test Workflow",
             description="Test Description",
@@ -169,7 +173,7 @@ class TestHelperFunctions:
             input_schema=[],
             steps=[],
             output_config=None,
-            state="draft",
+            state=WorkflowState.DRAFT,
             current_step=None,
             created_at=datetime.now(),
             updated_at=datetime.now(),
@@ -189,7 +193,13 @@ class TestHelperFunctions:
 
     def test_serialize_workflow_with_steps(self):
         """Verify workflow serialization with steps"""
-        workflow = Mock(
+        workflow = Mock()
+        mock_step = Mock()
+        mock_step.configure_mock(
+            step_id="step1",
+            **{"dict": lambda: {"step_id": "step1", "name": "Step 1"}}
+        )
+        workflow.configure_mock(
             workflow_id="workflow-123",
             name="Test Workflow",
             description="Test",
@@ -197,11 +207,9 @@ class TestHelperFunctions:
             category="test",
             tags=[],
             input_schema=[],
-            steps=[
-                Mock(step_id="step1", dict=lambda: {"step_id": "step1", "name": "Step 1"})
-            ],
+            steps=[mock_step],
             output_config=None,
-            state="draft",
+            state=WorkflowState.DRAFT,
             current_step="step1",
             created_at=datetime.now(),
             updated_at=datetime.now(),

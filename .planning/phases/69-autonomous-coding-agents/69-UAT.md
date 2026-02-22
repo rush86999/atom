@@ -87,17 +87,35 @@ skipped: 0
   reason: "User reported: ImportError: cannot import QUALITY_ENFORCEMENT_ENABLED from core.feature_flags - flags exist inside FeatureFlags class but code imports as module-level variables. Also, no HTTP API endpoints created - autonomous coding is a Python service, not REST API."
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "CRITICAL: Import statement mismatch. QUALITY_ENFORCEMENT_ENABLED and EMERGENCY_QUALITY_BYPASS are defined as class attributes inside FeatureFlags class (lines 82, 85 of feature_flags.py), but autonomous_coding_orchestrator.py (line 40) and 3 other files import them as module-level variables: `from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS`. This is incorrect - they should be accessed as FeatureFlags.QUALITY_ENFORCEMENT_ENABLED or the import should be `from core.feature_flags import FeatureFlags`."
+  artifacts:
+    - "/Users/rushiparikh/projects/atom/backend/core/feature_flags.py:82-85" - Class attribute definitions
+    - "/Users/rushiparikh/projects/atom/backend/core/autonomous_coding_orchestrator.py:40" - Incorrect import
+    - "/Users/rushiparikh/projects/atom/backend/core/code_quality_service.py:31" - Incorrect import
+    - "/Users/rushiparikh/projects/atom/backend/core/autonomous_coder_agent.py:36" - Incorrect import
+    - "/Users/rushiparikh/projects/atom/backend/core/autonomous_committer_agent.py:38" - Incorrect import
+    - "/Users/rushiparikh/projects/atom/backend/api/autonomous_coding_routes.py:1-566" - HTTP API routes exist and are registered in main_api_app.py:1302-1306
+  missing:
+    - "Fix import statements in 4 files to use `from core.feature_flags import FeatureFlags` then access as `FeatureFlags.QUALITY_ENFORCEMENT_ENABLED`"
+    - "OR export module-level variables in feature_flags.py: `QUALITY_ENFORCEMENT_ENABLED = FeatureFlags.QUALITY_ENFORCEMENT_ENABLED`"
+    - "Update all references from QUALITY_ENFORCEMENT_ENABLED to FeatureFlags.QUALITY_ENFORCEMENT_ENABLED"
+  debug_session: "2026-02-22-diagnosis"
 
 - truth: "RequirementParserService successfully parses natural language requirements into structured output with INVEST principles and Gherkin criteria"
   status: failed
   reason: "User reported: DeepSeek API authentication failed - error shows API key ending in 393b but user provided key ending in 65d51. Environment variable export may not persist in subprocess. Service requires LLM API access for natural language parsing."
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "ENVIRONMENT CONFIGURATION: DeepSeek API key mismatch between environment variable and runtime. The BYOKHandler (byok_handler.py:169-206) first checks BYOK manager via `is_configured()`, then falls back to environment variables (line 186-187: `env_key = f\"{provider_id.upper()}_API_KEY\"`). The error suggests either: (1) DEEPSEEK_API_KEY environment variable not set in subprocess/test environment, (2) BYOK manager has stale/incorrect key ending in 393b, (3) Environment variable export in shell session not persisting to Python subprocess. RequirementParserService correctly uses BYOKHandler which should read from os.getenv('DEEPSEEK_API_KEY') as fallback."
+  artifacts:
+    - "/Users/rushiparikh/projects/atom/backend/core/llm/byok_handler.py:169-206" - API key retrieval logic with BYOK + env fallback
+    - "/Users/rushiparikh/projects/atom/backend/core/requirement_parser_service.py:1-150" - Uses BYOKHandler for LLM access
+    - "/Users/rushiparikh/projects/atom/backend/main_api_app.py:78-79" - Shows DEEPSEEK_API_KEY check on startup
+    - "/Users/rushiparikh/projects/atom/backend/api/autonomous_coding_routes.py:169" - Creates BYOKHandler with workspace_id
+  missing:
+    - "Verify DEEPSEEK_API_KEY is set in test environment: `echo $DEEPSEEK_API_KEY`"
+    - "Check BYOK database for stale key: `SELECT api_key FROM ai_service_providers WHERE provider_id='deepseek'`"
+    - "Add debug logging in byok_handler.py:187 to log which API key source is being used (BYOK vs env)"
+    - "Ensure environment variable is exported before running tests: `export DEEPSEEK_API_KEY=sk-...`"
+    - "Consider adding API key validation endpoint to verify credentials before workflow execution"
+  debug_session: "2026-02-22-diagnosis"

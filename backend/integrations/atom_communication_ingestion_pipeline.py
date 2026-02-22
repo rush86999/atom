@@ -1441,6 +1441,8 @@ class CommunicationIngestionPipeline:
                 next_link = None
                 fetch_count = 0
                 max_fetches = 5  # Prevent infinite loops
+                rate_limit_retry_count = 0
+                max_rate_limit_retries = 3  # Maximum retries on rate limit
 
                 while fetch_count < max_fetches:
                     try:
@@ -1455,8 +1457,12 @@ class CommunicationIngestionPipeline:
 
                         if response.status_code == 429:
                             # Rate limited
+                            rate_limit_retry_count += 1
+                            if rate_limit_retry_count > max_rate_limit_retries:
+                                logger.warning(f"Outlook API rate limit exceeded max retries ({max_rate_limit_retries}), returning empty list")
+                                return []
                             retry_after = int(response.headers.get("Retry-After", 30))
-                            logger.warning(f"Outlook API rate limited, waiting {retry_after}s")
+                            logger.warning(f"Outlook API rate limited, waiting {retry_after}s (retry {rate_limit_retry_count}/{max_rate_limit_retries})")
                             await asyncio.sleep(retry_after)
                             continue
 

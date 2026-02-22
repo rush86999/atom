@@ -202,7 +202,7 @@ class CheckpointManager:
             workflow_id=workflow_id,
             phase=phase.value,
             checkpoint_sha=checkpoint_sha,
-            state_json=state,
+            shared_state=state,  # Correct field name based on model
             created_at=datetime.utcnow()
         )
 
@@ -700,8 +700,8 @@ class ProgressTracker:
             agent_id=agent_id,
             phase=phase,
             action=action,
-            input_json=input_data,
-            output_json=output_data,
+            input_data=input_data,  # Correct field name based on model
+            output_data=output_data,  # Correct field name based on model
             status=status,
             error_message=error_message,
             started_at=datetime.utcnow()
@@ -886,7 +886,9 @@ class AgentOrchestrator:
             feature_request=feature_request,
             workspace_id=workspace_id,
             status=WorkflowStatus.RUNNING.value,
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
+            requirements={},  # Initialize with empty dict for requirements field
+            completed_phases=[]  # Initialize empty list
         )
         self.db.add(workflow)
         self.db.commit()
