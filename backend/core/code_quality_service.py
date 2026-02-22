@@ -28,6 +28,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.feature_flags import QUALITY_ENFORCEMENT_ENABLED, EMERGENCY_QUALITY_BYPASS
+
 logger = logging.getLogger(__name__)
 
 
@@ -131,13 +133,7 @@ class CodeQualityService:
             }
 
         except FileNotFoundError:
-            logger.warning("mypy not found - skipping type check")
-            return {
-                "passed": True,  # Don't block if tool unavailable
-                "errors": [],
-                "suggestions": [],
-                "raw_output": "mypy not installed",
-            }
+            return self._handle_tool_unavailable("mypy")
         except Exception as e:
             logger.error(f"mypy check failed: {e}")
             return {
@@ -209,6 +205,14 @@ class CodeQualityService:
             }
 
         except FileNotFoundError:
+            if QUALITY_ENFORCEMENT_ENABLED and not EMERGENCY_QUALITY_BYPASS:
+                logger.error("black not available and QUALITY_ENFORCEMENT_ENABLED=true")
+                return {
+                    "formatted_code": code,
+                    "changed": False,
+                    "diff": "",
+                    "error": "black not available and QUALITY_ENFORCEMENT_ENABLED=true"
+                }
             logger.warning("black not found - returning original code")
             return {
                 "formatted_code": code,
@@ -285,6 +289,14 @@ class CodeQualityService:
             }
 
         except FileNotFoundError:
+            if QUALITY_ENFORCEMENT_ENABLED and not EMERGENCY_QUALITY_BYPASS:
+                logger.error("isort not available and QUALITY_ENFORCEMENT_ENABLED=true")
+                return {
+                    "sorted_code": code,
+                    "changed": False,
+                    "diff": "",
+                    "error": "isort not available and QUALITY_ENFORCEMENT_ENABLED=true"
+                }
             logger.warning("isort not found - returning original code")
             return {
                 "sorted_code": code,
@@ -363,13 +375,7 @@ class CodeQualityService:
             }
 
         except FileNotFoundError:
-            logger.warning("flake8 not found - skipping lint")
-            return {
-                "passed": True,
-                "warnings": [],
-                "errors": [],
-                "raw_output": "flake8 not installed",
-            }
+            return self._handle_tool_unavailable("flake8", return_format="flake8")
         except Exception as e:
             logger.error(f"flake8 failed: {e}")
             return {
@@ -451,6 +457,70 @@ class CodeQualityService:
             "errors": errors,
             "warnings": warnings,
         }
+
+    def _handle_tool_unavailable(self, tool_name: str, check_name: str = None, return_format: str = "default") -> Dict[str, Any]:
+        """
+        Handle unavailable tools with configurable graceful degradation.
+
+        Args:
+            tool_name: Name of the unavailable tool (e.g., "mypy", "black")
+            check_name: Name of the quality check (defaults to tool_name)
+            return_format: Format for return value ("default", "flake8")
+
+        Returns:
+            Quality check result based on enforcement mode
+        """
+        if check_name is None:
+            check_name = tool_name
+
+        if EMERGENCY_QUALITY_BYPASS:
+            # Emergency mode: allow degradation
+            logger.warning(f"{tool_name} not available (EMERGENCY_QUALITY_BYPASS active)")
+            if return_format == "flake8":
+                return {
+                    "passed": True,
+                    "warnings": [],
+                    "errors": [],
+                    "raw_output": f"{tool_name} not available (EMERGENCY_BYPASS active)",
+                }
+            return {
+                "passed": True,
+                "errors": [],
+                "suggestions": [],
+                "raw_output": f"{tool_name} not available (EMERGENCY_BYPASS active)",
+            }
+        elif QUALITY_ENFORCEMENT_ENABLED:
+            # Enforcement mode: fail when tools unavailable
+            logger.error(f"{tool_name} not available and QUALITY_ENFORCEMENT_ENABLED=true")
+            if return_format == "flake8":
+                return {
+                    "passed": False,
+                    "warnings": [],
+                    "errors": [f"{tool_name} not available and QUALITY_ENFORCEMENT_ENABLED=true"],
+                    "raw_output": f"{tool_name} not available",
+                }
+            return {
+                "passed": False,
+                "errors": [f"{tool_name} not available and QUALITY_ENFORCEMENT_ENABLED=true"],
+                "suggestions": [f"Install {tool_name} or set QUALITY_ENFORCEMENT_ENABLED=false"],
+                "raw_output": f"{tool_name} not available",
+            }
+        else:
+            # Advisory mode: allow degradation
+            logger.warning(f"{tool_name} not available (enforcement disabled)")
+            if return_format == "flake8":
+                return {
+                    "passed": True,
+                    "warnings": [],
+                    "errors": [],
+                    "raw_output": f"{tool_name} not available (enforcement disabled)",
+                }
+            return {
+                "passed": True,
+                "errors": [],
+                "suggestions": [],
+                "raw_output": f"{tool_name} not available (enforcement disabled)",
+            }
 
     def _run_command(
         self, command: List[str], input_text: Optional[str] = None
