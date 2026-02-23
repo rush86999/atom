@@ -7,6 +7,7 @@ test data, bypassing slow UI navigation (10-100x speedup).
 
 import pytest
 from typing import Dict, Any
+from sqlalchemy.orm import Session
 
 from tests.e2e_ui.utils.api_setup import (
     APIClient,
