@@ -652,15 +652,15 @@ class TestParameterValidation:
         # The validation should check the minimum
         assert not result["valid"] or "value" in result.get("errors", {})
 
-    def test_validate_parameters_validated_inputs(self, validator):
+    def test_validate_parameters_validated_inputs(self, validator, unique_resource_name):
         """Test that validated_inputs contains the input values"""
         parameters = {
             "username": {"type": "string"}
         }
-        inputs = {"username": "test_user"}
+        inputs = {"username": unique_resource_name}
         result = validator.validate_parameters(parameters, inputs)
         assert "validated_inputs" in result
-        assert result["validated_inputs"]["username"] == "test_user"
+        assert result["validated_inputs"]["username"] == unique_resource_name
 
 
 class TestValidatorRegistration:
