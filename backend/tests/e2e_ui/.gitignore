@@ -1,0 +1,5 @@
+# Ignore all data files by default
+data/*
+
+# But track the quality gate history file
+!data/quality_gate_history.json
