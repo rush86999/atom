@@ -329,3 +329,112 @@ def delete_test_project(client: APIClient, project_id: str, token: Optional[str]
         response = client.delete(f"/api/v1/projects/{project_id}")
 
     return response
+
+
+# ============================================================================
+# Skill Setup Functions
+# ============================================================================
+
+def install_test_skill(client: APIClient, skill_id: str, agent_id: str = "test-agent", token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Install a test skill via API.
+
+    Args:
+        client: APIClient instance
+        skill_id: Skill ID to install
+        agent_id: Agent ID that will use the skill (default: "test-agent")
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Installation response data
+
+    Raises:
+        requests.HTTPError: If installation fails
+    """
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            response = client.post(
+                f"/marketplace/skills/{skill_id}/install",
+                json={
+                    "agent_id": agent_id,
+                    "auto_install_deps": True
+                }
+            )
+        finally:
+            client.token = original_token
+    else:
+        response = client.post(
+            f"/marketplace/skills/{skill_id}/install",
+            json={
+                "agent_id": agent_id,
+                "auto_install_deps": True
+            }
+        )
+
+    return response
+
+
+def get_installed_skills(client: APIClient, token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get installed skills via API.
+
+    Note: This endpoint may need to be implemented.
+    Currently, the marketplace provides search and installation endpoints.
+
+    Args:
+        client: APIClient instance
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Skills data response from API
+
+    Raises:
+        requests.HTTPError: If request fails
+    """
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            # Search all marketplace skills
+            response = client.get("/marketplace/skills")
+        finally:
+            client.token = original_token
+    else:
+        response = client.get("/marketplace/skills")
+
+    return response
+
+
+def uninstall_test_skill(client: APIClient, skill_id: str, token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Uninstall a test skill via API.
+
+    Note: This endpoint may need to be implemented.
+    Skills are typically managed through the skill adapter service.
+
+    Args:
+        client: APIClient instance
+        skill_id: Skill ID to uninstall
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Response data
+
+    Raises:
+        requests.HTTPError: If uninstallation fails
+    """
+    # Note: Uninstall endpoint may not exist in current implementation
+    # This is a placeholder for future implementation
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            response = client.delete(f"/marketplace/skills/{skill_id}")
+        finally:
+            client.token = original_token
+    else:
+        response = client.delete(f"/marketplace/skills/{skill_id}")
+
+    return response
