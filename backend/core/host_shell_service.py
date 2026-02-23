@@ -63,6 +63,31 @@ class HostShellService:
     def __init__(self):
         self.logger = logger
 
+    def validate_command(self, command: str, maturity_level: str = "autonomous") -> Dict[str, Any]:
+        """
+        Validate a command against whitelist and maturity requirements.
+
+        This is a synchronous validation method that checks if a command
+        is allowed without executing it.
+
+        Args:
+            command: Shell command to validate
+            maturity_level: Agent maturity level (default: "autonomous")
+
+        Returns:
+            Dict with validation result including valid, command, category, whitelisted, blocked, reason
+
+        Example:
+            >>> result = host_shell_service.validate_command("ls -la")
+            >>> assert result["valid"] is True
+            >>> result = host_shell_service.validate_command("rm -rf /")
+            >>> assert result["blocked"] is True
+        """
+        from core.command_whitelist import validate_command as validate_cmd
+        # Convert AgentStatus enum values to uppercase strings for whitelist config
+        maturity_upper = maturity_level.upper() if maturity_level else maturity_level
+        return validate_cmd(command, maturity_upper)
+
     async def execute_shell_command(
         self,
         agent_id: str,

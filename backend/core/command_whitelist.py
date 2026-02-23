@@ -243,8 +243,11 @@ def validate_command(
     if not command or not command.strip():
         return {
             "valid": False,
+            "command": None,
             "category": None,
             "maturity_required": None,
+            "whitelisted": False,
+            "blocked": False,
             "reason": "Empty command"
         }
 
@@ -265,8 +268,11 @@ def validate_command(
     if not command_category:
         return {
             "valid": False,
+            "command": base_command,
             "category": None,
             "maturity_required": None,
+            "whitelisted": False,
+            "blocked": False,
             "reason": f"Command '{base_command}' not found in any whitelist category"
         }
 
@@ -274,22 +280,29 @@ def validate_command(
     if command_category == CommandCategory.BLOCKED:
         return {
             "valid": False,
+            "command": base_command,
             "category": command_category.value,
             "maturity_required": "BLOCKED",
+            "whitelisted": True,
+            "blocked": True,
             "reason": f"Command '{base_command}' is blocked for all maturity levels"
         }
 
-    # Check maturity level
+    # Check maturity level (case-insensitive comparison)
     allowed_maturities = category_config["maturity_levels"]
+    maturity_level_upper = maturity_level.upper() if maturity_level else maturity_level
 
-    if maturity_level not in allowed_maturities:
+    if maturity_level_upper not in allowed_maturities:
         # Get minimum required maturity
         min_maturity = allowed_maturities[0] if allowed_maturities else "BLOCKED"
 
         return {
             "valid": False,
+            "command": base_command,
             "category": command_category.value,
             "maturity_required": min_maturity,
+            "whitelisted": True,
+            "blocked": False,
             "reason": (
                 f"Command '{base_command}' requires {min_maturity} maturity level. "
                 f"Current maturity: {maturity_level}"
@@ -299,8 +312,11 @@ def validate_command(
     # All checks passed
     return {
         "valid": True,
+        "command": base_command,
         "category": command_category.value,
         "maturity_required": maturity_level,
+        "whitelisted": True,
+        "blocked": command_category == CommandCategory.BLOCKED,
         "reason": f"Command '{base_command}' is valid for {maturity_level} maturity level"
     }
 
