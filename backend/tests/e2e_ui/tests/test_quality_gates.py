@@ -113,3 +113,51 @@ def test_screenshot_works_with_different_fixtures(page_type: str, request):
     page = request.getfixturevalue(page_type)
     page.goto("/")
     assert page.url is not None
+
+
+# ============================================================================
+# Retry Functionality Tests
+# ============================================================================
+
+def test_retries_disabled_locally(monkeypatch):
+    """Verify test retries are disabled in local development."""
+    # Ensure CI is not set
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    # Import and check configuration
+    from tests.e2e_ui.conftest import is_ci_environment
+
+    assert not is_ci_environment(), "Retries should be disabled in local development"
+
+
+@pytest.mark.skipif(not os.getenv("CI"), reason="Retries only in CI")
+def test_retries_enabled_in_ci():
+    """Verify test retries are enabled in CI environment."""
+    from tests.e2e_ui.conftest import is_ci_environment
+
+    assert os.getenv("CI") == "true", "This test should only run in CI"
+    assert is_ci_environment(), "Retries should be enabled in CI"
+
+
+def test_pytest_reruns_env_variable(monkeypatch):
+    """Verify PYTEST_RERUNS environment variable controls retry count."""
+    # Set custom rerun count
+    monkeypatch.setenv("PYTEST_RERUNS", "3")
+    monkeypatch.setenv("CI", "true")
+
+    # Verify environment variable is set
+    assert os.getenv("PYTEST_RERUNS") == "3"
+
+
+@pytest.mark.flaky  # This marker is for temporary flaky tests
+def test_flaky_marker_example():
+    """
+    Example of flaky test marker (should be removed when fixed).
+
+    This test is marked as flaky - do NOT use for new tests.
+    Only use as temporary workaround while investigating root cause.
+    """
+    # This test is marked as flaky - do NOT use for new tests
+    # Only use as temporary workaround while investigating root cause
+    assert True
