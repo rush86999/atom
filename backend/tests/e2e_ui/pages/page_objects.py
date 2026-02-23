@@ -1027,3 +1027,195 @@ class ProjectsPage(BasePage):
                 self.confirm_delete_button.click()
             else:
                 self.cancel_delete_button.click()
+
+
+class ChatPage(BasePage):
+    """Page Object for Agent Chat interface.
+
+    Encapsulates chat interactions:
+    - Message input and sending
+    - Chat history display
+    - Streaming response indicators
+    - Agent selection
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators using data-testid attributes
+    @property
+    def chat_container(self) -> Locator:
+        """Main chat interface container locator."""
+        return self.page.get_by_test_id("chat-container")
+
+    @property
+    def chat_input(self) -> Locator:
+        """Chat message input field locator."""
+        return self.page.get_by_test_id("chat-input")
+
+    @property
+    def send_button(self) -> Locator:
+        """Send message button locator."""
+        return self.page.get_by_test_id("send-button")
+
+    @property
+    def message_list(self) -> Locator:
+        """Chat history message list locator."""
+        return self.page.get_by_test_id("message-list")
+
+    @property
+    def user_message(self) -> Locator:
+        """User message bubble locator."""
+        return self.page.get_by_test_id("user-message")
+
+    @property
+    def assistant_message(self) -> Locator:
+        """Assistant/agent response message locator."""
+        return self.page.get_by_test_id("assistant-message")
+
+    @property
+    def streaming_indicator(self) -> Locator:
+        """Streaming/loading indicator locator."""
+        return self.page.get_by_test_id("streaming-indicator")
+
+    @property
+    def agent_selector(self) -> Locator:
+        """Agent selection dropdown locator."""
+        return self.page.get_by_test_id("agent-selector")
+
+    @property
+    def message_bubble(self) -> Locator:
+        """Generic message bubble locator (any message)."""
+        return self.page.get_by_test_id("message-bubble")
+
+    def is_loaded(self) -> bool:
+        """Check if chat interface is loaded.
+
+        Returns:
+            bool: True if chat container is visible
+
+        Example:
+            assert chat_page.is_loaded() is True
+        """
+        return self.chat_container.is_visible()
+
+    def navigate(self) -> None:
+        """Navigate to chat page.
+
+        Example:
+            chat_page.navigate()
+            assert chat_page.is_loaded()
+        """
+        self.page.goto("http://localhost:3000/chat")
+
+    def send_message(self, text: str) -> None:
+        """Type and send a chat message.
+
+        Args:
+            text: Message text to send
+
+        Example:
+            chat_page.send_message("Hello agent")
+            # Message sent via /api/atom-agent/chat/stream
+        """
+        self.chat_input.fill(text)
+        self.send_button.click()
+
+    def get_last_message(self) -> str:
+        """Get the most recent message text from chat history.
+
+        Returns:
+            str: Text content of last message, or empty string if none
+
+        Example:
+            msg = chat_page.get_last_message()
+            assert "Hello" in msg
+        """
+        bubbles = self.message_bubble.all()
+        if bubbles:
+            return bubbles[-1].text_content()
+        return ""
+
+    def get_message_count(self) -> int:
+        """Get the number of messages in chat history.
+
+        Returns:
+            int: Number of message bubbles visible
+
+        Example:
+            count = chat_page.get_message_count()
+            assert count == 3
+        """
+        return self.message_bubble.count()
+
+    def wait_for_response(self, timeout: int = 5000) -> None:
+        """Wait for assistant response to appear.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            chat_page.send_message("Hello")
+            chat_page.wait_for_response()
+            # Assistant message visible
+        """
+        from playwright.sync_api import TimeoutError
+        try:
+            # Wait for at least 2 messages (user + assistant)
+            self.page.wait_for_function(
+                "() => document.querySelectorAll('[data-testid=\"message-bubble\"]').length >= 2",
+                timeout=timeout
+            )
+        except TimeoutError:
+            # Response didn't arrive in time
+            pass
+
+    def is_streaming(self) -> bool:
+        """Check if streaming response is in progress.
+
+        Returns:
+            bool: True if streaming indicator is visible
+
+        Example:
+            chat_page.send_message("Tell me a story")
+            assert chat_page.is_streaming() is True
+            chat_page.wait_for_response()
+            assert chat_page.is_streaming() is False
+        """
+        return self.streaming_indicator.is_visible()
+
+    def select_agent(self, agent_name: str) -> None:
+        """Select an agent from the agent dropdown.
+
+        Args:
+            agent_name: Name of agent to select (e.g., "AUTONOMOUS", "INTERN")
+
+        Example:
+            chat_page.select_agent("AUTONOMOUS")
+            # AUTONOMOUS agent selected for chat
+        """
+        self.agent_selector.select_option(agent_name)
+
+    def get_all_messages(self) -> list[str]:
+        """Get all messages from chat history.
+
+        Returns:
+            list[str]: List of message texts in chronological order
+
+        Example:
+            messages = chat_page.get_all_messages()
+            assert len(messages) == 4
+        """
+        bubbles = self.message_bubble.all()
+        return [bubble.text_content() for bubble in bubbles]
+
+    def clear_chat(self) -> None:
+        """Clear chat history (if clear button available).
+
+        Example:
+            chat_page.clear_chat()
+            assert chat_page.get_message_count() == 0
+        """
+        # Look for clear button using data-testid
+        clear_button = self.page.get_by_test_id("clear-chat-button")
+        if clear_button.is_visible():
+            clear_button.click()
