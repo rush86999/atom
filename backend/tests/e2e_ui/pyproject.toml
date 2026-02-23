@@ -43,6 +43,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+# Note: Test retries (--reruns 2) are configured via conftest.py
+# to apply only in CI environment. Local development runs without
+# retries for faster feedback. See pytest_configure() in conftest.py.
 addopts = """
     --strict-markers
     --strict-config
