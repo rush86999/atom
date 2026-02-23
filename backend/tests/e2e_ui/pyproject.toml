@@ -38,7 +38,7 @@ mypy = ">=1.8.0"
 ruff = ">=0.2.0"
 
 [tool.pytest.ini_options]
-minversion = "8.0"
+minversion = "7.4"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

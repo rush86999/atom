@@ -10,17 +10,17 @@ from playwright.sync_api import BrowserContext as SyncBrowserContext
 
 # Import all Wave 1 fixtures as plugins for comprehensive E2E testing
 pytest_plugins = [
-    "fixtures.auth_fixtures",
-    "fixtures.database_fixtures",
-    "fixtures.api_fixtures",
-    "fixtures.test_data_factory",
+    "tests.e2e_ui.fixtures.auth_fixtures",
+    "tests.e2e_ui.fixtures.database_fixtures",
+    "tests.e2e_ui.fixtures.api_fixtures",
+    "tests.e2e_ui.fixtures.test_data_factory",
 ]
 
 # Import base fixtures for direct use (optional, fixtures available via plugins)
 from .fixtures.auth_fixtures import authenticated_page
 from .fixtures.database_fixtures import db_session
 from .fixtures.api_fixtures import setup_test_user, setup_test_project
-from .fixtures.test_data_factory import UserFactory, ProjectFactory
+from .fixtures import test_data_factory  # Factory functions module
 
 
 def pytest_configure(config):

@@ -173,22 +173,24 @@ def test_page_object_navigation(authenticated_page: Page):
 def test_fixture_factories_work(db_session: Session):
     """Verify factory fixtures create test data correctly.
 
-    This test validates that UserFactory and ProjectFactory from
+    This test validates that factory functions from
     test_data_factory are properly integrated.
 
     Args:
         db_session: Database session fixture
     """
-    from fixtures.test_data_factory import UserFactory, ProjectFactory
+    from fixtures import test_data_factory
 
-    # Create a test user using factory
-    user = UserFactory.build()
-    assert user.email is not None
-    assert "@" in user.email
+    # Create test data using factory functions
+    unique_id = "test_smoke_001"
+
+    user = test_data_factory.user_factory(unique_id)
+    assert user["email"] is not None
+    assert "@" in user["email"]
 
     # Create a test project using factory
-    project = ProjectFactory.build()
-    assert project.name is not None
-    assert len(project.name) > 0
+    project = test_data_factory.project_factory(unique_id)
+    assert project["name"] is not None
+    assert len(project["name"]) > 0
 
-    print(f"✓ Factory fixtures work: User={user.email}, Project={project.name}")
+    print(f"✓ Factory fixtures work: User={user['email']}, Project={project['name']}")
