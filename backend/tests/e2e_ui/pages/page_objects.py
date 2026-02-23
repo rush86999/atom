@@ -11,6 +11,7 @@ Page Objects:
 - LoginPage: Login form (email, password, submit button)
 - DashboardPage: Main dashboard (welcome message, navigation)
 - SettingsPage: User settings (theme toggle, notifications)
+- ProjectsPage: Projects dashboard (project list, create, edit, delete)
 """
 
 from playwright.sync_api import Page, Locator
@@ -521,3 +522,231 @@ class SettingsPage(BasePage):
         if self.success_message.is_visible():
             return self.success_message.text_content()
         return None
+
+
+class ProjectsPage(BasePage):
+    """Page Object for Projects dashboard page.
+
+    Encapsulates project list, create, edit, and delete interactions.
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators
+    @property
+    def projects_list(self) -> Locator:
+        """Project list/grid locator."""
+        return self.page.get_by_test_id("projects-list")
+
+    @property
+    def project_cards(self) -> Locator:
+        """Individual project card locators."""
+        return self.page.get_by_test_id("project-card")
+
+    @property
+    def create_project_button(self) -> Locator:
+        """Create project button locator."""
+        return self.page.get_by_test_id("create-project-button")
+
+    @property
+    def quick_create_button(self) -> Locator:
+        """Quick Create button in ProjectCommandCenter."""
+        return self.page.get_by_test_id("quick-create-button")
+
+    @property
+    def create_modal(self) -> Locator:
+        """Create project modal dialog."""
+        return self.page.get_by_test_id("create-project-modal")
+
+    @property
+    def project_name_input(self) -> Locator:
+        """Project name input in create modal."""
+        return self.page.get_by_test_id("project-name-input")
+
+    @property
+    def project_description_input(self) -> Locator:
+        """Project description textarea."""
+        return self.page.get_by_test_id("project-description-input")
+
+    @property
+    def modal_save_button(self) -> Locator:
+        """Save button in create/edit modal."""
+        return self.page.get_by_test_id("modal-save-button")
+
+    @property
+    def modal_cancel_button(self) -> Locator:
+        """Cancel button in create/edit modal."""
+        return self.page.get_by_test_id("modal-cancel-button")
+
+    @property
+    def delete_confirmation_dialog(self) -> Locator:
+        """Delete confirmation dialog."""
+        return self.page.get_by_test_id("delete-confirmation-dialog")
+
+    @property
+    def confirm_delete_button(self) -> Locator:
+        """Confirm delete button."""
+        return self.page.get_by_test_id("confirm-delete-button")
+
+    @property
+    def cancel_delete_button(self) -> Locator:
+        """Cancel delete button."""
+        return self.page.get_by_test_id("cancel-delete-button")
+
+    def is_loaded(self) -> bool:
+        """Check if projects page is loaded.
+
+        Returns:
+            bool: True if projects list is visible
+
+        Example:
+            assert projects_page.is_loaded() is True
+        """
+        # Check for Quick Create button as indicator of page load
+        return self.quick_create_button.is_visible()
+
+    def navigate(self) -> None:
+        """Navigate to projects dashboard.
+
+        Example:
+            projects_page.navigate()
+            assert projects_page.is_loaded()
+        """
+        self.page.goto("http://localhost:3001/dashboards/projects")
+
+    def get_project_count(self) -> int:
+        """Get number of projects displayed.
+
+        Returns:
+            int: Number of project cards visible
+
+        Example:
+            count = projects_page.get_project_count()
+            assert count > 0
+        """
+        return self.project_cards.count()
+
+    def get_project_names(self) -> list[str]:
+        """Get list of project names displayed.
+
+        Returns:
+            list[str]: List of project names
+
+        Example:
+            names = projects_page.get_project_names()
+            assert "My Project" in names
+        """
+        names = []
+        cards = self.project_cards.all()
+        for card in cards:
+            name_el = card.get_by_test_id("project-name")
+            if name_el.is_visible():
+                names.append(name_el.text_content())
+        return names
+
+    def open_create_modal(self) -> None:
+        """Open create project modal.
+
+        Example:
+            projects_page.open_create_modal()
+            assert projects_page.create_modal.is_visible()
+        """
+        self.quick_create_button.click()
+        # Wait for modal animation
+        self.page.wait_for_timeout(300)
+
+    def fill_project_form(self, name: str, description: str = "") -> None:
+        """Fill project creation form.
+
+        Args:
+            name: Project name
+            description: Optional project description
+
+        Example:
+            projects_page.fill_project_form("My Project", "Description")
+        """
+        self.project_name_input.fill(name)
+        if description:
+            self.project_description_input.fill(description)
+
+    def submit_create_form(self) -> None:
+        """Submit create project form.
+
+        Example:
+            projects_page.submit_create_form()
+            # Project created, modal closes
+        """
+        self.modal_save_button.click()
+
+    def create_project(self, name: str, description: str = "") -> None:
+        """Complete project creation flow.
+
+        Convenience method that combines opening modal,
+        filling form, and submitting.
+
+        Args:
+            name: Project name
+            description: Optional project description
+
+        Example:
+            projects_page.create_project("My Project", "Description")
+            # Project created and visible in list
+        """
+        self.open_create_modal()
+        self.fill_project_form(name, description)
+        self.submit_create_form()
+
+    def click_project_action(self, project_name: str, action: str) -> None:
+        """Click action button on project card.
+
+        Args:
+            project_name: Name of project
+            action: Action to click (edit, delete, etc.)
+
+        Example:
+            projects_page.click_project_action("My Project", "edit")
+        """
+        # Generate test-id from project name (lowercase, hyphens)
+        project_id = f"project-{project_name.lower().replace(' ', '-')}"
+        card = self.page.get_by_test_id(project_id)
+        card.get_by_test_id(f"{action}-button").click()
+
+    def edit_project(self, project_name: str, new_name: str, new_description: str = "") -> None:
+        """Edit existing project.
+
+        Args:
+            project_name: Current project name
+            new_name: New project name
+            new_description: Optional new description
+
+        Example:
+            projects_page.edit_project("Old Name", "New Name", "New desc")
+        """
+        self.click_project_action(project_name, "edit")
+        # Wait for edit modal
+        self.page.wait_for_timeout(300)
+        # Fill edit form and save
+        self.project_name_input.fill(new_name)
+        if new_description:
+            self.project_description_input.fill(new_description)
+        self.modal_save_button.click()
+
+    def delete_project(self, project_name: str, confirm: bool = True) -> None:
+        """Delete project with confirmation.
+
+        Args:
+            project_name: Name of project to delete
+            confirm: True to confirm deletion, False to cancel
+
+        Example:
+            projects_page.delete_project("My Project", confirm=True)
+        """
+        self.click_project_action(project_name, "delete")
+        # Wait for confirmation dialog
+        self.page.wait_for_timeout(300)
+
+        if self.delete_confirmation_dialog.is_visible():
+            if confirm:
+                self.confirm_delete_button.click()
+            else:
+                self.cancel_delete_button.click()
