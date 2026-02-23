@@ -130,5 +130,3 @@ class TestGovernanceInvariants:
         if cached_decision is not None:
             assert cached_decision["allowed"] == cached_decision2["allowed"], \
                 "Cache decision must be deterministic"
-        assert cached_decision["allowed"] == cached_decision2["allowed"], \
-            "Cache decision must be deterministic"
