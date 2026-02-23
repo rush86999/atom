@@ -22,7 +22,7 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 
 **Phases:** 6 (75-80)
 
-**Status:** Phase 78 - Canvas Presentations (COMPLETE)
+**Status:** Phase 79 - Skills & Workflows (COMPLETE)
 
 ---
 
@@ -223,7 +223,7 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 
 ---
 
-### Phase 79: Skills & Workflows
+### Phase 79: Skills & Workflows ✅
 
 **Goal**: User can browse, install, configure, execute, and uninstall skills through the UI
 
@@ -238,7 +238,32 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
   4. User can execute skill and verify output (result displayed, errors handled)
   5. User can uninstall skill and it's removed from installed list
 
-**Plans**: TBD
+**Plans**: 5 plans in 2 waves
+
+**Wave 1** (parallel): 079-01, 079-02
+- [x] 079-01-PLAN.md — Skills Marketplace Page Object & Browsing Tests (SKILL-01: browse, search, category filters, pagination, empty state)
+- [x] 079-02-PLAN.md — Skill Installation Page Object & Tests (SKILL-02: install, button states, governance, security scan, database verification)
+
+**Wave 2** (parallel): 079-03, 079-04, 079-05
+- [x] 079-03-PLAN.md — Skill Configuration Page Object & Tests (SKILL-03: API keys, options, validation, persistence, reset)
+- [x] 079-04-PLAN.md — Skill Execution Page Object & Tests (SKILL-04: execute, progress, output types, errors, governance, history)
+- [x] 079-05-PLAN.md — Skill Uninstallation Tests (SKILL-05: confirm, cleanup, reinstallation, active blocking, history preservation)
+
+**Status**: ✅ COMPLETE (5/5 plans, 5/5 must-haves verified)
+
+**Artifacts Created**:
+- SkillsMarketplacePage Page Object (387 lines, 14 locators, 13 methods)
+- SkillInstallationPage Page Object (498 lines, 30+ locators, 25+ methods)
+- SkillConfigPage Page Object (461 lines, 40+ locators, 25+ methods)
+- SkillExecutionPage Page Object (424 lines, 30+ locators, 25+ methods)
+- Uninstall extensions to SkillInstallationPage (+638 lines)
+- test_skills_marketplace.py (603 lines, 10 tests)
+- test_skills_installation.py (735 lines, 11 tests)
+- test_skills_configuration.py (621 lines, 12 tests)
+- test_skills_execution.py (740 lines, 17 tests)
+- test_skills_uninstallation.py (831 lines, 12 tests)
+
+**Total**: 4,277 lines Page Objects + 3,530 lines tests = 7,807 lines of E2E test code
 
 ---
 
@@ -270,10 +295,14 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 | 76. Authentication & User Management | 5/5 | ✅ Complete | 2026-02-23 |
 | 77. Agent Chat & Streaming | 6/6 | ✅ Complete | 2026-02-23 |
 | 78. Canvas Presentations | 6/6 | ✅ Complete | 2026-02-23 |
-| 79. Skills & Workflows | 0/5 | Not started | - |
+| 79. Skills & Workflows | 5/5 | ✅ Complete | 2026-02-23 |
 | 80. Quality Gates & CI/CD Integration | 0/6 | Not started | - |
 
-**Overall Progress**: 24/35 plans complete (69%)
+**Overall Progress**: 29/35 plans complete (83%)
+
+**Phase 79 Breakdown** (5 plans, 2 waves):
+- Wave 1 (2 plans, parallel): 079-01, 079-02 — Marketplace PO & browsing tests, Installation PO & tests
+- Wave 2 (3 plans, parallel): 079-03, 079-04, 079-05 — Config tests, Execution tests, Uninstallation tests
 
 **Phase 75 Breakdown** (7 plans, 2 waves):
 - Wave 1 (6 plans, parallel): 75-01, 75-02, 75-03, 75-04, 75-05, 75-06 — Configuration, fixtures, factories, database isolation, API setup, Docker environment
@@ -348,4 +377,4 @@ Based on comprehensive E2E testing research (research/SUMMARY.md), v3.1 focuses 
 
 *Last updated: 2026-02-23*
 *Milestone: v3.1 E2E UI Testing*
-*Next action: Plan Phase 79 (/gsd:plan-phase 79) or address Phase 77 frontend gaps*
+*Next action: Plan Phase 80 (/gsd:plan-phase 80) or address Phase 77 frontend gaps*
