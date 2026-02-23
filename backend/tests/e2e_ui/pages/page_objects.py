@@ -2794,6 +2794,69 @@ class SkillInstallationPage(BasePage):
         )
 
     @property
+    def uninstall_button_loading(self) -> Locator:
+        """Loading state of uninstall button."""
+        return self.page.get_by_test_id("uninstall-button-loading").or_(
+            self.page.locator("button:has-text('Uninstalling...'), button:disabled:has-text('Uninstall')")
+        )
+
+    @property
+    def uninstall_confirmation_modal(self) -> Locator:
+        """Uninstall confirmation dialog."""
+        return self.page.get_by_test_id("uninstall-confirmation-modal").or_(
+            self.page.locator("div[role=\"dialog\"]:has-text('Uninstall Skill'), div[role=\"dialog\"]:has-text('Remove Skill')")
+        )
+
+    @property
+    def uninstall_skill_name(self) -> Locator:
+        """Skill name in confirmation dialog."""
+        return self.page.get_by_test_id("uninstall-skill-name").or_(
+            self.page.locator(".uninstall-skill-name, [class*=\"uninstall\"] h2, [class*=\"uninstall\"] h3")
+        )
+
+    @property
+    def uninstall_warning_message(self) -> Locator:
+        """Warning message about data loss."""
+        return self.page.get_by_test_id("uninstall-warning-message").or_(
+            self.page.locator("p:has-text('data loss'), p:has-text('configuration'), .uninstall-warning")
+        )
+
+    @property
+    def confirm_uninstall_button(self) -> Locator:
+        """Confirm uninstall button."""
+        return self.page.get_by_test_id("confirm-uninstall-button").or_(
+            self.page.locator("button:has-text('Confirm'), button:has-text('Uninstall'), button:has-text('Remove')")
+        )
+
+    @property
+    def cancel_uninstall_button(self) -> Locator:
+        """Cancel uninstall button."""
+        return self.page.get_by_test_id("cancel-uninstall-button").or_(
+            self.page.locator("button:has-text('Cancel'), button:has-text('Keep')")
+        )
+
+    @property
+    def uninstall_success_message(self) -> Locator:
+        """Success message after uninstall."""
+        return self.page.get_by_test_id("uninstall-success-message").or_(
+            self.page.locator("div[class*=\"success\"]:has-text('uninstalled'), div[class*=\"success\"]:has-text('removed'), .toast.success")
+        )
+
+    @property
+    def uninstall_error_message(self) -> Locator:
+        """Error message if uninstall fails."""
+        return self.page.get_by_test_id("uninstall-error-message").or_(
+            self.page.locator("div[class*=\"error\"]:has-text('uninstall'), div[class*=\"error\"]:has-text('remove'), .toast.error")
+        )
+
+    @property
+    def active_execution_warning(self) -> Locator:
+        """Warning about active executions blocking uninstall."""
+        return self.page.get_by_test_id("active-execution-warning").or_(
+            self.page.locator("div:has-text('active execution'), div:has-text('currently running'), .execution-warning")
+        )
+
+    @property
     def installation_success_message(self) -> Locator:
         """Success toast/message after installation."""
         return self.page.get_by_test_id("installation-success-message").or_(
@@ -3092,6 +3155,155 @@ class SkillInstallationPage(BasePage):
                 card.locator("button:has-text('Uninstall'), [data-testid=\"uninstall-button\"]").click()
                 return
         raise ValueError(f"Installed skill not found: {skill_name}")
+
+    def is_uninstalling(self) -> bool:
+        """Check if uninstall is in progress.
+
+        Returns:
+            bool: True if uninstall button shows loading state
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            assert skill_install_page.is_uninstalling() is True
+        """
+        return self.uninstall_button_loading.is_visible()
+
+    def is_confirmation_dialog_visible(self) -> bool:
+        """Check if uninstall confirmation modal is shown.
+
+        Returns:
+            bool: True if confirmation dialog is visible
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            assert skill_install_page.is_confirmation_dialog_visible() is True
+        """
+        return self.uninstall_confirmation_modal.is_visible()
+
+    def get_confirmation_skill_name(self) -> str:
+        """Get skill name from confirmation dialog.
+
+        Returns:
+            str: Skill name displayed in confirmation
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            name = skill_install_page.get_confirmation_skill_name()
+            assert "Calculator" in name
+        """
+        if self.uninstall_skill_name.is_visible():
+            return self.uninstall_skill_name.text_content() or ""
+        return ""
+
+    def get_confirmation_warning(self) -> str:
+        """Get warning message text from confirmation dialog.
+
+        Returns:
+            str: Warning message text
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            warning = skill_install_page.get_confirmation_warning()
+            assert "configuration" in warning.lower()
+        """
+        if self.uninstall_warning_message.is_visible():
+            return self.uninstall_warning_message.text_content() or ""
+        return ""
+
+    def confirm_uninstall(self) -> None:
+        """Confirm uninstall in dialog.
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            skill_install_page.confirm_uninstall()
+            # Skill uninstall proceeds
+        """
+        self.confirm_uninstall_button.click()
+
+    def cancel_uninstall(self) -> None:
+        """Cancel uninstall in dialog.
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            skill_install_page.cancel_uninstall()
+            # Uninstall canceled, skill remains installed
+        """
+        self.cancel_uninstall_button.click()
+
+    def wait_for_uninstall_complete(self, timeout: int = 5000) -> None:
+        """Wait for uninstall to finish.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            skill_install_page.confirm_uninstall()
+            skill_install_page.wait_for_uninstall_complete(timeout=10000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for loading state to end
+            if self.uninstall_button_loading.is_visible():
+                self.page.wait_for_selector(
+                    "button:disabled:has-text('Uninstalling...'), [data-testid=\"uninstall-button-loading\"]",
+                    state="hidden",
+                    timeout=timeout
+                )
+            # Wait for success message or skill to be removed
+            self.page.wait_for_selector(
+                "[data-testid=\"uninstall-success-message\"], "
+                "div[class*=\"success\"]:has-text('uninstalled')",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Uninstall did not complete within {timeout}ms")
+
+    def is_skill_uninstalled(self, skill_name: str) -> bool:
+        """Check if skill has been removed from installed list.
+
+        Args:
+            skill_name: Name of skill to check
+
+        Returns:
+            bool: True if skill is NOT in installed list (removed)
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            skill_install_page.confirm_uninstall()
+            skill_install_page.wait_for_uninstall_complete()
+            assert skill_install_page.is_skill_uninstalled("Calculator") is True
+        """
+        return not self.is_skill_installed(skill_name)
+
+    def get_uninstall_error(self) -> str:
+        """Get uninstall error message if present.
+
+        Returns:
+            str: Error message text or empty string
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            skill_install_page.confirm_uninstall()
+            error = skill_install_page.get_uninstall_error()
+            if error:
+                assert "active execution" in error.lower()
+        """
+        if self.uninstall_error_message.is_visible():
+            return self.uninstall_error_message.text_content() or ""
+        return ""
+
+    def has_active_execution_warning(self) -> bool:
+        """Check if active execution warning is shown.
+
+        Returns:
+            bool: True if active execution warning is visible
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+            assert skill_install_page.has_active_execution_warning() is True
+        """
+        return self.active_execution_warning.is_visible()
 
     def get_install_message(self) -> str:
         """Get success or error message text.
