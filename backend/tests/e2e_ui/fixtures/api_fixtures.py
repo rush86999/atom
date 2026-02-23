@@ -228,6 +228,158 @@ def setup_test_skill(authenticated_api_client: APIClient, test_skill_data: Dict[
 
 
 # ============================================================================
+# Agent Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def test_agent_data() -> Dict[str, str]:
+    """
+    Provide test agent data for creating agents.
+
+    Returns:
+        Dictionary with agent_id, name, status (STUDENT/INTERN/SUPERVISED/AUTONOMOUS)
+
+    Example:
+        def test_example(test_agent_data):
+            agent_id = test_agent_data["agent_id"]
+            status = test_agent_data["status"]
+    """
+    import uuid
+    unique_id = str(uuid.uuid4())[:8]
+    return {
+        "agent_id": f"test-agent-{unique_id}",
+        "name": f"Test Agent {unique_id}",
+        "category": "testing",
+        "module_path": "backend/test_agents",
+        "class_name": "TestAgent",
+        "description": f"Test agent for E2E testing {unique_id}",
+        "status": "STUDENT"  # Default to STUDENT maturity
+    }
+
+
+@pytest.fixture(scope="function")
+def setup_test_agent(test_agent_data: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Create a test agent via database and return agent data.
+
+    This fixture bypasses UI agent creation for 10-100x speedup.
+    Uses direct database access via db_session fixture.
+
+    Args:
+        test_agent_data: Agent data dictionary
+
+    Returns:
+        Dictionary with agent data including agent_id, name, status
+
+    Example:
+        def test_example(setup_test_agent):
+            agent = setup_test_agent["agent"]
+            agent_id = setup_test_agent["agent_id"]
+    """
+    import sys
+    import os
+    # Add backend to path for imports
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+
+    from core.models import AgentRegistry, AgentStatus
+    from sqlalchemy.orm import Session
+
+    # Import db_session fixture - we need to use pytest's request fixture
+    # to get the db_session dynamically
+    import pytest
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # Get database URL from environment
+    database_url = os.getenv(
+        "DATABASE_URL",
+        "postgresql://atom:atom_test@localhost:5432/atom_test"
+    )
+
+    # Create engine and session
+    engine = create_engine(database_url, pool_pre_ping=True)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # Create agent directly in database
+        agent = AgentRegistry(
+            name=test_agent_data["name"],
+            category=test_agent_data["category"],
+            module_path=test_agent_data["module_path"],
+            class_name=test_agent_data["class_name"],
+            description=test_agent_data["description"],
+            status=AgentStatus[test_agent_data["status"].upper()].value,
+            confidence_score=0.5  # Default confidence score
+        )
+        db.add(agent)
+        db.commit()
+        db.refresh(agent)
+
+        return {
+            "agent": agent,
+            "agent_id": str(agent.id),
+            "name": agent.name,
+            "status": agent.status,
+            "category": agent.category
+        }
+    finally:
+        db.close()
+
+
+def create_test_agent_direct(db: Session, name: str, status: str, category: str = "testing", confidence_score: float = 0.5) -> Dict[str, Any]:
+    """
+    Helper function to create an agent with specified maturity level directly in database.
+
+    This is a convenience function for inline agent creation in tests.
+    Uses direct database session for fast agent creation without API calls.
+
+    Args:
+        db: SQLAlchemy database session
+        name: Agent name
+        status: Agent maturity level (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+        category: Agent category (default: "testing")
+        confidence_score: Agent confidence score (default: 0.5)
+
+    Returns:
+        Dictionary with agent_id and confirmation
+
+    Example:
+        agent = create_test_agent_direct(db, "My Student Agent", "STUDENT")
+        agent_id = agent["agent_id"]
+    """
+    import uuid
+    from core.models import AgentRegistry, AgentStatus
+
+    unique_id = str(uuid.uuid4())[:8]
+
+    # Create agent directly in database
+    agent = AgentRegistry(
+        name=name,
+        category=category,
+        module_path="backend/test_agents",
+        class_name="TestAgent",
+        description=f"Test agent {name}",
+        status=AgentStatus[status.upper()].value,
+        confidence_score=confidence_score
+    )
+    db.add(agent)
+    db.commit()
+    db.refresh(agent)
+
+    return {
+        "agent_id": str(agent.id),
+        "agent": agent,
+        "name": name,
+        "status": status,
+        "category": category,
+        "success": True
+    }
+
+
+# ============================================================================
 # Combined Fixtures
 # ============================================================================
 
