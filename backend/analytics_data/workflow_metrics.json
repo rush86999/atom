@@ -18,13 +18,13 @@
     "last_executed": "2026-02-23T02:55:20.704592"
   },
   "test-workflow": {
-    "execution_count": 78,
-    "success_count": 23,
-    "failure_count": 55,
-    "total_duration_seconds": 5.676894999999999,
-    "total_time_saved_seconds": 1380.0,
-    "total_business_value": 230.0,
-    "last_executed": "2026-02-23T02:54:03.672915"
+    "execution_count": 80,
+    "success_count": 24,
+    "failure_count": 56,
+    "total_duration_seconds": 5.905233999999999,
+    "total_time_saved_seconds": 1440.0,
+    "total_business_value": 240.0,
+    "last_executed": "2026-02-23T03:27:38.478627"
   },
   "error-recovery-workflow": {
     "execution_count": 5,
