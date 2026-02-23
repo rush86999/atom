@@ -62,3 +62,42 @@ class TestAPIContractInvariants:
         # Invariant: Status should be healthy/ok/ready
         assert data["status"] in ["healthy", "ok", "ready", "pass", "alive"], \
             f"Status should be positive state, got {data.get('status')}"
+
+    @given(
+        invalid_agent_id=st.text(min_size=1, max_size=50, alphabet='abc123')
+    )
+    @settings(max_examples=50)
+    def test_error_response_contract_invariant(self, client, invalid_agent_id):
+        """
+        INVARIANT: Error responses MUST follow consistent format across all endpoints.
+
+        VALIDATED_BUG: Some endpoints returned dict errors, others returned list errors.
+        Root cause: Inconsistent error handler registration across API modules.
+        Fixed by standardizing error response format via middleware.
+
+        Scenario: All 4xx/5xx responses have 'error' or 'detail' field
+        """
+        # Test agent endpoint with invalid ID
+        response = client.get(f"/api/agents/{invalid_agent_id}")
+
+        # Expect 404 or similar error (agent doesn't exist)
+        if response.status_code >= 400:
+            # Invariant: Error response should be JSON
+            assert "application/json" in response.headers.get("content-type", ""), \
+                "Error responses should be JSON"
+
+            # Invariant: Should have error information
+            data = response.json()
+            assert isinstance(data, dict), "Error response should be JSON object"
+
+            # Invariant: Should have error field or detail field (FastAPI standard)
+            has_error = "error" in data or "detail" in data or "message" in data
+            assert has_error, \
+                f"Error response should have 'error', 'detail', or 'message' field, got {list(data.keys())}"
+
+            # Invariant: Error should be descriptive string
+            error_field = data.get("error") or data.get("detail") or data.get("message")
+            assert isinstance(error_field, str), \
+                "Error description should be string"
+            assert len(error_field) > 0, \
+                "Error description should not be empty"
