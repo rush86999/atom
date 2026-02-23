@@ -196,6 +196,16 @@ jobs:
             python -c "import json; d=json.load(open('tests/coverage_reports/metrics/coverage.json')); p=d['totals']['percent_covered']; print(f'Coverage: {p:.1f}%')"
           fi
 
+      - name: Add coverage to job summary
+        working-directory: ./backend
+        if: always()
+        run: |
+          # GATES-03: Coverage report viewable in CI/CD output
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          if [ -f tests/coverage_reports/metrics/coverage.json ]; then
+            python -c "import json; d=json.load(open('tests/coverage_reports/metrics/coverage.json')); p=d['totals']['percent_covered']; print(f'{p:.1f}%')" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Test Results Summary
         working-directory: ./backend
         if: always()
