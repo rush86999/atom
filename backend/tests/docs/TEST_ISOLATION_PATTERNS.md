@@ -921,6 +921,223 @@ diff sequential.txt parallel.txt
 
 ---
 
+## Environment Variable Isolation
+
+### Common Environment Variables in Tests
+
+Tests often need to set environment variables for configuration. Below are the most common environment variables used across the test suite.
+
+#### Governance/Authorization:
+- `STREAMING_GOVERNANCE_ENABLED` - Enable/disable streaming governance checks
+- `EMERGENCY_GOVERNANCE_BYPASS` - Bypass governance for testing
+- `EMERGENCY_QUALITY_BYPASS` - Bypass quality checks in autonomous coding
+
+#### Security/Encryption:
+- `SECRET_KEY` - JWT signing key
+- `JWT_SECRET` - Alternative JWT signing key
+
+#### LLM/API Keys:
+- `OPENAI_API_KEY` - OpenAI API access
+- `ANTHROPIC_API_KEY` - Anthropic/Claude API access
+- `GOOGLE_API_KEY` - Google API access
+- `DEEPSEEK_API_KEY` - DeepSeek API access
+- `GROQ_API_KEY` - Groq API access
+
+#### BYOK Configuration:
+- `BYOK_CONFIG_FILE` - Path to BYOK provider configuration
+- `BYOK_KEYS_FILE` - Path to BYOK encryption keys
+- `BYOK_ENCRYPTION_KEY` - Encryption key for BYOK
+
+#### Database/Infrastructure:
+- `DATABASE_URL` - Database connection string
+- `ENVIRONMENT` - Environment (development, production, test)
+- `LANCEDB_URI` - LanceDB connection URI
+- `REDIS_URL` - Redis connection URL
+
+### Pattern: Using monkeypatch Fixture
+
+**Always use the `monkeypatch` fixture for environment variable isolation.**
+
+```python
+# CORRECT: Use monkeypatch fixture
+def test_with_env_var(monkeypatch):
+    """Test that properly isolates environment variables."""
+    # Set environment variable for this test only
+    monkeypatch.setenv("MY_VAR", "test_value")
+
+    # Run code that reads the environment variable
+    result = my_function()
+
+    # Assert results
+    assert result == "expected"
+
+    # monkeypatch automatically restores the environment after the test
+```
+
+**WRONG: Direct os.environ modification**
+
+```python
+# WRONG: Direct modification (NOT ISOLATED)
+def test_with_env_var():
+    """Test that pollutes environment for other tests."""
+    import os
+
+    # BAD: Direct assignment persists after test
+    os.environ["MY_VAR"] = "test_value"
+
+    result = my_function()
+    assert result == "expected"
+
+    # Manual cleanup is error-prone (may not run if test fails)
+    # and doesn't restore the original value
+    del os.environ["MY_VAR"]
+```
+
+### Examples from Fixed Tests
+
+#### Example 1: Streaming Governance Test
+
+**File**: `tests/unit/test_atom_agent_endpoints.py`
+
+```python
+# BEFORE (WRONG)
+def test_stream_endpoint_basic(self):
+    import os
+    os.environ["STREAMING_GOVERNANCE_ENABLED"] = "false"
+    # Test code...
+    # Environment variable persists!
+
+# AFTER (CORRECT)
+def test_stream_endpoint_basic(self, monkeypatch):
+    # Use monkeypatch for proper isolation
+    monkeypatch.setenv("STREAMING_GOVERNANCE_ENABLED", "false")
+    # Test code...
+    # Environment automatically restored after test
+```
+
+#### Example 2: Emergency Bypass Test
+
+**File**: `tests/unit/test_auth_helpers.py`
+
+```python
+# BEFORE (WRONG)
+@patch.dict('os.environ', {'EMERGENCY_GOVERNANCE_BYPASS': 'true'})
+def test_verify_token_with_emergency_bypass(self):
+    import os
+    os.environ['EMERGENCY_GOVERNANCE_BYPASS'] = 'true'
+    original_secret = os.environ.get('JWT_SECRET')
+    # Test code...
+    if original_secret:
+        os.environ['JWT_SECRET'] = original_secret  # Manual cleanup
+
+# AFTER (CORRECT)
+def test_verify_token_with_emergency_bypass(self, monkeypatch):
+    # Use monkeypatch for proper isolation
+    monkeypatch.setenv('EMERGENCY_GOVERNANCE_BYPASS', 'true')
+    # Test code...
+    # No manual cleanup needed
+```
+
+#### Example 3: Agent Execution Service
+
+**File**: `tests/unit/agent/test_agent_execution_service.py`
+
+```python
+# BEFORE (WRONG)
+async def test_execute_agent_chat_emergency_bypass(self, mock_agent, mock_byok_handler):
+    with patch.dict(os.environ, {"EMERGENCY_GOVERNANCE_BYPASS": "true"}):
+        # Test code...
+
+# AFTER (CORRECT)
+async def test_execute_agent_chat_emergency_bypass(self, mock_agent, mock_byok_handler, monkeypatch):
+    # Use monkeypatch for proper isolation
+    monkeypatch.setenv("EMERGENCY_GOVERNANCE_BYPASS", "true")
+    # Test code...
+```
+
+### Files Fixed as Reference Examples
+
+The following files have been updated to use proper environment variable isolation and serve as reference examples:
+
+1. **`tests/unit/test_atom_agent_endpoints.py`**
+   - `test_stream_endpoint_basic` - Uses `monkeypatch.setenv()`
+   - `test_stream_endpoint_governance_enabled` - Uses `monkeypatch.setenv()`
+
+2. **`tests/unit/security/test_auth_helpers.py`**
+   - `test_verify_token_with_emergency_bypass` - Uses `monkeypatch.setenv()`
+
+3. **`tests/unit/security/test_encryption_service.py`**
+   - `test_secret_key_from_environment` - Uses `monkeypatch.setenv()`
+
+4. **`tests/unit/agent/test_agent_execution_service.py`**
+   - `test_execute_agent_chat_emergency_bypass` - Uses `monkeypatch.setenv()`
+   - `test_execute_agent_chat_governance_disabled` - Uses `monkeypatch.setenv()`
+
+### Existing Infrastructure
+
+#### isolate_environment Fixture (conftest.py)
+
+The root `conftest.py` already has an `isolate_environment` autouse fixture (lines 162-184) that protects critical environment variables:
+
+```python
+@pytest.fixture(autouse=True)
+def isolate_environment():
+    """
+    Isolate environment variables between tests.
+
+    Prevents test pollution from environment modifications by saving and restoring
+    critical environment variables (SECRET_KEY, ENVIRONMENT, DATABASE_URL, etc.)
+    before and after each test.
+    """
+    # Save critical env vars
+    saved = {}
+    for var in _CRITICAL_ENV_VARS:
+        if var in os.environ:
+            saved[var] = os.environ[var]
+
+    yield
+
+    # Restore saved env vars, delete ones that weren't set before
+    for var in _CRITICAL_ENV_VARS:
+        if var in saved:
+            os.environ[var] = saved[var]
+        else:
+            os.environ.pop(var, None)
+```
+
+**Protected Variables**:
+- `SECRET_KEY`, `ENVIRONMENT`, `DATABASE_URL`, `ALLOW_DEV_TEMP_USERS`
+- `BYOK_CONFIG_FILE`, `BYOK_KEYS_FILE`, `BYOK_ENCRYPTION_KEY`
+
+**Note**: This fixture protects critical vars, but tests should still use `monkeypatch` for test-specific environment variables to ensure proper isolation and automatic cleanup.
+
+### Anti-Pattern: Manual Save/Restore
+
+**Problem**: Manual save/restore is error-prone and doesn't always clean up.
+
+```python
+# WRONG: Manual save/restore
+def test_with_env():
+    import os
+    original = os.environ.get("MY_VAR")
+    os.environ["MY_VAR"] = "test"
+    # Test code...
+    if original:
+        os.environ["MY_VAR"] = original  # May not run if test fails!
+```
+
+**Solution**: Use `monkeypatch` (automatic cleanup, even on failure).
+
+```python
+# CORRECT: Use monkeypatch
+def test_with_env(monkeypatch):
+    monkeypatch.setenv("MY_VAR", "test")
+    # Test code...
+    # Automatic cleanup, even if test fails
+```
+
+---
+
 ## Summary
 
 **Key Takeaways**:
