@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 078-canvas-presentations
-Plan: 078-05 (Canvas Accessibility Tree E2E Tests) - COMPLETE
-Status: Phase 078 execution in progress. Plan 078-05 (Canvas Accessibility Tree E2E Tests) complete - Comprehensive E2E tests (762 lines) with 18 test cases covering AI accessibility tree (role='log', aria-live). Tests verify state JSON exposure, XSS prevention, visual hiding, and screen reader compatibility. Helper functions for accessibility tree validation. Commit: eeac6330.
+Plan: 078-03 (Canvas Form Page Objects and E2E Tests) - COMPLETE
+Status: Phase 078 execution in progress. Plan 078-03 (Canvas Form Page Objects and E2E Tests) complete - CanvasFormPage Page Object with 413 lines including 13 locators and 20+ interaction methods. Comprehensive form submission and validation E2E tests (808 lines) with 12 test cases covering rendering, validation, submission, governance, and state API. Commits: b5eb9608, 4c2121aa, 92421fb3.
 
 Previous: Plan 078-01 (Canvas Page Object and Basic Presentation Test) - CanvasHostPage Page Object (147 lines) and 2 comprehensive E2E tests (305 lines) for markdown presentations. Commits: 3827cb7c, 2342a619.
 
-Progress: [█████████░] 37% (v3.1: 13/35 plans complete)
+Progress: [████████░] 34% (v3.1: 12/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -134,6 +134,10 @@ Recent decisions affecting current work:
 - Page Object Model for UI abstractions (maintainable test code)
 - Test independence enforced (no shared state between tests)
 - Fast execution target: <30s per test, <10min full suite
+- [Phase 078-03]: Name attribute selectors for form fields (most reliable across UI changes)
+- [Phase 078-03]: page.route() to mock /api/canvas/submit API for fast, isolated testing
+- [Phase 078-03]: Helper functions follow existing patterns from test_canvas_creation.py
+- [Phase 078-03]: UUID v4 for unique field names prevents parallel test collisions
 
 **v2.0 Key Decisions:**
 - [Phase 64]: PostgreSQL 16-alpine for E2E tests (real database not SQLite, Alpine for fast startup)
@@ -187,8 +191,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 20:16
-Stopped at: Completed Phase 078 Plan 078-05 - Canvas Accessibility Tree E2E Tests
+Last session: 2026-02-23 20:11
+Stopped at: Completed Phase 078 Plan 078-03 - Canvas Form Page Objects and E2E Tests
 Resume file: None
 
 ---
