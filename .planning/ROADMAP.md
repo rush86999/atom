@@ -120,17 +120,17 @@ Plans:
   8. Database transaction invariants are tested with Hypothesis
   9. API contract invariants are tested with property-based tests
   10. All property tests document bug-finding evidence (VALIDATED_BUG docstrings)
-**Plans**: TBD
+**Plans**: 8 plans (3 waves)
 
 Plans:
-- [ ] 74-01: Enforce 80% coverage threshold in CI pipeline with deployment blocking
-- [ ] 74-02: Require all tests to pass before merge with coverage reports
-- [ ] 74-03: Implement pre-commit hooks for local testing standards
-- [ ] 74-04: Create property-based tests for governance invariants
-- [ ] 74-05: Create property-based tests for LLM routing invariants
-- [ ] 74-06: Create property-based tests for database transaction invariants
-- [ ] 74-07: Create property-based tests for API contract invariants
-- [ ] 74-08: Document bug-finding evidence (VALIDATED_BUG) in all property tests
+- [ ] 74-01-PLAN.md — Enforce 80% coverage threshold in CI pipeline with deployment blocking
+- [ ] 74-02-PLAN.md — Require all tests to pass before merge with coverage reports
+- [ ] 74-03-PLAN.md — Implement pre-commit hooks for local testing standards (80% coverage)
+- [ ] 74-04-PLAN.md — Create property-based tests for governance invariants (PROP-01)
+- [ ] 74-05-PLAN.md — Create property-based tests for LLM routing invariants (PROP-02)
+- [ ] 74-06-PLAN.md — Create property-based tests for database transaction invariants (PROP-03)
+- [ ] 74-07-PLAN.md — Create property-based tests for API contract invariants (PROP-04)
+- [ ] 74-08-PLAN.md — Document bug-finding evidence (VALIDATED_BUG) in all property tests (PROP-05)
 
 ## Progress
 
@@ -143,4 +143,4 @@ Phases execute in numeric order: 70 → 71 → 72 → 73 → 74
 | 71. Core AI Services Coverage | 0/5 | Ready to execute | - |
 | 72. API & Data Layer Coverage | 0/5 | Ready to execute | - |
 | 73. Test Suite Stability | 0/5 | Plans created | - |
-| 74. Quality Gates & Property Testing | 0/8 | Not started | - |
+| 74. Quality Gates & Property Testing | 0/8 | Plans created | - |
