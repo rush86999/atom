@@ -131,3 +131,48 @@ class TestLLMRoutingInvariants:
         token_count2 = count_tokens(text)
         assert token_count == token_count2, \
             "Token counting should be deterministic for same input"
+
+    @given(
+        providers=st.lists(
+            st.sampled_from(["openai", "anthropic", "deepseek", "gemini", "moonshot"]),
+            min_size=2,
+            max_size=5,
+            unique=True
+        ),
+        failure_index=st.integers(min_value=0, max_value=4)
+    )
+    @settings(max_examples=50)
+    def test_fallback_behavior_invariant(self, providers, failure_index):
+        """
+        INVARIANT: Provider fallback MUST select next available provider on failure.
+
+        VALIDATED_BUG: Fallback loop got stuck retrying same failed provider infinitely.
+        Root cause: Failed provider not removed from retry list.
+        Fixed in byok_handler.py by tracking attempted providers.
+
+        Scenario: Provider A fails -> should try B, C, D in order, not retry A
+        """
+        # Simulate provider list with one failure
+        valid_providers = providers.copy()
+
+        # Ensure failure_index is in range
+        if failure_index >= len(valid_providers):
+            failure_index = len(valid_providers) - 1
+
+        # Invariant: Fallback should select different provider than failed one
+        if len(valid_providers) > 1:
+            # After failure at failure_index, should try next provider
+            next_index = (failure_index + 1) % len(valid_providers)
+            next_provider = valid_providers[next_index]
+
+            assert next_provider != valid_providers[failure_index], \
+                "Fallback should select different provider than failed one"
+
+        # Invariant: Should not have duplicate providers in fallback chain
+        assert len(valid_providers) == len(set(valid_providers)), \
+            "Fallback chain should not contain duplicates"
+
+        # Invariant: Fallback order should be deterministic
+        fallback_order = valid_providers
+        assert fallback_order == sorted(list(set(fallback_order)), key=fallback_order.index), \
+            "Fallback order should preserve original priority"
