@@ -224,3 +224,108 @@ def set_authenticated_session(page, token: str) -> None:
         token: JWT access token
     """
     page.evaluate(f"localStorage.setItem('auth_token', '{token}')")
+
+
+# ============================================================================
+# Project Setup Functions
+# ============================================================================
+
+def create_test_project(client: APIClient, name: str, description: str = "", token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Create a test project via API.
+
+    Args:
+        client: APIClient instance
+        name: Project name
+        description: Project description (default: "")
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Project data response from API
+
+    Raises:
+        requests.HTTPError: If project creation fails
+    """
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            response = client.post(
+                "/api/v1/projects/",
+                json={
+                    "name": name,
+                    "description": description,
+                    "color": "#3182CE"
+                }
+            )
+        finally:
+            client.token = original_token
+    else:
+        response = client.post(
+            "/api/v1/projects/",
+            json={
+                "name": name,
+                "description": description,
+                "color": "#3182CE"
+            }
+        )
+
+    return response
+
+
+def get_test_projects(client: APIClient, token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get all test projects via API.
+
+    Args:
+        client: APIClient instance
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Projects data response from API
+
+    Raises:
+        requests.HTTPError: If request fails
+    """
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            response = client.get("/api/v1/projects/")
+        finally:
+            client.token = original_token
+    else:
+        response = client.get("/api/v1/projects/")
+
+    return response
+
+
+def delete_test_project(client: APIClient, project_id: str, token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Delete a test project via API.
+
+    Note: This endpoint may not exist in the current implementation.
+    Projects are typically stored in memory and cleared between test runs.
+
+    Args:
+        client: APIClient instance
+        project_id: Project ID to delete
+        token: Optional JWT token (uses client token if not provided)
+
+    Returns:
+        Response data
+
+    Raises:
+        requests.HTTPError: If deletion fails
+    """
+    if token:
+        original_token = client.token
+        client.set_token(token)
+        try:
+            response = client.delete(f"/api/v1/projects/{project_id}")
+        finally:
+            client.token = original_token
+    else:
+        response = client.delete(f"/api/v1/projects/{project_id}")
+
+    return response
