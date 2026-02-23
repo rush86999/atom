@@ -92,7 +92,7 @@ class TestLLMRoutingInvariants:
                     assert True, "Should use default provider when preferred unavailable"
 
     @given(
-        text=st.text(min_size=0, max_size=5000, alphabet='abc DEF 123\n\t', average_size=500)
+        text=st.text(min_size=0, max_size=5000, alphabet='abc DEF 123\n\t')
     )
     @settings(max_examples=100)
     def test_token_counting_invariant(self, text):
