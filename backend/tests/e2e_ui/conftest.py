@@ -6,10 +6,15 @@ including browser context, page, and base URL configuration.
 """
 
 import os
+import sys
 from datetime import datetime
 
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
+
+def is_ci_environment():
+    """Detect if running in CI environment."""
+    return os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("GITLAB_CI") == "true"
 
 # Import all Wave 1 fixtures as plugins for comprehensive E2E testing
 pytest_plugins = [
@@ -30,11 +35,22 @@ def pytest_configure(config):
     """
     Pytest configuration hook.
 
-    Register custom markers for Playwright tests.
+    Register custom markers and configure CI-only retries.
     """
+    # Register markers
     config.addinivalue_line(
         "markers", "e2e: mark test as end-to-end UI test"
     )
+
+    # Enable retries only in CI - set environment for pytest-rerunfailures
+    if is_ci_environment():
+        # Add --reruns to sys.argv so pytest-rerunfailures picks it up
+        if "--reruns" not in sys.argv and "-r" not in sys.argv:
+            reruns = os.getenv("PYTEST_RERUNS", "2")
+            sys.argv.extend(["--reruns", reruns])
+            print(f"\nCI environment: Enabled {reruns} retries on failure")
+    else:
+        print("\nLocal development: Test retries disabled (fast feedback)")
 
 
 @pytest.fixture(scope="session")
@@ -57,20 +73,28 @@ def browser_type_launch_args(browser_type_launch_args):
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
     """
-    Configure browser context arguments.
+    Configure browser context arguments with CI-aware video recording.
 
     Args:
         browser_context_args: Default context arguments from pytest-playwright
 
     Returns:
-        Updated context arguments with accept downloads and bypass CSP
+        Updated context arguments with accept downloads, bypass CSP, and conditional video recording
     """
-    return {
+    context_args = {
         **browser_context_args,
         "accept_downloads": True,
         "bypass_csp": True,  # Bypass Content Security Policy for testing
         "ignore_https_errors": True,  # Allow self-signed certificates
     }
+
+    # Enable video recording only in CI
+    if is_ci_environment():
+        video_dir = "backend/tests/e2e_ui/artifacts/videos"
+        os.makedirs(video_dir, exist_ok=True)
+        context_args["record_video_dir"] = video_dir
+
+    return context_args
 
 
 @pytest.fixture(scope="session")
@@ -231,6 +255,40 @@ def pytest_runtest_makereport(item, call):
 
     # Store test outcome in request.node for fixtures to access
     setattr(item, "rep_" + rep.when, rep)
+
+    # Capture screenshot on test failure
+    if rep.when == "call" and rep.failed:
+        # Get page fixture if available
+        page = getattr(item, "_page", None)
+        if page is None:
+            # Try to get page from function args
+            if hasattr(item, "funcargs"):
+                page = item.funcargs.get("page") or item.funcargs.get("authenticated_page")
+
+        if page is not None:
+            # Create screenshots directory if not exists
+            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
+            os.makedirs(screenshot_dir, exist_ok=True)
+
+            # Generate descriptive filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+            screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
+
+            # Capture full page screenshot
+            page.screenshot(path=screenshot_path, full_page=True)
+            print(f"\nScreenshot saved: {screenshot_path}")
+
+            # Save video if in CI environment
+            if is_ci_environment():
+                video_path = page.video.path()
+                if video_path and os.path.exists(video_path):
+                    # Rename video with test name and timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+                    named_video_path = f"backend/tests/e2e_ui/artifacts/videos/{timestamp}_{test_name}.webm"
+                    os.rename(video_path, named_video_path)
+                    print(f"\nVideo saved: {named_video_path}")
 
     # Capture screenshot on test failure
     if rep.when == "call" and rep.failed:
