@@ -9,13 +9,13 @@
     "last_executed": "2025-11-29T18:04:30.975772"
   },
   "test_workflow": {
-    "execution_count": 365,
+    "execution_count": 395,
     "success_count": 0,
-    "failure_count": 365,
-    "total_duration_seconds": 2.5985650000000002,
+    "failure_count": 395,
+    "total_duration_seconds": 2.9586840000000016,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-02-19T11:42:22.973469"
+    "last_executed": "2026-02-23T02:55:20.704592"
   },
   "test-workflow": {
     "execution_count": 78,
@@ -99,12 +99,12 @@
     "last_executed": "2026-02-23T02:54:09.314603"
   },
   "unknown": {
-    "execution_count": 6,
-    "success_count": 6,
+    "execution_count": 7,
+    "success_count": 7,
     "failure_count": 0,
-    "total_duration_seconds": 0.000319,
-    "total_time_saved_seconds": 360.0,
-    "total_business_value": 60.0,
-    "last_executed": "2026-02-20T04:14:02.624535"
+    "total_duration_seconds": 0.004371,
+    "total_time_saved_seconds": 420.0,
+    "total_business_value": 70.0,
+    "last_executed": "2026-02-01T10:00:00"
   }
 }
