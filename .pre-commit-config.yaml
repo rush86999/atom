@@ -73,3 +73,14 @@ repos:
     rev: v4.5.0
     hooks:
       - id: debug-statements
+
+  # GATES-04: Local coverage check before push
+  # Bypass with: git commit --no-verify
+  - repo: local
+    hooks:
+      - id: pytest-with-coverage
+        name: Run pytest with coverage check (80% minimum)
+        entry: bash -c "cd backend && pytest tests/ -q --cov=core --cov=api --cov=tools --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=80"
+        language: system
+        pass_filenames: false
+        always_run: true
