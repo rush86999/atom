@@ -1,5 +1,8 @@
-# Pre-commit hooks configuration for Atom
+# Pre-commit hooks for Atom
 # Install: pip install pre-commit && pre-commit install
+# Bypass coverage check: git commit --no-verify (for emergencies only)
+# Update hooks: pre-commit autoupdate
+# Run all hooks manually: pre-commit run --all-files
 
 repos:
   # Black - Code formatter
