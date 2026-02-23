@@ -27,13 +27,13 @@
     "last_executed": "2026-02-23T03:27:38.478627"
   },
   "error-recovery-workflow": {
-    "execution_count": 5,
+    "execution_count": 6,
     "success_count": 0,
-    "failure_count": 5,
-    "total_duration_seconds": 0.35615700000000006,
+    "failure_count": 6,
+    "total_duration_seconds": 0.5336400000000001,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-02-23T02:54:10.855058"
+    "last_executed": "2026-02-23T03:27:40.312389"
   },
   "background-workflow": {
     "execution_count": 5,
