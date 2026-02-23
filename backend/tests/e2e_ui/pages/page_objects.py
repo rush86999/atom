@@ -1304,3 +1304,174 @@ class ExecutionHistoryPage(BasePage):
         """
         return self.empty_history_message.is_visible()
 
+
+class CanvasHostPage(BasePage):
+    """Page Object for Canvas Host component.
+
+    The Canvas Host is an absolute positioned overlay that displays
+    canvas presentations (charts, markdown, forms, etc.) triggered
+    by agent actions via WebSocket messages.
+
+    Canvas structure (from canvas-host.tsx):
+    - Container: absolute positioned div (z-50, 600px width)
+    - Header: title, component type badge, version, close button
+    - Content: Monaco editor, charts, forms based on component type
+    - Footer: history button, preview mode toggle, save button
+
+    Uses CSS selectors (canvas uses absolute positioning, no data-testid).
+    """
+
+    # Locators using CSS selectors (canvas is absolute positioned)
+    @property
+    def canvas_host(self) -> Locator:
+        """Main canvas container (absolute positioned div with z-50)."""
+        return self.page.locator("div.absolute.top-4.right-4.bottom-4.w-\\[600px\\].bg-white")
+
+    @property
+    def canvas_close_button(self) -> Locator:
+        """X button to close canvas (top right of header)."""
+        return self.page.locator("button:has(svg.lucide-x)")
+
+    @property
+    def canvas_title(self) -> Locator:
+        """Canvas title display in header (truncated to max-w-[250px])."""
+        return self.page.locator("h3.font-semibold.text-sm.truncate")
+
+    @property
+    def canvas_component_badge(self) -> Locator:
+        """Component type badge (e.g., 'markdown', 'form', 'chart')."""
+        return self.page.locator("span.text-\\[8px\\].uppercase")
+
+    @property
+    def canvas_version(self) -> Locator:
+        """Version number display (format: 'v{number}')."""
+        return self.page.locator("span.text-\\[10px\\].font-mono")
+
+    @property
+    def canvas_content(self) -> Locator:
+        """Canvas content area (Monaco editor, charts, etc.)."""
+        return self.page.locator("div.flex-1.overflow-hidden.relative")
+
+    @property
+    def save_button(self) -> Locator:
+        """Save changes button (for editable canvases)."""
+        return self.page.locator("button:has(svg.lucide-save)")
+
+    @property
+    def history_button(self) -> Locator:
+        """Version history button."""
+        return self.page.locator("button:has(svg.lucide-history)")
+
+    @property
+    def preview_mode_button(self) -> Locator:
+        """Preview/Edit mode toggle (for markdown documents)."""
+        return self.page.locator("button:has-text('Preview Mode'), button:has-text('Edit Mode')")
+
+    def is_loaded(self) -> bool:
+        """Check if canvas host is visible and loaded.
+
+        Returns:
+            bool: True if canvas host container is visible
+
+        Example:
+            assert canvas_page.is_loaded() is True
+        """
+        return self.canvas_host.is_visible()
+
+    def get_title(self) -> str:
+        """Get canvas title text.
+
+        Returns:
+            str: Canvas title (may be truncated if too long)
+
+        Example:
+            title = canvas_page.get_title()
+            assert "Sales Data" in title
+        """
+        return self.canvas_title.text_content()
+
+    def get_component_type(self) -> str:
+        """Get component type badge text.
+
+        Returns:
+            str: Component type (e.g., "markdown", "form", "chart")
+
+        Example:
+            component = canvas_page.get_component_type()
+            assert component == "markdown"
+        """
+        return self.canvas_component_badge.text_content()
+
+    def get_version(self) -> str:
+        """Get canvas version number.
+
+        Returns:
+            str: Version string (format: "v{number}")
+
+        Example:
+            version = canvas_page.get_version()
+            assert version == "v1"
+        """
+        return self.canvas_version.text_content()
+
+    def close_canvas(self) -> None:
+        """Click close button to hide canvas.
+
+        Example:
+            canvas_page.close_canvas()
+            assert canvas_page.is_visible() is False
+        """
+        self.canvas_close_button.click()
+
+    def is_visible(self) -> bool:
+        """Check if canvas is currently displayed.
+
+        Returns:
+            bool: True if canvas host is visible
+
+        Example:
+            if canvas_page.is_visible():
+                canvas_page.close_canvas()
+        """
+        return self.canvas_host.is_visible()
+
+    def wait_for_canvas_visible(self, timeout: int = 5000) -> None:
+        """Wait for canvas to appear.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            canvas_page.wait_for_canvas_visible(timeout=10000)
+            assert canvas_page.is_loaded() is True
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                "div.absolute.top-4.right-4.bottom-0.w-\\[600px\\].bg-white",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Canvas did not appear within {timeout}ms")
+
+    def wait_for_canvas_hidden(self, timeout: int = 5000) -> None:
+        """Wait for canvas to disappear.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            canvas_page.close_canvas()
+            canvas_page.wait_for_canvas_hidden()
+            assert canvas_page.is_visible() is False
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                "div.absolute.top-4.right-4.bottom-0.w-\\[600px\\].bg-white",
+                state="hidden",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Canvas did not hide within {timeout}ms")
+
