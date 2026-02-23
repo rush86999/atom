@@ -196,6 +196,15 @@ jobs:
             python -c "import json; d=json.load(open('tests/coverage_reports/metrics/coverage.json')); p=d['totals']['percent_covered']; print(f'Coverage: {p:.1f}%')"
           fi
 
+      - name: Test Results Summary
+        working-directory: ./backend
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f pytest_report.json ]; then
+            python tests/scripts/parse_pytest_output.py pytest_report.json | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Check test pass rate (98%+ required)
         working-directory: ./backend
         if: always()
