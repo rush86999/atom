@@ -167,10 +167,15 @@ def test_flaky_marker_example():
 # Flaky Test Detection Tests
 # ============================================================================
 
+
 def test_flaky_test_tracker_initialization():
     """Verify FlakyTestTracker initializes correctly."""
     import tempfile
     from pathlib import Path
+
+    # Import here to avoid playwright fixture issues
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from scripts.flaky_test_tracker import FlakyTestTracker
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -187,6 +192,10 @@ def test_flaky_test_tracker_update():
     import json
     import tempfile
     from pathlib import Path
+
+    # Import here to avoid playwright fixture issues
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from scripts.flaky_test_tracker import FlakyTestTracker
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -215,6 +224,10 @@ def test_flaky_test_detection():
     """Verify flaky tests are correctly identified."""
     import tempfile
     from pathlib import Path
+
+    # Import here to avoid playwright fixture issues
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from scripts.flaky_test_tracker import FlakyTestTracker
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -247,6 +260,10 @@ def test_stable_test_not_flagged():
     """Verify stable tests are not flagged as flaky."""
     import tempfile
     from pathlib import Path
+
+    # Import here to avoid playwright fixture issues
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from scripts.flaky_test_tracker import FlakyTestTracker
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -329,3 +346,147 @@ def test_html_report_contains_required_elements(page: Page):
     # Note: Actual HTML report content is verified by pytest-html plugin
     # This test ensures the test infrastructure is working
     # Report structure is validated by pytest-html during test runs
+
+
+# ============================================================================
+# Quality Gate Tests
+# ============================================================================
+
+@pytest.mark.no_browser  # Unit tests that don't need browser/database
+def test_pass_rate_calculator():
+    """Verify pass rate calculation from pytest report."""
+    from scripts.pass_rate_validator import PassRateValidator
+    import tempfile
+    from pathlib import Path
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create mock pytest report
+        report_file = Path(tmpdir) / "pytest_report.json"
+        mock_report = {
+            "summary": {
+                "total": 10,
+                "passed": 9,
+                "failed": 1,
+                "skipped": 2,
+                "error": 0
+            }
+        }
+        report_file.write_text(json.dumps(mock_report))
+
+        validator = PassRateValidator(gate_threshold=1.0)
+        result = validator.calculate_from_report(str(report_file))
+
+        # Pass rate = 9 / (9 + 1 + 0) = 90%
+        assert result.total == 10
+        assert result.passed == 9
+        assert result.failed == 1
+        assert result.pass_rate == 0.9
+        assert not result.passed_gate  # 90% < 100%
+
+
+@pytest.mark.no_browser  # Unit tests that don't need browser/database
+def test_pass_rate_100_percent():
+    """Verify 100% pass rate passes quality gate."""
+    from scripts.pass_rate_validator import PassRateValidator
+    import tempfile
+    from pathlib import Path
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        report_file = Path(tmpdir) / "pytest_report.json"
+        mock_report = {
+            "summary": {
+                "total": 5,
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0,
+                "error": 0
+            }
+        }
+        report_file.write_text(json.dumps(mock_report))
+
+        validator = PassRateValidator(gate_threshold=1.0)
+        result = validator.calculate_from_report(str(report_file))
+
+        assert result.pass_rate == 1.0
+        assert result.passed_gate
+
+
+@pytest.mark.no_browser  # Unit tests that don't need browser/database
+def test_quality_gate_consecutive_tracking():
+    """Verify quality gate tracks consecutive passing runs."""
+    from scripts.quality_gate import QualityGate
+    import tempfile
+    from pathlib import Path
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        history_file = Path(tmpdir) / "quality_gate_history.json"
+
+        # Create passing pytest report
+        report_file = Path(tmpdir) / "pytest_report.json"
+        passing_report = {
+            "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0, "error": 0}
+        }
+        report_file.write_text(json.dumps(passing_report))
+
+        gate = QualityGate(
+            history_file=str(history_file),
+            threshold=1.0,
+            consecutive=3
+        )
+
+        # First run
+        passed1, _ = gate.validate(str(report_file))
+        assert not passed1  # Need 3 consecutive
+        assert gate.history["consecutive_passes"] == 1
+
+        # Second run
+        passed2, _ = gate.validate(str(report_file))
+        assert not passed2  # Need 3 consecutive
+        assert gate.history["consecutive_passes"] == 2
+
+        # Third run
+        passed3, _ = gate.validate(str(report_file))
+        assert passed3  # 3 consecutive passes!
+        assert gate.history["consecutive_passes"] == 3
+
+
+@pytest.mark.no_browser  # Unit tests that don't need browser/database
+def test_quality_gate_reset_on_failure():
+    """Verify quality gate resets on failed run."""
+    from scripts.quality_gate import QualityGate
+    import tempfile
+    from pathlib import Path
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        history_file = Path(tmpdir) / "quality_gate_history.json"
+        report_file = Path(tmpdir) / "pytest_report.json"
+
+        gate = QualityGate(
+            history_file=str(history_file),
+            threshold=1.0,
+            consecutive=3
+        )
+
+        # Two passing runs
+        passing_report = {
+            "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0, "error": 0}
+        }
+        report_file.write_text(json.dumps(passing_report))
+        gate.validate(str(report_file))
+        gate.validate(str(report_file))
+
+        assert gate.history["consecutive_passes"] == 2
+
+        # One failing run
+        failing_report = {
+            "summary": {"total": 1, "passed": 0, "failed": 1, "skipped": 0, "error": 0}
+        }
+        report_file.write_text(json.dumps(failing_report))
+        gate.validate(str(report_file))
+
+        # Should reset to 0
+        assert gate.history["consecutive_passes"] == 0
