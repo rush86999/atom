@@ -1,0 +1,109 @@
+# Docker Compose for E2E UI Testing
+# This configuration provides backend, frontend, and PostgreSQL services for E2E UI testing
+# Uses non-conflicting ports to avoid conflicts with development environment
+#
+# Quick Start:
+#   ./scripts/start-e2e-env.sh
+#   ./scripts/stop-e2e-env.sh
+#
+# Features:
+#   - PostgreSQL 16 on port 5434 (avoids conflict with dev DB on 5432)
+#   - Backend on port 8001 (avoids conflict with dev backend on 8000)
+#   - Frontend on port 3001 (avoids conflict with dev frontend on 3000)
+#   - Health checks for service readiness
+#   - Isolated network (e2e_test_network)
+#   - Separate volumes (postgres_data_e2e)
+
+services:
+  # PostgreSQL Database for E2E UI Testing
+  postgres:
+    image: postgres:16-alpine
+    container_name: atom-postgres-e2e
+    ports:
+      - "5434:5432"  # Non-conflicting with dev (5432)
+    environment:
+      POSTGRES_DB: atom_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      # Performance tuning for testing
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 128MB
+      POSTGRES_WORK_MEM: 16MB
+      # Logging (minimal for faster tests)
+      POSTGRES_LOG_STATEMENT: none
+      POSTGRES_LOG_MIN_DURATION_STATEMENT: -1
+    volumes:
+      - postgres_data_e2e:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d atom_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - e2e_test_network
+
+  # Backend Service for E2E UI Testing
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atom-backend-e2e
+    ports:
+      - "8001:8000"  # Non-conflicting with dev (8000)
+    environment:
+      DATABASE_URL: postgresql://test_user:test_pass@postgres:5432/atom_test
+      PORT: 8000
+      LOG_LEVEL: WARNING
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - e2e_test_network
+
+  # Frontend Service for E2E UI Testing
+  frontend:
+    build:
+      context: ./frontend-nextjs
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://backend:8000
+    container_name: atom-frontend-e2e
+    ports:
+      - "3001:3000"  # Non-conflicting with dev (3000)
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+      NODE_ENV: production
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - e2e_test_network
+
+# Named volumes for data persistence
+volumes:
+  postgres_data_e2e:
+    driver: local
+
+# Network configuration (isolated from dev network)
+networks:
+  e2e_test_network:
+    name: e2e_test_network
+    driver: bridge
