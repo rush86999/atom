@@ -25,6 +25,10 @@ async def test_lancedb_integration():
             get_lancedb_connection,
             search_documents,
         )
+        import uuid
+
+        # Generate unique user ID for this test run
+        test_user_id = f"test_user_{uuid.uuid4().hex[:8]}"
 
         # Set test environment
         os.environ["LANCEDB_URI"] = "/tmp/test_lancedb_minimal"
@@ -46,8 +50,8 @@ async def test_lancedb_integration():
         # Test document
         print("📝 Adding test document...")
         doc_meta = {
-            "doc_id": "test_minimal_doc",
-            "user_id": "test_user",
+            "doc_id": f"test_minimal_doc_{uuid.uuid4().hex[:8]}",
+            "user_id": test_user_id,
             "source_uri": "file:///test.txt",
             "doc_type": "text",
             "title": "Test Document",
@@ -70,7 +74,7 @@ async def test_lancedb_integration():
         # Test search functionality
         print("🔍 Testing search functionality...")
         query_vector = [0.1] * 1536
-        search_result = await search_documents(db_conn, query_vector, "test_user", limit=5)
+        search_result = await search_documents(db_conn, query_vector, test_user_id, limit=5)
 
         if search_result["status"] != "success":
             print(f"❌ Search failed: {search_result['message']}")
@@ -80,7 +84,7 @@ async def test_lancedb_integration():
 
         # Test document statistics
         print("📈 Testing document statistics...")
-        stats_result = await get_document_stats(db_conn, "test_user")
+        stats_result = await get_document_stats(db_conn, test_user_id)
 
         if stats_result["status"] != "success":
             print(f"❌ Stats failed: {stats_result['message']}")
@@ -90,7 +94,7 @@ async def test_lancedb_integration():
 
         # Test document deletion
         print("🗑️ Testing document deletion...")
-        delete_result = await delete_document(db_conn, "test_minimal_doc", "test_user")
+        delete_result = await delete_document(db_conn, doc_meta["doc_id"], test_user_id)
 
         if delete_result["status"] != "success":
             print(f"❌ Deletion failed: {delete_result['message']}")
@@ -114,7 +118,12 @@ async def test_document_processor():
     try:
         import os
         import tempfile
+        import uuid
         from document_processor import process_document_and_store
+
+        # Generate unique IDs for this test run
+        test_user_id = f"test_user_{uuid.uuid4().hex[:8]}"
+        doc_id = f"processor_test_doc_{uuid.uuid4().hex[:8]}"
 
         # Create test document in a temporary file
         test_content = "This is a test document for the document processor integration."
@@ -127,9 +136,9 @@ async def test_document_processor():
         try:
             # Test processing
             result = await process_document_and_store(
-                user_id="test_user",
+                user_id=test_user_id,
                 file_path_or_bytes=tmp_file_path,
-                document_id="processor_test_doc",
+                document_id=doc_id,
                 source_uri="file:///test/processor_test.txt",
                 original_doc_type="text",
                 processing_mime_type="text/plain",
