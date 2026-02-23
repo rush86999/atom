@@ -156,6 +156,60 @@ These tests are **PROTECTED** from modification by implementation AI/automation.
 - `tests/.protection_markers/PROPERTY_TEST_GUARDIAN.md` for full details
 - Pre-commit hook warns about modifications to protected files
 
+## VALIDATED_BUG Documentation
+
+All property tests MUST include `VALIDATED_BUG` documentation in docstrings:
+
+```python
+def test_invariant_example(self, input_data):
+    """
+    INVARIANT: Brief description of what must always be true.
+
+    VALIDATED_BUG: Description of the bug this test found or prevents.
+    Root cause: Technical explanation of why the bug occurred.
+    Fixed in: Commit hash or PR description of the fix.
+
+    Scenario: Concrete example of the bug triggering.
+    """
+    # Test implementation
+```
+
+### VALIDATED_BUG Format
+
+- **INVARIANT**: What property must always hold true (one-liner)
+- **VALIDATED_BUG**: What bug this test found or prevents (what happened)
+- **Root cause**: Why the bug occurred (technical explanation)
+- **Fixed in**: How it was fixed (commit, PR, or code change)
+- **Scenario**: Concrete example of the bug manifesting
+
+### Example VALIDATED_BUG Docstrings
+
+```python
+def test_confidence_thresholds_are_boundaries(self, confidence_scores: list):
+    """
+    INVARIANT: Confidence thresholds define clear, non-overlapping boundaries.
+
+    VALIDATED_BUG: Threshold boundary overlap caused agents to be in wrong status.
+    Root cause: Inclusive boundaries on both sides (e.g., >=0.5 and <=0.5).
+    Fixed by making lower bounds inclusive and upper bounds exclusive (except top tier).
+
+    Scenario: Score 0.7 was classified as both INTERN and SUPERVISED.
+    """
+```
+
+```python
+def test_atomicity(self, operations, auto_commit):
+    """
+    INVARIANT: Transactions should be atomic - all or nothing.
+
+    VALIDATED_BUG: Partial insert occurred when foreign key constraint violated.
+    Root cause: Missing explicit transaction boundary caused auto-commit on each statement.
+    Fixed by wrapping operations in explicit BEGIN/COMMIT with error handling.
+
+    Scenario: Inserting 100 rows where row 50 violates FK -> zero rows inserted.
+    """
+```
+
 ## Writing New Property-Based Tests
 
 When adding new tests:
@@ -165,6 +219,11 @@ When adding new tests:
 3. **Verify Invariants**: Test properties that MUST always be true
 4. **Keep Tests Independent**: Each test should verify one invariant
 5. **Use Descriptive Names**: Test names should clearly state the invariant
+6. **Add VALIDATED_BUG Documentation**: Document bugs found or prevented in docstrings
+7. **Set Appropriate max_examples**: Use 50-200 examples based on complexity:
+   - **50**: Fast CI feedback, simple invariants (e.g., range checks)
+   - **100**: Standard for most invariants (default recommendation)
+   - **200**: Complex invariants, critical safety properties (e.g., financial calculations)
 
 ### Hypothesis Strategies
 
