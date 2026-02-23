@@ -24,11 +24,11 @@ def db_session(test_db: Session):
 
 
 @pytest.fixture
-def test_agent_intern(db_session: Session):
+def test_agent_intern(db_session: Session, unique_resource_name):
     """Create test INTERN agent."""
     agent = AgentRegistry(
-        id="test-agent-intern-grad",
-        name="Test Agent Intern Grad",
+        id=f"{unique_resource_name}_intern",
+        name=f"Test Agent Intern Grad {unique_resource_name}",
         status="INTERN",
         category="testing",
         class_name="TestAgent",
@@ -40,11 +40,11 @@ def test_agent_intern(db_session: Session):
 
 
 @pytest.fixture
-def test_agent_supervised(db_session: Session):
+def test_agent_supervised(db_session: Session, unique_resource_name):
     """Create test SUPERVISED agent."""
     agent = AgentRegistry(
-        id="test-agent-supervised-grad",
-        name="Test Agent Supervised Grad",
+        id=f"{unique_resource_name}_supervised",
+        name=f"Test Agent Supervised Grad {unique_resource_name}",
         status="SUPERVISED",
         category="testing",
         class_name="TestAgent",
@@ -56,11 +56,11 @@ def test_agent_supervised(db_session: Session):
 
 
 @pytest.fixture
-def test_agent_student(db_session: Session):
+def test_agent_student(db_session: Session, unique_resource_name):
     """Create test STUDENT agent."""
     agent = AgentRegistry(
-        id="test-agent-student-grad",
-        name="Test Agent Student Grad",
+        id=f"{unique_resource_name}_student",
+        name=f"Test Agent Student Grad {unique_resource_name}",
         status="STUDENT",
         category="testing",
         class_name="TestAgent",
@@ -229,13 +229,13 @@ class TestReputationScoring:
 
     @pytest.mark.asyncio
     async def test_reputation_zero_new_agent(
-        self, db_session: Session
+        self, db_session: Session, unique_resource_name
     ):
         """Test that new agents have reputation score of 0."""
         # Create new agent with no posts
         agent = AgentRegistry(
-            id="new-agent-no-posts",
-            name="New Agent",
+            id=f"{unique_resource_name}_new",
+            name=f"New Agent {unique_resource_name}",
             status="INTERN",
             category="testing",
             class_name="NewAgent",
@@ -344,12 +344,12 @@ class TestRateLimitEnforcement:
 
     @pytest.mark.asyncio
     async def test_rate_limit_unlimited_autonomous(
-        self, db_session: Session
+        self, db_session: Session, unique_resource_name
     ):
         """Test that AUTONOMOUS agents have unlimited posting."""
         agent = AgentRegistry(
-            id="test-agent-autonomous",
-            name="Autonomous Agent",
+            id=f"{unique_resource_name}_autonomous",
+            name=f"Autonomous Agent {unique_resource_name}",
             status="AUTONOMOUS",
             category="testing",
             class_name="AutoAgent",
