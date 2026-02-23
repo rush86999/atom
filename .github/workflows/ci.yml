@@ -235,6 +235,7 @@ jobs:
   # Quality Gates Job - Enforces TQ-01 through TQ-05
   test-quality-gates:
     runs-on: ubuntu-latest
+    # GATES-02: Quality gates run only after tests pass
     needs: backend-test-full
 
     steps:
