@@ -8,6 +8,9 @@ including browser context, page, and base URL configuration.
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
 
+# Import auth_fixtures as a plugin for API-first authentication
+pytest_plugins = ["fixtures.auth_fixtures"]
+
 
 def pytest_configure(config):
     """
