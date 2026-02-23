@@ -100,6 +100,31 @@ jobs:
             --self-contained-html \
             --json-report --json-report-file=pytest_report.json
 
+      - name: Create reports directory
+        run: mkdir -p backend/tests/e2e_ui/reports
+
+      - name: Detect flaky tests
+        if: always()
+        working-directory: ./backend/tests/e2e_ui
+        run: |
+          if [ -f pytest_report.json ]; then
+            python scripts/detect_flaky_tests.py pytest_report.json \
+              --threshold 0.8 \
+              --min-runs 3 \
+              --output reports/flaky_test_report.txt
+          else
+            echo "pytest_report.json not found, skipping flaky test detection"
+          fi
+
+      - name: Upload flaky test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-flaky-test-report
+          path: backend/tests/e2e_ui/reports/flaky_test_report.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
