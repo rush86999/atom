@@ -228,6 +228,11 @@ def track_page_for_screenshots(request, page):
     Yields:
         None: Allows test to execute
     """
+    # Skip tracking for unit tests marked with no_browser
+    if request.node.get_closest_marker('no_browser'):
+        yield
+        return
+
     if hasattr(request, "node"):
         request.node._page = page
     yield
