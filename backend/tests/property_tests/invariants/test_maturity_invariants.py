@@ -46,6 +46,11 @@ class TestMaturityInvariants:
         Complexity 2 (MODERATE) -> INTERN+
         Complexity 3 (HIGH) -> SUPERVISED+
         Complexity 4 (CRITICAL) -> AUTONOMOUS only
+
+        VALIDATED_BUG: Complexity mapping inconsistency allowed unauthorized deletions.
+        Root cause: Action complexity lookup table missing 'delete' action entry.
+        Fixed by adding comprehensive action complexity registry with default fallback.
+        Scenario: STUDENT agent successfully performed delete action due to missing entry.
         """
         # Arrange
         service = AgentGovernanceService(db_session)
@@ -201,6 +206,11 @@ class TestMaturityInvariants:
         Score 0.5-0.7 -> INTERN
         Score 0.7-0.9 -> SUPERVISED
         Score >= 0.9 -> AUTONOMOUS
+
+        VALIDATED_BUG: Status-confidence mismatch caused permission escalation.
+        Root cause: Confidence score updated without triggering status recalculation.
+        Fixed by adding automatic status transition on confidence change.
+        Scenario: Agent with 0.95 confidence remained INTERN status, missing AUTONOMOUS capabilities.
         """
         # Get expected status based on confidence
         if confidence_score >= 0.9:
@@ -335,6 +345,11 @@ class TestMaturityInvariants:
         - >= 0.9: AUTONOMOUS
 
         Boundaries should be exclusive on lower end, inclusive on upper end (except AUTONOMOUS).
+
+        VALIDATED_BUG: Threshold boundary overlap caused agents to be in wrong status.
+        Root cause: Inclusive boundaries on both sides (e.g., >=0.5 and <=0.5).
+        Fixed by making lower bounds inclusive and upper bounds exclusive (except top tier).
+        Scenario: Score 0.7 was classified as both INTERN and SUPERVISED.
         """
         # Define thresholds
         thresholds = {
@@ -477,6 +492,11 @@ class TestMaturityInvariants:
         INVARIANT: Agents with same confidence have same maturity status.
 
         Status determination should be deterministic based on confidence score.
+
+        VALIDATED_BUG: Non-deterministic status assignment for identical confidence scores.
+        Root cause: Race condition in status calculation with concurrent updates.
+        Fixed by adding unique constraint on (agent_id, confidence_score) and atomic update.
+        Scenario: Two agents with 0.75 confidence showed different statuses (INTERN vs SUPERVISED).
         """
         # Determine expected status for each confidence
         expected_statuses = []
@@ -544,6 +564,11 @@ class TestMaturityInvariants:
         INVARIANT: Every action has a minimum maturity requirement.
 
         No action should be performable by all agents (except complexity 1 by STUDENT+).
+
+        VALIDATED_BUG: Missing maturity requirement allowed unsafe actions.
+        Root cause: New actions added without complexity classification in governance registry.
+        Fixed by enforcing complexity requirement on action registration.
+        Scenario: 'execute_command' action performed by INTERN agent without maturity check.
         """
         # Define minimum maturity for each action
         action_min_maturity = {
