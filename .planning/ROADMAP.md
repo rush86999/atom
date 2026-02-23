@@ -162,7 +162,17 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
   5. INTERN agent requires approval before executing actions (approval dialog displayed)
   6. Agent execution history is displayed in chat interface (timestamp, status, result)
 
-**Plans**: TBD
+**Plans**: 6 plans in 2 waves
+
+**Wave 1** (parallel): 077-01, 077-02, 077-03, 077-04
+- [ ] 077-01-PLAN.md — Chat Interface Page Object (ChatPage with locators and methods)
+- [ ] 077-02-PLAN.md — Chat message sending tests (AGENT-01: send, history, empty input, persistence)
+- [ ] 077-03-PLAN.md — WebSocket connection lifecycle tests (AGENT-03: connect, events, disconnect, reconnect)
+- [ ] 077-04-PLAN.md — Streaming response tests (AGENT-02: token-by-token, completion, indicator, errors)
+
+**Wave 2**: 077-05, 077-06 (depends on Wave 1 Page Objects and tests)
+- [ ] 077-05-PLAN.md — Governance enforcement tests (AGENT-04, AGENT-05: STUDENT blocking, INTERN approval, SUPERVISED auto-execute)
+- [ ] 077-06-PLAN.md — Agent execution history tests (AGENT-06: display, timestamp, status, persistence)
 
 ---
 
@@ -231,16 +241,20 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 |-------|----------------|--------|-----------|
 | 75. Test Infrastructure & Fixtures | 0/7 | Ready to start | - |
 | 76. Authentication & User Management | 0/5 | Not started | - |
-| 77. Agent Chat & Streaming | 0/6 | Not started | - |
+| 77. Agent Chat & Streaming | 0/6 | Planned | - |
 | 78. Canvas Presentations | 0/6 | Not started | - |
 | 79. Skills & Workflows | 0/5 | Not started | - |
 | 80. Quality Gates & CI/CD Integration | 0/6 | Not started | - |
 
-**Overall Progress**: 0/35 plans complete (0%)
+**Overall Progress**: 0/41 plans complete (0%)
 
 **Phase 75 Breakdown** (7 plans, 2 waves):
 - Wave 1 (6 plans, parallel): 75-01, 75-02, 75-03, 75-04, 75-05, 75-06 — Configuration, fixtures, factories, database isolation, API setup, Docker environment
 - Wave 2 (1 plan): 75-07 — Playwright update and final configuration (depends on fixture creation from Wave 1)
+
+**Phase 77 Breakdown** (6 plans, 2 waves):
+- Wave 1 (4 plans, parallel): 077-01, 077-02, 077-03, 077-04 — ChatPage PO, message sending, WebSocket lifecycle, streaming responses
+- Wave 2 (2 plans): 077-05, 077-06 — Governance enforcement, execution history (depends on Wave 1)
 
 ---
 
