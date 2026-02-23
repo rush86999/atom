@@ -72,13 +72,13 @@
     "last_executed": "2026-02-19T13:12:13.593101"
   },
   "mapping-workflow": {
-    "execution_count": 3,
+    "execution_count": 4,
     "success_count": 0,
-    "failure_count": 3,
-    "total_duration_seconds": 0.27527500000000005,
+    "failure_count": 4,
+    "total_duration_seconds": 0.4884550000000001,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-02-19T13:12:11.560249"
+    "last_executed": "2026-02-23T02:54:11.473485"
   },
   "notification-workflow": {
     "execution_count": 3,
