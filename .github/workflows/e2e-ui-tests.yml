@@ -1,0 +1,133 @@
+name: E2E UI Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: atom_e2e
+          POSTGRES_PASSWORD: atom_e2e_password
+          POSTGRES_DB: atom_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-e2e-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('backend/tests/e2e_ui/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-playwright playwright
+          playwright install chromium
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Start backend server
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          PORT: 8001
+        run: |
+          python -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:8001/health/live
+
+      - name: Start frontend server
+        working-directory: ./frontend-nextjs
+        env:
+          PORT: 3001
+          NEXT_PUBLIC_API_URL: http://localhost:8001
+        run: |
+          npm run dev &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:3001
+
+      - name: Run E2E tests
+        working-directory: ./backend/tests/e2e_ui
+        env:
+          CI: true
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          BASE_URL: http://localhost:3001
+        run: |
+          pytest tests/ -v -n 4 \
+            --html=reports/test-report.html \
+            --self-contained-html \
+            --json-report --json-report-file=pytest_report.json
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: backend/tests/e2e_ui/artifacts/screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-videos
+          path: backend/tests/e2e_ui/artifacts/videos/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload HTML test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report
+          path: backend/tests/e2e_ui/reports/test-report.html
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload pytest JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-pytest-report
+          path: backend/tests/e2e_ui/pytest_report.json
+          retention-days: 30
+          if-no-files-found: warn
