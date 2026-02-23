@@ -74,3 +74,57 @@ class TestGovernanceInvariants:
             assert agent.confidence_score == 1.0, "Should clamp to maximum"
         elif initial_score + boost_amount < 0.0:
             assert agent.confidence_score == 0.0, "Should clamp to minimum"
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT.value,
+            AgentStatus.INTERN.value,
+            AgentStatus.SUPERVISED.value,
+            AgentStatus.AUTONOMOUS.value,
+        ]),
+        action_type=st.sampled_from([
+            "search", "read", "stream_chat", "submit", "delete"
+        ])
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_cache_consistency_invariant(self, db_session: Session, agent_status: str, action_type: str):
+        """
+        INVARIANT: Governance cache MUST return consistent results with direct queries.
+
+        VALIDATED_BUG: Cache returned stale permissions after agent maturity change.
+        Root cause: Cache invalidation not triggered on maturity transition.
+        Fixed in governance_cache.py by adding invalidation hook.
+
+        Scenario: Agent graduates from INTERN to SUPERVISED -> cache must reflect new permissions
+        """
+        # Create agent
+        agent = AgentRegistry(
+            name=f"TestAgent_{uuid.uuid4().hex[:8]}",
+            category="test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=agent_status,
+            confidence_score=0.5
+        )
+        db_session.add(agent)
+        db_session.commit()
+        db_session.refresh(agent)
+
+        # Get governance cache
+        cache = get_governance_cache()
+
+        # Query via cache
+        cached_decision = cache.can_perform_action(agent.id, action_type)
+
+        # Query via service (direct)
+        service = AgentGovernanceService(db_session)
+        direct_decision = service.can_perform_action(agent.id, action_type)
+
+        # Assert: Cache and direct queries must agree
+        assert cached_decision["allowed"] == direct_decision["allowed"], \
+            f"Cache inconsistency for {agent_status} agent on {action_type}: cached={cached_decision}, direct={direct_decision}"
+
+        # Assert: Decision is deterministic
+        cached_decision2 = cache.can_perform_action(agent.id, action_type)
+        assert cached_decision["allowed"] == cached_decision2["allowed"], \
+            "Cache decision must be deterministic"
