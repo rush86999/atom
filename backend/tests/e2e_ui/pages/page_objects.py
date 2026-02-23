@@ -1879,6 +1879,393 @@ class CanvasChartPage(BasePage):
         return labels
 
 
+class SkillsMarketplacePage(BasePage):
+    """Page Object for Skills Marketplace page.
+
+    Encapsulates marketplace browsing interactions including:
+    - Skill search and filtering (query, category, skill_type)
+    - Skill card display (name, description, category, rating, author)
+    - Pagination controls (next, prev, page indicator)
+    - Empty state handling
+    - Skill installation from marketplace
+
+    Uses data-testid selectors for resilience (check frontend for test-id attributes).
+
+    Marketplace API:
+    - GET /api/skills/list with query, category, skill_type, page, page_size params
+    - SkillMarketplaceService.search_skills() provides PostgreSQL full-text search
+    - Categories: data_processing, automation, integration, productivity, utilities, developer_tools
+    - Skill types: prompt_only, python_code, nodejs
+    - Pagination: default page_size=20
+    """
+
+    # Locators using data-testid attributes (update when frontend adds test-ids)
+    @property
+    def marketplace_container(self) -> Locator:
+        """Main marketplace container div."""
+        return self.page.get_by_test_id("marketplace-container").or_(
+            self.page.locator("div[class*=\"marketplace\"], div[class*=\"skills-list\"]")
+        )
+
+    @property
+    def search_input(self) -> Locator:
+        """Search text input field locator."""
+        return self.page.get_by_test_id("marketplace-search-input").or_(
+            self.page.locator("input[type=\"search\"], input[placeholder*=\"search\" i]")
+        )
+
+    @property
+    def search_button(self) -> Locator:
+        """Search submit button locator."""
+        return self.page.get_by_test_id("marketplace-search-button").or_(
+            self.page.locator("button:has-text(\"Search\"), button:has(svg.lucide-search)")
+        )
+
+    @property
+    def category_filter(self) -> Locator:
+        """Category dropdown/selector locator."""
+        return self.page.get_by_test_id("marketplace-category-filter").or_(
+            self.page.locator("select[name=\"category\"], select[placeholder*=\"category\" i]")
+        )
+
+    @property
+    def skill_type_filter(self) -> Locator:
+        """Skill type filter locator (prompt_only, python_code)."""
+        return self.page.get_by_test_id("marketplace-skill-type-filter").or_(
+            self.page.locator("select[name=\"skill_type\"], select[placeholder*=\"type\" i]")
+        )
+
+    @property
+    def skill_cards(self) -> Locator:
+        """Individual skill card elements locator."""
+        return self.page.get_by_test_id("skill-card").or_(
+            self.page.locator("div[class*=\"skill-card\"], div[class*=\"skill-item\"]")
+        )
+
+    @property
+    def skill_card_name(self) -> Locator:
+        """Skill name display on card locator."""
+        return self.page.get_by_test_id("skill-card-name").or_(
+            self.page.locator("h3[class*=\"skill-name\"], h4[class*=\"skill-name\"]")
+        )
+
+    @property
+    def skill_card_description(self) -> Locator:
+        """Skill description text locator."""
+        return self.page.get_by_test_id("skill-card-description").or_(
+            self.page.locator("p[class*=\"skill-description\"]")
+        )
+
+    @property
+    def skill_card_category(self) -> Locator:
+        """Category badge on card locator."""
+        return self.page.get_by_test_id("skill-card-category").or_(
+            self.page.locator("span[class*=\"category\"], span[class*=\"badge\"]")
+        )
+
+    @property
+    def skill_card_rating(self) -> Locator:
+        """Star rating display locator."""
+        return self.page.get_by_test_id("skill-card-rating").or_(
+            self.page.locator("div[class*=\"rating\"], span[class*=\"star\"]")
+        )
+
+    @property
+    def skill_card_author(self) -> Locator:
+        """Author name display locator."""
+        return self.page.get_by_test_id("skill-card-author").or_(
+            self.page.locator("span[class*=\"author\"], p[class*=\"author\"]")
+        )
+
+    @property
+    def skill_card_install_button(self) -> Locator:
+        """Install button on skill card locator."""
+        return self.page.get_by_test_id("skill-card-install-button").or_(
+            self.page.locator("button:has-text(\"Install\"), button:has(svg.lucide-download)")
+        )
+
+    @property
+    def pagination_container(self) -> Locator:
+        """Pagination controls container locator."""
+        return self.page.get_by_test_id("marketplace-pagination").or_(
+            self.page.locator("div[class*=\"pagination\"], nav[class*=\"pagination\"]")
+        )
+
+    @property
+    def next_page_button(self) -> Locator:
+        """Next page button locator."""
+        return self.page.get_by_test_id("marketplace-next-page").or_(
+            self.page.locator("button[aria-label=\"Next\"], button:has-text(\"Next\"), button:has(svg.lucide-chevron-right)")
+        )
+
+    @property
+    def prev_page_button(self) -> Locator:
+        """Previous page button locator."""
+        return self.page.get_by_test_id("marketplace-prev-page").or_(
+            self.page.locator("button[aria-label=\"Previous\"], button:has-text(\"Prev\"), button:has(svg.lucide-chevron-left)")
+        )
+
+    @property
+    def page_indicator(self) -> Locator:
+        """Current page indicator locator."""
+        return self.page.get_by_test_id("marketplace-page-indicator").or_(
+            self.page.locator("span[class*=\"page-indicator\"], span[class*=\"current-page\"]")
+        )
+
+    @property
+    def empty_state(self) -> Locator:
+        """Empty state message locator (when no skills found)."""
+        return self.page.get_by_test_id("marketplace-empty-state").or_(
+            self.page.locator("div[class*=\"empty\"], div[class*=\"no-results\"]")
+        )
+
+    @property
+    def loading_spinner(self) -> Locator:
+        """Loading state indicator locator."""
+        return self.page.get_by_test_id("marketplace-loading").or_(
+            self.page.locator("div[class*=\"loading\"], div[class*=\"spinner\"], span[class*=\"loading\"]")
+        )
+
+    def is_loaded(self) -> bool:
+        """Check if marketplace page is loaded and visible.
+
+        Returns:
+            bool: True if marketplace container is visible
+
+        Example:
+            assert marketplace.is_loaded() is True
+        """
+        return (self.marketplace_container.is_visible() or
+                self.empty_state.is_visible())
+
+    def navigate(self) -> None:
+        """Navigate to skills marketplace page.
+
+        Example:
+            marketplace.navigate()
+            assert marketplace.is_loaded()
+        """
+        self.page.goto("http://localhost:3001/marketplace")
+
+    def search(self, query: str) -> None:
+        """Enter search query and submit.
+
+        Args:
+            query: Search query text
+
+        Example:
+            marketplace.search("data processing")
+            # Search results updated
+        """
+        self.search_input.fill(query)
+        if self.search_button.is_visible():
+            self.search_button.click()
+        else:
+            # Trigger search via Enter key if no button
+            self.search_input.press("Enter")
+
+    def select_category(self, category: str) -> None:
+        """Select category filter.
+
+        Args:
+            category: Category name (e.g., "data_processing", "automation")
+
+        Example:
+            marketplace.select_category("data_processing")
+        """
+        if self.category_filter.is_visible():
+            self.category_filter.select_option(category)
+
+    def select_skill_type(self, skill_type: str) -> None:
+        """Select skill type filter.
+
+        Args:
+            skill_type: Skill type ("prompt_only", "python_code", "nodejs")
+
+        Example:
+            marketplace.select_skill_type("python_code")
+        """
+        if self.skill_type_filter.is_visible():
+            self.skill_type_filter.select_option(skill_type)
+
+    def get_skill_count(self) -> int:
+        """Get number of skill cards displayed.
+
+        Returns:
+            int: Number of skill cards visible (0 if empty state shown)
+
+        Example:
+            count = marketplace.get_skill_count()
+            assert count > 0
+        """
+        if self.is_empty_state_visible():
+            return 0
+        return self.skill_cards.count()
+
+    def get_skill_names(self) -> list[str]:
+        """Get list of displayed skill names.
+
+        Returns:
+            list[str]: List of skill names in order
+
+        Example:
+            names = marketplace.get_skill_names()
+            assert "DataProcessor" in names
+        """
+        names = []
+        cards = self.skill_cards.all()
+        for card in cards:
+            name_el = card.locator("h3, h4").first
+            if name_el.is_visible():
+                names.append(name_el.text_content())
+        return names
+
+    def get_skill_card_info(self, index: int) -> dict:
+        """Get skill details at specific index.
+
+        Args:
+            index: Zero-based index of skill card
+
+        Returns:
+            dict: Skill details (name, description, category, rating, author)
+
+        Example:
+            info = marketplace.get_skill_card_info(0)
+            assert info["category"] == "data_processing"
+        """
+        cards = self.skill_cards.all()
+        if index >= len(cards):
+            raise IndexError(f"Skill index {index} out of range (count: {len(cards)})")
+
+        card = cards[index]
+
+        # Extract skill information from card
+        info = {}
+
+        # Name
+        name_el = card.locator("h3, h4").first
+        if name_el.is_visible():
+            info["name"] = name_el.text_content()
+
+        # Description
+        desc_el = card.locator("p[class*=\"description\"], p").first
+        if desc_el.is_visible():
+            info["description"] = desc_el.text_content()
+
+        # Category (from badge)
+        category_el = card.locator("span[class*=\"category\"], span[class*=\"badge\"]").first
+        if category_el.is_visible():
+            info["category"] = category_el.text_content()
+
+        # Rating (extract from stars or text)
+        rating_el = card.locator("div[class*=\"rating\"], span[class*=\"rating\"]").first
+        if rating_el.is_visible():
+            info["rating"] = rating_el.text_content()
+
+        # Author
+        author_el = card.locator("span[class*=\"author\"], p[class*=\"author\"]").first
+        if author_el.is_visible():
+            info["author"] = author_el.text_content()
+
+        return info
+
+    def click_skill_install(self, index: int) -> None:
+        """Click install button on skill card.
+
+        Args:
+            index: Zero-based index of skill card
+
+        Example:
+            marketplace.click_skill_install(0)
+            # Installation started
+        """
+        cards = self.skill_cards.all()
+        if index >= len(cards):
+            raise IndexError(f"Skill index {index} out of range (count: {len(cards)})")
+
+        card = cards[index]
+        install_btn = card.locator("button:has-text(\"Install\"), button:has(svg.lucide-download)").first
+        if install_btn.is_visible():
+            install_btn.click()
+
+    def click_next_page(self) -> None:
+        """Navigate to next page.
+
+        Example:
+            marketplace.click_next_page()
+            # Moved to next page of results
+        """
+        if self.next_page_button.is_visible() and not self.next_page_button.is_disabled():
+            self.next_page_button.click()
+
+    def click_prev_page(self) -> None:
+        """Navigate to previous page.
+
+        Example:
+            marketplace.click_prev_page()
+            # Moved to previous page of results
+        """
+        if self.prev_page_button.is_visible() and not self.prev_page_button.is_disabled():
+            self.prev_page_button.click()
+
+    def get_current_page(self) -> int:
+        """Get current page number.
+
+        Returns:
+            int: Current page number (1-based)
+
+        Example:
+            page = marketplace.get_current_page()
+            assert page == 1
+        """
+        if self.page_indicator.is_visible():
+            text = self.page_indicator.text_content()
+            # Extract page number from text like "Page 1 of 5" or "1 / 5"
+            import re
+            match = re.search(r"\d+", text)
+            if match:
+                return int(match.group())
+        return 1  # Default to page 1
+
+    def is_empty_state_visible(self) -> bool:
+        """Check if empty state is shown.
+
+        Returns:
+            bool: True if empty state message is visible
+
+        Example:
+            assert marketplace.is_empty_state_visible() is True
+        """
+        return self.empty_state.is_visible()
+
+    def wait_for_skills_load(self, timeout: int = 5000) -> None:
+        """Wait for skill cards to load.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            marketplace.navigate()
+            marketplace.wait_for_skills_load(timeout=10000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for loading spinner to disappear and skills to appear
+            if self.loading_spinner.is_visible():
+                self.page.wait_for_selector(
+                    "div[class*=\"loading\"], div[class*=\"spinner\"]",
+                    state="hidden",
+                    timeout=timeout
+                )
+            # Wait for skill cards or empty state
+            self.page.wait_for_selector(
+                "div[class*=\"skill-card\"], div[class*=\"empty\"], div[class*=\"no-results\"]",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Skills did not load within {timeout}ms")
+
+
 class CanvasFormPage(BasePage):
     """Page Object for Canvas Form presentations.
 
