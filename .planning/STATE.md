@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** Phase 080 Plan 80-05 COMPLETE - Quality gate enforces 100% pass rate on 3 consecutive CI runs
+**Current focus:** Phase 080 Plan 80-04 COMPLETE - Flaky test detection identifies unstable tests across multiple CI runs
 
 ## Current Position
 
 Phase: 080-quality-gates
-Plan: 80-05
-Status: ✅ Plan 80-05 COMPLETE - Quality gate with consecutive run enforcement. PassRateValidator class calculates pass rate as passed / (passed + failed + errors). QualityGate class tracks 3 consecutive 100% pass runs. Failed tests reset consecutive counter. CI workflow integration with --threshold 1.0 and --consecutive 3. Quality gate history tracked in JSON file and uploaded as 90-day artifact. Added 4 quality gate tests (pass rate calculator, 100% pass, consecutive tracking, failure reset). Duration: 6 minutes.
+Plan: 80-04
+Status: ✅ Plan 80-04 COMPLETE - Flaky test detection identifies unstable tests. FlakyTestTracker module tracks test results across runs with JSON storage. detect_flaky_tests.py CLI script with configurable thresholds (80% pass rate, min 3 runs). CI workflow integration with artifact upload (30-day retention). Unit tests verify tracker initialization, report parsing, flaky identification, and stable test exclusion. Historical data stored in data/flaky_tests.json for trend analysis. Duration: 8 minutes.
 
-Progress: [█████████░] 91% (v3.1: 33/35 plans complete, 80-05 just completed)
+Progress: [█████████░] 91% (v3.1: 33/35 plans complete, 80-04 just completed)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -147,6 +147,13 @@ Recent decisions affecting current work:
 - [Phase 080-03]: PYTEST_RERUNS environment variable controls retry count (default: 2, configurable)
 - [Phase 080-03]: pytest-rerunfailures plugin injects --reruns via sys.argv modification when is_ci_environment() returns True
 - [Phase 080-03]: @pytest.mark.flaky marker for temporary flaky test workarounds (documented with warning)
+- [Phase 080-04]: JSON file storage for historical test tracking (backend/tests/e2e_ui/data/flaky_tests.json)
+- [Phase 080-04]: 80% pass threshold for flaky detection configurable via --threshold CLI flag
+- [Phase 080-04]: Minimum 3 runs before flagging test as flaky (--min-runs) to avoid false positives
+- [Phase 080-04]: Separate tests/unit/ directory with pytest.ini to disable playwright for unit tests
+- [Phase 080-04]: no_browser marker for tests that don't need browser/fixtures (skips expensive setup)
+- [Phase 080-04]: if: always() in CI workflow ensures flaky detection runs even if tests fail
+- [Phase 080-04]: 30-day artifact retention for flaky test reports (vs 7-day for screenshots/videos)
 - [Phase 080-06]: Self-contained HTML reports with --self-contained-html flag for offline viewing
 - [Phase 080-06]: Base64 screenshot embedding eliminates external file dependencies
 - [Phase 080-06]: pytest-html hooks (pytest_html_results_summary, pytest_html_results_table_row, pytest_html_results_table_header) for report customization
@@ -206,8 +213,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 22:30
-Stopped at: Completed Phase 080 Plan 80-05 - Quality Gate with Consecutive Run Enforcement
+Last session: 2026-02-23 22:31
+Stopped at: Completed Phase 080 Plan 80-04 - Flaky Test Detection
 Resume file: None
 
 ---
