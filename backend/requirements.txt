@@ -132,7 +132,10 @@ pyyaml>=6.0.0,<7.0.0
 ujson>=5.7.0,<6.0.0
 apscheduler>=3.10.0,<4.0.0
 gunicorn==21.2.0
-playwright==1.40.0
+playwright==1.58.0
+pytest-playwright==0.5.2
+pytest-xdist==3.6.1
+faker==22.7.0
 instructor>=1.0.0
 networkx>=3.0
 
