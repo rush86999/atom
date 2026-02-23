@@ -31,7 +31,7 @@ export const authOptions: NextAuthOptions = {
           };
 
           // Call backend login endpoint
-          const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/login`, {
+          const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || 'http://localhost:8000'}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(loginPayload)
@@ -185,7 +185,7 @@ export const authOptions: NextAuthOptions = {
             await query('SELECT set_tenant_context($1)', [tenant.id]);
 
             // Get user via backend login endpoint which now handles 2FA
-            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/login`, {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.API_BASE_URL || process.env.PYTHON_BACKEND_URL || 'http://localhost:8000'}/api/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
