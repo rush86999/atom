@@ -119,6 +119,10 @@ Recent decisions affecting current work:
 - Playwright Python 1.58.0 selected for E2E UI testing (research validated)
 - Chromium-only testing for v3.1 (Firefox/Safari deferred to v3.2)
 - API-first test setup for expensive state initialization (bypass UI where possible)
+- [Phase 75-05]: Port 8001 for test backend (non-conflicting with dev backend on 8000)
+- [Phase 75-05]: UUID v4 for test user emails prevents parallel test collisions
+- [Phase 75-05]: Function-scoped fixtures for test isolation (fresh data per test)
+- [Phase 75-05]: Session-scoped base_url for consistent configuration across test suite
 - Worker-based database isolation with UUID v4 unique data (prevents parallel collisions)
 - Quality gates with screenshots, videos, retries, flaky detection (production confidence)
 - Docker Compose test environment for reproducibility (backend, frontend, PostgreSQL)
