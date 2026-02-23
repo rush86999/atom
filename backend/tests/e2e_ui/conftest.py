@@ -284,31 +284,8 @@ def pytest_runtest_makereport(item, call):
                 video_path = page.video.path()
                 if video_path and os.path.exists(video_path):
                     # Rename video with test name and timestamp
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    test_name = item.name.replace("::", "_").replace("/", "_")[:100]
-                    named_video_path = f"backend/tests/e2e_ui/artifacts/videos/{timestamp}_{test_name}.webm"
+                    video_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    video_test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+                    named_video_path = f"backend/tests/e2e_ui/artifacts/videos/{video_timestamp}_{video_test_name}.webm"
                     os.rename(video_path, named_video_path)
                     print(f"\nVideo saved: {named_video_path}")
-
-    # Capture screenshot on test failure
-    if rep.when == "call" and rep.failed:
-        # Get page fixture if available
-        page = getattr(item, "_page", None)
-        if page is None:
-            # Try to get page from function args
-            if hasattr(item, "funcargs"):
-                page = item.funcargs.get("page") or item.funcargs.get("authenticated_page")
-
-        if page is not None:
-            # Create screenshots directory if not exists
-            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
-            os.makedirs(screenshot_dir, exist_ok=True)
-
-            # Generate descriptive filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            test_name = item.name.replace("::", "_").replace("/", "_")[:100]
-            screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
-
-            # Capture full page screenshot
-            page.screenshot(path=screenshot_path, full_page=True)
-            print(f"\nScreenshot saved: {screenshot_path}")
