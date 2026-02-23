@@ -29,7 +29,7 @@ class TestGovernanceInvariants:
     @pytest.fixture
     def db_session(self, request):
         """Get database session fixture."""
-        from backend.tests.conftest import db_session
+        from tests.conftest import db_session
         # Use the existing fixture from conftest
         return request.getfixturevalue("db_session")
 
