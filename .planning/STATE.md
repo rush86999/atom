@@ -9,13 +9,13 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 75-test-infrastructure-fixtures
-Plan: 75-05 (API-First Setup Utilities) - COMPLETE
-Status: Phase 75 execution in progress. Plan 75-05 (API-first setup utilities) complete - APIClient with HTTP methods, user/project/skill setup functions, pytest fixtures, example tests demonstrating 100x speedup over UI login. 948 lines across 7 files. Commits: f6ff8077, 01fa4a46, 76267cbc, d60c1850, 4c7aa6e2, cde6a3c5.
+Phase: 75-test-infrastructure
+Plan: 75-02 (Authentication Fixtures and Page Objects) - COMPLETE
+Status: Phase 75 execution in progress. Plan 75-02 (auth fixtures and page objects) complete - API-first authentication fixtures (10-100x faster than UI login), Page Object Model classes (LoginPage, DashboardPage, SettingsPage), example tests demonstrating auth fixture usage. 1,050 lines across 4 files. Commits: 4fab35b7, a75b02f7, fb4185a9, 01f164b1.
 
-Previous: Plan 75-05 (API-First Setup Utilities) - Fast test state initialization bypassing UI navigation with 10-100x speedup.
+Previous: Plan 75-01 (E2E Test Directory and Configuration) - E2E UI test structure with pytest-playwright setup.
 
-Progress: [█████████░] 6% (v3.1: 2/35 plans complete)
+Progress: [█████████░] 9% (v3.1: 3/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -147,6 +147,8 @@ Recent decisions affecting current work:
 - [Phase 67]: Switch from mode=min to mode=max for Docker BuildKit caching
 - [Phase 67]: Requirements.txt copied before source code in Dockerfile
 - [Phase 75]: API-first authentication: JWT tokens set in localStorage (10-100x faster than UI login)
+- [Phase 75]: UUID v4 for test user emails prevents parallel test collisions
+- [Phase 75]: data-testid selectors throughout Page Objects (resilient to CSS changes)
 - [Phase 75]: UUID v4 for test user emails prevents parallel test collisions
 - [Phase 75]: data-testid selectors throughout Page Objects (resilient to CSS changes)
 
