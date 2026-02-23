@@ -13,8 +13,11 @@ Run with pytest-xdist for parallel execution:
 import pytest
 from sqlalchemy import text
 
-from backend.core.models import Agent
-from backend.tests.e2e_ui.fixtures.database_fixtures import worker_schema
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from core.models import AgentRegistry
 
 
 class TestWorkerSchemaIsolation:
@@ -68,7 +71,7 @@ class TestWorkerSchemaIsolation:
         Scenario: Parallel tests inserting agents with same ID
         """
         # Insert agent in this worker's schema
-        agent = Agent(
+        agent = AgentRegistry(
             id="test-isolation-agent",
             name="Test Agent",
             maturity_level="AUTONOMOUS",
@@ -104,7 +107,7 @@ class TestTransactionRollback:
         Scenario: Multiple tests inserting agents with same ID
         """
         # Insert agent
-        agent = Agent(
+        agent = AgentRegistry(
             id="test-rollback-agent",
             name="Test Rollback Agent",
             maturity_level="STUDENT",
@@ -148,7 +151,7 @@ class TestTransactionRollback:
         Scenario: Multiple tests inserting agent with ID 'duplicate-test-agent'
         """
         # This test can use same ID as other tests because of rollback
-        agent = Agent(
+        agent = AgentRegistry(
             id="duplicate-test-agent",
             name="Duplicate Test Agent",
             maturity_level="INTERN",
