@@ -5,14 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** Phase 079 COMPLETE → Ready for Phase 080 (Quality Gates & CI/CD Integration)
+**Current focus:** Phase 080 Plan 01 COMPLETE - Automatic screenshot capture on test failure
 
 ## Current Position
 
-Phase: 079-skills-workflows
-Status: ✅ Phase 079 COMPLETE - All 5 plans executed, 5/5 must-haves verified (100%). Created 5,958 lines of E2E test code (4,277 lines Page Objects + 3,530 lines tests) with 62 comprehensive test cases. Four Page Objects created: SkillsMarketplacePage, SkillInstallationPage, SkillConfigPage, SkillExecutionPage. Complete skill lifecycle tested: browse, install, configure, execute, uninstall. Governance enforcement across all maturity levels. API-first test setup with UUID v4 unique data. Verification: .planning/phases/079-skills-workflows/079-VERIFICATION.md
+Phase: 080-quality-gates
+Plan: 80-01
+Status: ✅ Plan 80-01 COMPLETE - Automatic screenshot capture on E2E test failure with descriptive filenames and organized artifact storage. Implemented pytest_runtest_makereport hook that captures full page screenshots on ANY test failure. Created artifacts directory structure at backend/tests/e2e_ui/artifacts/screenshots/ with git-friendly configuration (.gitignore excludes PNG files). Added test_quality_gates.py with 4 tests verifying screenshot functionality. All existing fixtures and hooks preserved (backward compatible). Duration: 13 minutes.
 
-Progress: [█████████░] 83% (v3.1: 29/35 plans complete)
+Progress: [█████████░] 83% (v3.1: 30/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -90,7 +91,7 @@ Progress: [█████████░] 83% (v3.1: 29/35 plans complete)
 **v3.1 Milestone Progress:**
 - Phases planned: 6
 - Phases complete: 5 (75, 76, 77, 78, 79)
-- Plans complete: 29/35 (83%)
+- Plans complete: 30/35 (86%)
 - Requirements mapped: 37/37 (100%)
 
 **Historical Velocity (v2.0):**
@@ -99,11 +100,11 @@ Progress: [█████████░] 83% (v3.1: 29/35 plans complete)
 - Total execution time: ~35 hours
 
 **Recent Trend:**
-- Last 7 plans: [38min, 51min, 44min, 47min, 2min, 5min, 23min, 8min]
+- Last 8 plans: [38min, 51min, 44min, 47min, 2min, 5min, 23min, 8min, 13min]
 - Trend: Fast execution (E2E test creation is efficient)
-- Average duration: ~28 minutes
+- Average duration: ~26 minutes
 
-*Updated: 2026-02-23 (Phase 079 Plan 079-01 COMPLETE - Skills Marketplace E2E tests)*
+*Updated: 2026-02-23 (Phase 080 Plan 80-01 COMPLETE - Automatic Screenshot Capture)*
 
 ---
 
@@ -136,6 +137,9 @@ Recent decisions affecting current work:
 - [Phase 078-03]: page.route() to mock /api/canvas/submit API for fast, isolated testing
 - [Phase 078-03]: Helper functions follow existing patterns from test_canvas_creation.py
 - [Phase 078-03]: UUID v4 for unique field names prevents parallel test collisions
+- [Phase 080-01]: Automatic screenshot capture on ANY test failure via pytest_runtest_makereport hook
+- [Phase 080-01]: Full page screenshots with timestamp + test name filenames (YYYYMMDD_HHMMSS format)
+- [Phase 080-01]: Artifacts directory at backend/tests/e2e_ui/artifacts/screenshots/ with .gitignore (excludes PNG files)
 
 **v2.0 Key Decisions:**
 - [Phase 64]: PostgreSQL 16-alpine for E2E tests (real database not SQLite, Alpine for fast startup)
@@ -189,8 +193,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 21:21
-Stopped at: Completed Phase 079 Plan 079-03 - Skill Configuration E2E Tests
+Last session: 2026-02-23 22:09
+Stopped at: Completed Phase 080 Plan 80-01 - Automatic Screenshot Capture on Test Failure
 Resume file: None
 
 ---
