@@ -96,14 +96,14 @@ Plans:
   3. Full test suite executes in under 60 minutes
   4. No tests require hardcoded environment assumptions (use fixtures/mocks)
   5. All tests can run in parallel without race conditions or shared state issues
-**Plans**: TBD
+**Plans**: 5 plans (2 waves)
 
 Plans:
-- [ ] 73-01: Identify and fix all flaky tests with proper isolation and deterministic assertions
-- [ ] 73-02: Achieve 100% pass rate across 3 consecutive test runs
-- [ ] 73-03: Optimize test execution time to under 60 minutes
-- [ ] 73-04: Remove hardcoded environment assumptions with fixtures and mocks
-- [ ] 73-05: Enable parallel test execution without race conditions
+- [ ] 73-01-PLAN.md — Fix ModuleNotFoundError and stabilize fixture imports (blocks all testing)
+- [ ] 73-02-PLAN.md — Replace hardcoded resource IDs with unique_resource_name fixture
+- [ ] 73-03-PLAN.md — Configure pytest-xdist for parallel execution and flaky test detection
+- [ ] 73-04-PLAN.md — Replace environment variable usage with monkeypatch fixture
+- [ ] 73-05-PLAN.md — Verify 100% pass rate and <60min execution with parallel tests
 
 ### Phase 74: Quality Gates & Property Testing
 **Goal**: CI/CD pipeline enforces 80% coverage threshold and property-based tests validate critical invariants
@@ -142,5 +142,5 @@ Phases execute in numeric order: 70 → 71 → 72 → 73 → 74
 | 70. Runtime Error Fixes | 4/4 | Ready for verification | 2025-02-22 |
 | 71. Core AI Services Coverage | 0/5 | Ready to execute | - |
 | 72. API & Data Layer Coverage | 0/5 | Ready to execute | - |
-| 73. Test Suite Stability | 0/5 | Not started | - |
+| 73. Test Suite Stability | 0/5 | Plans created | - |
 | 74. Quality Gates & Property Testing | 0/8 | Not started | - |
