@@ -1877,3 +1877,417 @@ class CanvasChartPage(BasePage):
             if text and ":" in text:  # Pie labels show "name: value"
                 labels.append(text)
         return labels
+
+
+class CanvasFormPage(BasePage):
+    """Page Object for Canvas Form presentations.
+
+    Encapsulates form interaction within canvas including:
+    - Form field rendering (text, email, number, select, checkbox)
+    - Field validation (required, pattern, min/max)
+    - Form submission and success/error feedback
+    - Form state API access (window.atom.canvas.getState)
+
+    Uses name attribute selectors for fields (most reliable).
+
+    Form validation behavior:
+    - Required fields show asterisk (*) and error if empty
+    - Pattern validation uses regex (e.g., email format)
+    - Number fields validate min/max values
+    - Errors display with AlertCircle icon below field
+    - Submit button disables during submission ("Submitting...")
+    - Success message shows with Check icon after submission
+    """
+
+    # Locators using CSS selectors and name attributes
+    @property
+    def form_container(self) -> Locator:
+        """Form container div (within canvas content)."""
+        return self.page.locator("form.space-y-4")
+
+    @property
+    def form_title(self) -> Locator:
+        """Form title element (h3 tag)."""
+        return self.page.locator("h3.text-sm.font-semibold")
+
+    @property
+    def form_field(self) -> Locator:
+        """Generic form field locator (use with filter)."""
+        return self.page.locator("input, select")
+
+    @property
+    def form_input_text(self) -> Locator:
+        """Text input field locator."""
+        return self.page.locator("input[type=\"text\"]")
+
+    @property
+    def form_input_email(self) -> Locator:
+        """Email input field locator."""
+        return self.page.locator("input[type=\"email\"]")
+
+    @property
+    def form_input_number(self) -> Locator:
+        """Number input field locator."""
+        return self.page.locator("input[type=\"number\"]")
+
+    @property
+    def form_select(self) -> Locator:
+        """Select dropdown field locator."""
+        return self.page.locator("select")
+
+    @property
+    def form_checkbox(self) -> Locator:
+        """Checkbox field locator."""
+        return self.page.locator("input[type=\"checkbox\"]")
+
+    @property
+    def form_submit_button(self) -> Locator:
+        """Submit button locator."""
+        return self.page.locator("button[type=\"submit\"]")
+
+    @property
+    def form_error_message(self) -> Locator:
+        """Field-level error message (with AlertCircle icon)."""
+        return self.page.locator("div.flex.items-center.text-xs.text-red-500")
+
+    @property
+    def form_success_message(self) -> Locator:
+        """Success message (with Check icon)."""
+        return self.page.locator("div.flex.items-center.justify-center.p-8.text-green-600")
+
+    @property
+    def form_label(self) -> Locator:
+        """Field label element locator."""
+        return self.page.locator("label.text-xs.font-medium")
+
+    @property
+    def required_indicator(self) -> Locator:
+        """Required field asterisk (*) indicator."""
+        return self.page.locator("span.text-red-500.ml-1")
+
+    def is_loaded(self) -> bool:
+        """Check if form is visible and loaded.
+
+        Returns:
+            bool: True if form container is visible
+
+        Example:
+            assert form_page.is_loaded() is True
+        """
+        return self.form_container.is_visible()
+
+    def get_title(self) -> str:
+        """Get form title text.
+
+        Returns:
+            str: Form title or empty string if not found
+
+        Example:
+            title = form_page.get_title()
+            assert "User Information" in title
+        """
+        if self.form_title.is_visible():
+            return self.form_title.text_content()
+        return ""
+
+    def get_field_count(self) -> int:
+        """Count total form fields.
+
+        Returns:
+            int: Number of form fields (inputs, selects, checkboxes)
+
+        Example:
+            count = form_page.get_field_count()
+            assert count == 5
+        """
+        return self.form_field.count()
+
+    def fill_text_field(self, name: str, value: str) -> None:
+        """Fill a text input field by name attribute.
+
+        Args:
+            name: Field name attribute value
+            value: Text value to enter
+
+        Example:
+            form_page.fill_text_field("full_name", "John Doe")
+        """
+        field = self.page.locator(f"input[name=\"{name}\"][type=\"text\"]")
+        field.fill(value)
+
+    def fill_email_field(self, name: str, value: str) -> None:
+        """Fill an email input field by name attribute.
+
+        Args:
+            name: Field name attribute value
+            value: Email address to enter
+
+        Example:
+            form_page.fill_email_field("email", "user@example.com")
+        """
+        field = self.page.locator(f"input[name=\"{name}\"][type=\"email\"]")
+        field.fill(value)
+
+    def fill_number_field(self, name: str, value: float) -> None:
+        """Fill a number input field by name attribute.
+
+        Args:
+            name: Field name attribute value
+            value: Numeric value to enter
+
+        Example:
+            form_page.fill_number_field("age", 25)
+        """
+        field = self.page.locator(f"input[name=\"{name}\"][type=\"number\"]")
+        field.fill(str(value))
+
+    def select_option(self, name: str, value: str) -> None:
+        """Select an option from dropdown by name attribute.
+
+        Args:
+            name: Field name attribute value
+            value: Option value to select
+
+        Example:
+            form_page.select_option("country", "US")
+        """
+        dropdown = self.page.locator(f"select[name=\"{name}\"]")
+        dropdown.select_option(value)
+
+    def set_checkbox(self, name: str, checked: bool) -> None:
+        """Set checkbox state by name attribute.
+
+        Args:
+            name: Field name attribute value
+            checked: True to check, False to uncheck
+
+        Example:
+            form_page.set_checkbox("agree_terms", True)
+        """
+        checkbox = self.page.locator(f"input[name=\"{name}\"][type=\"checkbox\"]")
+        if checked:
+            checkbox.check()
+        else:
+            checkbox.uncheck()
+
+    def get_field_value(self, name: str) -> str:
+        """Get current value of a field by name attribute.
+
+        Args:
+            name: Field name attribute value
+
+        Returns:
+            str: Current field value (empty string if not found)
+
+        Example:
+            value = form_page.get_field_value("email")
+            assert "@" in value
+        """
+        # Try input fields first
+        input_field = self.page.locator(f"input[name=\"{name}\"]")
+        if input_field.is_visible():
+            return input_field.input_value()
+
+        # Try select fields
+        select_field = self.page.locator(f"select[name=\"{name}\"]")
+        if select_field.is_visible():
+            return select_field.input_value()
+
+        # Try checkbox fields
+        checkbox = self.page.locator(f"input[name=\"{name}\"][type=\"checkbox\"]")
+        if checkbox.is_visible():
+            return "checked" if checkbox.is_checked() else "unchecked"
+
+        return ""
+
+    def get_field_error(self, name: str) -> str:
+        """Get error message for a specific field.
+
+        Args:
+            name: Field name attribute value
+
+        Returns:
+            str: Error message or empty string if no error
+
+        Example:
+            error = form_page.get_field_error("email")
+            assert "invalid" in error.lower()
+        """
+        # Find the field's parent container
+        field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
+        if field.is_visible():
+            # Look for error message in same container
+            container = field.locator("xpath=../..")
+            error_el = container.locator("div.flex.items-center.text-xs.text-red-500")
+            if error_el.is_visible():
+                return error_el.text_content()
+        return ""
+
+    def has_field_error(self, name: str) -> bool:
+        """Check if a field has validation error.
+
+        Args:
+            name: Field name attribute value
+
+        Returns:
+            bool: True if field has error message visible
+
+        Example:
+            assert form_page.has_field_error("email") is True
+        """
+        return len(self.get_field_error(name)) > 0
+
+    def click_submit(self) -> None:
+        """Click form submit button.
+
+        Example:
+            form_page.fill_text_field("name", "John")
+            form_page.click_submit()
+        """
+        self.form_submit_button.click()
+
+    def is_submit_enabled(self) -> bool:
+        """Check if submit button is enabled.
+
+        Returns:
+            bool: True if submit button is not disabled
+
+        Example:
+            assert form_page.is_submit_enabled() is True
+        """
+        return not self.form_submit_button.is_disabled()
+
+    def is_submitting(self) -> bool:
+        """Check if form is currently submitting.
+
+        Returns:
+            bool: True if button shows "Submitting..." text
+
+        Example:
+            form_page.click_submit()
+            assert form_page.is_submitting() is True
+        """
+        button_text = self.form_submit_button.text_content()
+        return "Submitting..." in button_text if button_text else False
+
+    def is_success_message_visible(self) -> bool:
+        """Check if success message is displayed.
+
+        Returns:
+            bool: True if success message with Check icon is visible
+
+        Example:
+            form_page.wait_for_submission()
+            assert form_page.is_success_message_visible() is True
+        """
+        return self.form_success_message.is_visible()
+
+    def get_success_message(self) -> str:
+        """Get success message text.
+
+        Returns:
+            str: Success message text or empty string
+
+        Example:
+            msg = form_page.get_success_message()
+            assert "submitted successfully" in msg.lower()
+        """
+        if self.form_success_message.is_visible():
+            return self.form_success_message.text_content()
+        return ""
+
+    def wait_for_submission(self, timeout: int = 5000) -> None:
+        """Wait for form submission to complete (success or error).
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            form_page.click_submit()
+            form_page.wait_for_submission(timeout=10000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for either success message or submit button to re-enable
+            self.page.wait_for_selector(
+                "div.flex.items-center.justify-center.p-8.text-green-600, "
+                "button[type=\"submit\"]:not([disabled])",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Form submission did not complete within {timeout}ms")
+
+    def get_form_data(self) -> dict:
+        """Extract current form data from all fields.
+
+        Returns:
+            dict: Form field names and current values
+
+        Example:
+            data = form_page.get_form_data()
+            assert data["email"] == "user@example.com"
+        """
+        data = {}
+        all_fields = self.form_field.all()
+
+        for field in all_fields:
+            name = field.get_attribute("name")
+            if not name:
+                continue
+
+            field_type = field.get_attribute("type")
+            if field_type == "checkbox":
+                data[name] = field.is_checked()
+            elif field_type == "number":
+                value = field.input_value()
+                data[name] = float(value) if value else None
+            else:
+                data[name] = field.input_value()
+
+        return data
+
+    def is_field_required(self, name: str) -> bool:
+        """Check if field has required indicator (asterisk).
+
+        Args:
+            name: Field name attribute value
+
+        Returns:
+            bool: True if field has required asterisk
+
+        Example:
+            assert form_page.is_field_required("email") is True
+        """
+        field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
+        if field.is_visible():
+            # Look for required asterisk in label container
+            container = field.locator("xpath=../..")
+            asterisk = container.locator("span.text-red-500.ml-1")
+            return asterisk.is_visible()
+        return False
+
+    def get_field_label(self, name: str) -> str:
+        """Get label text for a field.
+
+        Args:
+            name: Field name attribute value
+
+        Returns:
+            str: Field label text or empty string
+
+        Example:
+            label = form_page.get_field_label("email")
+            assert label == "Email Address"
+        """
+        field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
+        if field.is_visible():
+            # Get label text from parent container
+            container = field.locator("xpath=../..")
+            label_el = container.locator("label.text-xs.font-medium")
+            if label_el.is_visible():
+                label_text = label_el.text_content()
+                # Remove asterisk if present
+                if label_text and "*" in label_text:
+                    return label_text.replace("*", "").strip()
+                return label_text
+        return ""
