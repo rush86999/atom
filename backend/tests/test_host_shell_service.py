@@ -55,7 +55,7 @@ class TestMaturityGate:
     """Test AUTONOMOUS maturity requirement."""
 
     @pytest.mark.asyncio
-    async def test_autonomous_agent_can_execute(self):
+    async def test_autonomous_agent_can_execute(self, unique_resource_name):
         """AUTONOMOUS agents can execute shell commands."""
         with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
             # Mock subprocess
@@ -75,8 +75,8 @@ class TestMaturityGate:
 
             # Execute
             result = await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="ls -la",
                 db=mock_db
             )
@@ -86,7 +86,7 @@ class TestMaturityGate:
             assert result["timed_out"] is False
 
     @pytest.mark.asyncio
-    async def test_student_agent_blocked(self):
+    async def test_student_agent_blocked(self, unique_resource_name):
         """STUDENT agents cannot execute shell commands."""
         # Mock database with STUDENT agent
         mock_db = Mock()
@@ -97,8 +97,8 @@ class TestMaturityGate:
         # Should raise PermissionError
         with pytest.raises(PermissionError) as exc_info:
             await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="ls -la",
                 db=mock_db
             )
@@ -107,7 +107,7 @@ class TestMaturityGate:
         assert "STUDENT" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_supervised_agent_blocked(self):
+    async def test_supervised_agent_blocked(self, unique_resource_name):
         """SUPERVISED agents cannot execute shell commands."""
         # Mock database with SUPERVISED agent
         mock_db = Mock()
@@ -117,8 +117,8 @@ class TestMaturityGate:
 
         with pytest.raises(PermissionError) as exc_info:
             await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="ls -la",
                 db=mock_db
             )
@@ -130,7 +130,7 @@ class TestAuditTrail:
     """Test ShellSession audit logging."""
 
     @pytest.mark.asyncio
-    async def test_shell_session_created(self):
+    async def test_shell_session_created(self, unique_resource_name):
         """ShellSession record created for each command."""
         with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
             mock_process = Mock()
@@ -147,8 +147,8 @@ class TestAuditTrail:
             mock_db.commit = Mock()
 
             result = await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="ls -la",
                 db=mock_db
             )
@@ -158,7 +158,7 @@ class TestAuditTrail:
             assert mock_db.commit.called
 
     @pytest.mark.asyncio
-    async def test_failed_command_logged(self):
+    async def test_failed_command_logged(self, unique_resource_name):
         """Failed commands are logged to audit trail."""
         with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
             # Mock failing command
@@ -176,8 +176,8 @@ class TestAuditTrail:
             mock_db.commit = Mock()
 
             result = await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="ls /nonexistent",
                 db=mock_db
             )
@@ -190,7 +190,7 @@ class TestTimeoutEnforcement:
     """Test 5-minute timeout enforcement."""
 
     @pytest.mark.asyncio
-    async def test_timeout_kills_process(self):
+    async def test_timeout_kills_process(self, unique_resource_name):
         """Commands exceeding timeout are killed."""
         with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
             mock_process = Mock()
@@ -210,8 +210,8 @@ class TestTimeoutEnforcement:
             mock_db.commit = Mock()
 
             result = await host_shell_service.execute_shell_command(
-                agent_id="test-agent",
-                user_id="test-user",
+                agent_id=unique_resource_name,
+                user_id=f"{unique_resource_name}_user",
                 command="sleep 1000",  # Long command
                 timeout=1,  # 1 second timeout
                 db=mock_db
@@ -225,7 +225,7 @@ class TestWorkingDirectoryRestrictions:
     """Test working directory validation."""
 
     @pytest.mark.asyncio
-    async def test_allowed_directory_accepted(self):
+    async def test_allowed_directory_accepted(self, unique_resource_name):
         """Working directories in allowed list are accepted."""
         with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
             mock_process = Mock()
@@ -243,8 +243,8 @@ class TestWorkingDirectoryRestrictions:
 
             with patch.dict(os.environ, {"ATOM_HOST_MOUNT_DIRS": "/tmp:/home:/Users"}):
                 result = await host_shell_service.execute_shell_command(
-                    agent_id="test-agent",
-                    user_id="test-user",
+                    agent_id=unique_resource_name,
+                    user_id=f"{unique_resource_name}_user",
                     command="ls",
                     working_directory="/tmp/project",
                     db=mock_db
@@ -253,7 +253,7 @@ class TestWorkingDirectoryRestrictions:
                 assert result["exit_code"] == 0
 
     @pytest.mark.asyncio
-    async def test_blocked_directory_rejected(self):
+    async def test_blocked_directory_rejected(self, unique_resource_name):
         """Working directories not in allowed list are rejected."""
         # Mock database with AUTONOMOUS agent
         mock_db = Mock()
@@ -264,8 +264,8 @@ class TestWorkingDirectoryRestrictions:
         with patch.dict(os.environ, {"ATOM_HOST_MOUNT_DIRS": "/tmp:/home:/Users"}):
             with pytest.raises(PermissionError) as exc_info:
                 await host_shell_service.execute_shell_command(
-                    agent_id="test-agent",
-                    user_id="test-user",
+                    agent_id=unique_resource_name,
+                    user_id=f"{unique_resource_name}_user",
                     command="ls",
                     working_directory="/etc",  # Not allowed
                     db=mock_db
