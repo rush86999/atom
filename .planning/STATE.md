@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 Phase: 75-test-infrastructure-fixtures
 Plan: 6 of 7 plans complete
-Status: Phase 75 execution in progress. Plan 75-06 (Docker Compose environment) completed. Remaining: 75-07 (Playwright 1.58.0 update). Wave 1 (6 parallel plans): 75-01 (E2E test directory), 75-02 (auth fixtures), 75-03 (test data factories), 75-04 (worker-based DB isolation), 75-05 (API-first setup), 75-06 (Docker Compose) - ALL COMPLETE. Wave 2: 75-07 (Playwright update) - PENDING.
+Status: Phase 75 execution in progress. Plan 75-04 (worker-based database isolation) verified complete - work done in 75-01. Remaining: 75-07 (Playwright 1.58.0 update). Wave 1 (6 parallel plans): 75-01 (E2E test directory), 75-02 (auth fixtures), 75-03 (test data factories), 75-04 (worker-based DB isolation), 75-05 (API-first setup), 75-06 (Docker Compose) - ALL COMPLETE. Wave 2: 75-07 (Playwright update) - PENDING.
 
-Previous: Plan 75-06 completed - Docker Compose E2E environment with postgres (5434), backend (8001), frontend (3001), health checks, start/stop scripts
+Previous: Plan 75-04 verified - Worker-based database isolation with PostgreSQL schemas (test_schema_gw0-gw3), transaction rollback, 9 tests. Original work in commit 85005cfd (plan 75-01).
 
 Progress: [█████████░] 3% (v3.1: 1/35 plans complete)
 
@@ -159,8 +159,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 16:37
-Stopped at: Completed plan 75-06 (Docker Compose E2E environment)
+Last session: 2026-02-23 16:39
+Stopped at: Completed plan 75-04 (worker-based database isolation - verified, work from 75-01)
 Resume file: None
 
 ---
