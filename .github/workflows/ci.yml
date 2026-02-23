@@ -165,6 +165,7 @@ jobs:
           ENVIRONMENT: test
           ATOM_DISABLE_LANCEDB: true
           ATOM_MOCK_DATABASE: true
+        # GATES-02: All tests must pass - exit code blocks merge on failure
         run: |
           pytest tests/ -v -n auto \
             --json-report --json-report-file=pytest_report.json \
@@ -174,6 +175,7 @@ jobs:
             --cov-report=html:tests/coverage_reports/html \
             --cov-report=json:tests/coverage_reports/metrics/coverage.json \
             --cov-report=term-missing:skip-covered \
+            --cov-fail-under=80 \
             --maxfail=10
 
       - name: Upload coverage reports
@@ -405,7 +407,7 @@ jobs:
           EOF
 
       # TQ-05: Coverage Quality
-      - name: TQ-05 Enforce coverage threshold (50% minimum)
+      - name: GATES-01 Enforce 80% coverage threshold
         working-directory: ./backend
         env:
           DATABASE_URL: "sqlite:///:memory:"
@@ -415,10 +417,10 @@ jobs:
           ATOM_MOCK_DATABASE: true
         run: |
           echo "=== TQ-05: Coverage Quality Check ==="
+          # GATES-01, GATES-05: Blocks deployment if coverage < 80%
           pytest tests/ --cov=core --cov=api --cov=tools \
             --cov-report=term-missing:skip-covered \
-            --cov-fail-under=50 \
-            || echo "Coverage below 50% threshold (informational for now)"
+            --cov-fail-under=80
 
       - name: Quality gate summary
         working-directory: ./backend
@@ -430,7 +432,7 @@ jobs:
           echo "TQ-02: Pass Rate - See check above (98%+ required)"
           echo "TQ-03: Performance - See check above (no test >30s)"
           echo "TQ-04: Determinism - See check above (consistent results)"
-          echo "TQ-05: Coverage Quality - See check above (50%+ required)"
+          echo "TQ-05: Coverage Quality - See check above (80%+ required)"
           echo ""
           echo "See TEST_QUALITY_STANDARDS.md for details on each quality gate."
 
