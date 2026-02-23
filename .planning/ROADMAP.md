@@ -101,7 +101,18 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
   6. Docker Compose environment starts all services (backend, frontend, PostgreSQL) for testing
   7. Playwright configuration includes base URL, browsers (Chromium, Firefox, WebKit), timeout settings, and retries
 
-**Plans**: TBD
+**Plans**: 7 plans in 2 waves
+
+**Wave 1** (parallel):
+- [ ] 75-01-PLAN.md — Create E2E UI test directory and configuration files (conftest.py, pyproject.toml, playwright.config.ts)
+- [ ] 75-02-PLAN.md — Create authentication fixtures and Page Object classes (auth_fixtures.py, page_objects.py)
+- [ ] 75-03-PLAN.md — Create test data factories for unique, realistic test data (test_data_factory.py)
+- [ ] 75-04-PLAN.md — Create worker-based database isolation fixtures (database_fixtures.py)
+
+**Wave 2** (parallel):
+- [ ] 75-05-PLAN.md — Create API-first setup utilities for fast test state initialization (api_setup.py)
+- [ ] 75-06-PLAN.md — Create Docker Compose environment for E2E UI testing (docker-compose-e2e-ui.yml, scripts)
+- [ ] 75-07-PLAN.md — Update Playwright to 1.58.0 and finalize configuration (requirements.txt, pytest.ini)
 
 ---
 
@@ -208,7 +219,7 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Test Infrastructure & Fixtures | 0/7 | Not started | - |
+| 75. Test Infrastructure & Fixtures | 0/7 | Ready to start | - |
 | 76. Authentication & User Management | 0/5 | Not started | - |
 | 77. Agent Chat & Streaming | 0/6 | Not started | - |
 | 78. Canvas Presentations | 0/6 | Not started | - |
@@ -216,6 +227,10 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 | 80. Quality Gates & CI/CD Integration | 0/6 | Not started | - |
 
 **Overall Progress**: 0/35 plans complete (0%)
+
+**Phase 75 Breakdown** (7 plans, 2 waves):
+- Wave 1 (4 plans, parallel): 75-01, 75-02, 75-03, 75-04 — Configuration, fixtures, factories, database isolation
+- Wave 2 (3 plans, parallel): 75-05, 75-06, 75-07 — API setup, Docker environment, Playwright update
 
 ---
 
