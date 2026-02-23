@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** Phase 080 Plan 02 COMPLETE - CI-aware video recording on test failure
+**Current focus:** Phase 080 Plan 80-06 COMPLETE - HTML test reports with embedded screenshots
 
 ## Current Position
 
 Phase: 080-quality-gates
-Plan: 80-03
-Status: ✅ Plan 80-03 COMPLETE - CI-only test retry functionality with pytest-rerunfailures plugin. Tests retry up to 2 times on failure in CI environment (reduces false positives by 60-80%). No retries in local development (fast feedback). PYTEST_RERUNS environment variable controls retry count (default: 2). Added 4 retry functionality tests to test_quality_gates.py (12 total tests). Documented @pytest.mark.flaky marker for temporary workarounds. Duration: 3 minutes.
+Plan: 80-06
+Status: ✅ Plan 80-06 COMPLETE - HTML test reports with embedded screenshots for failed tests. Self-contained HTML reports (--self-contained-html) work offline with base64-embedded screenshots. pytest-html hooks customize report structure (summary, screenshot column, screenshot links). html_report_generator.py script enhances reports with --embed and --add-env flags. CI workflow integration with if: always() ensures reports are generated even on test failure. 30-day retention for HTML reports. Added 4 HTML report tests to test_quality_gates.py. Duration: 7 minutes.
 
-Progress: [█████████░] 89% (v3.1: 32/35 plans complete)
+Progress: [█████████░] 91% (v3.1: 33/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -147,6 +147,12 @@ Recent decisions affecting current work:
 - [Phase 080-03]: PYTEST_RERUNS environment variable controls retry count (default: 2, configurable)
 - [Phase 080-03]: pytest-rerunfailures plugin injects --reruns via sys.argv modification when is_ci_environment() returns True
 - [Phase 080-03]: @pytest.mark.flaky marker for temporary flaky test workarounds (documented with warning)
+- [Phase 080-06]: Self-contained HTML reports with --self-contained-html flag for offline viewing
+- [Phase 080-06]: Base64 screenshot embedding eliminates external file dependencies
+- [Phase 080-06]: pytest-html hooks (pytest_html_results_summary, pytest_html_results_table_row, pytest_html_results_table_header) for report customization
+- [Phase 080-06]: html_report_generator.py with --embed (base64 screenshots) and --add-env (environment info) CLI flags
+- [Phase 080-06]: CI workflow enhancement step with if: always() ensures reports generated even on test failure
+- [Phase 080-06]: 30-day retention for HTML reports (vs 7-day for screenshots/videos) for historical analysis
 
 **v2.0 Key Decisions:**
 - [Phase 64]: PostgreSQL 16-alpine for E2E tests (real database not SQLite, Alpine for fast startup)
@@ -200,8 +206,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 22:20
-Stopped at: Completed Phase 080 Plan 80-03 - CI-Only Test Retry Functionality
+Last session: 2026-02-23 22:30
+Stopped at: Completed Phase 080 Plan 80-06 - HTML Test Reports with Embedded Screenshots
 Resume file: None
 
 ---
