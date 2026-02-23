@@ -133,7 +133,16 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
   5. User can create new project and see it in project list
   6. User can edit and delete projects with proper confirmation dialogs
 
-**Plans**: TBD
+**Plans**: 5 plans in 2 waves
+
+**Wave 1** (parallel): 076-01, 076-02, 076-03, 076-04
+- [ ] 076-01-PLAN.md — Login flow E2E tests (valid credentials, invalid credentials, empty fields, remember me)
+- [ ] 076-02-PLAN.md — Session persistence tests (refresh, protected routes, token expiration, multiple tabs)
+- [ ] 076-03-PLAN.md — Logout flow tests (via menu, session clear, redirect, protected route blocking)
+- [ ] 076-04-PLAN.md — Settings page tests (access, theme toggle, notifications, persistence)
+
+**Wave 2**: 076-05 (depends on 076-01 for LoginPage pattern)
+- [ ] 076-05-PLAN.md — Project management tests (create, edit, delete with confirmation, project list)
 
 ---
 
