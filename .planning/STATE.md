@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** Phase 77 - Agent Chat & Streaming
+**Current focus:** Phase 078 - Canvas Presentations
 
 ## Current Position
 
-Phase: 077-agent-chat-streaming
-Plan: 077-05 (Agent Governance Enforcement E2E Tests) - COMPLETE
-Status: Phase 77 execution in progress. Plan 077-05 (Agent Governance Enforcement E2E Tests) complete - Agent creation fixtures (152 lines) and 5 comprehensive E2E tests (396 lines) covering STUDENT blocking, INTERN approval workflow (approve/reject paths), and SUPERVISED auto-execution. Validates AGENT-04 and AGENT-05 requirements. Commits: 4f3a5ddf, 1f181820.
+Phase: 078-canvas-presentations
+Plan: 078-02 (Canvas Chart Page Objects and E2E Tests) - COMPLETE
+Status: Phase 078 execution in progress. Plan 078-02 (Canvas Chart Page Objects and E2E Tests) complete - CanvasChartPage Page Object with 402 lines including Recharts-specific SVG selectors and 20+ interaction methods. Comprehensive E2E tests (514 lines) with 16 test cases covering line, bar, and pie chart rendering, tooltips, legends, and data verification. Commits: 6024a2d6, 3a95c16f.
 
-Previous: Plan 077-02 (Chat Message Sending E2E Tests) - 5 comprehensive E2E tests (339 lines) for chat message sending. Commit: af096532.
+Previous: Plan 078-01 (Canvas Page Object and Basic Presentation Test) - CanvasHostPage Page Object (147 lines) and 2 comprehensive E2E tests (305 lines) for markdown presentations. Commits: 3827cb7c, 2342a619.
 
-Progress: [█████████░] 29% (v3.1: 10/35 plans complete)
+Progress: [█████████░] 34% (v3.1: 12/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -26,8 +26,8 @@ Progress: [█████████░] 29% (v3.1: 10/35 plans complete)
 **Phases**:
 - Phase 75: Test Infrastructure & Fixtures (7 requirements) - COMPLETE
 - Phase 76: Authentication & User Management (5 requirements) - COMPLETE
-- Phase 77: Agent Chat & Streaming (6 requirements) - CURRENT
-- Phase 78: Canvas Presentations (6 requirements)
+- Phase 77: Agent Chat & Streaming (6 requirements) - COMPLETE
+- Phase 78: Canvas Presentations (6 requirements) - CURRENT
 - Phase 79: Skills & Workflows (5 requirements)
 - Phase 80: Quality Gates & CI/CD Integration (6 requirements)
 
@@ -164,6 +164,9 @@ Recent decisions affecting current work:
 - [Phase 077]: Agent creation fixtures follow existing pattern: test_X_data + setup_test_X + helper function
 - [Phase 078]: CanvasHostPage uses CSS selectors for absolute positioned canvas (no data-testid)
 - [Phase 078]: page.evaluate() simulates WebSocket canvas:update messages for fast E2E testing
+- [Phase 078]: Recharts-specific SVG selectors for canvas chart testing: .recharts-wrapper, .recharts-dot, .recharts-bar, .recharts-pie
+- [Phase 078]: Chart type detection via SVG element visibility (line_chart_svg, bar_chart_svg, pie_chart_svg)
+- [Phase 078]: UUID-based unique data generation in E2E tests prevents cross-test pollution
 
 ### Pending Todos
 
