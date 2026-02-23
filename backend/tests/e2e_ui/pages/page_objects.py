@@ -3176,3 +3176,429 @@ class SkillInstallationPage(BasePage):
             assert skill_install_page.is_governance_blocked() is True
         """
         return self.governance_error_message.is_visible()
+
+
+class SkillExecutionPage(BasePage):
+    """Page Object for Skill Execution interface.
+
+    Encapsulates skill execution workflow including:
+    - Execution modal/page interface
+    - Input parameter configuration
+    - Progress tracking for long-running skills
+    - Output display (text, JSON, canvas)
+    - Error handling and retry
+    - Execution history
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators
+    @property
+    def execution_modal(self) -> Locator:
+        """Execution modal/dialog locator."""
+        return self.page.get_by_test_id("skill-execution-modal")
+
+    @property
+    def execute_button(self) -> Locator:
+        """Execute skill button (on card or page)."""
+        return self.page.get_by_test_id("execute-skill-button")
+
+    @property
+    def execute_button_loading(self) -> Locator:
+        """Loading state of execute button."""
+        return self.page.get_by_test_id("execute-skill-button").locator("[data-loading=\"true\"]")
+
+    @property
+    def input_parameter_section(self) -> Locator:
+        """Input parameters form section."""
+        return self.page.get_by_test_id("input-parameter-section")
+
+    @property
+    def input_field(self) -> Locator:
+        """Generic input parameter field locator."""
+        return self.page.locator("[data-testid^=\"input-param-\"]")
+
+    @property
+    def run_execution_button(self) -> Locator:
+        """Confirm/run execution button."""
+        return self.page.get_by_test_id("run-execution-button")
+
+    @property
+    def progress_indicator(self) -> Locator:
+        """Progress/spinner during execution."""
+        return self.page.get_by_test_id("execution-progress-indicator")
+
+    @property
+    def progress_bar(self) -> Locator:
+        """Progress bar for long-running skills."""
+        return self.page.get_by_test_id("execution-progress-bar")
+
+    @property
+    def progress_percentage(self) -> Locator:
+        """Progress percentage text."""
+        return self.page.get_by_test_id("execution-progress-percentage")
+
+    @property
+    def output_container(self) -> Locator:
+        """Output display container."""
+        return self.page.get_by_test_id("execution-output-container")
+
+    @property
+    def output_text(self) -> Locator:
+        """Plain text output locator."""
+        return self.page.get_by_test_id("execution-output-text")
+
+    @property
+    def output_json(self) -> Locator:
+        """JSON formatted output locator."""
+        return self.page.get_by_test_id("execution-output-json")
+
+    @property
+    def output_canvas(self) -> Locator:
+        """Canvas presentation output locator."""
+        return self.page.get_by_test_id("canvas-host")
+
+    @property
+    def execution_success_message(self) -> Locator:
+        """Success message after execution."""
+        return self.page.get_by_test_id("execution-success-message")
+
+    @property
+    def execution_error_message(self) -> Locator:
+        """Error message display locator."""
+        return self.page.get_by_test_id("execution-error-message")
+
+    @property
+    def error_suggestion(self) -> Locator:
+        """Suggested fix for error locator."""
+        return self.page.get_by_test_id("execution-error-suggestion")
+
+    @property
+    def retry_button(self) -> Locator:
+        """Retry execution button locator."""
+        return self.page.get_by_test_id("execution-retry-button")
+
+    @property
+    def execution_history_list(self) -> Locator:
+        """List of past executions locator."""
+        return self.page.get_by_test_id("execution-history-list")
+
+    @property
+    def history_entry(self) -> Locator:
+        """Individual history entry locator."""
+        return self.page.get_by_test_id("execution-history-entry")
+
+    @property
+    def history_status(self) -> Locator:
+        """Status indicator on history entry."""
+        return self.page.get_by_test_id("history-entry-status")
+
+    @property
+    def history_timestamp(self) -> Locator:
+        """Execution timestamp locator."""
+        return self.page.get_by_test_id("history-entry-timestamp")
+
+    @property
+    def view_result_button(self) -> Locator:
+        """View result button in history locator."""
+        return self.page.get_by_test_id("view-result-button")
+
+    @property
+    def execution_id_display(self) -> Locator:
+        """Execution ID display locator."""
+        return self.page.get_by_test_id("execution-id-display")
+
+    @property
+    def execution_duration(self) -> Locator:
+        """Execution duration display locator."""
+        return self.page.get_by_test_id("execution-duration-display")
+
+    def is_loaded(self) -> bool:
+        """Check if execution page/modal is visible.
+
+        Returns:
+            bool: True if execution modal or page is loaded
+
+        Example:
+            assert exec_page.is_loaded() is True
+        """
+        return (self.execution_modal.is_visible() or
+                self.page.locator("[data-testid=\"skill-execution-page\"]").is_visible())
+
+    def set_input_param(self, param_name: str, value: str) -> None:
+        """Set input parameter value.
+
+        Args:
+            param_name: Name of the parameter
+            value: Value to set
+
+        Example:
+            exec_page.set_input_param("query", "What is 2+2?")
+        """
+        input_locator = self.page.locator(f"[data-testid=\"input-param-{param_name}\"]")
+        input_locator.fill(value)
+
+    def get_input_param(self, param_name: str) -> str:
+        """Get input parameter value.
+
+        Args:
+            param_name: Name of the parameter
+
+        Returns:
+            str: Current value of the parameter
+
+        Example:
+            value = exec_page.get_input_param("query")
+            assert value == "What is 2+2?"
+        """
+        input_locator = self.page.locator(f"[data-testid=\"input-param-{param_name}\"]")
+        return input_locator.input_value()
+
+    def click_execute(self) -> None:
+        """Click execute button.
+
+        Example:
+            exec_page.click_execute()
+            assert exec_page.is_executing()
+        """
+        self.execute_button.click()
+
+    def click_run(self) -> None:
+        """Click run/confirm button.
+
+        Example:
+            exec_page.click_run()
+            exec_page.wait_for_execution_complete()
+        """
+        self.run_execution_button.click()
+
+    def is_executing(self) -> bool:
+        """Check if execution in progress.
+
+        Returns:
+            bool: True if progress indicator is visible
+
+        Example:
+            exec_page.click_execute()
+            assert exec_page.is_executing() is True
+        """
+        return self.progress_indicator.is_visible()
+
+    def get_progress_percentage(self) -> int:
+        """Get progress percentage.
+
+        Returns:
+            int: Progress value from 0-100
+
+        Example:
+            pct = exec_page.get_progress_percentage()
+            assert 0 <= pct <= 100
+        """
+        if not self.progress_bar.is_visible():
+            return 100 if not self.is_executing() else 0
+        pct_text = self.progress_percentage.text_content() or "0"
+        # Extract number from "75%" or "75%"
+        import re
+        match = re.search(r'\d+', pct_text)
+        return int(match.group()) if match else 0
+
+    def wait_for_execution_complete(self, timeout: int = 30000) -> None:
+        """Wait for execution to finish.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            exec_page.click_run()
+            exec_page.wait_for_execution_complete(timeout=60000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                '[data-testid="execution-progress-indicator"]',
+                state="hidden",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Execution did not complete within {timeout}ms")
+
+    def get_output_text(self) -> str:
+        """Get plain text output.
+
+        Returns:
+            str: Text output content
+
+        Example:
+            output = exec_page.get_output_text()
+            assert "result" in output.lower()
+        """
+        if self.output_text.is_visible():
+            return self.output_text.text_content() or ""
+        return ""
+
+    def get_output_json(self) -> dict:
+        """Get JSON output as dict.
+
+        Returns:
+            dict: Parsed JSON output
+
+        Example:
+            import json
+            output = exec_page.get_output_json()
+            assert "result" in output
+        """
+        import json
+        if self.output_json.is_visible():
+            text = self.output_json.text_content() or "{}"
+            return json.loads(text)
+        return {}
+
+    def is_canvas_output_visible(self) -> bool:
+        """Check if canvas output shown.
+
+        Returns:
+            bool: True if canvas_host element is visible
+
+        Example:
+            exec_page.wait_for_execution_complete()
+            assert exec_page.is_canvas_output_visible() is True
+        """
+        return self.output_canvas.is_visible()
+
+    def is_success_message_visible(self) -> bool:
+        """Check if success message shown.
+
+        Returns:
+            bool: True if success message is visible
+
+        Example:
+            exec_page.wait_for_execution_complete()
+            assert exec_page.is_success_message_visible() is True
+        """
+        return self.execution_success_message.is_visible()
+
+    def get_error_message(self) -> str:
+        """Get error message text.
+
+        Returns:
+            str: Error message content
+
+        Example:
+            error = exec_page.get_error_message()
+            assert "invalid" in error.lower()
+        """
+        if self.execution_error_message.is_visible():
+            return self.execution_error_message.text_content() or ""
+        return ""
+
+    def get_error_suggestion(self) -> str:
+        """Get suggested fix text.
+
+        Returns:
+            str: Suggestion text
+
+        Example:
+            suggestion = exec_page.get_error_suggestion()
+            assert "check input" in suggestion.lower()
+        """
+        if self.error_suggestion.is_visible():
+            return self.error_suggestion.text_content() or ""
+        return ""
+
+    def click_retry(self) -> None:
+        """Click retry button.
+
+        Example:
+            exec_page.click_retry()
+            exec_page.wait_for_execution_complete()
+        """
+        self.retry_button.click()
+
+    def get_execution_id(self) -> str:
+        """Get execution ID.
+
+        Returns:
+            str: Execution ID from display
+
+        Example:
+            exec_id = exec_page.get_execution_id()
+            assert len(exec_id) > 0
+        """
+        if self.execution_id_display.is_visible():
+            return self.execution_id_display.text_content() or ""
+        return ""
+
+    def get_execution_duration(self) -> str:
+        """Get execution duration.
+
+        Returns:
+            str: Duration text (e.g., "2.5s")
+
+        Example:
+            duration = exec_page.get_execution_duration()
+            assert "s" in duration
+        """
+        if self.execution_duration.is_visible():
+            return self.execution_duration.text_content() or ""
+        return ""
+
+    def get_history_count(self) -> int:
+        """Get number of past executions.
+
+        Returns:
+            int: Number of history entries
+
+        Example:
+            count = exec_page.get_history_count()
+            assert count >= 1
+        """
+        return self.history_entry.count()
+
+    def get_history_entry_status(self, index: int) -> str:
+        """Get status of history entry.
+
+        Args:
+            index: Zero-based index of history entry
+
+        Returns:
+            str: Status text (e.g., "success", "failed", "running")
+
+        Example:
+            status = exec_page.get_history_entry_status(0)
+            assert status == "success"
+        """
+        entries = self.history_entry.all()
+        if index >= len(entries):
+            raise IndexError(f"History index {index} out of range (count: {len(entries)})")
+        entry = entries[index]
+        return entry.get_by_test_id("history-entry-status").text_content()
+
+    def click_view_history_result(self, index: int) -> None:
+        """View past execution result.
+
+        Args:
+            index: Zero-based index of history entry
+
+        Example:
+            exec_page.click_view_history_result(0)
+            assert exec_page.is_output_displayed()
+        """
+        entries = self.history_entry.all()
+        if index >= len(entries):
+            raise IndexError(f"History index {index} out of range (count: {len(entries)})")
+        entry = entries[index]
+        entry.get_by_test_id("view-result-button").click()
+
+    def is_output_displayed(self) -> bool:
+        """Check if any output shown.
+
+        Returns:
+            bool: True if any output container is visible
+
+        Example:
+            exec_page.wait_for_execution_complete()
+            assert exec_page.is_output_displayed() is True
+        """
+        return (self.output_text.is_visible() or
+                self.output_json.is_visible() or
+                self.output_canvas.is_visible())
