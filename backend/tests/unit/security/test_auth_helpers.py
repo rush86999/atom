@@ -165,23 +165,18 @@ class TestJWTTokenVerification:
         with pytest.raises(Exception):
             verify_jwt_token(token)
 
-    @patch.dict('os.environ', {'EMERGENCY_GOVERNANCE_BYPASS': 'true', 'JWT_SECRET': ''})
-    def test_verify_token_with_emergency_bypass(self):
+    def test_verify_token_with_emergency_bypass(self, monkeypatch):
         """Test emergency bypass allows verification without secret key."""
         # This tests the emergency bypass mechanism
         # When EMERGENCY_GOVERNANCE_BYPASS is true, verification is bypassed
         from core.auth_helpers import verify_jwt_token
         import os
 
-        os.environ['EMERGENCY_GOVERNANCE_BYPASS'] = 'true'
-        # Temporarily remove secret
-        original_secret = None
-        try:
-            # Test that bypass works (implementation dependent)
-            pass
-        finally:
-            if original_secret:
-                os.environ['JWT_SECRET'] = original_secret
+        # Use monkeypatch for environment variable isolation
+        monkeypatch.setenv('EMERGENCY_GOVERNANCE_BYPASS', 'true')
+
+        # Test that bypass works (implementation dependent)
+        # monkeypatch automatically restores the environment after the test
 
 
 class TestRequireAuthenticatedUser:
