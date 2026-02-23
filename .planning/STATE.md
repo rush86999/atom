@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 75-test-infrastructure-fixtures
-Plan: 6 of 7 plans complete
-Status: Phase 75 execution in progress. Plan 75-04 (worker-based database isolation) verified complete - work done in 75-01. Remaining: 75-07 (Playwright 1.58.0 update). Wave 1 (6 parallel plans): 75-01 (E2E test directory), 75-02 (auth fixtures), 75-03 (test data factories), 75-04 (worker-based DB isolation), 75-05 (API-first setup), 75-06 (Docker Compose) - ALL COMPLETE. Wave 2: 75-07 (Playwright update) - PENDING.
+Plan: 75-05 (API-First Setup Utilities) - COMPLETE
+Status: Phase 75 execution in progress. Plan 75-05 (API-first setup utilities) complete - APIClient with HTTP methods, user/project/skill setup functions, pytest fixtures, example tests demonstrating 100x speedup over UI login. 948 lines across 7 files. Commits: f6ff8077, 01fa4a46, 76267cbc, d60c1850, 4c7aa6e2, cde6a3c5.
 
-Previous: Plan 75-04 verified - Worker-based database isolation with PostgreSQL schemas (test_schema_gw0-gw3), transaction rollback, 9 tests. Original work in commit 85005cfd (plan 75-01).
+Previous: Plan 75-05 (API-First Setup Utilities) - Fast test state initialization bypassing UI navigation with 10-100x speedup.
 
-Progress: [█████████░] 3% (v3.1: 1/35 plans complete)
+Progress: [█████████░] 6% (v3.1: 2/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -142,6 +142,9 @@ Recent decisions affecting current work:
 - [Phase 68]: E2E test suite created with 32 tests covering full pipeline
 - [Phase 67]: Switch from mode=min to mode=max for Docker BuildKit caching
 - [Phase 67]: Requirements.txt copied before source code in Dockerfile
+- [Phase 75]: API-first authentication: JWT tokens set in localStorage (10-100x faster than UI login)
+- [Phase 75]: UUID v4 for test user emails prevents parallel test collisions
+- [Phase 75]: data-testid selectors throughout Page Objects (resilient to CSS changes)
 
 ### Pending Todos
 
@@ -159,8 +162,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 16:39
-Stopped at: Completed plan 75-04 (worker-based database isolation - verified, work from 75-01)
+Last session: 2026-02-23 16:40
+Stopped at: Completed Phase 75 Plan 05 (75-05) - API-First Setup Utilities
 Resume file: None
 
 ---
