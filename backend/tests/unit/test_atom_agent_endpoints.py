@@ -446,7 +446,8 @@ class TestStreamEndpoint:
         mock_get_db,
         mock_gov,
         mock_resolver,
-        client
+        client,
+        monkeypatch
     ):
         """Test streaming endpoint basic functionality"""
         # Setup all the mocks
@@ -479,9 +480,8 @@ class TestStreamEndpoint:
         mock_history_mgr.add_message = MagicMock()
         mock_get_history.return_value = mock_history_mgr
 
-        # Disable governance for simpler test
-        import os
-        os.environ["STREAMING_GOVERNANCE_ENABLED"] = "false"
+        # Disable governance for simpler test using monkeypatch
+        monkeypatch.setenv("STREAMING_GOVERNANCE_ENABLED", "false")
 
         response = client.post(
             "/api/atom-agent/chat/stream",
@@ -494,13 +494,14 @@ class TestStreamEndpoint:
         # Should get a response (even if error, due to complex mocking)
         assert response.status_code in [200, 500]
 
-    def test_stream_endpoint_governance_enabled(self):
+    def test_stream_endpoint_governance_enabled(self, monkeypatch):
         """Test that governance can be enabled via env var"""
-        import os
-        os.environ["STREAMING_GOVERNANCE_ENABLED"] = "true"
-        os.environ["EMERGENCY_GOVERNANCE_BYPASS"] = "false"
+        # Use monkeypatch for environment variable isolation
+        monkeypatch.setenv("STREAMING_GOVERNANCE_ENABLED", "true")
+        monkeypatch.setenv("EMERGENCY_GOVERNANCE_BYPASS", "false")
 
         # Just verify the setting can be read
+        import os
         assert os.getenv("STREAMING_GOVERNANCE_ENABLED") == "true"
 
 
