@@ -100,6 +100,23 @@ jobs:
             --self-contained-html \
             --json-report --json-report-file=pytest_report.json
 
+      - name: Enhance HTML report with screenshots
+        if: always()
+        working-directory: ./backend/tests/e2e_ui
+        run: |
+          if [ -f reports/test-report.html ]; then
+            # Embed screenshots for failed tests
+            python scripts/html_report_generator.py reports/test-report.html \
+              --embed \
+              --add-env \
+              --output reports/test-report-enhanced.html
+
+            # Copy enhanced report as primary
+            cp reports/test-report-enhanced.html reports/test-report.html
+          else
+            echo "HTML report not found, skipping enhancement"
+          fi
+
       - name: Create reports directory
         run: mkdir -p backend/tests/e2e_ui/reports
 
