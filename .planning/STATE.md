@@ -162,6 +162,8 @@ Recent decisions affecting current work:
 - [Phase 077]: Direct database agent creation via AgentRegistry model for E2E tests (10-100x faster than API)
 - [Phase 077]: UUID v4 for unique agent names prevents parallel test collisions
 - [Phase 077]: Agent creation fixtures follow existing pattern: test_X_data + setup_test_X + helper function
+- [Phase 078]: CanvasHostPage uses CSS selectors for absolute positioned canvas (no data-testid)
+- [Phase 078]: page.evaluate() simulates WebSocket canvas:update messages for fast E2E testing
 
 ### Pending Todos
 
