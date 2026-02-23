@@ -32,7 +32,6 @@ from tests.e2e_ui.pages.page_objects import CanvasFormPage, CanvasHostPage
 from core.models import User, AgentRegistry, AgentExecution, CanvasAudit
 from core.auth import get_password_hash
 from datetime import datetime
-from conftest import create_test_user, get_auth_token_for_user
 
 
 def create_test_form_schema(field_configs: List[Dict[str, Any]]) -> Dict[str, Any]:
