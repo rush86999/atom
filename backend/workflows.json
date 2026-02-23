@@ -1335,5 +1335,17 @@
     "enabled": true,
     "createdAt": "2026-02-19T07:08:28.683614",
     "updatedAt": "2026-02-19T07:08:28.683626"
+  },
+  {
+    "id": "1f37cdfa-de3b-441a-b978-4129d29a3b08",
+    "name": "Test Workflow",
+    "description": "Test",
+    "version": "1.0",
+    "nodes": [],
+    "connections": [],
+    "triggers": [],
+    "enabled": true,
+    "createdAt": "2026-02-22T21:59:19.273399",
+    "updatedAt": "2026-02-22T21:59:19.273421"
   }
 ]
