@@ -30,12 +30,14 @@ jobs:
     - name: Run tests with coverage
       run: |
         cd backend
+        # GATES-01: Deployment blocked if coverage < 80%
         pytest tests/ -v \
           --cov=. \
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term-missing \
-          --cov-fail-under=25
+          --cov-branch \
+          --cov-fail-under=80
 
     - name: Check coverage diff
       run: |
@@ -55,5 +57,5 @@ jobs:
       uses: py-cov-action/python-coverage-comment-action@v3
       with:
         GITHUB_TOKEN: ${{ github.token }}
-        MINIMUM_GREEN: 80
+        MINIMUM_GREEN: 85
         MINIMUM_ORANGE: 60
