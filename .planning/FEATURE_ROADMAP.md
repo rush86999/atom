@@ -31,6 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: "Moltbook" Social Layer** - Agent-to-agent communication feed with observable thoughts and status updates ✅
 - [x] **Phase 4: Simplified Entry Point** - Single-line installer (pip install atom-os) with Personal/Enterprise editions ✅
 - [x] **Phase 5: Community Skills Integration** - Import 5,000+ OpenClaw/ClawHub skills via Markdown+YAML adapters with Docker sandbox security ✅
+- [ ] **Phase 6: Local AI Model Support** - Run local LLMs (Qwen, DeepSeek, Llama) with hardware detection and automatic fallback ✅
 
 ## Progress
 
@@ -41,8 +42,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 | 3. Moltbook Social Layer | 3/3 | **Complete** | February 16, 2026 |
 | 4. Simplified Installer | 3/3 | **Complete** | February 16, 2026 |
 | 5. Community Skills Integration | 5/5 | **Complete** | February 16, 2026 |
+| 6. Local AI Model Support | 0/5 | **Not Started** | - |
 
-**Overall Progress**: 21/21 plans complete (100%) ✅
+**Overall Progress**: 21/26 plans complete (81%) ✅
 
 **Note**: Phase 5 (Community Skills Integration) is implemented as Phase 14 in the planning directory structure. All gap closure plans completed.
 
@@ -437,6 +439,136 @@ atom-os/
 - Wave 1: Plan 01 (pyproject.toml + PackageFeatureService) ✅
 - Wave 1: Plan 02 (CLI init/enable + edition API) ✅
 - Wave 2: Plan 03 (Documentation + PyPI workflow) ✅
+
+---
+
+### Phase 6: Local AI Model Support
+
+**Goal**: Enable users to run local LLMs (Qwen, DeepSeek, Llama, etc.) with automatic hardware detection and graceful fallback to cloud APIs when hardware is insufficient
+
+**Depends on**: Phase 2 (local agent infrastructure), Phase 4 (Personal Edition installer)
+
+**Requirements**: LOCAL-01, LOCAL-02, LOCAL-03, LOCAL-04, LOCAL-05
+
+**Success Criteria** (what must be TRUE):
+1. System detects available hardware (GPU VRAM, RAM, CPU cores) and recommends appropriate model size
+2. User can run local LLM inference for supported models (Qwen 2.5/3.x, DeepSeek, Llama 3.x, Mistral)
+3. Automatic fallback to cloud API (OpenAI, Anthropic, DeepSeek) when local hardware insufficient
+4. Local models integrate with existing governance system (STUDENT→INTERN→SUPERVISED→AUTONOMOUS)
+5. Cost tracking shows savings from local vs cloud inference (per-token cost comparison)
+
+**Supported Models** (2026):
+- **Qwen 2.5 7B/32B** - [Qwen Blog](https://qwen.ai/blog?id=qwen3.5) - Strong multilingual, excellent for coding
+- **DeepSeek-V3** - Cost-effective reasoning model, competitive with GPT-4
+- **Llama 3.1 8B/70B** - Meta's open models, great general-purpose
+- **Mistral 7B** - Fast, efficient for general tasks
+- **Phi-3 4B** - Microsoft's compact model (runs on CPU)
+
+**Hardware Detection**:
+```python
+# Hardware tier detection
+TIERS = {
+    'cpu_only': {
+        'ram': '16GB+',
+        'models': ['Phi-3 4B', 'Qwen 0.6B'],
+        'performance': '1-5 tokens/sec'
+    },
+    'consumer_gpu': {
+        'vram': '8-12GB',
+        'models': ['Qwen 4B', 'Llama 3.1 8B (4-bit)', 'Mistral 7B (4-bit)'],
+        'performance': '15-30 tokens/sec'
+    },
+    'mid_gpu': {
+        'vram': '16-24GB',
+        'models': ['Qwen 7B/14B', 'Llama 3.1 8B (FP16)', 'DeepSeek 32B (4-bit)'],
+        'performance': '30-50 tokens/sec'
+    },
+    'enterprise_gpu': {
+        'vram': '48GB+ (A100/H100)',
+        'models': ['Qwen 32B/72B', 'DeepSeek-V3', 'Llama 3.1 70B'],
+        'performance': '50-100 tokens/sec'
+    }
+}
+```
+
+**Architecture**:
+```
+User Request
+  ↓
+LocalLLMService.detect_hardware() → Check GPU/VRAM/CPU
+  ↓
+IF hardware_sufficient:
+  ↓
+  LoadModel llama.cpp/vLLM → Local Inference
+  ↓
+ELSE:
+  ↓
+  Fallback to BYOK Handler → Cloud API (OpenAI/Anthropic/DeepSeek)
+  ↓
+Governance Cache → Permission Check
+  ↓
+Agent Execution
+  ↓
+CostTracker.log(local_tokens, cloud_tokens, savings)
+```
+
+**Key Features**:
+- **Automatic hardware detection** on startup (GPU VRAM, CUDA, ROCm, CPU fallback)
+- **Model recommendation engine** based on available hardware
+- **Quantization support** (4-bit GPTQ/AWQ, GGUF for CPU inference)
+- **Hot-swappable models** (switch between local/cloud without restarting)
+- **Cost dashboard** showing local vs cloud token usage and savings
+- **Privacy mode** (force local-only for sensitive data)
+
+**Libraries**:
+- **Inference**: llama.cpp (CPU/GPU), vLLM (GPU acceleration), ollama (simplified deployment)
+- **Model format**: GGUF (llama.cpp), GPTQ (4-bit quantized), safetensors (HuggingFace)
+- **Hardware detection**: pynvml (NVIDIA), torch.cuda (PyTorch), psutil (system info)
+
+**Fallback Strategy**:
+```python
+FALLBACK_RULES = {
+    'insufficient_vram': {
+        'action': 'downgrade_model_size',  # 32B → 14B → 7B
+        'threshold': '0.8 * available_vram'
+    },
+    'no_gpu': {
+        'action': 'use_cpu_inference',  # Slow but works
+        'max_model_size': '4B parameters'
+    },
+    'hardware_critical': {
+        'action': 'fallback_to_cloud',  # Use OpenAI/Anthropic
+        'reason': 'CPU-only + <16GB RAM'
+    }
+}
+```
+
+**Privacy Controls**:
+```python
+PRIVACY_MODES = {
+    'cloud_allowed': 'Use cloud API if local hardware insufficient',
+    'local_only': 'Fail request if local model unavailable',
+    'hybrid': 'Local for general tasks, cloud for complex reasoning',
+}
+```
+
+**Plans**: 5 plans (estimated)
+- [ ] 06-local-llm-01-PLAN.md — Hardware detection service (GPU VRAM, CUDA, CPU cores, model recommendation engine)
+- [ ] 06-local-llm-02-PLAN.md — Local inference backend (llama.cpp/vLLM integration, quantization, model loading)
+- [ ] 06-local-llm-03-PLAN.md — Governance integration (local models respect STUDENT→AUTONOMOUS maturity, privacy controls)
+- [ ] 06-local-llm-04-PLAN.md — Fallback service (automatic cloud fallback, cost tracking, hybrid mode)
+- [ ] 06-local-llm-05-PLAN.md — Model marketplace UI (browse, download, switch models, hardware compatibility display)
+
+**Timeline**: 3-5 days (local LLM integration is well-trodden territory)
+
+**Research Sources**:
+- [Qwen Models Hardware Requirements](https://www.zhetao.com/content1638)
+- [Qwen3-VL-8B Tool Development Guide](https://m.blog.csdn.net/Liudef06/article/details/154430475)
+- [Local LLM Deployment Guide](https://m.blog.csdn.net/IT913913/article/details/154350657)
+- [Qwen Hardware Requirements Discussion](https://zouaw.com/123614.html)
+- [Qwen Local Deployment Guide](https://blog.csdn.net/2401_82469710/article/details/150065606)
+- [Qwen3 Core Comparison](https://m.blog.csdn.net/m0_59235945/article/details/148290032)
+- [DeepSeek-V3 vs Qwen Hardware](https://blog.csdn.net/l35633/article/details/147362194)
 
 ---
 
