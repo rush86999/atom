@@ -136,3 +136,91 @@ class APIClient:
     def clear_token(self) -> None:
         """Clear the authentication token."""
         self.token = None
+
+
+# ============================================================================
+# User Setup Functions
+# ============================================================================
+
+def create_test_user(client: APIClient, email: str, password: str, first_name: str = "Test", last_name: str = "User") -> Dict[str, Any]:
+    """
+    Create a test user via API.
+
+    Args:
+        client: APIClient instance
+        email: User email
+        password: User password
+        first_name: User first name (default: "Test")
+        last_name: User last name (default: "User")
+
+    Returns:
+        User data response from API
+
+    Raises:
+        requests.HTTPError: If user creation fails
+    """
+    return client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "first_name": first_name,
+            "last_name": last_name
+        }
+    )
+
+
+def authenticate_user(client: APIClient, email: str, password: str) -> Dict[str, Any]:
+    """
+    Authenticate a user and get access token.
+
+    Args:
+        client: APIClient instance
+        email: User email
+        password: User password
+
+    Returns:
+        Authentication response with access_token
+
+    Raises:
+        requests.HTTPError: If authentication fails
+    """
+    return client.post(
+        "/api/auth/login",
+        json={
+            "username": email,
+            "password": password
+        }
+    )
+
+
+def get_test_user_token(client: APIClient, email: str, password: str) -> str:
+    """
+    Get JWT token for a test user.
+
+    Args:
+        client: APIClient instance
+        email: User email
+        password: User password
+
+    Returns:
+        JWT access token
+
+    Raises:
+        requests.HTTPError: If authentication fails
+    """
+    response = authenticate_user(client, email, password)
+    return response["access_token"]
+
+
+def set_authenticated_session(page, token: str) -> None:
+    """
+    Set JWT token in localStorage for Playwright page.
+
+    This authenticates the browser session without going through UI login.
+
+    Args:
+        page: Playwright Page object
+        token: JWT access token
+    """
+    page.evaluate(f"localStorage.setItem('auth_token', '{token}')")
