@@ -54,22 +54,22 @@
     "last_executed": "2026-02-23T02:54:12.226126"
   },
   "parallel-workflow": {
-    "execution_count": 4,
-    "success_count": 4,
+    "execution_count": 5,
+    "success_count": 5,
     "failure_count": 0,
-    "total_duration_seconds": 0.9914860000000001,
-    "total_time_saved_seconds": 240.0,
-    "total_business_value": 40.0,
-    "last_executed": "2026-02-19T13:12:13.210510"
+    "total_duration_seconds": 1.359629,
+    "total_time_saved_seconds": 300.0,
+    "total_business_value": 50.0,
+    "last_executed": "2026-02-23T02:54:13.172226"
   },
   "branching-workflow": {
-    "execution_count": 4,
-    "success_count": 4,
+    "execution_count": 5,
+    "success_count": 5,
     "failure_count": 0,
-    "total_duration_seconds": 0.46970500000000004,
-    "total_time_saved_seconds": 240.0,
-    "total_business_value": 40.0,
-    "last_executed": "2026-02-19T13:12:13.593101"
+    "total_duration_seconds": 0.710624,
+    "total_time_saved_seconds": 300.0,
+    "total_business_value": 50.0,
+    "last_executed": "2026-02-23T02:54:13.560794"
   },
   "mapping-workflow": {
     "execution_count": 4,
