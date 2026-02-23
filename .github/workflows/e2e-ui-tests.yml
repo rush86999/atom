@@ -142,6 +142,33 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+      # Quality Gate: Requires 100% pass rate on 3 consecutive runs
+      # - Failed tests reset consecutive run counter
+      # - History tracked in data/quality_gate_history.json
+      # - Gate status reported in CI output
+      - name: Validate quality gate
+        if: always()
+        working-directory: ./backend/tests/e2e_ui
+        run: |
+          if [ -f pytest_report.json ]; then
+            python scripts/quality_gate.py pytest_report.json \
+              --threshold 1.0 \
+              --consecutive 3 \
+              --history data/quality_gate_history.json
+          else
+            echo "pytest_report.json not found, skipping quality gate validation"
+            echo "::warning::Quality gate validation skipped - no pytest report"
+          fi
+
+      - name: Upload quality gate history
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-quality-gate-history
+          path: backend/tests/e2e_ui/data/quality_gate_history.json
+          retention-days: 90
+          if-no-files-found: warn
+
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
