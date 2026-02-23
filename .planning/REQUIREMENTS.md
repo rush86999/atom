@@ -1,206 +1,139 @@
-# Requirements: Atom Test Coverage Initiative
+# Requirements: Atom E2E UI Testing
 
-**Defined:** 2026-02-10 (v1), 2026-02-18 (v2.0)
-**Core Value:** Critical system paths are thoroughly tested and validated before production deployment
+**Defined:** 2026-02-23
+**Core Value:** Critical user workflows are thoroughly tested end-to-end before production deployment
 
-## v1 Requirements (COMPLETE)
+## v3.1 Requirements
 
-All v1 requirements were completed in Milestone v1.0 (200/203 plans).
+Requirements for E2E UI testing milestone with Playwright. Each requirement maps to a roadmap phase.
 
----
+### Test Infrastructure
 
-## v2.0 Requirements
+- [ ] **INFRA-01**: Playwright Python 1.58.0 installed with pytest-playwright plugin
+- [ ] **INFRA-02**: Docker Compose test environment with backend, frontend, PostgreSQL services
+- [ ] **INFRA-03**: Playwright configuration with base URL, browsers, timeout settings
+- [ ] **INFRA-04**: Test fixtures for authentication, browser context, page objects
+- [ ] **INFRA-05**: Test data factories with unique data generation per worker
+- [ ] **INFRA-06**: API-first test setup utilities for fast state initialization
+- [ ] **INFRA-07**: Worker-based database isolation for parallel execution
 
-Requirements for completing all 55 remaining phases to achieve 80% test coverage and integrate Community Skills feature.
+### Authentication & User Management
 
-### Community Skills Integration
+- [ ] **AUTH-01**: User can log in via email and password
+- [ ] **AUTH-02**: User session persists across browser refresh
+- [ ] **AUTH-03**: User can log out and session is cleared
+- [ ] **AUTH-04**: User can access settings page and update preferences
+- [ ] **AUTH-05**: User can create and manage projects
 
-**Table stakes:** SKILL.md parsing, Docker sandbox execution, security scanning, governance workflow
+### Agent Chat & Streaming
 
-- [ ] **SKILLS-01**: Atom can parse OpenClaw SKILL.md files with YAML frontmatter and natural language/Python instructions
-- [ ] **SKILLS-02**: Skills are wrapped as Atom BaseTool classes with proper Pydantic validation
-- [ ] **SKILLS-03**: Imported skills run in isolated Docker sandbox ("atom-sandbox-python") to prevent governance bypass
-- [ ] **SKILLS-04**: Sandbox cannot access host filesystem or network (only controlled Atom API)
-- [ ] **SKILLS-05**: Users can import skills via GitHub URL (e.g., from VoltAgent/awesome-openclaw-skills)
-- [ ] **SKILLS-06**: Imported skills are tagged as "Untrusted" until LLM security scan approves them
-- [ ] **SKILLS-07**: GovernanceService reviews skill code for malicious patterns before promoting to "Active"
-- [ ] **SKILLS-08**: AUTONOMOUS agents can use Active skills; STUDENT/INTERN/SUPERVISED require approval
-- [ ] **SKILLS-09**: All skill executions are logged to audit trail with skill metadata
-- [ ] **SKILLS-10**: Skills registry UI shows all imported skills with status (Untrusted/Active/Banned)
+- [ ] **AGENT-01**: User can send chat message to agent
+- [ ] **AGENT-02**: Agent response is displayed token-by-token via streaming
+- [ ] **AGENT-03**: WebSocket connection is established for streaming
+- [ ] **AGENT-04**: Governance enforcement blocks STUDENT agent from restricted actions
+- [ ] **AGENT-05**: INTERN agent requires approval before executing actions
+- [ ] **AGENT-06**: Agent execution history is displayed in chat interface
 
-**Differentiators:** LLM semantic analysis, episodic memory integration, graduation tracking
+### Canvas Presentations
 
-- [ ] **SKILLS-11**: SkillSecurityScanner uses GPT-4 for semantic analysis of obfuscated threats
-- [ ] **SKILLS-12**: Skill executions create EpisodeSegments for learning and retrieval
-- [ ] **SKILLS-13**: Skill usage metrics count toward agent graduation readiness scores
-- [ ] **SKILLS-14**: Skill diversity bonus (up to +5%) for agents using varied skills
+- [ ] **CANVAS-01**: User can create new canvas presentation
+- [ ] **CANVAS-02**: Canvas components render correctly (charts, markdown, forms)
+- [ ] **CANVAS-03**: User can submit canvas form and validation works
+- [ ] **CANVAS-04**: Canvas state API (window.atom.canvas.getState) returns correct data
+- [ ] **CANVAS-05**: AI accessibility tree exposes canvas state via role='log' and aria-live
+- [ ] **CANVAS-06**: Dynamic content loads correctly with auto-waiting
 
-### Test Failure Fixes
+### Skills & Workflows
 
-**Table stakes:** All tests passing, stable baseline, quality metrics met
+- [ ] **SKILL-01**: User can browse skill marketplace
+- [ ] **SKILL-02**: User can install skill from marketplace
+- [ ] **SKILL-03**: User can configure skill settings
+- [ ] **SKILL-04**: User can execute skill and verify output
+- [ ] **SKILL-05**: User can uninstall skill
 
-- [ ] **TEST-01**: Fix Hypothesis TypeError in property tests (10 modules with st.just/st.sampled_from issues)
-- [ ] **TEST-02**: Fix proposal service test failures (6 tests with incorrect mock targets)
-- [ ] **TEST-03**: Verify 98%+ test pass rate (TQ-02: run full suite 3 times, <2% failures allowed)
-- [ ] **TEST-04**: Fix graduation governance test failures (3 tests with metadata_json factory parameter issue)
-- [ ] **TEST-05**: Verify test suite performance <60 minutes (TQ-03: full suite execution time)
-- [ ] **TEST-06**: Fix agent task cancellation flaky tests (test_unregister_task, test_register_task, test_get_all_running_agents)
-- [ ] **TEST-07**: Fix security config and governance runtime flaky tests (test_default_secret_key_in_development, test_agent_governance_gating)
-- [ ] **TEST-08**: Verify zero flaky tests (TQ-04: 3 consecutive runs with identical results)
+### Quality Gates
 
-**Differentiators:** Root cause fixes, not just symptom patches
+- [ ] **QUAL-01**: Screenshots captured on test failure
+- [ ] **QUAL-02**: Video recordings captured on test failure (CI only)
+- [ ] **QUAL-03**: Tests retry up to 2 times on failure (CI only)
+- [ ] **QUAL-04**: Flaky test detection identifies unstable tests
+- [ ] **QUAL-05**: Test suite achieves 100% pass rate on 3 consecutive runs
+- [ ] **QUAL-06**: HTML test reports generated with screenshots
 
-- [ ] **TEST-09**: All test fixes include regression tests to prevent recurrence
-- [ ] **TEST-10**: Test failures documented with root cause analysis in commit messages
+## v3.2 Requirements
 
-### Coverage Push - Tier 1 Files
+Deferred to future release. Tracked but not in current roadmap.
 
-**Table stakes:** Achieve 28% overall coverage by testing highest-impact files
+### Advanced Features
 
-- [ ] **COV-01**: core/models.py (2351 lines) reaches 50% coverage (+1,176 lines)
-- [ ] **COV-02**: core/workflow_engine.py (1163 lines) reaches 50% coverage (+582 lines)
-- [ ] **COV-03**: core/atom_agent_endpoints.py (736 lines) reaches 50% coverage (+368 lines)
-- [ ] **COV-04**: core/workflow_analytics_engine.py (593 lines) reaches 50% coverage (+297 lines)
-- [ ] **COV-05**: core/llm/byok_handler.py (549 lines) reaches 50% coverage (+275 lines)
-- [ ] **COV-06**: core/workflow_debugger.py (527 lines) reaches 50% coverage (+264 lines)
-
-**Differentiators:** Property tests for stateful logic, integration tests for API endpoints
-
-- [ ] **COV-07**: Property tests verify workflow_engine stateful invariants (execution order, rollback)
-- [ ] **COV-08**: Property tests verify byok_handler provider fallback invariants
-- [ ] **COV-09**: Integration tests verify atom_agent_endpoints API contracts
-- [ ] **COV-10**: Unit tests verify models.py ORM relationships and cascades
-
-### Agent Layer Testing
-
-**Table stakes:** Comprehensive governance, graduation, execution coverage
-
-- [ ] **AGENT-01**: 4x4 maturity/complexity matrix tests (STUDENT/INTERN/SUPERVISED/AUTONOMOUS × Low/Moderate/High/Critical)
-- [ ] **AGENT-02**: Action complexity validation (60+ actions across all complexity levels)
-- [ ] **AGENT-03**: Governance cache performance tests (<1ms cached, <50ms uncached)
-- [ ] **AGENT-04**: Graduation readiness scoring tests (episode counts, intervention rates, constitutional scores)
-- [ ] **AGENT-05**: Graduation exam execution tests (validate promotion readiness)
-- [ ] **AGENT-06**: Trigger interceptor routing tests (STUDENT → training, INTERN → proposal, SUPERVISED → supervision)
-- [ ] **AGENT-07**: Agent execution orchestration tests (coordination, state management, error recovery)
-- [ ] **AGENT-08**: Agent-to-agent communication tests (message passing, coordination invariants)
-
-**Differentiators:** Property-based invariants, end-to-end workflows
-
-- [ ] **AGENT-09**: Property tests verify agent maturity never decreases without explicit promotion
-- [ ] **AGENT-10**: Property tests verify governance decisions are deterministic (same inputs → same routing)
-- [ ] **AGENT-11**: Integration tests verify agent execution → episodic memory → graduation feedback loop
-
-### Memory Layer Verification
-
-**Table stakes:** Episodic memory coverage with property-based invariants
-
-- [ ] **MEM-01**: Segmentation tests verify time-gap detection (>30min threshold)
-- [ ] **MEM-02**: Segmentation tests verify topic change detection (similarity <0.75)
-- [ ] **MEM-03**: Segmentation tests verify task completion boundaries
-- [ ] **MEM-04**: Retrieval tests verify temporal queries are sorted by time (AR-12 invariant)
-- [ ] **MEM-05**: Retrieval tests verify semantic queries are ranked by similarity (AR-12 invariant)
-- [ ] **MEM-06**: Retrieval tests verify sequential queries return full episodes (no duplicates)
-- [ ] **MEM-07**: Retrieval tests verify contextual queries use hybrid search (temporal + semantic)
-- [ ] **MEM-08**: Lifecycle tests verify decay (90-day threshold, 180-day archival)
-- [ ] **MEM-09**: Lifecycle tests verify consolidation (similarity-based merging)
-- [ ] **MEM-10**: Graduation tests verify episode count thresholds (10/25/50)
-- [ ] **MEM-11**: Graduation tests verify intervention rate thresholds (50%/20%/0%)
-- [ ] **MEM-12**: Graduation tests verify constitutional score thresholds (0.70/0.85/0.95)
-
-**Differentiators:** Performance SLAs, canvas/feedback integration
-
-- [ ] **MEM-13**: Performance tests verify episode creation <5s
-- [ ] **MEM-14**: Performance tests verify temporal retrieval <10ms
-- [ ] **MEM-15**: Performance tests verify semantic retrieval <100ms
-- [ ] **MEM-16**: Canvas-aware episodes track all canvas interactions (present, submit, close, update, execute)
-- [ ] **MEM-17**: Feedback-linked episodes aggregate user feedback scores for retrieval weighting
-
-### Platform Coverage Completion
-
-**Table stakes:** Mobile and desktop test coverage completion
-
-- [ ] **PLAT-01**: Resolve Expo SDK 50 + Jest compatibility issue (mobile auth tests can run)
-- [ ] **PLAT-02**: Complete DeviceContext tests for React Native (iOS + Android platforms)
-- [ ] **PLAT-03**: Platform-specific permissions tests (iOS vs Android differences documented)
-- [ ] **PLAT-04**: Desktop coverage completion with cargo-tarpaulin (80% coverage target)
-- [ ] **PLAT-05**: Desktop CI/CD integration for automated test execution
-
-**Differentiators:** Dual-platform CI, real device testing
-
-- [ ] **PLAT-06**: Dual-platform CI (iOS + Android) to catch platform differences early
-- [ ] **PLAT-07**: Real device testing infrastructure (not just simulators)
-
-### Coverage & Quality Validation
-
-**Table stakes:** 80% coverage achieved, test quality validated
-
-- [ ] **QUAL-01**: Governance domain achieves 80% coverage (agent_governance_service.py, governance_cache.py, trigger_interceptor.py)
-- [ ] **QUAL-02**: Security domain achieves 80% coverage (auth/, crypto/, validation/)
-- [ ] **QUAL-03**: Episodic memory domain achieves 80% coverage (segmentation, retrieval, lifecycle, graduation)
-- [ ] **QUAL-04**: Core backend achieves 80% coverage (backend/core/, backend/api/, backend/tools/)
-- [ ] **QUAL-05**: Test suite executes in parallel with zero shared state
-- [ ] **QUAL-06**: Test suite has zero flaky tests (3 consecutive runs with identical results)
-- [ ] **QUAL-07**: Full test suite completes in <5 minutes
-
-**Differentiators:** Quality gates, trending documentation
-
-- [ ] **QUAL-08**: Assertion density quality gate enforced (70%+ assertion density)
-- [ ] **QUAL-09**: Coverage trending setup tracks coverage.json over time
-- [ ] **QUAL-10**: Comprehensive test documentation (TEST_STANDARDS.md, INVARIANTS.md)
-
-### Documentation Updates
-
-**Table stakes:** All documentation reflects v2.0 features
-
-- [ ] **DOCS-01**: README.md updated with Community Skills and test coverage achievements
-- [ ] **DOCS-02**: CANVAS_IMPLEMENTATION_COMPLETE.md updated with Phase 20-23 features
-- [ ] **DOCS-03**: EPISODIC_MEMORY_IMPLEMENTATION.md updated with canvas/feedback integration
-- [ ] **DOCS-04**: COMMUNITY_SKILLS.md verified for production status
-- [ ] **DOCS-05**: AGENT_GRADUATION_GUIDE.md updated with latest criteria (including skill metrics)
-- [ ] **DOCS-06**: INSTALLATION.md verified for Personal/Enterprise editions
-
----
+- **MULTI-01**: Multi-agent orchestration E2E tests
+- **GRAD-01**: Agent graduation criteria E2E tests
+- **BROWSER-01**: Browser automation tool E2E tests
+- **VISUAL-01**: Visual regression tests for critical elements
+- **XBROWSER-01**: Cross-browser tests (Firefox, Safari)
+- **PERF-01**: Performance regression tests
+- **PARALLEL-01**: Parallel execution optimization
 
 ## Out of Scope
 
+Explicitly excluded. Documented to prevent scope creep.
+
 | Feature | Reason |
 |---------|--------|
-| E2E UI testing with Playwright/Cypress | Separate tooling needed, defer to v3.0 |
-| Load testing and performance benchmarks | Performance tests beyond coverage, defer to v3.0 |
-| Chaos engineering and resilience testing | Requires production infrastructure, defer to v3.0 |
-| Visual regression testing with snapshot comparison | UI snapshot testing, defer to v3.0 |
-| 100% code coverage goal | Diminishing returns, 80% critical paths is industry standard |
-
----
+| Load testing | Performance testing beyond E2E, defer to v3.2+ |
+| Chaos engineering | Resilience testing, defer to v3.2+ |
+| Visual regression (comprehensive) | High maintenance burden, critical elements only in v3.2 |
+| Mobile E2E | React Native testing is different skillset, defer to mobile milestone |
+| Cross-browser testing | 3x execution time, Firefox/Safari for regression only in v3.2 |
+| Multi-agent orchestration | HIGH complexity, requires separate research phase |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SKILLS-01 through SKILLS-14 | Phase 33 | Pending |
-| TEST-01 through TEST-10 | Phase 29 | Pending |
-| COV-01 through COV-10 | Phase 30 | Pending |
-| AGENT-01 through AGENT-11 | Phase 31 | Pending |
-| MEM-01 through MEM-17 | Phase 31 | Pending |
-| PLAT-01 through PLAT-07 | Phase 32 | Pending |
-| QUAL-01 through QUAL-10 | Phase 32 | Pending |
-| DOCS-01 through DOCS-06 | Phase 34 | Pending |
+| INFRA-01 | Phase 75 | Pending |
+| INFRA-02 | Phase 75 | Pending |
+| INFRA-03 | Phase 75 | Pending |
+| INFRA-04 | Phase 75 | Pending |
+| INFRA-05 | Phase 75 | Pending |
+| INFRA-06 | Phase 75 | Pending |
+| INFRA-07 | Phase 75 | Pending |
+| AUTH-01 | Phase 76 | Pending |
+| AUTH-02 | Phase 76 | Pending |
+| AUTH-03 | Phase 76 | Pending |
+| AUTH-04 | Phase 76 | Pending |
+| AUTH-05 | Phase 76 | Pending |
+| AGENT-01 | Phase 77 | Pending |
+| AGENT-02 | Phase 77 | Pending |
+| AGENT-03 | Phase 77 | Pending |
+| AGENT-04 | Phase 77 | Pending |
+| AGENT-05 | Phase 77 | Pending |
+| AGENT-06 | Phase 77 | Pending |
+| CANVAS-01 | Phase 78 | Pending |
+| CANVAS-02 | Phase 78 | Pending |
+| CANVAS-03 | Phase 78 | Pending |
+| CANVAS-04 | Phase 78 | Pending |
+| CANVAS-05 | Phase 78 | Pending |
+| CANVAS-06 | Phase 78 | Pending |
+| SKILL-01 | Phase 79 | Pending |
+| SKILL-02 | Phase 79 | Pending |
+| SKILL-03 | Phase 79 | Pending |
+| SKILL-04 | Phase 79 | Pending |
+| SKILL-05 | Phase 79 | Pending |
+| QUAL-01 | Phase 80 | Pending |
+| QUAL-02 | Phase 80 | Pending |
+| QUAL-03 | Phase 80 | Pending |
+| QUAL-04 | Phase 80 | Pending |
+| QUAL-05 | Phase 80 | Pending |
+| QUAL-06 | Phase 80 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 73 total
-- Mapped to phases: 73 (Phases 29, 30, 31, 32, 33, 34)
+- v3.1 requirements: 37 total
+- Mapped to phases: 37
 - Unmapped: 0 ✓
 
-**Gap Closure:**
-- v1.0 incomplete phases (3, 10, 12, 14, 17, 19, 24): All mapped to v2.0 phases
-- Phase 3 (Memory Layer) → Phase 31 (Agent Layer & Memory Coverage)
-- Phase 10 (Test Failures) → Phase 29 (Test Failure Fixes & Quality Foundation)
-- Phase 12 (Tier 1 Coverage) → Phase 30 (Tier 1 Coverage Push)
-- Phase 14 (Community Skills) → Phase 33 (Community Skills Integration)
-- Phase 17 (Agent Layer) → Phase 31 (Agent Layer & Memory Coverage)
-- Phase 19 (More Fixes) → Phase 29 (Test Failure Fixes & Quality Foundation)
-- Phase 24 (Documentation) → Phase 34 (Documentation & Verification)
-
 ---
-*Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 for Milestone v2.0*
+*Requirements defined: 2026-02-23*
+*Last updated: 2026-02-23 after initial definition*
