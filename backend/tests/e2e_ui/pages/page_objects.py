@@ -1475,3 +1475,405 @@ class CanvasHostPage(BasePage):
         except PlaywrightTimeoutError:
             raise TimeoutError(f"Canvas did not hide within {timeout}ms")
 
+
+class CanvasChartPage(BasePage):
+    """Page Object for Canvas Chart presentations.
+
+    Encapsulates chart rendering interactions including:
+    - Line charts (timestamp/value data with dots)
+    - Bar charts (category/value data with bars)
+    - Pie charts (segment data with labels)
+    - Chart tooltips, legends, and axes
+    - Recharts-specific SVG selectors
+
+    Uses SVG-specific selectors for Recharts components.
+    """
+
+    # Locators using Recharts-specific CSS selectors
+    @property
+    def chart_container(self) -> Locator:
+        """Recharts ResponsiveContainer wrapper locator."""
+        return self.page.locator(".recharts-wrapper").or_(
+            self.page.locator("[class*=\"recharts\"]")
+        )
+
+    @property
+    def line_chart_svg(self) -> Locator:
+        """SVG element for line charts locator."""
+        return self.page.locator("svg.recharts-line-chart").or_(
+            self.page.locator(".recharts-line")
+        )
+
+    @property
+    def bar_chart_svg(self) -> Locator:
+        """SVG element for bar charts locator."""
+        return self.page.locator("svg.recharts-bar-chart").or_(
+            self.page.locator(".recharts-bar")
+        )
+
+    @property
+    def pie_chart_svg(self) -> Locator:
+        """SVG element for pie charts locator."""
+        return self.page.locator("svg.recharts-pie-chart").or_(
+            self.page.locator(".recharts-pie")
+        )
+
+    @property
+    def chart_title(self) -> Locator:
+        """Chart title element locator (h4 tag)."""
+        return self.page.locator("h4")
+
+    @property
+    def chart_tooltip(self) -> Locator:
+        """Tooltip element locator (visible on hover)."""
+        return self.page.locator(".recharts-tooltip-wrapper").or_(
+            self.page.locator(".recharts-tooltip-content")
+        )
+
+    @property
+    def chart_legend(self) -> Locator:
+        """Legend container locator."""
+        return self.page.locator(".recharts-legend-wrapper").or_(
+            self.page.locator(".recharts-legend-item")
+        )
+
+    @property
+    def chart_x_axis(self) -> Locator:
+        """XAxis element with labels locator."""
+        return self.page.locator(".recharts-xAxis").or_(
+            self.page.locator("text[data-offset]")  # Recharts axis labels
+        )
+
+    @property
+    def chart_y_axis(self) -> Locator:
+        """YAxis element with labels locator."""
+        return self.page.locator(".recharts-yAxis")
+
+    @property
+    def data_points(self) -> Locator:
+        """Individual data point elements locator (dots, bars, slices)."""
+        return self.page.locator(".recharts-dot, .recharts-bar-rectangle, .recharts-pie-sector")
+
+    @property
+    def line_dots(self) -> Locator:
+        """Line chart dot elements locator."""
+        return self.page.locator(".recharts-dot").or_(
+            self.page.locator("circle.recharts-dot")
+        )
+
+    @property
+    def bar_rectangles(self) -> Locator:
+        """Bar chart rectangle elements locator."""
+        return self.page.locator(".recharts-bar-rectangle").or_(
+            self.page.locator("path.recharts-bar")
+        )
+
+    @property
+    def pie_sectors(self) -> Locator:
+        """Pie chart sector elements locator."""
+        return self.page.locator(".recharts-pie-sector").or_(
+            self.page.locator("path.recharts-pie")
+        )
+
+    @property
+    def grid_lines(self) -> Locator:
+        """CartesianGrid lines locator."""
+        return self.page.locator(".recharts-cartesian-grid").or_(
+            self.page.locator("line.recharts-cartesian-grid-line")
+        )
+
+    @property
+    def chart_labels(self) -> Locator:
+        """Chart labels (for pie charts) locator."""
+        return self.page.locator("text.recharts-text").or_(
+            self.page.locator(".recharts-label")
+        )
+
+    def is_loaded(self) -> bool:
+        """Check if any chart is visible.
+
+        Returns:
+            bool: True if any chart SVG is visible
+
+        Example:
+            assert chart_page.is_loaded() is True
+        """
+        return (self.line_chart_svg.is_visible() or
+                self.bar_chart_svg.is_visible() or
+                self.pie_chart_svg.is_visible())
+
+    def get_chart_type(self) -> str:
+        """Detect chart type (line, bar, pie).
+
+        Returns:
+            str: Chart type ("line", "bar", "pie", or "unknown")
+
+        Example:
+            chart_type = chart_page.get_chart_type()
+            assert chart_type == "line"
+        """
+        if self.line_chart_svg.is_visible():
+            return "line"
+        elif self.bar_chart_svg.is_visible():
+            return "bar"
+        elif self.pie_chart_svg.is_visible():
+            return "pie"
+        return "unknown"
+
+    def get_title(self) -> str:
+        """Get chart title text.
+
+        Returns:
+            str: Chart title or empty string if not found
+
+        Example:
+            title = chart_page.get_title()
+            assert "Sales" in title
+        """
+        if self.chart_title.is_visible():
+            return self.chart_title.text_content()
+        return ""
+
+    def get_data_point_count(self) -> int:
+        """Count visible data points.
+
+        Returns:
+            int: Number of visible data points
+
+        Example:
+            count = chart_page.get_data_point_count()
+            assert count == 5
+        """
+        chart_type = self.get_chart_type()
+        if chart_type == "line":
+            return self.line_dots.count()
+        elif chart_type == "bar":
+            return self.bar_rectangles.count()
+        elif chart_type == "pie":
+            return self.pie_sectors.count()
+        return 0
+
+    def get_x_axis_label(self) -> str:
+        """Get X axis label text.
+
+        Returns:
+            str: X axis label or empty string
+
+        Example:
+            label = chart_page.get_x_axis_label()
+            assert "Time" in label
+        """
+        # X-axis labels are typically text elements in Recharts
+        labels = self.chart_x_axis.all()
+        if labels:
+            # First label is usually the axis name
+            return labels[0].text_content() if labels[0].is_visible() else ""
+        return ""
+
+    def get_y_axis_label(self) -> str:
+        """Get Y axis label text.
+
+        Returns:
+            str: Y axis label or empty string
+
+        Example:
+            label = chart_page.get_y_axis_label()
+            assert "Value" in label
+        """
+        if self.chart_y_axis.is_visible():
+            return self.chart_y_axis.text_content()
+        return ""
+
+    def hover_data_point(self, index: int) -> None:
+        """Hover over data point to show tooltip.
+
+        Args:
+            index: Zero-based index of data point to hover
+
+        Example:
+            chart_page.hover_data_point(0)
+            assert chart_page.chart_tooltip.is_visible()
+        """
+        chart_type = self.get_chart_type()
+        if chart_type == "line":
+            dots = self.line_dots.all()
+            if index < len(dots):
+                dots[index].hover()
+        elif chart_type == "bar":
+            bars = self.bar_rectangles.all()
+            if index < len(bars):
+                bars[index].hover()
+        elif chart_type == "pie":
+            sectors = self.pie_sectors.all()
+            if index < len(sectors):
+                sectors[index].hover()
+
+    def get_tooltip_text(self) -> str:
+        """Get tooltip content if visible.
+
+        Returns:
+            str: Tooltip text or empty string if not visible
+
+        Example:
+            chart_page.hover_data_point(0)
+            tooltip = chart_page.get_tooltip_text()
+            assert "100" in tooltip
+        """
+        if self.chart_tooltip.is_visible():
+            return self.chart_tooltip.text_content()
+        return ""
+
+    def has_legend(self) -> bool:
+        """Check if legend is displayed.
+
+        Returns:
+            bool: True if legend is visible
+
+        Example:
+            assert chart_page.has_legend() is True
+        """
+        return self.chart_legend.is_visible()
+
+    def get_legend_items(self) -> list[str]:
+        """Get legend item labels.
+
+        Returns:
+            list[str]: List of legend item names
+
+        Example:
+            items = chart_page.get_legend_items()
+            assert "Series 1" in items
+        """
+        items = []
+        legend_elements = self.chart_legend.all()
+        for legend in legend_elements:
+            text = legend.text_content()
+            if text:
+                items.append(text)
+        return items
+
+    def get_chart_colors(self) -> list[str]:
+        """Extract chart colors from SVG.
+
+        Returns:
+            list[str]: List of color values (stroke, fill)
+
+        Example:
+            colors = chart_page.get_chart_colors()
+            assert "#8884d8" in colors
+        """
+        colors = []
+        chart_type = self.get_chart_type()
+
+        if chart_type == "line":
+            # Line charts use stroke
+            lines = self.page.locator(".recharts-line").all()
+            for line in lines:
+                stroke = line.get_attribute("stroke")
+                if stroke:
+                    colors.append(stroke)
+        elif chart_type == "bar":
+            # Bar charts use fill
+            bars = self.bar_rectangles.all()
+            for bar in bars:
+                fill = bar.get_attribute("fill")
+                if fill:
+                    colors.append(fill)
+        elif chart_type == "pie":
+            # Pie charts use fill on sectors
+            sectors = self.pie_sectors.all()
+            for sector in sectors:
+                fill = sector.get_attribute("fill")
+                if fill:
+                    colors.append(fill)
+
+        return colors
+
+    def verify_line_chart_data(self, expected_data: list) -> bool:
+        """Verify line chart data points match expected values.
+
+        Args:
+            expected_data: List of expected values [value1, value2, ...]
+
+        Returns:
+            bool: True if data point count matches
+
+        Example:
+            assert chart_page.verify_line_chart_data([10, 20, 30])
+        """
+        dot_count = self.line_dots.count()
+        return dot_count == len(expected_data)
+
+    def verify_bar_chart_data(self, expected_data: list) -> bool:
+        """Verify bar chart data points match expected values.
+
+        Args:
+            expected_data: List of expected category-value dicts
+
+        Returns:
+            bool: True if bar count matches
+
+        Example:
+            assert chart_page.verify_bar_chart_data([
+                {"name": "A", "value": 10},
+                {"name": "B", "value": 20}
+            ])
+        """
+        bar_count = self.bar_rectangles.count()
+        return bar_count == len(expected_data)
+
+    def verify_pie_chart_data(self, expected_data: list) -> bool:
+        """Verify pie chart segments match expected values.
+
+        Args:
+            expected_data: List of expected segment-value dicts
+
+        Returns:
+            bool: True if segment count matches
+
+        Example:
+            assert chart_page.verify_pie_chart_data([
+                {"name": "A", "value": 30},
+                {"name": "B", "value": 70}
+            ])
+        """
+        sector_count = self.pie_sectors.count()
+        return sector_count == len(expected_data)
+
+    def wait_for_chart_render(self, timeout: int = 3000) -> None:
+        """Wait for chart to finish rendering.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            chart_page.wait_for_chart_render(timeout=5000)
+            assert chart_page.is_loaded()
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for any chart SVG to be visible
+            self.page.wait_for_selector(
+                ".recharts-wrapper, .recharts-line-chart, .recharts-bar-chart, .recharts-pie-chart",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Chart did not render within {timeout}ms")
+
+    def get_pie_labels(self) -> list[str]:
+        """Get labels from pie chart segments.
+
+        Returns:
+            list[str]: List of label text from pie segments
+
+        Example:
+            labels = chart_page.get_pie_labels()
+            assert "Category A: 100" in labels
+        """
+        labels = []
+        label_elements = self.chart_labels.all()
+        for label in label_elements:
+            text = label.text_content()
+            if text and ":" in text:  # Pie labels show "name: value"
+                labels.append(text)
+        return labels
