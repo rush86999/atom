@@ -90,3 +90,44 @@ class TestLLMRoutingInvariants:
                 else:
                     # If none preferred are available, should have fallback logic
                     assert True, "Should use default provider when preferred unavailable"
+
+    @given(
+        text=st.text(min_size=0, max_size=5000, alphabet='abc DEF 123\n\t', average_size=500)
+    )
+    @settings(max_examples=100)
+    def test_token_counting_invariant(self, text):
+        """
+        INVARIANT: Token counting MUST be consistent and within reasonable bounds.
+
+        VALIDATED_BUG: Token counter returned 0 for multi-line text causing cost underestimation.
+        Root cause: Regex pattern didn't account for newline tokens in non-English text.
+        Fixed in token_counter.py by using tiktoken library instead of regex.
+
+        Scenario: 1000-character text should produce ~250-500 tokens (depending on language)
+        """
+        # Import token counter
+        from core.llm.token_counter import count_tokens
+
+        # Count tokens
+        token_count = count_tokens(text)
+
+        # Invariant: Token count should be non-negative
+        assert token_count >= 0, f"Token count {token_count} should be non-negative"
+
+        # Invariant: Token count should be roughly proportional to text length
+        # English text: ~4 chars per token, Other languages: ~2-3 chars per token
+        char_count = len(text)
+        if char_count > 0:
+            ratio = token_count / char_count
+            # Ratio should be in reasonable range [0.1, 1.0]
+            assert 0.1 <= ratio <= 1.0, \
+                f"Token/char ratio {ratio:.3f} outside expected range for {char_count} chars -> {token_count} tokens"
+
+        # Invariant: Empty string should have 0 tokens
+        if char_count == 0:
+            assert token_count == 0, "Empty text should have 0 tokens"
+
+        # Invariant: Same text should produce same count (deterministic)
+        token_count2 = count_tokens(text)
+        assert token_count == token_count2, \
+            "Token counting should be deterministic for same input"
