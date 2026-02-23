@@ -32,6 +32,7 @@ pytest-randomly>=3.15.0,<4.0.0  # Randomize test execution order
 pytest-random-order>=1.1.0  # Test independence validation (seeded randomization)
 pytest-rerunfailures>=13.0,<15.0.0  # Flaky test automatic retry
 pytest-json-report>=0.6.0  # Structured JSON output for pass rate parsing
+pytest-html>=4.1.0  # HTML test reports with embedded screenshots
 freezegun>=1.4.0,<2.0.0  # Time freezing for tests
 factory-boy>=3.3.0  # Test data factories
 faker>=22.0.0  # Fake data generation for tests
