@@ -13,6 +13,7 @@ Page Objects:
 - SettingsPage: User settings (theme toggle, notifications)
 - ProjectsPage: Projects dashboard (project list, create, edit, delete)
 - ChatPage: Agent chat interface (message input, streaming, history)
+- ExecutionHistoryPage: Agent execution history (timestamp, status, results)
 """
 
 from playwright.sync_api import Page, Locator
@@ -1028,4 +1029,278 @@ class ProjectsPage(BasePage):
             else:
                 self.cancel_delete_button.click()
 
+
+class ExecutionHistoryPage(BasePage):
+    """Page Object for Agent Execution History page.
+
+    Encapsulates execution history interactions including:
+    - History list display
+    - Entry details (timestamp, status, agent name, result)
+    - Status filtering
+    - Navigation to session details
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators using data-testid attributes
+    @property
+    def history_container(self) -> Locator:
+        """History list container locator."""
+        return self.page.get_by_test_id("execution-history-container")
+
+    @property
+    def history_entry(self) -> Locator:
+        """Individual history entry locator."""
+        return self.page.get_by_test_id("execution-history-entry")
+
+    @property
+    def entry_timestamp(self) -> Locator:
+        """Timestamp display locator for history entry."""
+        return self.page.get_by_test_id("history-entry-timestamp")
+
+    @property
+    def entry_status(self) -> Locator:
+        """Status indicator locator (running/completed/failed/blocked)."""
+        return self.page.get_by_test_id("history-entry-status")
+
+    @property
+    def entry_agent(self) -> Locator:
+        """Agent name display locator."""
+        return self.page.get_by_test_id("history-entry-agent")
+
+    @property
+    def entry_result(self) -> Locator:
+        """Result preview text locator."""
+        return self.page.get_by_test_id("history-entry-result")
+
+    @property
+    def entry_details_link(self) -> Locator:
+        """Link to session details page locator."""
+        return self.page.get_by_test_id("history-entry-details-link")
+
+    @property
+    def filter_status(self) -> Locator:
+        """Status filter dropdown locator."""
+        return self.page.get_by_test_id("history-status-filter")
+
+    @property
+    def empty_history_message(self) -> Locator:
+        """Empty state message locator (no history entries)."""
+        return self.page.get_by_test_id("empty-history-message")
+
+    @property
+    def history_loading_spinner(self) -> Locator:
+        """Loading spinner locator while fetching history."""
+        return self.page.get_by_test_id("history-loading-spinner")
+
+    def is_loaded(self) -> bool:
+        """Check if execution history page is loaded.
+
+        Returns:
+            bool: True if history container is visible (or empty message shown)
+
+        Example:
+            assert history_page.is_loaded() is True
+        """
+        return (self.history_container.is_visible() or
+                self.empty_history_message.is_visible())
+
+    def navigate(self) -> None:
+        """Navigate to execution history page.
+
+        Example:
+            history_page.navigate()
+            assert history_page.is_loaded()
+        """
+        self.page.goto("http://localhost:3001/execution-history")
+        # Wait for loading to complete
+        self.page.wait_for_load_state("networkidle", timeout=5000)
+
+    def get_history_count(self) -> int:
+        """Count number of history entries visible.
+
+        Returns:
+            int: Number of history entries displayed
+
+        Example:
+            count = history_page.get_history_count()
+            assert count > 0
+        """
+        if self.empty_history_message.is_visible():
+            return 0
+        return self.history_entry.count()
+
+    def get_entry_status(self, entry_index: int) -> str:
+        """Get status text for a specific history entry.
+
+        Args:
+            entry_index: Zero-based index of history entry
+
+        Returns:
+            str: Status text (e.g., "completed", "failed", "running", "blocked")
+
+        Example:
+            status = history_page.get_entry_status(0)
+            assert status == "completed"
+        """
+        entries = self.history_entry.all()
+        if entry_index >= len(entries):
+            raise IndexError(f"Entry index {entry_index} out of range (count: {len(entries)})")
+        entry = entries[entry_index]
+        return entry.get_by_test_id("history-entry-status").text_content()
+
+    def get_entry_timestamp(self, entry_index: int) -> str:
+        """Get timestamp for a specific history entry.
+
+        Args:
+            entry_index: Zero-based index of history entry
+
+        Returns:
+            str: Timestamp text (ISO format or readable format)
+
+        Example:
+            timestamp = history_page.get_entry_timestamp(0)
+            assert "2026-02-23" in timestamp
+        """
+        entries = self.history_entry.all()
+        if entry_index >= len(entries):
+            raise IndexError(f"Entry index {entry_index} out of range (count: {len(entries)})")
+        entry = entries[entry_index]
+        return entry.get_by_test_id("history-entry-timestamp").text_content()
+
+    def get_entry_agent(self, entry_index: int) -> str:
+        """Get agent name for a specific history entry.
+
+        Args:
+            entry_index: Zero-based index of history entry
+
+        Returns:
+            str: Agent name
+
+        Example:
+            agent = history_page.get_entry_agent(0)
+            assert agent == "AUTONOMOUS"
+        """
+        entries = self.history_entry.all()
+        if entry_index >= len(entries):
+            raise IndexError(f"Entry index {entry_index} out of range (count: {len(entries)})")
+        entry = entries[entry_index]
+        return entry.get_by_test_id("history-entry-agent").text_content()
+
+    def get_entry_result(self, entry_index: int) -> str:
+        """Get result preview text for a specific history entry.
+
+        Args:
+            entry_index: Zero-based index of history entry
+
+        Returns:
+            str: Result preview text (truncated if long)
+
+        Example:
+            result = history_page.get_entry_result(0)
+            assert "success" in result.lower()
+        """
+        entries = self.history_entry.all()
+        if entry_index >= len(entries):
+            raise IndexError(f"Entry index {entry_index} out of range (count: {len(entries)})")
+        entry = entries[entry_index]
+        result_el = entry.get_by_test_id("history-entry-result")
+        if result_el.is_visible():
+            return result_el.text_content()
+        return ""
+
+    def filter_by_status(self, status: str) -> None:
+        """Filter history by execution status.
+
+        Args:
+            status: Status to filter by (e.g., "completed", "failed", "running", "all")
+
+        Example:
+            history_page.filter_by_status("completed")
+            assert history_page.get_history_count() > 0
+        """
+        self.filter_status.select_option(status.lower())
+        # Wait for filter to apply
+        self.page.wait_for_timeout(500)
+
+    def get_current_filter(self) -> str:
+        """Get currently selected status filter.
+
+        Returns:
+            str: Current filter value
+
+        Example:
+            filter_val = history_page.get_current_filter()
+            assert filter_val == "completed"
+        """
+        return self.filter_status.input_value()
+
+    def click_entry_details(self, entry_index: int) -> None:
+        """Click details link to view full session details.
+
+        Args:
+            entry_index: Zero-based index of history entry
+
+        Example:
+            history_page.click_entry_details(0)
+            # Navigates to session details page
+        """
+        entries = self.history_entry.all()
+        if entry_index >= len(entries):
+            raise IndexError(f"Entry index {entry_index} out of range (count: {len(entries)})")
+        entry = entries[entry_index]
+        entry.get_by_test_id("history-entry-details-link").click()
+
+    def wait_for_history_load(self, timeout: int = 5000) -> None:
+        """Wait for execution history to load.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            history_page.navigate()
+            history_page.wait_for_history_load()
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for loading spinner to disappear
+            if self.history_loading_spinner.is_visible():
+                self.page.wait_for_selector(
+                    '[data-testid="history-loading-spinner"]',
+                    state="hidden",
+                    timeout=timeout
+                )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"History did not load within {timeout}ms")
+
+    def get_all_entry_statuses(self) -> list[str]:
+        """Get status for all history entries.
+
+        Returns:
+            list[str]: List of status values in order
+
+        Example:
+            statuses = history_page.get_all_entry_statuses()
+            assert "completed" in statuses
+        """
+        if self.empty_history_message.is_visible():
+            return []
+        statuses = []
+        entries = self.history_entry.all()
+        for entry in entries:
+            status_el = entry.get_by_test_id("history-entry-status")
+            if status_el.is_visible():
+                statuses.append(status_el.text_content())
+        return statuses
+
+    def is_empty(self) -> bool:
+        """Check if history is empty (no entries).
+
+        Returns:
+            bool: True if empty message is visible
+
+        Example:
+            assert history_page.is_empty() is False
+        """
+        return self.empty_history_message.is_visible()
 
