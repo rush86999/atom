@@ -2678,3 +2678,501 @@ class CanvasFormPage(BasePage):
                     return label_text.replace("*", "").strip()
                 return label_text
         return ""
+
+
+class SkillInstallationPage(BasePage):
+    """Page Object for Skill Installation workflow.
+
+    Encapsulates skill installation interactions including:
+    - Install button states (Install, Installing..., Installed)
+    - Installation modal/dialog flow
+    - Security scan results display
+    - Installed skills list
+    - Uninstall functionality
+    - Governance enforcement for agent maturity levels
+
+    Uses data-testid selectors for resilience where available,
+    falls back to CSS selectors for skill marketplace UI.
+
+    Installation flow:
+    1. Browse marketplace for available skills
+    2. Click install button on skill card
+    3. View security scan results (if applicable)
+    4. Confirm installation in modal
+    5. Wait for installation to complete
+    6. Verify skill appears in installed list
+
+    Governance behavior:
+    - STUDENT agents: Blocked from installing Python skills (security risk)
+    - INTERN agents: Can install prompt_only skills, approval for Python skills
+    - SUPERVISED+ agents: Can install any Active skill
+    """
+
+    # Locators using data-testid and CSS selectors
+    @property
+    def install_button(self) -> Locator:
+        """Install button on skill card or page."""
+        return self.page.get_by_test_id("skill-install-button").or_(
+            self.page.locator("button:has-text('Install'), button:has-text('Install Skill')")
+        )
+
+    @property
+    def install_button_loading(self) -> Locator:
+        """Loading state of install button."""
+        return self.page.get_by_test_id("skill-install-button-loading").or_(
+            self.page.locator("button:has-text('Installing...'), button:disabled:has-text('Install')")
+        )
+
+    @property
+    def install_button_installed(self) -> Locator:
+        """Installed state button (disabled, shows 'Installed')."""
+        return self.page.get_by_test_id("skill-install-button-installed").or_(
+            self.page.locator("button:has-text('Installed'):disabled, button.installed")
+        )
+
+    @property
+    def installation_modal(self) -> Locator:
+        """Installation confirmation modal dialog."""
+        return self.page.get_by_test_id("skill-installation-modal").or_(
+            self.page.locator("div[role=\"dialog\"]:has-text('Install Skill')")
+        )
+
+    @property
+    def security_scan_banner(self) -> Locator:
+        """Security scan results display banner."""
+        return self.page.get_by_test_id("security-scan-banner").or_(
+            self.page.locator("div[class*=\"security\"], div[class*=\"scan-result\"]")
+        )
+
+    @property
+    def security_scan_safe(self) -> Locator:
+        """Safe/unsafe indicator in security scan."""
+        return self.page.get_by_test_id("security-scan-safe").or_(
+            self.page.locator("span:has-text('Safe'), span:has-text('Unsafe'), .safe-indicator, .unsafe-indicator")
+        )
+
+    @property
+    def security_scan_findings(self) -> Locator:
+        """List of security scan findings."""
+        return self.page.get_by_test_id("security-scan-findings").or_(
+            self.page.locator("ul[class*=\"findings\"], .security-findings-list")
+        )
+
+    @property
+    def confirm_install_button(self) -> Locator:
+        """Confirm install button in modal."""
+        return self.page.get_by_test_id("confirm-install-button").or_(
+            self.page.locator("button:has-text('Confirm'), button:has-text('Install Now')")
+        )
+
+    @property
+    def cancel_install_button(self) -> Locator:
+        """Cancel install button in modal."""
+        return self.page.get_by_test_id("cancel-install-button").or_(
+            self.page.locator("button:has-text('Cancel')")
+        )
+
+    @property
+    def installed_skills_list(self) -> Locator:
+        """List/grid of installed skills."""
+        return self.page.get_by_test_id("installed-skills-list").or_(
+            self.page.locator("div[class*=\"installed-skills\"], .skills-grid.installed")
+        )
+
+    @property
+    def installed_skill_card(self) -> Locator:
+        """Individual installed skill card."""
+        return self.page.get_by_test_id("installed-skill-card").or_(
+            self.page.locator("div[class*=\"skill-card.installed\"]")
+        )
+
+    @property
+    def uninstall_button(self) -> Locator:
+        """Uninstall button on installed skill card."""
+        return self.page.get_by_test_id("uninstall-button").or_(
+            self.page.locator("button:has-text('Uninstall'), button:has-text('Remove')")
+        )
+
+    @property
+    def installation_success_message(self) -> Locator:
+        """Success toast/message after installation."""
+        return self.page.get_by_test_id("installation-success-message").or_(
+            self.page.locator("div[class*=\"success\"]:has-text('installed'), .toast.success")
+        )
+
+    @property
+    def installation_error_message(self) -> Locator:
+        """Error message display for failed installation."""
+        return self.page.get_by_test_id("installation-error-message").or_(
+            self.page.locator("div[class*=\"error\"]:has-text('install'), .toast.error")
+        )
+
+    @property
+    def governance_error_message(self) -> Locator:
+        """Governance block error message (e.g., STUDENT agent blocked)."""
+        return self.page.get_by_test_id("governance-error-message").or_(
+            self.page.locator("div:has-text('not permitted'), div:has-text('blocked'), div:has-text('maturity')")
+        )
+
+    @property
+    def skill_marketplace_grid(self) -> Locator:
+        """Skills marketplace grid/list."""
+        return self.page.get_by_test_id("skill-marketplace-grid").or_(
+            self.page.locator("div[class*=\"marketplace\"], .skills-list")
+        )
+
+    @property
+    def skill_card(self) -> Locator:
+        """Individual skill card in marketplace."""
+        return self.page.get_by_test_id("skill-card").or_(
+            self.page.locator("div[class*=\"skill-card\"]")
+        )
+
+    @property
+    def skill_name(self) -> Locator:
+        """Skill name display on card."""
+        return self.page.get_by_test_id("skill-name").or_(
+            self.page.locator("h3, h4[class*=\"skill-name\"]")
+        )
+
+    @property
+    def skill_type_badge(self) -> Locator:
+        """Skill type badge (prompt_only, python_code, etc.)."""
+        return self.page.get_by_test_id("skill-type-badge").or_(
+            self.page.locator("span:has-text('prompt_only'), span:has-text('python_code'), .skill-type")
+        )
+
+    def is_loaded(self) -> bool:
+        """Check if skill installation page/modal is visible.
+
+        Returns:
+            bool: True if installation page or marketplace is loaded
+
+        Example:
+            assert skill_install_page.is_loaded() is True
+        """
+        return (self.skill_marketplace_grid.is_visible() or
+                self.installation_modal.is_visible() or
+                self.installed_skills_list.is_visible())
+
+    def navigate_to_marketplace(self) -> None:
+        """Navigate to skills marketplace page.
+
+        Example:
+            skill_install_page.navigate_to_marketplace()
+            assert skill_install_page.is_loaded()
+        """
+        self.page.goto("http://localhost:3001/skills/marketplace")
+
+    def is_installing(self) -> bool:
+        """Check if install button is in loading state.
+
+        Returns:
+            bool: True if button shows "Installing..." or is disabled during install
+
+        Example:
+            skill_install_page.click_install_button()
+            assert skill_install_page.is_installing() is True
+        """
+        return self.install_button_loading.is_visible()
+
+    def is_installed(self, skill_name: Optional[str] = None) -> bool:
+        """Check if skill shows as installed.
+
+        Args:
+            skill_name: Optional skill name to check in installed list
+
+        Returns:
+            bool: True if install button shows "Installed" or skill in installed list
+
+        Example:
+            assert skill_install_page.is_installed() is True
+            assert skill_install_page.is_installed("Calculator") is True
+        """
+        # Check button state first
+        if self.install_button_installed.is_visible():
+            return True
+
+        # Check installed list if skill_name provided
+        if skill_name:
+            return self.is_skill_installed(skill_name)
+
+        return False
+
+    def get_install_button_text(self) -> str:
+        """Get current install button text.
+
+        Returns:
+            str: Button text ("Install", "Installing...", or "Installed")
+
+        Example:
+            text = skill_install_page.get_install_button_text()
+            assert text == "Installed"
+        """
+        if self.install_button_installed.is_visible():
+            return "Installed"
+        elif self.install_button_loading.is_visible():
+            return "Installing..."
+        elif self.install_button.is_visible():
+            return self.install_button.text_content() or "Install"
+        return ""
+
+    def click_install_button(self, skill_name: Optional[str] = None) -> None:
+        """Click install button on skill card.
+
+        Args:
+            skill_name: Optional skill name to find specific card
+
+        Example:
+            skill_install_page.click_install_button("Calculator")
+        """
+        if skill_name:
+            # Find specific skill card and click its install button
+            skill_cards = self.skill_card.all()
+            for card in skill_cards:
+                name_el = card.locator("h3, h4, [class*=\"skill-name\"]")
+                if name_el.is_visible() and skill_name.lower() in name_el.text_content().lower():
+                    card.locator("button:has-text('Install')").click()
+                    return
+            raise ValueError(f"Skill card not found: {skill_name}")
+        else:
+            # Click first available install button
+            self.install_button.first.click()
+
+    def confirm_installation(self) -> None:
+        """Confirm install in modal (click confirm button).
+
+        Example:
+            skill_install_page.confirm_installation()
+        """
+        self.confirm_install_button.click()
+
+    def cancel_installation(self) -> None:
+        """Cancel install in modal (click cancel button).
+
+        Example:
+            skill_install_page.cancel_installation()
+        """
+        self.cancel_install_button.click()
+
+    def get_security_scan_result(self) -> Dict[str, Any]:
+        """Get security scan info from modal/banner.
+
+        Returns:
+            Dict with keys:
+                - safe: bool (True if scan passed)
+                - risk_level: str ("low", "medium", "high")
+                - findings: list of str (security findings)
+
+        Example:
+            scan = skill_install_page.get_security_scan_result()
+            assert scan["safe"] is True
+        """
+        result = {
+            "safe": False,
+            "risk_level": "unknown",
+            "findings": []
+        }
+
+        # Check safe/unsafe indicator
+        if self.security_scan_safe.is_visible():
+            safe_text = self.security_scan_safe.text_content() or ""
+            result["safe"] = "safe" in safe_text.lower()
+
+        # Get risk level if present
+        risk_indicators = self.page.locator("span:has-text('Low'), span:has-text('Medium'), span:has-text('High')")
+        if risk_indicators.is_visible():
+            risk_text = risk_indicators.text_content() or ""
+            if "low" in risk_text.lower():
+                result["risk_level"] = "low"
+            elif "medium" in risk_text.lower():
+                result["risk_level"] = "medium"
+            elif "high" in risk_text.lower():
+                result["risk_level"] = "high"
+
+        # Get findings list
+        if self.security_scan_findings.is_visible():
+            findings_items = self.security_scan_findings.locator("li").all()
+            result["findings"] = [item.text_content() or "" for item in findings_items if item.is_visible()]
+
+        return result
+
+    def is_security_scan_visible(self) -> bool:
+        """Check if security scan banner is shown.
+
+        Returns:
+            bool: True if security scan results are displayed
+
+        Example:
+            assert skill_install_page.is_security_scan_visible() is True
+        """
+        return self.security_scan_banner.is_visible()
+
+    def wait_for_installation_complete(self, timeout: int = 10000) -> None:
+        """Wait for install to finish (loading state ends).
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            skill_install_page.click_install_button()
+            skill_install_page.wait_for_installation_complete(timeout=15000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for loading state to end
+            if self.install_button_loading.is_visible():
+                self.page.wait_for_selector(
+                    "button:disabled:has-text('Installing...'), [data-testid=\"skill-install-button-loading\"]",
+                    state="hidden",
+                    timeout=timeout
+                )
+            # Wait for success message or installed button
+            self.page.wait_for_selector(
+                "[data-testid=\"installation-success-message\"], "
+                "button:has-text('Installed'):disabled, "
+                "[data-testid=\"skill-install-button-installed\"]",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Installation did not complete within {timeout}ms")
+
+    def get_installed_skills_count(self) -> int:
+        """Get count of installed skills.
+
+        Returns:
+            int: Number of skills in installed list
+
+        Example:
+            count = skill_install_page.get_installed_skills_count()
+            assert count > 0
+        """
+        if not self.installed_skills_list.is_visible():
+            return 0
+        return self.installed_skill_card.count()
+
+    def is_skill_installed(self, skill_name: str) -> bool:
+        """Check if skill is in installed list.
+
+        Args:
+            skill_name: Name of skill to check
+
+        Returns:
+            bool: True if skill found in installed list
+
+        Example:
+            assert skill_install_page.is_skill_installed("Calculator") is True
+        """
+        if not self.installed_skills_list.is_visible():
+            return False
+
+        skill_cards = self.installed_skill_card.all()
+        for card in skill_cards:
+            name_el = card.locator("h3, h4, [class*=\"skill-name\"], [data-testid=\"skill-name\"]")
+            if name_el.is_visible() and skill_name.lower() in name_el.text_content().lower():
+                return True
+        return False
+
+    def click_uninstall(self, skill_name: str) -> None:
+        """Click uninstall button for specific skill.
+
+        Args:
+            skill_name: Name of skill to uninstall
+
+        Example:
+            skill_install_page.click_uninstall("Calculator")
+        """
+        if not self.installed_skills_list.is_visible():
+            raise ValueError("Installed skills list not visible")
+
+        skill_cards = self.installed_skill_card.all()
+        for card in skill_cards:
+            name_el = card.locator("h3, h4, [class*=\"skill-name\"], [data-testid=\"skill-name\"]")
+            if name_el.is_visible() and skill_name.lower() in name_el.text_content().lower():
+                card.locator("button:has-text('Uninstall'), [data-testid=\"uninstall-button\"]").click()
+                return
+        raise ValueError(f"Installed skill not found: {skill_name}")
+
+    def get_install_message(self) -> str:
+        """Get success or error message text.
+
+        Returns:
+            str: Message text or empty string
+
+        Example:
+            skill_install_page.wait_for_installation_complete()
+            msg = skill_install_page.get_install_message()
+            assert "installed successfully" in msg.lower()
+        """
+        if self.installation_success_message.is_visible():
+            return self.installation_success_message.text_content() or ""
+        elif self.installation_error_message.is_visible():
+            return self.installation_error_message.text_content() or ""
+        elif self.governance_error_message.is_visible():
+            return self.governance_error_message.text_content() or ""
+        return ""
+
+    def wait_for_marketplace_load(self, timeout: int = 5000) -> None:
+        """Wait for skills marketplace to load.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            skill_install_page.navigate_to_marketplace()
+            skill_install_page.wait_for_marketplace_load()
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                "[data-testid=\"skill-marketplace-grid\"], "
+                "div[class*=\"marketplace\"], "
+                "[data-testid=\"skill-card\"]",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Marketplace did not load within {timeout}ms")
+
+    def get_skill_count_in_marketplace(self) -> int:
+        """Get number of skills visible in marketplace.
+
+        Returns:
+            int: Number of skill cards
+
+        Example:
+            count = skill_install_page.get_skill_count_in_marketplace()
+            assert count > 0
+        """
+        return self.skill_card.count()
+
+    def get_skill_names_in_marketplace(self) -> list[str]:
+        """Get list of skill names visible in marketplace.
+
+        Returns:
+            list[str]: List of skill names
+
+        Example:
+            names = skill_install_page.get_skill_names_in_marketplace()
+            assert "Calculator" in names
+        """
+        names = []
+        skill_cards = self.skill_card.all()
+        for card in skill_cards:
+            name_el = card.locator("h3, h4, [data-testid=\"skill-name\"]")
+            if name_el.is_visible():
+                name = name_el.text_content()
+                if name:
+                    names.append(name)
+        return names
+
+    def is_governance_blocked(self) -> bool:
+        """Check if installation is blocked by governance.
+
+        Returns:
+            bool: True if governance error message is visible
+
+        Example:
+            skill_install_page.click_install_button()
+            assert skill_install_page.is_governance_blocked() is True
+        """
+        return self.governance_error_message.is_visible()
