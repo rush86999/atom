@@ -1,0 +1,3 @@
+# HTML test reports
+*.html
+!.gitkeep
