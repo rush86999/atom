@@ -90,13 +90,13 @@
     "last_executed": "2026-02-19T13:12:12.681802"
   },
   "sequential-workflow": {
-    "execution_count": 2,
-    "success_count": 2,
+    "execution_count": 3,
+    "success_count": 3,
     "failure_count": 0,
-    "total_duration_seconds": 0.20627800000000002,
-    "total_time_saved_seconds": 120.0,
-    "total_business_value": 20.0,
-    "last_executed": "2026-02-19T13:12:09.894638"
+    "total_duration_seconds": 0.355772,
+    "total_time_saved_seconds": 180.0,
+    "total_business_value": 30.0,
+    "last_executed": "2026-02-23T02:54:09.314603"
   },
   "unknown": {
     "execution_count": 6,
