@@ -12,6 +12,7 @@ Page Objects:
 - DashboardPage: Main dashboard (welcome message, navigation)
 - SettingsPage: User settings (theme toggle, notifications)
 - ProjectsPage: Projects dashboard (project list, create, edit, delete)
+- ChatPage: Agent chat interface (message input, streaming, history)
 """
 
 from playwright.sync_api import Page, Locator
@@ -522,6 +523,282 @@ class SettingsPage(BasePage):
         if self.success_message.is_visible():
             return self.success_message.text_content()
         return None
+
+
+class ChatPage(BasePage):
+    """Page Object for Agent Chat interface page.
+
+    Encapsulates chat interactions including:
+    - Message input and sending
+    - Chat history display
+    - Streaming response indicators
+    - Agent maturity selection
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators using data-testid attributes
+    @property
+    def chat_container(self) -> Locator:
+        """Main chat interface container locator."""
+        return self.page.get_by_test_id("chat-container")
+
+    @property
+    def chat_input(self) -> Locator:
+        """Chat message input field locator."""
+        return self.page.get_by_test_id("chat-input")
+
+    @property
+    def send_button(self) -> Locator:
+        """Send message button locator."""
+        return self.page.get_by_test_id("send-button")
+
+    @property
+    def message_list(self) -> Locator:
+        """Chat history/message list container locator."""
+        return self.page.get_by_test_id("message-list")
+
+    @property
+    def user_message(self) -> Locator:
+        """User message bubble locators."""
+        return self.page.get_by_test_id("user-message")
+
+    @property
+    def assistant_message(self) -> Locator:
+        """Agent/assistant message bubble locators."""
+        return self.page.get_by_test_id("assistant-message")
+
+    @property
+    def streaming_indicator(self) -> Locator:
+        """Streaming/loading state indicator locator."""
+        return self.page.get_by_test_id("streaming-indicator")
+
+    @property
+    def agent_selector(self) -> Locator:
+        """Agent maturity level dropdown selector."""
+        return self.page.get_by_test_id("agent-selector")
+
+    @property
+    def typing_indicator(self) -> Locator:
+        """Typing indicator animation locator."""
+        return self.page.get_by_test_id("typing-indicator")
+
+    @property
+    def message_timestamp(self) -> Locator:
+        """Message timestamp locator."""
+        return self.page.get_by_test_id("message-timestamp")
+
+    @property
+    def clear_chat_button(self) -> Locator:
+        """Clear chat history button locator."""
+        return self.page.get_by_test_id("clear-chat-button")
+
+    def is_loaded(self) -> bool:
+        """Check if chat interface is loaded and visible.
+
+        Returns:
+            bool: True if chat container and input are visible
+
+        Example:
+            assert chat_page.is_loaded() is True
+        """
+        return self.chat_container.is_visible() and self.chat_input.is_visible()
+
+    def navigate(self) -> None:
+        """Navigate to chat interface page.
+
+        Example:
+            chat_page.navigate()
+            assert chat_page.is_loaded()
+        """
+        self.page.goto("http://localhost:3001/chat")
+
+    def send_message(self, text: str) -> None:
+        """Type and send a chat message.
+
+        Args:
+            text: Message text to send
+
+        Example:
+            chat_page.send_message("Hello, how can you help me?")
+        """
+        self.chat_input.fill(text)
+        self.send_button.click()
+
+    def get_last_message(self) -> str:
+        """Get the most recent message text from chat history.
+
+        Returns:
+            str: The text content of the last message
+
+        Example:
+            last_msg = chat_page.get_last_message()
+            assert "response" in last_msg.lower()
+        """
+        # Get all assistant messages and return the last one
+        messages = self.assistant_message.all()
+        if messages:
+            return messages[-1].text_content()
+        return ""
+
+    def get_all_messages(self) -> list[str]:
+        """Get all messages from chat history.
+
+        Returns:
+            list[str]: List of all message texts in chronological order
+
+        Example:
+            messages = chat_page.get_all_messages()
+            assert len(messages) > 0
+        """
+        all_messages = []
+        # Get user messages
+        for msg in self.user_message.all():
+            all_messages.append(("user", msg.text_content()))
+        # Get assistant messages
+        for msg in self.assistant_message.all():
+            all_messages.append(("assistant", msg.text_content()))
+        return all_messages
+
+    def get_message_count(self) -> int:
+        """Count total messages in chat history.
+
+        Returns:
+            int: Total number of messages (user + assistant)
+
+        Example:
+            count = chat_page.get_message_count()
+            assert count > 0
+        """
+        return self.user_message.count() + self.assistant_message.count()
+
+    def wait_for_response(self, timeout: int = 5000) -> None:
+        """Wait for assistant response to appear.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            chat_page.send_message("Hello")
+            chat_page.wait_for_response(timeout=10000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector('[data-testid="assistant-message"]', timeout=timeout)
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"No assistant response within {timeout}ms")
+
+    def is_streaming(self) -> bool:
+        """Check if streaming response is in progress.
+
+        Returns:
+            bool: True if streaming indicator is visible
+
+        Example:
+            chat_page.send_message("Tell me a story")
+            assert chat_page.is_streaming() is True
+        """
+        return self.streaming_indicator.is_visible()
+
+    def wait_for_streaming_complete(self, timeout: int = 30000) -> None:
+        """Wait for streaming response to complete.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            chat_page.send_message("Explain quantum computing")
+            chat_page.wait_for_streaming_complete(timeout=60000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            # Wait for streaming indicator to disappear
+            self.page.wait_for_selector(
+                '[data-testid="streaming-indicator"]',
+                state="hidden",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Streaming did not complete within {timeout}ms")
+
+    def select_agent(self, agent_name: str) -> None:
+        """Select agent from dropdown by name.
+
+        Args:
+            agent_name: Agent name to select (e.g., "AUTONOMOUS", "SUPERVISED")
+
+        Example:
+            chat_page.select_agent("AUTONOMOUS")
+        """
+        self.agent_selector.select_option(agent_name)
+
+    def get_selected_agent(self) -> str:
+        """Get currently selected agent maturity level.
+
+        Returns:
+            str: Name of selected agent
+
+        Example:
+            agent = chat_page.get_selected_agent()
+            assert agent == "AUTONOMOUS"
+        """
+        return self.agent_selector.input_value()
+
+    def clear_chat(self) -> None:
+        """Clear chat history.
+
+        Example:
+            chat_page.clear_chat()
+            assert chat_page.get_message_count() == 0
+        """
+        self.clear_chat_button.click()
+
+    def wait_for_message(self, message_text: str, timeout: int = 5000) -> None:
+        """Wait for a specific message to appear in chat.
+
+        Args:
+            message_text: Text to wait for
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            chat_page.send_message("What is 2+2?")
+            chat_page.wait_for_message("4", timeout=5000)
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                f'[data-testid="assistant-message"]:has-text("{message_text}")',
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Message '{message_text}' did not appear within {timeout}ms")
+
+    def get_last_user_message(self) -> str:
+        """Get the most recent user message text.
+
+        Returns:
+            str: The text content of the last user message
+
+        Example:
+            last_user_msg = chat_page.get_last_user_message()
+            assert "help" in last_user_msg.lower()
+        """
+        messages = self.user_message.all()
+        if messages:
+            return messages[-1].text_content()
+        return ""
+
+    def is_typing_indicator_visible(self) -> bool:
+        """Check if typing indicator is visible.
+
+        Returns:
+            bool: True if typing indicator is visible
+
+        Example:
+            chat_page.send_message("Hello")
+            assert chat_page.is_typing_indicator_visible() is True
+        """
+        return self.typing_indicator.is_visible()
 
 
 class ProjectsPage(BasePage):
