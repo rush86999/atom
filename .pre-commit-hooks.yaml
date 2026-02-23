@@ -1,0 +1,7 @@
+- id: atom-coverage-check
+  name: Atom Coverage Check (80% minimum)
+  entry: bash -c "cd backend && pytest tests/ -q --cov=core --cov=api --cov=tools --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=80"
+  language: system
+  pass_filenames: false
+  always_run: true
+  description: Runs pytest with 80% coverage threshold. Blocks commits if coverage drops below 80%. Use --no-verify to bypass in emergencies.
