@@ -262,7 +262,7 @@ class TestGovernanceChecks:
         assert result["execution_id"] is None
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_emergency_bypass(self, mock_agent, mock_byok_handler):
+    async def test_execute_agent_chat_emergency_bypass(self, mock_agent, mock_byok_handler, monkeypatch):
         """
         Test emergency governance bypass.
 
@@ -273,42 +273,44 @@ class TestGovernanceChecks:
         """
         mock_tokens = ["Bypass", " active"]
 
-        with patch.dict(os.environ, {"EMERGENCY_GOVERNANCE_BYPASS": "true"}):
-            with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
-                with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
-                    mock_resolver = MagicMock()
-                    mock_resolver.resolve_agent_for_request = AsyncMock(
-                        return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
-                    )
-                    MockResolver.return_value = mock_resolver
+        # Use monkeypatch for environment variable isolation
+        monkeypatch.setenv("EMERGENCY_GOVERNANCE_BYPASS", "true")
 
-                    with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
-                        async def mock_stream(**kwargs):
-                            for token in mock_tokens:
-                                yield token
+        with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
+            with patch("core.agent_execution_service.AgentContextResolver") as MockResolver:
+                mock_resolver = MagicMock()
+                mock_resolver.resolve_agent_for_request = AsyncMock(
+                    return_value=(mock_agent, {"resolution_path": ["explicit_agent_id"]})
+                )
+                MockResolver.return_value = mock_resolver
 
-                        mock_byok_handler.stream_completion = mock_stream
+                with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                    async def mock_stream(**kwargs):
+                        for token in mock_tokens:
+                            yield token
 
-                        with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
-                            mock_history = MagicMock()
-                            mock_history.add_message = MagicMock()
-                            mock_hist_mgr.return_value = mock_history
+                    mock_byok_handler.stream_completion = mock_stream
 
-                            with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
-                                mock_session = MagicMock()
-                                mock_session.create_session.return_value = "test-session-bypass"
-                                mock_sess_mgr.return_value = mock_session
+                    with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                        mock_history = MagicMock()
+                        mock_history.add_message = MagicMock()
+                        mock_hist_mgr.return_value = mock_history
 
-                                with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
-                                    result = await execute_agent_chat(
-                                        agent_id=mock_agent.id,
-                                        message="Test bypass",
-                                        user_id="test-user-bypass",
-                                        session_id=None,
-                                        workspace_id="default",
-                                        conversation_history=None,
-                                        stream=False
-                                    )
+                        with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                            mock_session = MagicMock()
+                            mock_session.create_session.return_value = "test-session-bypass"
+                            mock_sess_mgr.return_value = mock_session
+
+                            with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                                result = await execute_agent_chat(
+                                    agent_id=mock_agent.id,
+                                    message="Test bypass",
+                                    user_id="test-user-bypass",
+                                    session_id=None,
+                                    workspace_id="default",
+                                    conversation_history=None,
+                                    stream=False
+                                )
 
         # Assertions
         assert result["success"] is True
@@ -754,39 +756,41 @@ class TestEdgeCases:
         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_governance_disabled(self, mock_agent, mock_byok_handler):
+    async def test_execute_agent_chat_governance_disabled(self, mock_agent, mock_byok_handler, monkeypatch):
         """Test execution when governance is disabled via feature flag."""
         mock_tokens = ["No", " governance"]
 
-        with patch.dict(os.environ, {"STREAMING_GOVERNANCE_ENABLED": "false"}):
-            with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
-                with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
-                    async def mock_stream(**kwargs):
-                        for token in mock_tokens:
-                            yield token
+        # Use monkeypatch for environment variable isolation
+        monkeypatch.setenv("STREAMING_GOVERNANCE_ENABLED", "false")
 
-                    mock_byok_handler.stream_completion = mock_stream
+        with patch("core.agent_execution_service.SessionLocal", return_value=MagicMock()):
+            with patch("core.agent_execution_service.BYOKHandler", return_value=mock_byok_handler):
+                async def mock_stream(**kwargs):
+                    for token in mock_tokens:
+                        yield token
 
-                    with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
-                        mock_history = MagicMock()
-                        mock_history.add_message = MagicMock()
-                        mock_hist_mgr.return_value = mock_history
+                mock_byok_handler.stream_completion = mock_stream
 
-                        with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
-                            mock_session = MagicMock()
-                            mock_session.create_session.return_value = "test-session-no-gov"
-                            mock_sess_mgr.return_value = mock_session
+                with patch("core.agent_execution_service.get_chat_history_manager") as mock_hist_mgr:
+                    mock_history = MagicMock()
+                    mock_history.add_message = MagicMock()
+                    mock_hist_mgr.return_value = mock_history
 
-                            with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
-                                result = await execute_agent_chat(
-                                    agent_id=mock_agent.id,
-                                    message="Test no governance",
-                                    user_id="test-user-no-gov",
-                                    session_id=None,
-                                    workspace_id="default",
-                                    conversation_history=None,
-                                    stream=False
-                                )
+                    with patch("core.agent_execution_service.get_chat_session_manager") as mock_sess_mgr:
+                        mock_session = MagicMock()
+                        mock_session.create_session.return_value = "test-session-no-gov"
+                        mock_sess_mgr.return_value = mock_session
+
+                        with patch("core.agent_execution_service.trigger_episode_creation", new=AsyncMock()):
+                            result = await execute_agent_chat(
+                                agent_id=mock_agent.id,
+                                message="Test no governance",
+                                user_id="test-user-no-gov",
+                                session_id=None,
+                                workspace_id="default",
+                                conversation_history=None,
+                                stream=False
+                            )
 
         # Should succeed without governance
         assert result["success"] is True
