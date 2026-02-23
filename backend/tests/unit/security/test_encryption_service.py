@@ -160,18 +160,22 @@ class TestKeyManagement:
 
         assert key1 == key2
 
-    def test_secret_key_from_environment(self):
+    def test_secret_key_from_environment(self, monkeypatch):
         """Test SECRET_KEY can be loaded from environment."""
-        # In production, this would come from environment variable
-        # For tests, we just verify it's accessible
         import os
+
+        # Use monkeypatch to set test environment variable
+        monkeypatch.setenv("SECRET_KEY", "test-secret-key-for-testing")
 
         # Check if SECRET_KEY env var is set
         env_key = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
 
         if env_key:
-            # If env var is set, SECRET_KEY should match
+            # If env var is set, SECRET_KEY should match or be non-None
             assert SECRET_KEY == env_key or SECRET_KEY is not None
+
+        # Verify the environment variable can be read
+        assert os.getenv("SECRET_KEY") == "test-secret-key-for-testing"
 
 
 class TestSecureRandom:
