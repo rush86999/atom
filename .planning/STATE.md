@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 077-agent-chat-streaming
-Plan: 077-03 (WebSocket Connection Lifecycle Tests) - COMPLETE
-Status: Phase 77 execution in progress. Plan 077-03 (WebSocket Connection Lifecycle Tests) complete - 6 comprehensive E2E tests (517 lines) for WebSocket connection lifecycle using Playwright interception. Tests cover connection establishment, streaming events, disconnection, reconnection, message format validation, and workspace routing. Validates AGENT-03 requirement. Commit: 77b237f7.
+Plan: 077-04 (Streaming Response E2E Tests) - COMPLETE
+Status: Phase 77 execution in progress. Plan 077-04 (Streaming Response E2E Tests) complete - 6 comprehensive E2E tests (513 lines) for token-by-token streaming responses with WebSocket validation, error handling, and accessibility checks. Tests cover progressive display, full response accumulation, streaming indicator, error handling, and multiple messages. Validates AGENT-02 requirement. Commit: 2eb9f985.
 
-Previous: Plan 077-01 (ChatPage Page Object) - ChatPage class with 10 locators and 13 interaction methods.
+Previous: Plan 077-03 (WebSocket Connection Lifecycle Tests) - 6 tests for connection lifecycle (517 lines).
 
-Progress: [█████████░] 23% (v3.1: 8/35 plans complete)
+Progress: [█████████░] 26% (v3.1: 9/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
