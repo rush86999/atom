@@ -1,4 +1,4 @@
-# Ignore screenshot and video files, but keep .gitkeep files
+# Screenshots and videos
 *.png
 *.webm
 *.mp4
