@@ -14,6 +14,10 @@ Page Objects:
 - ProjectsPage: Projects dashboard (project list, create, edit, delete)
 - ChatPage: Agent chat interface (message input, streaming, history)
 - ExecutionHistoryPage: Agent execution history (timestamp, status, results)
+- SkillsMarketplacePage: Skills marketplace browsing (search, filters, pagination)
+- SkillInstallationPage: Skill installation workflow (install button, security scan, governance)
+- SkillConfigPage: Skill configuration (API keys, options, validation, persistence)
+- SkillExecutionPage: Skill execution interface (parameters, progress, output)
 """
 
 from playwright.sync_api import Page, Locator
@@ -3814,3 +3818,460 @@ class SkillExecutionPage(BasePage):
         return (self.output_text.is_visible() or
                 self.output_json.is_visible() or
                 self.output_canvas.is_visible())
+
+
+class SkillConfigPage(BasePage):
+    """Page Object for Skill Configuration page.
+
+    Encapsulates skill configuration workflow including:
+    - API key management (masked display, show/hide toggle)
+    - Configuration options (boolean toggles, text inputs, number inputs, selects)
+    - Validation error display
+    - Save/Reset/Cancel operations
+    - Configuration persistence
+
+    Uses data-testid selectors for resilience.
+    """
+
+    # Locators
+    @property
+    def config_container(self) -> Locator:
+        """Main configuration container div."""
+        return self.page.get_by_test_id("skill-config-container")
+
+    @property
+    def config_form(self) -> Locator:
+        """Configuration form element."""
+        return self.page.get_by_test_id("skill-config-form")
+
+    @property
+    def api_key_section(self) -> Locator:
+        """API keys configuration section."""
+        return self.page.get_by_test_id("api-key-section")
+
+    @property
+    def api_key_input(self) -> Locator:
+        """API key text input (password type)."""
+        return self.page.locator("input[data-testid^='api-key-input']")
+
+    @property
+    def api_key_masked(self) -> Locator:
+        """Masked display value for API key."""
+        return self.page.locator("[data-testid^='api-key-masked']")
+
+    @property
+    def api_key_show_button(self) -> Locator:
+        """Toggle visibility button for API key."""
+        return self.page.locator("button[data-testid^='api-key-show']")
+
+    @property
+    def options_section(self) -> Locator:
+        """Options/settings section."""
+        return self.page.get_by_test_id("options-section")
+
+    @property
+    def boolean_toggle(self) -> Locator:
+        """Checkbox/toggle for boolean options."""
+        return self.page.locator("input[type='checkbox'][data-testid^='config-']")
+
+    @property
+    def text_input(self) -> Locator:
+        """Generic text input field."""
+        return self.page.locator("input[type='text'][data-testid^='config-']")
+
+    @property
+    def number_input(self) -> Locator:
+        """Number input field."""
+        return self.page.locator("input[type='number'][data-testid^='config-']")
+
+    @property
+    def select_dropdown(self) -> Locator:
+        """Dropdown select field."""
+        return self.page.locator("select[data-testid^='config-']")
+
+    @property
+    def text_area(self) -> Locator:
+        """Multi-line text area."""
+        return self.page.locator("textarea[data-testid^='config-']")
+
+    @property
+    def save_button(self) -> Locator:
+        """Save configuration button."""
+        return self.page.get_by_test_id("save-config-button")
+
+    @property
+    def save_button_loading(self) -> Locator:
+        """Loading state of save button."""
+        return self.page.get_by_test_id("save-config-button").locator("[data-loading='true'], .loading")
+
+    @property
+    def reset_button(self) -> Locator:
+        """Reset to defaults button."""
+        return self.page.get_by_test_id("reset-config-button")
+
+    @property
+    def cancel_button(self) -> Locator:
+        """Cancel/discard changes button."""
+        return self.page.get_by_test_id("cancel-config-button")
+
+    @property
+    def validation_error(self) -> Locator:
+        """Field validation error message."""
+        return self.page.locator("[data-testid^='validation-error-']")
+
+    @property
+    def success_message(self) -> Locator:
+        """Configuration saved success message."""
+        return self.page.get_by_test_id("config-success-message")
+
+    @property
+    def config_field_label(self) -> Locator:
+        """Field label element."""
+        return self.page.locator("label[data-testid^='config-label-']")
+
+    @property
+    def config_field_helper(self) -> Locator:
+        """Helper text/tooltip for field."""
+        return self.page.locator("[data-testid^='config-helper-']")
+
+    def is_loaded(self) -> bool:
+        """Check if config page is visible.
+
+        Returns:
+            bool: True if config container is visible
+
+        Example:
+            assert config_page.is_loaded() is True
+        """
+        return self.config_container.is_visible()
+
+    def get_field_count(self) -> int:
+        """Get number of config fields.
+
+        Returns:
+            int: Number of configuration fields
+
+        Example:
+            count = config_page.get_field_count()
+            assert count > 0
+        """
+        return (self.boolean_toggle.count() +
+                self.text_input.count() +
+                self.number_input.count() +
+                self.select_dropdown.count() +
+                self.text_area.count())
+
+    def set_api_key(self, key_name: str, value: str) -> None:
+        """Set API key value.
+
+        Args:
+            key_name: Name of the API key field
+            value: API key value to set
+
+        Example:
+            config_page.set_api_key("openai_api_key", "sk-...")
+        """
+        input_locator = self.page.locator(f"[data-testid='api-key-input-{key_name}']")
+        input_locator.fill(value)
+
+    def get_api_key_value(self, key_name: str) -> str:
+        """Get API key value (may be masked).
+
+        Args:
+            key_name: Name of the API key field
+
+        Returns:
+            str: Current API key value (masked if hidden)
+
+        Example:
+            value = config_page.get_api_key_value("openai_api_key")
+        """
+        input_locator = self.page.locator(f"[data-testid='api-key-input-{key_name}']")
+        return input_locator.input_value()
+
+    def show_api_key(self, key_name: str) -> None:
+        """Toggle API key visibility.
+
+        Args:
+            key_name: Name of the API key field
+
+        Example:
+            config_page.show_api_key("openai_api_key")
+        """
+        button_locator = self.page.locator(f"[data-testid='api-key-show-{key_name}']")
+        button_locator.click()
+
+    def set_boolean_option(self, option_name: str, value: bool) -> None:
+        """Set boolean toggle.
+
+        Args:
+            option_name: Name of the boolean option
+            value: True to enable, False to disable
+
+        Example:
+            config_page.set_boolean_option("enabled", True)
+        """
+        toggle_locator = self.page.locator(f"[data-testid='config-{option_name}'][type='checkbox']")
+        current_state = toggle_locator.is_checked()
+        if current_state != value:
+            toggle_locator.click()
+
+    def get_boolean_option(self, option_name: str) -> bool:
+        """Get boolean value.
+
+        Args:
+            option_name: Name of the boolean option
+
+        Returns:
+            bool: Current boolean value
+
+        Example:
+            enabled = config_page.get_boolean_option("enabled")
+        """
+        toggle_locator = self.page.locator(f"[data-testid='config-{option_name}'][type='checkbox']")
+        return toggle_locator.is_checked()
+
+    def set_text_field(self, field_name: str, value: str) -> None:
+        """Set text field value.
+
+        Args:
+            field_name: Name of the text field
+            value: Text value to set
+
+        Example:
+            config_page.set_text_field("endpoint", "https://api.example.com")
+        """
+        input_locator = self.page.locator(f"[data-testid='config-{field_name}'][type='text']")
+        input_locator.fill(value)
+
+    def get_text_field(self, field_name: str) -> str:
+        """Get text field value.
+
+        Args:
+            field_name: Name of the text field
+
+        Returns:
+            str: Current text value
+
+        Example:
+            endpoint = config_page.get_text_field("endpoint")
+        """
+        input_locator = self.page.locator(f"[data-testid='config-{field_name}'][type='text']")
+        return input_locator.input_value()
+
+    def set_number_field(self, field_name: str, value: float) -> None:
+        """Set number field value.
+
+        Args:
+            field_name: Name of the number field
+            value: Numeric value to set
+
+        Example:
+            config_page.set_number_field("timeout", 30.0)
+        """
+        input_locator = self.page.locator(f"[data-testid='config-{field_name}'][type='number']")
+        input_locator.fill(str(value))
+
+    def get_number_field(self, field_name: str) -> float:
+        """Get number field value.
+
+        Args:
+            field_name: Name of the number field
+
+        Returns:
+            float: Current numeric value
+
+        Example:
+            timeout = config_page.get_number_field("timeout")
+        """
+        input_locator = self.page.locator(f"[data-testid='config-{field_name}'][type='number']")
+        value = input_locator.input_value()
+        return float(value) if value else 0.0
+
+    def select_option(self, field_name: str, option: str) -> None:
+        """Select dropdown option.
+
+        Args:
+            field_name: Name of the select field
+            option: Option value to select
+
+        Example:
+            config_page.select_option("model", "gpt-4")
+        """
+        select_locator = self.page.locator(f"select[data-testid='config-{field_name}']")
+        select_locator.select_option(option)
+
+    def get_selected_option(self, field_name: str) -> str:
+        """Get selected dropdown value.
+
+        Args:
+            field_name: Name of the select field
+
+        Returns:
+            str: Currently selected value
+
+        Example:
+            model = config_page.get_selected_option("model")
+        """
+        select_locator = self.page.locator(f"select[data-testid='config-{field_name}']")
+        return select_locator.input_value()
+
+    def click_save(self) -> None:
+        """Click save button.
+
+        Example:
+            config_page.click_save()
+            config_page.wait_for_save_complete()
+        """
+        self.save_button.click()
+
+    def click_reset(self) -> None:
+        """Click reset button.
+
+        Example:
+            config_page.click_reset()
+        """
+        self.reset_button.click()
+
+    def click_cancel(self) -> None:
+        """Click cancel button.
+
+        Example:
+            config_page.click_cancel()
+        """
+        self.cancel_button.click()
+
+    def is_saving(self) -> bool:
+        """Check if save button in loading state.
+
+        Returns:
+            bool: True if save button shows loading indicator
+
+        Example:
+            config_page.click_save()
+            assert config_page.is_saving() is True
+        """
+        return self.save_button_loading.is_visible()
+
+    def get_validation_errors(self) -> dict:
+        """Get all validation errors.
+
+        Returns:
+            dict: Mapping of field name to error message
+
+        Example:
+            errors = config_page.get_validation_errors()
+            assert "endpoint" in errors
+        """
+        errors = {}
+        error_elements = self.validation_error.all()
+        for el in error_elements:
+            test_id = el.get_attribute("data-testid") or ""
+            # Extract field name from testid: validation-error-{field_name}
+            parts = test_id.split("-")
+            if len(parts) >= 3:
+                field_name = "-".join(parts[2:])
+                errors[field_name] = el.text_content() or ""
+        return errors
+
+    def has_field_error(self, field_name: str) -> bool:
+        """Check if field has validation error.
+
+        Args:
+            field_name: Name of the field to check
+
+        Returns:
+            bool: True if field has validation error
+
+        Example:
+            assert config_page.has_field_error("endpoint") is True
+        """
+        error_locator = self.page.locator(f"[data-testid='validation-error-{field_name}']")
+        return error_locator.is_visible()
+
+    def wait_for_save_complete(self, timeout: int = 5000) -> None:
+        """Wait for save to complete.
+
+        Args:
+            timeout: Maximum time to wait in milliseconds
+
+        Example:
+            config_page.click_save()
+            config_page.wait_for_save_complete()
+        """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        try:
+            self.page.wait_for_selector(
+                '[data-testid="save-config-button"][data-loading="true"], '
+                '[data-testid="save-config-button"] .loading',
+                state="hidden",
+                timeout=timeout
+            )
+        except PlaywrightTimeoutError:
+            raise TimeoutError(f"Save did not complete within {timeout}ms")
+
+    def is_success_message_visible(self) -> bool:
+        """Check if success message shown.
+
+        Returns:
+            bool: True if success message is visible
+
+        Example:
+            config_page.wait_for_save_complete()
+            assert config_page.is_success_message_visible() is True
+        """
+        return self.success_message.is_visible()
+
+    def get_all_field_values(self) -> dict:
+        """Get all field values as dict.
+
+        Returns:
+            dict: All field values keyed by field name
+
+        Example:
+            values = config_page.get_all_field_values()
+            assert values["endpoint"] == "https://api.example.com"
+        """
+        values = {}
+
+        # Text inputs
+        text_inputs = self.text_input.all()
+        for inp in text_inputs:
+            test_id = inp.get_attribute("data-testid") or ""
+            if test_id.startswith("config-"):
+                field_name = test_id.replace("config-", "")
+                values[field_name] = inp.input_value()
+
+        # Number inputs
+        number_inputs = self.number_input.all()
+        for inp in number_inputs:
+            test_id = inp.get_attribute("data-testid") or ""
+            if test_id.startswith("config-"):
+                field_name = test_id.replace("config-", "")
+                values[field_name] = float(inp.input_value()) if inp.input_value() else 0.0
+
+        # Boolean toggles
+        toggles = self.boolean_toggle.all()
+        for toggle in toggles:
+            test_id = toggle.get_attribute("data-testid") or ""
+            if test_id.startswith("config-"):
+                field_name = test_id.replace("config-", "")
+                values[field_name] = toggle.is_checked()
+
+        # Select dropdowns
+        selects = self.select_dropdown.all()
+        for sel in selects:
+            test_id = sel.get_attribute("data-testid") or ""
+            if test_id.startswith("config-"):
+                field_name = test_id.replace("config-", "")
+                values[field_name] = sel.input_value()
+
+        # Text areas
+        textareas = self.text_area.all()
+        for ta in textareas:
+            test_id = ta.get_attribute("data-testid") or ""
+            if test_id.startswith("config-"):
+                field_name = test_id.replace("config-", "")
+                values[field_name] = ta.input_value()
+
+        return values
