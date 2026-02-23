@@ -1,20 +1,16 @@
 # Atom Platform - Production Ready
 
-## Current State: v3.0 Production Readiness ✅ SHIPPED
+## Current Milestone: v3.1 E2E UI Testing
 
-**Shipped:** February 23, 2026
+**Goal:** Implement comprehensive end-to-end UI testing with Playwright for all critical user workflows
 
-Atom is an AI-powered business automation and integration platform with multi-agent governance, episodic memory, real-time guidance, and autonomous coding agents. The platform is production-ready with comprehensive test coverage and CI/CD quality gates.
+**Target workflows:**
+- Agent Chat & Streaming (agent execution, governance, real-time responses)
+- Canvas Presentations (creation, component rendering, form submission)
+- Skills & Workflows (installation, configuration, execution)
+- User Management (login, settings, projects, permissions)
 
-**Current Capabilities:**
-- 80%+ test coverage across all critical system paths
-- All runtime errors fixed and regression-tested
-- Test suite stable with 100% pass rate (7.2x parallel speedup)
-- CI/CD pipeline enforces 80% coverage gates
-- Property-based tests validate critical invariants
-- Autonomous coding agents for full SDLC automation
-- Multi-agent governance with maturity-based permissions
-- Episodic memory with graduation framework
+**Achievement from v3.0:** 80% test coverage, CI/CD quality gates, 7.2x parallel test speedup, platform production-ready with comprehensive backend testing
 
 ---
 
@@ -105,16 +101,19 @@ A production-ready AI-powered business automation platform with multi-agent gove
 
 ### Active
 
-**No active requirements - v3.0 milestone complete.**
+**E2E UI Testing (v3.1):**
+- [ ] **Agent Chat & Streaming** — E2E tests for agent execution, governance, real-time responses
+- [ ] **Canvas Presentations** — E2E tests for canvas creation, component rendering, form submission
+- [ ] **Skills & Workflows** — E2E tests for skill installation, configuration, execution
+- [ ] **User Management** — E2E tests for login, settings, projects, permissions
 
 ### Out of Scope
 
-Explicitly excluded from v3.0:
-- **E2E UI testing** — Requires separate tooling (Playwright/Cypress)
-- **Load testing** — Performance testing beyond coverage
-- **Chaos engineering** — Resilience testing
-- **Visual regression** — UI snapshot testing
-- **Mobile app test coverage** — Frontend coverage
+Explicitly excluded from v3.1:
+- **Load testing** — Performance testing beyond E2E, defer to v3.2+
+- **Chaos engineering** — Resilience testing, defer to v3.2+
+- **Visual regression** — UI snapshot testing, defer to v3.2+
+- **Mobile app E2E** — Mobile E2E testing, defer to mobile-focused milestone
 
 ### Out of Scope
 
