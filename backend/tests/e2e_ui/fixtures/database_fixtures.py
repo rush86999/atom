@@ -77,7 +77,8 @@ def get_engine() -> sqlalchemy.Engine:
 @pytest.fixture(scope="session", autouse=True)
 def create_worker_schema(
     worker_schema: str,
-    get_engine: sqlalchemy.Engine
+    get_engine: sqlalchemy.Engine,
+    request: pytest.FixtureRequest
 ) -> Generator[str, None, None]:
     """
     Create worker-specific schema before test session and drop after.
@@ -85,6 +86,7 @@ def create_worker_schema(
     Args:
         worker_schema: Schema name for this worker
         get_engine: SQLAlchemy engine
+        request: Pytest request object
 
     Yields:
         Schema name
@@ -93,7 +95,13 @@ def create_worker_schema(
         - Schema created with CREATE SCHEMA IF NOT EXISTS
         - Dropped with CASCADE after test session
         - Autouse=True: runs automatically for all tests
+        - Skipped for tests marked with no_browser
     """
+    # Skip for unit tests marked with no_browser
+    if request.node.get_closest_marker('no_browser'):
+        yield worker_schema
+        return
+
     schema = worker_schema
 
     # Create schema

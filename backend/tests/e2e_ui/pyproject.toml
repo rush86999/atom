@@ -65,6 +65,7 @@ markers = [
     "canvas: mark test as canvas presentation test",
     "skill: mark test as skill test",
     "workflow: mark test as workflow test",
+    "no_browser: mark test as unit test that doesn't need browser/fixtures",
 ]
 asyncio_mode = "auto"
 
