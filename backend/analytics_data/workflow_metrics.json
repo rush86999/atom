@@ -36,22 +36,22 @@
     "last_executed": "2026-02-23T03:27:40.312389"
   },
   "background-workflow": {
-    "execution_count": 5,
-    "success_count": 5,
+    "execution_count": 6,
+    "success_count": 6,
     "failure_count": 0,
-    "total_duration_seconds": 1.431438,
-    "total_time_saved_seconds": 300.0,
-    "total_business_value": 50.0,
-    "last_executed": "2026-02-23T02:54:12.121836"
+    "total_duration_seconds": 1.988243,
+    "total_time_saved_seconds": 360.0,
+    "total_business_value": 60.0,
+    "last_executed": "2026-02-23T03:27:41.887785"
   },
   "persistence-workflow": {
-    "execution_count": 5,
-    "success_count": 5,
+    "execution_count": 6,
+    "success_count": 6,
     "failure_count": 0,
-    "total_duration_seconds": 0.282104,
-    "total_time_saved_seconds": 300.0,
-    "total_business_value": 50.0,
-    "last_executed": "2026-02-23T02:54:12.226126"
+    "total_duration_seconds": 0.34437700000000004,
+    "total_time_saved_seconds": 360.0,
+    "total_business_value": 60.0,
+    "last_executed": "2026-02-23T03:27:41.983922"
   },
   "parallel-workflow": {
     "execution_count": 5,
