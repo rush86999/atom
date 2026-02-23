@@ -51,9 +51,7 @@ def test_user(db_session: Session) -> User:
     # Create user with hashed password
     user = User(
         email=email,
-        username=f"testuser_{unique_id}",
         password_hash=get_password_hash("TestPassword123!"),
-        is_active=True,
         status="active",
         created_at=datetime.utcnow()
     )
@@ -124,7 +122,7 @@ def authenticated_page(browser: Browser, authenticated_user: Tuple[User, str]) -
 
     # Set JWT token in localStorage before navigating
     # This bypasses the UI login flow
-    page.goto("http://localhost:3000")  # Load app first
+    page.goto("http://localhost:3001")  # Load E2E frontend on port 3001
 
     # Execute JavaScript to set token in localStorage
     page.evaluate(f"""() => {{
@@ -204,10 +202,8 @@ def admin_user(db_session: Session) -> Tuple[User, str]:
 
     admin = User(
         email=email,
-        username=f"admin_{unique_id}",
         password_hash=get_password_hash("AdminPassword123!"),
-        is_active=True,
-        is_superuser=True,
+        role="super_admin",
         status="active",
         created_at=datetime.utcnow()
     )

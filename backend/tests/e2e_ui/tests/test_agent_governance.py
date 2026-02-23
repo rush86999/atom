@@ -88,9 +88,9 @@ class TestAgentGovernanceEnforcement:
         # Check for error message in chat
         error_locators = [
             page.get_by_test_id("governance-error-message"),
-            page.get_by_text(/not permitted/i),
-            page.get_by_text(/blocked/i),
-            page.get_by_text(/not allowed/i),
+            page.get_by_text("not permitted"),
+            page.get_by_text("blocked"),
+            page.get_by_text("not allowed"),
             page.get_by_test_id("error-message")
         ]
 
@@ -374,9 +374,9 @@ class TestAgentGovernanceEnforcement:
         # Verify action completed successfully
         success_indicators = [
             page.get_by_test_id("action-success-message"),
-            page.get_by_text(/created/i),
-            page.get_by_text(/completed/i),
-            page.get_by_text(/success/i)
+            page.get_by_text("created"),
+            page.get_by_text("completed"),
+            page.get_by_text("success")
         ]
 
         success_found = False

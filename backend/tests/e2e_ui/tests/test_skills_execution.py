@@ -19,6 +19,7 @@ import uuid
 import json
 from playwright.sync_api import Page, expect
 from typing import Dict, Any
+from typing import Dict, Any
 from datetime import datetime, timezone
 
 # Import Page Objects
@@ -448,15 +449,13 @@ def test_execution_error_with_suggestion(authenticated_page, db_session):
         agent_id="system",
         status="failed",
         input_params={},
-        output_params=None,
+        output_params={"suggestion": "Add 'query' parameter to your request"},
         error_message="Missing required parameter: query",
         execution_seconds=0.1,
         started_at=datetime.now(timezone.utc),
         completed_at=datetime.now(timezone.utc),
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
-        # Store suggestion in output_params or separate field
-        output_params={"suggestion": "Add 'query' parameter to your request"}
     )
     db_session.add(execution)
     db_session.commit()

@@ -52,11 +52,6 @@ addopts = """
     --strict-config
     --verbose
     --tb=short
-    --cov=../..
-    --cov-report=html
-    --cov-report=term-missing
-    --html=reports/test-report.html
-    --self-contained-html
 """
 markers = [
     "e2e: mark test as end-to-end UI test",

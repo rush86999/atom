@@ -21,7 +21,7 @@ Page Objects:
 """
 
 from playwright.sync_api import Page, Locator
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 class BasePage:

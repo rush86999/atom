@@ -137,34 +137,6 @@ def page(browser, base_url):
 
 
 @pytest.fixture(scope="function")
-def authenticated_page(browser, base_url):
-    """
-    Create an authenticated page for testing protected routes.
-
-    This fixture should be overridden in specific test modules to
-    provide authentication logic (e.g., login via UI or API token).
-
-    Args:
-        browser: Playwright browser fixture
-        base_url: Base URL fixture
-
-    Yields:
-        Page: Authenticated Playwright page object
-    """
-    context = browser.new_context()
-    page = context.new_page()
-
-    # TODO: Implement authentication logic
-    # Option 1: UI-based login (page.goto(base_url + "/login"), fill form, submit)
-    # Option 2: API-based (set localStorage/cookies from API token)
-
-    yield page
-
-    page.close()
-    context.close()
-
-
-@pytest.fixture(scope="function")
 def screenshot_page(page, request):
     """
     Capture screenshot on test failure.
