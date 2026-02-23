@@ -5,6 +5,9 @@ This module provides pytest fixtures for Playwright browser automation
 including browser context, page, and base URL configuration.
 """
 
+import os
+from datetime import datetime
+
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
 
@@ -185,11 +188,36 @@ def video_page(browser, base_url, request):
     context.close()
 
 
+@pytest.fixture(autouse=True)
+def track_page_for_screenshots(request, page):
+    """
+    Track page object for automatic screenshot capture on test failure.
+
+    This autouse fixture stores a reference to the page object in the
+    test node, allowing the pytest_runtest_makereport hook to capture
+    screenshots when tests fail.
+
+    Args:
+        request: Pytest request object
+        page: Playwright page fixture
+
+    Yields:
+        None: Allows test to execute
+    """
+    if hasattr(request, "node"):
+        request.node._page = page
+    yield
+
+
 # Pytest hooks for screenshot/video capture
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
     Pytest hook to capture test results for screenshot/video capture.
+
+    Automatically captures screenshots on test failure and saves them
+    to artifacts/screenshots/ with descriptive filenames including timestamp
+    and test name for easy debugging in CI and local development.
 
     Args:
         item: Pytest test item
@@ -203,3 +231,26 @@ def pytest_runtest_makereport(item, call):
 
     # Store test outcome in request.node for fixtures to access
     setattr(item, "rep_" + rep.when, rep)
+
+    # Capture screenshot on test failure
+    if rep.when == "call" and rep.failed:
+        # Get page fixture if available
+        page = getattr(item, "_page", None)
+        if page is None:
+            # Try to get page from function args
+            if hasattr(item, "funcargs"):
+                page = item.funcargs.get("page") or item.funcargs.get("authenticated_page")
+
+        if page is not None:
+            # Create screenshots directory if not exists
+            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
+            os.makedirs(screenshot_dir, exist_ok=True)
+
+            # Generate descriptive filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            test_name = item.name.replace("::", "_").replace("/", "_")[:100]
+            screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
+
+            # Capture full page screenshot
+            page.screenshot(path=screenshot_path, full_page=True)
+            print(f"\nScreenshot saved: {screenshot_path}")
