@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 Milestone: v3.0 Production Readiness
 Phase: 5 of 5 (CI/CD Quality Gates and Property-Based Testing)
-Plan: 7 of 8 in current phase
-Status: In Progress
-Last activity: 2026-02-23 — Completed plan 74-07: API Contract Invariants Property Testing with Hypothesis (3 tests, 5 min)
+Plan: 8 of 8 in current phase
+Status: Complete
+Last activity: 2026-02-23 — Completed plan 74-08: VALIDATED_BUG Documentation for Property Tests (5 tasks, 9 min)
 
 ### v3.0 Milestone Goal
 Achieve 80% test coverage across all backend services and fix all runtime errors to ensure production stability.
@@ -69,6 +69,8 @@ Progress: [██████████] 100% (v1.0 complete) → [███�
 | Phase 74-quality-gates-property-testing P04 | 4 | 3 tasks | 1 files |
 | Phase 74 P05 | 399 | 4 tasks | 1 files |
 | Phase 74-quality-gates-property-testing P07 | 5 | 4 tasks | 1 files |
+| Phase 74-quality-gates-property-testing P08 | 9 | 5 tasks | 4 files |
+| Phase 74-quality-gates-property-testing P08 | 9 | 5 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -96,6 +98,9 @@ Recent decisions affecting current work:
 - [Phase 72-02]: Added workspace_id to DeviceNode fixtures to satisfy NOT NULL constraint
 - [Phase 72-02]: Fixed missing 'import os' in auth_routes.py line 321
 - [Phase 73-03]: LoadScopeScheduling over loadfile for better fixture isolation at module level
+- [Phase 74-08]: VALIDATED_BUG format: INVARIANT + VALIDATED_BUG + Root cause + Fixed in + Scenario
+- [Phase 74-08]: 100% VALIDATED_BUG compliance required for new property tests
+- [Phase 74-08]: max_examples guidelines: 50 (fast CI), 100 (standard), 200 (complex/critical)
 - [Phase 73-03]: 5-minute test timeout balances hung test detection with slow integration test allowance
 - [Phase 73-03]: Auto-detect workers (-n auto) optimizes for available CPU cores automatically
 - [Phase 73-03]: No random-order in addopts - use selectively for flaky detection, not default execution
@@ -109,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase 74]: GATES-02: All tests must pass before merge - pytest exit code controls job success
 - [Phase 74]: Quality gates depend on test success via needs: backend-test-full
 - [Phase 74]: Test results visible in GitHub Actions summary via GITHUB_STEP_SUMMARY
+- [Phase 74-quality-gates-property-testing]: VALIDATED_BUG format: INVARIANT + VALIDATED_BUG + Root cause + Fixed in + Scenario
+- [Phase 74-quality-gates-property-testing]: 100% VALIDATED_BUG compliance required for new property tests
+- [Phase 74-quality-gates-property-testing]: max_examples guidelines: 50 (fast CI), 100 (standard), 200 (complex/critical)
 
 ### Pending Todos
 
@@ -160,5 +168,5 @@ Resume file: None
 
 *State updated: 2026-02-23*
 *Milestone: v3.0 Production Readiness*
-*Phase 74 IN PROGRESS - Plan 74-07 executed*
-*Next action: Continue Phase 74 - Plan 74-08: Property-Based Testing for Data Layer*
+*Phase 74 COMPLETE - All 8 plans executed*
+*Next action: Begin v3.0 milestone integration and deployment preparation*
