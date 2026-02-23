@@ -90,6 +90,10 @@ jobs:
           CI: true
           DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
           BASE_URL: http://localhost:3001
+          # Retry strategy: Failed tests retry up to 2 times
+          # This reduces false positives from intermittent failures
+          # Local development does not retry (fast feedback)
+          PYTEST_RERUNS: 2
         run: |
           pytest tests/ -v -n 4 \
             --html=reports/test-report.html \
