@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** Phase 080 Plan 01 COMPLETE - Automatic screenshot capture on test failure
+**Current focus:** Phase 080 Plan 02 COMPLETE - CI-aware video recording on test failure
 
 ## Current Position
 
 Phase: 080-quality-gates
-Plan: 80-01
-Status: ✅ Plan 80-01 COMPLETE - Automatic screenshot capture on E2E test failure with descriptive filenames and organized artifact storage. Implemented pytest_runtest_makereport hook that captures full page screenshots on ANY test failure. Created artifacts directory structure at backend/tests/e2e_ui/artifacts/screenshots/ with git-friendly configuration (.gitignore excludes PNG files). Added test_quality_gates.py with 4 tests verifying screenshot functionality. All existing fixtures and hooks preserved (backward compatible). Duration: 13 minutes.
+Plan: 80-02
+Status: ✅ Plan 80-02 COMPLETE - CI-aware video recording on E2E test failure with automatic artifact upload in GitHub Actions. Videos captured ONLY when CI=true environment variable is set (performance optimization for local development). Videos saved to artifacts/videos/ with descriptive filenames (timestamp_testname.webm). E2E UI workflow uploads videos as artifacts on test failure with 7-day retention. Added 4 video capture tests to test_quality_gates.py (7 tests total). Removed duplicate screenshot capture code in conftest.py. Duration: 5 minutes.
 
-Progress: [█████████░] 83% (v3.1: 30/35 plans complete)
+Progress: [█████████░] 86% (v3.1: 31/35 plans complete)
 
 ## Upcoming: v3.1 E2E UI Testing
 
@@ -140,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase 080-01]: Automatic screenshot capture on ANY test failure via pytest_runtest_makereport hook
 - [Phase 080-01]: Full page screenshots with timestamp + test name filenames (YYYYMMDD_HHMMSS format)
 - [Phase 080-01]: Artifacts directory at backend/tests/e2e_ui/artifacts/screenshots/ with .gitignore (excludes PNG files)
+- [Phase 080-02]: Video recording enabled ONLY when CI=true environment variable is set (performance optimization)
+- [Phase 080-02]: Videos saved with descriptive filenames: timestamp_testname.webm for easy debugging
+- [Phase 080-02]: Videos uploaded as GitHub Actions artifacts on test failure only (7-day retention)
 
 **v2.0 Key Decisions:**
 - [Phase 64]: PostgreSQL 16-alpine for E2E tests (real database not SQLite, Alpine for fast startup)
@@ -193,8 +196,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 22:09
-Stopped at: Completed Phase 080 Plan 80-01 - Automatic Screenshot Capture on Test Failure
+Last session: 2026-02-23 22:17
+Stopped at: Completed Phase 080 Plan 80-02 - CI-Aware Video Recording on Test Failure
 Resume file: None
 
 ---
