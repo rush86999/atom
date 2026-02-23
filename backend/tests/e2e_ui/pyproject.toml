@@ -1,0 +1,94 @@
+[tool.poetry]
+name = "atom-e2e-ui-tests"
+version = "3.1.0"
+description = "E2E UI tests for Atom using Playwright and pytest"
+authors = ["Atom Team"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[tool.poetry.dev-dependencies]
+# Core testing framework
+pytest = ">=8.0.0"
+pytest-cov = ">=4.1.0"
+
+# Playwright for browser automation
+pytest-playwright = ">=1.58.0"
+playwright = ">=1.58.0"
+
+# Async support
+pytest-asyncio = ">=0.23.0"
+
+# Parallel test execution
+pytest-xdist = ">=3.5.0"
+
+# Test data generation
+faker = ">=22.0.0"
+
+# HTTP client for API-first setup
+httpx = ">=0.26.0"
+
+# Test reporting
+pytest-html = ">=4.1.0"
+pytest-json-report = ">=1.5.0"
+
+# Code quality
+mypy = ">=1.8.0"
+ruff = ">=0.2.0"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = """
+    --strict-markers
+    --strict-config
+    --verbose
+    --tb=short
+    --cov=../..
+    --cov-report=html
+    --cov-report=term-missing
+    --html=reports/test-report.html
+    --self-contained-html
+"""
+markers = [
+    "e2e: mark test as end-to-end UI test",
+    "auth: mark test as authentication test",
+    "agent: mark test as agent chat test",
+    "canvas: mark test as canvas presentation test",
+    "skill: mark test as skill test",
+    "workflow: mark test as workflow test",
+]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Allow gradual typing
+plugins = ["pytest.mypy"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
