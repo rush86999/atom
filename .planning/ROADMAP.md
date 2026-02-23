@@ -63,6 +63,11 @@ Plans:
 - [ ] 71-07-PLAN.md — Gap closure: BYOK handler coverage documentation (10.88% rationale)
 - [ ] 71-08-PLAN.md — Gap closure: Episode services edge cases (72% -> 80%+)
 
+**References for Autonomous Coding with AI:**
+- [How to Effectively Write Quality Code with AI](https://heidenstedt.org/posts/2026/how-to-effectively-write-quality-code-with-ai/) - 12 practices including establishing clear vision, maintaining precise documentation, building debug systems, marking code review levels, using context-specific prompts (CLAUDE.md), and marking high-security-risk functions
+- [Red/Green TDD for Agentic Engineering](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/) - Test-first development pattern for AI coding agents to protect against non-working code and unnecessary features
+- See also: `docs/AUTONOMOUS_CODING_TDD_PATTERNS.md`
+
 ### Phase 72: API & Data Layer Coverage
 **Goal**: All REST API routes, WebSocket endpoints, and database operations achieve 80%+ test coverage
 **Depends on**: Phase 71
