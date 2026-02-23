@@ -78,7 +78,7 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 - [ ] **Phase 77: Agent Chat & Streaming** - Chat interface, streaming responses, WebSocket connections, governance enforcement, and execution history
 - [ ] **Phase 78: Canvas Presentations** - Canvas creation, component rendering, form submission, state API, accessibility, and dynamic content
 - [ ] **Phase 79: Skills & Workflows** - Skill marketplace, installation, configuration, execution, and uninstallation
-- [ ] **Phase 80: Quality Gates & CI/CD Integration** - Screenshots, videos, retries, flaky test detection, pass rate validation, and HTML reports
+- [x] **Phase 80: Quality Gates & CI/CD Integration** - Screenshots, videos, retries, flaky test detection, pass rate validation, and HTML reports
 
 ---
 
@@ -283,7 +283,19 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
   5. Test suite achieves 100% pass rate on 3 consecutive runs (quality gate)
   6. HTML test reports are generated with screenshots embedded for failed tests
 
-**Plans**: TBD
+**Plans**: 6 plans in 2 waves
+
+**Wave 1** (parallel): 80-01, 80-02, 80-03
+- [ ] 80-01-PLAN.md — Screenshot capture on test failure (pytest_runtest_makereport hook, artifacts/screenshots/, test_quality_gates.py)
+- [ ] 80-02-PLAN.md — Video recording in CI only (CI environment detection, record_video_dir, artifacts/videos/, e2e-ui-tests.yml)
+- [ ] 80-03-PLAN.md — Test retries in CI only (pytest-rerunfailures, PYTEST_RERUNS env var, pytest_configure hook, local no-retry)
+
+**Wave 2** (depends on Wave 1): 80-04, 80-05, 80-06
+- [ ] 80-04-PLAN.md — Flaky test detection (FlakyTestTracker module, detect_flaky_tests.py script, historical tracking, CI integration)
+- [ ] 80-05-PLAN.md — Pass rate quality gate (100% pass rate on 3 consecutive runs, QualityGate class, quality_gate_history.json, CI validation step)
+- [ ] 80-06-PLAN.md — HTML test reports with embedded screenshots (pytest-html plugin, html_report_generator.py, pytest_html hooks, self-contained reports)
+
+**Status**: 📋 PLANNED (6/6 plans ready for execution)
 
 ---
 
@@ -296,9 +308,13 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 | 77. Agent Chat & Streaming | 6/6 | ✅ Complete | 2026-02-23 |
 | 78. Canvas Presentations | 6/6 | ✅ Complete | 2026-02-23 |
 | 79. Skills & Workflows | 5/5 | ✅ Complete | 2026-02-23 |
-| 80. Quality Gates & CI/CD Integration | 0/6 | Not started | - |
+| 80. Quality Gates & CI/CD Integration | 0/6 | 📋 Planned | - |
 
 **Overall Progress**: 29/35 plans complete (83%)
+
+**Phase 80 Breakdown** (6 plans, 2 waves):
+- Wave 1 (3 plans, parallel): 80-01, 80-02, 80-03 — Screenshot capture, Video recording (CI only), Test retries (CI only)
+- Wave 2 (3 plans, parallel): 80-04, 80-05, 80-06 — Flaky test detection, Pass rate quality gate, HTML reports with screenshots
 
 **Phase 79 Breakdown** (5 plans, 2 waves):
 - Wave 1 (2 plans, parallel): 079-01, 079-02 — Marketplace PO & browsing tests, Installation PO & tests
