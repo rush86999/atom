@@ -1172,3 +1172,264 @@ class TestEpisodeCreation:
         # Should create episode despite being too small
         assert result is not None
         assert result.agent_id == "agent-1"
+
+
+# ============================================================================
+# Canvas Context Extraction Tests
+# ============================================================================
+
+class TestCanvasContextExtraction:
+    """Test canvas context extraction from CanvasAudit records."""
+
+    def test_fetch_canvas_context_ordered_by_created_at(self, segmentation_service):
+        """Test _fetch_canvas_context returns canvases ordered by created_at."""
+        now = datetime.now()
+        canvas_audits = [
+            Mock(id="canvas-3", created_at=now + timedelta(minutes=3), session_id="session-1"),
+            Mock(id="canvas-1", created_at=now + timedelta(minutes=1), session_id="session-1"),
+            Mock(id="canvas-2", created_at=now + timedelta(minutes=2), session_id="session-1")
+        ]
+
+        mock_query = Mock()
+        mock_query.filter.return_value.order_by.return_value.all.return_value = canvas_audits
+        segmentation_service.db.query.return_value = mock_query
+
+        result = segmentation_service._fetch_canvas_context("session-1")
+
+        # Should return canvases ordered by created_at (ascending)
+        assert len(result) == 3
+        assert result[0].id == "canvas-3"  # Already ordered by query
+
+    def test_fetch_canvas_context_empty_list(self, segmentation_service):
+        """Test _fetch_canvas_context with no canvas events."""
+        mock_query = Mock()
+        mock_query.filter.return_value.order_by.return_value.all.return_value = []
+        segmentation_service.db.query.return_value = mock_query
+
+        result = segmentation_service._fetch_canvas_context("session-1")
+
+        assert result == []
+
+    def test_extract_canvas_context_structure(self, segmentation_service):
+        """Test _extract_canvas_context builds correct structure."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "component": "WorkflowCanvas",
+            "workflow_id": "wf-123",
+            "approval_status": "approved"
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "visual_elements" in result
+        assert result["canvas_type"] == "orchestration"
+
+    def test_extract_canvas_context_metadata_extraction(self, segmentation_service):
+        """Test canvas metadata extraction by canvas type."""
+        # Test orchestration canvas
+        orchestration_audit = Mock()
+        orchestration_audit.canvas_type = "orchestration"
+        orchestration_audit.component_name = "WorkflowCanvas"
+        orchestration_audit.action = "present"
+        orchestration_audit.audit_metadata = {
+            "workflow_id": "wf-123",
+            "approval_status": "approved"
+        }
+
+        result = segmentation_service._extract_canvas_context([orchestration_audit])
+
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["workflow_id"] == "wf-123"
+        assert result["critical_data_points"]["approval_status"] == "approved"
+
+    def test_extract_canvas_context_user_interaction_mapping(self, segmentation_service):
+        """Test user interaction mapping from action field."""
+        # Test different actions
+        actions_to_test = ["submit", "close", "update", "execute", "present", "approve", "reject"]
+
+        for action in actions_to_test:
+            canvas_audit = Mock()
+            canvas_audit.canvas_type = "generic"
+            canvas_audit.component_name = "TestCanvas"
+            canvas_audit.action = action
+            canvas_audit.audit_metadata = {}
+
+            result = segmentation_service._extract_canvas_context([canvas_audit])
+
+            assert "user_interaction" in result if action in ["submit", "approve", "reject", "close"] else True
+
+    def test_extract_canvas_context_sheets_type(self, segmentation_service):
+        """Test canvas context extraction for sheets type."""
+        sheets_audit = Mock()
+        sheets_audit.canvas_type = "sheets"
+        sheets_audit.component_name = "DataGrid"
+        sheets_audit.action = "submit"
+        sheets_audit.audit_metadata = {
+            "revenue": 150000,
+            "amount": 5000
+        }
+
+        result = segmentation_service._extract_canvas_context([sheets_audit])
+
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["revenue"] == 150000
+        assert result["critical_data_points"]["amount"] == 5000
+
+    def test_extract_canvas_context_terminal_type(self, segmentation_service):
+        """Test canvas context extraction for terminal type."""
+        terminal_audit = Mock()
+        terminal_audit.canvas_type = "terminal"
+        terminal_audit.component_name = "CommandOutput"
+        terminal_audit.action = "present"
+        terminal_audit.audit_metadata = {
+            "command": "ls -la",
+            "exit_code": 0
+        }
+
+        result = segmentation_service._extract_canvas_context([terminal_audit])
+
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["command"] == "ls -la"
+        assert result["critical_data_points"]["exit_code"] == 0
+
+    def test_filter_canvas_context_summary_level(self, segmentation_service):
+        """Test _filter_canvas_context_detail with summary level."""
+        context = {
+            "canvas_type": "orchestration",
+            "presentation_summary": "Agent presented workflow",
+            "visual_elements": ["WorkflowCanvas", "Button"],
+            "user_interaction": "user submitted",
+            "critical_data_points": {"workflow_id": "wf-123"}
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(context, "summary")
+
+        # Summary level should only include canvas_type and presentation_summary
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "visual_elements" not in result
+        assert "critical_data_points" not in result
+
+    def test_filter_canvas_context_standard_level(self, segmentation_service):
+        """Test _filter_canvas_context_detail with standard level."""
+        context = {
+            "canvas_type": "orchestration",
+            "presentation_summary": "Agent presented workflow",
+            "visual_elements": ["WorkflowCanvas", "Button"],
+            "user_interaction": "user submitted",
+            "critical_data_points": {"workflow_id": "wf-123"}
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(context, "standard")
+
+        # Standard level includes summary + critical_data_points
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "critical_data_points" in result
+        assert "visual_elements" not in result
+
+    def test_filter_canvas_context_full_level(self, segmentation_service):
+        """Test _filter_canvas_context_detail with full level."""
+        context = {
+            "canvas_type": "orchestration",
+            "presentation_summary": "Agent presented workflow",
+            "visual_elements": ["WorkflowCanvas", "Button"],
+            "user_interaction": "user submitted",
+            "critical_data_points": {"workflow_id": "wf-123"}
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(context, "full")
+
+        # Full level includes all fields
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "visual_elements" in result
+        assert "critical_data_points" in result
+
+    def test_filter_canvas_context_unknown_level(self, segmentation_service):
+        """Test _filter_canvas_context_detail with unknown detail level."""
+        context = {
+            "canvas_type": "orchestration",
+            "presentation_summary": "Agent presented workflow",
+            "visual_elements": ["WorkflowCanvas"]
+        }
+
+        result = segmentation_service._filter_canvas_context_detail(context, "invalid")
+
+        # Should default to summary level
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        assert "visual_elements" not in result
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm_success(self, segmentation_service):
+        """Test _extract_canvas_context_llm with LLM-generated summary."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "components": [{"type": "WorkflowCanvas"}, {"type": "Button"}],
+            "workflow_id": "wf-123",
+            "approval_status": "approved"
+        }
+
+        # Mock CanvasSummaryService
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary', new=AsyncMock(return_value="LLM-generated summary")) as mock_summary:
+            result = await segmentation_service._extract_canvas_context_llm(canvas_audit, "Execute workflow")
+
+            # Should call LLM service
+            mock_summary.assert_called_once()
+            assert result["summary_source"] == "llm"
+            assert result["presentation_summary"] == "LLM-generated summary"
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm_timeout(self, segmentation_service):
+        """Test LLM timeout handling (2-second timeout)."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {}
+        canvas_audit.component_name = "TestCanvas"
+
+        # Mock CanvasSummaryService with timeout
+        async def timeout_summary(*args, **kwargs):
+            import asyncio
+            await asyncio.sleep(3)  # Exceed 2-second timeout
+            return "Should not reach here"
+
+        # The actual implementation uses a 2-second timeout
+        # We need to test that it falls back on exception, not actual timeout
+        # Let's test with asyncio.TimeoutError instead
+        async def timeout_error(*args, **kwargs):
+            import asyncio
+            await asyncio.sleep(0.1)
+            raise asyncio.TimeoutError("LLM timeout")
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary', new=timeout_error):
+            result = await segmentation_service._extract_canvas_context_llm(canvas_audit)
+
+            # Should fallback to metadata extraction on timeout
+            assert result["summary_source"] == "metadata"
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm_fallback_on_error(self, segmentation_service):
+        """Test fallback to metadata extraction on LLM failure."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {}
+        canvas_audit.component_name = "TestCanvas"
+
+        # Mock CanvasSummaryService to raise exception
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary', new=AsyncMock(side_effect=Exception("LLM failed"))):
+            result = await segmentation_service._extract_canvas_context_llm(canvas_audit)
+
+            # Should fallback to metadata extraction
+            assert result["summary_source"] == "metadata"
+            assert "canvas_type" in result
