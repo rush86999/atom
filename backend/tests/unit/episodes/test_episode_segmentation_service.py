@@ -1768,3 +1768,251 @@ class TestSupervisionEpisodes:
         # Check segment type
         segment = add_calls[0]
         assert segment.segment_type == "execution"
+
+
+# ============================================================================
+# Canvas Context Extraction Private Method Tests (Lines 907-985)
+# ============================================================================
+
+class TestCanvasContextExtractionPrivate:
+    """Test _extract_canvas_context private method with comprehensive coverage.
+
+    Note: There are two _extract_canvas_context methods in the source file:
+    - Lines 641-730 (shadowed, never used)
+    - Lines 907-985 (actual implementation, tested here)
+
+    Python uses the last definition, so we test the implementation at line 907.
+    """
+
+    def test_extract_canvas_context_empty_audits(self, segmentation_service):
+        """Test _extract_canvas_context returns {} for empty list."""
+        result = segmentation_service._extract_canvas_context([])
+        # Line 928 returns {} for empty audits
+        assert result == {}
+
+    def test_extract_canvas_context_single_canvas(self, segmentation_service):
+        """Test _extract_canvas_context with single canvas audit."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {
+            "workflow_id": "wf-123"
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert result["canvas_type"] == "orchestration"
+        assert "presentation_summary" in result
+        assert result["presentation_summary"] == "Agent presented WorkflowCanvas"
+
+    def test_extract_canvas_context_uses_first_audit(self, segmentation_service):
+        """Test _extract_canvas_context uses first (most recent) audit only."""
+        canvas_audits = [
+            Mock(canvas_type="orchestration", action="present",
+                component_name="WorkflowCanvas",
+                audit_metadata={"workflow_id": "wf-first"}),
+            Mock(canvas_type="sheets", action="submit",
+                component_name="DataGrid",
+                audit_metadata={"revenue": 100000}),
+        ]
+
+        result = segmentation_service._extract_canvas_context(canvas_audits)
+
+        assert result is not None
+        # Should only use first audit
+        assert result["canvas_type"] == "orchestration"
+        assert "WorkflowCanvas" in result["presentation_summary"]
+
+    def test_extract_canvas_context_visual_elements(self, segmentation_service):
+        """Test _extract_canvas_context extracts component_name as visual element."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "visual_elements" in result
+        assert "WorkflowCanvas" in result["visual_elements"]
+
+    def test_extract_canvas_context_user_interactions(self, segmentation_service):
+        """Test _extract_canvas_context maps user interactions from actions."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "submit"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "user_interaction" in result
+        assert result["user_interaction"] == "user submitted"
+
+    def test_extract_canvas_context_orchestration_type_critical_data(self, segmentation_service):
+        """Test _extract_canvas_context extracts critical fields for orchestration."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {
+            "workflow_id": "wf-456",
+            "approval_status": "pending"
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["workflow_id"] == "wf-456"
+        assert result["critical_data_points"]["approval_status"] == "pending"
+
+    def test_extract_canvas_context_sheets_type_critical_data(self, segmentation_service):
+        """Test _extract_canvas_context extracts critical fields for sheets."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "sheets"
+        canvas_audit.action = "submit"
+        canvas_audit.component_name = "DataGrid"
+        canvas_audit.audit_metadata = {
+            "revenue": 250000,
+            "amount": 7500
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["revenue"] == 250000
+        assert result["critical_data_points"]["amount"] == 7500
+
+    def test_extract_canvas_context_terminal_type_critical_data(self, segmentation_service):
+        """Test _extract_canvas_context extracts critical fields for terminal."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "terminal"
+        canvas_audit.action = "execute"
+        canvas_audit.component_name = "CommandOutput"
+        canvas_audit.audit_metadata = {
+            "command": "docker-compose up",
+            "exit_code": 0
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["command"] == "docker-compose up"
+        assert result["critical_data_points"]["exit_code"] == 0
+
+    def test_extract_canvas_context_unknown_type(self, segmentation_service):
+        """Test _extract_canvas_context handles unknown canvas types."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "unknown_type"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "UnknownCanvas"
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert result["canvas_type"] == "unknown_type"
+        # Unknown types should have empty critical_data_points
+        assert result["critical_data_points"] == {}
+
+    def test_extract_canvas_context_all_critical_fields(self, segmentation_service):
+        """Test _extract_canvas_context extracts all critical field types."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "code"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "CodeEditor"
+        canvas_audit.audit_metadata = {
+            "file_path": "/path/to/file.py",
+            "language": "python",
+            "word_count": 1500
+        }
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "critical_data_points" in result
+        assert result["critical_data_points"]["file_path"] == "/path/to/file.py"
+        assert result["critical_data_points"]["language"] == "python"
+        assert result["critical_data_points"]["word_count"] == 1500
+
+    def test_extract_canvas_context_presentation_summary_with_component(self, segmentation_service):
+        """Test _extract_canvas_context generates presentation summary with component."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "presentation_summary" in result
+        # Should mention component name
+        assert "WorkflowCanvas" in result["presentation_summary"]
+        assert result["presentation_summary"] == "Agent presented WorkflowCanvas"
+
+    def test_extract_canvas_context_presentation_summary_without_component(self, segmentation_service):
+        """Test _extract_canvas_context generates presentation summary without component."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = None
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "presentation_summary" in result
+        # Should default to 'canvas'
+        assert result["presentation_summary"] == "Agent presented canvas"
+
+    def test_extract_canvas_context_unknown_action(self, segmentation_service):
+        """Test _extract_canvas_context handles unknown actions."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "unknown_action"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = {}
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert "user_interaction" in result
+        assert result["user_interaction"] == "user performed unknown_action"
+
+    def test_extract_canvas_context_metadata_none_handling(self, segmentation_service):
+        """Test _extract_canvas_context handles None audit_metadata."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "orchestration"
+        canvas_audit.action = "present"
+        canvas_audit.component_name = "WorkflowCanvas"
+        canvas_audit.audit_metadata = None  # None metadata
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        # Should still return context with basic fields
+        assert "canvas_type" in result
+        assert "presentation_summary" in result
+        # Should have empty critical_data_points
+        assert result["critical_data_points"] == {}
+
+    def test_extract_canvas_context_exception_handling(self, segmentation_service):
+        """Test _extract_canvas_context returns {} on exception."""
+        # Create a mock that raises an exception
+        broken_audit = Mock()
+        broken_audit.canvas_type = "orchestration"
+        # Make component_name raise an exception
+        type(broken_audit).component_name = property(lambda self: (_ for _ in ()).throw(Exception("Test error")))
+
+        result = segmentation_service._extract_canvas_context([broken_audit])
+
+        # Should return {} on exception (line 985)
+        assert result == {}
