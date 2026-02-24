@@ -31,9 +31,19 @@ from core.skill_dynamic_loader import SkillDynamicLoader
 from core.skill_composition_engine import SkillCompositionEngine, SkillStep
 from core.skill_marketplace_service import SkillMarketplaceService
 
+# Try to import pytest_benchmark, but don't fail if not available
+try:
+    import pytest_benchmark
+    BENCHMARK_AVAILABLE = True
+except ImportError:
+    BENCHMARK_AVAILABLE = False
+    pytest_benchmark = None
 
-# Benchmark configuration
-pytest_plugins = ("pytest_benchmark",)
+# Skip all benchmark tests if pytest-benchmark is not available
+pytestmark = pytest.mark.skipif(
+    not BENCHMARK_AVAILABLE,
+    reason="pytest-benchmark plugin not installed. Install with: pip install pytest-benchmark"
+)
 
 
 class TestPackageInstallationPerformance:

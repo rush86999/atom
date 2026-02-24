@@ -13,17 +13,59 @@ import logging
 import os
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+# Optional external dependencies - wrap in try-except
+try:
+    import librosa
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    LIBROSA_AVAILABLE = False
+    librosa = None
+
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
+    AudioSegment = None
+
+try:
+    import soundfile as sf
+    SOUNDFILE_AVAILABLE = True
+except ImportError:
+    SOUNDFILE_AVAILABLE = False
+    sf = None
+
+try:
+    import speech_recognition as sr
+    SR_AVAILABLE = True
+except ImportError:
+    SR_AVAILABLE = False
+    sr = None
+
+try:
+    import torch
+    import torchaudio
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+    torchaudio = None
+
+try:
+    from transformers import AutoModelForSeq2SeqLM, AutoProcessor, AutoTokenizer, pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    AutoModelForSeq2SeqLM = None
+    AutoProcessor = None
+    AutoTokenizer = None
+    pipeline = None
+
 import aiohttp
 import httpx
-import librosa
 import numpy as np
 import pandas as pd
-from pydub import AudioSegment
-import soundfile as sf
-import speech_recognition as sr
-import torch
-import torchaudio
-from transformers import AutoModelForSeq2SeqLM, AutoProcessor, AutoTokenizer, pipeline
 
 # Import existing ATOM services
 try:
@@ -213,7 +255,7 @@ class AtomVoiceAIService:
         self.translation_tokenizer = None
         self.sentiment_model = None
         self.emotion_model = None
-        self.speech_recognizer = sr.Recognizer()
+        self.speech_recognizer = sr.Recognizer() if SR_AVAILABLE else None
         
         # Integration state
         self.is_initialized = False
@@ -222,21 +264,34 @@ class AtomVoiceAIService:
         self.command_patterns: Dict[str, Dict[str, Any]] = {}
         self.language_models: Dict[str, str] = {}
         
-        # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
-        
-        # Platform integrations
-        self.platform_integrations = {
-            'slack': atom_slack_integration,
-            'teams': atom_teams_integration,
-            'google_chat': atom_google_chat_integration,
-            'discord': atom_discord_integration,
-            'telegram': atom_telegram_integration,
-            'whatsapp': atom_whatsapp_integration,
-            'zoom': atom_zoom_integration
-        }
+        # Enterprise integration (use safe defaults if optional services didn't import)
+        self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
+        self.enterprise_automation = config.get('automation_service') or globals().get('atom_workflow_automation_service')
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
+
+        # Platform integrations (use safe defaults if optional services didn't import)
+        self.platform_integrations = {}
+        _slack = globals().get('atom_slack_integration')
+        if _slack:
+            self.platform_integrations['slack'] = _slack
+        _teams = globals().get('atom_teams_integration')
+        if _teams:
+            self.platform_integrations['teams'] = _teams
+        _google_chat = globals().get('atom_google_chat_integration')
+        if _google_chat:
+            self.platform_integrations['google_chat'] = _google_chat
+        _discord = globals().get('atom_discord_integration')
+        if _discord:
+            self.platform_integrations['discord'] = _discord
+        _telegram = globals().get('atom_telegram_integration')
+        if _telegram:
+            self.platform_integrations['telegram'] = _telegram
+        _whatsapp = globals().get('atom_whatsapp_integration')
+        if _whatsapp:
+            self.platform_integrations['whatsapp'] = _whatsapp
+        _zoom = globals().get('atom_zoom_integration')
+        if _zoom:
+            self.platform_integrations['zoom'] = _zoom
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -966,8 +1021,8 @@ class AtomVoiceAIService:
         except Exception as e:
             logger.error(f"Error closing Voice AI Service: {e}")
 
-# Global Voice AI service instance
-atom_voice_ai_service = AtomVoiceAIService({
+# Global Voice AI service instance (using safe defaults if services not available)
+_atom_voice_config = {
     'whisper_model': 'base',
     'speech_recognition_engine': 'google',
     'translation_model': 'facebook/nllb-200-distilled-600M',
@@ -982,7 +1037,19 @@ atom_voice_ai_service = AtomVoiceAIService({
     'compliance_standards': ['SOC2', 'ISO27001', 'GDPR', 'HIPAA'],
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
-})
+}
+
+# Use safe imports for optional services
+_atom_security = globals().get('atom_enterprise_security_service')
+if _atom_security:
+    _atom_voice_config['security_service'] = _atom_security
+
+_atom_automation = globals().get('atom_workflow_automation_service')
+if _atom_automation:
+    _atom_voice_config['automation_service'] = _atom_automation
+
+_atom_ai = globals().get('ai_enhanced_service')
+if _atom_ai:
+    _atom_voice_config['ai_service'] = _atom_ai
+
+atom_voice_ai_service = AtomVoiceAIService(_atom_voice_config)
