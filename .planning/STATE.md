@@ -248,6 +248,8 @@ Recent decisions affecting current work:
 - [Phase 086-03]: Fixed worker_id fixture default parameter for non-xdist test execution
 - [Phase 086-03]: 15 LLM streaming property tests covering 9 invariant categories
 - [Phase 086-03]: Edge case tests validate single-chunk, large streams (100-1000), Unicode, malformed chunks
+- [Phase 088]: Error path testing discovered 8 validated bugs across core services
+- [Phase 088]: Error path coverage target: 85%+ for exception handling code, not line coverage
 
 ### Pending Todos
 
