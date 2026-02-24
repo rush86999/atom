@@ -9,18 +9,20 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v3.2
-Last activity: 2026-02-24 — Milestone v3.2 started
+Phase: 81-coverage-analysis-prioritization
+Plan: 01 (coverage-report-generator)
+Status: Generating baseline coverage report for v3.2
+Last activity: 2026-02-24 — Phase 81 Plan 01 complete
 
-Progress: [░░░░░░░░░░] 0% (v3.2: planning phase)
+Progress: [██░░░░░░░░] 10% (v3.2: coverage baseline established)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Milestone v3.2 starting - Requirements definition phase
+**Status**: Phase 81 in progress - Coverage baseline established at 15.23%
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
+
+**Current Coverage**: 15.23% (8,272/45,366 lines) - 3x improvement from 5.13% baseline
 
 **Target Features**:
 - Backend coverage expansion (identify gaps, prioritize high-impact areas)
@@ -33,6 +35,11 @@ Progress: [░░░░░░░░░░] 0% (v3.2: planning phase)
 - Focus on maximum coverage gain per test added
 - Target core services (governance, episodes, streaming)
 - Include property tests alongside unit/integration tests
+
+**Progress**:
+- Plan 81-01: Coverage baseline established (15.23% overall)
+- 28 high-priority files identified (>200 lines, <30% coverage)
+- Top targets: workflow_engine.py (994 uncovered lines), atom_agent_endpoints.py (512 uncovered)
 
 **Achievement from v3.1**: 61 phases executed (300 plans, 204 tasks), production-ready E2E UI test suite with Playwright covering authentication, agent chat, canvas presentations, skills, and quality gates.
 
@@ -79,6 +86,13 @@ Progress: [░░░░░░░░░░] 0% (v3.2: planning phase)
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+**v3.2 Coverage Analysis Decisions:**
+- [Phase 81-01]: Automated coverage report generation via pytest-cov with JSON and HTML outputs
+- [Phase 81-01]: Compare current coverage to baseline (5.13%) to measure improvement over time
+- [Phase 81-01]: Prioritize files by uncovered lines to maximize impact per test added
+- [Phase 81-01]: Generate comprehensive markdown report for human consumption and prioritization
+- [Phase 81-01]: Coverage baseline: 15.23% (8,272/45,366 lines) - 3x improvement from baseline
 
 **v3.1 E2E UI Testing Decisions:**
 - Playwright Python 1.58.0 selected for E2E UI testing (research validated)
@@ -178,8 +192,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-24 10:15
-Stopped at: Starting milestone v3.2 Bug Finding & Coverage Expansion
+Last session: 2026-02-24 12:03
+Stopped at: Completed 81-01 coverage baseline report (15.23% overall)
 Resume file: None
 
 ---
