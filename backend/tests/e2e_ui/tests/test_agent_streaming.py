@@ -21,7 +21,8 @@ import uuid
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict, Any
 
-from pages.page_objects import ChatPage
+# Import Page Objects
+from tests.e2e_ui.pages.page_objects import ChatPage
 
 
 def test_token_streaming_displays_progressively(

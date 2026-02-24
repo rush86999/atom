@@ -26,7 +26,8 @@ from datetime import datetime, timezone
 from tests.e2e_ui.pages.page_objects import SkillExecutionPage, SkillsMarketplacePage
 
 # Import fixtures and helpers
-from tests.e2e_ui.fixtures.api_fixtures import create_test_agent_direct, authenticated_page
+from tests.e2e_ui.fixtures.api_fixtures import create_test_agent_direct
+from tests.e2e_ui.fixtures.auth_fixtures import authenticated_page
 
 # Import models
 import sys
@@ -39,8 +40,7 @@ from core.models import (
     AgentStatus,
     AgentRegistry,
     SkillExecution,
-    SkillRating,
-    AgentMaturity
+    SkillRating
 )
 
 

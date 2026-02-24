@@ -835,3 +835,7 @@ def get_document_ingestion_service() -> AutoDocumentIngestionService:
     if _doc_ingestion_service is None:
         _doc_ingestion_service = AutoDocumentIngestionService()
     return _doc_ingestion_service
+
+
+# Alias for backward compatibility with tests
+AutoDocumentIngestion = AutoDocumentIngestionService

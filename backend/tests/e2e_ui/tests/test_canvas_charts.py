@@ -17,9 +17,10 @@ Uses CanvasChartPage Page Object for chart interactions.
 """
 
 import pytest
+from typing import Dict, Any
 from uuid import uuid4
 from playwright.sync_api import Page, expect
-from pages.page_objects import CanvasChartPage
+from tests.e2e_ui.pages.page_objects import CanvasChartPage
 
 
 # =============================================================================

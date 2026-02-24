@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 # Import integration services being tested
-from integrations.atom_education_customization_service import EducationCustomizationService
+from integrations.atom_education_customization_service import AtomEducationCustomizationService as EducationCustomizationService
 from integrations.atom_finance_customization_service import FinanceCustomizationService
 from integrations.atom_google_chat_integration import GoogleChatIntegration
 from integrations.atom_zoom_integration import ZoomIntegration
