@@ -852,3 +852,323 @@ class TestEdgeCases:
 
         # Rating of 3 converts to 0.0
         assert score == 0.0
+
+
+# ============================================================================
+# Episode Creation and Lifecycle Tests
+# ============================================================================
+
+class TestEpisodeCreation:
+    """Test episode creation from chat sessions."""
+
+    @pytest.mark.asyncio
+    async def test_create_episode_success(self, segmentation_service, sample_session, sample_messages, sample_executions):
+        """Test successful episode creation with messages and executions."""
+        # Create proper mock executions
+        now = datetime.now()
+        executions = []
+        for i in range(3):
+            exec = Mock(spec=AgentExecution)
+            exec.id = f"exec-{i}"
+            exec.status = "completed"
+            exec.task_description = f"Task {i}"
+            exec.result_summary = f"Task {i} completed"
+            exec.input_summary = f"Input {i}"
+            exec.output_summary = f"Output {i}"
+            exec.created_at = now + timedelta(minutes=i * 10)
+            exec.completed_at = now + timedelta(minutes=i * 10 + 2)
+            exec.metadata_json = {}
+            exec.agent_id = "agent-1"
+            exec.started_at = now + timedelta(minutes=i * 10)
+            executions.append(exec)
+
+        # Setup database mocks with proper chaining
+        mock_query = Mock()
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        # Mock session query
+        session_query = setup_query(sample_session)
+
+        # Mock messages query
+        messages_query = setup_query(sample_messages)
+
+        # Mock executions query
+        executions_query = setup_query(executions)
+
+        # Mock canvas/feedback queries (empty)
+        canvas_query = setup_query([])
+
+        # Set up the query mock to return different results based on filter
+        query_call_count = [0]
+        def mock_query_impl(model_class):
+            query_call_count[0] += 1
+            if model_class == ChatSession:
+                return session_query
+            elif model_class == ChatMessage:
+                return messages_query
+            elif model_class == AgentExecution:
+                return executions_query
+            elif model_class == CanvasAudit:
+                return canvas_query
+            return mock_query
+
+        segmentation_service.db.query = mock_query_impl
+
+        # Track added episode
+        added_episode = None
+
+        def mock_add(obj):
+            nonlocal added_episode
+            added_episode = obj
+
+        segmentation_service.db.add = mock_add
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        # Mock segment and archival
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-1",
+                    agent_id="agent-1"
+                )
+
+        assert result is not None
+        assert result.agent_id == "agent-1"
+        assert result.session_id == "test-session-1"
+
+    @pytest.mark.asyncio
+    async def test_create_episode_title_generation(self, segmentation_service, sample_session, sample_messages, sample_executions):
+        """Test title generation from first user message with truncation."""
+        # Mock first message as user with long content
+        long_message = "This is a very long message that should be truncated to exactly fifty characters"
+        sample_messages[0].content = long_message
+        sample_messages[0].role = "user"
+
+        segmentation_service.db.query.return_value.filter.return_value.first.return_value = sample_session
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = sample_messages
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                with patch('core.episode_segmentation_service.uuid') as mock_uuid:
+                    mock_uuid.uuid4.return_value = "episode-1"
+
+                    # Call title generation directly
+                    title = segmentation_service._generate_title(sample_messages, sample_executions)
+
+        # Should truncate to 50 chars (47 + "...")
+        assert len(title) <= 50
+        assert title.endswith("...") or len(title) < 50
+
+    @pytest.mark.asyncio
+    async def test_create_episode_description_generation(self, segmentation_service, sample_messages, sample_executions):
+        """Test description generation with message and execution counts."""
+        description = segmentation_service._generate_description(sample_messages, sample_executions)
+
+        assert "5 messages" in description
+        assert "3 executions" in description
+
+    @pytest.mark.asyncio
+    async def test_create_episode_summary_generation(self, segmentation_service, sample_messages, sample_executions):
+        """Test summary generation from first and last messages."""
+        summary = segmentation_service._generate_summary(sample_messages, sample_executions)
+
+        assert "Started:" in summary
+        assert "Ended:" in summary
+        assert sample_messages[0].content[:100] in summary
+        assert sample_messages[-1].content[:100] in summary
+
+    @pytest.mark.asyncio
+    async def test_create_episode_duration_calculation(self, segmentation_service):
+        """Test duration calculation from message and execution timestamps."""
+        now = datetime.now()
+        messages = [
+            Mock(created_at=now),
+            Mock(created_at=now + timedelta(minutes=5))
+        ]
+        executions = [
+            Mock(created_at=now + timedelta(minutes=1), completed_at=now + timedelta(minutes=2))
+        ]
+
+        duration = segmentation_service._calculate_duration(messages, executions)
+
+        assert duration is not None
+        # Duration should be 5 minutes (300 seconds) from first to last message
+        assert duration == 300
+
+    @pytest.mark.asyncio
+    async def test_create_episode_topic_extraction(self, segmentation_service, sample_messages):
+        """Test topic extraction from message content."""
+        topics = segmentation_service._extract_topics(sample_messages, [])
+
+        assert isinstance(topics, list)
+        assert len(topics) <= 5  # Max 5 topics
+        # Should extract words longer than 4 characters
+        for topic in topics:
+            assert len(topic) > 4
+
+    @pytest.mark.asyncio
+    async def test_create_episode_entity_extraction(self, segmentation_service):
+        """Test entity extraction (emails, phone numbers, URLs)."""
+        messages = [
+            Mock(content="Contact test@example.com for details"),
+            Mock(content="Call 555-123-4567 or visit https://test.com")
+        ]
+
+        entities = segmentation_service._extract_entities(messages, [])
+
+        assert isinstance(entities, list)
+        assert len(entities) <= 20  # Max 20 entities
+        # Should find email, phone, URL
+        entity_str = str(entities)
+        assert "@example.com" in entity_str or "555-123-4567" in entity_str or "test.com" in entity_str
+
+    @pytest.mark.asyncio
+    async def test_create_episode_importance_score(self, segmentation_service):
+        """Test importance score calculation with clamping to [0.0, 1.0]."""
+        # Test with high activity
+        many_messages = [Mock(content=f"Message {i}") for i in range(15)]
+        many_executions = [Mock(task_description=f"Task {i}") for i in range(5)]
+
+        score = segmentation_service._calculate_importance(many_messages, many_executions)
+
+        assert 0.0 <= score <= 1.0
+        # With 15+ messages and executions, should be high
+        assert score >= 0.7
+
+    @pytest.mark.asyncio
+    async def test_create_episode_importance_score_clamping(self, segmentation_service):
+        """Test importance score is clamped to maximum 1.0."""
+        # Create excessive activity
+        many_messages = [Mock(content=f"Message {i}") for i in range(100)]
+        many_executions = [Mock(task_description=f"Task {i}") for i in range(50)]
+
+        score = segmentation_service._calculate_importance(many_messages, many_executions)
+
+        # Should be clamped to 1.0
+        assert score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_create_episode_maturity_retrieval(self, segmentation_service):
+        """Test agent maturity level retrieval from agent status."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        segmentation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        maturity = segmentation_service._get_agent_maturity("agent-123")
+
+        assert maturity == "SUPERVISED"
+
+    @pytest.mark.asyncio
+    async def test_create_episode_human_intervention_counting(self, segmentation_service):
+        """Test counting human interventions from execution metadata."""
+        executions = [
+            Mock(metadata_json={"human_intervention": True, "other": "data"}),
+            Mock(metadata_json={}),
+            Mock(metadata_json={"human_intervention": True}),
+            Mock(metadata_json={"human_intervention": False})
+        ]
+
+        count = segmentation_service._count_interventions(executions)
+
+        # Should count 2 interventions (True values)
+        assert count == 2
+
+    @pytest.mark.asyncio
+    async def test_create_episode_minimum_size_enforcement(self, segmentation_service, sample_session):
+        """Test minimum size enforcement (2 items) unless force_create=True."""
+        # Create session with only 1 message (below threshold)
+        single_message = [Mock(id="msg-1", role="user", content="Single", created_at=datetime.now())]
+
+        segmentation_service.db.query.return_value.filter.return_value.first.return_value = sample_session
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.all.return_value = single_message
+        segmentation_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        # Should return None (too small)
+        result = await segmentation_service.create_episode_from_session(
+            session_id="test-session-1",
+            agent_id="agent-1",
+            force_create=False
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_force_create_bypass(self, segmentation_service, sample_session):
+        """Test force_create=True bypasses minimum size check."""
+        # Create session with only 1 message (below threshold)
+        now = datetime.now()
+        single_message = [Mock(id="msg-1", role="user", content="Single", created_at=now)]
+
+        # Create empty executions list
+        executions = []
+
+        # Setup database mocks with proper chaining
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        # Mock session query
+        session_query = setup_query(sample_session)
+
+        # Mock messages query
+        messages_query = setup_query(single_message)
+
+        # Mock executions query (empty)
+        executions_query = setup_query(executions)
+
+        # Mock canvas/feedback queries (empty)
+        canvas_query = setup_query([])
+
+        # Set up the query mock to return different results based on filter
+        def mock_query_impl(model_class):
+            if model_class == ChatSession:
+                return session_query
+            elif model_class == ChatMessage:
+                return messages_query
+            elif model_class == AgentExecution:
+                return executions_query
+            elif model_class == CanvasAudit:
+                return canvas_query
+            return Mock()
+
+        segmentation_service.db.query = mock_query_impl
+
+        # Track added episode
+        added_episode = None
+
+        def mock_add(obj):
+            nonlocal added_episode
+            added_episode = obj
+
+        segmentation_service.db.add = mock_add
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                # Force create should work
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-1",
+                    agent_id="agent-1",
+                    force_create=True
+                )
+
+        # Should create episode despite being too small
+        assert result is not None
+        assert result.agent_id == "agent-1"
