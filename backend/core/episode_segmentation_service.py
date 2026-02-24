@@ -246,7 +246,7 @@ class EpisodeSegmentationService:
             summary=self._generate_summary(messages, executions),
             agent_id=agent_id,
             user_id=session.user_id,
-            workspace_id=session.workspace_id or "default",
+            workspace_id="default",  # Single-tenant: always use default (ChatSession doesn't have workspace_id field)
             session_id=session_id,
             execution_ids=[e.id for e in executions],
             # NEW - Canvas and feedback linkage

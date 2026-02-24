@@ -102,6 +102,9 @@ class TestEpisodeCreationErrors:
         agent = AgentRegistry(
             id="agent-1",
             name="Test Agent",
+            category="Testing",
+            module_path="test.agent",
+            class_name="TestAgent",
             status=AgentStatus.STUDENT
         )
         db_session.add(agent)
@@ -117,6 +120,7 @@ class TestEpisodeCreationErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="small-session",
+            workspace_id="default",
             role="user",
             content="Hello"
         )
@@ -195,6 +199,7 @@ class TestEpisodeCreationErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="test-session",
+            workspace_id="default",
             role="user",
             content="Hello"
         )
@@ -242,9 +247,9 @@ class TestBoundaryDetectionErrors:
         from core.models import ChatMessage
 
         # Create messages with None timestamps
-        msg1 = ChatMessage(id="msg-1", conversation_id="test", role="user", content="Hello")
+        msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
         msg1.created_at = None
-        msg2 = ChatMessage(id="msg-2", conversation_id="test", role="assistant", content="Hi")
+        msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
         msg2.created_at = None
 
         lancedb = MagicMock()
@@ -298,9 +303,9 @@ class TestBoundaryDetectionErrors:
         detector = EpisodeBoundaryDetector(lancedb)
 
         from core.models import ChatMessage
-        msg1 = ChatMessage(id="msg-1", conversation_id="test", role="user", content="Hello")
+        msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
         msg1.created_at = datetime.utcnow()
-        msg2 = ChatMessage(id="msg-2", conversation_id="test", role="assistant", content="Hi")
+        msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
         msg2.created_at = datetime.utcnow()
 
         changes = detector.detect_topic_changes([msg1, msg2])
@@ -318,9 +323,9 @@ class TestBoundaryDetectionErrors:
             detector = EpisodeBoundaryDetector(lancedb)
 
             from core.models import ChatMessage
-            msg1 = ChatMessage(id="msg-1", conversation_id="test", role="user", content="Hello")
+            msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
             msg1.created_at = datetime.utcnow()
-            msg2 = ChatMessage(id="msg-2", conversation_id="test", role="assistant", content="Hi")
+            msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
             msg2.created_at = datetime.utcnow() + timedelta(minutes=1)
 
             gaps = detector.detect_time_gap([msg1, msg2])
@@ -480,6 +485,7 @@ class TestEpisodePersistenceErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="test-session",
+            workspace_id="default",
             role="user",
             content="Hello"
         )
@@ -491,6 +497,9 @@ class TestEpisodePersistenceErrors:
         agent = AgentRegistry(
             id="agent-1",
             name="Test Agent",
+            category="Testing",
+            module_path="test.agent",
+            class_name="TestAgent",
             status=AgentStatus.STUDENT
         )
         db_session.add(agent)
@@ -532,6 +541,7 @@ class TestEpisodePersistenceErrors:
         msg = ChatMessage(
             id="msg-1",
             conversation_id="test",
+            workspace_id="default",
             role="user",
             content="Hello"
         )
