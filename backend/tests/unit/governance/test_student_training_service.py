@@ -24,6 +24,7 @@ from core.models import (
     BlockedTriggerContext,
     TriggerSource,
     ProposalStatus,
+    ProposalType,
     TrainingSession,
 )
 
@@ -827,3 +828,657 @@ class TestLearningRateCalculation:
 
         # Assert
         assert learning_rate == 1.0  # Default for agents with no history
+
+
+class TestCreateTrainingProposal:
+    """Test training proposal creation from blocked triggers"""
+
+    @pytest.mark.asyncio
+    async def test_proposal_created_for_agent_message_trigger(self, db_session: Session):
+        """Test proposal created for agent_message trigger type"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_msg_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.agent_id == agent.id
+        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert proposal.proposal_type == ProposalType.TRAINING.value
+        assert proposal.estimated_duration_hours > 0
+        assert len(proposal.capability_gaps) > 0
+        assert len(proposal.learning_objectives) > 0
+        assert "agent_message" in proposal.description
+        assert blocked_trigger.proposal_id == proposal.id
+
+    @pytest.mark.asyncio
+    async def test_proposal_created_for_workflow_trigger(self, db_session: Session):
+        """Test proposal created for workflow_trigger trigger type"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_wf_1",
+            name="Student Agent",
+            category="Operations",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"action": "automate_process"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.agent_id == agent.id
+        assert proposal.status == ProposalStatus.PROPOSED.value
+        assert "workflow_trigger" in proposal.description
+        # Should include workflow-specific gaps
+        assert any("workflow" in gap.lower() for gap in proposal.capability_gaps)
+
+    @pytest.mark.asyncio
+    async def test_proposal_created_for_form_submit_trigger(self, db_session: Session):
+        """Test proposal created for form_submit trigger type"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_form_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="form_submit",
+            trigger_context={"form_id": "test_form"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.agent_id == agent.id
+        assert "form_submit" in proposal.description
+        # Should include form-specific gaps
+        assert any("form" in gap.lower() for gap in proposal.capability_gaps)
+
+    @pytest.mark.asyncio
+    async def test_proposal_created_for_canvas_update_trigger(self, db_session: Session):
+        """Test proposal created for canvas_update trigger type"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_canvas_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="canvas_update",
+            trigger_context={"canvas_id": "test_canvas"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.agent_id == agent.id
+        assert "canvas_update" in proposal.description
+        # Should include canvas-specific gaps
+        assert any("visualization" in gap.lower() or "presentation" in gap.lower()
+                   for gap in proposal.capability_gaps)
+
+    @pytest.mark.asyncio
+    async def test_capability_gaps_include_finance_category(self, db_session: Session):
+        """Test capability gaps include Finance-specific gaps"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_finance_1",
+            name="Finance Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should include Finance-specific gaps
+        assert any("financial" in gap.lower() for gap in proposal.capability_gaps)
+
+    @pytest.mark.asyncio
+    async def test_capability_gaps_include_sales_category(self, db_session: Session):
+        """Test capability gaps include Sales-specific gaps"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_sales_1",
+            name="Sales Agent",
+            category="Sales",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Sales"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should include Sales-specific gaps
+        assert any("crm" in gap.lower() or "sales" in gap.lower()
+                   for gap in proposal.capability_gaps)
+
+    @pytest.mark.asyncio
+    async def test_learning_objectives_include_base_objectives(self, db_session: Session):
+        """Test learning objectives include base objectives"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_obj_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should include base objectives for trigger type
+        assert any("workflow_trigger" in obj for obj in proposal.learning_objectives)
+        # Should include reliable task completion objective
+        assert any("reliable task completion" in obj.lower()
+                   for obj in proposal.learning_objectives)
+        # Should include decision-making objective
+        assert any("decision-making" in obj.lower()
+                   for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_learning_objectives_include_capability_specific(self, db_session: Session):
+        """Test learning objectives include capability-specific objectives (max 5 gaps)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_obj_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should include capability-specific objectives (max 5 gaps)
+        capability_objectives = [obj for obj in proposal.learning_objectives
+                                 if "proficiency in" in obj.lower()]
+        assert len(capability_objectives) > 0
+        # Max 5 capability gaps
+        assert len(capability_objectives) <= 5
+
+    @pytest.mark.asyncio
+    async def test_scenario_template_selected_from_trigger_context(self, db_session: Session):
+        """Test scenario template selected based on category from trigger_context"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_scenario_1",
+            name="Student Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should use Finance scenario template
+        assert proposal.training_scenario_template == "Finance Fundamentals"
+        assert "Finance Fundamentals" in proposal.title
+
+    @pytest.mark.asyncio
+    async def test_duration_estimation_called_with_correct_parameters(self, db_session: Session):
+        """Test duration estimation called with target_maturity=INTERN"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_duration_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Duration estimation should be called
+        assert proposal.estimated_duration_hours > 0
+        assert proposal.duration_estimation_confidence >= 0
+        assert proposal.duration_estimation_reasoning is not None
+        # Target maturity should be INTERN
+        assert "0.5" in proposal.duration_estimation_reasoning or "INTERN" in proposal.duration_estimation_reasoning
+
+
+class TestProposalGenerationEdgeCases:
+    """Test edge cases in proposal generation"""
+
+    @pytest.mark.asyncio
+    async def test_proposal_creation_fails_for_nonexistent_agent(self, db_session: Session):
+        """Test proposal creation fails for non-existent agent (ValueError)"""
+        # Arrange
+        blocked_trigger = BlockedTriggerContext(
+            agent_id="nonexistent_agent",
+            agent_name="Ghost Agent",
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Agent .* not found"):
+            await service.create_training_proposal(blocked_trigger)
+
+    @pytest.mark.asyncio
+    async def test_proposal_with_no_capability_gaps_handled_gracefully(self, db_session: Session):
+        """Test proposal with no capability gaps handled gracefully"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_no_gaps_1",
+            name="Student Agent",
+            category="Unknown",  # Unknown category
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Use unknown trigger type to minimize gaps
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="unknown_trigger",
+            trigger_context={},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should still create proposal with empty or minimal gaps
+        assert proposal is not None
+        assert proposal.capability_gaps is not None
+
+    @pytest.mark.asyncio
+    async def test_proposal_with_empty_trigger_context_uses_default_scenario(self, db_session: Session):
+        """Test proposal with empty trigger_context uses default scenario"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_empty_ctx_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={},  # Empty context
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should use default scenario
+        assert proposal.training_scenario_template == "General Operations"
+
+    @pytest.mark.asyncio
+    async def test_deduplication_of_capability_gaps(self, db_session: Session):
+        """Test deduplication of capability gaps (duplicate gaps removed)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_dedup_1",
+            name="Student Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should not have duplicate gaps
+        assert len(proposal.capability_gaps) == len(set(proposal.capability_gaps))
+
+    @pytest.mark.asyncio
+    async def test_proposal_title_includes_scenario_template_name(self, db_session: Session):
+        """Test proposal title includes scenario template name"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_title_1",
+            name="Test Agent",
+            category="Sales",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Sales"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Title should include scenario template
+        assert "Sales Operations" in proposal.title
+        assert "Fundamentals" in proposal.title
+
+    @pytest.mark.asyncio
+    async def test_proposal_description_includes_blocked_task_and_gaps(self, db_session: Session):
+        """Test proposal description includes blocked task type and capability gaps"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_desc_1",
+            name="Test Agent",
+            category="Operations",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"category": "Operations"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Description should include blocked task type
+        assert "workflow_trigger" in proposal.description
+        # Description should include capability gaps
+        assert "Capability Gaps:" in proposal.description
+        # Description should mention training purpose
+        assert "training" in proposal.description.lower()
