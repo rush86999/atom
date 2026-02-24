@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 086-property-based-testing-core-services
-Plan: 01 (governance-cache-property-tests)
-Status: Complete - Governance cache property tests verified and expanded to 84% coverage
-Last activity: 2026-02-24 — Property-based testing for governance cache invariants, expanded to 50 tests with 84.04% coverage (237/278 statements)
+Phase: 088-bug-discovery-error-paths-boundaries
+Plan: 02 (boundary-condition-test-coverage)
+Status: Complete - Boundary condition test suite created with 213 tests
+Last activity: 2026-02-24 — Comprehensive boundary condition tests for governance cache, episode segmentation, LLM operations, and maturity thresholds
 
 Progress: [█████████░] 88% (v3.2: property testing core services)
 
@@ -113,6 +113,9 @@ Recent decisions affecting current work:
 - [Phase 086-02]: Exclusive boundary condition (> not >=) is critical invariant for time gap detection
 - [Phase 086-02]: Bug fix: Changed gap_minutes >= THRESHOLD to gap_minutes > THRESHOLD in detect_time_gap()
 - [Phase 086-02]: Episode segmentation has 10 verified invariants documented in SEGMENTATION_INVARIANTS.md
+- [Phase 088-02]: Boundary condition tests target exact threshold values (0.5, 0.7, 0.9, 30.0, 0.75) where off-by-one errors occur
+- [Phase 088-02]: Pytest 8.x requires 'self' parameter in parametrized test methods within classes (collection error fix)
+- [Phase 088-02]: Float comparison precision requires epsilon-based comparisons (1e-10) to handle rounding errors
 
 **v3.2 Unit Testing Decisions:**
 - [Phase 082-01]: Query mock pattern with closure counter for multiple DB calls in single test
@@ -297,8 +300,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-24 17:14
-Stopped at: Phase 086-01 complete - Governance cache property testing finished (50 tests, 84.04% coverage, no bugs discovered)
+Last session: 2026-02-24 22:50
+Stopped at: Phase 088-02 complete - Boundary condition test coverage (213 tests, 5 test files)
 Resume file: None
 
 ---
