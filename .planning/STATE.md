@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 81-coverage-analysis-prioritization
-Plan: 04 (coverage-baseline-trend-tracking)
-Status: Coverage baseline and trend tracking infrastructure established
-Last activity: 2026-02-24 — Phase 81 Plan 04 complete
+Phase: 082-core-services-unit-testing-governance-episodes
+Plan: 03 (upcoming)
+Status: Phase 82 Plan 02 complete - EpisodeSegmentationService test coverage expanded to 89 tests
+Last activity: 2026-02-24 — Phase 82 Plan 02 complete (40 tests added)
 
-Progress: [████░░░░░░] 40% (v3.2: baseline established at 15.23%, CI integration complete)
+Progress: [████░░░░░░] 40% (v3.2: unit test expansion for governance & episodes in progress)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
