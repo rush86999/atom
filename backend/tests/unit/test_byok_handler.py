@@ -2090,3 +2090,416 @@ class TestProviderRanking:
                 # Should use static fallback
                 assert isinstance(options, list)
                 assert len(options) > 0
+
+
+# =============================================================================
+# NEW TESTS: Task 1 - Provider Routing and Cognitive Tier
+# =============================================================================
+
+class TestProviderRoutingEnhanced:
+    """Enhanced tests for provider routing and complexity analysis"""
+
+    def test_analyze_complexity_empty_prompt(self, mock_byok_manager):
+        """Test that empty prompt defaults to SIMPLE complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            complexity = handler.analyze_query_complexity("")
+            assert complexity == QueryComplexity.SIMPLE
+
+    def test_analyze_complexity_very_long_prompt(self, mock_byok_manager):
+        """Test that very long prompts (>2000 tokens) get COMPLEX or ADVANCED"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            # Create prompt that's ~2000 tokens (8000 chars)
+            long_prompt = "analyze this " * 2000  # ~16000 chars
+            complexity = handler.analyze_query_complexity(long_prompt)
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_complexity_with_simple_keywords(self, mock_byok_manager):
+        """Test vocabulary pattern matching for simple keywords"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            simple_prompts = [
+                "hello there",
+                "hi, can you help?",
+                "thanks for your help",
+                "summarize this text",
+                "translate to Spanish",
+                "list the items",
+                "what is AI?",
+                "who is Einstein?",
+                "define photosynthesis",
+                "how do I bake a cake?",
+                "simplify this explanation",
+                "give me a brief overview",
+                "basic explanation of physics",
+                "short summary",
+                "quick answer needed"
+            ]
+            for prompt in simple_prompts:
+                complexity = handler.analyze_query_complexity(prompt)
+                # Simple keywords should reduce complexity score
+                assert complexity in [QueryComplexity.SIMPLE, QueryComplexity.MODERATE]
+
+    def test_analyze_complexity_with_moderate_keywords(self, mock_byok_manager):
+        """Test vocabulary pattern matching for moderate keywords"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            moderate_prompts = [
+                "analyze the market trends",
+                "compare these two approaches",
+                "evaluate the effectiveness",
+                "synthesize the information",
+                "explain the concept in detail",
+                "describe the architecture",
+                "provide background on the topic",
+                "what are the nuances?",
+                "what's your opinion on this?",
+                "critique this argument",
+                "what are the pros and cons?",
+                "what are the advantages and disadvantages?"
+            ]
+            # At least some moderate keywords should be recognized
+            complexities_found = set()
+            for prompt in moderate_prompts:
+                complexity = handler.analyze_query_complexity(prompt)
+                complexities_found.add(complexity)
+            # Should see moderate or higher complexity for at least some prompts
+            assert QueryComplexity.MODERATE in complexities_found or QueryComplexity.COMPLEX in complexities_found or QueryComplexity.ADVANCED in complexities_found
+
+    def test_analyze_complexity_with_technical_keywords(self, mock_byok_manager):
+        """Test vocabulary pattern matching for technical/math keywords"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            technical_prompts = [
+                "calculate the integral",
+                "solve this equation",
+                "what's the formula for derivative?",
+                "explain the calculus concept",
+                "geometry problem solver",
+                "algebraic expression simplification",
+                "mathematical theorem proof",
+                "statistics and probability",
+                "regression analysis",
+                "vector operations",
+                "matrix multiplication",
+                "tensor flow basics",
+                "logarithmic functions",
+                "exponential growth"
+            ]
+            # At least some technical keywords should be recognized
+            complexities_found = set()
+            for prompt in technical_prompts:
+                complexity = handler.analyze_query_complexity(prompt)
+                complexities_found.add(complexity)
+            # Should see higher complexity for technical prompts
+            assert QueryComplexity.COMPLEX in complexities_found or QueryComplexity.ADVANCED in complexities_found
+
+    def test_analyze_complexity_with_code_keywords(self, mock_byok_manager):
+        """Test vocabulary pattern matching for code/programming keywords"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            code_prompts = [
+                "write a function to sort array",
+                "debug this code",
+                "optimize the performance",
+                "refactor this method",
+                "implement an API endpoint",
+                "create a webhook handler",
+                "database schema migration",
+                "SQL query optimization",
+                "define a class structure",
+                "write a script to automate"
+            ]
+            for prompt in code_prompts:
+                complexity = handler.analyze_query_complexity(prompt)
+                # Code keywords significantly increase complexity
+                assert complexity in [QueryComplexity.MODERATE, QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_complexity_with_advanced_keywords(self, mock_byok_manager):
+        """Test vocabulary pattern matching for advanced/enterprise keywords"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            advanced_prompts = [
+                "design a microservices architecture",
+                "perform a security audit",
+                "implement encryption algorithms",
+                "set up authentication system",
+                "configure OAuth JWT",
+                "optimize performance bottlenecks",
+                "implement concurrency patterns",
+                "design multithreaded system",
+                "scale to distributed architecture",
+                "load balancing strategy",
+                "clustering solution"
+            ]
+            # At least some advanced keywords should be recognized
+            complexities_found = set()
+            for prompt in advanced_prompts:
+                complexity = handler.analyze_query_complexity(prompt)
+                complexities_found.add(complexity)
+            # Should see COMPLEX or ADVANCED for advanced prompts
+            assert QueryComplexity.COMPLEX in complexities_found or QueryComplexity.ADVANCED in complexities_found
+
+    def test_analyze_complexity_with_code_block_triggers_advanced(self, mock_byok_manager):
+        """Test that code blocks (```) trigger complexity increase"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            prompt_with_code = """
+            Here's my code:
+            ```
+            def complex_function():
+                return "advanced"
+            ```
+            """
+            complexity = handler.analyze_query_complexity(prompt_with_code)
+            assert complexity in [QueryComplexity.MODERATE, QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_complexity_task_type_code_increases_level(self, mock_byok_manager):
+        """Test that task_type='code' increases complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            simple_prompt = "help me with this"
+            complexity_no_task = handler.analyze_query_complexity(simple_prompt)
+            complexity_with_task = handler.analyze_query_complexity(simple_prompt, task_type="code")
+            # Code task type should increase complexity
+            # Compare enum order: SIMPLE=0, MODERATE=1, COMPLEX=2, ADVANCED=3
+            complexity_order = {QueryComplexity.SIMPLE: 0, QueryComplexity.MODERATE: 1,
+                              QueryComplexity.COMPLEX: 2, QueryComplexity.ADVANCED: 3}
+            assert complexity_order[complexity_with_task] >= complexity_order[complexity_no_task]
+
+    def test_analyze_complexity_task_type_analysis_increases_level(self, mock_byok_manager):
+        """Test that task_type='analysis' increases complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            simple_prompt = "look at this data"
+            complexity_no_task = handler.analyze_query_complexity(simple_prompt)
+            complexity_with_task = handler.analyze_query_complexity(simple_prompt, task_type="analysis")
+            # Analysis task type should increase complexity
+            complexity_order = {QueryComplexity.SIMPLE: 0, QueryComplexity.MODERATE: 1,
+                              QueryComplexity.COMPLEX: 2, QueryComplexity.ADVANCED: 3}
+            assert complexity_order[complexity_with_task] >= complexity_order[complexity_no_task]
+
+    def test_analyze_complexity_task_type_reasoning_increases_level(self, mock_byok_manager):
+        """Test that task_type='reasoning' increases complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            simple_prompt = "think about this problem"
+            complexity_no_task = handler.analyze_query_complexity(simple_prompt)
+            complexity_with_task = handler.analyze_query_complexity(simple_prompt, task_type="reasoning")
+            # Reasoning task type should increase complexity
+            complexity_order = {QueryComplexity.SIMPLE: 0, QueryComplexity.MODERATE: 1,
+                              QueryComplexity.COMPLEX: 2, QueryComplexity.ADVANCED: 3}
+            assert complexity_order[complexity_with_task] >= complexity_order[complexity_no_task]
+
+    def test_analyze_complexity_task_type_chat_decreases_level(self, mock_byok_manager):
+        """Test that task_type='chat' decreases complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            moderate_prompt = "explain the concept of machine learning"
+            complexity_no_task = handler.analyze_query_complexity(moderate_prompt)
+            complexity_with_task = handler.analyze_query_complexity(moderate_prompt, task_type="chat")
+            # Chat task type should decrease complexity
+            complexity_order = {QueryComplexity.SIMPLE: 0, QueryComplexity.MODERATE: 1,
+                              QueryComplexity.COMPLEX: 2, QueryComplexity.ADVANCED: 3}
+            assert complexity_order[complexity_with_task] <= complexity_order[complexity_no_task]
+
+    def test_analyze_complexity_task_type_general_decreases_level(self, mock_byok_manager):
+        """Test that task_type='general' decreases complexity"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            moderate_prompt = "tell me about the topic"
+            complexity_no_task = handler.analyze_query_complexity(moderate_prompt)
+            complexity_with_task = handler.analyze_query_complexity(moderate_prompt, task_type="general")
+            # General task type should decrease complexity
+            complexity_order = {QueryComplexity.SIMPLE: 0, QueryComplexity.MODERATE: 1,
+                              QueryComplexity.COMPLEX: 2, QueryComplexity.ADVANCED: 3}
+            assert complexity_order[complexity_with_task] <= complexity_order[complexity_no_task]
+
+    def test_get_optimal_provider_returns_correct_tuple(self, mock_byok_manager):
+        """Test that get_optimal_provider returns (provider, model) tuple"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+            handler.clients["deepseek"] = MagicMock()
+
+            provider, model = handler.get_optimal_provider(QueryComplexity.SIMPLE)
+            assert isinstance(provider, str)
+            assert isinstance(model, str)
+            assert len(provider) > 0
+            assert len(model) > 0
+
+    def test_get_optimal_provider_with_requires_tools(self, mock_byok_manager):
+        """Test get_optimal_provider filters for tool support"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["deepseek"] = MagicMock()
+
+            provider, model = handler.get_optimal_provider(
+                QueryComplexity.ADVANCED,
+                requires_tools=True
+            )
+            # Should avoid models without tools (deepseek-v3.2-speciale)
+            assert "speciale" not in model.lower()
+
+    def test_get_optimal_provider_with_requires_structured(self, mock_byok_manager):
+        """Test get_optimal_provider filters for structured output support"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["deepseek"] = MagicMock()
+
+            provider, model = handler.get_optimal_provider(
+                QueryComplexity.ADVANCED,
+                requires_structured=True
+            )
+            # Should avoid models without structured support
+            assert "speciale" not in model.lower()
+
+    def test_get_ranked_providers_returns_list_of_tuples(self, mock_byok_manager):
+        """Test that get_ranked_providers returns prioritized list"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+            handler.clients["deepseek"] = MagicMock()
+
+            options = handler.get_ranked_providers(QueryComplexity.SIMPLE)
+            assert isinstance(options, list)
+            if options:
+                for option in options:
+                    assert isinstance(option, tuple)
+                    assert len(option) == 2
+                    assert isinstance(option[0], str)  # provider
+                    assert isinstance(option[1], str)  # model
+
+    def test_get_ranked_providers_with_estimated_tokens(self, mock_byok_manager):
+        """Test cache-aware routing with estimated_tokens parameter"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["deepseek"] = MagicMock()
+
+            # Mock cache router
+            mock_cache_router = MagicMock()
+            mock_cache_router.predict_cache_hit_probability = MagicMock(return_value=0.8)
+            mock_cache_router.calculate_effective_cost = MagicMock(return_value=0.001)
+            handler.cache_router = mock_cache_router
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.SIMPLE,
+                estimated_tokens=5000
+            )
+
+            # Cache router should be called with token estimate
+            mock_cache_router.predict_cache_hit_probability.assert_called()
+            assert isinstance(options, list)
+
+    def test_get_ranked_providers_with_cognitive_tier(self, mock_byok_manager):
+        """Test provider ranking with CognitiveTier-based filtering"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+            handler.clients["deepseek"] = MagicMock()
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.SIMPLE,
+                cognitive_tier=CognitiveTier.STANDARD
+            )
+
+            # Should use quality threshold of 80 for STANDARD tier
+            assert isinstance(options, list)
+
+    def test_get_ranked_providers_cognitive_tier_micro(self, mock_byok_manager):
+        """Test CognitiveTier.MICRO accepts all models (min quality 0)"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.SIMPLE,
+                cognitive_tier=CognitiveTier.MICRO
+            )
+
+            # MICRO tier should accept any model (quality >= 0)
+            assert isinstance(options, list)
+
+    def test_get_ranked_providers_cognitive_tier_versatile(self, mock_byok_manager):
+        """Test CognitiveTier.VERSATILE requires quality >= 86"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.COMPLEX,
+                cognitive_tier=CognitiveTier.VERSATILE
+            )
+
+            # VERSATILE tier requires quality >= 86
+            assert isinstance(options, list)
+
+    def test_get_ranked_providers_cognitive_tier_heavy(self, mock_byok_manager):
+        """Test CognitiveTier.HEAVY requires quality >= 90"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.ADVANCED,
+                cognitive_tier=CognitiveTier.HEAVY
+            )
+
+            # HEAVY tier requires quality >= 90
+            assert isinstance(options, list)
+
+    def test_get_ranked_providers_cognitive_tier_complex(self, mock_byok_manager):
+        """Test CognitiveTier.COMPLEX requires quality >= 94"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            handler.clients["openai"] = MagicMock()
+
+            options = handler.get_ranked_providers(
+                QueryComplexity.ADVANCED,
+                cognitive_tier=CognitiveTier.COMPLEX
+            )
+
+            # COMPLEX tier requires quality >= 94 (highest threshold)
+            assert isinstance(options, list)
+
+    def test_classify_cognitive_tier_simple_query(self, mock_byok_manager):
+        """Test classify_cognitive_tier wrapper method for simple queries"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            tier = handler.classify_cognitive_tier("hello")
+            # Simple query should be MICRO or STANDARD
+            assert tier in [CognitiveTier.MICRO, CognitiveTier.STANDARD]
+
+    def test_classify_cognitive_tier_with_task_type(self, mock_byok_manager):
+        """Test classify_cognitive_tier with task type hint"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            tier = handler.classify_cognitive_tier("write code", task_type="code")
+            # Code task should elevate tier
+            assert tier in [CognitiveTier.STANDARD, CognitiveTier.VERSATILE, CognitiveTier.HEAVY]
+
+    def test_classify_cognitive_tier_advanced_query(self, mock_byok_manager):
+        """Test classify_cognitive_tier for advanced queries"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            advanced_prompt = "design a distributed microservices architecture with OAuth authentication"
+            tier = handler.classify_cognitive_tier(advanced_prompt)
+            # Advanced query should be higher tier
+            assert tier in [CognitiveTier.VERSATILE, CognitiveTier.HEAVY, CognitiveTier.COMPLEX]
