@@ -1,13 +1,12 @@
 import React from 'react';
 import Head from 'next/head';
-import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PreferencesTab } from "@/components/Settings/PreferencesTab";
 import { DataPipelinesTab } from "@/components/Settings/DataPipelinesTab"; // Import
 
 export default function SettingsPage() {
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Settings - ATOM</title>
             </Head>
@@ -41,6 +40,7 @@ export default function SettingsPage() {
                     </TabsContent>
                 </Tabs>
             </div>
-        </Layout>
+        </>
     );
 }
+
