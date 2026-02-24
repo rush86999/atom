@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 084-core-services-unit-testing-training-graduation
-Plan: 02 (supervision-service-unit-tests)
-Status: Plan 084-01 complete - 81 new tests for StudentTrainingService with 90%+ coverage - All 5 plans executed with gap closure, 303 tests added, canvas/browser/device tools at 90%+ coverage
-Last activity: 2026-02-24 — Plan 084-01 complete with 81 new tests (101 total, 10 min execution)
+Plan: 03 (graduation-service-unit-tests-next) or continue to 084-03
+Status: Plan 084-02 complete - 88 new tests for AgentGraduationService (106 total, 78% pass rate)
+Last activity: 2026-02-24 — Plan 084-02 complete with 88 new tests (18 min execution, 2 bug fixes)
 
-Progress: [█████████░] 85% (v3.2: training & graduation unit testing next)
+Progress: [█████████░] 86% (v3.2: core services unit testing in progress)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
@@ -121,6 +121,12 @@ Recent decisions affecting current work:
 - [Phase 083-01]: Partial plan completion: Tasks 2 & 3 deferred due to complexity, Task 1 complete with working AsyncMock pattern
 - [Phase 083-04]: AsyncMock call_args pattern: call_args[0][0] for positional args, call_args[1]['kwarg'] for keyword args
 - [Phase 083-04]: Governance block returns early without record_outcome call (correct behavior, not a bug)
+- [Phase 084-02]: Mock pattern for executors: Use MagicMock with AsyncMock methods for get_sandbox_executor patching
+- [Phase 084-02]: get_sandbox_executor patch path: core.sandbox_executor.get_sandbox_executor (imported locally in method)
+- [Phase 084-02]: Bug fix: Remove await from synchronous db.execute calls in calculate_skill_usage_metrics (lines 844, 858)
+- [Phase 084-02]: Collection error fix: factory.LambdaFunction -> factory.LazyFunction in operation_tracker_factory.py
+- [Phase 084-02]: Test organization: Group related tests in dedicated test classes (e.g., TestReadinessScoreCalculation)
+- [Phase 084-02]: Test session persistence: EpisodeFactory uses flush persistence but may need explicit db_session.flush() before service queries
 
 **v3.2 Coverage Analysis Decisions:**
 - [Phase 81-01]: Automated coverage report generation via pytest-cov with JSON and HTML outputs
@@ -254,8 +260,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-24 16:30
-Stopped at: Phase 83 complete - Gap closure finished (303 tests total: 94 canvas + 95 browser + 114 device)
+Last session: 2026-02-24 15:49
+Stopped at: Phase 084-02 complete - 88 new tests for AgentGraduationService with 2 bug fixes
 Resume file: None
 
 ---
