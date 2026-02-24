@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 084-core-services-unit-testing-training-graduation
-Plan: 01 (student-training-service-unit-tests)
-Status: Phase 83 complete - Canvas, browser, and device tool unit tests added (237 tests)
-Last activity: 2026-02-24 — Phase 83 complete (237 tests: 28 canvas + 95 browser + 114 device)
+Phase: 083-core-services-unit-testing-canvas-browser
+Plan: 04 (fix-canvas-governance-test-assertions)
+Status: Phase 83-04 complete - Canvas governance test assertions fixed (2 tasks, 100% pass rate)
+Last activity: 2026-02-24 — Phase 083-04 complete: Fixed canvas governance test assertion format issues
 
-Progress: [███████░░░] 72% (v3.2: training & graduation unit testing next)
+Progress: [███████░░░] 72% (v3.2: canvas/browser/device unit testing in progress)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Phase 83 complete - Canvas, browser, and device tool unit testing finished (237 tests)
+**Status**: Phase 083-04 complete - Canvas governance test assertions fixed (28/28 tests passing)
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
@@ -119,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase 083-01]: Mock pattern browser_tool_governance: with patch('tools.canvas_tool.ServiceFactory') as mock_factory with mock_factory.get_governance_service.return_value = mock_governance
 - [Phase 083-01]: Test organization: Group by canvas function (present_chart, present_form, present_markdown, update_canvas)
 - [Phase 083-01]: Partial plan completion: Tasks 2 & 3 deferred due to complexity, Task 1 complete with working AsyncMock pattern
+- [Phase 083-04]: AsyncMock call_args pattern: call_args[0][0] for positional args, call_args[1]['kwarg'] for keyword args
+- [Phase 083-04]: Governance block returns early without record_outcome call (correct behavior, not a bug)
 
 **v3.2 Coverage Analysis Decisions:**
 - [Phase 81-01]: Automated coverage report generation via pytest-cov with JSON and HTML outputs
@@ -216,6 +218,8 @@ Recent decisions affecting current work:
 - [Phase 082-05: Feedback adjudication service testing with 33 new tests and 95% coverage
 - [Phase 082-06: GEA guardrail validation tests with 22 new tests
 - [Phase 083-01]: Canvas tool governance enforcement tests with 28 new tests (Task 1 of 3)
+- [Phase 083-04]: AsyncMock call_args pattern: call_args[0][0] for positional, call_args[1]['kwarg'] for keyword args
+- [Phase 083-04]: Governance block returns early without record_outcome call (correct behavior)
 
 ### Pending Todos
 
