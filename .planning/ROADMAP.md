@@ -79,7 +79,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 - Decimal phases (81.1, 81.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 81: Coverage Analysis & Prioritization** - Generate coverage reports, identify high-impact files, map gaps to critical paths
-- [ ] **Phase 82: Core Services Unit Testing (Governance & Episodes)** - Agent governance, episode segmentation, BYOK handler tests
+- [x] **Phase 82: Core Services Unit Testing (Governance & Episodes)** - Agent governance, episode segmentation, BYOK handler tests
 - [ ] **Phase 83: Core Services Unit Testing (Canvas & Browser)** - Canvas tool, browser automation, device capabilities tests
 - [ ] **Phase 84: Core Services Unit Testing (Training & Graduation)** - Student training service, graduation service tests
 - [ ] **Phase 85: Database & Integration Testing** - Database models, migrations, transactions, critical path integration tests
@@ -131,14 +131,14 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
   4. All tests use mocks appropriately (external services mocked, real database/session fixtures)
   5. Tests verify both success and failure paths (edge cases, error handling, boundary conditions)
 
-**Plans**: 6 plans (3 completed, 3 gap closure)
+**Plans**: 6 plans
 
 - [x] 082-01-PLAN.md — Agent governance service unit tests (lifecycle methods, permission checks, cache invalidation, error handling, 30+ tests) ✅ COMPLETE
 - [x] 082-02-PLAN.md — Episode segmentation service unit tests (time gap detection, topic change detection, task completion, episode lifecycle, 25+ tests) ✅ COMPLETE
 - [x] 082-03-PLAN.md — BYOK LLM handler unit tests (provider selection, streaming responses, error recovery, timeout handling, token counting, 20+ tests) ✅ COMPLETE
-- [ ] 082-04-PLAN.md — Fix 49 failing BYOK handler tests (mock patches, async streaming, test isolation) 🔄 GAP CLOSURE
-- [ ] 082-05-PLAN.md — Expand BYOK handler coverage to 90%+ (cognitive tier, structured response, coordinated vision, cost tracking) 🔄 GAP CLOSURE
-- [ ] 082-06-PLAN.md — Expand episode segmentation coverage to 90%+ (canvas context extraction, skill episodes, edge cases) 🔄 GAP CLOSURE
+- [x] 082-04-PLAN.md — Fix 49 failing BYOK handler tests (mock patches, async streaming, test isolation) ✅ COMPLETE
+- [x] 082-05-PLAN.md — Expand BYOK handler coverage to 90%+ (cognitive tier, structured response, coordinated vision, cost tracking) ✅ COMPLETE
+- [x] 082-06-PLAN.md — Expand episode segmentation coverage to 90%+ (canvas context extraction, skill episodes, edge cases) ✅ COMPLETE
 
 ---
 
@@ -323,8 +323,8 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. Coverage Analysis & Prioritization | 0/4 | Planned | - |
-| 82. Core Services Unit Testing (Governance & Episodes) | 0/3 | Not started | - |
+| 81. Coverage Analysis & Prioritization | 4/4 | ✅ Complete | 2026-02-24 |
+| 82. Core Services Unit Testing (Governance & Episodes) | 6/6 | ✅ Complete | 2026-02-24 |
 | 83. Core Services Unit Testing (Canvas & Browser) | 0/3 | Not started | - |
 | 84. Core Services Unit Testing (Training & Graduation) | 0/2 | Not started | - |
 | 85. Database & Integration Testing | 0/4 | Not started | - |
@@ -334,7 +334,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 | 89. Bug Discovery (Failure Modes & Security) | 0/2 | Not started | - |
 | 90. Quality Gates & CI/CD | 0/6 | Not started | - |
 
-**Overall Progress**: 0/32 plans complete (0%)
+**Overall Progress**: 10/32 plans complete (31%)
 
 ---
 
