@@ -271,24 +271,29 @@ class TestTokenStreaming:
         with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
             handler = BYOKHandler()
 
+            # Create async generator properly
+            async def mock_stream_generator():
+                chunk1 = MagicMock()
+                chunk1.choices = [MagicMock()]
+                chunk1.choices[0].delta = MagicMock()
+                chunk1.choices[0].delta.content = "Hello"
+                yield chunk1
+
+                chunk2 = MagicMock()
+                chunk2.choices = [MagicMock()]
+                chunk2.choices[0].delta = MagicMock()
+                chunk2.choices[0].delta.content = " world"
+                yield chunk2
+
+                chunk3 = MagicMock()
+                chunk3.choices = []
+                yield chunk3
+
+            async def mock_create(*args, **kwargs):
+                return mock_stream_generator()
+
             mock_async_client = AsyncMock()
-            mock_stream = AsyncMock()
-
-            chunk1 = MagicMock()
-            chunk1.choices = [MagicMock()]
-            chunk1.choices[0].delta = MagicMock()
-            chunk1.choices[0].delta.content = "Hello"
-
-            chunk2 = MagicMock()
-            chunk2.choices = [MagicMock()]
-            chunk2.choices[0].delta = MagicMock()
-            chunk2.choices[0].delta.content = " world"
-
-            chunk3 = MagicMock()
-            chunk3.choices = []
-
-            mock_stream.__aiter__ = AsyncMock(return_value=iter([chunk1, chunk2, chunk3]))
-            mock_async_client.chat.completions.create = AsyncMock(return_value=mock_stream)
+            mock_async_client.chat.completions.create = mock_create
             handler.async_clients = {"openai": mock_async_client}
 
             messages = [{"role": "user", "content": "Say hello"}]
@@ -310,16 +315,19 @@ class TestTokenStreaming:
         with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
             handler = BYOKHandler()
 
+            # Create async generator properly
+            async def mock_stream_generator():
+                chunk = MagicMock()
+                chunk.choices = [MagicMock()]
+                chunk.choices[0].delta = MagicMock()
+                chunk.choices[0].delta.content = "test"
+                yield chunk
+
+            async def mock_create(*args, **kwargs):
+                return mock_stream_generator()
+
             mock_async_client = AsyncMock()
-            mock_stream = AsyncMock()
-
-            chunk = MagicMock()
-            chunk.choices = [MagicMock()]
-            chunk.choices[0].delta = MagicMock()
-            chunk.choices[0].delta.content = "test"
-
-            mock_stream.__aiter__ = AsyncMock(return_value=iter([chunk]))
-            mock_async_client.chat.completions.create = AsyncMock(return_value=mock_stream)
+            mock_async_client.chat.completions.create = mock_create
             handler.async_clients = {"openai": mock_async_client}
 
             messages = [{"role": "user", "content": "test"}]
@@ -339,16 +347,19 @@ class TestTokenStreaming:
         with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
             handler = BYOKHandler()
 
+            # Create async generator properly
+            async def mock_stream_generator():
+                chunk = MagicMock()
+                chunk.choices = [MagicMock()]
+                chunk.choices[0].delta = MagicMock()
+                chunk.choices[0].delta.content = None
+                yield chunk
+
+            async def mock_create(*args, **kwargs):
+                return mock_stream_generator()
+
             mock_async_client = AsyncMock()
-            mock_stream = AsyncMock()
-
-            chunk = MagicMock()
-            chunk.choices = [MagicMock()]
-            chunk.choices[0].delta = MagicMock()
-            chunk.choices[0].delta.content = None
-
-            mock_stream.__aiter__ = AsyncMock(return_value=iter([chunk]))
-            mock_async_client.chat.completions.create = AsyncMock(return_value=mock_stream)
+            mock_async_client.chat.completions.create = mock_create
             handler.async_clients = {"openai": mock_async_client}
 
             messages = [{"role": "user", "content": "test"}]
@@ -369,16 +380,19 @@ class TestTokenStreaming:
         with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
             handler = BYOKHandler()
 
+            # Create async generator properly
+            async def mock_stream_generator():
+                chunk = MagicMock()
+                chunk.choices = [MagicMock()]
+                chunk.choices[0].delta = MagicMock()
+                chunk.choices[0].delta.content = "limited content"
+                yield chunk
+
+            async def mock_create(*args, **kwargs):
+                return mock_stream_generator()
+
             mock_async_client = AsyncMock()
-            mock_stream = AsyncMock()
-
-            chunk = MagicMock()
-            chunk.choices = [MagicMock()]
-            chunk.choices[0].delta = MagicMock()
-            chunk.choices[0].delta.content = "limited content"
-
-            mock_stream.__aiter__ = AsyncMock(return_value=iter([chunk]))
-            mock_async_client.chat.completions.create = AsyncMock(return_value=mock_stream)
+            mock_async_client.chat.completions.create = mock_create
             handler.async_clients = {"openai": mock_async_client}
 
             messages = [{"role": "user", "content": "test"}]
@@ -945,83 +959,88 @@ class TestContextWindowManagementExtended:
         """Test context window falls back to static pricing when unavailable."""
         mock_byok_manager = MagicMock()
 
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = None
-            mock_fetcher.return_value = fetcher
+            mock_get_fetcher.return_value = fetcher
 
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            window = handler.get_context_window("unknown-model")
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                window = handler.get_context_window("unknown-model")
 
-            # Should return safe default
-            assert window > 0
+                # Should return safe default
+                assert window > 0
 
     def test_context_window_uses_max_input_tokens(self):
         """Test context window uses max_input_tokens when available."""
         mock_byok_manager = MagicMock()
 
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_input_tokens": 32000}
-            mock_fetcher.return_value = fetcher
+            mock_get_fetcher.return_value = fetcher
 
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            window = handler.get_context_window("model-with-max-input")
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                window = handler.get_context_window("model-with-max-input")
 
-            assert window == 32000
+                assert window == 32000
 
     def test_context_window_uses_max_tokens_fallback(self):
         """Test context window falls back to max_tokens when max_input_tokens missing."""
         mock_byok_manager = MagicMock()
 
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_tokens": 8192}
-            mock_fetcher.return_value = fetcher
+            mock_get_fetcher.return_value = fetcher
 
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            window = handler.get_context_window("model-with-max-tokens")
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                window = handler.get_context_window("model-with-max-tokens")
 
-            assert window == 8192
+                assert window == 8192
 
     def test_context_window_no_pricing_uses_safe_default(self):
         """Test unknown model without pricing uses conservative default."""
         mock_byok_manager = MagicMock()
 
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("Service unavailable")
-            mock_fetcher.return_value = fetcher
+            mock_get_fetcher.return_value = fetcher
 
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            window = handler.get_context_window("completely-unknown-model")
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                window = handler.get_context_window("completely-unknown-model")
 
-            # Conservative default
-            assert window == 4096
+                # Conservative default
+                assert window == 4096
 
     def test_context_window_known_model_defaults(self):
         """Test context window for known model defaults."""
         mock_byok_manager = MagicMock()
 
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
-            mock_fetcher.return_value = fetcher
+            mock_get_fetcher.return_value = fetcher
 
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
-            # Test known model defaults
-            assert handler.get_context_window("gpt-4o") == 128000
-            assert handler.get_context_window("gpt-4o-mini") == 128000
-            assert handler.get_context_window("gpt-4") == 8192
-            assert handler.get_context_window("claude-3") == 200000
-            assert handler.get_context_window("deepseek-chat") == 32768
-            assert handler.get_context_window("gemini-flash") == 1000000
+                # Test known model defaults
+                assert handler.get_context_window("gpt-4o") == 128000
+                assert handler.get_context_window("gpt-4o-mini") == 128000
+                assert handler.get_context_window("gpt-4") == 8192
+                assert handler.get_context_window("claude-3") == 200000
+                assert handler.get_context_window("deepseek-chat") == 32768
+                assert handler.get_context_window("gemini-flash") == 1000000
 
 
 # ============================================================================
@@ -1034,15 +1053,22 @@ class TestTextTruncationExtended:
     def test_truncate_to_context_exact_fit(self):
         """Test truncation when text exactly fits context window."""
         mock_byok_manager = MagicMock()
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            text = "A" * 100  # 100 chars
 
-        with patch.object(handler, 'get_context_window', return_value=100):
-            result = handler.truncate_to_context(text, "model")
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.return_value = {"max_input_tokens": 128000}
+            mock_get_fetcher.return_value = fetcher
 
-            # Should not be truncated
-            assert result == text
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                text = "A" * 100  # 100 chars
+
+                with patch.object(handler, 'get_context_window', return_value=100):
+                    result = handler.truncate_to_context(text, "model")
+
+                    # Should not be truncated
+                    assert result == text
 
     def test_truncate_to_context_needs_truncation(self):
         """Test truncation when text exceeds context window."""
@@ -1587,25 +1613,29 @@ class TestCostTracking:
 
     def test_cost_calculation_with_dynamic_pricing(self, mock_byok_manager):
         """Test cost calculation using dynamic pricing fetcher"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock dynamic pricing BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            pricing_data = {
+                "input_cost_per_token": 0.00001,
+                "output_cost_per_token": 0.00002
+            }
+            fetcher.get_model_price.return_value = pricing_data
+            mock_get_fetcher.return_value = fetcher
 
-            # Mock client
-            mock_client = MagicMock()
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "Response text"
-            mock_response.usage.prompt_tokens = 100
-            mock_response.usage.completion_tokens = 50
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
-            mock_client.chat.completions.create.return_value = mock_response
-            handler.clients = {"openai": mock_client}
+                # Mock client
+                mock_client = MagicMock()
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Response text"
+                mock_response.usage.prompt_tokens = 100
+                mock_response.usage.completion_tokens = 50
 
-            # Mock dynamic pricing
-            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
-                mock_pricing = MagicMock()
-                mock_pricing.estimate_cost.return_value = 0.001  # $0.001
-                mock_fetcher.return_value = mock_pricing
+                mock_client.chat.completions.create.return_value = mock_response
+                handler.clients = {"openai": mock_client}
 
                 # Mock usage tracker
                 with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
@@ -1621,22 +1651,24 @@ class TestCostTracking:
 
     def test_cost_fallback_to_static_pricing(self, mock_byok_manager):
         """Test cost calculation falls back to static pricing when dynamic unavailable"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock dynamic pricing failure BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.side_effect = Exception("No pricing")
+            mock_get_fetcher.return_value = fetcher
 
-            mock_client = MagicMock()
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "Response"
-            mock_response.usage.prompt_tokens = 100
-            mock_response.usage.completion_tokens = 50
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
-            mock_client.chat.completions.create.return_value = mock_response
-            handler.clients = {"openai": mock_client}
+                mock_client = MagicMock()
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Response"
+                mock_response.usage.prompt_tokens = 100
+                mock_response.usage.completion_tokens = 50
 
-            # Mock dynamic pricing failure
-            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
-                mock_fetcher.return_value.estimate_cost.return_value = None
+                mock_client.chat.completions.create.return_value = mock_response
+                handler.clients = {"openai": mock_client}
 
                 # Mock static pricing fallback
                 with patch('core.llm.byok_handler.get_llm_cost') as mock_static:
@@ -1655,22 +1687,28 @@ class TestCostTracking:
 
     def test_savings_calculation(self, mock_byok_manager):
         """Test savings calculation against reference cost (gpt-4o)"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock dynamic pricing BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            # DeepSeek: $0.0001, GPT-4o reference: $0.001
+            fetcher.get_model_price.side_effect = [
+                {"input_cost_per_token": 0.000001, "output_cost_per_token": 0.000001},
+                {"input_cost_per_token": 0.00001, "output_cost_per_token": 0.00001}
+            ]
+            mock_get_fetcher.return_value = fetcher
 
-            mock_client = MagicMock()
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "Response"
-            mock_response.usage.prompt_tokens = 100
-            mock_response.usage.completion_tokens = 50
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
-            mock_client.chat.completions.create.return_value = mock_response
-            handler.clients = {"deepseek": mock_client}
+                mock_client = MagicMock()
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Response"
+                mock_response.usage.prompt_tokens = 100
+                mock_response.usage.completion_tokens = 50
 
-            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
-                # DeepSeek: $0.0001, GPT-4o reference: $0.001
-                mock_fetcher.return_value.estimate_cost.side_effect = [0.0001, 0.001]
+                mock_client.chat.completions.create.return_value = mock_response
+                handler.clients = {"deepseek": mock_client}
 
                 with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
                     import asyncio
@@ -1948,17 +1986,18 @@ class TestContextWindowExtended:
 
     def test_context_window_dynamic_pricing(self, mock_byok_manager):
         """Test context window from dynamic pricing"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock dynamic pricing with context window BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            mock_pricing = {
+                "max_input_tokens": 128000,
+                "max_tokens": 128000
+            }
+            fetcher.get_model_price.return_value = mock_pricing
+            mock_get_fetcher.return_value = fetcher
 
-            # Mock dynamic pricing with context window
-            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
-                mock_pricing = {
-                    "max_input_tokens": 128000,
-                    "max_tokens": 128000
-                }
-                mock_fetcher.return_value.get_model_price.return_value = mock_pricing
-
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
                 context = handler.get_context_window("gpt-4o")
 
                 # Should use dynamic pricing value
@@ -1966,11 +2005,14 @@ class TestContextWindowExtended:
 
     def test_context_window_fallback_to_defaults(self, mock_byok_manager):
         """Test context window falls back to safe defaults"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock pricing fetcher failure BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.side_effect = Exception("No pricing")
+            mock_get_fetcher.return_value = fetcher
 
-            # Mock pricing fetcher failure
-            with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception):
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
                 context = handler.get_context_window("gpt-4o")
 
                 # Should use safe default for gpt-4o
@@ -1992,16 +2034,22 @@ class TestContextWindowExtended:
 
     def test_truncate_with_reserve_tokens(self, mock_byok_manager):
         """Test truncation respects reserve tokens for response"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
+        # Mock pricing fetcher BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.return_value = {"max_input_tokens": 128000}
+            mock_get_fetcher.return_value = fetcher
 
-            # Create text slightly under context window
-            text = "A" * 500000  # ~125K tokens
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
-            truncated = handler.truncate_to_context(text, "gpt-4o", reserve_tokens=2000)
+                # Create text slightly under context window
+                text = "A" * 500000  # ~125K tokens
 
-            # Should reserve space for 2000 tokens
-            assert len(truncated) < len(text)
+                truncated = handler.truncate_to_context(text, "gpt-4o", reserve_tokens=2000)
+
+                # Should reserve space for 2000 tokens
+                assert len(truncated) < len(text)
 
 
 class TestStreamingFixed:
@@ -2023,9 +2071,11 @@ class TestStreamingFixed:
                 for chunk in chunks:
                     yield chunk
 
-            mock_async_client = MagicMock()
-            mock_async_client.chat.completions.create = MagicMock(return_value=mock_stream_generator())
+            async def mock_create(*args, **kwargs):
+                return mock_stream_generator()
 
+            mock_async_client = MagicMock()
+            mock_async_client.chat.completions.create = mock_create
             handler.async_clients = {"openai": mock_async_client}
 
             messages = [{"role": "user", "content": "Say hello"}]
@@ -2047,19 +2097,22 @@ class TestProviderRanking:
 
     def test_bpc_ranking_with_dynamic_pricing(self, mock_byok_manager):
         """Test BPC (Benchmark-Price-Capability) ranking"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-
-            # Mock dynamic pricing cache
-            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
-                mock_fetcher.return_value.pricing_cache = {
-                    "deepseek-chat": {
-                        "litellm_provider": "deepseek",
-                        "max_input_tokens": 16000,
-                        "input_cost_per_token": 0.000002,
-                        "output_cost_per_token": 0.000002
-                    }
+        # Mock dynamic pricing BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.pricing_cache = {
+                "deepseek-chat": {
+                    "litellm_provider": "deepseek",
+                    "max_input_tokens": 16000,
+                    "input_cost_per_token": 0.000002,
+                    "output_cost_per_token": 0.000002
                 }
+            }
+            fetcher.get_model_price.return_value = fetcher.pricing_cache["deepseek-chat"]
+            mock_get_fetcher.return_value = fetcher
+
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
 
                 with patch('core.llm.byok_handler.get_quality_score', return_value=85):
                     handler.clients = {"deepseek": MagicMock()}
@@ -2075,12 +2128,16 @@ class TestProviderRanking:
 
     def test_static_fallback_provider_ranking(self, mock_byok_manager):
         """Test static fallback when BPC ranking unavailable"""
-        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-            handler = BYOKHandler()
-            handler.clients = {"deepseek": MagicMock()}
+        # Mock BPC failure BEFORE handler init
+        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+            fetcher = MagicMock()
+            fetcher.get_model_price.side_effect = Exception("No pricing")
+            mock_get_fetcher.return_value = fetcher
 
-            # Mock BPC failure
-            with patch('core.llm.byok_handler.get_pricing_fetcher', side_effect=Exception):
+            with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+                handler = BYOKHandler()
+                handler.clients = {"deepseek": MagicMock()}
+
                 options = handler.get_ranked_providers(
                     complexity=QueryComplexity.SIMPLE,
                     tenant_plan="free",
@@ -3166,3 +3223,444 @@ class TestTokenCountingAndVision:
 
                 # Should use specialized OCR model
                 assert mock_client.chat.completions.create.called
+
+class TestCognitiveTierGeneration:
+    """Test generate_with_cognitive_tier method covering lines 835-965"""
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_success(self, mock_byok_manager):
+        """Test normal flow with tier selection and successful generation"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock CognitiveTierService
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o-mini")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', return_value="Test response"):
+                result = await handler.generate_with_cognitive_tier(
+                    prompt="Test prompt",
+                    system_instruction="You are helpful"
+                )
+
+                assert result["response"] == "Test response"
+                assert result["tier"] == "standard"
+                assert result["provider"] == "openai"
+                assert result["model"] == "gpt-4o-mini"
+                assert result["cost_cents"] == 1
+                assert result["escalated"] is False
+                assert "request_id" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_budget_exceeded(self, mock_byok_manager):
+        """Test budget check blocks generation"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock budget check fails
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 100}
+            mock_tier_service.check_budget_constraint.return_value = False
+
+            handler.tier_service = mock_tier_service
+
+            result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+            assert "error" in result
+            assert result["error"] == "Budget exceeded"
+            assert result["tier"] == "standard"
+            assert result["estimated_cost_cents"] == 100
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_no_models_available(self, mock_byok_manager):
+        """Test returns error when no models available for tier"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock no models available
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.MICRO
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 0.5}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = (None, None)
+
+            handler.tier_service = mock_tier_service
+
+            result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+            assert "error" in result
+            assert result["error"] == "No models available for this tier"
+            assert result["tier"] == "micro"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_escalation_success(self, mock_byok_manager):
+        """Test tier escalation on quality issues"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+        from core.llm.escalation_manager import EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock escalation flow
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+
+            # First call returns STANDARD model, second returns VERSATILE after escalation
+            mock_tier_service.get_optimal_model.side_effect = [
+                ("openai", "gpt-4o-mini"),
+                ("anthropic", "claude-3.5-sonnet")
+            ]
+
+            # First call triggers escalation, second doesn't
+            mock_tier_service.handle_escalation.side_effect = [
+                (True, EscalationReason.LOW_CONFIDENCE, CognitiveTier.VERSATILE),
+                (False, None, None)
+            ]
+
+            handler.tier_service = mock_tier_service
+
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', return_value="Improved response"):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                assert result["response"] == "Improved response"
+                assert result["tier"] == "versatile"  # Escalated tier
+                assert result["provider"] == "anthropic"
+                assert result["model"] == "claude-3.5-sonnet"
+                assert result["escalated"] is True
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_escalation_rate_limit(self, mock_byok_manager):
+        """Test escalation on rate limit error"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+        from core.llm.escalation_manager import EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.side_effect = [
+                ("openai", "gpt-4o-mini"),
+                ("anthropic", "claude-3.5-sonnet")
+            ]
+
+            # Rate limit escalation
+            mock_tier_service.handle_escalation.side_effect = [
+                (True, EscalationReason.RATE_LIMITED, CognitiveTier.VERSATILE),
+                (False, None, None)
+            ]
+
+            handler.tier_service = mock_tier_service
+
+            # Mock generate_response - first call raises rate limit error
+            async def mock_generate_with_rate_limit(*args, **kwargs):
+                call_count = mock_tier_service.get_optimal_model.call_count
+                if call_count == 1:
+                    raise Exception("Rate limit exceeded")
+                return "Retry response"
+
+            with patch.object(handler, 'generate_response', side_effect=mock_generate_with_rate_limit):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                assert result["response"] == "Retry response"
+                assert result["escalated"] is True
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_max_escalations_reached(self, mock_byok_manager):
+        """Test returns response after max escalations reached"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+        from core.llm.escalation_manager import EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+
+            # Multiple escalation attempts
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o-mini")
+
+            # Always return escalation trigger (will hit max_escalations limit)
+            mock_tier_service.handle_escalation.return_value = (
+                True, EscalationReason.LOW_CONFIDENCE, CognitiveTier.VERSATILE
+            )
+
+            handler.tier_service = mock_tier_service
+
+            # Don't mock generate_response - let it run through the loop
+            # After max escalations, it returns "Max escalation limit reached"
+            result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+            # Should return response after max escalations
+            assert result["response"] == "Max escalation limit reached"
+            assert result["tier"] == "versatile"  # Last escalated tier
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_escalation_no_fallback(self, mock_byok_manager):
+        """Test returns error when escalation fails and no fallback available"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+        from core.llm.escalation_manager import EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+
+            # First model available, escalated tier has no models
+            mock_tier_service.get_optimal_model.side_effect = [
+                ("openai", "gpt-4o-mini"),
+                (None, None)  # No fallback model
+            ]
+
+            mock_tier_service.handle_escalation.return_value = (
+                True, EscalationReason.ERROR_RESPONSE, CognitiveTier.VERSATILE
+            )
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Partial response"):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                # Should return original response when escalation fails
+                assert result["response"] == "Partial response"
+                assert result["tier"] == "standard"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_with_system_instruction(self, mock_byok_manager):
+        """Test passes system instruction through to generate_response"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            # Mock generate_response to verify system instruction passed
+            with patch.object(handler, 'generate_response', return_value="Response") as mock_gen:
+                result = await handler.generate_with_cognitive_tier(
+                    prompt="Test",
+                    system_instruction="You are a coding assistant"
+                )
+
+                mock_gen.assert_called_once()
+                call_kwargs = mock_gen.call_args[1]
+                assert call_kwargs["system_instruction"] == "You are a coding assistant"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_with_image_payload(self, mock_byok_manager):
+        """Test handles vision requests with image_payload"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.VERSATILE
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 2}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            # Mock generate_response to verify image payload passed
+            with patch.object(handler, 'generate_response', return_value="Image analysis") as mock_gen:
+                result = await handler.generate_with_cognitive_tier(
+                    prompt="What's in this image?",
+                    image_payload="base64_imagedata"
+                )
+
+                mock_gen.assert_called_once()
+                call_kwargs = mock_gen.call_args[1]
+                assert call_kwargs["image_payload"] == "base64_imagedata"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_user_tier_override(self, mock_byok_manager):
+        """Test respects user_tier_override parameter"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            # User override should be passed to select_tier
+            mock_tier_service.select_tier.return_value = CognitiveTier.HEAVY
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 5}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("anthropic", "claude-3-opus")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Premium response"):
+                result = await handler.generate_with_cognitive_tier(
+                    prompt="Complex task",
+                    user_tier_override=CognitiveTier.HEAVY
+                )
+
+                mock_tier_service.select_tier.assert_called_once()
+                # Verify override passed as third positional arg
+                call_args = mock_tier_service.select_tier.call_args[0]
+                assert len(call_args) >= 3
+                assert call_args[2] == CognitiveTier.HEAVY
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_task_type_agentic(self, mock_byok_manager):
+        """Test sets requires_tools=True for agentic task type"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.VERSATILE
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 2}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Agent response"):
+                result = await handler.generate_with_cognitive_tier(
+                    prompt="Execute task",
+                    task_type="agentic"
+                )
+
+                # Verify get_optimal_model called with requires_tools=True
+                mock_tier_service.get_optimal_model.assert_called_once()
+                call_args = mock_tier_service.get_optimal_model.call_args[0]
+                assert call_args[2] is True  # requires_tools
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_request_id_tracking(self, mock_byok_manager):
+        """Test generates unique request ID in response"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o-mini")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Response"):
+                result1 = await handler.generate_with_cognitive_tier(prompt="Test1")
+                result2 = await handler.generate_with_cognitive_tier(prompt="Test2")
+
+                # Each request should have unique ID
+                assert result1["request_id"] != result2["request_id"]
+                assert len(result1["request_id"]) > 0  # UUID format
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_cost_tracking(self, mock_byok_manager):
+        """Test returns estimated cost in response"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1.5, "tokens": 250}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("openai", "gpt-4o-mini")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Response"):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                assert "cost_cents" in result
+                assert result["cost_cents"] == 1.5
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_provider_selection(self, mock_byok_manager):
+        """Test returns provider and model in response"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.return_value = ("deepseek", "deepseek-chat")
+            mock_tier_service.handle_escalation.return_value = (False, None, None)
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Response"):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                assert result["provider"] == "deepseek"
+                assert result["model"] == "deepseek-chat"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_escalated_flag(self, mock_byok_manager):
+        """Test sets escalated=True when escalation occurred"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+        from core.llm.escalation_manager import EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier.return_value = CognitiveTier.STANDARD
+            mock_tier_service.calculate_request_cost.return_value = {"cost_cents": 1}
+            mock_tier_service.check_budget_constraint.return_value = True
+            mock_tier_service.get_optimal_model.side_effect = [
+                ("openai", "gpt-4o-mini"),
+                ("anthropic", "claude-3.5-sonnet")
+            ]
+
+            # Trigger escalation on first call
+            mock_tier_service.handle_escalation.side_effect = [
+                (True, EscalationReason.QUALITY_THRESHOLD, CognitiveTier.VERSATILE),
+                (False, None, None)
+            ]
+
+            handler.tier_service = mock_tier_service
+
+            with patch.object(handler, 'generate_response', return_value="Improved response"):
+                result = await handler.generate_with_cognitive_tier(prompt="Test")
+
+                assert result["escalated"] is True
