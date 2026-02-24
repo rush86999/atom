@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Coverage Report Generator
 
@@ -6,10 +7,10 @@ Generates comprehensive coverage reports for the Atom backend.
 Produces JSON metrics, HTML reports, and markdown documentation.
 
 Usage:
-    python coverage_report_generator.py              # Generate all reports
-    python coverage_report_generator.py json         # JSON only
-    python coverage_report_generator.py html         # HTML only
-    python coverage_report_generator.py markdown     # Markdown only
+    python3 coverage_report_generator.py              # Generate all reports
+    python3 coverage_report_generator.py json         # JSON only
+    python3 coverage_report_generator.py html         # HTML only
+    python3 coverage_report_generator.py markdown     # Markdown only
 
 Output:
     metrics/coverage.json - Machine-readable coverage metrics
@@ -23,7 +24,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 
 # Configuration
@@ -42,7 +42,7 @@ SOURCE_DIRS = ["core", "api", "tools"]
 BASELINE_COVERAGE = 5.13
 
 
-def run_pytest_coverage() -> Tuple[bool, str]:
+def run_pytest_coverage():
     """
     Run pytest with coverage enabled.
 
@@ -52,12 +52,12 @@ def run_pytest_coverage() -> Tuple[bool, str]:
     print("Running pytest with coverage...")
 
     cmd = [
-        "python", "-m", "pytest",
+        "python3", "-m", "pytest",
         "--cov=core",
         "--cov=api",
         "--cov=tools",
         "--cov-report=json",
-        f"--cov-report=html:{HTML_DIR}",
+        "--cov-report=html:{}".format(HTML_DIR),
         "--cov-report=term-missing",
         "-v",
         "--tb=short"
@@ -79,10 +79,10 @@ def run_pytest_coverage() -> Tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, "Error: pytest timed out after 5 minutes"
     except Exception as e:
-        return False, f"Error running pytest: {e}"
+        return False, "Error running pytest: {}".format(e)
 
 
-def parse_coverage_json(filepath: Path) -> Optional[Dict[str, Any]]:
+def parse_coverage_json(filepath):
     """
     Load and parse coverage.json.
 
@@ -93,21 +93,21 @@ def parse_coverage_json(filepath: Path) -> Optional[Dict[str, Any]]:
         Parsed coverage data or None if error
     """
     if not filepath.exists():
-        print(f"Error: {filepath} not found")
+        print("Error: {} not found".format(filepath))
         return None
 
     try:
         with open(filepath, 'r') as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in {filepath}: {e}")
+        print("Error: Invalid JSON in {}: {}".format(filepath, e))
         return None
     except Exception as e:
-        print(f"Error reading {filepath}: {e}")
+        print("Error reading {}: {}".format(filepath, e))
         return None
 
 
-def get_file_coverage(coverage_data: Dict[str, Any], file_path: str) -> Optional[Dict[str, Any]]:
+def get_file_coverage(coverage_data, file_path):
     """
     Get coverage for a specific file.
 
@@ -130,14 +130,14 @@ def get_file_coverage(coverage_data: Dict[str, Any], file_path: str) -> Optional
         return files[normalized_path]
 
     # Try with 'backend/' prefix
-    with_backend = f"backend/{normalized_path}"
+    with_backend = "backend/{}".format(normalized_path)
     if with_backend in files:
         return files[with_backend]
 
     return None
 
 
-def get_module_summary(coverage_data: Dict[str, Any], module_name: str) -> Dict[str, Any]:
+def get_module_summary(coverage_data, module_name):
     """
     Get summary for a specific module (core/api/tools).
 
@@ -151,10 +151,10 @@ def get_module_summary(coverage_data: Dict[str, Any], module_name: str) -> Dict[
     files = coverage_data.get("files", {})
 
     # Filter files for this module
-    module_files = {
-        path: data for path, data in files.items()
-        if path.startswith(f"backend/{module_name}/") or path.startswith(f"{module_name}/")
-    }
+    module_files = {}
+    for path, data in files.items():
+        if path.startswith("backend/{}/".format(module_name)) or path.startswith("{}/".format(module_name)):
+            module_files[path] = data
 
     if not module_files:
         return {
@@ -166,14 +166,12 @@ def get_module_summary(coverage_data: Dict[str, Any], module_name: str) -> Dict[
 
     # Aggregate metrics
     total_files = len(module_files)
-    total_lines = sum(
-        data.get("summary", {}).get("num_statements", 0)
-        for data in module_files.values()
-    )
-    total_covered = sum(
-        data.get("summary", {}).get("covered_lines", 0)
-        for data in module_files.values()
-    )
+    total_lines = 0
+    total_covered = 0
+
+    for data in module_files.values():
+        total_lines += data.get("summary", {}).get("num_statements", 0)
+        total_covered += data.get("summary", {}).get("covered_lines", 0)
 
     coverage_percent = (total_covered / total_lines * 100) if total_lines > 0 else 0.0
 
@@ -185,7 +183,7 @@ def get_module_summary(coverage_data: Dict[str, Any], module_name: str) -> Dict[
     }
 
 
-def calculate_coverage_trend(current: float, baseline: float) -> Dict[str, Any]:
+def calculate_coverage_trend(current, baseline):
     """
     Calculate coverage improvement over baseline.
 
@@ -207,7 +205,7 @@ def calculate_coverage_trend(current: float, baseline: float) -> Dict[str, Any]:
     }
 
 
-def get_coverage_distribution(coverage_data: Dict[str, Any]) -> Dict[str, List[str]]:
+def get_coverage_distribution(coverage_data):
     """
     Calculate coverage distribution across files.
 
@@ -254,7 +252,7 @@ def get_coverage_distribution(coverage_data: Dict[str, Any]) -> Dict[str, List[s
     return distribution
 
 
-def get_top_files_by_uncovered(coverage_data: Dict[str, Any], limit: int = 50) -> List[Dict[str, Any]]:
+def get_top_files_by_uncovered(coverage_data, limit=50):
     """
     Get top files with most uncovered lines.
 
@@ -294,7 +292,7 @@ def get_top_files_by_uncovered(coverage_data: Dict[str, Any], limit: int = 50) -
     return file_metrics[:limit]
 
 
-def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -> bool:
+def generate_markdown_report(coverage_data, output_path):
     """
     Generate comprehensive markdown coverage report.
 
@@ -305,7 +303,7 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
     Returns:
         True if successful
     """
-    print(f"Generating markdown report: {output_path}")
+    print("Generating markdown report: {}".format(output_path))
 
     totals = coverage_data.get("totals", {})
     overall_coverage = totals.get("percent_covered", 0.0)
@@ -328,7 +326,6 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
 
     # Calculate distribution stats
     total_files = sum(len(files) for files in distribution.values())
-    total_files_str = str(total_files) if total_files > 0 else "0"
 
     # Generate markdown
     lines = []
@@ -336,28 +333,28 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
     # Header
     lines.append("# Coverage Report v3.2 - Baseline for Bug Finding & Coverage Expansion")
     lines.append("")
-    lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d')}")
-    lines.append(f"**Phase:** 81-01")
+    lines.append("**Generated:** {}".format(datetime.now().strftime('%Y-%m-%d')))
+    lines.append("**Phase:** 81-01")
     lines.append("")
 
     # Executive Summary
     lines.append("## Executive Summary")
     lines.append("")
-    lines.append(f"**Overall Coverage: {overall_coverage:.2f}%**")
+    lines.append("**Overall Coverage: {:.2f}%**".format(overall_coverage))
     lines.append("")
     lines.append("| Metric | Value |")
     lines.append("|--------|-------|")
-    lines.append(f"| Lines Covered | {lines_covered:,} |")
-    lines.append(f"| Lines Missing | {lines_total - lines_covered:,} |")
-    lines.append(f"| Total Lines | {lines_total:,} |")
-    lines.append(f"| Coverage vs Baseline | {trend['absolute_change']:+.2f}% ({trend['relative_change']:+.1f}% change) |")
-    lines.append(f"| Improvement Factor | {trend['improvement_factor']:.2f}x |")
+    lines.append("| Lines Covered | {:,} |".format(lines_covered))
+    lines.append("| Lines Missing | {:,} |".format(lines_total - lines_covered))
+    lines.append("| Total Lines | {:,} |".format(lines_total))
+    lines.append("| Coverage vs Baseline | {:+.2f}% ({:+.1f}% change) |".format(trend['absolute_change'], trend['relative_change']))
+    lines.append("| Improvement Factor | {:.2f}x |".format(trend['improvement_factor']))
     lines.append("")
 
     if overall_coverage > BASELINE_COVERAGE:
-        lines.append(f"✅ Coverage has **improved** by {trend['absolute_change']:.2f} percentage points since baseline (5.13%).")
+        lines.append("Coverage has **improved** by {:.2f} percentage points since baseline (5.13%).".format(trend['absolute_change']))
     else:
-        lines.append(f"⚠️ Coverage has **decreased** by {abs(trend['absolute_change']):.2f} percentage points since baseline (5.13%).")
+        lines.append("Coverage has **decreased** by {:.2f} percentage points since baseline (5.13%).".format(abs(trend['absolute_change'])))
 
     lines.append("")
 
@@ -366,21 +363,24 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
     lines.append("")
     lines.append("| Module | Files | Lines | Covered | Coverage |")
     lines.append("|--------|-------|-------|---------|----------|")
-    lines.append(f"| core | {core_summary['files']:,} | {core_summary['lines']:,} | {core_summary['covered']:,} | {core_summary['coverage_percent']:.2f}% |")
-    lines.append(f"| api | {api_summary['files']:,} | {api_summary['lines']:,} | {api_summary['covered']:,} | {api_summary['coverage_percent']:.2f}% |")
-    lines.append(f"| tools | {tools_summary['files']:,} | {tools_summary['lines']:,} | {tools_summary['covered']:,} | {tools_summary['coverage_percent']:.2f}% |")
+    lines.append("| core | {:,} | {:,} | {:,} | {:.2f}% |".format(
+        core_summary['files'], core_summary['lines'], core_summary['covered'], core_summary['coverage_percent']))
+    lines.append("| api | {:,} | {:,} | {:,} | {:.2f}% |".format(
+        api_summary['files'], api_summary['lines'], api_summary['covered'], api_summary['coverage_percent']))
+    lines.append("| tools | {:,} | {:,} | {:,} | {:.2f}% |".format(
+        tools_summary['files'], tools_summary['lines'], tools_summary['covered'], tools_summary['coverage_percent']))
     lines.append("")
 
     # Coverage Distribution
     lines.append("## Coverage Distribution")
     lines.append("")
-    lines.append(f"**Total Files Analyzed:** {total_files_str}")
+    lines.append("**Total Files Analyzed:** {:,}".format(total_files))
     lines.append("")
 
-    for range_name, files in distribution.items():
-        file_count = len(files)
+    for range_name, files_list in distribution.items():
+        file_count = len(files_list)
         percentage = (file_count / total_files * 100) if total_files > 0 else 0
-        lines.append(f"- **{range_name} coverage:** {file_count} files ({percentage:.1f}%)")
+        lines.append("- **{} coverage:** {} files ({:.1f}%)".format(range_name, file_count, percentage))
 
     lines.append("")
 
@@ -405,15 +405,16 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
 
         # Determine priority
         if total > 200 and coverage < 30:
-            priority = "🔴 HIGH"
+            priority = "HIGH"
         elif total > 100 and coverage < 50:
-            priority = "🟡 MED"
+            priority = "MED"
         elif coverage < 10:
-            priority = "🟠 LOW"
+            priority = "LOW"
         else:
-            priority = "✅ OK"
+            priority = "OK"
 
-        lines.append(f"| {idx} | {filename} | {total} | {covered} | {coverage}% | {uncovered} | {priority} |")
+        lines.append("| {} | {} | {} | {} | {}% | {} | {} |".format(
+            idx, filename, total, covered, coverage, uncovered, priority))
 
     lines.append("")
 
@@ -432,9 +433,9 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
         lines.append("These files have significant code with minimal coverage - prioritize for testing:")
         lines.append("")
         for file_data in high_priority:
-            lines.append(f"- **{file_data['filename']}**")
-            lines.append(f"  - {file_data['total']:,} lines, {file_data['coverage']:.2f}% coverage")
-            lines.append(f"  - {file_data['uncovered']:,} uncovered lines")
+            lines.append("- **{}**".format(file_data['filename']))
+            lines.append("  - {:,} lines, {:.2f}% coverage".format(file_data['total'], file_data['coverage']))
+            lines.append("  - {:,} uncovered lines".format(file_data['uncovered']))
             lines.append("")
     else:
         lines.append("No files match the high-priority criteria (>200 lines, <30% coverage).")
@@ -443,16 +444,16 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
     # Data Sources
     lines.append("## Data Sources")
     lines.append("")
-    lines.append(f"- **Coverage Report:** `tests/coverage_reports/metrics/coverage.json`")
-    lines.append(f"- **HTML Report:** `tests/coverage_reports/html/index.html`")
-    lines.append(f"- **Test Execution:** pytest with pytest-cov")
+    lines.append("- **Coverage Report:** `tests/coverage_reports/metrics/coverage.json`")
+    lines.append("- **HTML Report:** `tests/coverage_reports/html/index.html`")
+    lines.append("- **Test Execution:** pytest with pytest-cov")
     lines.append("")
 
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append(f"**Report Generated:** {datetime.now().isoformat()}")
-    lines.append(f"**Phase:** 81-01 (Coverage Analysis & Prioritization)")
+    lines.append("**Report Generated:** {}".format(datetime.now().isoformat()))
+    lines.append("**Phase:** 81-01 (Coverage Analysis & Prioritization)")
     lines.append("")
 
     # Write to file
@@ -461,14 +462,14 @@ def generate_markdown_report(coverage_data: Dict[str, Any], output_path: Path) -
         with open(output_path, 'w') as f:
             f.write('\n'.join(lines))
 
-        print(f"✓ Generated markdown report: {output_path}")
+        print("Generated markdown report: {}".format(output_path))
         return True
     except Exception as e:
-        print(f"Error writing markdown report: {e}")
+        print("Error writing markdown report: {}".format(e))
         return False
 
 
-def generate_coverage_report(output_format: str = "all") -> Dict[str, Any]:
+def generate_coverage_report(output_format="all"):
     """
     Generate coverage report in specified format(s).
 
@@ -487,10 +488,10 @@ def generate_coverage_report(output_format: str = "all") -> Dict[str, Any]:
     success, output = run_pytest_coverage()
 
     if not success:
-        print("⚠️  Warning: pytest had failures, but coverage data may still be valid")
+        print("Warning: pytest had failures, but coverage data may still be valid")
         print(output)
     else:
-        print("✓ pytest completed successfully")
+        print("pytest completed successfully")
 
     print()
 
@@ -509,20 +510,20 @@ def generate_coverage_report(output_format: str = "all") -> Dict[str, Any]:
     lines_covered = totals.get("covered_lines", 0)
     lines_total = totals.get("num_statements", 0)
 
-    print(f"Overall Coverage: {overall_coverage:.2f}%")
-    print(f"Lines: {lines_covered:,} / {lines_total:,}")
+    print("Overall Coverage: {:.2f}%".format(overall_coverage))
+    print("Lines: {:,} / {:,}".format(lines_covered, lines_total))
     print()
 
     # Generate reports based on format
     if output_format in ["all", "json"]:
-        print(f"✓ JSON report: {COVERAGE_JSON}")
+        print("JSON report: {}".format(COVERAGE_JSON))
 
     if output_format in ["all", "html"]:
         if HTML_INDEX.exists():
-            print(f"✓ HTML report: {HTML_INDEX}")
-            print(f"  Open in browser: file://{HTML_INDEX.absolute()}")
+            print("HTML report: {}".format(HTML_INDEX))
+            print("  Open in browser: file://{}".format(HTML_INDEX.absolute()))
         else:
-            print(f"⚠️  HTML report not found at {HTML_INDEX}")
+            print("Warning: HTML report not found at {}".format(HTML_INDEX))
 
     if output_format in ["all", "markdown"]:
         generate_markdown_report(coverage_data, MARKDOWN_REPORT)
@@ -552,8 +553,8 @@ def main():
         if arg in ["json", "html", "markdown", "all"]:
             output_format = arg
         else:
-            print(f"Invalid format: {arg}")
-            print("Usage: python coverage_report_generator.py [json|html|markdown|all]")
+            print("Invalid format: {}".format(arg))
+            print("Usage: python3 coverage_report_generator.py [json|html|markdown|all]")
             sys.exit(1)
 
     # Generate report
