@@ -3852,9 +3852,18 @@ class TestStructuredResponseGeneration:
 
                         # Verify get_ranked_providers called with task_type
                         assert mock_ranked.call_count >= 1
-                        # Get the first call which should have our task_type
-                        call_args = mock_ranked.call_args_list[0] if mock_ranked.call_count > 1 else mock_ranked.call_args
-                        assert call_args[1]['task_type'] == "math"
+                        # Check if task_type appears in any call (positional or keyword)
+                        found_task_type = False
+                        for call in mock_ranked.call_args_list:
+                            # Check keyword args
+                            if 'task_type' in call[1] and call[1]['task_type'] == "math":
+                                found_task_type = True
+                                break
+                            # Check positional args (task_type is 2nd arg)
+                            elif len(call[0]) >= 2 and call[0][1] == "math":
+                                found_task_type = True
+                                break
+                        assert found_task_type, "task_type 'math' not found in get_ranked_providers calls"
 
     @pytest.mark.asyncio
     async def test_generate_structured_response_with_agent_id(self, mock_byok_manager):
