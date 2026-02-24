@@ -182,8 +182,8 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 **Plans**: 2 plans
 
-- [ ] 084-01-PLAN.md — Student training service unit tests (proposal generation, approval workflow, supervision monitoring, intervention tracking, 20+ tests)
-- [ ] 084-02-PLAN.md — Graduation service unit tests (criteria calculation, constitutional scoring, eligibility checks, promotion decisions, state transitions, 15+ tests)
+- [ ] 084-01-PLAN.md — Student training service unit tests (proposal generation, approval workflow, supervision monitoring, intervention tracking, 25+ tests)
+- [ ] 084-02-PLAN.md — Graduation service unit tests (criteria calculation, constitutional scoring, eligibility checks, promotion decisions, state transitions, 20+ tests)
 
 ---
 
