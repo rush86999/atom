@@ -31,15 +31,8 @@ try:
     )
     from atom_ai_integration import atom_ai_integration
     from atom_discord_integration import atom_discord_integration
-    from atom_enterprise_security_service import (
-        ComplianceStandard,
-        SecurityLevel,
-        atom_enterprise_security_service,
-    )
-    from atom_enterprise_unified_service import (
-        WorkflowSecurityLevel,
-        atom_enterprise_unified_service,
-    )
+    from atom_enterprise_security_service import atom_enterprise_security_service
+    from atom_enterprise_unified_service import atom_enterprise_unified_service
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
@@ -191,10 +184,10 @@ class AtomZoomIntegration:
         self.webhook_handlers: Dict[str, Callable] = {}
         self.command_handlers: Dict[str, Callable] = {}
         
-        # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
+        # Enterprise integration (use safe defaults if optional services didn't import)
+        self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
+        self.enterprise_automation = config.get('automation_service') or globals().get('atom_workflow_automation_service')
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -1168,7 +1161,7 @@ class AtomZoomIntegration:
             logger.error(f"Error closing Zoom integration: {e}")
 
 # Global Zoom integration instance
-atom_zoom_integration = AtomZoomIntegration({
+_zoom_config = {
     'api_key': os.getenv('ZOOM_API_KEY'),
     'api_secret': os.getenv('ZOOM_API_SECRET'),
     'client_id': os.getenv('ZOOM_CLIENT_ID'),
@@ -1180,7 +1173,17 @@ atom_zoom_integration = AtomZoomIntegration({
     'compliance_standards': ['SOC2', 'ISO27001', 'HIPAA'],
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
-})
+}
+
+# Add optional services if they were imported successfully
+_security_service = globals().get('atom_enterprise_security_service')
+if _security_service:
+    _zoom_config['security_service'] = _security_service
+_automation_service = globals().get('atom_workflow_automation_service')
+if _automation_service:
+    _zoom_config['automation_service'] = _automation_service
+_ai_service = globals().get('ai_enhanced_service')
+if _ai_service:
+    _zoom_config['ai_service'] = _ai_service
+
+atom_zoom_integration = AtomZoomIntegration(_zoom_config)

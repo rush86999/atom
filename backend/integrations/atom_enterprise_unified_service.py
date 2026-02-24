@@ -31,17 +31,7 @@ try:
     )
     from atom_ai_integration import atom_ai_integration
     from atom_discord_integration import atom_discord_integration
-    from atom_enterprise_security_service import (
-        AuditEventType,
-        ComplianceReport,
-        ComplianceStandard,
-        SecurityAudit,
-        SecurityLevel,
-        SecurityPolicy,
-        ThreatDetection,
-        ThreatType,
-        atom_enterprise_security_service,
-    )
+    from atom_enterprise_security_service import atom_enterprise_security_service
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
@@ -159,19 +149,26 @@ class AtomEnterpriseUnifiedService:
         self.db = config.get('database')
         self.cache = config.get('cache')
         
-        # Enterprise services
-        self.security_service = config.get('security_service') or atom_enterprise_security_service
+        # Enterprise services (use safe defaults if optional services didn't import)
+        self.security_service = config.get('security_service') or globals().get('atom_enterprise_security_service')
         self.workflow_service = config.get('workflow_service')
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
-        self.ai_integration = config.get('ai_integration') or atom_ai_integration
-        
-        # Platform integrations
-        self.platform_integrations = {
-            'slack': atom_slack_integration,
-            'teams': atom_teams_integration,
-            'google_chat': atom_google_chat_integration,
-            'discord': atom_discord_integration
-        }
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
+        self.ai_integration = config.get('ai_integration') or globals().get('atom_ai_integration')
+
+        # Platform integrations (use safe defaults if optional services didn't import)
+        self.platform_integrations = {}
+        _slack = globals().get('atom_slack_integration')
+        if _slack:
+            self.platform_integrations['slack'] = _slack
+        _teams = globals().get('atom_teams_integration')
+        if _teams:
+            self.platform_integrations['teams'] = _teams
+        _google_chat = globals().get('atom_google_chat_integration')
+        if _google_chat:
+            self.platform_integrations['google_chat'] = _google_chat
+        _discord = globals().get('atom_discord_integration')
+        if _discord:
+            self.platform_integrations['discord'] = _discord
         
         # Unified enterprise state
         self.is_initialized = False
@@ -1313,11 +1310,21 @@ class AtomEnterpriseUnifiedService:
         logger.info("Enterprise Unified Service closed")
 
 # Global enterprise unified service instance
-atom_enterprise_unified_service = AtomEnterpriseUnifiedService({
+_enterprise_config = {
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
     'workflow_service': None,  # Would be actual workflow service
-    'ai_service': ai_enhanced_service,
-    'ai_integration': atom_ai_integration
-})
+}
+
+# Add optional services if they were imported successfully
+_security_service = globals().get('atom_enterprise_security_service')
+if _security_service:
+    _enterprise_config['security_service'] = _security_service
+_ai_service = globals().get('ai_enhanced_service')
+if _ai_service:
+    _enterprise_config['ai_service'] = _ai_service
+_ai_integration = globals().get('atom_ai_integration')
+if _ai_integration:
+    _enterprise_config['ai_integration'] = _ai_integration
+
+atom_enterprise_unified_service = AtomEnterpriseUnifiedService(_enterprise_config)

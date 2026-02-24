@@ -12,6 +12,7 @@ Uses existing fixtures and Page Objects for fast, reliable tests.
 """
 
 import pytest
+from typing import Dict, Any
 from tests.e2e_ui.pages.page_objects import LoginPage, DashboardPage
 
 

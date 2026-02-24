@@ -35,11 +35,7 @@ try:
     )
     from atom_ai_integration import atom_ai_integration
     from atom_discord_integration import atom_discord_integration
-    from atom_enterprise_security_service import (
-        ComplianceStandard,
-        SecurityLevel,
-        atom_enterprise_security_service,
-    )
+    from atom_enterprise_security_service import atom_enterprise_security_service
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_hubspot_integration_service import atom_hubspot_integration_service
     from atom_quickbooks_integration_service import atom_quickbooks_integration_service
@@ -247,21 +243,34 @@ class AtomHealthcareCustomizationService:
         if self.healthcare_config['ehr_integration']:
             self.ehr_integration = self._initialize_ehr_integration()
         
-        # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
-        
-        # Platform integrations
-        self.platform_integrations = {
-            'slack': atom_slack_integration,
-            'teams': atom_teams_integration,
-            'google_chat': atom_google_chat_integration,
-            'discord': atom_discord_integration,
-            'telegram': atom_telegram_integration,
-            'whatsapp': atom_whatsapp_integration,
-            'zoom': atom_zoom_integration
-        }
+        # Enterprise integration (use safe defaults if optional services didn't import)
+        self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
+        self.enterprise_automation = config.get('automation_service') or globals().get('atom_workflow_automation_service')
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
+
+        # Platform integrations (use safe defaults if optional services didn't import)
+        self.platform_integrations = {}
+        _slack = globals().get('atom_slack_integration')
+        if _slack:
+            self.platform_integrations['slack'] = _slack
+        _teams = globals().get('atom_teams_integration')
+        if _teams:
+            self.platform_integrations['teams'] = _teams
+        _google_chat = globals().get('atom_google_chat_integration')
+        if _google_chat:
+            self.platform_integrations['google_chat'] = _google_chat
+        _discord = globals().get('atom_discord_integration')
+        if _discord:
+            self.platform_integrations['discord'] = _discord
+        _telegram = globals().get('atom_telegram_integration')
+        if _telegram:
+            self.platform_integrations['telegram'] = _telegram
+        _whatsapp = globals().get('atom_whatsapp_integration')
+        if _whatsapp:
+            self.platform_integrations['whatsapp'] = _whatsapp
+        _zoom = globals().get('atom_zoom_integration')
+        if _zoom:
+            self.platform_integrations['zoom'] = _zoom
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -1000,7 +1009,7 @@ class AtomHealthcareCustomizationService:
             logger.error(f"Error closing Healthcare Customization Service: {e}")
 
 # Global Healthcare Customization service instance
-atom_healthcare_customization_service = AtomHealthcareCustomizationService({
+_healthcare_config = {
     'hipaa_compliance': True,
     'hitech_compliance': True,
     'gdpr_compliance': True,
@@ -1025,7 +1034,17 @@ atom_healthcare_customization_service = AtomHealthcareCustomizationService({
     'healthcare_api_token': os.getenv('HEALTHCARE_API_TOKEN', 'your-api-token'),
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
-})
+}
+
+# Add optional services if they were imported successfully
+_security_service = globals().get('atom_enterprise_security_service')
+if _security_service:
+    _healthcare_config['security_service'] = _security_service
+_automation_service = globals().get('atom_workflow_automation_service')
+if _automation_service:
+    _healthcare_config['automation_service'] = _automation_service
+_ai_service = globals().get('ai_enhanced_service')
+if _ai_service:
+    _healthcare_config['ai_service'] = _ai_service
+
+atom_healthcare_customization_service = AtomHealthcareCustomizationService(_healthcare_config)

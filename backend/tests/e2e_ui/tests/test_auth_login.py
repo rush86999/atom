@@ -12,6 +12,7 @@ Run with: pytest backend/tests/e2e_ui/tests/test_auth_login.py -v
 """
 
 import pytest
+from typing import Dict, Any
 import uuid
 from playwright.sync_api import Page, expect
 from sqlalchemy.orm import Session

@@ -11,6 +11,7 @@ Tests use authenticated_page fixture for API-first authentication (10-100x faste
 """
 
 import pytest
+from typing import Dict, Any
 from playwright.sync_api import Page
 from tests.e2e_ui.pages.page_objects import SettingsPage, LoginPage
 
