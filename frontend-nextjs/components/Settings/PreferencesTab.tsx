@@ -29,13 +29,32 @@ export function PreferencesTab() {
         fetchPreferences();
     }, []);
 
+    const applyTheme = (theme: string) => {
+        const root = document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else if (theme === 'light') {
+            root.classList.remove('dark');
+        } else {
+            // system
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                root.classList.add('dark');
+            } else {
+                root.classList.remove('dark');
+            }
+        }
+    };
+
     const fetchPreferences = async () => {
         try {
             setLoading(true);
             const stored = localStorage.getItem('atom_preferences');
             if (stored) {
                 const data = JSON.parse(stored);
-                setPrefs({ ...DEFAULT_PREFS, ...data });
+                const merged = { ...DEFAULT_PREFS, ...data };
+                setPrefs(merged);
+                applyTheme(merged.theme);
             }
         } catch (error) {
             console.error("Failed to load preferences:", error);
@@ -52,6 +71,9 @@ export function PreferencesTab() {
 
         try {
             localStorage.setItem('atom_preferences', JSON.stringify(updated));
+            if (key === 'theme') {
+                applyTheme(value);
+            }
             toast.success("Saved");
         } catch (error) {
             console.error("Save error:", error);
