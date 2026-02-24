@@ -131,11 +131,14 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
   4. All tests use mocks appropriately (external services mocked, real database/session fixtures)
   5. Tests verify both success and failure paths (edge cases, error handling, boundary conditions)
 
-**Plans**: 3 plans
+**Plans**: 6 plans (3 completed, 3 gap closure)
 
-- [ ] 082-01-PLAN.md — Agent governance service unit tests (lifecycle methods, permission checks, cache invalidation, error handling, 30+ tests)
-- [ ] 082-02-PLAN.md — Episode segmentation service unit tests (time gap detection, topic change detection, task completion, episode lifecycle, 25+ tests)
-- [ ] 082-03-PLAN.md — BYOK LLM handler unit tests (provider selection, streaming responses, error recovery, timeout handling, token counting, 20+ tests)
+- [x] 082-01-PLAN.md — Agent governance service unit tests (lifecycle methods, permission checks, cache invalidation, error handling, 30+ tests) ✅ COMPLETE
+- [x] 082-02-PLAN.md — Episode segmentation service unit tests (time gap detection, topic change detection, task completion, episode lifecycle, 25+ tests) ✅ COMPLETE
+- [x] 082-03-PLAN.md — BYOK LLM handler unit tests (provider selection, streaming responses, error recovery, timeout handling, token counting, 20+ tests) ✅ COMPLETE
+- [ ] 082-04-PLAN.md — Fix 49 failing BYOK handler tests (mock patches, async streaming, test isolation) 🔄 GAP CLOSURE
+- [ ] 082-05-PLAN.md — Expand BYOK handler coverage to 90%+ (cognitive tier, structured response, coordinated vision, cost tracking) 🔄 GAP CLOSURE
+- [ ] 082-06-PLAN.md — Expand episode segmentation coverage to 90%+ (canvas context extraction, skill episodes, edge cases) 🔄 GAP CLOSURE
 
 ---
 
