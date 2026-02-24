@@ -86,7 +86,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 - [ ] **Phase 86: Property-Based Testing (Core Services)** - Governance cache, episode segmentation, LLM streaming invariants
 - [ ] **Phase 87: Property-Based Testing (Database & Auth)** - Database operations, authentication/authorization invariants
 - [x] **Phase 88: Bug Discovery (Error Paths & Boundaries)** - Error code paths, boundary conditions, concurrent operations ✅ COMPLETE
-- [ ] **Phase 89: Bug Discovery (Failure Modes & Security)** - Failure modes, security edge cases
+- [ ] **Phase 89: Bug Discovery (Failure Modes & Security)** - Failure modes, security edge cases (2 plans ready)
 - [ ] **Phase 90: Quality Gates & CI/CD** - Coverage enforcement, trend tracking, pass rate validation, documentation
 
 ---
@@ -289,8 +289,8 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 **Plans**: 2 plans
 
-- [ ] 089-01-PLAN.md — Failure mode tests (network timeouts, provider failures, database connection loss, out of memory, disk full, 20+ tests)
-- [ ] 089-02-PLAN.md — Security edge case tests (SQL injection, XSS injection, path traversal, permission bypass, malformed input, DoS protection, 25+ tests)
+- [x] 089-01-PLAN.md — Failure mode tests (network timeouts, provider failures, database connection loss, out of memory, disk full, 20+ tests) ✅ CREATED
+- [x] 089-02-PLAN.md — Security edge case tests (SQL injection, XSS injection, path traversal, permission bypass, malformed input, DoS protection, 25+ tests) ✅ CREATED
 
 ---
 
