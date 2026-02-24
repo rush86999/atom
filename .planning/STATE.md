@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 085-database-integration-testing
-Plan: 01 (database-model-tests)
-Status: Complete - 58 database model tests created (100% pass rate)
-Last activity: 2026-02-24 — Comprehensive database model test suite created with relationships, constraints, cascades, ORM queries, and special fields testing
+Plan: 04 (critical-paths-integration-tests)
+Status: Complete - 29 critical business path integration tests created (97% pass rate)
+Last activity: 2026-02-24 — End-to-end integration tests for 4 critical business paths covering agent execution, episode creation, canvas presentation, and graduation promotion flows
 
-Progress: [█████████░] 86% (v3.2: database & integration testing next)
+Progress: [█████████░] 87% (v3.2: integration testing complete, milestone wrap-up next)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
@@ -230,6 +230,10 @@ Recent decisions affecting current work:
 - [Phase 085-03]: SELECT FOR UPDATE pattern for pessimistic locking to prevent race conditions
 - [Phase 085-03]: Savepoint pattern: begin_nested() for independent rollback in nested transactions
 - [Phase 085-03]: Isolation level documentation: PostgreSQL SERIALIZABLE for phantom read prevention in production
+- [Phase 085-04]: Use real service layers with mocked external dependencies (LLM, WebSocket) for integration tests
+- [Phase 085-04]: Model field corrections: ChatMessage.conversation_id, EpisodeSegment.sequence_order, CanvasAudit.metadata JSON
+- [Phase 085-04]: AgentRegistry graduation criteria stored in configuration JSON (fields don't exist in schema)
+- [Phase 085-04]: Integration tests use factory_boy with _session parameter for test data generation
 
 ### Pending Todos
 
@@ -269,15 +273,16 @@ Recent decisions affecting current work:
 **From v3.2 Phase 085 execution:**
 - **Plan 085-02 (Migration Tests):** Complete - 25 migration tests created (11 passing, 14 exposing schema/documentation issues)
 - **Plan 085-03 (Transaction Tests):** Complete - 23 transaction tests (rollback, concurrent ops, isolation levels, deadlocks, savepoints)
-- **Total:** 48 tests added covering database migrations and transaction safety
-- **Coverage:** Transaction patterns thoroughly tested (rollback, concurrent operations, isolation levels, deadlock handling)
+- **Plan 085-04 (Critical Paths):** Complete - 29 integration tests covering 4 critical business paths (agent execution, episode creation, canvas presentation, graduation promotion)
+- **Total:** 77 tests added covering database migrations, transaction safety, and critical path integration
+- **Coverage:** All 4 critical business paths (16 steps from Phase 81 analysis) now have end-to-end integration test coverage
 
 ---
 
 ## Session Continuity
 
-Last session: 2026-02-24 16:29
-Stopped at: Phase 085-03 complete - Transaction testing finished (23 tests covering rollback, concurrent operations, isolation levels, deadlock handling)
+Last session: 2026-02-24 17:14
+Stopped at: Phase 085-04 complete - Critical business paths integration testing finished (29 tests covering agent execution, episode creation, canvas presentation, graduation promotion)
 Resume file: None
 
 ---
