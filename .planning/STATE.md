@@ -5,70 +5,36 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Critical user workflows are thoroughly tested end-to-end before production deployment
-**Current focus:** ✅ Milestone v3.1 COMPLETE - All 6 phases (75-80) executed with production-ready E2E test suite
+**Current focus:** 🎯 Milestone v3.2 Bug Finding & Coverage Expansion - Expanding backend test coverage through property-based testing and targeted bug discovery
 
 ## Current Position
 
-Phase: 080-quality-gates
-Status: ✅ Phase 80 COMPLETE - All 6 plans executed, 6/6 must-haves verified (100%). Quality gates implemented: automatic screenshots on failure, CI-only video recording, CI-only test retries (2x), flaky test detection with historical tracking, 100% pass rate quality gate (3 consecutive runs), HTML reports with embedded screenshots. Production-ready CI/CD integration with GitHub Actions. 5 Python scripts (942 lines), 20 test functions + 4 unit tests. Verification: .planning/phases/80-quality-gates/80-VERIFICATION.md
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v3.2
+Last activity: 2026-02-24 — Milestone v3.2 started
 
-Progress: [██████████] 100% (v3.1: 35/35 plans complete)
+Progress: [░░░░░░░░░░] 0% (v3.2: planning phase)
 
-## Upcoming: v3.1 E2E UI Testing
+## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Milestone v3.1 started - 6 phases (75-80) planned
+**Status**: Milestone v3.2 starting - Requirements definition phase
 
-**Milestone Goal**: Implement comprehensive end-to-end UI tests with Playwright covering authentication, agent chat, canvas presentations, skills, and workflows with production-ready quality gates.
+**Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
-**Phases**:
-- Phase 75: Test Infrastructure & Fixtures (7 requirements) - COMPLETE
-- Phase 76: Authentication & User Management (5 requirements) - COMPLETE
-- Phase 77: Agent Chat & Streaming (6 requirements) - COMPLETE
-- Phase 78: Canvas Presentations (6 requirements) - COMPLETE
-- Phase 79: Skills & Workflows (5 requirements) - COMPLETE
-- Phase 80: Quality Gates & CI/CD Integration (6 requirements) - COMPLETE ✅
+**Target Features**:
+- Backend coverage expansion (identify gaps, prioritize high-impact areas)
+- Property-based testing expansion (more Hypothesis tests for edge cases)
+- Bug-focused test development (target areas with low coverage)
+- Quality gates for test reliability and bug detection
 
-**Total Requirements**: 37 (100% mapped to phases)
+**Strategy**: High-impact files first
+- Prioritize largest untested files (>200 lines of code)
+- Focus on maximum coverage gain per test added
+- Target core services (governance, episodes, streaming)
+- Include property tests alongside unit/integration tests
 
-**Estimated Duration**: 6-8 days (35 plans)
-
-**Key Features**:
-- Playwright Python 1.58.0 with pytest-playwright plugin
-- Docker Compose test environment (backend, frontend, PostgreSQL)
-- Test fixtures for authentication, browser contexts, page objects
-- Worker-based database isolation for parallel execution
-- API-first test setup for fast state initialization
-- Quality gates with screenshots, videos, retries, flaky detection
-
-**Success Criteria**:
-- All critical user workflows tested end-to-end
-- Test suite achieves 100% pass rate on 3 consecutive runs
-- Screenshots and videos captured on failures
-- HTML test reports with embedded screenshots
-- Tests run in parallel with <10min execution time
-
----
-
-## Milestone v3.1 Requirements Traceability
-
-**Total Requirements:** 37 (v3.1)
-**Mapped to Phases:** 37 (100% coverage)
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| INFRA-01 through INFRA-07 | Phase 75 | Complete ✅ |
-| AUTH-01 through AUTH-05 | Phase 76 | Complete ✅ |
-| AGENT-01 through AGENT-06 | Phase 77 | Complete ✅ |
-| CANVAS-01 through CANVAS-06 | Phase 78 | Complete ✅ |
-| SKILL-01 through SKILL-05 | Phase 79 | Complete ✅ |
-| QUAL-01 through QUAL-06 | Phase 80 | Complete ✅ |
-
-**Coverage Gap Analysis:**
-- v3.1 requirements: 37 total
-- Mapped to phases: 37
-- Unmapped: 0 ✓
-- No orphaned requirements
-- No duplicate mappings
+**Achievement from v3.1**: 61 phases executed (300 plans, 204 tasks), production-ready E2E UI test suite with Playwright covering authentication, agent chat, canvas presentations, skills, and quality gates.
 
 ---
 
@@ -212,33 +178,26 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-23 22:31
-Stopped at: Completed Phase 080 Plan 80-04 - Flaky Test Detection
+Last session: 2026-02-24 10:15
+Stopped at: Starting milestone v3.2 Bug Finding & Coverage Expansion
 Resume file: None
 
 ---
 
 ## Research Context
 
-**E2E Testing Research** (research/SUMMARY.md):
-- Comprehensive research on Playwright-based E2E UI testing
-- Validated approach with HIGH confidence
-- Critical success factors identified
-- Research-validated patterns documented
-- Out of scope clearly defined
+**Previous Research** (from v3.1):
+- E2E Testing: Playwright Python 1.58.0 with comprehensive quality gates ✅ COMPLETE
+- All v3.1 research validated and implemented
 
-**Key Research Findings:**
-- Playwright Python 1.58.0 with pytest-playwright plugin
-- Docker Compose test environment for reproducibility
-- Worker-based database isolation for parallel execution
-- API-first test setup for fast state initialization
-- Quality gates with screenshots, videos, retries, flaky detection
-- Page Object Model for UI abstractions
-- Fixture-based test data generation
-- Test independence enforced (no shared state)
+**Upcoming Research** (v3.2 scope):
+- Coverage gap analysis for backend services
+- Property-based testing patterns with Hypothesis
+- Bug discovery strategies for untested code paths
+- Quality gate enhancements for bug detection
 
 ---
 
-*State initialized: 2026-02-23*
-*Milestone: v3.1 E2E UI Testing*
-*Next action: Plan Phase 75 (/gsd:plan-phase 75)*
+*State initialized: 2026-02-24*
+*Milestone: v3.2 Bug Finding & Coverage Expansion*
+*Next action: Define requirements for v3.2 milestone*
