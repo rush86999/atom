@@ -10,15 +10,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 81-coverage-analysis-prioritization
-Plan: 01 (coverage-report-generator)
-Status: Generating baseline coverage report for v3.2
-Last activity: 2026-02-24 — Phase 81 Plan 01 complete
+Plan: 02 (priority-ranking-system)
+Status: Identifying and prioritizing high-impact files for test coverage expansion
+Last activity: 2026-02-24 — Phase 81 Plan 02 complete
 
-Progress: [██░░░░░░░░] 10% (v3.2: coverage baseline established)
+Progress: [███░░░░░░░] 20% (v3.2: 49 high-impact files prioritized)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Phase 81 in progress - Coverage baseline established at 15.23%
+**Status**: Phase 81 in progress - High-impact files prioritized for test coverage expansion
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
@@ -38,8 +38,12 @@ Progress: [██░░░░░░░░] 10% (v3.2: coverage baseline establis
 
 **Progress**:
 - Plan 81-01: Coverage baseline established (15.23% overall)
-- 28 high-priority files identified (>200 lines, <30% coverage)
-- Top targets: workflow_engine.py (994 uncovered lines), atom_agent_endpoints.py (512 uncovered)
+- Plan 81-02: Priority ranking system complete
+- 49 high-impact files identified (>200 lines, <30% coverage)
+- 14,511 uncovered lines represent opportunity for coverage expansion
+- Priority scoring system weights business criticality (P0-P3 tiers)
+- Top targets: workflow_engine.py (994 uncovered), episode_segmentation_service.py (380 uncovered)
+- P0 tier: episode_segmentation_service.py, supervision_service.py (governance & safety)
 
 **Achievement from v3.1**: 61 phases executed (300 plans, 204 tasks), production-ready E2E UI test suite with Playwright covering authentication, agent chat, canvas presentations, skills, and quality gates.
 
@@ -93,6 +97,11 @@ Recent decisions affecting current work:
 - [Phase 81-01]: Prioritize files by uncovered lines to maximize impact per test added
 - [Phase 81-01]: Generate comprehensive markdown report for human consumption and prioritization
 - [Phase 81-01]: Coverage baseline: 15.23% (8,272/45,366 lines) - 3x improvement from baseline
+- [Phase 81-02]: Business criticality scoring system (P0: 9-10, P1: 7-8, P2: 5-6, P3: 3-4)
+- [Phase 81-02]: Priority score formula: (uncovered_lines / 100) * criticality weights opportunity by impact
+- [Phase 81-02]: High-impact thresholds: >200 lines (significant size), <30% coverage (major opportunity)
+- [Phase 81-02]: Default criticality=3 for unknown files (conservative baseline, assumes low business impact)
+- [Phase 81-02]: 49 high-impact files identified with 14,511 uncovered lines across 15,599 total lines
 
 **v3.1 E2E UI Testing Decisions:**
 - Playwright Python 1.58.0 selected for E2E UI testing (research validated)
@@ -192,8 +201,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-24 12:03
-Stopped at: Completed 81-01 coverage baseline report (15.23% overall)
+Last session: 2026-02-24 12:10
+Stopped at: Completed 81-02 priority ranking system (49 high-impact files identified)
 Resume file: None
 
 ---
