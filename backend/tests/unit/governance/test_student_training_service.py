@@ -2976,3 +2976,797 @@ class TestCompletionErrorHandling:
         assert result["session_id"] == session.id
         assert result["agent_id"] == agent.id
         assert result["performance_score"] == 0.75
+
+
+class TestDurationEstimationFactors:
+    """Test AI-based duration estimation factors"""
+
+    @pytest.mark.asyncio
+    async def test_confidence_factor_low_confidence_adds_hours(self, db_session: Session):
+        """Test confidence factor: Lower confidence (0.0) adds ~20 hours to base"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_est_conf_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.0,  # Lowest confidence
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        # Confidence factor: (0.5 - 0.0) * 50 = 25 hours
+        assert "0.00" in estimate.reasoning
+        assert "confidence" in estimate.reasoning.lower()
+
+    @pytest.mark.asyncio
+    async def test_confidence_factor_higher_confidence_adds_fewer_hours(self, db_session: Session):
+        """Test confidence factor: Higher confidence (0.4) adds fewer hours"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_est_conf_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.4,  # Close to threshold
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        # Confidence factor: (0.5 - 0.4) * 50 = 5 hours
+        assert "0.40" in estimate.reasoning
+        assert "confidence" in estimate.reasoning.lower()
+
+    @pytest.mark.asyncio
+    async def test_capability_gaps_factor_each_gap_adds_hours(self, db_session: Session):
+        """Test capability gaps factor: Each gap adds ~4 hours"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_est_gaps_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1", "gap2", "gap3", "gap4", "gap5"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        # 5 gaps * 4 hours = 20 hours from gaps factor
+        assert "5 identified" in estimate.reasoning
+        assert "Capability Gaps:" in estimate.reasoning
+
+    @pytest.mark.asyncio
+    async def test_historical_factor_similar_agents_average_duration(self, db_session: Session):
+        """Test historical factor: Similar agents' average duration used"""
+        # Arrange - Create similar agent with completed training
+        similar_agent = AgentRegistry(
+            id="similar_est_1",
+            name="Similar Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(similar_agent)
+
+        training_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal",
+            agent_id=similar_agent.id,
+            agent_name=similar_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            started_at=datetime.now() - timedelta(days=5),
+            completed_at=datetime.now() - timedelta(days=1),
+            duration_seconds=180000  # 50 hours
+        )
+        db_session.add(training_session)
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="student_est_hist_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert len(estimate.similar_agents) == 1
+        assert "1 similar" in estimate.reasoning
+        assert "Historical Data" in estimate.reasoning
+
+    @pytest.mark.asyncio
+    async def test_learning_rate_factor_fast_learner_reduces_duration(self, db_session: Session):
+        """Test learning rate factor: Fast learner (>1.0) reduces duration"""
+        # Arrange - Agent with good training history (fast learner)
+        agent = AgentRegistry(
+            id="student_est_rate_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+
+        # Create completed session with high performance
+        session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal",
+            agent_id=agent.id,
+            agent_name=agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            performance_score=0.9,  # Excellent performance
+            started_at=datetime.now() - timedelta(days=2),
+            completed_at=datetime.now() - timedelta(days=1),
+            duration_seconds=3600
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert "Fast learner" in estimate.reasoning
+        # Learning rate should be > 1.0 for fast learner
+        assert "Learning Rate:" in estimate.reasoning
+
+    @pytest.mark.asyncio
+    async def test_learning_rate_factor_slow_learner_increases_duration(self, db_session: Session):
+        """Test learning rate factor: Slow learner (<1.0) increases duration"""
+        # Arrange - Agent with poor training history (slow learner)
+        agent = AgentRegistry(
+            id="student_est_rate_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+
+        # Create completed session with low performance
+        session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal",
+            agent_id=agent.id,
+            agent_name=agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            performance_score=0.4,  # Poor performance
+            started_at=datetime.now() - timedelta(days=2),
+            completed_at=datetime.now() - timedelta(days=1),
+            duration_seconds=3600
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        # Should indicate slow learner or average pace
+        reasoning_lower = estimate.reasoning.lower()
+        assert "learning rate:" in reasoning_lower
+
+    @pytest.mark.asyncio
+    async def test_min_max_bounds_calculated(self, db_session: Session):
+        """Test min/max bounds: min_hours = 70% of estimate, max_hours = 150%"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_est_bounds_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1", "gap2"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert estimate.min_hours == round(estimate.estimated_hours * 0.7, 1)
+        assert estimate.max_hours == round(estimate.estimated_hours * 1.5, 1)
+        assert estimate.min_hours <= estimate.estimated_hours <= estimate.max_hours
+
+    @pytest.mark.asyncio
+    async def test_confidence_in_estimate_increases_with_more_similar_agents(self, db_session: Session):
+        """Test confidence in estimate increases with more similar agents (0.5 + n*0.05)"""
+        # Arrange - Create 3 similar agents
+        for i in range(3):
+            similar_agent = AgentRegistry(
+                id=f"similar_est_{i}",
+                name=f"Similar Agent {i}",
+                category="testing",
+                module_path="test.module",
+                class_name="TestClass",
+                status=AgentStatus.INTERN.value,
+                confidence_score=0.6,
+            )
+            db_session.add(similar_agent)
+
+            training_session = TrainingSession(
+                id=str(uuid.uuid4()),
+                proposal_id=f"test_proposal_{i}",
+                agent_id=similar_agent.id,
+                agent_name=similar_agent.name,
+                supervisor_id="test_supervisor",
+                status="completed",
+                started_at=datetime.now() - timedelta(days=5),
+                completed_at=datetime.now() - timedelta(days=1),
+                duration_seconds=144000  # 40 hours
+            )
+            db_session.add(training_session)
+
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="student_est_conf_3",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        # Confidence: 0.5 + 3 * 0.05 = 0.65
+        assert estimate.confidence >= 0.5
+        assert len(estimate.similar_agents) == 3
+
+
+class TestDurationEstimationEdgeCases:
+    """Test edge cases in duration estimation"""
+
+    @pytest.mark.asyncio
+    async def test_new_agent_with_no_similar_agents_uses_base_hours(self, db_session: Session):
+        """Test new agent with no similar agents uses base_hours"""
+        # Arrange
+        agent = AgentRegistry(
+            id="new_student_est_1",
+            name="New Student Agent",
+            category="BrandNewCategory",  # No similar agents
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.2,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert len(estimate.similar_agents) == 0
+        assert "0 similar" in estimate.reasoning
+        # Should still provide estimate
+        assert estimate.estimated_hours > 0
+
+    @pytest.mark.asyncio
+    async def test_agent_not_found_raises_value_error(self, db_session: Session):
+        """Test agent not found raises ValueError"""
+        # Arrange
+        service = StudentTrainingService(db_session)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Agent .* not found"):
+            await service.estimate_training_duration(
+                agent_id="nonexistent_agent",
+                capability_gaps=["gap1"],
+                target_maturity=AgentStatus.INTERN.value
+            )
+
+    @pytest.mark.asyncio
+    async def test_invalid_target_maturity_handled_gracefully(self, db_session: Session):
+        """Test invalid target_maturity handled gracefully"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_est_invalid_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act - Use invalid maturity (should still work)
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity="INVALID_STATUS"
+        )
+
+        # Assert - Should return estimate regardless
+        assert estimate.estimated_hours > 0
+        assert estimate.reasoning is not None
+
+    @pytest.mark.asyncio
+    async def test_reasoning_includes_all_4_factors(self, db_session: Session):
+        """Test reasoning string includes all 4 factors (confidence, gaps, historical, learning)"""
+        # Arrange - Create similar agent for historical factor
+        similar_agent = AgentRegistry(
+            id="similar_est_reason_1",
+            name="Similar Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(similar_agent)
+
+        training_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal",
+            agent_id=similar_agent.id,
+            agent_name=similar_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            started_at=datetime.now() - timedelta(days=5),
+            completed_at=datetime.now() - timedelta(days=1),
+            duration_seconds=144000
+        )
+        db_session.add(training_session)
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="student_est_reason_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1", "gap2"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        reasoning_lower = estimate.reasoning.lower()
+        assert "confidence" in reasoning_lower
+        assert "capability" in reasoning_lower
+        assert "historical" in reasoning_lower or "similar" in reasoning_lower
+        assert "learning" in reasoning_lower
+
+    @pytest.mark.asyncio
+    async def test_similar_agents_list_limited_to_5_max(self, db_session: Session):
+        """Test similar agents list limited to 5 agents max"""
+        # Arrange - Create 7 similar agents
+        for i in range(7):
+            similar_agent = AgentRegistry(
+                id=f"similar_est_limit_{i}",
+                name=f"Similar Agent {i}",
+                category="testing",
+                module_path="test.module",
+                class_name="TestClass",
+                status=AgentStatus.INTERN.value,
+                confidence_score=0.6,
+            )
+            db_session.add(similar_agent)
+
+            training_session = TrainingSession(
+                id=str(uuid.uuid4()),
+                proposal_id=f"test_proposal_{i}",
+                agent_id=similar_agent.id,
+                agent_name=similar_agent.name,
+                supervisor_id="test_supervisor",
+                status="completed",
+                started_at=datetime.now() - timedelta(days=5),
+                completed_at=datetime.now() - timedelta(days=1),
+                duration_seconds=144000
+            )
+            db_session.add(training_session)
+
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="student_est_limit_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert len(estimate.similar_agents) <= 5  # Limited to 5
+
+
+class TestSimilarAgentsHistory:
+    """Test similar agents historical data retrieval"""
+
+    @pytest.mark.asyncio
+    async def test_similar_agents_filtered_by_category_and_target_maturity(self, db_session: Session):
+        """Test similar agents filtered by category and target_maturity"""
+        # Arrange - Create agents in different categories WITH completed sessions
+        finance_agent = AgentRegistry(
+            id="finance_similar_1",
+            name="Finance Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.7,
+        )
+        db_session.add(finance_agent)
+
+        finance_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal",
+            agent_id=finance_agent.id,
+            agent_name=finance_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            duration_seconds=3600 * 20
+        )
+        db_session.add(finance_session)
+
+        testing_agent = AgentRegistry(
+            id="testing_similar_1",
+            name="Testing Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.7,
+        )
+        db_session.add(testing_agent)
+
+        testing_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal2",
+            agent_id=testing_agent.id,
+            agent_name=testing_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            duration_seconds=3600 * 20
+        )
+        db_session.add(testing_session)
+
+        student_agent = AgentRegistry(
+            id="student_similar_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,  # Not INTERN
+            confidence_score=0.7,
+        )
+        db_session.add(student_agent)
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="target_similar_1",
+            name="Target Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert - Should only match testing_agent (same category + INTERN status + completed session)
+        assert len(estimate.similar_agents) == 1
+        assert estimate.similar_agents[0]["agent_id"] == "testing_similar_1"
+
+    @pytest.mark.asyncio
+    async def test_similar_agents_filtered_by_confidence_score(self, db_session: Session):
+        """Test similar agents filtered by confidence_score >= 0.5"""
+        # Arrange - Create agents with different confidence scores AND completed sessions
+        high_conf_agent = AgentRegistry(
+            id="high_conf_similar_1",
+            name="High Confidence Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.8,  # >= 0.5
+        )
+        db_session.add(high_conf_agent)
+
+        high_conf_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal_high",
+            agent_id=high_conf_agent.id,
+            agent_name=high_conf_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            duration_seconds=3600 * 20
+        )
+        db_session.add(high_conf_session)
+
+        low_conf_agent = AgentRegistry(
+            id="low_conf_similar_1",
+            name="Low Confidence Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.4,  # < 0.5
+        )
+        db_session.add(low_conf_agent)
+
+        low_conf_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            proposal_id="test_proposal_low",
+            agent_id=low_conf_agent.id,
+            agent_name=low_conf_agent.name,
+            supervisor_id="test_supervisor",
+            status="completed",
+            duration_seconds=3600 * 20
+        )
+        db_session.add(low_conf_session)
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="target_similar_2",
+            name="Target Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert - Should only match high_conf_agent (confidence >= 0.5)
+        assert len(estimate.similar_agents) == 1
+        assert estimate.similar_agents[0]["agent_id"] == "high_conf_similar_1"
+
+    @pytest.mark.asyncio
+    async def test_training_duration_summed_from_all_completed_sessions(self, db_session: Session):
+        """Test training duration summed from all completed sessions"""
+        # Arrange - Create agent with multiple completed sessions
+        similar_agent = AgentRegistry(
+            id="similar_sum_1",
+            name="Similar Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(similar_agent)
+
+        # Create 3 completed sessions
+        for i in range(3):
+            training_session = TrainingSession(
+                id=str(uuid.uuid4()),
+                proposal_id=f"test_proposal_{i}",
+                agent_id=similar_agent.id,
+                agent_name=similar_agent.name,
+                supervisor_id="test_supervisor",
+                status="completed",
+                started_at=datetime.now() - timedelta(days=5),
+                completed_at=datetime.now() - timedelta(days=1),
+                duration_seconds=3600 * 10  # 10 hours each
+            )
+            db_session.add(training_session)
+
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="target_similar_3",
+            name="Target Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert - Should sum to 30 hours (3 * 10)
+        assert len(estimate.similar_agents) == 1
+        assert estimate.similar_agents[0]["duration_hours"] == 30.0
+
+    @pytest.mark.asyncio
+    async def test_session_count_included_in_similar_agents_data(self, db_session: Session):
+        """Test session count included in similar_agents data"""
+        # Arrange
+        similar_agent = AgentRegistry(
+            id="similar_count_1",
+            name="Similar Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(similar_agent)
+
+        # Create 2 completed sessions
+        for i in range(2):
+            training_session = TrainingSession(
+                id=str(uuid.uuid4()),
+                proposal_id=f"test_proposal_{i}",
+                agent_id=similar_agent.id,
+                agent_name=similar_agent.name,
+                supervisor_id="test_supervisor",
+                status="completed",
+                started_at=datetime.now() - timedelta(days=5),
+                completed_at=datetime.now() - timedelta(days=1),
+                duration_seconds=3600 * 15  # 15 hours each
+            )
+            db_session.add(training_session)
+
+        db_session.commit()
+
+        agent = AgentRegistry(
+            id="target_similar_4",
+            name="Target Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        estimate = await service.estimate_training_duration(
+            agent_id=agent.id,
+            capability_gaps=["gap1"],
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        # Assert
+        assert len(estimate.similar_agents) == 1
+        assert estimate.similar_agents[0]["session_count"] == 2
+        assert estimate.similar_agents[0]["duration_hours"] == 30.0
