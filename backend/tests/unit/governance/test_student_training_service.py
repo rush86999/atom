@@ -1482,3 +1482,626 @@ class TestProposalGenerationEdgeCases:
         assert "Capability Gaps:" in proposal.description
         # Description should mention training purpose
         assert "training" in proposal.description.lower()
+
+
+class TestApprovalWithModifications:
+    """Test training approval with user modifications"""
+
+    @pytest.mark.asyncio
+    async def test_duration_override_applied(self, db_session: Session):
+        """Test duration override applied (user_override_duration_hours set)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act - Approve with duration override
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications={"duration_override_hours": 50.0}
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.user_override_duration_hours == 50.0
+
+    @pytest.mark.asyncio
+    async def test_hours_per_day_limit_applied(self, db_session: Session):
+        """Test hours per day limit applied (hours_per_day_limit set)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act - Approve with hours per day limit
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications={"hours_per_day_limit": 6.0}
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.hours_per_day_limit == 6.0
+
+    @pytest.mark.asyncio
+    async def test_training_end_date_calculated_with_custom_hours_per_day(self, db_session: Session):
+        """Test training end date calculated with custom hours_per_day_limit"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_3",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act - Approve with custom duration and hours per day
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications={
+                "duration_override_hours": 40.0,
+                "hours_per_day_limit": 5.0  # 5 hours/day = 8 days
+            }
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        expected_days = 40.0 / 5.0  # 8 days
+        actual_days = (proposal.training_end_date - proposal.training_start_date).days
+        assert abs(actual_days - expected_days) <= 1  # Allow 1 day variance
+
+    @pytest.mark.asyncio
+    async def test_training_end_date_calculated_with_default_8_hours_per_day(self, db_session: Session):
+        """Test training end date calculated with default 8 hours/day when no limit"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_4",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        original_duration = proposal.estimated_duration_hours
+
+        # Act - Approve without custom hours per day
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None  # No custom limit
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.hours_per_day_limit is None  # Should remain None
+        # Should use default 8 hours/day
+        expected_days = original_duration / 8.0
+        actual_days = (proposal.training_end_date - proposal.training_start_date).days
+        assert abs(actual_days - expected_days) <= 1
+
+    @pytest.mark.asyncio
+    async def test_proposal_status_updated_to_approved(self, db_session: Session):
+        """Test proposal status updated to APPROVED"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_5",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.status == ProposalStatus.APPROVED.value
+
+    @pytest.mark.asyncio
+    async def test_approved_by_and_approved_at_timestamps_set(self, db_session: Session):
+        """Test approved_by and approved_at timestamps set"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_6",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="admin_user",
+            modifications=None
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.approved_by == "admin_user"
+        assert proposal.approved_at is not None
+        assert proposal.approved_at <= datetime.now()
+
+    @pytest.mark.asyncio
+    async def test_training_start_date_set_to_current_datetime(self, db_session: Session):
+        """Test training start date set to current datetime"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_7",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        before_approval = datetime.now()
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.training_start_date is not None
+        assert before_approval <= proposal.training_start_date <= datetime.now()
+
+    @pytest.mark.asyncio
+    async def test_training_session_created_with_correct_total_tasks(self, db_session: Session):
+        """Test training session created with correct total_tasks (from learning_objectives length)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_mod_8",
+            name="Student Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        expected_tasks = len(proposal.learning_objectives)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert
+        assert session.total_tasks == expected_tasks
+        assert session.total_tasks > 0
+
+
+class TestApprovalErrorHandling:
+    """Test approval workflow error handling"""
+
+    @pytest.mark.asyncio
+    async def test_value_error_for_nonexistent_proposal(self, db_session: Session):
+        """Test ValueError raised for non-existent proposal"""
+        # Arrange
+        service = StudentTrainingService(db_session)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Proposal .* not found"):
+            await service.approve_training(
+                proposal_id="nonexistent_proposal_id",
+                user_id="test_user",
+                modifications=None
+            )
+
+    @pytest.mark.asyncio
+    async def test_value_error_for_proposal_not_in_proposed_status(self, db_session: Session):
+        """Test ValueError raised for proposal not in PROPOSED status"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_err_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Change status to APPROVED
+        proposal.status = ProposalStatus.APPROVED.value
+        db_session.commit()
+
+        # Act & Assert - Try to approve already approved proposal
+        with pytest.raises(ValueError, match="must be in PROPOSED status"):
+            await service.approve_training(
+                proposal_id=proposal.id,
+                user_id="test_user",
+                modifications=None
+            )
+
+    @pytest.mark.asyncio
+    async def test_training_session_created_with_supervisor_id_from_user_id(self, db_session: Session):
+        """Test training session created with supervisor_id from user_id"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_err_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="supervisor_123",
+            modifications=None
+        )
+
+        # Assert
+        assert session.supervisor_id == "supervisor_123"
+
+    @pytest.mark.asyncio
+    async def test_training_session_agent_name_from_proposal(self, db_session: Session):
+        """Test training session agent_name from proposal"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_err_3",
+            name="Test Agent Name",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert
+        assert session.agent_name == proposal.agent_name
+        assert session.agent_name == "Test Agent Name"
+
+    @pytest.mark.asyncio
+    async def test_training_session_initial_status_is_scheduled(self, db_session: Session):
+        """Test training session initial status is 'scheduled'"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_err_4",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert
+        assert session.status == "scheduled"
+
+    @pytest.mark.asyncio
+    async def test_database_commit_refresh_called_in_correct_order(self, db_session: Session):
+        """Test database commit/refresh called in correct order"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_agent_err_5",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Act
+        session = await service.approve_training(
+            proposal_id=proposal.id,
+            user_id="test_user",
+            modifications=None
+        )
+
+        # Assert - Session should have ID after commit/refresh
+        assert session.id is not None
+        # Verify proposal is updated in DB
+        db_session.refresh(proposal)
+        assert proposal.status == ProposalStatus.APPROVED.value
