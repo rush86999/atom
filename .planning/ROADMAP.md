@@ -247,8 +247,8 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 **Plans**: 2 plans
 
-- [ ] 087-01-PLAN.md — Database operations property tests (CRUD invariants, foreign key constraints, unique constraints, transaction atomicity, 8+ properties)
-- [ ] 087-02-PLAN.md — Authentication/authorization property tests (permission matrix completeness, maturity gate enforcement, role-based access control, 8+ properties)
+- [x] 087-01-PLAN.md — Database operations property tests (CRUD invariants, foreign key constraints, unique constraints, transaction atomicity, 8+ properties) ✅ CREATED
+- [x] 087-02-PLAN.md — Authentication/authorization property tests (permission matrix completeness, maturity gate enforcement, role-based access control, 8+ properties) ✅ CREATED
 
 ---
 
