@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 084-core-services-unit-testing-training-graduation
-Plan: 01 (student-training-service-unit-tests)
-Status: Phase 83 complete - All 5 plans executed with gap closure, 303 tests added, canvas/browser/device tools at 90%+ coverage
-Last activity: 2026-02-24 — Phase 83 gap closure complete (303 tests: 28 canvas + 66 canvas + 95 browser + 114 device)
+Plan: 02 (supervision-service-unit-tests)
+Status: Plan 084-01 complete - 81 new tests for StudentTrainingService with 90%+ coverage - All 5 plans executed with gap closure, 303 tests added, canvas/browser/device tools at 90%+ coverage
+Last activity: 2026-02-24 — Plan 084-01 complete with 81 new tests (101 total, 10 min execution)
 
-Progress: [█████████░] 84% (v3.2: training & graduation unit testing next)
+Progress: [█████████░] 85% (v3.2: training & graduation unit testing next)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
