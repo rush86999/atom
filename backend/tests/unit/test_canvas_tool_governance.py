@@ -679,8 +679,10 @@ class TestPresentFormGovernance:
 
                         assert result["success"] is True
                         mock_governance.record_outcome.assert_called_once()
+                        # First positional arg is agent_id
                         assert mock_governance.record_outcome.call_args[0][0] == "agent-intern-123"
-                        assert mock_governance.record_outcome.call_args[0][1] is True
+                        # success is a keyword argument, access via call_args[1]
+                        assert mock_governance.record_outcome.call_args[1]["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_form_canvas_audit_created(self, mock_ws, mock_agent_intern, mock_db):
