@@ -81,7 +81,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 - [x] **Phase 81: Coverage Analysis & Prioritization** - Generate coverage reports, identify high-impact files, map gaps to critical paths
 - [x] **Phase 82: Core Services Unit Testing (Governance & Episodes)** - Agent governance, episode segmentation, BYOK handler tests
 - [x] **Phase 83: Core Services Unit Testing (Canvas & Browser)** - Canvas tool, browser automation, device capabilities tests
-- [ ] **Phase 84: Core Services Unit Testing (Training & Graduation)** - Student training service, graduation service tests
+- [x] **Phase 84: Core Services Unit Testing (Training & Graduation)** - Student training service, graduation service tests
 - [ ] **Phase 85: Database & Integration Testing** - Database models, migrations, transactions, critical path integration tests
 - [ ] **Phase 86: Property-Based Testing (Core Services)** - Governance cache, episode segmentation, LLM streaming invariants
 - [ ] **Phase 87: Property-Based Testing (Database & Auth)** - Database operations, authentication/authorization invariants
@@ -182,8 +182,8 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 **Plans**: 2 plans
 
-- [ ] 084-01-PLAN.md — Student training service unit tests (proposal generation, approval workflow, supervision monitoring, intervention tracking, 25+ tests)
-- [ ] 084-02-PLAN.md — Graduation service unit tests (criteria calculation, constitutional scoring, eligibility checks, promotion decisions, state transitions, 20+ tests)
+- [x] 084-01-PLAN.md — Student training service unit tests (proposal generation, approval workflow, supervision monitoring, intervention tracking, 81 tests) ✅ COMPLETE
+- [x] 084-02-PLAN.md — Graduation service unit tests (criteria calculation, constitutional scoring, eligibility checks, promotion decisions, state transitions, 88 tests) ✅ COMPLETE
 
 ---
 
@@ -328,7 +328,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 | 81. Coverage Analysis & Prioritization | 4/4 | ✅ Complete | 2026-02-24 |
 | 82. Core Services Unit Testing (Governance & Episodes) | 6/6 | ✅ Complete | 2026-02-24 |
 | 83. Core Services Unit Testing (Canvas & Browser) | 5/5 | ✅ Complete | 2026-02-24 |
-| 84. Core Services Unit Testing (Training & Graduation) | 0/2 | Not started | - |
+| 84. Core Services Unit Testing (Training & Graduation) | 2/2 | ✅ Complete | 2026-02-24 |
 | 85. Database & Integration Testing | 0/4 | Not started | - |
 | 86. Property-Based Testing (Core Services) | 0/3 | Not started | - |
 | 87. Property-Based Testing (Database & Auth) | 0/2 | Not started | - |
@@ -336,7 +336,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 | 89. Bug Discovery (Failure Modes & Security) | 0/2 | Not started | - |
 | 90. Quality Gates & CI/CD | 0/6 | Not started | - |
 
-**Overall Progress**: 15/34 plans complete (44%)
+**Overall Progress**: 17/34 plans complete (50%)
 
 ---
 
