@@ -833,6 +833,324 @@ class TestOutcomeRecording:
         assert abs(agent.confidence_score - 0.51) < 0.001
 
 
+class TestCacheInvalidation:
+    """Tests for cache invalidation on maturity transitions and cache HIT/MISS behavior"""
+
+    def test_cache_invalidation_on_student_to_intern(self, governance_service, mock_db):
+        """Cache should be invalidated when agent transitions from STUDENT to INTERN"""
+        agent = AgentRegistry(
+            id="agent_student",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.45
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache_getter.return_value = mock_cache
+
+            # Trigger transition
+            governance_service._update_confidence_score("agent_student", positive=True, impact_level="high")
+
+            # Verify cache was invalidated
+            mock_cache.invalidate.assert_called_once_with("agent_student")
+
+    def test_cache_invalidation_on_intern_to_supervised(self, governance_service, mock_db):
+        """Cache should be invalidated when agent transitions from INTERN to SUPERVISED"""
+        agent = AgentRegistry(
+            id="agent_intern",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.65
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache_getter.return_value = mock_cache
+
+            governance_service._update_confidence_score("agent_intern", positive=True, impact_level="high")
+
+            mock_cache.invalidate.assert_called_once_with("agent_intern")
+
+    def test_cache_invalidation_on_supervised_to_autonomous(self, governance_service, mock_db):
+        """Cache should be invalidated when agent transitions from SUPERVISED to AUTONOMOUS"""
+        agent = AgentRegistry(
+            id="agent_supervised",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.88
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache_getter.return_value = mock_cache
+
+            governance_service._update_confidence_score("agent_supervised", positive=True, impact_level="high")
+
+            mock_cache.invalidate.assert_called_once_with("agent_supervised")
+
+    def test_cache_invalidation_on_promote_to_autonomous(self, governance_service, mock_db, sample_agent):
+        """Cache should be invalidated on manual promote_to_autonomous call"""
+        sample_agent.status = AgentStatus.SUPERVISED.value
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        user = MagicMock(spec=User)
+        user.role = UserRole.WORKSPACE_ADMIN
+
+        with patch('core.rbac_service.RBACService.check_permission', return_value=True):
+            with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+                mock_cache = MagicMock()
+                mock_cache_getter.return_value = mock_cache
+
+                governance_service.promote_to_autonomous("agent_123", user)
+
+                mock_cache.invalidate.assert_called_once_with("agent_123")
+
+    def test_cache_hit_returns_cached_result(self, governance_service, mock_db, sample_agent):
+        """Cache HIT should return cached governance decision without DB query"""
+        sample_agent.status = AgentStatus.AUTONOMOUS.value
+        sample_agent.confidence_score = 0.95
+
+        cached_result = {
+            "allowed": True,
+            "reason": "Cached result",
+            "agent_status": AgentStatus.AUTONOMOUS.value,
+            "action_complexity": 1,
+            "required_status": AgentStatus.STUDENT.value,
+            "requires_human_approval": False,
+            "confidence_score": 0.95
+        }
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = cached_result
+            mock_cache_getter.return_value = mock_cache
+
+            result = governance_service.can_perform_action("agent_123", "search")
+
+            # Should return cached result
+            assert result["allowed"] is True
+            assert result["reason"] == "Cached result"
+            # Cache.get should be called
+            mock_cache.get.assert_called_once_with("agent_123", "search")
+
+    def test_cache_miss_computes_new_result(self, governance_service, mock_db, sample_agent):
+        """Cache MISS should compute governance decision and cache it"""
+        sample_agent.status = AgentStatus.AUTONOMOUS.value
+        sample_agent.confidence_score = 0.95
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None  # Cache MISS
+            mock_cache_getter.return_value = mock_cache
+
+            result = governance_service.can_perform_action("agent_123", "search")
+
+            # Should compute and cache result
+            assert result["allowed"] is True
+            mock_cache.set.assert_called_once()
+            # Verify cache key format
+            call_args = mock_cache.set.call_args[0]
+            assert call_args[0] == "agent_123"
+            assert call_args[1] == "search"
+
+    def test_cache_result_structure_complete(self, governance_service, mock_db, sample_agent):
+        """Cached result should include all required fields"""
+        sample_agent.status = AgentStatus.INTERN.value
+        sample_agent.confidence_score = 0.65
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_getter.return_value = mock_cache
+
+            result = governance_service.can_perform_action("agent_123", "stream_chat")
+
+            # Verify all required fields present
+            assert "allowed" in result
+            assert "reason" in result
+            assert "agent_status" in result
+            assert "action_complexity" in result
+            assert "required_status" in result
+            assert "requires_human_approval" in result
+            assert "confidence_score" in result
+
+    def test_cache_key_format(self, governance_service, mock_db, sample_agent):
+        """Cache key should be in format 'agent_id:action_type'"""
+        sample_agent.status = AgentStatus.AUTONOMOUS.value
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_getter.return_value = mock_cache
+
+            governance_service.can_perform_action("agent_123", "delete")
+
+            # Verify cache key format
+            mock_cache.set.assert_called_once()
+            agent_id, action_type = mock_cache.set.call_args[0][0], mock_cache.set.call_args[0][1]
+            assert agent_id == "agent_123"
+            assert action_type == "delete"
+
+    def test_multiple_action_types_cached_separately(self, governance_service, mock_db, sample_agent):
+        """Multiple action types for same agent should be cached separately"""
+        sample_agent.status = AgentStatus.AUTONOMOUS.value
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_getter.return_value = mock_cache
+
+            # Check multiple actions
+            governance_service.can_perform_action("agent_123", "search")
+            governance_service.can_perform_action("agent_123", "delete")
+            governance_service.can_perform_action("agent_123", "create")
+
+            # Verify cache.set called 3 times with different action types
+            assert mock_cache.set.call_count == 3
+            call_args_list = [call[0] for call in mock_cache.set.call_args_list]
+            action_types = [call[1] for call in call_args_list]
+            assert "search" in action_types
+            assert "delete" in action_types
+            assert "create" in action_types
+
+    def test_cache_invalidation_when_status_changes(self, governance_service, mock_db):
+        """Cache should be invalidated only when status actually changes"""
+        agent = AgentRegistry(
+            id="agent_transition",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.65
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache_getter.return_value = mock_cache
+
+            # Trigger transition (INTERN -> SUPERVISED)
+            governance_service._update_confidence_score("agent_transition", positive=True, impact_level="high")
+
+            # Cache should be invalidated
+            assert agent.status == AgentStatus.SUPERVISED.value
+            mock_cache.invalidate.assert_called_once_with("agent_transition")
+
+    def test_no_cache_invalidation_when_status_unchanged(self, governance_service, mock_db):
+        """Cache should NOT be invalidated when confidence changes but status stays same"""
+        agent = AgentRegistry(
+            id="agent_no_change",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.55
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            m.filter.return_value.first.return_value = agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache_getter:
+            mock_cache = MagicMock()
+            mock_cache_getter.return_value = mock_cache
+
+            # Small confidence boost that doesn't change status
+            original_status = agent.status
+            governance_service._update_confidence_score("agent_no_change", positive=True, impact_level="low")
+
+            # Status should remain INTERN
+            assert agent.status == original_status
+            # Cache should NOT be invalidated
+            mock_cache.invalidate.assert_not_called()
+
+
 class TestAgentListing:
     def test_list_all_agents(self, governance_service, mock_db):
         agent1 = AgentRegistry(id="agent_1", name="Agent 1")
