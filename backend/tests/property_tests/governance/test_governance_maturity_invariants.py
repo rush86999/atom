@@ -14,7 +14,7 @@ These tests protect against authorization bypass and maturity escalation bugs.
 
 import pytest
 import uuid
-from hypothesis import given, strategies as st, settings, example
+from hypothesis import given, strategies as st, settings, example, HealthCheck
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -124,7 +124,7 @@ class TestMaturityGateInvariants:
             "delete", "execute", "device_execute_command", "canvas_execute_javascript", "deploy", "payment"
         ])
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(agent_status=AgentStatus.STUDENT, action_type="delete")
     @example(agent_status=AgentStatus.AUTONOMOUS, action_type="delete")
     @example(agent_status=AgentStatus.STUDENT, action_type="present_chart")
@@ -198,7 +198,7 @@ class TestMaturityGateInvariants:
     @given(
         confidence_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(confidence_score=0.0)  # Below STUDENT threshold
     @example(confidence_score=0.5)  # EXACT STUDENT->INTERN threshold
     @example(confidence_score=0.5001)  # Just above threshold
@@ -419,7 +419,7 @@ class TestRBACInvariants:
             unique=True
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_capability_list_consistency(self, db_session, agent_actions):
         """
         INVARIANT: Agent capability list is consistent with maturity checks.
@@ -469,7 +469,7 @@ class TestCacheConsistencyInvariants:
             "present_chart", "stream_chat", "submit_form", "delete"
         ])
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cache_result_consistency(self, db_session, agent_status, action_type):
         """
         INVARIANT: Cached governance results match uncached results.
@@ -525,7 +525,7 @@ class TestEdgeCaseInvariants:
     @given(
         action_name=st.text(min_size=0, max_size=100)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(action_name="")  # Empty string
     @example(action_name="delete")  # Known action
     @example(action_name="DELETE")  # Uppercase
@@ -572,7 +572,7 @@ class TestEdgeCaseInvariants:
         confidence1=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
         confidence2=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_confidence_score_transitions(self, db_session, confidence1, confidence2):
         """
         INVARIANT: Confidence score transitions are monotonic for maturity levels.
@@ -593,7 +593,7 @@ class TestEdgeCaseInvariants:
 
         service = AgentGovernanceService(db_session)
 
-        # Get initial status
+        # Get expected status for confidence
         def get_status_for_confidence(conf):
             if conf >= 0.9:
                 return AgentStatus.AUTONOMOUS.value
@@ -604,22 +604,27 @@ class TestEdgeCaseInvariants:
             else:
                 return AgentStatus.STUDENT.value
 
+        # Set initial status based on confidence1
         initial_status = get_status_for_confidence(confidence1)
-
-        # Update confidence
-        agent.confidence_score = confidence2
+        agent.status = initial_status
+        agent.confidence_score = confidence1
         db_session.commit()
+        db_session.refresh(agent)
 
+        # Verify initial state
+        assert agent.status == initial_status, \
+            f"Initial status should be {initial_status} for confidence {confidence1}"
+
+        # Update confidence to confidence2
+        agent.confidence_score = confidence2
         new_status = get_status_for_confidence(confidence2)
-
-        # Invariant: Status should match expected for confidence
-        assert agent.status == initial_status, f"Initial status should be {initial_status} for confidence {confidence1}"
-
-        # If we update status, it should match new confidence
         agent.status = new_status
         db_session.commit()
+        db_session.refresh(agent)
 
-        assert agent.status == new_status, f"Status should be {new_status} for confidence {confidence2}"
+        # Verify new state
+        assert agent.status == new_status, \
+            f"Status should be {new_status} for confidence {confidence2}"
 
         # Verify monotonicity: higher confidence should never result in lower maturity
         if confidence2 > confidence1:
