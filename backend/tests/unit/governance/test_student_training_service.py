@@ -3770,3 +3770,702 @@ class TestSimilarAgentsHistory:
         assert len(estimate.similar_agents) == 1
         assert estimate.similar_agents[0]["session_count"] == 2
         assert estimate.similar_agents[0]["duration_hours"] == 30.0
+
+
+class TestTrainingHistoryDetailed:
+    """Test training history retrieval in detail"""
+
+    @pytest.mark.asyncio
+    async def test_history_returns_sessions_in_descending_created_at_order(self, db_session: Session):
+        """Test history returns sessions in descending created_at order"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_hist_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Create 3 proposals in sequence
+        proposals = []
+        for i in range(3):
+            blocked_trigger = BlockedTriggerContext(
+                agent_id=agent.id,
+                agent_name=agent.name,
+                agent_maturity_at_block=AgentStatus.STUDENT.value,
+                confidence_score_at_block=0.3,
+                trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+                trigger_type="agent_message",
+                trigger_context={"data": f"test_{i}"},
+                routing_decision="training",
+                block_reason="Test block"
+            )
+            db_session.add(blocked_trigger)
+            db_session.commit()
+
+            proposal = await service.create_training_proposal(blocked_trigger)
+            session = await service.approve_training(proposal.id, "test_user", None)
+            proposals.append(proposal)
+
+        # Act
+        history = await service.get_training_history(agent_id=agent.id, limit=10)
+
+        # Assert - Should be in descending order (newest first)
+        assert len(history) == 3
+        # Verify descending order by created_at (timestamps should be decreasing)
+        for i in range(len(history) - 1):
+            assert history[i]["proposal_id"] != history[i+1]["proposal_id"]
+
+    @pytest.mark.asyncio
+    async def test_history_includes_proposal_title_from_linked_proposal(self, db_session: Session):
+        """Test history includes proposal_title from linked proposal"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_hist_2",
+            name="Student Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        await service.approve_training(proposal.id, "test_user", None)
+
+        # Act
+        history = await service.get_training_history(agent_id=agent.id, limit=10)
+
+        # Assert
+        assert len(history) > 0
+        assert history[0]["proposal_title"] == proposal.title
+        assert "Finance Fundamentals" in history[0]["proposal_title"]
+
+    @pytest.mark.asyncio
+    async def test_history_includes_capability_gaps_from_linked_proposal(self, db_session: Session):
+        """Test history includes capability_gaps from linked proposal"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_hist_3",
+            name="Student Agent",
+            category="Sales",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Sales"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        await service.approve_training(proposal.id, "test_user", None)
+        expected_gaps = proposal.capability_gaps
+
+        # Act
+        history = await service.get_training_history(agent_id=agent.id, limit=10)
+
+        # Assert
+        assert len(history) > 0
+        assert history[0]["capability_gaps"] == expected_gaps
+
+    @pytest.mark.asyncio
+    async def test_history_calculates_training_duration_hours_from_duration_seconds(self, db_session: Session):
+        """Test history calculates training_duration_hours from duration_seconds"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_hist_4",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        proposal = await service.create_training_proposal(blocked_trigger)
+        session = await service.approve_training(proposal.id, "test_user", None)
+
+        # Complete with duration
+        session.started_at = datetime.now() - timedelta(hours=5)
+        db_session.commit()
+
+        outcome = TrainingOutcome(
+            performance_score=0.8,
+            supervisor_feedback="Good",
+            errors_count=1,
+            tasks_completed=9,
+            total_tasks=10,
+            capabilities_developed=["task1"],
+            capability_gaps_remaining=[]
+        )
+
+        await service.complete_training_session(session.id, outcome)
+
+        # Act
+        history = await service.get_training_history(agent_id=agent.id, limit=10)
+
+        # Assert
+        assert len(history) > 0
+        # Duration should be approximately 5 hours
+        assert history[0]["training_duration_hours"] is not None
+        assert 4.9 < history[0]["training_duration_hours"] < 5.1
+
+    @pytest.mark.asyncio
+    async def test_limit_parameter_restricts_number_of_returned_sessions(self, db_session: Session):
+        """Test limit parameter restricts number of returned sessions"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_hist_5",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.6,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Create 5 proposals
+        for i in range(5):
+            blocked_trigger = BlockedTriggerContext(
+                agent_id=agent.id,
+                agent_name=agent.name,
+                agent_maturity_at_block=AgentStatus.STUDENT.value,
+                confidence_score_at_block=0.3,
+                trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+                trigger_type="agent_message",
+                trigger_context={"data": f"test_{i}"},
+                routing_decision="training",
+                block_reason="Test block"
+            )
+            db_session.add(blocked_trigger)
+            db_session.commit()
+
+            proposal = await service.create_training_proposal(blocked_trigger)
+            await service.approve_training(proposal.id, "test_user", None)
+
+        # Act - Request only 3
+        history = await service.get_training_history(agent_id=agent.id, limit=3)
+
+        # Assert
+        assert len(history) == 3
+
+    @pytest.mark.asyncio
+    async def test_history_with_no_sessions_returns_empty_list(self, db_session: Session):
+        """Test history with no sessions returns empty list"""
+        # Arrange
+        agent = AgentRegistry(
+            id="new_student_hist_1",
+            name="New Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        # Act
+        history = await service.get_training_history(agent_id=agent.id, limit=10)
+
+        # Assert
+        assert len(history) == 0
+
+
+class TestLearningObjectivesGeneration:
+    """Test learning objectives generation"""
+
+    @pytest.mark.asyncio
+    async def test_base_objectives_include_trigger_type_execution_flow(self, db_session: Session):
+        """Test base objectives include trigger type execution flow"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"action": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        # Should include trigger type execution flow objective
+        assert any("workflow_trigger" in obj for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_base_objectives_include_reliable_task_completion_objective(self, db_session: Session):
+        """Test base objectives include reliable task completion objective"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_2",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert any("reliable task completion" in obj.lower()
+                   for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_base_objectives_include_decision_making_objective(self, db_session: Session):
+        """Test base objectives include decision-making patterns objective"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_3",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="form_submit",
+            trigger_context={"form_id": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert any("decision-making" in obj.lower()
+                   for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_capability_specific_objectives_added_max_5_gaps(self, db_session: Session):
+        """Test capability-specific objectives added (up to 5 gaps)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_4",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert - Should have capability-specific objectives (max 5)
+        capability_objectives = [obj for obj in proposal.learning_objectives
+                                 if "proficiency in" in obj.lower()]
+        assert len(capability_objectives) > 0
+        assert len(capability_objectives) <= 5
+
+    @pytest.mark.asyncio
+    async def test_category_specific_objectives_added_finance(self, db_session: Session):
+        """Test category-specific objectives added (Finance)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_5",
+            name="Finance Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert - Should include Finance-specific objectives
+        assert any("financial" in obj.lower() or "process financial data" in obj.lower()
+                   for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_category_specific_objectives_added_sales(self, db_session: Session):
+        """Test category-specific objectives added (Sales)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_6",
+            name="Sales Agent",
+            category="Sales",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Sales"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert - Should include Sales-specific objectives
+        assert any("crm" in obj.lower() or "sales process" in obj.lower()
+                   for obj in proposal.learning_objectives)
+
+    @pytest.mark.asyncio
+    async def test_objectives_deduplicated(self, db_session: Session):
+        """Test objectives deduplicated (no duplicates in final list)"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_obj_7",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"data": "test"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert - No duplicates
+        assert len(proposal.learning_objectives) == len(set(proposal.learning_objectives))
+
+
+class TestScenarioTemplateSelection:
+    """Test scenario template selection logic"""
+
+    @pytest.mark.asyncio
+    async def test_finance_category_returns_finance_fundamentals(self, db_session: Session):
+        """Test Finance category returns 'Finance Fundamentals'"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_scenario_1",
+            name="Finance Agent",
+            category="Finance",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Finance"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.training_scenario_template == "Finance Fundamentals"
+
+    @pytest.mark.asyncio
+    async def test_sales_category_returns_sales_operations(self, db_session: Session):
+        """Test Sales category returns 'Sales Operations'"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_scenario_2",
+            name="Sales Agent",
+            category="Sales",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Sales"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.training_scenario_template == "Sales Operations"
+
+    @pytest.mark.asyncio
+    async def test_operations_category_returns_process_automation(self, db_session: Session):
+        """Test Operations category returns 'Process Automation'"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_scenario_3",
+            name="Operations Agent",
+            category="Operations",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "Operations"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.training_scenario_template == "Process Automation"
+
+    @pytest.mark.asyncio
+    async def test_unknown_category_returns_general_operations(self, db_session: Session):
+        """Test unknown category returns 'General Operations'"""
+        # Arrange
+        agent = AgentRegistry(
+            id="student_scenario_4",
+            name="General Agent",
+            category="UnknownCategory",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = StudentTrainingService(db_session)
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="agent_message",
+            trigger_context={"category": "UnknownCategory"},
+            routing_decision="training",
+            block_reason="Test block"
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+
+        # Act
+        proposal = await service.create_training_proposal(blocked_trigger)
+
+        # Assert
+        assert proposal.training_scenario_template == "General Operations"
