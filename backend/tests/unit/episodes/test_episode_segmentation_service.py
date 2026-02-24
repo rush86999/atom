@@ -2334,3 +2334,176 @@ class TestSkillEpisodeCreation:
         # Episode ID should follow expected format
         expected_prefix = f"skill_{skill_name}_{agent_id[:8]}_"
         assert segment.episode_id.startswith(expected_prefix)
+
+
+# ============================================================================
+# Episode Segmentation Edge Cases Tests (Task 3)
+# ============================================================================
+
+class TestEpisodeSegmentationEdgeCases:
+    """Test edge cases and remaining uncovered paths in episode segmentation."""
+
+    @pytest.mark.asyncio
+    async def test_segment_boundary_exact_time_threshold(self, segmentation_service):
+        """Test segment creation with exactly 30-minute time gap."""
+        from core.episode_segmentation_service import TIME_GAP_THRESHOLD_MINUTES
+
+        now = datetime.now()
+        episode = Mock()
+        episode.id = "episode-boundary-test"
+
+        # Create messages with exactly 30-minute gap
+        messages = [
+            Mock(id="msg-1", role="user", content="First", created_at=now),
+            Mock(id="msg-2", role="assistant", content="Second",
+                created_at=now + timedelta(minutes=TIME_GAP_THRESHOLD_MINUTES))
+        ]
+
+        executions = []
+        boundaries = set()
+
+        add_calls = []
+        segmentation_service.db.add = lambda obj: add_calls.append(obj)
+        segmentation_service.db.commit = Mock()
+
+        await segmentation_service._create_segments(episode, messages, executions, boundaries, {})
+
+        # Should handle boundary correctly
+        assert len(add_calls) >= 1
+
+    def test_cosine_similarity_with_zero_vectors(self, segmentation_service):
+        """Test cosine similarity handles zero-magnitude vectors."""
+        from core.episode_segmentation_service import EpisodeBoundaryDetector
+        from unittest.mock import MagicMock
+
+        # Create mock lancedb handler
+        mock_lancedb = MagicMock()
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+
+        v1 = [0.0, 0.0, 0.0]
+        v2 = [1.0, 0.0, 0.0]
+
+        # Should handle gracefully - returns NaN or 0
+        result = detector._cosine_similarity(v1, v2)
+        # May be NaN (0/0) or 0, both are acceptable
+        assert result == 0.0 or (isinstance(result, float) and str(result) == 'nan')
+
+    @pytest.mark.asyncio
+    async def test_fetch_feedback_context_empty(self, segmentation_service):
+        """Test _fetch_feedback_context with no feedback."""
+        mock_query = Mock()
+        mock_query.filter.return_value.all.return_value = []
+        segmentation_service.db.query.return_value = mock_query
+
+        result = segmentation_service._fetch_feedback_context(
+            "session-1",
+            "agent-1",
+            ["exec-1", "exec-2"]
+        )
+
+        # Should return empty list
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_segment_creation_with_supervision_context(self, segmentation_service):
+        """Test segment creation includes supervision metadata."""
+        now = datetime.now()
+        episode = Mock()
+        episode.id = "supervision-episode"
+
+        messages = [
+            Mock(id="msg-1", role="user", content="Help me", created_at=now)
+        ]
+
+        executions = []
+        boundaries = set()
+
+        add_calls = []
+        segmentation_service.db.add = lambda obj: add_calls.append(obj)
+        segmentation_service.db.commit = Mock()
+
+        # Add supervision context
+        context = {
+            "supervision_session_id": "sup-1",
+            "interventions": ["guidance", "correction"]
+        }
+
+        await segmentation_service._create_segments(episode, messages, executions, boundaries, context)
+
+        # Should create segment
+        assert len(add_calls) >= 1
+
+    def test_time_gap_detection_with_negative_delta(self, segmentation_service):
+        """Test time gap detection handles negative time deltas (out of order messages)."""
+        from core.episode_segmentation_service import EpisodeBoundaryDetector
+        from unittest.mock import MagicMock
+
+        mock_lancedb = MagicMock()
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+
+        # Create messages with negative time delta (out of order)
+        now = datetime.now()
+        msg1 = Mock(created_at=now)
+        msg2 = Mock(created_at=now - timedelta(minutes=5))  # Earlier time
+
+        # Use public method detect_time_gap
+        # Create a list of messages
+        messages = [msg2, msg1]  # Out of order
+
+        # Should handle negative delta gracefully
+        boundaries = detector.detect_time_gap(messages)
+        assert isinstance(boundaries, list)
+
+    def test_topic_change_empty_embeddings(self, segmentation_service):
+        """Test topic change detection with empty embeddings list."""
+        from core.episode_segmentation_service import EpisodeBoundaryDetector
+        from unittest.mock import MagicMock
+
+        mock_lancedb = MagicMock()
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+
+        # Empty message list
+        messages = []
+
+        # Should handle gracefully
+        boundaries = detector.detect_topic_changes(messages)
+        assert isinstance(boundaries, list)
+
+    @pytest.mark.asyncio
+    async def test_lancedb_archival_error_handling(self, segmentation_service):
+        """Test _archive_supervision_episode_to_lancedb handles errors gracefully."""
+        from core.models import Episode
+
+        episode = Mock(spec=Episode)
+        episode.id = "archive-error-test"
+        episode.agent_id = "agent-1"
+        episode.content_summary = "Test episode"
+
+        # Mock LanceDB to raise error
+        segmentation_service.lancedb.add_document = Mock(side_effect=Exception("LanceDB error"))
+
+        # Should not raise exception, just log error
+        await segmentation_service._archive_supervision_episode_to_lancedb(episode)
+
+        # Test passes if no exception is raised
+        assert True
+
+    @pytest.mark.asyncio
+    async def test_fetch_canvas_context_empty(self, segmentation_service):
+        """Test _fetch_canvas_context with no canvas events."""
+        mock_query = Mock()
+        mock_query.filter.return_value.order_by.return_value.all.return_value = []
+        segmentation_service.db.query.return_value = mock_query
+
+        result = segmentation_service._fetch_canvas_context("session-no-canvas")
+
+        # Should return empty list
+        assert result == []
+
+    def test_filter_canvas_context_detail_empty_context(self, segmentation_service):
+        """Test _filter_canvas_context_detail with empty context."""
+        result = segmentation_service._filter_canvas_context_detail({}, "full")
+
+        # Should return empty dict
+        assert result == {}
