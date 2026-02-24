@@ -1,309 +1,318 @@
-# Roadmap: Atom E2E UI Testing Initiative
-
-## 📋 Additional Roadmap
-
-**Feature Development**: See [FEATURE_ROADMAP.md](./FEATURE_ROADMAP.md) for OpenClaw integration (IM adapters, local shell access, agent social layer, simplified installer).
-
----
+# Roadmap: Atom Test Coverage Initiative
 
 ## Overview
 
-Comprehensive end-to-end testing initiative for Atom platform covering critical user workflows with Playwright. The roadmap follows a workflow-first approach: establish test infrastructure with fixtures and isolation, validate authentication flows, test agent chat and streaming, verify canvas presentations, test skills and workflows, and implement quality gates for production confidence.
+Comprehensive test coverage initiative for Atom platform backend services. The roadmap follows a systematic approach: analyze coverage gaps, prioritize high-impact files, add unit tests for core services, implement property-based tests with Hypothesis for edge case discovery, add integration tests for critical paths, and establish quality gates for sustained coverage growth.
 
-**Milestone v3.1**: E2E UI Testing with Playwright for critical user workflows.
+**Milestone v3.2**: Bug Finding & Coverage Expansion through property-based testing and targeted backend test development.
 
 ---
 
-## Current Milestone: v3.1 E2E UI Testing
+## Milestones
 
-**Goal:** Implement comprehensive end-to-end UI tests with Playwright covering authentication, agent chat, canvas presentations, skills, and workflows with production-ready quality gates.
+- ✅ **v1.0 Test Infrastructure** - Phases 1-28 (shipped)
+- ✅ **v2.0 Feature Integration** - Phases 29-74 (shipped)
+- ✅ **v3.1 E2E UI Testing** - Phases 75-80 (shipped 2026-02-24)
+- 🚧 **v3.2 Bug Finding & Coverage Expansion** - Phases 81-90 (in progress)
 
-**Started:** 2026-02-23
+---
 
-**Phases:** 6 (75-80)
+## Current Milestone: v3.2 Bug Finding & Coverage Expansion
 
-**Status:** Phase 79 - Skills & Workflows (COMPLETE)
+**Goal:** Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
+
+**Started:** 2026-02-24
+
+**Phases:** 10 (81-90)
+
+**Strategy:** High-impact files first (>200 lines, <30% coverage), maximum coverage gain per test added
+
+**Target:** Comprehensive backend coverage with Hypothesis property tests for edge case discovery
 
 ---
 
 ## Completed Milestones
 
-### Milestone v1.0: Test Infrastructure & Property-Based Testing
+<details>
+<summary>✅ v3.1 E2E UI Testing (Phases 75-80) - SHIPPED 2026-02-24</summary>
 
-**Timeline:** Phase 1-28
+**Achievements:**
+- 61 phases executed (300 plans, 204 tasks)
+- Production-ready E2E test suite with Playwright
+- Comprehensive coverage: authentication, agent chat, canvas presentations, skills, workflows
+- Quality gates: screenshots, videos, retries, flaky detection, HTML reports
+
+</details>
+
+<details>
+<summary>✅ v2.0 Feature Integration (Phases 29-74) - SHIPPED</summary>
+
+**Achievements:**
+- Community Skills Integration (Phase 14)
+- Agent Layer Testing (Phase 17)
+- Python Package Support (Phase 35) - 7 plans
+- npm Package Support (Phase 36) - 7 plans
+- Advanced Skill Execution (Phase 60) - 7 plans
+- BYOK Cognitive Tier System (Phase 68) - 8 plans
+- Autonomous Coding Agents (Phase 69) - 10 plans
+
+</details>
+
+<details>
+<summary>✅ v1.0 Test Infrastructure (Phases 1-28) - SHIPPED</summary>
 
 **Achievements:**
 - 200/203 plans complete (99% completion)
-- 81 tests passing in Phase 28
-- Production-ready codebase with comprehensive testing infrastructure
-- Property-based testing framework established with Hypothesis
+- 81 tests passing
+- 15.87% coverage (216% improvement from baseline)
+- Property-based testing framework with Hypothesis
 - Integration test infrastructure with pytest-asyncio
-- Browser automation tests (17 tests)
-- Governance performance tests
-- 15.87% coverage achieved (216% improvement from 4.4% baseline)
 
-### Milestone v2.0: Feature Integration & Coverage Expansion
-
-**Timeline:** Phase 29-74
-
-**Achievements:**
-- Community Skills Integration (Phase 14) - 5,000+ OpenClaw skills with Docker sandbox
-- Agent Layer Testing (Phase 17) - Governance, graduation, execution
-- Python Package Support (Phase 35) - 7 plans, security scanning, isolation
-- npm Package Support (Phase 36) - 7 plans, package governance
-- Advanced Skill Execution (Phase 60) - Marketplace, composition, E2E security
-- Atom SaaS Marketplace Sync (Phase 61) - Real-time sync, WebSocket integration
-- 80% Test Coverage Achievement (Phase 62) - Coverage analysis and strategy
-- E2E Test Suite (Phase 64) - Docker environment, real service integration
-- Personal Edition Enhancements (Phase 66) - Media, creative, smart home
-- CI/CD Pipeline Fixes (Phase 67) - Comprehensive documentation and runbooks
-- BYOK Cognitive Tier System (Phase 68) - 5-tier routing, cache optimization
-- Autonomous Coding Agents (Phase 69) - Full SDLC implementation, 10 plans
-
-**v2.0 Legacy Phases Archive:**
-- Phases 29-74 are archived in ROADMAP.backup.md for historical reference
-- All 46 plans completed successfully
-- Production-ready codebase with comprehensive testing infrastructure
+</details>
 
 ---
 
-## Current Phases
+## Current Phases (v3.2)
 
 **Phase Numbering:**
-- Integer phases (75, 76, 77): Planned milestone work
-- Decimal phases (75.1, 75.2): Urgent insertions (marked with INSERTED)
+- Integer phases (81, 82, 83): Planned milestone work
+- Decimal phases (81.1, 81.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 75: Test Infrastructure & Fixtures** - Playwright setup with fixtures, browser contexts, test data factories, database isolation, and configuration
-- [ ] **Phase 76: Authentication & User Management** - Login, session persistence, logout, settings, and project management flows
-- [ ] **Phase 77: Agent Chat & Streaming** - Chat interface, streaming responses, WebSocket connections, governance enforcement, and execution history
-- [ ] **Phase 78: Canvas Presentations** - Canvas creation, component rendering, form submission, state API, accessibility, and dynamic content
-- [ ] **Phase 79: Skills & Workflows** - Skill marketplace, installation, configuration, execution, and uninstallation
-- [x] **Phase 80: Quality Gates & CI/CD Integration** - Screenshots, videos, retries, flaky test detection, pass rate validation, and HTML reports
+- [ ] **Phase 81: Coverage Analysis & Prioritization** - Generate coverage reports, identify high-impact files, map gaps to critical paths
+- [ ] **Phase 82: Core Services Unit Testing (Governance & Episodes)** - Agent governance, episode segmentation, BYOK handler tests
+- [ ] **Phase 83: Core Services Unit Testing (Canvas & Browser)** - Canvas tool, browser automation, device capabilities tests
+- [ ] **Phase 84: Core Services Unit Testing (Training & Graduation)** - Student training service, graduation service tests
+- [ ] **Phase 85: Database & Integration Testing** - Database models, migrations, transactions, critical path integration tests
+- [ ] **Phase 86: Property-Based Testing (Core Services)** - Governance cache, episode segmentation, LLM streaming invariants
+- [ ] **Phase 87: Property-Based Testing (Database & Auth)** - Database operations, authentication/authorization invariants
+- [ ] **Phase 88: Bug Discovery (Error Paths & Boundaries)** - Error code paths, boundary conditions, concurrent operations
+- [ ] **Phase 89: Bug Discovery (Failure Modes & Security)** - Failure modes, security edge cases
+- [ ] **Phase 90: Quality Gates & CI/CD** - Coverage enforcement, trend tracking, pass rate validation, documentation
 
 ---
 
 ## Phase Details
 
-### Phase 75: Test Infrastructure & Fixtures
+### Phase 81: Coverage Analysis & Prioritization
 
-**Goal**: Playwright environment is established with fixtures, browser contexts, test data factories, database isolation, and Docker configuration
+**Goal**: Comprehensive coverage analysis identifies gaps, prioritizes high-impact files, maps to critical paths
 
-**Depends on**: Nothing (first phase of v3.1)
+**Depends on**: Nothing (first phase of v3.2)
 
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07
+**Requirements**: COV-01, COV-02, COV-03, COV-04
 
 **Success Criteria** (what must be TRUE):
-  1. Developer can run tests with `pytest tests/e2e_ui/` and see Playwright browser execute tests
-  2. Tests use fixtures for authenticated browser contexts, page objects, and test data
-  3. Tests generate unique data per worker with UUID v4 to prevent parallel execution collisions
-  4. Tests can use API-first setup for fast state initialization (bypassing UI for data setup)
-  5. Database isolation ensures each test worker has separate database schema with rollback on cleanup
-  6. Docker Compose environment starts all services (backend, frontend, PostgreSQL) for testing
-  7. Playwright configuration includes base URL, browsers (Chromium, Firefox, WebKit), timeout settings, and retries
+  1. Coverage report generated showing all backend files with current coverage percentage
+  2. High-impact files identified (>200 lines, <30% coverage) with priority ranking
+  3. Coverage gaps mapped to critical business paths and potential failure modes
+  4. Coverage baseline established with trend tracking infrastructure in place
 
-**Plans**: 7 plans in 2 waves
+**Plans**: 4 plans
 
-**Wave 1** (parallel): 75-01, 75-02, 75-03, 75-04, 75-05, 75-06
-- [ ] 75-01-PLAN.md — Create E2E UI test directory and configuration files (conftest.py, pyproject.toml, playwright.config.ts)
-- [ ] 75-02-PLAN.md — Create authentication fixtures and Page Object classes (auth_fixtures.py, page_objects.py)
-- [ ] 75-03-PLAN.md — Create test data factories for unique, realistic test data (test_data_factory.py)
-- [ ] 75-04-PLAN.md — Create worker-based database isolation fixtures (database_fixtures.py)
-- [ ] 75-05-PLAN.md — Create API-first setup utilities for fast test state initialization (api_setup.py)
-- [ ] 75-06-PLAN.md — Create Docker Compose environment for E2E UI testing (docker-compose-e2e-ui.yml, scripts)
-
-**Wave 2**: 75-07 (depends on Wave 1 fixture creation)
-- [ ] 75-07-PLAN.md — Update Playwright to 1.58.0 and finalize configuration (requirements.txt, pytest.ini, conftest.py updates)
-  - Depends on: 75-01 (conftest.py), 75-02 (auth_fixtures), 75-03 (test_data_factory), 75-04 (database_fixtures), 75-05 (api_setup)
+- [ ] 081-01-PLAN.md — Generate comprehensive coverage report (coverage.json parsing, HTML report, file listing, coverage percentage calculation)
+- [ ] 081-02-PLAN.md — Identify and prioritize high-impact files (>200 lines filter, <30% coverage filter, business criticality scoring, priority ranked list)
+- [ ] 081-03-PLAN.md — Map coverage gaps to critical paths (agent execution flow, episode creation flow, canvas presentation flow, failure mode analysis)
+- [ ] 081-04-PLAN.md — Establish coverage baseline and trend tracking (baseline metrics, tracking database/JSON, trend analysis script, CI integration)
 
 ---
 
-### Phase 76: Authentication & User Management
+### Phase 82: Core Services Unit Testing (Governance & Episodes)
 
-**Goal**: User can authenticate, manage sessions, update settings, and create projects through the UI
+**Goal**: Agent governance and episode services have comprehensive unit tests covering all code paths
 
-**Depends on**: Phase 75 (test infrastructure)
+**Depends on**: Phase 81 (coverage analysis)
 
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05
+**Requirements**: UNIT-01, UNIT-02, UNIT-03
 
 **Success Criteria** (what must be TRUE):
-  1. User can log in via email and password through the login form
-  2. User session persists across browser refresh (JWT token stored and validated)
-  3. User can log out and session is cleared (token removed, redirected to login)
-  4. User can access settings page and update preferences (theme, notifications, etc.)
-  5. User can create new project and see it in project list
-  6. User can edit and delete projects with proper confirmation dialogs
+  1. Agent governance service tests cover lifecycle, permissions, cache invalidation (90%+ coverage)
+  2. Episode segmentation service tests cover time gaps, topic changes, task completion (90%+ coverage)
+  3. BYOK LLM handler tests cover multi-provider routing, streaming, error handling (90%+ coverage)
+  4. All tests use mocks appropriately (external services mocked, real database/session fixtures)
+  5. Tests verify both success and failure paths (edge cases, error handling, boundary conditions)
 
-**Plans**: 5 plans in 2 waves
+**Plans**: 3 plans
 
-**Wave 1** (parallel): 076-01, 076-02, 076-03, 076-04
-- [ ] 076-01-PLAN.md — Login flow E2E tests (valid credentials, invalid credentials, empty fields, remember me)
-- [ ] 076-02-PLAN.md — Session persistence tests (refresh, protected routes, token expiration, multiple tabs)
-- [ ] 076-03-PLAN.md — Logout flow tests (via menu, session clear, redirect, protected route blocking)
-- [ ] 076-04-PLAN.md — Settings page tests (access, theme toggle, notifications, persistence)
-
-**Wave 2**: 076-05 (depends on 076-01 for LoginPage pattern)
-- [ ] 076-05-PLAN.md — Project management tests (create, edit, delete with confirmation, project list)
+- [ ] 082-01-PLAN.md — Agent governance service unit tests (lifecycle methods, permission checks, cache invalidation, error handling, 30+ tests)
+- [ ] 082-02-PLAN.md — Episode segmentation service unit tests (time gap detection, topic change detection, task completion, episode lifecycle, 25+ tests)
+- [ ] 082-03-PLAN.md — BYOK LLM handler unit tests (provider selection, streaming responses, error recovery, timeout handling, token counting, 20+ tests)
 
 ---
 
-### Phase 77: Agent Chat & Streaming
+### Phase 83: Core Services Unit Testing (Canvas & Browser)
 
-**Goal**: User can interact with agents through chat interface with streaming responses and governance enforcement
+**Goal**: Canvas, browser automation, and device services have comprehensive unit tests
 
-**Depends on**: Phase 76 (authentication)
+**Depends on**: Phase 82 (governance/episodes tested)
 
-**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05, AGENT-06
+**Requirements**: UNIT-04, UNIT-05, UNIT-06
 
 **Success Criteria** (what must be TRUE):
-  1. User can send chat message to agent through chat input and see message in chat history
-  2. Agent response is displayed token-by-token via streaming (WebSocket connection verified)
-  3. WebSocket connection is established for streaming (connection lifecycle tested)
-  4. Governance enforcement blocks STUDENT agent from restricted actions (error message shown)
-  5. INTERN agent requires approval before executing actions (approval dialog displayed)
-  6. Agent execution history is displayed in chat interface (timestamp, status, result)
+  1. Canvas tool tests cover presentation types, governance enforcement, state management (90%+ coverage)
+  2. Browser automation tool tests cover CDP integration, governance enforcement, error handling (90%+ coverage)
+  3. Device capabilities tool tests cover permissions, maturity gates, device API interactions (90%+ coverage)
+  4. Tests verify governance enforcement at maturity boundaries (STUDENT blocked, INTERN approval, SUPERVISED supervision)
 
-**Plans**: 6 plans in 2 waves
+**Plans**: 3 plans
 
-**Wave 1** (parallel): 077-01, 077-02, 077-03, 077-04
-- [ ] 077-01-PLAN.md — Chat Interface Page Object (ChatPage with locators and methods)
-- [ ] 077-02-PLAN.md — Chat message sending tests (AGENT-01: send, history, empty input, persistence)
-- [ ] 077-03-PLAN.md — WebSocket connection lifecycle tests (AGENT-03: connect, events, disconnect, reconnect)
-- [ ] 077-04-PLAN.md — Streaming response tests (AGENT-02: token-by-token, completion, indicator, errors)
-
-**Wave 2**: 077-05, 077-06 (depends on Wave 1 Page Objects and tests)
-- [ ] 077-05-PLAN.md — Governance enforcement tests (AGENT-04, AGENT-05: STUDENT blocking, INTERN approval, SUPERVISED auto-execute)
-- [ ] 077-06-PLAN.md — Agent execution history tests (AGENT-06: display, timestamp, status, persistence)
+- [ ] 083-01-PLAN.md — Canvas tool unit tests (chart presentations, markdown rendering, form submission, governance enforcement, state management, 25+ tests)
+- [ ] 083-02-PLAN.md — Browser automation tool unit tests (CDP integration, page navigation, element interaction, screenshots, governance, error handling, 20+ tests)
+- [ ] 083-03-PLAN.md — Device capabilities tool unit tests (camera access, screen recording, location services, notifications, permission checks, maturity gates, 15+ tests)
 
 ---
 
-### Phase 78: Canvas Presentations ✅
+### Phase 84: Core Services Unit Testing (Training & Graduation)
 
-**Goal**: User can create and interact with canvas presentations with forms, charts, and accessibility features
+**Goal**: Student training and graduation services have comprehensive unit tests
 
-**Depends on**: Phase 77 (agent chat)
+**Depends on**: Phase 83 (canvas/browser tested)
 
-**Requirements**: CANVAS-01, CANVAS-02, CANVAS-03, CANVAS-04, CANVAS-05, CANVAS-06
+**Requirements**: UNIT-07, UNIT-08
 
 **Success Criteria** (what must be TRUE):
-  1. User can create new canvas presentation from agent chat or directly
-  2. Canvas components render correctly (charts display data, markdown formatted, forms functional)
-  3. User can submit canvas form and validation works (error messages, success feedback)
-  4. Canvas state API (window.atom.canvas.getState) returns correct data structure
-  5. AI accessibility tree exposes canvas state via role='log' and aria-live attributes
-  6. Dynamic content loads correctly with auto-waiting (no flaky waits, proper selectors)
+  1. Student training service tests cover proposal workflow, supervision integration, error handling (90%+ coverage)
+  2. Graduation service tests cover criteria calculation, constitutional compliance, promotion decisions (90%+ coverage)
+  3. Tests verify state transitions (STUDENT → INTERN → SUPERVISED → AUTONOMOUS)
+  4. Tests validate graduation criteria (episode counts, intervention rates, constitutional scores)
 
-**Plans**: 6 plans in 3 waves
+**Plans**: 2 plans
 
-**Wave 1** (parallel): 078-01, 078-02
-- [x] 078-01-PLAN.md — Canvas Creation Tests (CANVAS-01: create, render, close, markdown, positioning)
-- [x] 078-02-PLAN.md — Chart Rendering Tests (CANVAS-02: line, bar, pie charts with data, tooltips, legends)
-
-**Wave 2** (parallel): 078-03, 078-04, 078-05
-- [x] 078-03-PLAN.md — Form Submission Tests (CANVAS-03: rendering, validation, submission, governance)
-- [x] 078-04-PLAN.md — Canvas State API Tests (CANVAS-04: getState, getAllStates, state structure)
-- [x] 078-05-PLAN.md — Accessibility Tests (CANVAS-05: role='log', aria-live, state exposure, XSS prevention)
-
-**Wave 3**: 078-06 (depends on 078-01, 078-02, 078-03)
-- [x] 078-06-PLAN.md — Dynamic Content Tests (CANVAS-06: WebSocket updates, async loading, loading indicators, error states, form preservation, race conditions)
-
-**Status**: ✅ COMPLETE (6/6 plans, 80/80 must-haves verified)
-
-**Artifacts Created**:
-- CanvasHostPage Page Object (171 lines, 9 locators, 8 methods)
-- CanvasChartPage Page Object (402 lines, 10 locators, 20+ methods)
-- CanvasFormPage Page Object (413 lines, 12 locators, 20+ methods)
-- test_canvas_creation.py (487 lines, 6 tests)
-- test_canvas_charts.py (514 lines, 16 tests)
-- test_canvas_forms.py (807 lines, 12 tests)
-- test_canvas_state_api.py (901 lines, 14 tests)
-- test_canvas_accessibility.py (762 lines, 18 tests)
-- test_canvas_dynamic_content.py (1,190 lines, 14 tests)
-
-**Total**: 986 lines Page Objects + 4,661 lines tests = 5,647 lines of E2E test code
+- [ ] 084-01-PLAN.md — Student training service unit tests (proposal generation, approval workflow, supervision monitoring, intervention tracking, 20+ tests)
+- [ ] 084-02-PLAN.md — Graduation service unit tests (criteria calculation, constitutional scoring, eligibility checks, promotion decisions, state transitions, 15+ tests)
 
 ---
 
-### Phase 79: Skills & Workflows ✅
+### Phase 85: Database & Integration Testing
 
-**Goal**: User can browse, install, configure, execute, and uninstall skills through the UI
+**Goal**: Database models, migrations, transactions, and critical integration paths have comprehensive tests
 
-**Depends on**: Phase 78 (canvas presentations)
+**Depends on**: Phase 84 (training/graduation tested)
 
-**Requirements**: SKILL-01, SKILL-02, SKILL-03, SKILL-04, SKILL-05
+**Requirements**: DB-01, DB-02, DB-03, DB-04
 
 **Success Criteria** (what must be TRUE):
-  1. User can browse skill marketplace with search and category filters
-  2. User can install skill from marketplace and see it in installed skills list
-  3. User can configure skill settings (API keys, options, preferences)
-  4. User can execute skill and verify output (result displayed, errors handled)
-  5. User can uninstall skill and it's removed from installed list
+  1. Database model tests cover relationships, constraints, cascading deletes (90%+ coverage)
+  2. Migration tests cover upgrade/downgrade paths, data preservation (all migrations)
+  3. Transaction tests cover rollback scenarios, concurrent operations, isolation levels
+  4. Integration tests cover critical paths (agent execution, episode creation, canvas presentation)
 
-**Plans**: 5 plans in 2 waves
+**Plans**: 4 plans
 
-**Wave 1** (parallel): 079-01, 079-02
-- [x] 079-01-PLAN.md — Skills Marketplace Page Object & Browsing Tests (SKILL-01: browse, search, category filters, pagination, empty state)
-- [x] 079-02-PLAN.md — Skill Installation Page Object & Tests (SKILL-02: install, button states, governance, security scan, database verification)
-
-**Wave 2** (parallel): 079-03, 079-04, 079-05
-- [x] 079-03-PLAN.md — Skill Configuration Page Object & Tests (SKILL-03: API keys, options, validation, persistence, reset)
-- [x] 079-04-PLAN.md — Skill Execution Page Object & Tests (SKILL-04: execute, progress, output types, errors, governance, history)
-- [x] 079-05-PLAN.md — Skill Uninstallation Tests (SKILL-05: confirm, cleanup, reinstallation, active blocking, history preservation)
-
-**Status**: ✅ COMPLETE (5/5 plans, 5/5 must-haves verified)
-
-**Artifacts Created**:
-- SkillsMarketplacePage Page Object (387 lines, 14 locators, 13 methods)
-- SkillInstallationPage Page Object (498 lines, 30+ locators, 25+ methods)
-- SkillConfigPage Page Object (461 lines, 40+ locators, 25+ methods)
-- SkillExecutionPage Page Object (424 lines, 30+ locators, 25+ methods)
-- Uninstall extensions to SkillInstallationPage (+638 lines)
-- test_skills_marketplace.py (603 lines, 10 tests)
-- test_skills_installation.py (735 lines, 11 tests)
-- test_skills_configuration.py (621 lines, 12 tests)
-- test_skills_execution.py (740 lines, 17 tests)
-- test_skills_uninstallation.py (831 lines, 12 tests)
-
-**Total**: 4,277 lines Page Objects + 3,530 lines tests = 7,807 lines of E2E test code
+- [ ] 085-01-PLAN.md — Database model tests (relationships, foreign keys, constraints, cascading operations, ORM queries, 30+ tests)
+- [ ] 085-02-PLAN.md — Migration tests (upgrade path, downgrade path, data preservation, schema validation, all migrations tested)
+- [ ] 085-03-PLAN.md — Transaction tests (rollback on error, concurrent operations, isolation levels, deadlock handling, 15+ tests)
+- [ ] 085-04-PLAN.md — Integration tests for critical paths (agent execution end-to-end, episode creation end-to-end, canvas presentation end-to-end, 20+ tests)
 
 ---
 
-### Phase 80: Quality Gates & CI/CD Integration ✅
+### Phase 86: Property-Based Testing (Core Services)
 
-**Goal**: Test suite has quality gates for screenshots, videos, retries, flaky test detection, pass rate validation, and HTML reports
+**Goal**: Core services have Hypothesis property tests for invariants and edge cases
 
-**Depends on**: Phase 79 (all workflows tested)
+**Depends on**: Phase 85 (database/integration tested)
+
+**Requirements**: PROP-01, PROP-02, PROP-03
+
+**Success Criteria** (what must be TRUE):
+  1. Governance cache property tests verify idempotency, consistency, performance invariants
+  2. Episode segmentation property tests verify monotonicity, completeness, ordering invariants
+  3. LLM streaming property tests verify token ordering, error recovery, timeout handling
+  4. Hypothesis finds edge cases that unit tests miss (documented bugs fixed)
+
+**Plans**: 3 plans
+
+- [ ] 086-01-PLAN.md — Governance cache property tests (cache hit idempotency, cache consistency across invalidations, performance degradation detection, 10+ properties)
+- [ ] 086-02-PLAN.md — Episode segmentation property tests (monotonic episode growth, complete segment coverage, ordering preservation, 10+ properties)
+- [ ] 086-03-PLAN.md — LLM streaming property tests (token ordering preserved, error recovery maintains state, timeout handling graceful, 8+ properties)
+
+---
+
+### Phase 87: Property-Based Testing (Database & Auth)
+
+**Goal**: Database operations and authentication/authorization have property tests
+
+**Depends on**: Phase 86 (core services property tested)
+
+**Requirements**: PROP-04, PROP-05
+
+**Success Criteria** (what must be TRUE):
+  1. Database operation property tests verify CRUD invariants, foreign key constraints
+  2. Authentication/authorization property tests verify permission matrix, maturity gate enforcement
+  3. Hypothesis generates diverse inputs (unicode, special characters, boundary values)
+
+**Plans**: 2 plans
+
+- [ ] 087-01-PLAN.md — Database operations property tests (CRUD invariants, foreign key constraints, unique constraints, transaction atomicity, 8+ properties)
+- [ ] 087-02-PLAN.md — Authentication/authorization property tests (permission matrix completeness, maturity gate enforcement, role-based access control, 8+ properties)
+
+---
+
+### Phase 88: Bug Discovery (Error Paths & Boundaries)
+
+**Goal**: All error code paths, boundary conditions, and concurrent operations are tested
+
+**Depends on**: Phase 87 (property tests complete)
+
+**Requirements**: BUG-01, BUG-02, BUG-03
+
+**Success Criteria** (what must be TRUE):
+  1. All error code paths are tested (every exception raised, every error branch)
+  2. Boundary conditions are tested (empty inputs, maximum values, unicode, special characters)
+  3. Concurrent operations are tested (race conditions, deadlocks, resource cleanup)
+  4. Tests discover bugs in production code (documented and fixed)
+
+**Plans**: 3 plans
+
+- [ ] 088-01-PLAN.md — Error code path tests (every exception raised, every error return value, error propagation, error logging, 40+ tests)
+- [ ] 088-02-PLAN.md — Boundary condition tests (empty inputs, null inputs, maximum values, unicode strings, special characters, negative values, 30+ tests)
+- [ ] 088-03-PLAN.md — Concurrent operation tests (race conditions, deadlocks, resource cleanup, lock contention, 15+ tests)
+
+---
+
+### Phase 89: Bug Discovery (Failure Modes & Security)
+
+**Goal**: All failure modes and security edge cases are tested
+
+**Depends on**: Phase 88 (error paths tested)
+
+**Requirements**: BUG-04, BUG-05
+
+**Success Criteria** (what must be TRUE):
+  1. Failure modes are tested (network timeouts, provider failures, database connection loss)
+  2. Security edge cases are tested (injection attempts, permission bypass, malformed input)
+  3. Tests verify graceful degradation (errors don't crash system, proper error messages)
+
+**Plans**: 2 plans
+
+- [ ] 089-01-PLAN.md — Failure mode tests (network timeouts, provider failures, database connection loss, out of memory, disk full, 20+ tests)
+- [ ] 089-02-PLAN.md — Security edge case tests (SQL injection, XSS injection, path traversal, permission bypass, malformed input, DoS protection, 25+ tests)
+
+---
+
+### Phase 90: Quality Gates & CI/CD
+
+**Goal**: Quality gates enforce coverage, track trends, maintain pass rate, and document strategy
+
+**Depends on**: Phase 89 (failure modes tested)
 
 **Requirements**: QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-05, QUAL-06
 
 **Success Criteria** (what must be TRUE):
-  1. Screenshots are captured on test failure and saved to artifacts directory
-  2. Video recordings are captured on test failure in CI environment only
-  3. Tests retry up to 2 times on failure in CI environment only
-  4. Flaky test detection identifies unstable tests across multiple runs
-  5. Test suite achieves 100% pass rate on 3 consecutive runs (quality gate)
-  6. HTML test reports are generated with screenshots embedded for failed tests
+  1. Pre-commit hook enforces 80% coverage on new code
+  2. Coverage trends tracked over time with automated regression detection
+  3. Test suite maintains 98%+ pass rate across all tests
+  4. Coverage reports generated with drill-down to uncovered lines
+  5. Coverage metrics integrated into CI pipeline with failure thresholds
+  6. Test coverage strategy documented with maintenance guidelines
 
-**Plans**: 6 plans in 2 waves
+**Plans**: 6 plans
 
-**Wave 1** (parallel): 80-01, 80-02, 80-03
-- [x] 80-01-PLAN.md — Screenshot capture on test failure (pytest_runtest_makereport hook, artifacts/screenshots/, test_quality_gates.py)
-- [x] 80-02-PLAN.md — Video recording in CI only (CI environment detection, record_video_dir, artifacts/videos/, e2e-ui-tests.yml)
-- [x] 80-03-PLAN.md — Test retries in CI only (pytest-rerunfailures, PYTEST_RERUNS env var, pytest_configure hook, local no-retry)
-
-**Wave 2** (depends on Wave 1): 80-04, 80-05, 80-06
-- [x] 80-04-PLAN.md — Flaky test detection (FlakyTestTracker module, detect_flaky_tests.py script, historical tracking, CI integration)
-- [x] 80-05-PLAN.md — Pass rate quality gate (100% pass rate on 3 consecutive runs, QualityGate class, quality_gate_history.json, CI validation step)
-- [x] 80-06-PLAN.md — HTML test reports with embedded screenshots (pytest-html plugin, html_report_generator.py, pytest_html hooks, self-contained reports)
-
-**Status**: ✅ COMPLETE (6/6 plans, 6/6 must-haves verified)
-
-**Artifacts Created:**
-- 5 Python scripts (942 lines): flaky_test_tracker.py, detect_flaky_tests.py, quality_gate.py, pass_rate_validator.py, html_report_generator.py
-- Enhanced conftest.py with pytest hooks for screenshots, videos, retries, HTML
-- CI workflow integration with 6 upload-artifact steps
-- 20 test functions in test_quality_gates.py + 4 unit tests
-- Historical tracking: flaky_tests.json, quality_gate_history.json
-- pytest-html plugin with self-contained reports
+- [ ] 090-01-PLAN.md — Pre-commit coverage hook (80% minimum enforcement, new code only, clear error messages, documentation)
+- [ ] 090-02-PLAN.md — Coverage trend tracking (historical data storage, trend calculation, regression detection, alerting)
+- [ ] 090-03-PLAN.md — Test pass rate validation (98%+ threshold, flaky test tracking, failure categorization, CI gate)
+- [ ] 090-04-PLAN.md — Coverage report generation (HTML reports with drill-down, uncovered lines highlighted, missing branch coverage, JSON metrics)
+- [ ] 090-05-PLAN.md — CI pipeline integration (coverage thresholds, pass rate gates, trend regression detection, artifact upload)
+- [ ] 090-06-PLAN.md — Coverage strategy documentation (testing guidelines, maintenance procedures, coverage targets, quality standards)
 
 ---
 
@@ -311,94 +320,49 @@ Comprehensive end-to-end testing initiative for Atom platform covering critical 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Test Infrastructure & Fixtures | 7/7 | ✅ Complete | 2026-02-23 |
-| 76. Authentication & User Management | 5/5 | ✅ Complete | 2026-02-23 |
-| 77. Agent Chat & Streaming | 6/6 | ✅ Complete | 2026-02-23 |
-| 78. Canvas Presentations | 6/6 | ✅ Complete | 2026-02-23 |
-| 79. Skills & Workflows | 5/5 | ✅ Complete | 2026-02-23 |
-| 80. Quality Gates & CI/CD Integration | 6/6 | ✅ Complete | 2026-02-23 |
+| 81. Coverage Analysis & Prioritization | 0/4 | Not started | - |
+| 82. Core Services Unit Testing (Governance & Episodes) | 0/3 | Not started | - |
+| 83. Core Services Unit Testing (Canvas & Browser) | 0/3 | Not started | - |
+| 84. Core Services Unit Testing (Training & Graduation) | 0/2 | Not started | - |
+| 85. Database & Integration Testing | 0/4 | Not started | - |
+| 86. Property-Based Testing (Core Services) | 0/3 | Not started | - |
+| 87. Property-Based Testing (Database & Auth) | 0/2 | Not started | - |
+| 88. Bug Discovery (Error Paths & Boundaries) | 0/3 | Not started | - |
+| 89. Bug Discovery (Failure Modes & Security) | 0/2 | Not started | - |
+| 90. Quality Gates & CI/CD | 0/6 | Not started | - |
 
-**Overall Progress**: 35/35 plans complete (100%)
-
-**Phase 80 Breakdown** (6 plans, 2 waves):
-- Wave 1 (3 plans, parallel): 80-01, 80-02, 80-03 — Screenshot capture, Video recording (CI only), Test retries (CI only)
-- Wave 2 (3 plans, parallel): 80-04, 80-05, 80-06 — Flaky test detection, Pass rate quality gate, HTML reports with screenshots
-
-**Phase 79 Breakdown** (5 plans, 2 waves):
-- Wave 1 (2 plans, parallel): 079-01, 079-02 — Marketplace PO & browsing tests, Installation PO & tests
-- Wave 2 (3 plans, parallel): 079-03, 079-04, 079-05 — Config tests, Execution tests, Uninstallation tests
-
-**Phase 75 Breakdown** (7 plans, 2 waves):
-- Wave 1 (6 plans, parallel): 75-01, 75-02, 75-03, 75-04, 75-05, 75-06 — Configuration, fixtures, factories, database isolation, API setup, Docker environment
-- Wave 2 (1 plan): 75-07 — Playwright update and final configuration (depends on fixture creation from Wave 1)
-
-**Phase 77 Breakdown** (6 plans, 2 waves):
-- Wave 1 (4 plans, parallel): 077-01, 077-02, 077-03, 077-04 — ChatPage PO, message sending, WebSocket lifecycle, streaming responses
-- Wave 2 (2 plans): 077-05, 077-06 — Governance enforcement, execution history (depends on Wave 1)
+**Overall Progress**: 0/32 plans complete (0%)
 
 ---
 
 ## Coverage Summary
 
-**v3.1 Requirements**: 37 total
-- Test Infrastructure: 7 requirements
-- Authentication & User Management: 5 requirements
-- Agent Chat & Streaming: 6 requirements
-- Canvas Presentations: 6 requirements
-- Skills & Workflows: 5 requirements
-- Quality Gates: 6 requirements
+**v3.2 Requirements**: 30 total
+- Coverage Analysis & Prioritization: 4 requirements
+- Core Services Unit Testing: 8 requirements
+- Database & Integration Testing: 4 requirements
+- Property-Based Testing: 5 requirements
+- Bug Discovery & Edge Cases: 5 requirements
+- Quality Gates & CI/CD: 6 requirements
 
-**Coverage**: 100% (37/37 requirements mapped to phases 75-80)
+**Coverage**: 100% (30/30 requirements mapped to phases 81-90)
 
 ---
 
-## Out of Scope (v3.1)
+## Out of Scope (v3.2)
 
-Explicitly excluded from v3.1 to maintain focus. Documented to prevent scope creep.
+Explicitly excluded from v3.2 to maintain focus. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Multi-agent orchestration E2E tests | HIGH complexity, requires separate research phase (v3.2) |
-| Agent graduation criteria E2E tests | Defer to v3.2 after core workflows stable |
-| Browser automation tool E2E tests | Covered in Phase 64 (backend E2E), UI not critical path |
-| Visual regression tests | High maintenance burden, defer to v3.2 |
-| Cross-browser tests (Firefox, Safari) | 3x execution time, Chromium only for v3.1 |
-| Performance regression tests | Defer to v3.2 |
-| Parallel execution optimization | Defer to v3.2 after tests stable |
-| Load testing | Beyond E2E scope, separate initiative |
-| Chaos engineering | Resilience testing, defer to future |
-| Mobile E2E | React Native testing is different skillset, defer to mobile milestone |
+| Frontend test coverage | Separate frontend test suite with different tooling (Jest, React Testing Library) |
+| Mobile test coverage | Mobile implementation in progress, separate test infrastructure |
+| Performance/benchmark testing | Separate performance testing initiative planned for v4+ |
+| End-to-end UI testing | Already complete in v3.1 (Playwright E2E suite) |
+| LanceDB integration tests | Requires external LanceDB dependency, not yet in CI environment |
 
 ---
 
-## Research Context
-
-Based on comprehensive E2E testing research (research/SUMMARY.md), v3.1 focuses on Playwright-based UI testing for critical user workflows. Research findings:
-
-**Recommended Approach:**
-- Playwright Python 1.58.0 with pytest-playwright plugin
-- Docker Compose test environment with backend, frontend, PostgreSQL
-- Test fixtures for authentication, browser context, page objects
-- Worker-based database isolation for parallel execution
-- API-first test setup utilities for fast state initialization
-- Quality gates with screenshots, videos, retries, flaky test detection
-
-**Critical Success Factors:**
-- Test independence (no shared state between tests)
-- Fast execution (<30s per test, <10min full suite)
-- Reliable selectors (data-testid attributes over CSS/XPath)
-- Proper async coordination (auto-waiting, explicit waits)
-- Parallel execution from day one (catches state sharing issues)
-
-**Research-Validated Patterns:**
-- Page Object Model for UI abstractions
-- Fixture-based test data generation (factory_boy pattern)
-- Transaction rollback for database isolation
-- API-first setup for expensive state initialization
-- Retry logic with exponential backoff for flaky network operations
-
----
-
-*Last updated: 2026-02-23*
-*Milestone: v3.1 E2E UI Testing*
-*Status: ✅ COMPLETE - All 35 plans executed, production-ready E2E test suite with quality gates*
+*Last updated: 2026-02-24*
+*Milestone: v3.2 Bug Finding & Coverage Expansion*
+*Status: 🚧 IN PLANNING - 10 phases, 32 plans, 30 requirements*
