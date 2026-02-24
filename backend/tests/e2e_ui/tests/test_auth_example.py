@@ -8,7 +8,8 @@ Performance: API-first auth is 10-100x faster than UI login.
 """
 
 import pytest
-from pages.page_objects import DashboardPage, SettingsPage
+from typing import Dict, Any
+from tests.e2e_ui.pages.page_objects import DashboardPage, SettingsPage
 
 
 class TestAuthenticatedAccess:
@@ -162,7 +163,7 @@ class TestPageObjectIntegration:
         Args:
             page: Regular page fixture (no authentication)
         """
-        from pages.page_objects import LoginPage
+        from tests.e2e_ui.pages.page_objects import LoginPage
 
         # Navigate to login
         login_page = LoginPage(page)

@@ -16,14 +16,6 @@ def is_ci_environment():
     """Detect if running in CI environment."""
     return os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("GITLAB_CI") == "true"
 
-# Import all Wave 1 fixtures as plugins for comprehensive E2E testing
-pytest_plugins = [
-    "tests.e2e_ui.fixtures.auth_fixtures",
-    "tests.e2e_ui.fixtures.database_fixtures",
-    "tests.e2e_ui.fixtures.api_fixtures",
-    "tests.e2e_ui.fixtures.test_data_factory",
-]
-
 # Import base fixtures for direct use (optional, fixtures available via plugins)
 from .fixtures.auth_fixtures import authenticated_page
 from .fixtures.database_fixtures import db_session

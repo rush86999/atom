@@ -1336,6 +1336,75 @@ class FailedRatingUpload(Base):
         return f"<{self.__class__.__name__}(rating_id={self.rating_id}, retries={self.retry_count})>"
 
 
+class CommunitySkill(Base):
+    """
+    Community-submitted skills from OpenClaw/ClawHub marketplace.
+
+    Stores metadata for skills imported from community sources.
+    Skills are validated and security-scanned before availability.
+
+    Phase 14 - Community Skills Integration
+    Phase 60 - Skill Marketplace with full metadata
+    """
+    __tablename__ = "community_skills"
+
+    skill_id = Column(String(255), primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    author = Column(String(255), nullable=True)
+    version = Column(String(50), nullable=False)
+    category = Column(String(100), nullable=True, index=True)
+    source = Column(String(100), nullable=False)  # openclaw, clawhub, local
+    skill_path = Column(String(500), nullable=False)  # Path to skill directory
+    skill_metadata = Column(JSON, nullable=True)  # Additional skill metadata (renamed from 'metadata' to avoid SQLAlchemy reserved word)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index('idx_community_skills_source', 'source'),
+        Index('idx_community_skills_category', 'category'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, name={self.name}, version={self.version})>"
+
+
+class SkillSecurityScan(Base):
+    """
+    Security scan results for community skills.
+
+    Stores vulnerability scan results from pip-audit and Safety.
+    Skills with high-severity vulnerabilities are blocked.
+
+    Phase 35 - Python Package Support with security scanning
+    Phase 60 - Skill Marketplace security validation
+    """
+    __tablename__ = "skill_security_scans"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String(255), ForeignKey("community_skills.skill_id"), nullable=False, index=True)
+    scan_type = Column(String(50), nullable=False)  # pip-audit, safety, custom
+    scanned_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    vulnerabilities_found = Column(Integer, default=0, nullable=False)
+    high_severity_count = Column(Integer, default=0, nullable=False)
+    medium_severity_count = Column(Integer, default=0, nullable=False)
+    low_severity_count = Column(Integer, default=0, nullable=False)
+    scan_results = Column(JSON, nullable=True)  # Detailed vulnerability list
+    passed = Column(Boolean, default=False, nullable=False)  # Whether skill passed security check
+
+    # Relationships
+    skill = relationship("CommunitySkill", backref=backref("security_scans", uselist=True))
+
+    __table_args__ = (
+        Index('idx_skill_security_scans_skill_id', 'skill_id'),
+        Index('idx_skill_security_scans_passed', 'passed'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(skill_id={self.skill_id}, passed={self.passed}, vulns={self.vulnerabilities_found})>"
+
+
 class ConflictLog(Base):
     """
     Track conflicts and resolutions for skill synchronization.
@@ -1588,6 +1657,62 @@ class AgentTraceStep(Base):
 
     # Relationships
     execution = relationship("AgentExecution", backref="trace_steps")
+
+
+class AgentEvolutionTrace(Base):
+    """
+    Evolution trace for Group-Evolving Agents (GEA) framework.
+
+    Records evolution cycles including parent agents, directives applied,
+    performance metrics, and benchmark results.
+
+    Phase 69 - Agent Evolution Loop (GEA Framework)
+    """
+    __tablename__ = "agent_evolution_traces"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Lineage tracking
+    generation = Column(Integer, nullable=False, default=1)  # Generation number (1 = initial, 2+ = evolved)
+    parent_agent_ids = Column(JSON, nullable=False)  # List of parent agent IDs
+    ancestor_count = Column(Integer, nullable=False, default=0)  # Total ancestor count
+
+    # Selection metrics
+    performance_score = Column(Float, nullable=False)  # Original confidence score
+    novelty_score = Column(Float, nullable=False, default=0.0)  # How different from population
+    combined_selection_score = Column(Float, nullable=False)  # Weighted combination
+
+    # Evolution data
+    tool_use_log = Column(JSON, nullable=True)  # Sample of tool usage patterns
+    task_log = Column(Text, nullable=True)  # Task execution excerpts
+    evolving_requirements = Column(Text, nullable=True)  # Directives applied
+    model_patch = Column(JSON, nullable=True)  # Configuration changes
+
+    # Benchmark results
+    benchmark_passed = Column(Boolean, nullable=False, default=False)
+    benchmark_name = Column(String(255), nullable=True)
+    benchmark_score = Column(Float, nullable=True)
+
+    # Quality filtering
+    is_high_quality = Column(Boolean, nullable=False, default=False)
+    quality_filter_reason = Column(String(500), nullable=True)  # Reason if blocked
+
+    # Timing
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="evolution_traces")
+
+    __table_args__ = (
+        Index('idx_agent_evolution_traces_tenant', 'tenant_id'),
+        Index('idx_agent_evolution_traces_agent', 'agent_id'),
+        Index('idx_agent_evolution_traces_generation', 'generation'),
+    )
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, agent_id={self.agent_id}, generation={self.generation}, passed={self.benchmark_passed})>"
 
 
 class BrowserSession(Base):

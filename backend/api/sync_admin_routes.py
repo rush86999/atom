@@ -490,8 +490,8 @@ async def get_conflict_detail(
 )
 async def resolve_conflict(
     conflict_id: str,
-    strategy: str = Query(..., description="Resolution strategy: local_wins, remote_wins, merge"),
     request: Request,
+    strategy: str = Query(..., description="Resolution strategy: local_wins, remote_wins, merge"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
@@ -520,8 +520,8 @@ async def resolve_conflict(
 )
 async def bulk_resolve_conflicts(
     conflict_ids: List[str],
-    strategy: str = Query(..., description="Resolution strategy: local_wins, remote_wins, merge"),
     request: Request,
+    strategy: str = Query(..., description="Resolution strategy: local_wins, remote_wins, merge"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
