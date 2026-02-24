@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 082-core-services-unit-testing-governance-episodes
-Plan: 03 (byok-handler-unit-tests)
-Status: Phase 82 Plan 03 complete - BYOKHandler test coverage expanded with 52 new tests
-Last activity: 2026-02-24 — Phase 82 Plan 03 complete (52 tests added: routing, streaming, vision)
+Plan: 04 (byok-handler-test-fixes)
+Status: Phase 82 Plan 04 complete - Fixed BYOK handler mock patches and async streaming tests
+Last activity: 2026-02-24 — Phase 82 Plan 04 complete (9 tests fixed: mock patches + async streaming)
 
-Progress: [█████░░░░░] 47% (v3.2: unit test expansion for governance & episodes in progress)
+Progress: [█████░░░░░] 50% (v3.2: unit test expansion for governance & episodes in progress)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
