@@ -378,44 +378,49 @@ class TestPresentChartGovernance:
                         assert mock_governance.record_outcome.call_args[1]["success"] is True
 
     @pytest.mark.asyncio
-    async def test_present_chart_outcome_recorded_failure(self, mock_ws, mock_agent_student, mock_db):
-        """Test outcome recording for failed chart presentation."""
+    async def test_present_chart_outcome_recorded_failure(self, mock_ws, mock_agent_intern, mock_db):
+        """Test outcome recording for failed chart presentation after governance allows it."""
         with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
             with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
                 mock_resolver = MagicMock()
                 mock_resolver.resolve_agent_for_request = AsyncMock(
-                    return_value=(mock_agent_student, {})
+                    return_value=(mock_agent_intern, {})
                 )
                 mock_resolver_class.return_value = mock_resolver
 
                 with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
                     mock_governance = MagicMock()
+                    # Governance ALLOWS the action
                     mock_governance.can_perform_action = Mock(
-                        return_value=create_governance_check_response(
-                            allowed=False,
-                            reason="Insufficient maturity"
-                        )
+                        return_value=create_governance_check_response(allowed=True)
                     )
                     mock_governance.record_outcome = AsyncMock()
                     mock_factory.get_governance_service.return_value = mock_governance
 
                     mock_db_session_ctx = setup_db_mocks(mock_db)
 
-                    with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
-                        result = await present_chart(
-                            user_id="user-1",
-                            chart_type="line_chart",
-                            data=[{"x": 1, "y": 2}],
-                            agent_id="agent-student-123"
-                        )
+                    # Mock ws_manager.broadcast to raise an exception AFTER governance check
+                    with patch('tools.canvas_tool.ws_manager') as mock_ws_mgr:
+                        mock_ws_mgr.broadcast = AsyncMock(side_effect=Exception("WebSocket broadcast failed"))
 
-                        assert result["success"] is False
-                        # Verify outcome was recorded with success=False
-                        mock_governance.record_outcome.assert_called()
-                        last_call_args = mock_governance.record_outcome.call_args_list[-1]
-                        assert last_call_args[1]["success"] is False
+                        with patch('core.database.get_db_session', return_value=mock_db_session_ctx):
+                            result = await present_chart(
+                                user_id="user-1",
+                                chart_type="line_chart",
+                                data=[{"x": 1, "y": 2}],
+                                agent_id="agent-intern-123"
+                            )
+
+                            assert result["success"] is False
+                            # Verify outcome was recorded with success=False (called in exception handler)
+                            mock_governance.record_outcome.assert_called_once()
+                            # record_outcome is called with agent.id as positional arg and success as kwarg
+                            # The actual call pattern is: await governance_service.record_outcome(agent.id, success=False)
+                            # Access via call_args[0] for positional, call_args[1] for keyword
+                            assert mock_governance.record_outcome.call_args[0][0] == "agent-intern-123"
+                            assert mock_governance.record_outcome.call_args[1].get("success") is False
 
 
 # ============================================================================
@@ -674,8 +679,10 @@ class TestPresentFormGovernance:
 
                         assert result["success"] is True
                         mock_governance.record_outcome.assert_called_once()
+                        # First positional arg is agent_id
                         assert mock_governance.record_outcome.call_args[0][0] == "agent-intern-123"
-                        assert mock_governance.record_outcome.call_args[0][1] is True
+                        # success is a keyword argument, access via call_args[1]
+                        assert mock_governance.record_outcome.call_args[1]["success"] is True
 
     @pytest.mark.asyncio
     async def test_present_form_canvas_audit_created(self, mock_ws, mock_agent_intern, mock_db):
