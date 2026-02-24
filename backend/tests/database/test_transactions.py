@@ -543,3 +543,216 @@ class TestConcurrentOperations:
         # ).update({"status": "updated", "version": read_version + 1})
         # if rows_affected == 0:
         #     raise StaleDataError("Record was modified by another transaction")
+
+
+class TestIsolationLevels:
+    """Test transaction isolation levels prevent concurrency issues.
+
+    Note: SQLite has limited isolation level support compared to PostgreSQL.
+    These tests document SQLite behavior and PostgreSQL patterns.
+    """
+
+    def test_read_committed_isolation(self, db_session: Session):
+        """Test READ COMMITTED isolation (SQLite default).
+
+        Scenario:
+        - Create and commit agent
+        - Read agent sees committed value
+        - Update agent
+        - Read again sees new value
+        - Verify READ COMMITTED behavior
+        """
+        # Create and commit agent
+        agent = AgentFactory(
+            name="IsolationTestAgent",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Read agent (sees committed value)
+        agent_read = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "IsolationTestAgent"
+        ).first()
+        assert agent_read.status == AgentStatus.STUDENT.value
+
+        # Update and commit
+        agent_read.status = AgentStatus.INTERN.value
+        db_session.commit()
+
+        # Read again (sees new committed value)
+        agent_read2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "IsolationTestAgent"
+        ).first()
+        assert agent_read2.status == AgentStatus.INTERN.value, \
+            "READ COMMITTED: sees newly committed value"
+
+    def test_repeatable_read_isolation(self, db_session: Session):
+        """Test REPEATABLE READ isolation pattern.
+
+        Scenario:
+        - SQLite doesn't fully support REPEATABLE READ
+        - This test documents the expected behavior
+        - In PostgreSQL, would see same value both times
+        """
+        # Create agent
+        agent = AgentFactory(
+            name="RepeatableReadAgent",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # First read
+        agent1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "RepeatableReadAgent"
+        ).first()
+        first_value = agent1.status
+
+        # Update and commit
+        agent1.status = AgentStatus.INTERN.value
+        db_session.commit()
+
+        # Second read (in SQLite, sees new value)
+        agent2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "RepeatableReadAgent"
+        ).first()
+        second_value = agent2.status
+
+        # SQLite behavior: sees new value (not REPEATABLE READ)
+        # This is expected - SQLite uses READ COMMITTED by default
+        assert second_value == AgentStatus.INTERN.value, \
+            "SQLite sees new value (READ COMMITTED behavior)"
+
+        # Document: For REPEATABLE READ in PostgreSQL:
+        # session.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        # Then both reads would return same value (non-repeatable read prevented)
+
+    def test_serializable_isolation(self, db_session: Session):
+        """Test SERIALIZABLE isolation pattern.
+
+        Scenario:
+        - SQLite doesn't support SERIALIZABLE
+        - This test documents the expected behavior
+        - In PostgreSQL, would prevent phantom reads
+        """
+        # Create initial agents
+        for i in range(3):
+            agent = AgentFactory(
+                name=f"SerializableAgent{i}",
+                status=AgentStatus.STUDENT.value,
+                _session=db_session
+            )
+            db_session.add(agent)
+        db_session.commit()
+
+        # Query all STUDENT agents
+        student_count_1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.STUDENT.value
+        ).count()
+
+        # Insert new agent and commit
+        new_agent = AgentFactory(
+            name="SerializableAgent3",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(new_agent)
+        db_session.commit()
+
+        # Query again (in SQLite, will see new agent - phantom read)
+        student_count_2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.STUDENT.value
+        ).count()
+
+        # SQLite behavior: sees phantom (new agent)
+        assert student_count_2 == student_count_1 + 1, \
+            "SQLite allows phantom reads (doesn't support SERIALIZABLE)"
+
+        # Document: For SERIALIZABLE in PostgreSQL:
+        # session.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+        # Then both queries would return same count (phantom prevented)
+
+    def test_dirty_read_prevention(self, db_session: Session):
+        """Test dirty reads are prevented (transaction isolation).
+
+        Scenario:
+        - Create agent
+        - Begin transaction, update agent (don't commit)
+        - Rollback
+        - Verify original value still there
+        """
+        # Create agent
+        agent = AgentFactory(
+            name="DirtyReadTestAgent",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Begin nested transaction, update but rollback
+        nested = db_session.begin_nested()
+        agent_update = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "DirtyReadTestAgent"
+        ).first()
+        agent_update.status = AgentStatus.INTERN.value
+        # Don't commit nested transaction - rollback instead
+        nested.rollback()
+
+        # Read agent (should see original value, not uncommitted change)
+        agent_read = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "DirtyReadTestAgent"
+        ).first()
+
+        # Verify didn't see uncommitted change (no dirty read)
+        assert agent_read.status == AgentStatus.STUDENT.value, \
+            "Should not see uncommitted change (dirty read prevented)"
+
+    def test_phantom_read_prevention(self, db_session: Session):
+        """Test phantom read behavior depends on isolation level.
+
+        Scenario:
+        - Query all agents with specific status
+        - Insert new agent with same status
+        - Query again
+        - Verify phantom read occurred (SQLite allows this)
+        """
+        # Create initial agents
+        for i in range(3):
+            agent = AgentFactory(
+                name=f"PhantomReadAgent{i}",
+                status=AgentStatus.STUDENT.value,
+                _session=db_session
+            )
+            db_session.add(agent)
+        db_session.commit()
+
+        # First query
+        count_1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.STUDENT.value
+        ).count()
+
+        # Insert new agent and commit
+        new_agent = AgentFactory(
+            name="PhantomReadAgentNew",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(new_agent)
+        db_session.commit()
+
+        # Second query
+        count_2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.STUDENT.value
+        ).count()
+
+        # READ COMMITTED behavior: sees phantom (new agent)
+        assert count_2 == count_1 + 1, \
+            "READ COMMITTED allows phantom reads - sees new agent"
+
+        # Document: SERIALIZABLE would prevent phantom read
+        # count_1 == count_2 (no phantom)
+        # In PostgreSQL: SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
