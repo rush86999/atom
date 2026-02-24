@@ -158,9 +158,9 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 
 **Plans**: 3 plans
 
-- [ ] 083-01-PLAN.md — Canvas tool unit tests (chart presentations, markdown rendering, form submission, governance enforcement, state management, 25+ tests)
-- [ ] 083-02-PLAN.md — Browser automation tool unit tests (CDP integration, page navigation, element interaction, screenshots, governance, error handling, 20+ tests)
-- [ ] 083-03-PLAN.md — Device capabilities tool unit tests (camera access, screen recording, location services, notifications, permission checks, maturity gates, 15+ tests)
+- [x] 083-01-PLAN.md — Canvas tool unit tests (chart presentations, markdown rendering, form submission, governance enforcement, state management, 94 tests) ✅ PLANNED
+- [x] 083-02-PLAN.md — Browser automation tool unit tests (CDP integration, page navigation, element interaction, screenshots, governance, error handling, 92 tests) ✅ PLANNED
+- [x] 083-03-PLAN.md — Device capabilities tool unit tests (camera access, screen recording, location services, notifications, permission checks, maturity gates, 98 tests) ✅ PLANNED
 
 ---
 
