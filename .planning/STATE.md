@@ -10,15 +10,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 81-coverage-analysis-prioritization
-Plan: 03 (critical-path-coverage-analysis)
-Status: Mapping coverage gaps to critical business workflows and assessing risk
-Last activity: 2026-02-24 — Phase 81 Plan 03 complete
+Plan: 04 (coverage-baseline-trend-tracking)
+Status: Coverage baseline and trend tracking infrastructure established
+Last activity: 2026-02-24 — Phase 81 Plan 04 complete
 
-Progress: [████░░░░░░] 30% (v3.2: critical paths analyzed, 4 workflows at CRITICAL risk)
+Progress: [████░░░░░░] 40% (v3.2: baseline established at 15.23%, CI integration complete)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Phase 81 in progress - Critical path coverage analysis complete, all workflows at CRITICAL risk
+**Status**: Phase 81 in progress - Coverage baseline established with trend tracking and CI integration
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
@@ -40,6 +40,13 @@ Progress: [████░░░░░░] 30% (v3.2: critical paths analyzed, 4
 - Plan 81-01: Coverage baseline established (15.23% overall)
 - Plan 81-02: Priority ranking system complete (49 high-impact files identified)
 - Plan 81-03: Critical path coverage analysis complete
+- Plan 81-04: Coverage baseline and trend tracking infrastructure established
+- v3.2 baseline: 15.23% (8,272/45,366 lines) - documented with targets
+- Trend tracking script (trend_tracker.py) with migration support
+- CI workflow (coverage-report.yml) for automated coverage reporting
+- Regression detection (1% threshold) enforced in CI
+- v1.0 baseline preserved (5.13%) for historical comparison
+- Target: 25% overall coverage by Phase 90 (9.77% gap, 4,434 lines)
 - 4 critical business paths analyzed: agent execution, episode creation, canvas presentation, graduation promotion
 - All 16 critical steps have 0% coverage (all below 50% threshold)
 - Risk assessment: all 4 paths at CRITICAL level
@@ -113,6 +120,15 @@ Recent decisions affecting current work:
 - [Phase 81-02]: High-impact thresholds: >200 lines (significant size), <30% coverage (major opportunity)
 - [Phase 81-02]: Default criticality=3 for unknown files (conservative baseline, assumes low business impact)
 - [Phase 81-02]: 49 high-impact files identified with 14,511 uncovered lines across 15,599 total lines
+- [Phase 81-04]: Trending format: history array + latest pointer + baselines dict for time-series coverage tracking
+- [Phase 81-04]: Regression threshold: 1% decrease triggers CI failure (balances sensitivity with noise tolerance)
+- [Phase 81-04]: Migration support: Old 'phases' format auto-converts to new 'history/latest/baselines' format
+- [Phase 81-04]: v3.2 baseline: 15.23% (8,272/45,366 lines) at Phase 81 for fair comparison throughout milestone
+- [Phase 81-04]: v1.0 baseline preserved (5.13%) for long-term progress tracking (197% improvement)
+- [Phase 81-04]: Target coverage: 25% overall by Phase 90 (9.77% gap, 4,434 lines to add)
+- [Phase 81-04]: P0 tier target: 70% for critical governance/episodic files (episode_segmentation, supervision, student_training)
+- [Phase 81-04]: High-impact target: 60% average for 49 files >200 lines (14,511 uncovered line opportunity)
+- [Phase 81-04]: CI-enforced quality gates: Coverage measured on every push/PR, regression detection fails CI
 
 **v3.1 E2E UI Testing Decisions:**
 - Playwright Python 1.58.0 selected for E2E UI testing (research validated)
@@ -212,8 +228,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-24 12:11
-Stopped at: Completed 81-03 critical path coverage analysis (4 paths, all at CRITICAL risk)
+Last session: 2026-02-24 12:23
+Stopped at: Completed 81-04 coverage baseline and trend tracking (v3.2: 15.23%, target: 25%)
 Resume file: None
 
 ---
