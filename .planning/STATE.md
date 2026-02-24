@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 086-property-based-testing-core-services
-Plan: 02 (episode-segmentation-property-tests)
-Status: Complete - Episode segmentation property tests verified, critical bug fixed
-Last activity: 2026-02-24 — Property-based testing for episode segmentation invariants, discovered and fixed exclusive boundary condition bug
+Plan: 03 (llm-streaming-property-tests)
+Status: Complete - LLM streaming property tests verified and expanded with edge case coverage
+Last activity: 2026-02-24 — Property-based testing for LLM streaming invariants, expanded to 15 tests with edge cases (single chunk, large streams, Unicode)
 
 Progress: [█████████░] 88% (v3.2: property testing core services)
 
@@ -39,7 +39,7 @@ Progress: [█████████░] 88% (v3.2: property testing core serv
 **Progress**:
 - Phase 086-01: Coverage baseline established (15.23% overall)
 - Phase 086-02: Episode segmentation property tests complete (76.89% coverage, 1 bug found and fixed)
-- Phase 086-03: Pending (episode retrieval property tests)
+- Phase 086-03: LLM streaming property tests complete (15 tests, 364 examples, 1 bug fixed)
 - Plan 81-02: Priority ranking system complete (49 high-impact files identified)
 - Plan 81-03: Critical path coverage analysis complete
 - Plan 81-04: Coverage baseline and trend tracking infrastructure established
@@ -242,6 +242,12 @@ Recent decisions affecting current work:
 - [Phase 085-04]: Model field corrections: ChatMessage.conversation_id, EpisodeSegment.sequence_order, CanvasAudit.metadata JSON
 - [Phase 085-04]: AgentRegistry graduation criteria stored in configuration JSON (fields don't exist in schema)
 - [Phase 085-04]: Integration tests use factory_boy with _session parameter for test data generation
+- [Phase 086-02]: Episode segmentation property tests with 66% coverage increase
+- [Phase 086-02]: Fixed exclusive boundary condition bug in segment time gap detection
+- [Phase 086-03]: Property tests validate invariants across generated inputs, not line coverage
+- [Phase 086-03]: Fixed worker_id fixture default parameter for non-xdist test execution
+- [Phase 086-03]: 15 LLM streaming property tests covering 9 invariant categories
+- [Phase 086-03]: Edge case tests validate single-chunk, large streams (100-1000), Unicode, malformed chunks
 
 ### Pending Todos
 
@@ -290,7 +296,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-24 17:11
-Stopped at: Phase 086-02 complete - Episode segmentation property tests verified, critical bug fixed (exclusive boundary condition)
+Stopped at: Phase 086-03 complete - LLM streaming property tests verified and expanded (15 tests, 364 examples, edge cases covered)
 Resume file: None
 
 ---
