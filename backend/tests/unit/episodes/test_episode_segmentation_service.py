@@ -1433,3 +1433,338 @@ class TestCanvasContextExtraction:
             # Should fallback to metadata extraction
             assert result["summary_source"] == "metadata"
             assert "canvas_type" in result
+
+
+# ============================================================================
+# Supervision Episode Tests
+# ============================================================================
+
+class TestSupervisionEpisodes:
+    """Test supervision episode creation from supervision sessions."""
+
+    @pytest.mark.asyncio
+    async def test_create_supervision_episode_success(self, segmentation_service):
+        """Test create_supervision_episode with completed supervision session."""
+        from core.models import SupervisionSession
+
+        now = datetime.now()
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.id = "supervision-1"
+        supervision_session.agent_id = "agent-1"
+        supervision_session.agent_name = "TestAgent"
+        supervision_session.supervisor_id = "supervisor-1"
+        supervision_session.workspace_id = "workspace-1"
+        supervision_session.started_at = now
+        supervision_session.completed_at = now + timedelta(minutes=5)
+        supervision_session.duration_seconds = 300
+        supervision_session.supervisor_rating = 5
+        supervision_session.supervisor_feedback = "Excellent work"
+        supervision_session.intervention_count = 2
+        supervision_session.interventions = [
+            {"type": "correction", "timestamp": now.isoformat(), "guidance": "Fix this"},
+            {"type": "guidance", "timestamp": (now + timedelta(minutes=1)).isoformat(), "guidance": "Try this"}
+        ]
+        supervision_session.confidence_boost = 0.1
+
+        agent_execution = Mock()
+        agent_execution.id = "exec-1"
+        agent_execution.task_description = "Test task"
+        agent_execution.status = "completed"
+        agent_execution.input_summary = "Input summary"
+        agent_execution.output_summary = "Output summary"
+
+        mock_db = Mock()
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
+        mock_db.refresh = Mock()
+
+        with patch.object(segmentation_service, '_archive_supervision_episode_to_lancedb', new=AsyncMock()):
+            result = await segmentation_service.create_supervision_episode(
+                supervision_session,
+                agent_execution,
+                mock_db
+            )
+
+        assert result is not None
+        assert result.agent_id == "agent-1"
+        assert result.supervisor_rating == 5
+        assert result.intervention_count == 2
+
+    def test_format_agent_actions(self, segmentation_service):
+        """Test _format_agent_actions with task description and status."""
+        interventions = [
+            {"type": "correction", "timestamp": "2024-01-01T12:00:00", "guidance": "Fix this"}
+        ]
+
+        execution = Mock()
+        execution.task_description = "Execute workflow"
+        execution.status = "completed"
+        execution.input_summary = "Start workflow"
+        execution.output_summary = "Workflow completed"
+
+        result = segmentation_service._format_agent_actions(interventions, execution)
+
+        assert "Execute workflow" in result
+        assert "completed" in result
+        assert "Start workflow" in result
+        assert "Workflow completed" in result
+        assert "Total interventions: 1" in result
+
+    def test_format_interventions(self, segmentation_service):
+        """Test _format_interventions with timestamps and guidance."""
+        interventions = [
+            {
+                "type": "correction",
+                "timestamp": "2024-01-01T12:00:00",
+                "guidance": "Fix parameter error"
+            },
+            {
+                "type": "guidance",
+                "timestamp": "2024-01-01T12:01:00",
+                "guidance": "Consider alternative approach"
+            },
+            {
+                "type": "correction",
+                "timestamp": "2024-01-01T12:02:00"
+                # No guidance
+            }
+        ]
+
+        result = segmentation_service._format_interventions(interventions)
+
+        assert "[correction] at 2024-01-01T12:00:00" in result
+        assert "Guidance: Fix parameter error" in result
+        assert "[guidance] at 2024-01-01T12:01:00" in result
+        assert "[correction] at 2024-01-01T12:02:00" in result
+
+    def test_format_supervision_outcome(self, segmentation_service):
+        """Test _format_supervision_outcome with rating and feedback."""
+        from core.models import SupervisionSession
+
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.completed_at = datetime(2024, 1, 1, 12, 5, 0)
+        supervision_session.duration_seconds = 300
+        supervision_session.supervisor_rating = 5
+        supervision_session.supervisor_feedback = "Excellent execution"
+        supervision_session.confidence_boost = 0.15
+
+        result = segmentation_service._format_supervision_outcome(supervision_session)
+
+        assert "2024-01-01" in result
+        assert "300s" in result
+        assert "5/5" in result
+        assert "Excellent execution" in result
+        assert "+0.15" in result or "+0.150" in result
+
+    def test_extract_supervision_topics(self, segmentation_service):
+        """Test _extract_supervision_topics from agent name and task description."""
+        from core.models import SupervisionSession
+
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.agent_name = "WorkflowAutomationAgent"
+        supervision_session.interventions = [
+            {"type": "correction"},
+            {"type": "guidance"}
+        ]
+
+        execution = Mock()
+        execution.task_description = "Execute data pipeline workflow"
+        execution.input_summary = "Start pipeline"
+
+        result = segmentation_service._extract_supervision_topics(supervision_session, execution)
+
+        assert isinstance(result, list)
+        assert len(result) <= 5
+        # Should extract long words from agent name and task
+        if "WorkflowAutomationAgent" in supervision_session.agent_name:
+            topics_str = " ".join(result)
+            # Check for intervention types
+            assert any("intervention" in t for t in result)
+
+    def test_extract_supervision_entities(self, segmentation_service):
+        """Test _extract_supervision_entities (session, agent, supervisor IDs)."""
+        from core.models import SupervisionSession
+
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.id = "supervision-123"
+        supervision_session.agent_id = "agent-456"
+        supervision_session.supervisor_id = "supervisor-789"
+
+        execution = Mock()
+
+        result = segmentation_service._extract_supervision_entities(supervision_session, execution)
+
+        assert isinstance(result, list)
+        assert "session:supervision-123" in result
+        assert "agent:agent-456" in result
+        assert "supervisor:supervisor-789" in result
+
+    def test_calculate_supervision_importance_high_rating(self, segmentation_service):
+        """Test _calculate_supervision_importance with high rating."""
+        from core.models import SupervisionSession
+
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.supervisor_rating = 5
+        supervision_session.intervention_count = 0
+
+        result = segmentation_service._calculate_supervision_importance(supervision_session)
+
+        # High rating + no interventions = high importance
+        assert result > 0.6
+        assert result <= 1.0
+
+    def test_calculate_supervision_importance_low_rating(self, segmentation_service):
+        """Test _calculate_supervision_importance with low rating."""
+        from core.models import SupervisionSession
+
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.supervisor_rating = 1
+        supervision_session.intervention_count = 10
+
+        result = segmentation_service._calculate_supervision_importance(supervision_session)
+
+        # Low rating + many interventions = low importance
+        assert result < 0.5
+        assert result >= 0.0
+
+    def test_calculate_supervision_importance_clamping(self, segmentation_service):
+        """Test _calculate_supervision_importance clamps to [0.0, 1.0]."""
+        from core.models import SupervisionSession
+
+        # Test maximum (5 rating, 0 interventions)
+        supervision_session_max = Mock()
+        supervision_session_max.supervisor_rating = 5
+        supervision_session_max.intervention_count = 0
+
+        result_max = segmentation_service._calculate_supervision_importance(supervision_session_max)
+        assert result_max <= 1.0
+
+        # Test minimum (1 rating, many interventions)
+        supervision_session_min = Mock()
+        supervision_session_min.supervisor_rating = 1
+        supervision_session_min.intervention_count = 100
+
+        result_min = segmentation_service._calculate_supervision_importance(supervision_session_min)
+        assert result_min >= 0.0
+
+    @pytest.mark.asyncio
+    async def test_archive_supervision_episode_to_lancedb(self, segmentation_service):
+        """Test _archive_supervision_episode_to_lancedb with metadata."""
+        episode = Mock()
+        episode.id = "episode-1"
+        episode.title = "Supervision Session Test"
+        episode.description = "Test supervision"
+        episode.summary = "Test summary"
+        episode.supervisor_rating = 5
+        episode.intervention_count = 2
+        episode.topics = ["topic1", "topic2"]
+        episode.agent_id = "agent-1"
+        episode.user_id = "user-1"
+        episode.workspace_id = "workspace-1"
+        episode.status = "completed"
+        episode.maturity_at_time = "SUPERVISED"
+        episode.human_intervention_count = 2
+        episode.constitutional_score = None
+        episode.intervention_types = ["correction", "guidance"]
+
+        segmentation_service.lancedb.db = Mock()
+        segmentation_service.lancedb.db.table_names = Mock(return_value=[])
+
+        await segmentation_service._archive_supervision_episode_to_lancedb(episode)
+
+        # Should call add_document
+        assert segmentation_service.lancedb.add_document.called
+
+    @pytest.mark.asyncio
+    async def test_create_supervision_episode_without_execution(self, segmentation_service):
+        """Test create_supervision_episode with None agent execution."""
+        from core.models import SupervisionSession
+
+        now = datetime.now()
+        supervision_session = Mock(spec=SupervisionSession)
+        supervision_session.id = "supervision-1"
+        supervision_session.agent_id = "agent-1"
+        supervision_session.agent_name = "TestAgent"
+        supervision_session.supervisor_id = "supervisor-1"
+        supervision_session.workspace_id = "workspace-1"
+        supervision_session.started_at = now
+        supervision_session.completed_at = now + timedelta(minutes=5)
+        supervision_session.duration_seconds = 300
+        supervision_session.supervisor_rating = 4
+        supervision_session.supervisor_feedback = "Good work"
+        supervision_session.intervention_count = 1
+        supervision_session.interventions = [{"type": "guidance", "timestamp": now.isoformat()}]
+        supervision_session.confidence_boost = 0.05
+
+        mock_db = Mock()
+        mock_db.add = Mock()
+        mock_db.commit = Mock()
+        mock_db.refresh = Mock()
+
+        with patch.object(segmentation_service, '_archive_supervision_episode_to_lancedb', new=AsyncMock()):
+            result = await segmentation_service.create_supervision_episode(
+                supervision_session,
+                None,  # No execution
+                mock_db
+            )
+
+        assert result is not None
+        assert result.agent_id == "agent-1"
+        assert result.execution_ids == []  # No execution IDs
+
+    @pytest.mark.asyncio
+    async def test_create_segments_boundary_handling(self, segmentation_service):
+        """Test _create_segments with boundary handling."""
+        now = datetime.now()
+        episode = Mock()
+        episode.id = "episode-1"
+
+        messages = [
+            Mock(id="msg-1", role="user", content="First message", created_at=now),
+            Mock(id="msg-2", role="assistant", content="Second message", created_at=now + timedelta(minutes=1)),
+            Mock(id="msg-3", role="user", content="Third message", created_at=now + timedelta(minutes=35)),  # Time gap
+            Mock(id="msg-4", role="assistant", content="Fourth message", created_at=now + timedelta(minutes=36))
+        ]
+
+        executions = []
+
+        boundaries = {2}  # Boundary at index 2
+
+        # Track adds
+        add_calls = []
+        segmentation_service.db.add = lambda obj: add_calls.append(obj)
+        segmentation_service.db.commit = Mock()
+
+        await segmentation_service._create_segments(episode, messages, executions, boundaries, {})
+
+        # Should create 2 segments (split at boundary)
+        assert len(add_calls) == 2
+
+    @pytest.mark.asyncio
+    async def test_create_segments_execution_type(self, segmentation_service):
+        """Test segment creation with execution type."""
+        now = datetime.now()
+        episode = Mock()
+        episode.id = "episode-1"
+
+        messages = []
+
+        executions = [
+            Mock(id="exec-1", status="completed", task_description="Task 1", result_summary="Success", input_summary="Input", output_summary="Output")
+        ]
+
+        boundaries = set()
+
+        # Track adds
+        add_calls = []
+        segmentation_service.db.add = lambda obj: add_calls.append(obj)
+        segmentation_service.db.commit = Mock()
+
+        await segmentation_service._create_segments(episode, messages, executions, boundaries, {})
+
+        # Should create 1 execution segment
+        assert len(add_calls) == 1
+
+        # Check segment type
+        segment = add_calls[0]
+        assert segment.segment_type == "execution"
