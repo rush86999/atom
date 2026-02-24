@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -20,10 +19,13 @@ const DEFAULT_PREFS: PreferenceState = {
     email_frequency: "daily"
 };
 
+const API_URL = "http://localhost:8000";
+const USER_ID = "default_user";
+const WORKSPACE_ID = "default";
+
 export function PreferencesTab() {
     const [prefs, setPrefs] = useState<PreferenceState>(DEFAULT_PREFS);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         fetchPreferences();
@@ -36,7 +38,6 @@ export function PreferencesTab() {
         } else if (theme === 'light') {
             root.classList.remove('dark');
         } else {
-            // system
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (prefersDark) {
                 root.classList.add('dark');
@@ -46,34 +47,62 @@ export function PreferencesTab() {
         }
     };
 
+    const getAuthHeaders = (): Record<string, string> => {
+        const token = localStorage.getItem('auth_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        };
+    };
+
     const fetchPreferences = async () => {
         try {
             setLoading(true);
-            const stored = localStorage.getItem('atom_preferences');
-            if (stored) {
-                const data = JSON.parse(stored);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+
+            const res = await fetch(
+                `${API_URL}/api/v1/preferences?user_id=${USER_ID}&workspace_id=${WORKSPACE_ID}`,
+                { headers: getAuthHeaders(), signal: controller.signal }
+            );
+            clearTimeout(timeout);
+
+            if (res.ok) {
+                const data = await res.json();
                 const merged = { ...DEFAULT_PREFS, ...data };
                 setPrefs(merged);
                 applyTheme(merged.theme);
             }
-        } catch (error) {
-            console.error("Failed to load preferences:", error);
-            toast.error("Failed to load settings");
+        } catch (error: any) {
+            console.warn("Preferences API not reachable, using defaults:", error?.message);
+            // Graceful fallback: just use defaults
+            applyTheme(DEFAULT_PREFS.theme);
         } finally {
             setLoading(false);
         }
     };
 
     const handleSave = async (key: string, value: any) => {
-        // Optimistic update
         const updated = { ...prefs, [key]: value };
         setPrefs(updated);
 
+        if (key === 'theme') {
+            applyTheme(value);
+        }
+
         try {
-            localStorage.setItem('atom_preferences', JSON.stringify(updated));
-            if (key === 'theme') {
-                applyTheme(value);
-            }
+            const res = await fetch(`${API_URL}/api/v1/preferences`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    user_id: USER_ID,
+                    workspace_id: WORKSPACE_ID,
+                    key,
+                    value
+                })
+            });
+
+            if (!res.ok) throw new Error("Failed to save");
             toast.success("Saved");
         } catch (error) {
             console.error("Save error:", error);

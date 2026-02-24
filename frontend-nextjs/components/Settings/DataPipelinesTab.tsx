@@ -7,40 +7,62 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Activity, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-// Helper to interact with preferences API
+const API_URL = "http://localhost:8000";
+const USER_ID = "system";
+const WORKSPACE_ID = "global";
+
+const getAuthHeaders = (): Record<string, string> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    };
+};
+
+// Helper to interact with preferences via backend API
 const usePreference = (key: string, defaultValue: any) => {
     const [value, setValue] = useState(defaultValue);
     const [loading, setLoading] = useState(true);
 
-    // Hardcoded workspace/user for this MVP feature
-    const USER_ID = "system";
-    const WORKSPACE_ID = "global";
-
     useEffect(() => {
-        fetch(`/api/preferences/${key}?user_id=${USER_ID}&workspace_id=${WORKSPACE_ID}`)
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
+        fetch(
+            `${API_URL}/api/v1/preferences/${key}?user_id=${USER_ID}&workspace_id=${WORKSPACE_ID}`,
+            { headers: getAuthHeaders(), signal: controller.signal }
+        )
             .then(res => res.json())
             .then(data => {
-                if (data.value) setValue(data.value);
+                clearTimeout(timeout);
+                if (data.value !== undefined && data.value !== null) setValue(data.value);
                 setLoading(false);
             })
             .catch(err => {
-                console.error(err);
+                clearTimeout(timeout);
+                console.warn(`Preference ${key} not reachable, using default:`, err?.message);
                 setLoading(false);
             });
+
+        return () => { clearTimeout(timeout); controller.abort(); };
     }, [key]);
 
     const save = async (newValue: any) => {
         setValue(newValue);
-        await fetch('/api/preferences', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: USER_ID,
-                workspace_id: WORKSPACE_ID,
-                key,
-                value: newValue
-            })
-        });
+        try {
+            await fetch(`${API_URL}/api/v1/preferences`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    user_id: USER_ID,
+                    workspace_id: WORKSPACE_ID,
+                    key,
+                    value: newValue
+                })
+            });
+        } catch (err: any) {
+            console.error(`Failed to save preference ${key}:`, err?.message);
+        }
     };
 
     return { value, save, loading };
@@ -50,30 +72,22 @@ export function DataPipelinesTab() {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
-    // Sales Pipeline Preference
     const salesPref = usePreference("schedule.sales", "*/30 * * * *");
-    // Projects Pipeline Preference
     const projectsPref = usePreference("schedule.projects", "*/15 * * * *");
-    // Finance Pipeline Preference
     const financePref = usePreference("schedule.finance", "0 * * * *");
 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // Save all preferences
             await Promise.all([
                 salesPref.save(salesPref.value),
                 projectsPref.save(projectsPref.value),
                 financePref.save(financePref.value)
             ]);
 
-            // Reload scheduler
-            const res = await fetch('/api/v1/scheduler/reload', { method: 'POST' });
-            if (!res.ok) throw new Error("Failed to reload scheduler");
-
             toast({
                 title: "Schedules Updated",
-                description: "Memory pipelines have been rescheduled successfully.",
+                description: "Memory pipeline schedules have been saved successfully.",
             });
         } catch (error) {
             toast({
@@ -108,7 +122,6 @@ export function DataPipelinesTab() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-                {/* Sales Card */}
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -120,9 +133,7 @@ export function DataPipelinesTab() {
                     <CardContent>
                         <Label className="text-xs mb-1.5 block">Sync Frequency</Label>
                         <Select value={salesPref.value} onValueChange={salesPref.save}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {frequencies.map(f => (
                                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
@@ -132,7 +143,6 @@ export function DataPipelinesTab() {
                     </CardContent>
                 </Card>
 
-                {/* Projects Card */}
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -144,9 +154,7 @@ export function DataPipelinesTab() {
                     <CardContent>
                         <Label className="text-xs mb-1.5 block">Sync Frequency</Label>
                         <Select value={projectsPref.value} onValueChange={projectsPref.save}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {frequencies.map(f => (
                                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
@@ -156,7 +164,6 @@ export function DataPipelinesTab() {
                     </CardContent>
                 </Card>
 
-                {/* Finance Card */}
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -168,9 +175,7 @@ export function DataPipelinesTab() {
                     <CardContent>
                         <Label className="text-xs mb-1.5 block">Sync Frequency</Label>
                         <Select value={financePref.value} onValueChange={financePref.save}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {frequencies.map(f => (
                                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
