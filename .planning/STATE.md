@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 082-core-services-unit-testing-governance-episodes
-Plan: 03 (upcoming)
-Status: Phase 82 Plan 02 complete - EpisodeSegmentationService test coverage expanded to 89 tests
-Last activity: 2026-02-24 — Phase 82 Plan 02 complete (40 tests added)
+Plan: 01 (agent-governance-service-testing)
+Status: Phase 82 Plan 01 complete - AgentGovernanceService test coverage expanded to 107 tests
+Last activity: 2026-02-24 — Phase 82 Plan 01 complete (33 tests added)
 
 Progress: [████░░░░░░] 40% (v3.2: unit test expansion for governance & episodes in progress)
 
@@ -103,6 +103,14 @@ Progress: [████░░░░░░] 40% (v3.2: unit test expansion for go
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+**v3.2 Unit Testing Decisions:**
+- [Phase 082-01]: Query mock pattern with closure counter for multiple DB calls in single test
+- [Phase 082-01]: WorldModelService patch path: core.agent_world_model.WorldModelService (imported inside method)
+- [Phase 082-01]: Test organization: New test classes added after related existing classes
+- [Phase 082-01]: Feedback adjudication tests cover all reviewer types (admin, specialist, regular user)
+- [Phase 082-01]: Cache tests verify both HIT (return cached) and MISS (compute and cache) paths
+- [Phase 082-01]: GEA guardrail tests include boundary conditions (exactly 50 history entries)
 
 **v3.2 Coverage Analysis Decisions:**
 - [Phase 81-01]: Automated coverage report generation via pytest-cov with JSON and HTML outputs
@@ -228,8 +236,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-24 12:23
-Stopped at: Completed 81-04 coverage baseline and trend tracking (v3.2: 15.23%, target: 25%)
+Last session: 2026-02-24 12:45
+Stopped at: Completed 082-01 agent governance service testing (107 tests, 33 added)
 Resume file: None
 
 ---
