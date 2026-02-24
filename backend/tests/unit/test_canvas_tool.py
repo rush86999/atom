@@ -419,6 +419,299 @@ class TestCanvasExecuteJavaScript:
 # Test: present_specialized_canvas
 # ============================================================================
 
+
+
+# ============================================================================
+# Test: Canvas Execute JavaScript with Governance
+# ============================================================================
+
+class TestCanvasExecuteJavascriptGovernance:
+    """Tests for canvas_execute_javascript with full governance enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_autonomous_allowed(self, mock_ws):
+        """Test AUTONOMOUS agent can execute JavaScript."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-autonomous-1"
+                    mock_agent.status = "autonomous"
+                    mock_agent.name = "AutonomousAgent"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    mock_db = MagicMock()
+                    mock_db.add = Mock()
+                    mock_db.commit = Mock()
+                    mock_db.refresh = Mock()
+                    query_mock = MagicMock()
+                    query_mock.filter.return_value.first.return_value = None
+                    mock_db.query.return_value = query_mock
+                    mock_db.__enter__ = Mock(return_value=mock_db)
+                    mock_db.__exit__ = Mock(return_value=False)
+
+                    with patch('core.database.get_db_session', return_value=mock_db):
+                        result = await canvas_execute_javascript(
+                            user_id="user-1",
+                            canvas_id="canvas-123",
+                            javascript="console.log('test');",
+                            agent_id="agent-autonomous-1"
+                        )
+
+                        assert result["success"] is True
+                        assert result["canvas_id"] == "canvas-123"
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_supervised_blocked(self, mock_ws):
+        """Test SUPERVISED agent blocked (AUTONOMOUS only)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-supervised-1"
+                    mock_agent.status = "supervised"
+                    mock_agent.name = "SupervisedAgent"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    mock_db = MagicMock()
+                    mock_db.__enter__ = Mock(return_value=mock_db)
+                    mock_db.__exit__ = Mock(return_value=False)
+
+                    with patch('core.database.get_db_session', return_value=mock_db):
+                        result = await canvas_execute_javascript(
+                            user_id="user-1",
+                            canvas_id="canvas-123",
+                            javascript="console.log('test');",
+                            agent_id="agent-supervised-1"
+                        )
+
+                        assert result["success"] is False
+                        assert "AUTONOMOUS" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_intern_blocked(self, mock_ws):
+        """Test INTERN agent blocked (AUTONOMOUS only)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    mock_db = MagicMock()
+                    mock_db.__enter__ = Mock(return_value=mock_db)
+                    mock_db.__exit__ = Mock(return_value=False)
+
+                    with patch('core.database.get_db_session', return_value=mock_db):
+                        result = await canvas_execute_javascript(
+                            user_id="user-1",
+                            canvas_id="canvas-123",
+                            javascript="console.log('test');",
+                            agent_id="agent-intern-1"
+                        )
+
+                        assert result["success"] is False
+                        assert "AUTONOMOUS" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_student_blocked(self, mock_ws):
+        """Test STUDENT agent blocked (AUTONOMOUS only)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": False, "reason": "STUDENT blocked"}
+                )
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-student-1"
+                    mock_agent.status = "student"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    mock_db = MagicMock()
+                    mock_db.__enter__ = Mock(return_value=mock_db)
+                    mock_db.__exit__ = Mock(return_value=False)
+
+                    with patch('core.database.get_db_session', return_value=mock_db):
+                        result = await canvas_execute_javascript(
+                            user_id="user-1",
+                            canvas_id="canvas-123",
+                            javascript="console.log('test');",
+                            agent_id="agent-student-1"
+                        )
+
+                        assert result["success"] is False
+                        assert "not permitted" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_no_agent_id_returns_error(self, mock_ws):
+        """Test no agent_id returns security error."""
+        result = await canvas_execute_javascript(
+            user_id="user-1",
+            canvas_id="canvas-123",
+            javascript="console.log('test');",
+            agent_id=None
+        )
+
+        assert result["success"] is False
+        assert "requires an explicit agent_id" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_empty_code_returns_error(self, mock_ws):
+        """Test empty JavaScript code returns error."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="   ",
+                agent_id="agent-1"
+            )
+
+            assert result["success"] is False
+            assert "cannot be empty" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_dangerous_pattern_eval_blocked(self, mock_ws):
+        """Test eval() pattern blocked."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="eval('malicious');",
+                agent_id="agent-autonomous-1"
+            )
+
+            assert result["success"] is False
+            assert "eval(" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_dangerous_pattern_function_blocked(self, mock_ws):
+        """Test Function() pattern blocked."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="new Function('return malicious');",
+                agent_id="agent-autonomous-1"
+            )
+
+            assert result["success"] is False
+            assert "Function(" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_dangerous_pattern_settimeout_blocked(self, mock_ws):
+        """Test setTimeout() pattern blocked."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="setTimeout(malicious, 1000);",
+                agent_id="agent-autonomous-1"
+            )
+
+            assert result["success"] is False
+            assert "setTimeout(" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_dangerous_pattern_document_cookie_blocked(self, mock_ws):
+        """Test document.cookie pattern blocked."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="document.cookie = 'malicious';",
+                agent_id="agent-autonomous-1"
+            )
+
+            assert result["success"] is False
+            assert "document.cookie" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_creates_audit_entry_with_code(self, mock_ws):
+        """Test audit entry includes JavaScript code."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript="console.log('test');",
+                agent_id="agent-autonomous-1"
+            )
+
+            # Should succeed without governance (no audit)
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_success_returns_canvas_id_and_length(self, mock_ws):
+        """Test successful execution returns correct fields."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = False
+
+            js_code = "console.log('test');"
+            result = await canvas_execute_javascript(
+                user_id="user-1",
+                canvas_id="canvas-123",
+                javascript=js_code,
+                agent_id="agent-autonomous-1"
+            )
+
+            assert result["success"] is True
+            assert result["canvas_id"] == "canvas-123"
+            assert result["javascript_length"] == len(js_code)
+
 class TestPresentSpecializedCanvas:
     """Tests for present_specialized_canvas function."""
 
