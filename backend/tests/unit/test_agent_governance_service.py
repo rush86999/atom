@@ -236,6 +236,431 @@ class TestFeedbackSubmission:
             mock_adjudicate.assert_called_once()
 
 
+class TestFeedbackAdjudication:
+    """Tests for _adjudicate_feedback method covering admin acceptance, specialty matching, and WorldModel integration"""
+
+    @pytest.mark.asyncio
+    async def test_admin_feedback_accepted(self, governance_service, mock_db, sample_agent):
+        """Admin user feedback should be automatically accepted"""
+        admin_user = MagicMock(spec=User)
+        admin_user.id = "admin_123"
+        admin_user.role = UserRole.WORKSPACE_ADMIN
+        admin_user.specialty = None
+
+        feedback = AgentFeedback(
+            id="feedback_1",
+            agent_id="agent_123",
+            user_id="admin_123",
+            original_output="Bad output",
+            user_correction="Better output",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = admin_user
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.ACCEPTED.value
+            assert "Trusted reviewer" in feedback.ai_reasoning
+            assert "WORKSPACE_ADMIN" in feedback.ai_reasoning
+            assert feedback.adjudicated_at is not None
+            mock_wm.record_experience.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_super_admin_feedback_accepted(self, governance_service, mock_db, sample_agent):
+        """Super admin feedback should be automatically accepted"""
+        super_admin = MagicMock(spec=User)
+        super_admin.id = "super_123"
+        super_admin.role = UserRole.SUPER_ADMIN
+        super_admin.specialty = None
+
+        feedback = AgentFeedback(
+            id="feedback_2",
+            agent_id="agent_123",
+            user_id="super_123",
+            original_output="Wrong",
+            user_correction="Correct",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = super_admin
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.ACCEPTED.value
+            assert "SUPER_ADMIN" in feedback.ai_reasoning
+
+    @pytest.mark.asyncio
+    async def test_specialty_match_accepted(self, governance_service, mock_db, sample_agent):
+        """User with matching specialty should have feedback accepted (case-insensitive)"""
+        specialist = MagicMock(spec=User)
+        specialist.id = "user_specialist"
+        specialist.role = UserRole.MEMBER
+        specialist.specialty = "testing"  # Matches agent.category
+
+        sample_agent.category = "Testing"  # Different case
+
+        feedback = AgentFeedback(
+            id="feedback_3",
+            agent_id="agent_123",
+            user_id="user_specialist",
+            original_output="Output",
+            user_correction="Correction",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = specialist
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.ACCEPTED.value
+            assert "Trusted reviewer" in feedback.ai_reasoning
+            assert "testing" in feedback.ai_reasoning
+
+    @pytest.mark.asyncio
+    async def test_no_specialty_match_queued(self, governance_service, mock_db, sample_agent):
+        """User without specialty match should have feedback queued for review"""
+        regular_user = MagicMock(spec=User)
+        regular_user.id = "user_regular"
+        regular_user.role = UserRole.MEMBER
+        regular_user.specialty = "finance"  # Doesn't match "testing"
+
+        sample_agent.category = "testing"
+
+        feedback = AgentFeedback(
+            id="feedback_4",
+            agent_id="agent_123",
+            user_id="user_regular",
+            original_output="Output",
+            user_correction="Correction",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = regular_user
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.PENDING.value
+            assert "queued for specialty review" in feedback.ai_reasoning
+            # WorldModel should NOT be called for non-trusted reviewers
+            mock_wm.record_experience.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_none_specialty_no_match(self, governance_service, mock_db, sample_agent):
+        """User with None specialty should not match any agent category"""
+        user_no_specialty = MagicMock(spec=User)
+        user_no_specialty.id = "user_none"
+        user_no_specialty.role = UserRole.MEMBER
+        user_no_specialty.specialty = None
+
+        sample_agent.category = "testing"
+
+        feedback = AgentFeedback(
+            id="feedback_5",
+            agent_id="agent_123",
+            user_id="user_none",
+            original_output="Output",
+            user_correction="Correction",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = user_no_specialty
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.PENDING.value
+
+    @pytest.mark.asyncio
+    async def test_admin_no_specialty_accepted(self, governance_service, mock_db, sample_agent):
+        """Admin without specialty should still be trusted"""
+        admin_no_specialty = MagicMock(spec=User)
+        admin_no_specialty.id = "admin_no_spec"
+        admin_no_specialty.role = UserRole.WORKSPACE_ADMIN
+        admin_no_specialty.specialty = None
+
+        sample_agent.category = "testing"
+
+        feedback = AgentFeedback(
+            id="feedback_6",
+            agent_id="agent_123",
+            user_id="admin_no_spec",
+            original_output="Output",
+            user_correction="Correction",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = admin_no_specialty
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            # Admin role trumps specialty requirement
+            assert feedback.status == FeedbackStatus.ACCEPTED.value
+
+    @pytest.mark.asyncio
+    async def test_confidence_decreases_on_accepted_feedback(self, governance_service, mock_db, sample_agent):
+        """Accepted feedback should decrease confidence with high impact"""
+        admin_user = MagicMock(spec=User)
+        admin_user.id = "admin_123"
+        admin_user.role = UserRole.WORKSPACE_ADMIN
+        admin_user.specialty = None
+
+        sample_agent.confidence_score = 0.8
+
+        feedback = AgentFeedback(
+            id="feedback_7",
+            agent_id="agent_123",
+            user_id="admin_123",
+            original_output="Bad",
+            user_correction="Good",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = admin_user
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            original_confidence = sample_agent.confidence_score
+            await governance_service._adjudicate_feedback(feedback)
+
+            # Should decrease by 0.1 (high impact)
+            assert sample_agent.confidence_score < original_confidence
+            assert abs(sample_agent.confidence_score - (original_confidence - 0.1)) < 0.001
+
+    @pytest.mark.asyncio
+    async def test_confidence_decreases_low_on_queued_feedback(self, governance_service, mock_db, sample_agent):
+        """Queued feedback should decrease confidence with low impact"""
+        regular_user = MagicMock(spec=User)
+        regular_user.id = "user_regular"
+        regular_user.role = UserRole.MEMBER
+        regular_user.specialty = "finance"
+
+        sample_agent.category = "testing"
+        sample_agent.confidence_score = 0.8
+
+        feedback = AgentFeedback(
+            id="feedback_8",
+            agent_id="agent_123",
+            user_id="user_regular",
+            original_output="Bad",
+            user_correction="Good",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = regular_user
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            original_confidence = sample_agent.confidence_score
+            await governance_service._adjudicate_feedback(feedback)
+
+            # Should decrease by 0.02 (low impact)
+            assert abs(sample_agent.confidence_score - (original_confidence - 0.02)) < 0.001
+
+    @pytest.mark.asyncio
+    async def test_worldmodel_experience_recorded(self, governance_service, mock_db, sample_agent):
+        """WorldModelService should record corrective experience for accepted feedback"""
+        specialist = MagicMock(spec=User)
+        specialist.id = "user_spec"
+        specialist.role = UserRole.MEMBER
+        specialist.specialty = "testing"
+
+        sample_agent.category = "testing"
+
+        feedback = AgentFeedback(
+            id="feedback_9",
+            agent_id="agent_123",
+            user_id="user_spec",
+            original_output="Wrong answer",
+            user_correction="Right answer",
+            input_context="Question: What is 2+2?",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = specialist
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            # Verify WorldModel.record_experience was called
+            mock_wm.record_experience.assert_called_once()
+            call_args = mock_wm.record_experience.call_args[0][0]
+            assert call_args.agent_id == "agent_123"
+            assert call_args.task_type == "correction"
+            assert "Wrong answer" in call_args.input_summary
+            assert "Right answer" in call_args.learnings
+            assert call_args.outcome == "Failure"
+
+    @pytest.mark.asyncio
+    async def test_specialty_match_case_insensitive_reverse(self, governance_service, mock_db, sample_agent):
+        """Specialty matching should work when agent category is lowercase and user specialty is uppercase"""
+        user = MagicMock(spec=User)
+        user.id = "user_upper"
+        user.role = UserRole.MEMBER
+        user.specialty = "TESTING"
+
+        sample_agent.category = "testing"
+
+        feedback = AgentFeedback(
+            id="feedback_10",
+            agent_id="agent_123",
+            user_id="user_upper",
+            original_output="Output",
+            user_correction="Correction",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        query_call_count = [0]
+
+        def create_query_mock(*args, **kwargs):
+            m = MagicMock()
+            if query_call_count[0] == 0:
+                m.filter.return_value.first.return_value = user
+            else:
+                m.filter.return_value.first.return_value = sample_agent
+            query_call_count[0] += 1
+            return m
+
+        mock_db.query.side_effect = create_query_mock
+
+        with patch('core.agent_world_model.WorldModelService') as mock_wm_cls:
+            mock_wm = AsyncMock()
+            mock_wm_cls.return_value = mock_wm
+
+            await governance_service._adjudicate_feedback(feedback)
+
+            assert feedback.status == FeedbackStatus.ACCEPTED.value
+
+
 class TestConfidenceScoring:
     def test_positive_outcome_increases_confidence(self, governance_service, mock_db, sample_agent):
         mock_query = MagicMock()
