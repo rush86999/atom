@@ -18,17 +18,17 @@ from sqlalchemy.orm import Session
 
 # Import integration services being tested
 from integrations.atom_education_customization_service import AtomEducationCustomizationService as EducationCustomizationService
-from integrations.atom_finance_customization_service import FinanceCustomizationService
-from integrations.atom_google_chat_integration import GoogleChatIntegration
-from integrations.atom_zoom_integration import ZoomIntegration
-from integrations.atom_enterprise_unified_service import EnterpriseUnifiedService
+from integrations.atom_finance_customization_service import AtomFinanceCustomizationService as FinanceCustomizationService
+from integrations.atom_zoom_integration import AtomZoomIntegration as ZoomIntegration
+from integrations.atom_enterprise_unified_service import AtomEnterpriseUnifiedService as EnterpriseUnifiedService
+from integrations.atom_video_ai_service import AtomVideoAIService as VideoAIService
+from integrations.atom_voice_ai_service import AtomVoiceAIService as VoiceAIService
+from integrations.atom_quickbooks_integration_service import AtomQuickbooksIntegrationService as QuickbooksIntegrationService
+from integrations.atom_zendesk_integration_service import AtomZendeskIntegrationService as ZendeskIntegrationService
+from integrations.atom_healthcare_customization_service import AtomHealthcareCustomizationService as HealthcareCustomizationService
+from integrations.atom_google_chat_integration import AtomGoogleChatIntegration as GoogleChatIntegration
 from integrations.chat_orchestrator import ChatOrchestrator
-from integrations.atom_video_ai_service import VideoAIService
-from integrations.atom_voice_ai_service import VoiceAIService
-from integrations.atom_quickbooks_integration_service import QuickbooksIntegrationService
-from integrations.atom_zendesk_integration_service import ZendeskIntegrationService
-from integrations.atom_healthcare_customization_service import HealthcareCustomizationService
-from integrations.pdf_ocr_service import PDFOCRService
+from integrations.pdf_processing.pdf_ocr_service import PDFOCRService
 
 
 # =============================================================================

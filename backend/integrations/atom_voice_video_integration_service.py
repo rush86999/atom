@@ -176,21 +176,34 @@ class AtomVoiceVideoIntegrationService:
         self.meeting_insights: Dict[str, MeetingInsight] = {}
         self.real_time_transcriptions: Dict[str, List[str]] = {}
         
-        # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
-        
-        # Platform integrations
-        self.platform_integrations = {
-            VoiceVideoPlatform.SLACK: atom_slack_integration,
-            VoiceVideoPlatform.MICROSOFT_TEAMS: atom_teams_integration,
-            VoiceVideoPlatform.GOOGLE_CHAT: atom_google_chat_integration,
-            VoiceVideoPlatform.DISCORD: atom_discord_integration,
-            VoiceVideoPlatform.TELEGRAM: atom_telegram_integration,
-            VoiceVideoPlatform.WHATSAPP: atom_whatsapp_integration,
-            VoiceVideoPlatform.ZOOM: atom_zoom_integration
-        }
+        # Enterprise integration (use safe defaults if optional services didn't import)
+        self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
+        self.enterprise_automation = config.get('automation_service') or globals().get('atom_workflow_automation_service')
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
+
+        # Platform integrations (use safe defaults if optional services didn't import)
+        self.platform_integrations = {}
+        _slack = globals().get('atom_slack_integration')
+        if _slack:
+            self.platform_integrations[VoiceVideoPlatform.SLACK] = _slack
+        _teams = globals().get('atom_teams_integration')
+        if _teams:
+            self.platform_integrations[VoiceVideoPlatform.MICROSOFT_TEAMS] = _teams
+        _google_chat = globals().get('atom_google_chat_integration')
+        if _google_chat:
+            self.platform_integrations[VoiceVideoPlatform.GOOGLE_CHAT] = _google_chat
+        _discord = globals().get('atom_discord_integration')
+        if _discord:
+            self.platform_integrations[VoiceVideoPlatform.DISCORD] = _discord
+        _telegram = globals().get('atom_telegram_integration')
+        if _telegram:
+            self.platform_integrations[VoiceVideoPlatform.TELEGRAM] = _telegram
+        _whatsapp = globals().get('atom_whatsapp_integration')
+        if _whatsapp:
+            self.platform_integrations[VoiceVideoPlatform.WHATSAPP] = _whatsapp
+        _zoom = globals().get('atom_zoom_integration')
+        if _zoom:
+            self.platform_integrations[VoiceVideoPlatform.ZOOM] = _zoom
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -981,8 +994,8 @@ class AtomVoiceVideoIntegrationService:
         except Exception as e:
             logger.error(f"Error closing Voice and Video Integration Service: {e}")
 
-# Global Voice and Video Integration service instance
-atom_voice_video_integration_service = AtomVoiceVideoIntegrationService({
+# Global Voice and Video Integration service instance (using safe defaults if services not available)
+_atom_voice_video_config = {
     'max_media_length': 3600,
     'max_media_size': 1073741824,
     'supported_audio_formats': ['wav', 'mp3', 'flac', 'ogg', 'm4a', 'webm'],
@@ -996,7 +1009,19 @@ atom_voice_video_integration_service = AtomVoiceVideoIntegrationService({
     'compliance_standards': ['SOC2', 'ISO27001', 'GDPR', 'HIPAA'],
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
-})
+}
+
+# Use safe imports for optional services
+_atom_security = globals().get('atom_enterprise_security_service')
+if _atom_security:
+    _atom_voice_video_config['security_service'] = _atom_security
+
+_atom_automation = globals().get('atom_workflow_automation_service')
+if _atom_automation:
+    _atom_voice_video_config['automation_service'] = _atom_automation
+
+_atom_ai = globals().get('ai_enhanced_service')
+if _atom_ai:
+    _atom_voice_video_config['ai_service'] = _atom_ai
+
+atom_voice_video_integration_service = AtomVoiceVideoIntegrationService(_atom_voice_video_config)

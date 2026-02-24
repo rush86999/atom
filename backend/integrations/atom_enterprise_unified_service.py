@@ -98,7 +98,7 @@ class EnterpriseWorkflow:
     description: str
     service_type: EnterpriseServiceType
     security_level: WorkflowSecurityLevel
-    compliance_standards: List[ComplianceStandard]
+    compliance_standards: List[str]  # Changed from List[ComplianceStandard] to avoid import error
     triggers: List[Dict[str, Any]]
     steps: List[Dict[str, Any]]
     actions: List[Dict[str, Any]]
@@ -130,7 +130,7 @@ class SecurityWorkflowAction:
 class ComplianceAutomation:
     """Compliance automation configuration"""
     automation_id: str
-    compliance_standard: ComplianceStandard
+    compliance_standard: str  # Changed from ComplianceStandard to avoid import error
     workflow_type: ComplianceWorkflowType
     triggers: List[AutomationTriggerType]
     actions: List[str]
@@ -240,7 +240,7 @@ class AtomEnterpriseUnifiedService:
                 description=workflow_data['description'],
                 service_type=EnterpriseServiceType(workflow_data['service_type']),
                 security_level=WorkflowSecurityLevel(workflow_data['security_level']),
-                compliance_standards=[ComplianceStandard(standard) for standard in workflow_data['compliance_standards']],
+                compliance_standards=workflow_data['compliance_standards'],  # Changed from ComplianceStandard objects to strings
                 triggers=workflow_data['triggers'],
                 steps=workflow_data['steps'],
                 actions=workflow_data['actions'],
@@ -567,7 +567,7 @@ class AtomEnterpriseUnifiedService:
             # Create compliance automation
             compliance_automation = ComplianceAutomation(
                 automation_id=automation_id,
-                compliance_standard=ComplianceStandard(automation_data['compliance_standards'][0]),
+                compliance_standard=automation_data['compliance_standards'][0],  # Changed from ComplianceStandard object to string
                 workflow_type=ComplianceWorkflowType(automation_data['workflow_type']),
                 triggers=[AutomationTriggerType(trigger) for trigger in automation_data.get('triggers', [])],
                 actions=automation_data.get('actions', []),
@@ -1089,7 +1089,7 @@ class AtomEnterpriseUnifiedService:
         """Validate context security"""
         return {'valid': True}
     
-    async def _check_compliance_requirements(self, standard: ComplianceStandard, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    async def _check_compliance_requirements(self, standard: str, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Check compliance requirements"""
         return {'compliant': True}
     
@@ -1283,7 +1283,7 @@ class AtomEnterpriseUnifiedService:
             ],
             "supported_services": [service.value for service in EnterpriseServiceType],
             "security_levels": [level.value for level in WorkflowSecurityLevel],
-            "compliance_standards": [standard.value for standard in ComplianceStandard],
+            "compliance_standards": ["SOC2", "ISO27001", "GDPR", "HIPAA", "PCI_DSS"],  # Changed from ComplianceStandard enum
             "status": "ACTIVE"
         }
     

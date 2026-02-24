@@ -14,25 +14,80 @@ import logging
 import os
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-import PIL.Image
+
+# Optional external dependencies - wrap in try-except
+try:
+    import PIL.Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    PIL = None
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    cv2 = None
+
+try:
+    import ffmpeg
+    FFMPEG_AVAILABLE = True
+except ImportError:
+    FFMPEG_AVAILABLE = False
+    ffmpeg = None
+
+try:
+    import librosa
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    LIBROSA_AVAILABLE = False
+    librosa = None
+
+try:
+    from moviepy.editor import VideoFileClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+    VideoFileClip = None
+
+try:
+    import soundfile as sf
+    SOUNDFILE_AVAILABLE = True
+except ImportError:
+    SOUNDFILE_AVAILABLE = False
+    sf = None
+
+try:
+    import torch
+    import torchaudio
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+    torchaudio = None
+
+try:
+    from transformers import (
+        AutoModelForSeq2SeqLM,
+        AutoModelForVideoClassification,
+        AutoProcessor,
+        AutoTokenizer,
+        pipeline,
+    )
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    AutoModelForSeq2SeqLM = None
+    AutoModelForVideoClassification = None
+    AutoProcessor = None
+    AutoTokenizer = None
+    pipeline = None
+
 import aiohttp
-import cv2
-import ffmpeg
 import httpx
-import librosa
-from moviepy.editor import VideoFileClip
 import numpy as np
 import pandas as pd
-import soundfile as sf
-import torch
-import torchaudio
-from transformers import (
-    AutoModelForSeq2SeqLM,
-    AutoModelForVideoClassification,
-    AutoProcessor,
-    AutoTokenizer,
-    pipeline,
-)
 
 # Import existing ATOM services
 try:
@@ -231,22 +286,35 @@ class AtomVideoAIService:
         self.video_summaries: Dict[str, VideoSummary] = {}
         self.video_analyses: Dict[str, VideoAnalysis] = {}
         
-        # Enterprise integration
-        self.enterprise_security = config.get('security_service') or atom_enterprise_security_service
-        self.enterprise_automation = config.get('automation_service') or atom_workflow_automation_service
-        self.ai_service = config.get('ai_service') or ai_enhanced_service
-        self.voice_ai_service = config.get('voice_ai_service') or atom_voice_ai_service
-        
-        # Platform integrations
-        self.platform_integrations = {
-            'slack': atom_slack_integration,
-            'teams': atom_teams_integration,
-            'google_chat': atom_google_chat_integration,
-            'discord': atom_discord_integration,
-            'telegram': atom_telegram_integration,
-            'whatsapp': atom_whatsapp_integration,
-            'zoom': atom_zoom_integration
-        }
+        # Enterprise integration (use safe defaults if optional services didn't import)
+        self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
+        self.enterprise_automation = config.get('automation_service') or globals().get('atom_workflow_automation_service')
+        self.ai_service = config.get('ai_service') or globals().get('ai_enhanced_service')
+        self.voice_ai_service = config.get('voice_ai_service') or globals().get('atom_voice_ai_service')
+
+        # Platform integrations (use safe defaults if optional services didn't import)
+        self.platform_integrations = {}
+        _slack = globals().get('atom_slack_integration')
+        if _slack:
+            self.platform_integrations['slack'] = _slack
+        _teams = globals().get('atom_teams_integration')
+        if _teams:
+            self.platform_integrations['teams'] = _teams
+        _google_chat = globals().get('atom_google_chat_integration')
+        if _google_chat:
+            self.platform_integrations['google_chat'] = _google_chat
+        _discord = globals().get('atom_discord_integration')
+        if _discord:
+            self.platform_integrations['discord'] = _discord
+        _telegram = globals().get('atom_telegram_integration')
+        if _telegram:
+            self.platform_integrations['telegram'] = _telegram
+        _whatsapp = globals().get('atom_whatsapp_integration')
+        if _whatsapp:
+            self.platform_integrations['whatsapp'] = _whatsapp
+        _zoom = globals().get('atom_zoom_integration')
+        if _zoom:
+            self.platform_integrations['zoom'] = _zoom
         
         # Analytics and monitoring
         self.analytics_metrics = {
@@ -1049,8 +1117,8 @@ class AtomVideoAIService:
         except Exception as e:
             logger.error(f"Error closing Video AI Service: {e}")
 
-# Global Video AI service instance
-atom_video_ai_service = AtomVideoAIService({
+# Global Video AI service instance (using safe defaults if services not available)
+_atom_video_config = {
     'blip_model': 'Salesforce/blip-image-captioning-base',
     'clip_model': 'openai/clip-vit-base-patch32',
     'yolo_model': 'yolov8n',
@@ -1066,8 +1134,23 @@ atom_video_ai_service = AtomVideoAIService({
     'compliance_standards': ['SOC2', 'ISO27001', 'GDPR', 'HIPAA'],
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service,
-    'voice_ai_service': atom_voice_ai_service
-})
+}
+
+# Use safe imports for optional services
+_atom_security = globals().get('atom_enterprise_security_service')
+if _atom_security:
+    _atom_video_config['security_service'] = _atom_security
+
+_atom_automation = globals().get('atom_workflow_automation_service')
+if _atom_automation:
+    _atom_video_config['automation_service'] = _atom_automation
+
+_atom_ai = globals().get('ai_enhanced_service')
+if _atom_ai:
+    _atom_video_config['ai_service'] = _atom_ai
+
+_atom_voice = globals().get('atom_voice_ai_service')
+if _atom_voice:
+    _atom_video_config['voice_ai_service'] = _atom_voice
+
+atom_video_ai_service = AtomVideoAIService(_atom_video_config)

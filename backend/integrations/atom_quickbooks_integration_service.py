@@ -1012,7 +1012,20 @@ atom_quickbooks_integration_service = AtomQuickBooksIntegrationService({
     'financial_analytics': True,
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
-    'security_service': atom_enterprise_security_service,
-    'automation_service': atom_workflow_automation_service,
-    'ai_service': ai_enhanced_service
 })
+
+# Use safe imports for optional services
+_atom_security = globals().get('atom_enterprise_security_service')
+if _atom_security:
+    atom_quickbooks_integration_service.security_service = _atom_security
+
+_atom_automation = globals().get('atom_workflow_automation_service')
+if _atom_automation:
+    atom_quickbooks_integration_service.automation_service = _atom_automation
+
+_atom_ai = globals().get('ai_enhanced_service')
+if _atom_ai:
+    atom_quickbooks_integration_service.ai_service = _atom_ai
+
+# Alias for compatibility with test imports
+AtomQuickbooksIntegrationService = AtomQuickBooksIntegrationService
