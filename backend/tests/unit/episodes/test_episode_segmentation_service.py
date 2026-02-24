@@ -2016,3 +2016,321 @@ class TestCanvasContextExtractionPrivate:
 
         # Should return {} on exception (line 985)
         assert result == {}
+
+
+# ============================================================================
+# Skill Episode Creation Tests (Lines 1410-1496)
+# ============================================================================
+
+class TestSkillEpisodeCreation:
+    """Test skill episode creation and helper methods."""
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_success(self, segmentation_service):
+        """Test create_skill_episode with successful skill execution."""
+        import uuid
+        from unittest.mock import patch
+
+        agent_id = "agent-123"
+        skill_name = "web_search"
+        inputs = {"query": "python testing", "limit": 10}
+        result = {"results": ["url1", "url2"], "count": 2}
+        error = None
+        execution_time = 1.5
+
+        # Track added segments
+        added_segments = []
+        segmentation_service.db.add = lambda obj: added_segments.append(obj)
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        segment_id = await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, result, error, execution_time
+        )
+
+        # Should return segment ID
+        assert segment_id is not None
+        assert len(added_segments) == 1
+
+        segment = added_segments[0]
+        assert segment.segment_type == "skill_execution"
+        assert segment.source_type == "skill_execution"
+        assert "web_search" in segment.content_summary
+        assert "Success" in segment.content_summary
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_with_error(self, segmentation_service):
+        """Test create_skill_episode with skill execution error."""
+        agent_id = "agent-456"
+        skill_name = "data_processing"
+        inputs = {"data": "test"}
+        result = None
+        error = Exception("Processing failed: invalid data format")
+        execution_time = 0.5
+
+        added_segments = []
+        segmentation_service.db.add = lambda obj: added_segments.append(obj)
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        segment_id = await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, result, error, execution_time
+        )
+
+        assert segment_id is not None
+        assert len(added_segments) == 1
+
+        segment = added_segments[0]
+        assert "Failed" in segment.content_summary
+        assert "Exception" in segment.content
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_without_result(self, segmentation_service):
+        """Test create_skill_episode with None result (no error)."""
+        agent_id = "agent-789"
+        skill_name = "notification"
+        inputs = {"message": "Hello"}
+        result = None  # No result but no error
+        error = None
+        execution_time = 0.2
+
+        added_segments = []
+        segmentation_service.db.add = lambda obj: added_segments.append(obj)
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        segment_id = await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, result, error, execution_time
+        )
+
+        assert segment_id is not None
+        segment = added_segments[0]
+        assert "Success" in segment.content_summary
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_db_commit(self, segmentation_service):
+        """Test create_skill_episode calls db.commit and db.refresh."""
+        agent_id = "agent-db-test"
+        skill_name = "test_skill"
+        inputs = {}
+        result = {"status": "ok"}
+        error = None
+        execution_time = 1.0
+
+        added_segments = []
+        segmentation_service.db.add = lambda obj: added_segments.append(obj)
+
+        commit_called = []
+        segmentation_service.db.commit = lambda: commit_called.append(True)
+
+        refresh_called = []
+        segmentation_service.db.refresh = lambda obj: refresh_called.append(obj)
+
+        await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, result, error, execution_time
+        )
+
+        # Should call commit and refresh
+        assert len(commit_called) == 1
+        assert len(refresh_called) == 1
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_error_rollback(self, segmentation_service):
+        """Test create_skill_episode rolls back on exception."""
+        agent_id = "agent-rollback"
+        skill_name = "failing_skill"
+        inputs = {"cause": "error"}
+
+        # Mock db.add to raise exception
+        segmentation_service.db.add = Mock(side_effect=Exception("DB error"))
+
+        rollback_called = []
+        segmentation_service.db.rollback = lambda: rollback_called.append(True)
+
+        segment_id = await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, None, Exception("Skill failed"), 1.0
+        )
+
+        # Should return None and rollback
+        assert segment_id is None
+        assert len(rollback_called) == 1
+
+    @pytest.mark.asyncio
+    async def test_create_skill_episode_segment_logging(self, segmentation_service):
+        """Test create_skill_episode logs segment creation."""
+        import logging
+        from unittest.mock import patch
+
+        agent_id = "agent-log"
+        skill_name = "logging_skill"
+        inputs = {}
+        result = {"logged": True}
+        error = None
+        execution_time = 0.1
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        with patch('core.episode_segmentation_service.logger') as mock_logger:
+            await segmentation_service.create_skill_episode(
+                agent_id, skill_name, inputs, result, error, execution_time
+            )
+
+            # Should log info message
+            mock_logger.info.assert_called()
+            log_message = str(mock_logger.info.call_args)
+            assert "Created skill episode segment" in log_message
+            assert "logging_skill" in log_message
+
+    def test_summarize_skill_inputs_empty(self, segmentation_service):
+        """Test _summarize_skill_inputs with empty inputs."""
+        result = segmentation_service._summarize_skill_inputs({})
+        assert result == "{}"
+
+    def test_summarize_skill_inputs_none(self, segmentation_service):
+        """Test _summarize_skill_inputs with None inputs."""
+        result = segmentation_service._summarize_skill_inputs(None)
+        assert result == "{}"
+
+    def test_summarize_skill_inputs_truncation(self, segmentation_service):
+        """Test _summarize_skill_inputs truncates long values."""
+        inputs = {
+            "short": "value",
+            "long": "x" * 150  # 150 characters
+        }
+
+        result = segmentation_service._summarize_skill_inputs(inputs)
+
+        # Long value should be truncated to 100 chars (97 + "...")
+        assert "'short': 'value'" in result or '"short": "value"' in result
+        assert "xxx..." in result
+        assert len(result) < len(str(inputs))  # Should be shorter
+
+    def test_summarize_skill_inputs_multiple_keys(self, segmentation_service):
+        """Test _summarize_skill_inputs handles multiple input keys."""
+        inputs = {
+            "query": "test search",
+            "limit": 10,
+            "offset": 0,
+            "filters": {"status": "active"}
+        }
+
+        result = segmentation_service._summarize_skill_inputs(inputs)
+
+        # Should contain all keys
+        assert "query" in result
+        assert "limit" in result
+        assert "offset" in result
+        assert "filters" in result
+
+    def test_format_skill_content_success(self, segmentation_service):
+        """Test _format_skill_content with successful execution."""
+        result = {"data": [1, 2, 3], "count": 3}
+
+        content = segmentation_service._format_skill_content("data_fetcher", result, None)
+
+        assert "Skill: data_fetcher" in content
+        assert "Status: Success" in content
+        assert "Result:" in content
+        assert "data" in content
+
+    def test_format_skill_content_error(self, segmentation_service):
+        """Test _format_skill_content with error."""
+        error = ValueError("Invalid input parameter")
+
+        content = segmentation_service._format_skill_content("validator", None, error)
+
+        assert "Skill: validator" in content
+        assert "Status: Failed" in content
+        assert "Error:" in content
+        assert "ValueError" in content
+        assert "Invalid input parameter" in content
+
+    def test_format_skill_content_with_result(self, segmentation_service):
+        """Test _format_skill_content includes result when present."""
+        result = "Success: Operation completed"
+
+        content = segmentation_service._format_skill_content("operation", result, None)
+
+        assert "Result: Success: Operation completed" in content
+
+    def test_format_skill_content_without_result(self, segmentation_service):
+        """Test _format_skill_content without result (success case)."""
+        content = segmentation_service._format_skill_content("void_operation", None, None)
+
+        assert "Skill: void_operation" in content
+        assert "Status: Success" in content
+        # Should not have "Result:" line when result is None
+        assert "Result:" not in content
+
+    def test_extract_skill_metadata(self, segmentation_service):
+        """Test extract_skill_metadata extracts correct fields."""
+        import hashlib
+
+        context_data = {
+            "skill_name": "test_skill",
+            "skill_source": "community",
+            "execution_time": 2.5,
+            "input_summary": "{'query': 'test'}",
+            "error_type": None
+        }
+
+        metadata = segmentation_service.extract_skill_metadata(context_data)
+
+        assert metadata["skill_name"] == "test_skill"
+        assert metadata["skill_source"] == "community"
+        assert metadata["execution_successful"] is True
+        assert metadata["execution_time"] == 2.5
+        assert "input_hash" in metadata
+        assert len(metadata["input_hash"]) == 8  # First 8 chars of SHA256
+
+    def test_extract_skill_metadata_with_error(self, segmentation_service):
+        """Test extract_skill_metadata with error in context."""
+        context_data = {
+            "skill_name": "failing_skill",
+            "skill_source": "community",
+            "execution_time": 0.5,
+            "input_summary": "{}",
+            "error_type": "ValueError"
+        }
+
+        metadata = segmentation_service.extract_skill_metadata(context_data)
+
+        assert metadata["skill_name"] == "failing_skill"
+        assert metadata["execution_successful"] is False
+        assert metadata["execution_time"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_skill_episode_segment_id_generation(self, segmentation_service):
+        """Test skill episode segment ID is valid UUID."""
+        import uuid
+        from datetime import datetime
+
+        agent_id = "agent-uuid-test"
+        skill_name = "uuid_skill"
+        inputs = {}
+        result = {"test": "data"}
+        error = None
+        execution_time = 1.0
+
+        added_segments = []
+        segmentation_service.db.add = lambda obj: added_segments.append(obj)
+        segmentation_service.db.commit = Mock()
+        segmentation_service.db.refresh = Mock()
+
+        await segmentation_service.create_skill_episode(
+            agent_id, skill_name, inputs, result, error, execution_time
+        )
+
+        segment = added_segments[0]
+        # Segment ID should be valid UUID
+        try:
+            uuid.UUID(segment.id)
+            assert True  # Valid UUID
+        except ValueError:
+            assert False, f"Invalid UUID: {segment.id}"
+
+        # Episode ID should follow expected format
+        expected_prefix = f"skill_{skill_name}_{agent_id[:8]}_"
+        assert segment.episode_id.startswith(expected_prefix)
