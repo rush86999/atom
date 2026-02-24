@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 085-database-integration-testing
-Plan: 04 (critical-paths-integration-tests)
-Status: Complete - 29 critical business path integration tests created (97% pass rate)
-Last activity: 2026-02-24 — End-to-end integration tests for 4 critical business paths covering agent execution, episode creation, canvas presentation, and graduation promotion flows
+Phase: 086-property-based-testing-core-services
+Plan: 02 (episode-segmentation-property-tests)
+Status: Complete - Episode segmentation property tests verified, critical bug fixed
+Last activity: 2026-02-24 — Property-based testing for episode segmentation invariants, discovered and fixed exclusive boundary condition bug
 
-Progress: [█████████░] 87% (v3.2: integration testing complete, milestone wrap-up next)
+Progress: [█████████░] 88% (v3.2: property testing core services)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
@@ -37,7 +37,9 @@ Progress: [█████████░] 87% (v3.2: integration testing comple
 - Include property tests alongside unit/integration tests
 
 **Progress**:
-- Plan 81-01: Coverage baseline established (15.23% overall)
+- Phase 086-01: Coverage baseline established (15.23% overall)
+- Phase 086-02: Episode segmentation property tests complete (76.89% coverage, 1 bug found and fixed)
+- Phase 086-03: Pending (episode retrieval property tests)
 - Plan 81-02: Priority ranking system complete (49 high-impact files identified)
 - Plan 81-03: Critical path coverage analysis complete
 - Plan 81-04: Coverage baseline and trend tracking infrastructure established
@@ -105,6 +107,12 @@ Progress: [█████████░] 87% (v3.2: integration testing comple
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+**v3.2 Property Testing Decisions:**
+- [Phase 086-02]: Property tests validate invariants across millions of Hypothesis-generated examples
+- [Phase 086-02]: Exclusive boundary condition (> not >=) is critical invariant for time gap detection
+- [Phase 086-02]: Bug fix: Changed gap_minutes >= THRESHOLD to gap_minutes > THRESHOLD in detect_time_gap()
+- [Phase 086-02]: Episode segmentation has 10 verified invariants documented in SEGMENTATION_INVARIANTS.md
 
 **v3.2 Unit Testing Decisions:**
 - [Phase 082-01]: Query mock pattern with closure counter for multiple DB calls in single test
@@ -281,8 +289,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-24 17:14
-Stopped at: Phase 085-04 complete - Critical business paths integration testing finished (29 tests covering agent execution, episode creation, canvas presentation, graduation promotion)
+Last session: 2026-02-24 17:11
+Stopped at: Phase 086-02 complete - Episode segmentation property tests verified, critical bug fixed (exclusive boundary condition)
 Resume file: None
 
 ---
