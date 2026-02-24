@@ -22,6 +22,7 @@ from tests.factories.workspace_factory import WorkspaceFactory, TeamFactory
 from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
 from tests.factories.feedback_factory import AgentFeedbackFactory
 from tests.factories.training_factory import BlockedTriggerContextFactory, AgentProposalFactory
+from tests.factories.operation_tracker_factory import AgentOperationTrackerFactory
 
 __all__ = [
     'BaseFactory',
@@ -45,4 +46,5 @@ __all__ = [
     'AgentFeedbackFactory',
     'BlockedTriggerContextFactory',
     'AgentProposalFactory',
+    'AgentOperationTrackerFactory',
 ]
