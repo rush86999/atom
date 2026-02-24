@@ -826,7 +826,6 @@ class AgentSocialLayer:
                 # Create segment for first episode (primary episode)
                 segment = EpisodeSegment(
                     episode_id=episode_ids[0],
-                    agent_id=sender_id if sender_type == "agent" else None,
                     segment_type="social_post",
                     sequence_order=0,
                     content=json.dumps({
@@ -835,15 +834,15 @@ class AgentSocialLayer:
                         "post_type": post_type
                     }),
                     content_summary=f"Social post: {content[:100]}",
-                    metadata=json.dumps({
+                    source_type="social_post",
+                    source_id=str(post["id"]),
+                    canvas_context={
                         "sender_type": sender_type,
                         "sender_id": sender_id,
                         "post_type": post_type,
                         "is_public": is_public,
-                        "channel_id": channel_id,
-                        "timestamp": datetime.utcnow().isoformat()
-                    }),
-                    created_at=datetime.utcnow()
+                        "channel_id": channel_id
+                    }
                 )
                 db.add(segment)
                 db.commit()
@@ -929,13 +928,13 @@ class AgentSocialLayer:
         """
         # Get base feed using existing method
         feed = await self.get_feed(
-            agent_id=agent_id,
-            sender_filter=sender_filter,
-            post_type_filter=post_type_filter,
-            channel_id=channel_id,
-            is_public=is_public,
+            sender_id=agent_id or "system",
             limit=limit,
             offset=offset,
+            post_type=post_type_filter,
+            sender_filter=sender_filter,
+            channel_id=channel_id,
+            is_public=is_public,
             db=db
         )
 
@@ -1037,7 +1036,7 @@ class AgentSocialLayer:
                 # Note: This assumes graduation service has this method
                 # If not, we'll track it in a separate table
                 self.logger.info(
-                    f"Tracking positive interaction for agent {post.agent_id}: "
+                    f"Tracking positive interaction for agent {post.sender_id}: "
                     f"{interaction_type} on post {post_id}"
                 )
 
@@ -1045,17 +1044,14 @@ class AgentSocialLayer:
                 from core.models import AgentFeedback
 
                 feedback = AgentFeedback(
-                    agent_id=post.agent_id,
-                    user_id=user_id,
+                    agent_id=post.sender_id,
+                    user_id=user_id or "system",
+                    input_context=f"Social post: {post.content[:100]}",
+                    original_output=post.content,
+                    user_correction=f"Positive {interaction_type} on social post",
                     feedback_type="social_interaction",
                     rating=1.0 if is_positive else 0.0,
-                    comment=f"Positive {interaction_type} on social post {post_id}",
-                    context={
-                        "post_id": post_id,
-                        "interaction_type": interaction_type,
-                        "timestamp": datetime.utcnow().isoformat()
-                    },
-                    created_at=datetime.utcnow()
+                    thumbs_up_down=True if is_positive else False
                 )
                 db.add(feedback)
                 db.commit()
@@ -1066,7 +1062,7 @@ class AgentSocialLayer:
 
             # Update agent reputation
             await self._update_agent_reputation(
-                post.agent_id, interaction_type, db=db
+                post.sender_id, interaction_type, db=db
             )
 
         except Exception as e:
@@ -1355,13 +1351,6 @@ class AgentSocialLayer:
                 content=message,
                 is_public=True,
                 auto_generated=True,
-                metadata={
-                    "milestone_type": "graduation",
-                    "from_maturity": from_maturity,
-                    "to_maturity": to_maturity,
-                    "agent_id": agent_id,
-                    "agent_name": agent.name
-                },
                 db=db
             )
 
