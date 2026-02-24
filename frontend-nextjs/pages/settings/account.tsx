@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,6 @@ interface AccountData {
 }
 
 export default function AccountSettings() {
-    const { data: session, status } = useSession();
     const router = useRouter();
     const [accountData, setAccountData] = useState<AccountData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -41,6 +39,7 @@ export default function AccountSettings() {
     const [changingPassword, setChangingPassword] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
+    const [authToken, setAuthToken] = useState<string | null>(null);
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -70,8 +69,7 @@ export default function AccountSettings() {
 
         setChangingPassword(true);
         try {
-            // @ts-ignore
-            const token = (session as any)?.backendToken || (session as any)?.user?.token;
+            const token = authToken;
 
             const res = await fetch('/api/auth/change-password', {
                 method: 'POST',
@@ -112,24 +110,30 @@ export default function AccountSettings() {
     };
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin');
-        } else if (status === 'authenticated') {
-            fetchAccounts();
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            router.push('/login');
+        } else {
+            setAuthToken(token);
+            fetchAccounts(token);
         }
-    }, [status]);
+    }, []);
 
-    const fetchAccounts = async () => {
+    const fetchAccounts = async (token?: string) => {
+        const effectiveToken = token || authToken;
         try {
-            // @ts-ignore - backendToken is added in [...nextauth].ts
-            const token = (session as any)?.backendToken || (session as any)?.user?.token;
-
             const response = await fetch('/api/auth/accounts', {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${effectiveToken}`
                 }
             });
             if (!response.ok) {
+                // If unauthorized, token is expired/invalid — redirect to login
+                if (response.status === 401) {
+                    localStorage.removeItem('auth_token');
+                    router.push('/login');
+                    return;
+                }
                 // Try to parse error response
                 let errorMsg = `Error ${response.status}: ${response.statusText}`;
                 try {
@@ -161,8 +165,7 @@ export default function AccountSettings() {
         setError('');
 
         try {
-            // @ts-ignore
-            const token = (session as any)?.backendToken || (session as any)?.user?.token;
+            const token = authToken;
 
             const response = await fetch('/api/auth/accounts', {
                 method: 'DELETE',
@@ -214,7 +217,7 @@ export default function AccountSettings() {
         }
     };
 
-    if (loading || status === 'loading') {
+    if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
