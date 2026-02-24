@@ -645,6 +645,14 @@ try:
     except ImportError:
         logger.warning("Auth endpoints or 2FA routes not found, skipping.")
 
+    # 4a.1 User Preference Routes
+    try:
+        from core.user_preference_routes import router as preference_router
+        app.include_router(preference_router, prefix="/api/v1", tags=["Preferences"])
+        logger.info("✓ User Preference Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"User Preference routes not found: {e}")
+
     # 4b. Onboarding Routes
     try:
         from api.onboarding_routes import router as onboarding_router
