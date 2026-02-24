@@ -6,6 +6,11 @@
 **Estimated:** 43-63 days
 **Phases:** 13
 
+**Related Documentation:**
+- **JIT Fact Verification**: See [CITATION_SYSTEM_GUIDE.md](../docs/CITATION_SYSTEM_GUIDE.md) for just-in-time business fact verification system
+- **World Model & Memory**: See [ai-world-model.md](../docs/ai-world-model.md) for agent experience retrieval and governance
+- **JIT Fact Provision**: See [JIT_FACT_PROVISION_SYSTEM.md](../docs/JIT_FACT_PROVISION_SYSTEM.md) for real-time knowledge retrieval
+
 ---
 
 ## Phase Overview

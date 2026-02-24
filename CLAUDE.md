@@ -266,6 +266,31 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Tests**: `test_episode_segmentation.py`, `test_episode_integration.py`, `test_episode_performance.py`, `test_agent_graduation.py`, `test_canvas_feedback_episode_integration.py`
 - **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`, `docs/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
+### 10.5. World Model & Business Facts ✨ NEW
+- **Files**: `core/agent_world_model.py`, `api/admin/business_facts_routes.py`, `core/policy_fact_extractor.py`
+- **Purpose**: Just-in-time (JIT) verification for business facts with source attribution and real-time retrieval
+- **Features**:
+  - **Business Facts**: Verified knowledge with citations (e.g., "Invoices > $500 need VP approval" with policy.pdf:p4)
+  - **JIT Verification**: Real-time citation validation via R2/S3 storage checks
+  - **Verification Status Tracking**: unverified → verified → outdated lifecycle
+  - **Semantic Fact Retrieval**: Vector search in LanceDB for contextually relevant facts
+  - **Knowledge Graph Integration**: GraphRAG traversal for connected knowledge
+  - **Multi-Source Memory**: Combines facts, experiences, formulas, episodes, and conversations
+  - **Real-Time Synthesis**: LLM-powered answer generation from retrieved context
+  - **Source Attribution**: Every fact includes verifiable citations to source documents
+  - **Document Upload & Extraction**: PDF/docx/image upload with automatic fact extraction
+  - **Security**: Secrets redaction, RBAC enforcement (ADMIN-only management)
+  - **Hybrid Storage**: PostgreSQL (hot) + LanceDB (warm) + R2/S3 (cold)
+- **Performance**: <100ms fact retrieval, <500ms citation verification, <50ms vector search
+- **API**: 7 REST endpoints for fact CRUD, upload/extract, citation verification
+- **Tests**: `test_world_model.py`, `test_business_facts.py`, `test_citation_verification.py`
+- **Docs**: `docs/JIT_FACT_PROVISION_SYSTEM.md`, `docs/CITATION_SYSTEM_GUIDE.md`, `docs/ai-world-model.md`
+- **Key Concepts**:
+  - **JIT Fact Provision**: Real-time knowledge retrieval during agent decision-making
+  - **Citation Verification**: Automated validation that source documents still exist
+  - **Business Fact Model**: `fact`, `citations`, `reason`, `verification_status`, `metadata`
+  - **World Model Service**: Central orchestrator for multi-source memory aggregation
+
 ### 11. Production Monitoring & Observability ✨ NEW
 - **Files**: `api/health_routes.py`, `core/monitoring.py`, `tests/test_health_routes.py`
 - **Purpose**: Production-ready health checks, metrics collection, and structured logging
@@ -799,6 +824,7 @@ pytest tests/ --cov=core --cov-report=html
 - `backend/core/governance_cache.py` - Performance cache
 - `backend/core/llm/byok_handler.py` - LLM routing
 - `backend/core/models.py` - Database models
+- `backend/core/agent_world_model.py` - World Model & JIT Fact Provision (see [docs/JIT_FACT_PROVISION_SYSTEM.md](docs/JIT_FACT_PROVISION_SYSTEM.md))
 
 **API Endpoints**:
 - `backend/core/atom_agent_endpoints.py` - Chat/streaming
@@ -806,6 +832,7 @@ pytest tests/ --cov=core --cov-report=html
 - `backend/api/browser_routes.py` - Browser automation
 - `backend/api/device_capabilities.py` - Device control
 - `backend/api/deeplinks.py` - Deep linking
+- `backend/api/admin/business_facts_routes.py` - Business Facts & JIT Citation Verification (see [docs/CITATION_SYSTEM_GUIDE.md](docs/CITATION_SYSTEM_GUIDE.md))
 
 **Canvas & Accessibility**:
 - `frontend-nextjs/hooks/useCanvasState.ts` - Canvas state hook
