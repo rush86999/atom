@@ -960,7 +960,7 @@ class TestContextWindowManagementExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = None
             mock_get_fetcher.return_value = fetcher
@@ -977,7 +977,7 @@ class TestContextWindowManagementExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_input_tokens": 32000}
             mock_get_fetcher.return_value = fetcher
@@ -993,7 +993,7 @@ class TestContextWindowManagementExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_tokens": 8192}
             mock_get_fetcher.return_value = fetcher
@@ -1009,7 +1009,7 @@ class TestContextWindowManagementExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("Service unavailable")
             mock_get_fetcher.return_value = fetcher
@@ -1026,7 +1026,7 @@ class TestContextWindowManagementExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
             mock_get_fetcher.return_value = fetcher
@@ -1055,7 +1055,7 @@ class TestTextTruncationExtended:
         mock_byok_manager = MagicMock()
 
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_input_tokens": 128000}
             mock_get_fetcher.return_value = fetcher
@@ -1614,7 +1614,7 @@ class TestCostTracking:
     def test_cost_calculation_with_dynamic_pricing(self, mock_byok_manager):
         """Test cost calculation using dynamic pricing fetcher"""
         # Mock dynamic pricing BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             pricing_data = {
                 "input_cost_per_token": 0.00001,
@@ -1652,7 +1652,7 @@ class TestCostTracking:
     def test_cost_fallback_to_static_pricing(self, mock_byok_manager):
         """Test cost calculation falls back to static pricing when dynamic unavailable"""
         # Mock dynamic pricing failure BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
             mock_get_fetcher.return_value = fetcher
@@ -1688,7 +1688,7 @@ class TestCostTracking:
     def test_savings_calculation(self, mock_byok_manager):
         """Test savings calculation against reference cost (gpt-4o)"""
         # Mock dynamic pricing BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             # DeepSeek: $0.0001, GPT-4o reference: $0.001
             fetcher.get_model_price.side_effect = [
@@ -1987,7 +1987,7 @@ class TestContextWindowExtended:
     def test_context_window_dynamic_pricing(self, mock_byok_manager):
         """Test context window from dynamic pricing"""
         # Mock dynamic pricing with context window BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             mock_pricing = {
                 "max_input_tokens": 128000,
@@ -2006,7 +2006,7 @@ class TestContextWindowExtended:
     def test_context_window_fallback_to_defaults(self, mock_byok_manager):
         """Test context window falls back to safe defaults"""
         # Mock pricing fetcher failure BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
             mock_get_fetcher.return_value = fetcher
@@ -2035,7 +2035,7 @@ class TestContextWindowExtended:
     def test_truncate_with_reserve_tokens(self, mock_byok_manager):
         """Test truncation respects reserve tokens for response"""
         # Mock pricing fetcher BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.return_value = {"max_input_tokens": 128000}
             mock_get_fetcher.return_value = fetcher
@@ -2098,7 +2098,7 @@ class TestProviderRanking:
     def test_bpc_ranking_with_dynamic_pricing(self, mock_byok_manager):
         """Test BPC (Benchmark-Price-Capability) ranking"""
         # Mock dynamic pricing BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.pricing_cache = {
                 "deepseek-chat": {
@@ -2129,7 +2129,7 @@ class TestProviderRanking:
     def test_static_fallback_provider_ranking(self, mock_byok_manager):
         """Test static fallback when BPC ranking unavailable"""
         # Mock BPC failure BEFORE handler init
-        with patch('core.llm.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
             mock_get_fetcher.return_value = fetcher
@@ -3664,3 +3664,440 @@ class TestCognitiveTierGeneration:
                 result = await handler.generate_with_cognitive_tier(prompt="Test")
 
                 assert result["escalated"] is True
+
+
+class TestStructuredResponseGeneration:
+    """Test generate_structured_response method covering lines 971-1186"""
+
+    def _mock_db_for_structured(self, handler=None):
+        """
+        Helper to mock database for structured response tests.
+        Returns a mock tenant with BYOK-enabled plan to bypass free tier blocking.
+        Also mocks _is_trial_restricted to return False.
+        """
+        from unittest.mock import MagicMock, patch
+        from enum import Enum
+        
+        # Create a mock PlanType enum
+        class MockPlanType(Enum):
+            ENTERPRISE = "enterprise"
+        
+        # Create mock tenant with BYOK-enabled plan
+        mock_tenant = MagicMock()
+        mock_tenant.plan_type = MockPlanType.ENTERPRISE
+        mock_tenant.id = "test_tenant_id"
+        
+        # Create mock workspace with tenant
+        mock_workspace = MagicMock()
+        mock_workspace.tenant_id = "test_tenant_id"
+        
+        mock_db = MagicMock()
+        # Setup query chain: db.query(Workspace).filter(...).first() returns mock_workspace
+        # db.query(Tenant).filter(...).first() returns mock_tenant
+        mock_db.query.return_value.filter.return_value.first.side_effect = [mock_workspace, mock_tenant]
+        
+        class MockDBSession:
+            def __enter__(self):
+                return mock_db
+            def __exit__(self, *args):
+                pass
+        
+        class CombinedPatch:
+            def __enter__(self):
+                self.p1 = patch('core.database.get_db_session', return_value=MockDBSession())
+                self.p1.start()
+                # Patch _is_trial_restricted on the handler if provided
+                if handler:
+                    self.p2 = patch.object(handler, '_is_trial_restricted', return_value=False)
+                    self.p2.start()
+                else:
+                    self.p2 = None
+                return self
+            def __exit__(self, *args):
+                self.p1.stop()
+                if self.p2:
+                    self.p2.stop()
+        
+        return CombinedPatch()
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_success(self, mock_byok_manager):
+        """Test basic structured response with Pydantic model"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            name: str
+            count: int
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock client and instructor
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.name = "Test"
+            mock_response.count = 42
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="Generate test data",
+                        system_instruction="You are helpful",
+                        response_model=TestModel,
+                        temperature=0.2
+                    )
+
+                    assert result is not None
+                    assert result.name == "Test"
+                    assert result.count == 42
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_vision(self, mock_byok_manager):
+        """Test structured response with image payload"""
+        from pydantic import BaseModel
+
+        class ImageAnalysis(BaseModel):
+            description: str
+            confidence: float
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.description = "A red button"
+            mock_response.confidence = 0.95
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="Analyze this image",
+                        system_instruction="You are a vision specialist",
+                        response_model=ImageAnalysis,
+                        image_payload="base64_imagedata"
+                    )
+
+                    assert result is not None
+                    assert result.description == "A red button"
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_system_instruction(self, mock_byok_manager):
+        """Test passes system instruction correctly"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            result: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.result = "Success"
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="Test",
+                        system_instruction="You are a coding assistant",
+                        response_model=TestModel
+                    )
+
+                    # Verify system instruction was passed
+                    call_args = mock_instructor.return_value.chat.completions.create.call_args
+                    messages = call_args[1]['messages']
+                    assert messages[0]['role'] == 'system'
+                    assert messages[0]['content'] == "You are a coding assistant"
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_task_type(self, mock_byok_manager):
+        """Test includes task_type in request via complexity analysis"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            answer: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.answer = "42"
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    with patch.object(handler, 'get_ranked_providers', return_value=[("openai", "gpt-4o")]) as mock_ranked:
+                        result = await handler.generate_structured_response(
+                            prompt="Calculate answer",
+                            system_instruction="You are helpful",
+                            response_model=TestModel,
+                            task_type="math"
+                        )
+
+                        # Verify get_ranked_providers called with task_type
+                        mock_ranked.assert_called_once()
+                        call_args = mock_ranked.call_args
+                        assert call_args[1]['task_type'] == "math"
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_agent_id(self, mock_byok_manager):
+        """Test includes agent_id for cost tracking"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            output: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.output = "Agent response"
+
+            # Mock usage tracking
+            mock_usage = MagicMock()
+            mock_usage.prompt_tokens = 100
+            mock_usage.completion_tokens = 50
+            mock_response._raw_response = MagicMock()
+            mock_response._raw_response.usage = mock_usage
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    with patch('core.llm.byok_handler.llm_usage_tracker') as mock_tracker:
+                        result = await handler.generate_structured_response(
+                            prompt="Test",
+                            system_instruction="You are helpful",
+                            response_model=TestModel,
+                            agent_id="agent_123"
+                        )
+
+                        # Verify llm_usage_tracker.record called with agent_id
+                        mock_tracker.record.assert_called_once()
+                        call_kwargs = mock_tracker.record.call_args[1]
+                        assert call_kwargs['agent_id'] == "agent_123"
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_response_model_validation(self, mock_byok_manager):
+        """Test validates Pydantic model structure"""
+        from pydantic import BaseModel, Field
+
+        class StrictModel(BaseModel):
+            name: str = Field(..., min_length=1)
+            age: int = Field(..., ge=0, le=150)
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.name = "John"
+            mock_response.age = 30
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="Create person",
+                        system_instruction="You are helpful",
+                        response_model=StrictModel
+                    )
+
+                    # Should return valid Pydantic model
+                    assert isinstance(result, StrictModel)
+                    assert result.name == "John"
+                    assert result.age == 30
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_instructor_error_handling(self, mock_byok_manager):
+        """Test handles instructor API errors gracefully"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            field: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    # Instructor raises error
+                    mock_instructor.return_value.chat.completions.create.side_effect = Exception("API Error")
+
+                    result = await handler.generate_structured_response(
+                        prompt="test",
+                        system_instruction="test",
+                        response_model=TestModel
+                    )
+
+                    # Should return None on error
+                    assert result is None
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_empty_response(self, mock_byok_manager):
+        """Test handles empty/partial responses"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            content: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.content = ""
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="test",
+                        system_instruction="test",
+                        response_model=TestModel
+                    )
+
+                    # Should return response even if empty
+                    assert result is not None
+                    assert result.content == ""
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_complex_model(self, mock_byok_manager):
+        """Test handles nested Pydantic models"""
+        from pydantic import BaseModel
+        from typing import List, Optional
+
+        class Address(BaseModel):
+            street: str
+            city: str
+
+        class Person(BaseModel):
+            name: str
+            age: int
+            address: Address
+            tags: List[str]
+            optional_field: Optional[str] = None
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.name = "Alice"
+            mock_response.age = 30
+            mock_response.address = Address(street="123 Main St", city="Boston")
+            mock_response.tags = ["developer", "admin"]
+            mock_response.optional_field = None
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    result = await handler.generate_structured_response(
+                        prompt="Create person with address",
+                        system_instruction="You are helpful",
+                        response_model=Person
+                    )
+
+                    # Should handle complex nested model
+                    assert isinstance(result, Person)
+                    assert result.name == "Alice"
+                    assert result.address.city == "Boston"
+                    assert "developer" in result.tags
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_coordinated_vision(self, mock_byok_manager):
+        """Test coordinated vision integration with structured response"""
+        from pydantic import BaseModel
+
+        class UIAnalysis(BaseModel):
+            elements: list
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.elements = ["button", "input"]
+
+            handler.clients = {"google_flash": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                # Mock coordinated vision description
+                with patch.object(handler, '_get_coordinated_vision_description', return_value="Button at [500, 200]"):
+                    with patch('instructor.from_openai') as mock_instructor:
+                        mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                        result = await handler.generate_structured_response(
+                            prompt="Analyze UI",
+                            system_instruction="You are a UI specialist",
+                            response_model=UIAnalysis,
+                            image_payload="base64_screenshot"
+                        )
+
+                        assert result is not None
+                        assert "button" in result.elements
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_context_truncation(self, mock_byok_manager):
+        """Test prompt truncation for long prompts"""
+        from pydantic import BaseModel
+
+        class TestModel(BaseModel):
+            summary: str
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.summary = "Summary"
+
+            handler.clients = {"openai": mock_client}
+
+            with self._mock_db_for_structured(handler):
+                with patch('instructor.from_openai') as mock_instructor:
+                    mock_instructor.return_value.chat.completions.create.return_value = mock_response
+
+                    # Create very long prompt that exceeds context window
+                    long_prompt = "test " * 10000  # Very long prompt
+
+                    result = await handler.generate_structured_response(
+                        prompt=long_prompt,
+                        system_instruction="Summarize",
+                        response_model=TestModel
+                    )
+
+                    # Should handle truncation
+                    assert result is not None
+                    assert result.summary == "Summary"
