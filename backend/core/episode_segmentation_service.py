@@ -68,14 +68,20 @@ class EpisodeBoundaryDetector:
         self.db = lancedb_handler
 
     def detect_time_gap(self, messages: List[ChatMessage]) -> List[int]:
-        """Detect time gaps > threshold between messages"""
+        """
+        Detect time gaps > threshold between messages.
+
+        CRITICAL: Uses EXCLUSIVE boundary (>) not inclusive (>=).
+        Gap of exactly threshold minutes does NOT trigger new segment.
+        This ensures proper episode separation for memory integrity.
+        """
         gaps = []
         for i in range(1, len(messages)):
             prev_time = messages[i-1].created_at
             curr_time = messages[i].created_at
             gap_minutes = (curr_time - prev_time).total_seconds() / 60
 
-            if gap_minutes >= TIME_GAP_THRESHOLD_MINUTES:
+            if gap_minutes > TIME_GAP_THRESHOLD_MINUTES:
                 gaps.append(i)
 
         return gaps
