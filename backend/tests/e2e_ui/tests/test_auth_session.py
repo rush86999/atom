@@ -14,6 +14,7 @@ Run with: pytest backend/tests/e2e_ui/tests/test_auth_session.py -v
 """
 
 import pytest
+from typing import Dict, Any
 import json
 import base64
 from playwright.sync_api import Page, Browser

@@ -13,6 +13,7 @@ Tests use setup_test_project fixture for API-first project creation.
 """
 
 import pytest
+from typing import Dict, Any
 from playwright.sync_api import Page
 from tests.e2e_ui.pages.page_objects import ProjectsPage
 

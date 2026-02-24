@@ -1,0 +1,92 @@
+{
+  "app": "atom-saas-api",
+  "primary_region": "iad",
+
+  "build": {
+    "args": {
+      "CACHE_BUST": "20260222"
+    },
+    "dockerfile": "Dockerfile.api"
+  },
+  "deploy": {},
+
+  "env": {
+    "ALLOWED_ORIGINS": "https://atom-saas.fly.dev,https://atomagentos.com",
+    "DATABASE_URL": "",
+    "ENVIRONMENT": "production",
+    "FRONTEND_URL": "https://atomagentos.com",
+    "PORT": "8000",
+    "PYTHONUNBUFFERED": "1",
+    "PYTHON_BACKEND_URL": "https://atom-saas-api.fly.dev"
+  },
+
+  "http_service": {
+    "internal_port": 8000,
+    "force_https": true,
+    "auto_stop_machines": true,
+    "auto_start_machines": true,
+    "min_machines_running": 1,
+
+    "processes": [
+      "app"
+    ],
+
+    "checks": [
+      {
+        "interval": "30s",
+        "timeout": "10s",
+        "grace_period": "1m30s",
+        "method": "GET",
+        "path": "/alive"
+      }
+    ]
+  },
+
+  "services": [
+    {
+      "protocol": "tcp",
+      "internal_port": 8000,
+
+      "ports": [
+        {
+          "port": 8080,
+
+          "handlers": [
+            "tls",
+            "http"
+          ]
+        }
+      ],
+
+      "concurrency": {
+        "type": "connections",
+        "hard_limit": 25,
+        "soft_limit": 20
+      },
+
+      "tcp_checks": [
+        {
+          "interval": "15s",
+          "timeout": "2s",
+          "grace_period": "1s"
+        }
+      ],
+
+      "processes": [
+        "app"
+      ]
+    }
+  ],
+
+  "vm": [
+    {
+      "cpu_kind": "shared",
+      "cpus": 1,
+      "memory_mb": 1024,
+
+      "processes": [
+        "app"
+      ]
+    }
+  ]
+}
