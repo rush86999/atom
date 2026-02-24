@@ -23,6 +23,7 @@
 - **Multi-Agent Coordination** - Specialized AI teams
 - **Context Management** - Remembers conversation history
 - **Voice Integration** - Seamless voice-to-action
+- **JIT Fact Verification** - Real-time business fact retrieval with citation validation (see [CITATION_SYSTEM_GUIDE.md](./CITATION_SYSTEM_GUIDE.md) and [JIT_FACT_PROVISION_SYSTEM.md](./JIT_FACT_PROVISION_SYSTEM.md))
 
 ## 🔒 Security Configuration
 
