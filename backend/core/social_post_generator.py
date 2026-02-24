@@ -337,11 +337,9 @@ Make it engaging and team-focused. Keep it under 280 characters."""
                 operation, episode_context
             )
         else:
-            # Fall back to standard generation
-            content = await self._generate_with_llm(
-                operation_type=operation.get("operation_type", "unknown"),
-                metadata=operation
-            )
+            # Fall back to template-based generation
+            operation_type = operation.get("operation_type", "unknown")
+            content = self.generate_with_template(operation_type, operation)
 
         return {
             "content": content,

@@ -17,9 +17,9 @@ from core.models import (
 
 
 @pytest.fixture
-def db_session(test_db: Session):
-    """Database session fixture."""
-    return test_db
+def db_session(db_session: Session):
+    """Database session fixture - use the conftest fixture."""
+    return db_session
 
 
 @pytest.fixture
@@ -48,6 +48,8 @@ def test_episodes(db_session: Session, test_agent):
             agent_id=test_agent.id,
             title=f"Test Episode {i}",
             summary=f"Test episode summary {i} with some content",
+            workspace_id="default",
+            maturity_at_time="INTERN",
             status="completed",
             created_at=datetime.utcnow()
         )
@@ -89,7 +91,8 @@ class TestSocialPostEpisodeCreation:
 
         assert len(segments) == 1
         assert segments[0].segment_type == "social_post"
-        assert segments[0].agent_id == test_agent.id
+        assert segments[0].source_type == "social_post"
+        assert segments[0].source_id == post["id"]
 
     @pytest.mark.asyncio
     async def test_create_post_links_episodes(
@@ -155,11 +158,11 @@ class TestSocialPostEpisodeCreation:
         ).first()
 
         assert segment is not None
-        metadata = json.loads(segment.metadata)
-        assert metadata["sender_type"] == "agent"
-        assert metadata["sender_id"] == test_agent.id
-        assert metadata["post_type"] == "insight"
-        assert "timestamp" in metadata
+        canvas_context = segment.canvas_context
+        assert canvas_context is not None
+        assert canvas_context["sender_type"] == "agent"
+        assert canvas_context["sender_id"] == test_agent.id
+        assert canvas_context["post_type"] == "insight"
 
 
 class TestEpisodeRetrievalForPosts:
@@ -170,11 +173,11 @@ class TestEpisodeRetrievalForPosts:
         self, db_session: Session, test_agent, test_episodes
     ):
         """Test retrieving episodes by content similarity."""
-        # Mock retrieval service
-        with patch('core.agent_social_layer.EpisodeRetrievalService') as MockRetrieval:
-            mock_service = Mock()
-            mock_service.retrieve_episodes = AsyncMock(return_value=test_episodes[:2])
-            MockRetrieval.return_value = mock_service
+        # Mock retrieval service inside the method where it's imported
+        with patch('core.episode_retrieval_service.EpisodeRetrievalService') as MockRetrieval:
+            mock_service_instance = Mock()
+            mock_service_instance.retrieve_episodes = AsyncMock(return_value=test_episodes[:2])
+            MockRetrieval.return_value = mock_service_instance
 
             episode_ids = await agent_social_layer._retrieve_relevant_episodes(
                 test_agent.id,
@@ -184,7 +187,7 @@ class TestEpisodeRetrievalForPosts:
             )
 
             assert len(episode_ids) == 2
-            mock_service.retrieve_episodes.assert_called_once()
+            mock_service_instance.retrieve_episodes.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_retrieve_episodes_empty_no_db(
@@ -205,7 +208,7 @@ class TestEpisodeRetrievalForPosts:
         self, db_session: Session, test_agent
     ):
         """Test fallback to empty list on retrieval error."""
-        with patch('core.agent_social_layer.EpisodeRetrievalService') as MockRetrieval:
+        with patch('core.episode_retrieval_service.EpisodeRetrievalService') as MockRetrieval:
             MockRetrieval.side_effect = Exception("Retrieval service error")
 
             episode_ids = await agent_social_layer._retrieve_relevant_episodes(

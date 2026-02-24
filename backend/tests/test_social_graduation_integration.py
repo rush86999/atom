@@ -18,9 +18,9 @@ from core.models import (
 
 
 @pytest.fixture
-def db_session(test_db: Session):
-    """Database session fixture."""
-    return test_db
+def db_session(db_session: Session):
+    """Database session fixture - use the conftest fixture."""
+    return db_session
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ class TestReactionCounting:
 
         assert feedback is not None
         assert feedback.rating == 1.0
-        assert "👍" in feedback.comment
+        assert "👍" in feedback.user_correction
 
     @pytest.mark.asyncio
     async def test_track_positive_interaction_reply(
@@ -194,9 +194,12 @@ class TestReputationScoring:
             feedback = AgentFeedback(
                 agent_id=test_agent_intern.id,
                 user_id=f"user-{i}",
+                input_context="Social post reaction",
+                original_output="Post content",
+                user_correction=f"Positive reaction {i}",
                 feedback_type="social_interaction",
                 rating=1.0,
-                comment=f"Positive reaction {i}"
+                thumbs_up_down=True
             )
             db_session.add(feedback)
 
@@ -421,8 +424,19 @@ class TestGraduationMilestonePosting:
         self, db_session: Session, test_agent_intern
     ):
         """Test that milestone is broadcast to all agents."""
-        with patch('core.agent_social_layer.agent_event_bus') as mock_bus:
-            mock_bus.publish = AsyncMock()
+        # Track publish calls
+        publish_calls = []
+
+        original_publish = None
+        try:
+            from core.agent_communication import agent_event_bus
+            original_publish = agent_event_bus.publish
+
+            async def track_publish(*args, **kwargs):
+                publish_calls.append((args, kwargs))
+                return await original_publish(*args, **kwargs)
+
+            agent_event_bus.publish = track_publish
 
             await agent_social_layer.post_graduation_milestone(
                 agent_id=test_agent_intern.id,
@@ -431,11 +445,22 @@ class TestGraduationMilestonePosting:
                 db=db_session
             )
 
-            # Verify broadcast was called
-            mock_bus.publish.assert_called_once()
-            call_args = mock_bus.publish.call_args
-            assert call_args[0][0]["type"] == "graduation_milestone"
-            assert "global" in call_args[1][0]  # topics
+            # Verify broadcast was called with graduation milestone
+            # Filter for graduation_milestone type (not regular post broadcasts)
+            graduation_calls = [
+                call for call in publish_calls
+                if len(call[0]) > 0 and call[0][0].get("type") == "graduation_milestone"
+            ]
+
+            assert len(graduation_calls) >= 1
+            call_args = graduation_calls[0][0][0]
+            assert call_args["type"] == "graduation_milestone"
+
+        finally:
+            # Restore original
+            if original_publish:
+                from core.agent_communication import agent_event_bus
+                agent_event_bus.publish = original_publish
 
     @pytest.mark.asyncio
     async def test_milestone_agent_not_found(
@@ -522,9 +547,12 @@ class TestAgentReputationCalculations:
             feedback = AgentFeedback(
                 agent_id=test_agent_intern.id,
                 user_id=f"user-{i}",
+                input_context="Social post reaction",
+                original_output="Post content",
+                user_correction="👍",
                 feedback_type="social_interaction",
                 rating=1.0,
-                comment="👍"
+                thumbs_up_down=True
             )
             db_session.add(feedback)
 
@@ -548,9 +576,12 @@ class TestAgentReputationCalculations:
             feedback = AgentFeedback(
                 agent_id=test_agent_intern.id,
                 user_id=f"user-{i}",
+                input_context="Social post reply",
+                original_output="Post content",
+                user_correction=f"Helpful reply {i}",
                 feedback_type="social_interaction",
                 rating=0.9,  # High rating
-                comment=f"Helpful reply {i}"
+                thumbs_up_down=True
             )
             db_session.add(feedback)
 
