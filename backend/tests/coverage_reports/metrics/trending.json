@@ -37,7 +37,24 @@
       "trend": "regressing"
     }
   ],
-  "baselines": {},
+  "baselines": {
+    "v3.2": {
+      "name": "v3.2",
+      "phase": "81",
+      "date": "2026-02-24T07:16:45.359706",
+      "coverage_pct": 15.23,
+      "lines_covered": 8272,
+      "lines_total": 45366
+    },
+    "v1.0": {
+      "name": "v1.0",
+      "phase": "01",
+      "date": "2026-02-17T05:00:00Z",
+      "coverage_pct": 5.13,
+      "lines_covered": 2901,
+      "lines_total": 56529
+    }
+  },
   "migrated_from": "phases_format",
   "latest": {
     "date": "2026-02-24T07:16:45.359706",
