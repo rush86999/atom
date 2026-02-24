@@ -10,15 +10,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 81-coverage-analysis-prioritization
-Plan: 02 (priority-ranking-system)
-Status: Identifying and prioritizing high-impact files for test coverage expansion
-Last activity: 2026-02-24 — Phase 81 Plan 02 complete
+Plan: 03 (critical-path-coverage-analysis)
+Status: Mapping coverage gaps to critical business workflows and assessing risk
+Last activity: 2026-02-24 — Phase 81 Plan 03 complete
 
-Progress: [███░░░░░░░] 20% (v3.2: 49 high-impact files prioritized)
+Progress: [████░░░░░░] 30% (v3.2: critical paths analyzed, 4 workflows at CRITICAL risk)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Phase 81 in progress - High-impact files prioritized for test coverage expansion
+**Status**: Phase 81 in progress - Critical path coverage analysis complete, all workflows at CRITICAL risk
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
@@ -38,7 +38,13 @@ Progress: [███░░░░░░░] 20% (v3.2: 49 high-impact files prior
 
 **Progress**:
 - Plan 81-01: Coverage baseline established (15.23% overall)
-- Plan 81-02: Priority ranking system complete
+- Plan 81-02: Priority ranking system complete (49 high-impact files identified)
+- Plan 81-03: Critical path coverage analysis complete
+- 4 critical business paths analyzed: agent execution, episode creation, canvas presentation, graduation promotion
+- All 16 critical steps have 0% coverage (all below 50% threshold)
+- Risk assessment: all 4 paths at CRITICAL level
+- 20 integration test scenarios defined for Phase 85
+- Connection to Phases 82-84 unit test requirements established
 - 49 high-impact files identified (>200 lines, <30% coverage)
 - 14,511 uncovered lines represent opportunity for coverage expansion
 - Priority scoring system weights business criticality (P0-P3 tiers)
@@ -97,6 +103,11 @@ Recent decisions affecting current work:
 - [Phase 81-01]: Prioritize files by uncovered lines to maximize impact per test added
 - [Phase 81-01]: Generate comprehensive markdown report for human consumption and prioritization
 - [Phase 81-01]: Coverage baseline: 15.23% (8,272/45,366 lines) - 3x improvement from baseline
+- [Phase 81-03]: 50% coverage threshold for critical step assessment identifies gross gaps while allowing function-level precision in unit tests
+- [Phase 81-03]: 4 critical business paths defined representing core Atom workflows: agent execution, episodic memory, canvas presentation, agent graduation
+- [Phase 81-03]: Risk assessment based on uncovered step percentage quantifies business impact using 4-tier system (CRITICAL/HIGH/MEDIUM/LOW)
+- [Phase 81-03]: Failure mode documentation for each critical step connects coverage gaps to concrete business risks
+- [Phase 81-03]: All 4 critical paths at 0% coverage (16/16 steps below 50% threshold) requires immediate integration test development in Phase 85
 - [Phase 81-02]: Business criticality scoring system (P0: 9-10, P1: 7-8, P2: 5-6, P3: 3-4)
 - [Phase 81-02]: Priority score formula: (uncovered_lines / 100) * criticality weights opportunity by impact
 - [Phase 81-02]: High-impact thresholds: >200 lines (significant size), <30% coverage (major opportunity)
@@ -201,8 +212,8 @@ None yet for v3.1.
 
 ## Session Continuity
 
-Last session: 2026-02-24 12:10
-Stopped at: Completed 81-02 priority ranking system (49 high-impact files identified)
+Last session: 2026-02-24 12:11
+Stopped at: Completed 81-03 critical path coverage analysis (4 paths, all at CRITICAL risk)
 Resume file: None
 
 ---
