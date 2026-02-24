@@ -290,7 +290,7 @@ async def browser_create_session(
     except Exception as e:
         logger.error(f"Failed to create browser session: {e}")
 
-        if agent_execution and db and BROWSER_GOVERNANCE_ENABLED:
+        if agent_execution and db and FeatureFlags.should_enforce_governance('browser'):
             try:
                 governance = ServiceFactory.get_governance_service(db)
                 await governance.record_outcome(agent.id, success=False)
