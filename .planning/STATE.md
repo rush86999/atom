@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 088-bug-discovery-error-paths-boundaries
-Plan: 02 (boundary-condition-test-coverage)
-Status: Complete - Boundary condition test suite created with 213 tests
-Last activity: 2026-02-24 — Comprehensive boundary condition tests for governance cache, episode segmentation, LLM operations, and maturity thresholds
+Plan: 03 (concurrent-operation-tests)
+Status: Complete - Concurrent operation test suite created with 30 tests
+Last activity: 2026-02-24 — Concurrent operation tests using threading.Thread and asyncio.gather to expose race conditions, deadlocks, and resource leaks
 
 Progress: [█████████░] 88% (v3.2: property testing core services)
 
@@ -116,6 +116,12 @@ Recent decisions affecting current work:
 - [Phase 088-02]: Boundary condition tests target exact threshold values (0.5, 0.7, 0.9, 30.0, 0.75) where off-by-one errors occur
 - [Phase 088-02]: Pytest 8.x requires 'self' parameter in parametrized test methods within classes (collection error fix)
 - [Phase 088-02]: Float comparison precision requires epsilon-based comparisons (1e-10) to handle rounding errors
+- [Phase 088-03]: Concurrent tests use threading.Thread and asyncio.gather for true parallel execution
+- [Phase 088-03]: SQLite serializes writes (one-at-a-time), documented PostgreSQL advantages (MVCC, SERIALIZABLE)
+- [Phase 088-03]: **BUG FOUND**: EpisodeSegmentationService accesses session.workspace_id but ChatSession model doesn't have this field (line 249)
+- [Phase 088-03]: GovernanceCache verified thread-safe with 12 concurrent tests (0 bugs found)
+- [Phase 088-03]: Memory leak detection uses gc.get_objects() with 500 object threshold for test infrastructure
+- [Phase 088-03]: Lock contention acceptable: <50ms P99 under 50-thread high contention
 
 **v3.2 Unit Testing Decisions:**
 - [Phase 082-01]: Query mock pattern with closure counter for multiple DB calls in single test
