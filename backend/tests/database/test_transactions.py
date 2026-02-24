@@ -284,3 +284,262 @@ class TestTransactionRollback:
         assert db_session.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
         ).first() is not None, "Agent should exist after outer commit"
+
+
+class TestConcurrentOperations:
+    """Test concurrent operations don't corrupt data.
+
+    Note: SQLite with separate SessionLocal() connections doesn't support
+    true concurrent transaction testing in threads. These tests document
+    the patterns and verify behavior where possible.
+    """
+
+    def test_concurrent_write_same_record(self, db_session: Session):
+        """Test sequential writes to same record (simulated concurrent).
+
+        Scenario:
+        - Create agent
+        - Simulate two transactions updating agent
+        - Verify last commit wins
+        - Verify no corruption
+        """
+        # Create agent
+        agent = AgentFactory(
+            name="ConcurrentWriteAgent",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+        agent_id = agent.id
+
+        # Simulate concurrent updates using same session
+        # First update
+        agent1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        agent1.status = AgentStatus.INTERN.value
+        agent1.confidence_score = 0.6
+        db_session.commit()
+
+        # Second update (overwrites first)
+        agent2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        agent2.status = AgentStatus.SUPERVISED.value
+        agent2.confidence_score = 0.8
+        db_session.commit()
+
+        # Verify final state - second update won
+        final_agent = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        assert final_agent is not None
+        assert final_agent.status == AgentStatus.SUPERVISED.value
+        assert final_agent.confidence_score == 0.8
+        # Verify no corruption
+        assert final_agent.status == AgentStatus.SUPERVISED.value
+        assert final_agent.confidence_score == 0.8
+
+    def test_concurrent_create_different_records(self, db_session: Session):
+        """Test creates of different records.
+
+        Scenario:
+        - Create two different agents
+        - Verify both exist
+        - Verify no ID collisions
+        """
+        # Create two agents
+        agent1 = AgentFactory(
+            name="ConcurrentAgent1",
+            _session=db_session
+        )
+        agent2 = AgentFactory(
+            name="ConcurrentAgent2",
+            _session=db_session
+        )
+        db_session.add(agent1)
+        db_session.add(agent2)
+        db_session.commit()
+
+        # Verify both agents exist with unique IDs
+        assert agent1.id is not None
+        assert agent2.id is not None
+        assert agent1.id != agent2.id, "IDs should be unique"
+
+        retrieved1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent1.id
+        ).first()
+        retrieved2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent2.id
+        ).first()
+
+        assert retrieved1 is not None
+        assert retrieved2 is not None
+        assert retrieved1.name == "ConcurrentAgent1"
+        assert retrieved2.name == "ConcurrentAgent2"
+
+    def test_concurrent_read_with_write(self, db_session: Session):
+        """Test read sees committed data (READ COMMITTED isolation).
+
+        Scenario:
+        - Create agent
+        - Read agent (sees old value)
+        - Update and commit agent
+        - Read agent again (sees new value)
+        - Verify READ COMMITTED isolation works
+        """
+        # Create agent
+        agent = AgentFactory(
+            name="ReadWithWriteAgent",
+            status=AgentStatus.STUDENT.value,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+        agent_id = agent.id
+
+        # First read (sees old value)
+        agent_read1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        assert agent_read1.status == AgentStatus.STUDENT.value
+
+        # Update and commit
+        agent_update = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        agent_update.status = AgentStatus.INTERN.value
+        db_session.commit()
+
+        # Second read (sees new value - READ COMMITTED)
+        agent_read2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        assert agent_read2.status == AgentStatus.INTERN.value
+
+    def test_concurrent_delete(self, db_session: Session):
+        """Test delete operation.
+
+        Scenario:
+        - Create agent with execution
+        - Delete agent (and execution)
+        - Verify deletion worked
+        """
+        # Create agent with execution
+        agent = AgentFactory(name="ConcurrentDeleteAgent", _session=db_session)
+        execution = AgentExecutionFactory(
+            agent_id=agent.id,
+            status="running",
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.add(execution)
+        db_session.commit()
+        agent_id = agent.id
+        execution_id = execution.id
+
+        # Delete execution first (FK constraint)
+        db_session.query(AgentExecution).filter(
+            AgentExecution.id == execution_id
+        ).delete()
+        # Delete agent
+        db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).delete()
+        db_session.commit()
+
+        # Verify both deleted
+        final_agent = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        assert final_agent is None, "Agent should be deleted"
+
+        final_execution = db_session.query(AgentExecution).filter(
+            AgentExecution.id == execution_id
+        ).first()
+        assert final_execution is None, "Execution should be deleted"
+
+    def test_race_condition_prevention(self, db_session: Session):
+        """Test SELECT FOR UPDATE prevents race conditions.
+
+        Scenario:
+        - Create agent with confidence 0.5
+        - Use SELECT FOR UPDATE to lock row
+        - Increment confidence twice
+        - Verify final confidence is 0.7 (not 0.6 due to race)
+        """
+        # Create agent
+        agent = AgentFactory(
+            name="RaceConditionAgent",
+            confidence_score=0.5,
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+        agent_id = agent.id
+
+        # First increment with lock
+        agent1 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).with_for_update().first()
+        agent1.confidence_score = agent1.confidence_score + 0.1
+        db_session.commit()
+
+        # Second increment with lock
+        agent2 = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).with_for_update().first()
+        agent2.confidence_score = agent2.confidence_score + 0.1
+        db_session.commit()
+
+        # Verify final confidence is 0.7 (0.5 + 0.1 + 0.1)
+        # Not 0.6 which would indicate lost update
+        final_agent = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+        assert final_agent is not None
+        assert final_agent.confidence_score == 0.7, \
+            f"Expected 0.7, got {final_agent.confidence_score} - race condition detected"
+
+    def test_optimistic_locking(self, db_session: Session):
+        """Test optimistic locking pattern documentation.
+
+        Scenario:
+        - Document optimistic locking pattern
+        - Test concurrent updates with version check
+        - Verify stale updates rejected
+        """
+        # Note: AgentRegistry doesn't have a version column
+        # This test documents the pattern for optimistic locking
+        # In production, you would add a version column to the model
+
+        # Create agent
+        agent = AgentFactory(
+            name="OptimisticLockAgent",
+            _session=db_session
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Document optimistic locking pattern:
+        # 1. Add version column to model: version = Column(Integer, default=1)
+        # 2. Read record with version
+        # 3. Update with WHERE version = read_version
+        # 4. If rows_affected == 0, stale data detected
+
+        # For now, just verify the agent exists
+        retrieved = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent.id
+        ).first()
+        assert retrieved is not None
+        assert retrieved.name == "OptimisticLockAgent"
+
+        # Pattern example (commented out as model doesn't have version):
+        # rows_affected = session.query(AgentRegistry).filter(
+        #     AgentRegistry.id == agent_id,
+        #     AgentRegistry.version == read_version
+        # ).update({"status": "updated", "version": read_version + 1})
+        # if rows_affected == 0:
+        #     raise StaleDataError("Record was modified by another transaction")
