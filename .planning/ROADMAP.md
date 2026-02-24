@@ -156,11 +156,13 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
   3. Device capabilities tool tests cover permissions, maturity gates, device API interactions (90%+ coverage)
   4. Tests verify governance enforcement at maturity boundaries (STUDENT blocked, INTERN approval, SUPERVISED supervision)
 
-**Plans**: 3 plans
+**Plans**: 5 plans
 
-- [x] 083-01-PLAN.md — Canvas tool unit tests (chart presentations, markdown rendering, form submission, governance enforcement, state management, 94 tests) ✅ PLANNED
-- [x] 083-02-PLAN.md — Browser automation tool unit tests (CDP integration, page navigation, element interaction, screenshots, governance, error handling, 92 tests) ✅ PLANNED
-- [x] 083-03-PLAN.md — Device capabilities tool unit tests (camera access, screen recording, location services, notifications, permission checks, maturity gates, 98 tests) ✅ PLANNED
+- [x] 083-01-PLAN.md — Canvas tool unit tests (chart presentations, markdown rendering, form submission, governance enforcement, state management, 94 tests) ⚠️ PARTIAL (Task 1 only, 28/94 tests)
+- [x] 083-02-PLAN.md — Browser automation tool unit tests (CDP integration, page navigation, element interaction, screenshots, governance, error handling, 92 tests) ✅ COMPLETE
+- [x] 083-03-PLAN.md — Device capabilities tool unit tests (camera access, screen recording, location services, notifications, permission checks, maturity gates, 98 tests) ✅ COMPLETE
+- [ ] 083-04-PLAN.md — Fix canvas governance test assertions (2 assertion format fixes) 🆕 GAP CLOSURE
+- [ ] 083-05-PLAN.md — Complete canvas tool tests (66 deferred tests for specialized canvases, JavaScript security, state management, error handling, audit entries, wrapper functions) 🆕 GAP CLOSURE
 
 ---
 
@@ -325,7 +327,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 |-------|----------------|--------|-----------|
 | 81. Coverage Analysis & Prioritization | 4/4 | ✅ Complete | 2026-02-24 |
 | 82. Core Services Unit Testing (Governance & Episodes) | 6/6 | ✅ Complete | 2026-02-24 |
-| 83. Core Services Unit Testing (Canvas & Browser) | 3/3 | ✅ Complete | 2026-02-24 |
+| 83. Core Services Unit Testing (Canvas & Browser) | 3/5 | ⚠️ Partial | 2026-02-24 |
 | 84. Core Services Unit Testing (Training & Graduation) | 0/2 | Not started | - |
 | 85. Database & Integration Testing | 0/4 | Not started | - |
 | 86. Property-Based Testing (Core Services) | 0/3 | Not started | - |
@@ -334,7 +336,7 @@ Comprehensive test coverage initiative for Atom platform backend services. The r
 | 89. Bug Discovery (Failure Modes & Security) | 0/2 | Not started | - |
 | 90. Quality Gates & CI/CD | 0/6 | Not started | - |
 
-**Overall Progress**: 13/32 plans complete (41%)
+**Overall Progress**: 13/34 plans complete (38%)
 
 ---
 
