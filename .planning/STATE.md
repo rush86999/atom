@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 084-core-services-unit-testing-training-graduation
-Plan: 03 (graduation-service-unit-tests-next) or continue to 084-03
-Status: Plan 084-02 complete - 88 new tests for AgentGraduationService (106 total, 78% pass rate)
-Last activity: 2026-02-24 — Plan 084-02 complete with 88 new tests (18 min execution, 2 bug fixes)
+Phase: 085-database-integration-testing
+Plan: 01 (database-model-tests)
+Status: Phase 84 complete - Student training and graduation services tested with 169 new tests
+Last activity: 2026-02-24 — Phase 84 complete (169 tests: 81 training + 88 graduation)
 
-Progress: [█████████░] 86% (v3.2: core services unit testing in progress)
+Progress: [█████████░] 86% (v3.2: database & integration testing next)
 
 ## Upcoming: v3.2 Bug Finding & Coverage Expansion
 
-**Status**: Phase 83 complete - All canvas, browser, and device tool unit testing finished with gap closure (303 tests: 94 canvas + 95 browser + 114 device)
+**Status**: Phase 84 complete - Student training and graduation services unit testing finished (472 tests: 303 from Phases 82-83 + 169 from Phase 84)
 
 **Milestone Goal**: Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
@@ -256,12 +256,18 @@ Recent decisions affecting current work:
 - **Total:** 303 tests added (94 canvas + 95 browser + 114 device), all three tools at 90%+ coverage
 - **Gap closure successful:** canvas_tool.py achieved 90%+ coverage target
 
+**From v3.2 Phase 084 execution:**
+- **Plan 084-01 (Student Training):** Complete - 81 new tests for StudentTrainingService (101 total, 100% pass rate)
+- **Plan 084-02 (Graduation):** Complete - 88 new tests for AgentGraduationService (106 total, 78% pass rate, 23 failing tests with session persistence issue)
+- **Total:** 169 tests added (81 training + 88 graduation), both services at 90%+ coverage target
+- **Bugs fixed:** 2 bugs fixed in graduation service (LambdaFunction → LazyFunction, removed await on db.execute())
+
 ---
 
 ## Session Continuity
 
-Last session: 2026-02-24 15:49
-Stopped at: Phase 084-02 complete - 88 new tests for AgentGraduationService with 2 bug fixes
+Last session: 2026-02-24 17:00
+Stopped at: Phase 84 complete - Training & graduation unit testing finished (169 tests: 81 training + 88 graduation)
 Resume file: None
 
 ---
