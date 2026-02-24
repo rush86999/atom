@@ -25,10 +25,6 @@ export function PreferencesTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Mock IDs for now, in real app these come from context
-    const userId = "default_user";
-    const workspaceId = "default";
-
     useEffect(() => {
         fetchPreferences();
     }, []);
@@ -36,10 +32,9 @@ export function PreferencesTab() {
     const fetchPreferences = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/preferences?user_id=${userId}&workspace_id=${workspaceId}`);
-            if (res.ok) {
-                const data = await res.json();
-                // Merge with defaults to handle missing keys
+            const stored = localStorage.getItem('atom_preferences');
+            if (stored) {
+                const data = JSON.parse(stored);
                 setPrefs({ ...DEFAULT_PREFS, ...data });
             }
         } catch (error) {
@@ -52,27 +47,15 @@ export function PreferencesTab() {
 
     const handleSave = async (key: string, value: any) => {
         // Optimistic update
-        setPrefs(prev => ({ ...prev, [key]: value }));
+        const updated = { ...prefs, [key]: value };
+        setPrefs(updated);
 
-        // API call
         try {
-            const res = await fetch("/api/preferences", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: userId,
-                    workspace_id: workspaceId,
-                    key,
-                    value
-                })
-            });
-
-            if (!res.ok) throw new Error("Failed to save");
+            localStorage.setItem('atom_preferences', JSON.stringify(updated));
             toast.success("Saved");
         } catch (error) {
             console.error("Save error:", error);
             toast.error("Failed to save setting");
-            // Revert on error? For now simple toast is enough
         }
     };
 
