@@ -226,6 +226,10 @@ Recent decisions affecting current work:
 - [Phase 083-01]: Canvas tool governance enforcement tests with 28 new tests (Task 1 of 3)
 - [Phase 083-04]: AsyncMock call_args pattern: call_args[0][0] for positional, call_args[1]['kwarg'] for keyword args
 - [Phase 083-04]: Governance block returns early without record_outcome call (correct behavior)
+- [Phase 085-03]: SQLite concurrent test limitation: Use single session patterns, document PostgreSQL behavior for true concurrency
+- [Phase 085-03]: SELECT FOR UPDATE pattern for pessimistic locking to prevent race conditions
+- [Phase 085-03]: Savepoint pattern: begin_nested() for independent rollback in nested transactions
+- [Phase 085-03]: Isolation level documentation: PostgreSQL SERIALIZABLE for phantom read prevention in production
 
 ### Pending Todos
 
@@ -262,12 +266,18 @@ Recent decisions affecting current work:
 - **Total:** 169 tests added (81 training + 88 graduation), both services at 90%+ coverage target
 - **Bugs fixed:** 2 bugs fixed in graduation service (LambdaFunction → LazyFunction, removed await on db.execute())
 
+**From v3.2 Phase 085 execution:**
+- **Plan 085-02 (Migration Tests):** Complete - 25 migration tests created (11 passing, 14 exposing schema/documentation issues)
+- **Plan 085-03 (Transaction Tests):** Complete - 23 transaction tests (rollback, concurrent ops, isolation levels, deadlocks, savepoints)
+- **Total:** 48 tests added covering database migrations and transaction safety
+- **Coverage:** Transaction patterns thoroughly tested (rollback, concurrent operations, isolation levels, deadlock handling)
+
 ---
 
 ## Session Continuity
 
-Last session: 2026-02-24 17:00
-Stopped at: Phase 84 complete - Training & graduation unit testing finished (169 tests: 81 training + 88 graduation)
+Last session: 2026-02-24 16:29
+Stopped at: Phase 085-03 complete - Transaction testing finished (23 tests covering rollback, concurrent operations, isolation levels, deadlock handling)
 Resume file: None
 
 ---
