@@ -52,6 +52,17 @@ def mock_db_session(db):
     yield db
 
 
+@contextmanager
+def mock_db_session_context():
+    """Mock database session context manager for use in patches."""
+    db = Mock()
+    db.add = Mock()
+    db.commit = Mock()
+    db.refresh = Mock()
+    db.query = Mock()
+    yield db
+
+
 @pytest.fixture
 def mock_ws():
     """Mock WebSocket manager."""
@@ -456,8 +467,468 @@ class TestPresentSpecializedCanvas:
 
 
 # ============================================================================
-# Test: Canvas Type-Specific Operations
+# Test: Present Specialized Canvas with Governance
 # ============================================================================
+
+
+
+# ============================================================================
+# Test: Present Specialized Canvas with Governance
+# ============================================================================
+
+class TestPresentSpecializedCanvasGovernance:
+    """Tests for present_specialized_canvas with full governance enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_docs_with_governance(self, mock_ws):
+        """Test docs canvas with INTERN agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_agent.name = "InternAgent"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "intern"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="docs",
+                                component_type="rich_editor",
+                                data={"content": "# API Reference"},
+                                title="API Docs",
+                                agent_id="agent-intern-1"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "docs"
+                            mock_ws.broadcast.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_docs_student_blocked(self, mock_ws):
+        """Test docs canvas with STUDENT agent (blocked)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": False, "reason": "STUDENT agents cannot present docs"}
+                )
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-student-1"
+                    mock_agent.status = "student"
+                    mock_agent.name = "StudentAgent"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="docs",
+                                component_type="rich_editor",
+                                data={"content": "# Test"},
+                                title="Test",
+                                agent_id="agent-student-1"
+                            )
+
+                            assert result["success"] is False
+                            assert "not permitted" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_email_with_governance(self, mock_ws):
+        """Test email canvas with INTERN agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "intern"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="email",
+                                component_type="email_composer",
+                                data={"to": "test@example.com", "subject": "Test"},
+                                title="Email"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "email"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_sheets_with_governance(self, mock_ws):
+        """Test sheets canvas with SUPERVISED agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-supervised-1"
+                    mock_agent.status = "supervised"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "supervised"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="sheets",
+                                component_type="data_grid",
+                                data={"cells": {"A1": "Value"}},
+                                title="Sheet"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "sheets"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_orchestration_with_governance(self, mock_ws):
+        """Test orchestration canvas with SUPERVISED agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-supervised-1"
+                    mock_agent.status = "supervised"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "supervised"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="orchestration",
+                                component_type="kanban_board",
+                                data={"columns": ["Todo", "Done"]},
+                                title="Workflow"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "orchestration"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_terminal_with_governance(self, mock_ws):
+        """Test terminal canvas with INTERN agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "intern"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="terminal",
+                                component_type="command_output",
+                                data={"output": "Command result"},
+                                title="Terminal"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "terminal"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_coding_with_governance(self, mock_ws):
+        """Test coding canvas with INTERN agent (allowed)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_governance.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+                        mock_maturity = Mock()
+                        mock_maturity.value = "intern"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="coding",
+                                component_type="code_editor",
+                                data={"code": "def test(): pass", "language": "python"},
+                                title="Code"
+                            )
+
+                            assert result["success"] is True
+                            assert result["canvas_type"] == "coding"
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_invalid_type_returns_error(self, mock_ws):
+        """Test invalid canvas_type returns error with proper message."""
+        with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+            mock_registry.validate_canvas_type.return_value = False
+            mock_registry.get_all_types.return_value = {
+                "docs": {}, "sheets": {}, "email": {},
+                "orchestration": {}, "terminal": {}, "coding": {}
+            }
+
+            result = await present_specialized_canvas(
+                user_id="user-1",
+                canvas_type="invalid_type",
+                component_type="component",
+                data={}
+            )
+
+            assert result["success"] is False
+            assert "Invalid canvas type" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_invalid_component_blocked(self, mock_ws):
+        """Test invalid component type returns error."""
+        with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+            mock_registry.validate_canvas_type.return_value = True
+            mock_registry.validate_component.return_value = False
+
+            result = await present_specialized_canvas(
+                user_id="user-1",
+                canvas_type="docs",
+                component_type="invalid_component",
+                data={}
+            )
+
+            assert result["success"] is False
+            assert "not supported" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_present_specialized_canvas_maturity_validation(self, mock_ws):
+        """Test maturity level validation for canvas types (INTERN vs SUPERVISED vs AUTONOMOUS requirements)."""
+        with patch('tools.canvas_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.canvas_tool.ServiceFactory') as mock_factory:
+                mock_governance = MagicMock()
+                mock_governance.can_perform_action = Mock(
+                    return_value={"allowed": True, "reason": None}
+                )
+                mock_factory.get_governance_service.return_value = mock_governance
+
+                with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class:
+                    mock_resolver = MagicMock()
+                    mock_resolver.resolve_agent_for_request = AsyncMock()
+                    # INTERN agent trying to access SUPERVISED canvas
+                    mock_agent = Mock()
+                    mock_agent.id = "agent-intern-1"
+                    mock_agent.status = "intern"
+                    mock_agent.name = "InternAgent"
+                    mock_resolver.resolve_agent_for_request.return_value = (mock_agent, {})
+                    mock_resolver_class.return_value = mock_resolver
+
+                    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+                        mock_registry.validate_canvas_type.return_value = True
+                        mock_registry.validate_component.return_value = True
+                        mock_registry.validate_layout.return_value = True
+
+                        # Sheets requires SUPERVISED
+                        mock_maturity = Mock()
+                        mock_maturity.value = "supervised"
+                        mock_registry.get_min_maturity.return_value = mock_maturity
+
+                        mock_db = MagicMock()
+                        mock_db.add = Mock()
+                        mock_db.commit = Mock()
+                        mock_db.refresh = Mock()
+                        mock_db.query = Mock()
+                        mock_db.__enter__ = Mock(return_value=mock_db)
+                        mock_db.__exit__ = Mock(return_value=False)
+
+                        with patch('core.database.get_db_session', return_value=mock_db):
+                            result = await present_specialized_canvas(
+                                user_id="user-1",
+                                canvas_type="sheets",
+                                component_type="data_grid",
+                                data={"cells": {}},
+                                title="Test",
+                                agent_id="agent-intern-1"
+                            )
+
+                            # Should be blocked due to insufficient maturity
+                            assert result["success"] is False
+                            assert "insufficient" in result["error"]
+
 
 class TestCanvasTypeSpecificOperations:
     """Tests for specialized canvas type operations"""
