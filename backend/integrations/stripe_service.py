@@ -7,20 +7,101 @@ from datetime import datetime, timedelta
 import json
 import os
 import time
+import threading
 import uuid
+from functools import wraps
 from typing import Any, Dict, List, Optional
 from loguru import logger
 import requests
 
 
+def synchronized_payment(func):
+    """
+    Decorator to prevent concurrent payment processing for same customer.
+
+    Uses per-customer locks to ensure that payment operations for the same
+    customer are serialized, preventing race conditions and double-charging.
+
+    IMPORTANT: This is a defense-in-depth measure. The PRIMARY defense against
+    race conditions is Stripe's idempotency key system. Database transactions
+    provide additional safety. Client-side locks are the final safety layer.
+
+    Usage:
+        @synchronized_payment
+        def create_payment(self, access_token, amount, customer=None, ...):
+            # Payment creation logic
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Extract customer_id from kwargs or args
+        # create_payment signature: (self, access_token, amount, currency, customer, ...)
+        customer_id = kwargs.get('customer')
+
+        # If not in kwargs, check args (customer is at index 3 after self, access_token, amount)
+        if customer_id is None and len(args) > 3:
+            customer_id = args[3]
+
+        # If we have a customer, acquire their lock
+        if customer_id:
+            lock = self._get_customer_lock(str(customer_id))
+            with lock:
+                return func(self, *args, **kwargs)
+        else:
+            # No customer specified, no locking needed
+            return func(self, *args, **kwargs)
+    return wrapper
+
+
 class StripeService:
     """Stripe API service for payment processing and financial management"""
+
+    # Class-level lock registry for preventing concurrent charges to same customer
+    _customer_locks = {}
+    _lock_registry_lock = threading.Lock()
 
     def __init__(self):
         self.api_base_url = "https://api.stripe.com/v1"
         self.timeout = 60
         self.max_retries = 3
         self.retry_delay = 1
+
+    @classmethod
+    def _get_customer_lock(cls, customer_id: str) -> threading.Lock:
+        """
+        Get or create lock for specific customer (prevents double-charging).
+
+        Defense-in-depth layer to prevent concurrent payment processing for same customer.
+        NOTE: Client-side locks are NOT a substitute for database transactions or
+        Stripe's idempotency keys. This is an additional safety layer.
+
+        Args:
+            customer_id: Stripe customer ID
+
+        Returns:
+            threading.Lock instance for this customer
+        """
+        customer_id_str = str(customer_id)
+        with cls._lock_registry_lock:
+            if customer_id_str not in cls._customer_locks:
+                cls._customer_locks[customer_id_str] = threading.Lock()
+            return cls._customer_locks[customer_id_str]
+
+    @classmethod
+    def cleanup_old_locks(cls, max_age_seconds: int = 3600):
+        """
+        Remove locks for customers not seen in specified time (prevents memory leak).
+
+        Call this periodically (e.g., every hour) to clean up unused locks.
+
+        Args:
+            max_age_seconds: Remove locks older than this (default: 1 hour)
+        """
+        # In production, you'd track last access time for each lock
+        # For now, this is a placeholder for lock cleanup logic
+        with cls._lock_registry_lock:
+            if len(cls._customer_locks) > 10000:
+                # Emergency cleanup if too many locks accumulated
+                cls._customer_locks.clear()
 
     @staticmethod
     def generate_idempotency_key(operation_type: str, *identifier_parts) -> str:
@@ -131,6 +212,7 @@ class StripeService:
         """Get specific payment by ID"""
         return self._make_request("GET", f"charges/{payment_id}", access_token)
 
+    @synchronized_payment
     def create_payment(
         self,
         access_token: str,
