@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import json
 import os
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 from loguru import logger
 import requests
@@ -20,6 +21,40 @@ class StripeService:
         self.timeout = 60
         self.max_retries = 3
         self.retry_delay = 1
+
+    @staticmethod
+    def generate_idempotency_key(operation_type: str, *identifier_parts) -> str:
+        """
+        Generate unique idempotency key for Stripe operations.
+
+        Format: {operation_type}_{uuid8}_{identifiers}_timestamp
+        Example: charge_a1b2c3d4_cust123_order456_1700000000
+
+        Args:
+            operation_type: Type of operation (charge, refund, subscription)
+            *identifier_parts: Business identifiers (customer_id, order_id, etc.)
+
+        Returns:
+            Unique idempotency key (string, <255 chars per Stripe limits)
+        """
+        # UUID v4 for base uniqueness (8 hex chars = 32 bits entropy)
+        uuid_suffix = uuid.uuid4().hex[:8]
+
+        # Business identifiers for cross-request uniqueness
+        identifier = "_".join(str(p) for p in identifier_parts if p) if identifier_parts else "generic"
+
+        # Timestamp for temporal uniqueness (prevents replay across sessions)
+        timestamp = int(datetime.now().timestamp())
+
+        # Combine: operation + uuid + identifiers + timestamp
+        key = f"{operation_type}_{uuid_suffix}_{identifier}_{timestamp}"
+
+        # Stripe limits idempotency keys to 255 characters
+        if len(key) > 255:
+            # Truncate identifier if too long
+            key = f"{operation_type}_{uuid_suffix}_{timestamp}"
+
+        return key
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for Stripe API requests"""
@@ -104,6 +139,7 @@ class StripeService:
         customer: Optional[str] = None,
         description: Optional[str] = None,
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new payment"""
         data = {
@@ -117,6 +153,11 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            idempotency_key = self.generate_idempotency_key("charge", customer, description)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "charges", access_token, data=data)
 
@@ -150,6 +191,7 @@ class StripeService:
         name: Optional[str] = None,
         description: Optional[str] = None,
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new customer"""
         data = {"email": email}
@@ -160,6 +202,11 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            idempotency_key = self.generate_idempotency_key("customer", email, name)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "customers", access_token, data=data)
 
@@ -224,6 +271,7 @@ class StripeService:
         customer: str,
         items: List[Dict],
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new subscription"""
         data = {
@@ -240,6 +288,12 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            item_ids = [item.get("price", "") for item in items]
+            idempotency_key = self.generate_idempotency_key("subscription", customer, *item_ids)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "subscriptions", access_token, data=data)
 
