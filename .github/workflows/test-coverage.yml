@@ -33,10 +33,19 @@ jobs:
         pytest tests/ -v \
           --cov=. \
           --cov-report=xml \
-          --cov-report=html \
+          --cov-report=html:htmlcov \
+          --cov-report=json \
           --cov-report=term-missing \
           --cov-fail-under=25 \
           --json-report --json-report-file=pytest_report.json
+
+    - name: Generate enhanced coverage report
+      run: |
+        cd backend
+        python tests/scripts/coverage_report_generator.py \
+          --skip-run \
+          --threshold 80 \
+          --output tests/coverage_reports/metrics/coverage_summary.txt
 
     - name: Validate test pass rate
       run: |
@@ -57,15 +66,20 @@ jobs:
         # Ensure metrics directory exists
         mkdir -p tests/coverage_reports/metrics
 
+        # Copy coverage.json to metrics location
+        if [ -f coverage.json ]; then
+          cp coverage.json tests/coverage_reports/metrics/coverage.json
+        fi
+
         # Generate trending data
         if [ -f coverage.xml ]; then
           python tests/scripts/generate_coverage_trend.py || echo "Trend generation failed (non-blocking)"
         fi
 
-        # Copy coverage report to metrics location
-        if [ -f htmlcov/coverage.json ]; then
-          cp htmlcov/coverage.json tests/coverage_reports/metrics/coverage.json
-        fi
+    - name: Enhance HTML coverage report
+      run: |
+        cd backend
+        python tests/scripts/enhance_html_coverage.py || echo "HTML enhancement failed (non-blocking)"
 
     - name: Run quality gate enforcement
       id: gates
@@ -92,8 +106,11 @@ jobs:
         name: coverage-reports
         path: |
           backend/htmlcov/
+          backend/coverage.json
           backend/coverage.xml
           backend/tests/coverage_reports/metrics/
+          backend/tests/coverage_reports/metrics/coverage_summary.txt
+        if-no-files-found: warn
 
     - name: Report coverage to PR
       if: github.event_name == 'pull_request'
@@ -103,41 +120,86 @@ jobs:
         MINIMUM_GREEN: 80
         MINIMUM_ORANGE: 60
 
-    - name: PR comment with coverage summary
-      if: failure() && github.event_name == 'pull_request'
+    - name: Enhanced PR comment with coverage details
+      if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
           let coveragePct = 'N/A';
-          let baselinePct = 'N/A';
+          let branchPct = 'N/A';
+          let coveredLines = 'N/A';
+          let totalLines = 'N/A';
+          let missingLines = 'N/A';
+          let belowThreshold = [];
 
           try {
             const covData = JSON.parse(fs.readFileSync('backend/tests/coverage_reports/metrics/coverage.json', 'utf8'));
-            coveragePct = covData.totals.percent_covered.toFixed(2) + '%';
+            const totals = covData.totals;
+
+            coveragePct = totals.percent_covered.toFixed(2) + '%';
+            branchPct = totals.percent_branches_covered.toFixed(2) + '%';
+            coveredLines = totals.covered_lines.toLocaleString();
+            totalLines = totals.num_statements.toLocaleString();
+            missingLines = totals.missing_lines.toLocaleString();
+
+            // Find modules below 80% threshold
+            const threshold = 80;
+            for (const [filePath, fileData] of Object.entries(covData.files)) {
+              const pct = fileData.summary.percent_covered;
+              if (pct < threshold && pct > 0) {
+                belowThreshold.push({
+                  path: filePath.replace('backend/', ''),
+                  pct: pct.toFixed(2),
+                  missing: fileData.summary.missing_lines
+                });
+              }
+            }
+
+            // Sort by coverage and take top 5
+            belowThreshold.sort((a, b) => a.pct - b.pct);
+            belowThreshold = belowThreshold.slice(0, 5);
+
           } catch (e) {
-            console.log('Could not read coverage.json');
+            console.log('Could not read coverage.json:', e.message);
           }
 
-          const comment = `## 📊 Coverage Report
+          // Build comment
+          let comment = `## 📊 Coverage Report
 
-          **Current Coverage:** ${coveragePct}
-          **Baseline:** ${baselinePct}
+          ### Overall Metrics
+          | Metric | Value |
+          |--------|-------|
+          | **Line Coverage** | ${coveragePct} |
+          | **Branch Coverage** | ${branchPct} |
+          | **Covered Lines** | ${coveredLines} / ${totalLines} |
+          | **Missing Lines** | ${missingLines} |
 
           ### Coverage Gate Status
           ${coveragePct !== 'N/A' && parseFloat(coveragePct) < 80 ? '❌ **FAILED** - Coverage below 80% threshold' : '✅ **PASSED** - Coverage meets 80% threshold'}
+          `;
 
-          ### Remediation
-          If coverage is below 80%:
-          1. Identify uncovered lines in the coverage report above
-          2. Add tests for high-value modules first
-          3. Re-run tests to verify improvement
+          if (belowThreshold.length > 0) {
+            comment += `\n### ⚠️ Modules Below 80% Coverage\n\n`;
+            comment += `| Module | Coverage | Missing |\n`;
+            comment += `|--------|----------|--------|\n`;
+            for (const mod of belowThreshold) {
+              comment += `| \`${mod.path}\` | ${mod.pct}% | ${mod.missing} |\n`;
+            }
+          }
 
-          See [CODEOWNERS_QUALITY.md](backend/.github/CODEOWNERS_QUALITY.md) for details.
-
-          ---
-
-          *This comment was automatically generated by the test-coverage workflow.*`;
+          comment += `\n### 📈 Coverage Trend\n\n`;
+          comment += `View detailed HTML report in workflow artifacts.\n\n`;
+          comment += `### 🔍 Actions Needed\n\n`;
+          if (coveragePct !== 'N/A' && parseFloat(coveragePct) < 80) {
+            comment += `- Review modules below 80% threshold\n`;
+            comment += `- Add tests for high-value modules first\n`;
+            comment += `- Focus on critical paths and error handling\n`;
+          } else {
+            comment += `- ✅ Coverage is healthy\n`;
+            comment += `- Consider adding tests for edge cases\n`;
+          }
+          comment += `\n---\n\n*This comment was automatically generated by the test-coverage workflow.*`;
 
           github.rest.issues.createComment({
             issue_number: context.issue.number,
