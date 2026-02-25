@@ -146,6 +146,51 @@ class BYOKHandler:
         from core.llm.cognitive_tier_service import CognitiveTierService
         self.tier_service = CognitiveTierService(workspace_id, self.db_session)
 
+    def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
+        """
+        Get provider fallback order for resilience.
+
+        Provider priority based on reliability and cost:
+        1. deepseek - Primary (most reliable, cost-effective)
+        2. openai - Fallback (most reliable but expensive)
+        3. moonshot - Fallback
+        4. minimax - Fallback (Phase 68 integration)
+        5. deepinfra - Last resort
+
+        Args:
+            primary_provider: The requested provider to try first
+
+        Returns:
+            List of provider IDs in fallback order
+        """
+        # All available providers that have clients initialized
+        available_providers = list(self.async_clients.keys()) if self.async_clients else list(self.clients.keys())
+
+        if not available_providers:
+            return []
+
+        # Fallback priority order (most reliable first)
+        priority_order = ["deepseek", "openai", "moonshot", "minimax", "deepinfra"]
+
+        # Build fallback list: primary first, then others in priority order
+        fallback_order = []
+
+        # Add primary provider first if it's available
+        if primary_provider in available_providers:
+            fallback_order.append(primary_provider)
+
+        # Add remaining providers in priority order
+        for provider in priority_order:
+            if provider in available_providers and provider not in fallback_order:
+                fallback_order.append(provider)
+
+        # Add any remaining available providers not in priority list
+        for provider in available_providers:
+            if provider not in fallback_order:
+                fallback_order.append(provider)
+
+        return fallback_order
+
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
         if not OpenAI:
@@ -1337,6 +1382,8 @@ class BYOKHandler:
         """
         Stream LLM responses token-by-token with optional governance tracking.
 
+        Includes automatic provider fallback on failure for improved resilience.
+
         Args:
             messages: Chat messages in OpenAI format
             model: Model name
@@ -1349,97 +1396,125 @@ class BYOKHandler:
         Yields:
             Individual tokens as they arrive from the LLM
         """
-        if not self.async_clients:
-            raise ValueError("Async clients not initialized. Streaming unavailable.")
+        if not self.async_clients and not self.clients:
+            raise ValueError("No clients initialized. Streaming unavailable.")
 
-        client = self.async_clients.get(provider_id)
-        if not client:
-            # Fallback to sync client wrapped in async (less ideal but works)
-            client = self.clients.get(provider_id)
-            if not client:
-                raise ValueError(f"No client available for provider: {provider_id}")
+        # Get provider fallback order
+        provider_order = self._get_provider_fallback_order(provider_id)
+
+        if not provider_order:
+            raise ValueError(f"No available providers for streaming. Requested: {provider_id}")
 
         # Governance tracking
         governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
         agent_execution = None
 
-        try:
-            # Create execution record if agent_id provided
-            if agent_id and governance_enabled and db:
-                from core.models import AgentExecution
+        last_error = None
 
-                agent_execution = AgentExecution(
-                    agent_id=agent_id,
-                    workspace_id=self.workspace_id,
-                    status="running",
-                    input_summary=f"LLM stream: {model} ({provider_id})",
-                    triggered_by="llm_stream"
+        # Try each provider in fallback order
+        for attempt_provider_id in provider_order:
+            # Get client for this provider (prefer async, fallback to sync)
+            client = self.async_clients.get(attempt_provider_id)
+            if not client:
+                client = self.clients.get(attempt_provider_id)
+
+            if not client:
+                logger.warning(f"No client available for provider: {attempt_provider_id}")
+                continue
+
+            logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
+
+            try:
+                # Create execution record if agent_id provided (only on first attempt)
+                if agent_execution is None and agent_id and governance_enabled and db:
+                    from core.models import AgentExecution
+
+                    agent_execution = AgentExecution(
+                        agent_id=agent_id,
+                        workspace_id=self.workspace_id,
+                        status="running",
+                        input_summary=f"LLM stream: {model} ({attempt_provider_id})",
+                        triggered_by="llm_stream"
+                    )
+                    db.add(agent_execution)
+                    db.commit()
+                    db.refresh(agent_execution)
+
+                    logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
+
+                # Use async streaming API
+                stream = await client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True
                 )
-                db.add(agent_execution)
+
+                token_count = 0
+                async for chunk in stream:
+                    if chunk.choices:
+                        delta = chunk.choices[0].delta
+                        if hasattr(delta, 'content') and delta.content:
+                            token_count += 1
+                            yield delta.content
+
+                # Record successful completion
+                if agent_execution and governance_enabled and db:
+                    try:
+                        from datetime import datetime
+
+                        agent_execution.status = "completed"
+                        agent_execution.output_summary = f"Generated {token_count} tokens via {model} ({attempt_provider_id})"
+                        agent_execution.completed_at = datetime.now()
+                        db.commit()
+
+                        # Record outcome for confidence scoring
+                        from core.agent_governance_service import AgentGovernanceService
+                        governance = AgentGovernanceService(db)
+                        await governance.record_outcome(agent_id, success=True)
+
+                        logger.info(f"Completed LLM stream execution {agent_execution.id} via {attempt_provider_id}")
+                    except Exception as tracking_error:
+                        logger.error(f"Failed to track LLM stream completion: {tracking_error}")
+
+                # Success! Return from the function
+                return
+
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+
+                # If this is not the last provider, try the next one
+                if attempt_provider_id != provider_order[-1]:
+                    logger.info(f"Falling back to next provider...")
+                    continue
+
+                # This was the last provider, fall through to error handling
+                break
+
+        # All providers failed - mark execution as failed and yield error
+        logger.error(f"All {len(provider_order)} providers failed for {model}. Last error: {last_error}")
+
+        if agent_execution and governance_enabled and db:
+            try:
+                from datetime import datetime
+
+                agent_execution.status = "failed"
+                agent_execution.error_message = f"All providers failed. Last: {str(last_error)}"
+                agent_execution.completed_at = datetime.now()
                 db.commit()
-                db.refresh(agent_execution)
 
-                logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
+                # Record failure for confidence scoring
+                from core.agent_governance_service import AgentGovernanceService
+                governance = AgentGovernanceService(db)
+                await governance.record_outcome(agent_id, success=False)
 
-            # Use async streaming API
-            stream = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=True
-            )
+            except Exception as tracking_error:
+                logger.error(f"Failed to track LLM stream failure: {tracking_error}")
 
-            token_count = 0
-            async for chunk in stream:
-                if chunk.choices:
-                    delta = chunk.choices[0].delta
-                    if hasattr(delta, 'content') and delta.content:
-                        token_count += 1
-                        yield delta.content
-
-            # Record successful completion
-            if agent_execution and governance_enabled and db:
-                try:
-                    from datetime import datetime
-
-                    agent_execution.status = "completed"
-                    agent_execution.output_summary = f"Generated {token_count} tokens via {model}"
-                    agent_execution.completed_at = datetime.now()
-                    db.commit()
-
-                    # Record outcome for confidence scoring
-                    from core.agent_governance_service import AgentGovernanceService
-                    governance = AgentGovernanceService(db)
-                    await governance.record_outcome(agent_id, success=True)
-
-                    logger.debug(f"Completed LLM stream execution {agent_execution.id}")
-                except Exception as tracking_error:
-                    logger.error(f"Failed to track LLM stream completion: {tracking_error}")
-
-        except Exception as e:
-            logger.error(f"Streaming error for {provider_id}/{model}: {e}")
-
-            # Mark execution as failed
-            if agent_execution and governance_enabled and db:
-                try:
-                    from datetime import datetime
-
-                    agent_execution.status = "failed"
-                    agent_execution.error_message = str(e)
-                    agent_execution.completed_at = datetime.now()
-                    db.commit()
-
-                    # Record failure for confidence scoring
-                    from core.agent_governance_service import AgentGovernanceService
-                    governance = AgentGovernanceService(db)
-                    await governance.record_outcome(agent_id, success=False)
-
-                except Exception as tracking_error:
-                    logger.error(f"Failed to track LLM stream failure: {tracking_error}")
-
-            # If streaming fails, yield error message
-            yield f"\n\n[Streaming error: {str(e)}]"
+        # Yield final error message
+        yield f"\n\n[Error: All LLM providers failed. Last error: {str(last_error)}]"
 
     def classify_cognitive_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
         """

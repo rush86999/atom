@@ -29,11 +29,9 @@ class TestAllProvidersFail:
 
         handler = BYOKHandler()
 
-        # Mock all providers to fail
-        provider_ids = ["openai", "anthropic", "deepseek", "gemini"]
+        # Mock all providers to fail (add them even if not configured)
+        provider_ids = ["deepseek", "openai", "moonshot", "minimax"]
         for provider_id in provider_ids:
-            if provider_id not in handler.clients:
-                continue
             mock_client = MagicMock()
             mock_client.chat.completions.create = AsyncMock(
                 side_effect=Exception(f"{provider_id} API error (500)")
@@ -67,11 +65,9 @@ class TestAllProvidersFail:
 
         handler = BYOKHandler()
 
-        # Mock all providers to timeout
-        provider_ids = ["openai", "anthropic", "deepseek"]
+        # Mock all providers to timeout (add them even if not configured)
+        provider_ids = ["deepseek", "openai"]
         for provider_id in provider_ids:
-            if provider_id not in handler.clients:
-                continue
             mock_client = MagicMock()
             mock_client.chat.completions.create = AsyncMock(
                 side_effect=asyncio.TimeoutError(f"{provider_id} request timed out")
@@ -100,11 +96,9 @@ class TestAllProvidersFail:
 
         handler = BYOKHandler()
 
-        # Mock all providers to rate limit
-        provider_ids = ["openai", "anthropic", "deepseek"]
+        # Mock all providers to rate limit (add them even if not configured)
+        provider_ids = ["deepseek", "openai"]
         for provider_id in provider_ids:
-            if provider_id not in handler.clients:
-                continue
             mock_client = MagicMock()
             mock_client.chat.completions.create = AsyncMock(
                 side_effect=Exception(f"Rate limit exceeded (429) for {provider_id}")
@@ -139,35 +133,33 @@ class TestPrimaryProviderFailure:
 
         handler = BYOKHandler()
 
-        # Mock OpenAI to fail
-        if "openai" in handler.clients:
-            mock_openai = MagicMock()
-            mock_openai.chat.completions.create = AsyncMock(
-                side_effect=Exception("OpenAI API error (500)")
-            )
-            handler.clients["openai"] = mock_openai
-            handler.async_clients["openai"] = mock_openai
+        # Mock OpenAI to fail (add even if not configured)
+        mock_openai = MagicMock()
+        mock_openai.chat.completions.create = AsyncMock(
+            side_effect=Exception("OpenAI API error (500)")
+        )
+        handler.clients["openai"] = mock_openai
+        handler.async_clients["openai"] = mock_openai
 
-        # Mock Anthropic to succeed
-        if "anthropic" in handler.clients:
-            mock_anthropic = MagicMock()
-            mock_anthropic.chat.completions.create = AsyncMock(
-                return_value=MagicMock(
-                    choices=[MagicMock(message=MagicMock(content="Success from Anthropic"))]
-                )
+        # Mock Deepseek to succeed
+        mock_deepseek = MagicMock()
+        mock_deepseek.chat.completions.create = AsyncMock(
+            return_value=MagicMock(
+                choices=[MagicMock(message=MagicMock(content="Success from Deepseek"))]
             )
-            handler.clients["anthropic"] = mock_anthropic
-            handler.async_clients["anthropic"] = mock_anthropic
+        )
+        handler.clients["deepseek"] = mock_deepseek
+        handler.async_clients["deepseek"] = mock_deepseek
 
-        # Should fallback to Anthropic
+        # Should fallback to Deepseek
         response = await handler.generate_response(
             prompt="test prompt",
             system_instruction="You are helpful"
         )
 
-        # Should succeed with Anthropic response
+        # Should succeed with Deepseek response
         assert response is not None
-        assert "anthropic" in response.lower() or "success" in response.lower()
+        assert "deepseek" in response.lower() or "success" in response.lower()
 
     @pytest.mark.asyncio
     async def test_primary_provider_rate_limits_secondary_succeeds(self):
@@ -179,35 +171,33 @@ class TestPrimaryProviderFailure:
 
         handler = BYOKHandler()
 
-        # Mock OpenAI to rate limit
-        if "openai" in handler.clients:
-            mock_openai = MagicMock()
-            mock_openai.chat.completions.create = AsyncMock(
-                side_effect=Exception("Rate limit exceeded (429)")
-            )
-            handler.clients["openai"] = mock_openai
-            handler.async_clients["openai"] = mock_openai
+        # Mock OpenAI to rate limit (add even if not configured)
+        mock_openai = MagicMock()
+        mock_openai.chat.completions.create = AsyncMock(
+            side_effect=Exception("Rate limit exceeded (429)")
+        )
+        handler.clients["openai"] = mock_openai
+        handler.async_clients["openai"] = mock_openai
 
-        # Mock Anthropic to succeed
-        if "anthropic" in handler.clients:
-            mock_anthropic = MagicMock()
-            mock_anthropic.chat.completions.create = AsyncMock(
-                return_value=MagicMock(
-                    choices=[MagicMock(message=MagicMock(content="Response from Anthropic"))]
-                )
+        # Mock Deepseek to succeed
+        mock_deepseek = MagicMock()
+        mock_deepseek.chat.completions.create = AsyncMock(
+            return_value=MagicMock(
+                choices=[MagicMock(message=MagicMock(content="Response from Deepseek"))]
             )
-            handler.clients["anthropic"] = mock_anthropic
-            handler.async_clients["anthropic"] = mock_anthropic
+        )
+        handler.clients["deepseek"] = mock_deepseek
+        handler.async_clients["deepseek"] = mock_deepseek
 
-        # Should fallback to Anthropic
+        # Should fallback to Deepseek
         response = await handler.generate_response(
             prompt="test prompt",
             system_instruction="You are helpful"
         )
 
-        # Should succeed with Anthropic
+        # Should succeed with Deepseek
         assert response is not None
-        assert "anthropic" in response.lower() or "response" in response.lower()
+        assert "deepseek" in response.lower() or "response" in response.lower()
 
     @pytest.mark.asyncio
     async def test_primary_provider_timeout_secondary_succeeds(self):
@@ -219,27 +209,25 @@ class TestPrimaryProviderFailure:
 
         handler = BYOKHandler()
 
-        # Mock OpenAI to timeout
-        if "openai" in handler.clients:
-            mock_openai = MagicMock()
-            mock_openai.chat.completions.create = AsyncMock(
-                side_effect=asyncio.TimeoutError("OpenAI request timed out")
-            )
-            handler.clients["openai"] = mock_openai
-            handler.async_clients["openai"] = mock_openai
+        # Mock OpenAI to timeout (add even if not configured)
+        mock_openai = MagicMock()
+        mock_openai.chat.completions.create = AsyncMock(
+            side_effect=asyncio.TimeoutError("OpenAI request timed out")
+        )
+        handler.clients["openai"] = mock_openai
+        handler.async_clients["openai"] = mock_openai
 
-        # Mock Anthropic to succeed
-        if "anthropic" in handler.clients:
-            mock_anthropic = MagicMock()
-            mock_anthropic.chat.completions.create = AsyncMock(
-                return_value=MagicMock(
-                    choices=[MagicMock(message=MagicMock(content="Success from fallback"))]
-                )
+        # Mock Deepseek to succeed
+        mock_deepseek = MagicMock()
+        mock_deepseek.chat.completions.create = AsyncMock(
+            return_value=MagicMock(
+                choices=[MagicMock(message=MagicMock(content="Success from fallback"))]
             )
-            handler.clients["anthropic"] = mock_anthropic
-            handler.async_clients["anthropic"] = mock_anthropic
+        )
+        handler.clients["deepseek"] = mock_deepseek
+        handler.async_clients["deepseek"] = mock_deepseek
 
-        # Should fallback to Anthropic
+        # Should fallback to Deepseek
         response = await handler.generate_response(
             prompt="test prompt",
             system_instruction="You are helpful"
@@ -262,6 +250,36 @@ class TestProviderCascade:
         from core.llm.byok_handler import BYOKHandler
 
         handler = BYOKHandler()
+
+        # Mock providers to fail sequentially (add even if not configured)
+        provider_ids = ["deepseek", "openai", "moonshot"]
+        attempted_providers = []
+
+        async def failing_create(*args, **kwargs):
+            # Track which provider was called
+            # This is a simplified tracking mechanism
+            raise Exception("Simulated failure")
+
+        for provider_id in provider_ids:
+            mock_client = MagicMock()
+            mock_client.chat.completions.create = AsyncMock(side_effect=failing_create)
+            handler.clients[provider_id] = mock_client
+            handler.async_clients[provider_id] = mock_client
+
+        # Should try all providers and fail
+        try:
+            response = await handler.generate_response(
+                prompt="test prompt",
+                system_instruction="You are helpful"
+            )
+            # If it returns (shouldn't happen), it should mention error
+            assert response is not None
+            response_lower = response.lower()
+            assert any(keyword in response_lower for keyword in ["error", "failed", "provider"])
+        except Exception as e:
+            # Should fail with error mentioning all providers failed
+            error_str = str(e).lower()
+            assert any(keyword in error_str for keyword in ["provider", "failed"])
 
         # Track which providers were attempted
         attempted_providers = []
