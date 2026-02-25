@@ -80,7 +80,12 @@ class Account(Base):
     entries = relationship("JournalEntry", back_populates="account")
 
 class Transaction(Base):
-    """Event-sourced transaction header"""
+    """Event-sourced transaction header
+
+    All transactions MUST have a category for cost attribution accuracy.
+    The category field enforces that every cost is properly categorized,
+    preventing uncategorized transactions that would bypass budget tracking.
+    """
     __tablename__ = "accounting_transactions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -94,11 +99,16 @@ class Transaction(Base):
     metadata_json = Column(JSON, nullable=True)
     is_intercompany = Column(Boolean, default=False)
     counterparty_workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
-    
+
+    # Cost Attribution - Category is NOT NULL to enforce cost categorization
+    # Standard categories: llm_tokens, compute, storage, network, labor, software,
+    # infrastructure, support, sales, other
+    category = Column(String(50), nullable=False, index=True, default='other')
+
     # Project Linking
     project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
     milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
