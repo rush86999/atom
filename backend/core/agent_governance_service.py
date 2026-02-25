@@ -343,7 +343,27 @@ class AgentGovernanceService:
                 "reason": "Agent not found",
                 "requires_human_approval": True
             }
-        
+
+        # SECURITY: Validate status matches confidence_score to prevent bypass
+        # Determine actual maturity level based on confidence_score
+        confidence = agent.confidence_score or 0.5
+        if confidence >= 0.9:
+            actual_maturity = AgentStatus.AUTONOMOUS.value
+        elif confidence >= 0.7:
+            actual_maturity = AgentStatus.SUPERVISED.value
+        elif confidence >= 0.5:
+            actual_maturity = AgentStatus.INTERN.value
+        else:
+            actual_maturity = AgentStatus.STUDENT.value
+
+        # Use confidence-based maturity if status was manipulated
+        if agent.status != actual_maturity:
+            logger.warning(
+                f"Agent {agent.id} status ({agent.status}) doesn't match confidence ({confidence}). "
+                f"Using actual maturity: {actual_maturity}"
+            )
+            agent.status = actual_maturity  # Use actual maturity for governance check
+
         # Determine action complexity (default to medium if unknown)
         action_lower = action_type.lower()
         complexity = 2  # Default medium-low
