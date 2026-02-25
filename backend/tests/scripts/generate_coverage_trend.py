@@ -61,7 +61,42 @@ def load_trending_data(trending_json_path: str) -> Dict[str, Any]:
         }
 
     with open(trending_path) as f:
-        return json.load(f)
+        data = json.load(f)
+
+    # If old format, migrate to new format
+    if "history" in data and "coverage_history" not in data:
+        # Migrate old "history" to new "coverage_history"
+        data["coverage_history"] = []
+        for entry in data["history"]:
+            data["coverage_history"].append({
+                "date": entry["date"],
+                "phase": entry.get("phase", ""),
+                "plan": entry.get("plan", ""),
+                "coverage_percent": entry.get("coverage_pct", 0),
+                "files_covered": entry.get("lines_covered", 0),
+                "files_total": entry.get("lines_total", 0),
+                "branches_covered": entry.get("branches_covered", 0),
+                "branches_total": entry.get("branches_total", 0),
+                "new_files_added": 0,
+                "modified_files": 0,
+                "trend": entry.get("trend", "stable")
+            })
+        data["trend_analysis"] = {}
+        data["regression_alerts"] = []
+
+    # Ensure all required keys exist
+    if "coverage_history" not in data:
+        data["coverage_history"] = []
+    if "trend_analysis" not in data:
+        data["trend_analysis"] = {}
+    if "regression_alerts" not in data:
+        data["regression_alerts"] = []
+    if "baselines" not in data:
+        data["baselines"] = {}
+    if "metadata" not in data:
+        data["metadata"] = {"version": "2.0"}
+
+    return data
 
 
 def get_git_metrics() -> Dict[str, int]:
@@ -172,12 +207,23 @@ def predict_target_date(history: List[Dict[str, Any]], target: float = 80) -> Di
     recent = history[-30:]
 
     # Extract dates and coverage values
-    dates = [datetime.fromisoformat(e["date"].replace('Z', '+00:00')) for e in recent]
+    dates = []
+    for e in recent:
+        date_str = e["date"]
+        # Handle both 'Z' suffix and timezone-aware formats
+        if date_str.endswith('Z'):
+            date_str = date_str.replace('Z', '+00:00')
+        try:
+            dates.append(datetime.fromisoformat(date_str))
+        except ValueError:
+            # Fallback for various datetime formats
+            dates.append(datetime.fromisoformat(date_str.replace('+00:00', '')))
+
     coverages = [e["coverage_percent"] for e in recent]
 
-    # Convert dates to numeric (days since first date)
-    first_date = dates[0]
-    x_values = [(d - first_date).days for d in dates]
+    # Strip timezone info for calculations
+    first_date = dates[0].replace(tzinfo=None)
+    x_values = [(d.replace(tzinfo=None) - first_date).days for d in dates]
 
     # Calculate linear regression: y = mx + b
     n = len(x_values)
@@ -233,6 +279,16 @@ def predict_target_date(history: List[Dict[str, Any]], target: float = 80) -> Di
 
     days_to_target = (target - intercept) / slope
     estimated_date = first_date + timedelta(days=days_to_target)
+
+    return {
+        "target_percent": target,
+        "estimated_date": estimated_date.strftime("%Y-%m-%d"),
+        "confidence": confidence,
+        "slope": round(slope, 4),
+        "r_squared": round(r_squared, 2),
+        "days_to_target": int(days_to_target),
+        "message": f"Estimated {int(days_to_target)} days to reach {target}% target"
+    }
 
     return {
         "target_percent": target,

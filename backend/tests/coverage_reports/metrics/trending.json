@@ -46,6 +46,60 @@
       "branches_covered": 52,
       "branches_total": 74,
       "trend": "improving"
+    },
+    {
+      "date": "2026-02-17T21:52:13.175169Z",
+      "phase": "19",
+      "plan": "19-01-04",
+      "coverage_pct": 22.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-18T04:19:30.000000Z",
+      "phase": "19",
+      "plan": "19-09-gap-closure",
+      "coverage_pct": 15.23,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-18T08:50:47.864322",
+      "phase": "21",
+      "plan": "21-04",
+      "coverage_pct": 21.59,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-24T07:16:45.359706",
+      "phase": "81",
+      "plan": "01",
+      "coverage_pct": 15.23,
+      "lines_covered": 8272,
+      "lines_total": 45366,
+      "trend": "regressing"
+    },
+    {
+      "date": "2026-02-25T23:03:27Z",
+      "phase": "090",
+      "plan": "01",
+      "coverage_pct": 74.55,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "trend": "improving"
+    },
+    {
+      "date": "2026-02-25T18:16:09.646652Z",
+      "phase": "090",
+      "plan": "03",
+      "coverage_pct": 74.55,
+      "lines_covered": 205,
+      "lines_total": 205,
+      "trend": "stable"
     }
   ],
   "baselines": {
@@ -79,12 +133,114 @@
   },
   "migrated_from": "phases_format",
   "latest": {
-    "date": "2026-02-24T07:16:45.359706",
-    "phase": "81",
-    "plan": "01",
-    "coverage_pct": 15.23,
-    "lines_covered": 8272,
-    "lines_total": 45366,
-    "trend": "regressing"
+    "date": "2026-02-25T18:16:09.646652Z",
+    "phase": "090",
+    "plan": "03",
+    "coverage_pct": 74.55,
+    "lines_covered": 205,
+    "lines_total": 205,
+    "trend": "stable"
+  },
+  "coverage_history": [
+    {
+      "date": "2026-02-17T21:52:13.175169Z",
+      "phase": "19",
+      "plan": "19-01-04",
+      "coverage_percent": 22.0,
+      "files_covered": 0,
+      "files_total": 0,
+      "branches_covered": 0,
+      "branches_total": 0,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-18T04:19:30.000000Z",
+      "phase": "19",
+      "plan": "19-09-gap-closure",
+      "coverage_percent": 15.23,
+      "files_covered": 0,
+      "files_total": 0,
+      "branches_covered": 0,
+      "branches_total": 0,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-18T08:50:47.864322",
+      "phase": "21",
+      "plan": "21-04",
+      "coverage_percent": 21.59,
+      "files_covered": 0,
+      "files_total": 0,
+      "branches_covered": 0,
+      "branches_total": 0,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "stable"
+    },
+    {
+      "date": "2026-02-24T07:16:45.359706",
+      "phase": "81",
+      "plan": "01",
+      "coverage_percent": 15.23,
+      "files_covered": 8272,
+      "files_total": 45366,
+      "branches_covered": 0,
+      "branches_total": 0,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "regressing"
+    },
+    {
+      "date": "2026-02-25T23:03:27Z",
+      "phase": "090",
+      "plan": "01",
+      "coverage_percent": 74.55,
+      "files_covered": 0,
+      "files_total": 0,
+      "branches_covered": 52,
+      "branches_total": 74,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "improving"
+    },
+    {
+      "date": "2026-02-25T18:16:09.646652Z",
+      "phase": "090",
+      "plan": "03",
+      "coverage_percent": 74.55,
+      "files_covered": 205,
+      "files_total": 205,
+      "branches_covered": 52,
+      "branches_total": 74,
+      "new_files_added": 0,
+      "modified_files": 0,
+      "trend": "stable"
+    }
+  ],
+  "trend_analysis": {
+    "current_coverage": 74.55,
+    "seven_day_avg": 37.19,
+    "thirty_day_avg": 37.19,
+    "week_over_week_change": 0.0,
+    "trend_direction": "stable",
+    "regression_detected": false,
+    "target_prediction": {
+      "target_percent": 80.0,
+      "estimated_date": "2026-02-28",
+      "confidence": "medium",
+      "slope": 5.6769,
+      "r_squared": 0.58,
+      "days_to_target": 11,
+      "message": "Estimated 11 days to reach 80.0% target"
+    },
+    "last_updated": "2026-02-25T18:16:09.648238Z"
+  },
+  "regression_alerts": [],
+  "metadata": {
+    "version": "2.0"
   }
 }
