@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 087-property-based-testing-database-auth
-Plan: 02 (complete), 01 (pending)
-Status: ✅ Plan 087-02 Complete - 21 governance property tests created, 74.55% coverage, 100% pass rate
-Last activity: 2026-02-25 — Phase 087-02 complete: 21 property tests, 74.55% coverage, no bugs discovered
+Plan: 01 (complete), 02 (pending)
+Status: ✅ Plan 087-01 Complete - 17 database property tests created, 97% coverage, 100% pass rate, 1 bug discovered
+Last activity: 2026-02-25 — Phase 087-01 complete: 17 property tests, 97% coverage for models.py, CASCADE FK bug documented
 
 Progress: [█████████░] 62% (v3.2: Phase 087 in progress, Phase 089 complete, Phase 090 pending)
 
@@ -127,6 +127,14 @@ Recent decisions affecting current work:
 - [Phase 089-01]: Error path coverage improved to 70-80% (up from ~40%)
 
 **v3.2 Property Testing Decisions:**
+- [Phase 087-01]: Database CRUD property tests created - 17 tests covering CRUD, FK, unique, cascade, transaction, boundary, and NULL constraints
+- [Phase 087-01]: 97% coverage achieved for core.models.py (2682/2768 lines) - well above 80% target
+- [Phase 087-01]: BUG-001 discovered: Episode.agent_id FK missing ondelete="CASCADE" parameter (MEDIUM severity)
+- [Phase 087-01]: SQLite limitation documented: FK constraints not enforced by default (PRAGMA foreign_keys = OFF)
+- [Phase 087-01]: Property test session state management: Using UUID suffixes and savepoints to prevent Hypothesis replay issues
+- [Phase 087-01]: Test execution time: 7.78 seconds for 17 tests (458ms per test)
+- [Phase 087-01]: Hypothesis generated ~850 examples across all tests (50-100 examples per test)
+- [Phase 087-01]: EpisodeSegment model field names fixed: removed start_offset/end_offset, added segment_type/source_type
 - [Phase 087-02]: Governance maturity property tests created - 21 tests covering permission matrix, maturity gates, action complexity, RBAC
 - [Phase 087-02]: Property tests validate invariants across millions of Hypothesis-generated examples
 - [Phase 087-02]: 74.55% coverage achieved for agent_governance_service.py (152/205 lines)
