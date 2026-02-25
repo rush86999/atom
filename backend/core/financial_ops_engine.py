@@ -241,7 +241,7 @@ class BudgetGuardrails:
         deal_stage: Optional[str] = None,
         milestone: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Check if spend is allowed"""
+        """Check if spend is allowed using configurable thresholds"""
 
         if category in self._paused_categories:
             return {"status": SpendStatus.PAUSED.value, "reason": "Category spending paused"}
@@ -269,21 +269,161 @@ class BudgetGuardrails:
                     "reason": f"Waiting for milestone: {limit.milestone_required}"
                 }
 
-        # Check budget limit
-        if limit.current_spend + amount_decimal > limit.monthly_limit:
+        # Calculate utilization percentage
+        if limit.monthly_limit > 0:
+            utilization_pct = (limit.current_spend + amount_decimal) / limit.monthly_limit * Decimal('100')
+        else:
+            utilization_pct = Decimal('0')
+
+        # Check block threshold (100% by default)
+        if utilization_pct >= to_decimal(limit.block_threshold_pct):
             self._paused_categories.add(category)
             return {
-                "status": SpendStatus.PAUSED.value,
-                "reason": f"Would exceed limit: ${limit.monthly_limit}",
+                "status": SpendStatus.REJECTED.value,
+                "reason": f"Would exceed block threshold ({limit.block_threshold_pct}%): ${limit.monthly_limit}",
+                "utilization_pct": float(utilization_pct),
                 "remaining": float(limit.monthly_limit - limit.current_spend)
             }
 
-        return {"status": SpendStatus.APPROVED.value, "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)}
+        # Check pause threshold (90% by default)
+        if utilization_pct >= to_decimal(limit.pause_threshold_pct):
+            return {
+                "status": SpendStatus.PAUSED.value,
+                "reason": f"Pause threshold reached ({limit.pause_threshold_pct}%)",
+                "utilization_pct": float(utilization_pct),
+                "remaining": float(limit.monthly_limit - limit.current_spend)
+            }
+
+        # Check warn threshold (80% by default)
+        if utilization_pct >= to_decimal(limit.warn_threshold_pct):
+            return {
+                "status": SpendStatus.PENDING.value,
+                "reason": f"Warn threshold reached ({limit.warn_threshold_pct}%)",
+                "utilization_pct": float(utilization_pct),
+                "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+            }
+
+        # Below warn threshold - approved
+        return {
+            "status": SpendStatus.APPROVED.value,
+            "utilization_pct": float(utilization_pct),
+            "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+        }
     
     def record_spend(self, category: str, amount: Union[Decimal, str, float]):
         """Record approved spend"""
         if category in self._limits:
             self._limits[category].current_spend += to_decimal(amount)
+
+    def get_threshold_status(self, limit: BudgetLimit) -> Dict[str, Any]:
+        """
+        Get current threshold status for a budget limit.
+
+        Args:
+            limit: BudgetLimit to check
+
+        Returns:
+            Dict with:
+            - status: str (approved, pending, paused, rejected)
+            - usage_pct: Decimal (current utilization percentage)
+            - next_threshold: str (next threshold to cross)
+            - remaining_until_threshold: Decimal (amount until next threshold)
+        """
+        if limit.monthly_limit > 0:
+            usage_pct = limit.current_spend / limit.monthly_limit * Decimal('100')
+        else:
+            usage_pct = Decimal('0')
+
+        # Determine current status
+        if usage_pct >= to_decimal(limit.block_threshold_pct):
+            status = SpendStatus.REJECTED.value
+            next_threshold = None
+            remaining_until_threshold = Decimal('0')
+        elif usage_pct >= to_decimal(limit.pause_threshold_pct):
+            status = SpendStatus.PAUSED.value
+            next_threshold = f"Block at {limit.block_threshold_pct}%"
+            # Amount until block threshold
+            block_amount = limit.monthly_limit * to_decimal(limit.block_threshold_pct) / Decimal('100')
+            remaining_until_threshold = block_amount - limit.current_spend
+        elif usage_pct >= to_decimal(limit.warn_threshold_pct):
+            status = SpendStatus.PENDING.value
+            next_threshold = f"Pause at {limit.pause_threshold_pct}%"
+            # Amount until pause threshold
+            pause_amount = limit.monthly_limit * to_decimal(limit.pause_threshold_pct) / Decimal('100')
+            remaining_until_threshold = pause_amount - limit.current_spend
+        else:
+            status = SpendStatus.APPROVED.value
+            next_threshold = f"Warn at {limit.warn_threshold_pct}%"
+            # Amount until warn threshold
+            warn_amount = limit.monthly_limit * to_decimal(limit.warn_threshold_pct) / Decimal('100')
+            remaining_until_threshold = warn_amount - limit.current_spend
+
+        return {
+            "status": status,
+            "usage_pct": usage_pct,
+            "next_threshold": next_threshold,
+            "remaining_until_threshold": max(remaining_until_threshold, Decimal('0'))
+        }
+
+    def update_thresholds(
+        self,
+        category: str,
+        warn: Optional[int] = None,
+        pause: Optional[int] = None,
+        block: Optional[int] = None
+    ) -> None:
+        """
+        Update threshold configuration for existing limit.
+
+        Args:
+            category: Category to update
+            warn: New warn threshold (None = no change)
+            pause: New pause threshold (None = no change)
+            block: New block threshold (None = no change)
+
+        Raises:
+            ValueError: If thresholds are invalid (warn < pause < block required)
+            KeyError: If category doesn't exist
+        """
+        if category not in self._limits:
+            raise KeyError(f"Category '{category}' not found in limits")
+
+        limit = self._limits[category]
+
+        # Build new threshold values
+        new_warn = warn if warn is not None else limit.warn_threshold_pct
+        new_pause = pause if pause is not None else limit.pause_threshold_pct
+        new_block = block if block is not None else limit.block_threshold_pct
+
+        # Validate thresholds: must be strictly increasing
+        if not (0 <= new_warn < new_pause < new_block <= 100):
+            raise ValueError(
+                f"Invalid thresholds: warn ({new_warn}) < pause ({new_pause}) < block ({new_block}) required, "
+                f"all must be between 0 and 100"
+            )
+
+        # Update threshold values
+        limit.warn_threshold_pct = new_warn
+        limit.pause_threshold_pct = new_pause
+        limit.block_threshold_pct = new_block
+
+    def reset_thresholds(self, category: str) -> None:
+        """
+        Reset thresholds to defaults (80, 90, 100).
+
+        Args:
+            category: Category to reset
+
+        Raises:
+            KeyError: If category doesn't exist
+        """
+        if category not in self._limits:
+            raise KeyError(f"Category '{category}' not found in limits")
+
+        limit = self._limits[category]
+        limit.warn_threshold_pct = 80
+        limit.pause_threshold_pct = 90
+        limit.block_threshold_pct = 100
 
 # ==================== INVOICE RECONCILIATION ====================
 
