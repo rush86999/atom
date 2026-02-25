@@ -103,7 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             items: [
                 { label: "Integrations", icon: Layers, path: "/integrations" },
                 { label: "Dev Studio", icon: Terminal, path: "/dev-studio" },
-                { label: "Settings", icon: Settings, path: "/settings/account" },
+                { label: "Settings", icon: Settings, path: "/settings" },
             ]
         }
     ];

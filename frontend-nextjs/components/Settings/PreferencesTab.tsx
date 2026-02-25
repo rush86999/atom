@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -20,48 +19,84 @@ const DEFAULT_PREFS: PreferenceState = {
     email_frequency: "daily"
 };
 
+const API_URL = "http://localhost:8000";
+const USER_ID = "default_user";
+const WORKSPACE_ID = "default";
+
 export function PreferencesTab() {
     const [prefs, setPrefs] = useState<PreferenceState>(DEFAULT_PREFS);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    // Mock IDs for now, in real app these come from context
-    const userId = "default_user";
-    const workspaceId = "default";
 
     useEffect(() => {
         fetchPreferences();
     }, []);
 
+    const applyTheme = (theme: string) => {
+        const root = document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else if (theme === 'light') {
+            root.classList.remove('dark');
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                root.classList.add('dark');
+            } else {
+                root.classList.remove('dark');
+            }
+        }
+    };
+
+    const getAuthHeaders = (): Record<string, string> => {
+        const token = localStorage.getItem('auth_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        };
+    };
+
     const fetchPreferences = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/preferences?user_id=${userId}&workspace_id=${workspaceId}`);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+
+            const res = await fetch(
+                `${API_URL}/api/v1/preferences?user_id=${USER_ID}&workspace_id=${WORKSPACE_ID}`,
+                { headers: getAuthHeaders(), signal: controller.signal }
+            );
+            clearTimeout(timeout);
+
             if (res.ok) {
                 const data = await res.json();
-                // Merge with defaults to handle missing keys
-                setPrefs({ ...DEFAULT_PREFS, ...data });
+                const merged = { ...DEFAULT_PREFS, ...data };
+                setPrefs(merged);
+                applyTheme(merged.theme);
             }
-        } catch (error) {
-            console.error("Failed to load preferences:", error);
-            toast.error("Failed to load settings");
+        } catch (error: any) {
+            console.warn("Preferences API not reachable, using defaults:", error?.message);
+            // Graceful fallback: just use defaults
+            applyTheme(DEFAULT_PREFS.theme);
         } finally {
             setLoading(false);
         }
     };
 
     const handleSave = async (key: string, value: any) => {
-        // Optimistic update
-        setPrefs(prev => ({ ...prev, [key]: value }));
+        const updated = { ...prefs, [key]: value };
+        setPrefs(updated);
 
-        // API call
+        if (key === 'theme') {
+            applyTheme(value);
+        }
+
         try {
-            const res = await fetch("/api/preferences", {
+            const res = await fetch(`${API_URL}/api/v1/preferences`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    user_id: userId,
-                    workspace_id: workspaceId,
+                    user_id: USER_ID,
+                    workspace_id: WORKSPACE_ID,
                     key,
                     value
                 })
@@ -72,7 +107,6 @@ export function PreferencesTab() {
         } catch (error) {
             console.error("Save error:", error);
             toast.error("Failed to save setting");
-            // Revert on error? For now simple toast is enough
         }
     };
 

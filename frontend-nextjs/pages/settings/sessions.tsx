@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,6 @@ interface Session {
 }
 
 export default function SessionSettings() {
-    const { data: session, status } = useSession();
     const router = useRouter();
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
@@ -29,14 +27,15 @@ export default function SessionSettings() {
     const [revoking, setRevoking] = useState<string | null>(null);
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin');
-        } else if (status === 'authenticated') {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            router.push('/login');
+        } else {
             fetchSessions();
             // Also record current session
             recordCurrentSession();
         }
-    }, [status]);
+    }, []);
 
     const recordCurrentSession = async () => {
         try {
@@ -132,7 +131,7 @@ export default function SessionSettings() {
         }
     };
 
-    if (loading || status === 'loading') {
+    if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
