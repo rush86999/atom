@@ -6,7 +6,7 @@ FastAPI routes for Stripe payment processing and financial management
 from datetime import datetime, timedelta
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from accounting.ingestion import TransactionIngestor
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -34,6 +34,13 @@ STRIPE_USE_MOCK = os.getenv("STRIPE_USE_MOCK", "false").lower() == "true"
 
 if STRIPE_USE_MOCK:
     logging.warning("STRIPE_USE_MOCK is TRUE - Using mock responses instead of real Stripe API")
+
+
+# Webhook deduplication cache (in-memory, event_id -> timestamp)
+# In production, this should be Redis or similar for distributed systems
+PROCESSED_WEBHOOK_EVENTS: Dict[str, int] = {}
+CLEANUP_INTERVAL = 3600  # 1 hour
+EVENT_CACHE_TTL = 86400  # 24 hours - keep events for 24h to prevent duplicates
 
 
 def format_stripe_response(data: Any) -> Dict[str, Any]:
@@ -80,6 +87,110 @@ def format_stripe_error(
         },
         "timestamp": datetime.utcnow().isoformat(),
     }
+
+# Webhook helper functions
+def verify_webhook_signature(
+    payload: bytes,
+    signature: str,
+    webhook_secret: str
+) -> Dict[str, Any]:
+    """
+    Verify Stripe webhook signature using timing-safe comparison.
+
+    Uses stripe.Webhook.construct_event which implements proper
+    HMAC-SHA256 verification with replay attack protection.
+
+    Args:
+        payload: Raw request body as bytes
+        signature: Stripe-Signature header value
+        webhook_secret: Webhook signing secret (whsec_...)
+
+    Returns:
+        Parsed event dictionary
+
+    Raises:
+        HTTPException: If signature is invalid (400 status code)
+    """
+    if not webhook_secret:
+        # In testing/mode, skip signature verification
+        logging.warning("Webhook secret not configured - skipping signature verification")
+        import json
+        return json.loads(payload)
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            webhook_secret
+        )
+        logging.info(f"Webhook signature verified for event {event.get('id')}")
+        return event
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        logging.error(f"Webhook signature verification failed: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid webhook signature: {str(e)}"
+        )
+
+
+def is_duplicate_event(event_id: str) -> bool:
+    """
+    Check if webhook event has already been processed.
+
+    Uses in-memory cache to prevent duplicate processing.
+
+    Args:
+        event_id: Stripe event ID (evt_...)
+
+    Returns:
+        True if event was already processed, False otherwise
+    """
+    return event_id in PROCESSED_WEBHOOK_EVENTS
+
+
+def mark_event_processed(event_id: str) -> None:
+    """
+    Mark webhook event as processed to prevent duplicates.
+
+    Args:
+        event_id: Stripe event ID (evt_...)
+    """
+    PROCESSED_WEBHOOK_EVENTS[event_id] = int(datetime.now().timestamp())
+    logging.info(f"Marked event {event_id} as processed (total cached: {len(PROCESSED_WEBHOOK_EVENTS)})")
+
+
+def cleanup_processed_events() -> None:
+    """
+    Remove old events from the deduplication cache.
+
+    Removes events older than EVENT_CACHE_TTL (24 hours).
+    Should be called periodically to prevent memory leaks.
+    """
+    current_time = int(datetime.now().timestamp())
+    cutoff_time = current_time - EVENT_CACHE_TTL
+
+    events_to_remove = [
+        event_id
+        for event_id, timestamp in PROCESSED_WEBHOOK_EVENTS.items()
+        if timestamp < cutoff_time
+    ]
+
+    for event_id in events_to_remove:
+        del PROCESSED_WEBHOOK_EVENTS[event_id]
+
+    if events_to_remove:
+        logging.info(f"Cleaned up {len(events_to_remove)} old webhook events from cache")
+
+
+def get_webhook_secret() -> str:
+    """
+    Get Stripe webhook secret from environment.
+
+    Returns:
+        Webhook secret or empty string if not configured
+    """
+    return os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
 
 # Webhook event handlers
 async def handle_payment_success(payment_intent, db: Session):
@@ -841,11 +952,30 @@ async def get_stripe_account(
 # Error handlers
 @router.post("/webhooks")
 async def handle_stripe_webhook(
-    request: Request, 
+    request: Request,
     stripe_signature: str = Header(None, alias="Stripe-Signature"),
     db: Session = Depends(get_db)
 ):
-    """Handle Stripe webhook events"""
+    """
+    Handle Stripe webhook events with signature verification and deduplication.
+
+    Endpoint:
+        POST /api/stripe/webhooks
+
+    Headers:
+        Stripe-Signature: Webhook signature header (t=...,v1=...)
+
+    Returns:
+        200: Event processed successfully
+        200: Duplicate event (already processed)
+        400: Invalid signature or malformed payload
+        503: Temporary error (triggers Stripe retry)
+
+    Security:
+        - Signature verification using HMAC-SHA256 (timing-safe)
+        - Deduplication cache to prevent double-processing
+        - Automatic cleanup of old events (24h TTL)
+    """
     if not STRIPE_AVAILABLE:
         raise HTTPException(status_code=503, detail="Stripe integration not available")
 
@@ -853,16 +983,27 @@ async def handle_stripe_webhook(
         # Get the raw request body
         payload = await request.body()
 
-        # In production, verify webhook signature
-        # For now, we'll process without signature verification for testing
-        # event = stripe.Webhook.construct_event(
-        #     payload, stripe_signature, "your_webhook_secret"
-        # )
+        # Verify webhook signature (timing-safe comparison via Stripe SDK)
+        webhook_secret = get_webhook_secret()
+        event = verify_webhook_signature(payload, stripe_signature, webhook_secret)
 
-        # Parse JSON manually for testing
-        import json
+        # Check for duplicate events
+        event_id = event.get("id")
+        if is_duplicate_event(event_id):
+            logging.info(f"Duplicate webhook event received: {event_id}")
+            return {
+                "status": "duplicate",
+                "event_id": event_id,
+                "message": "Event already processed",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
 
-        event = json.loads(payload)
+        # Mark event as processed
+        mark_event_processed(event_id)
+
+        # Periodic cleanup of old events (every ~100 events)
+        if len(PROCESSED_WEBHOOK_EVENTS) > 100:
+            cleanup_processed_events()
 
         # Handle different event types
         event_type = event.get("type")
@@ -881,24 +1022,32 @@ async def handle_stripe_webhook(
         handler = handlers.get(event_type)
         if handler:
             result = await handler(event_data, db)
+            logging.info(f"Webhook processed successfully: {event_type} ({event_id})")
             return {
                 "status": "success",
                 "event_type": event_type,
+                "event_id": event_id,
                 "handler_result": result,
                 "timestamp": datetime.utcnow().isoformat(),
             }
         else:
-            logging.info(f"Unhandled webhook event: {event_type}")
+            logging.info(f"Unhandled webhook event: {event_type} ({event_id})")
             return {
                 "status": "unhandled",
                 "event_type": event_type,
+                "event_id": event_id,
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (signature verification failures)
+        raise
     except Exception as e:
-        logging.error(f"Webhook processing error: {str(e)}")
+        # Log error and return 503 to trigger Stripe retry
+        logging.error(f"Webhook processing error for event {event.get('id', 'unknown')}: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=400, detail=f"Webhook processing failed: {str(e)}"
+            status_code=503,
+            detail=f"Temporary webhook processing failure: {str(e)}"
         )
 
 
