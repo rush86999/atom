@@ -184,6 +184,8 @@ jobs:
           path: |
             backend/tests/coverage_reports/html/
             backend/tests/coverage_reports/metrics/coverage.json
+            backend/tests/coverage_reports/metrics/trending.json
+            backend/tests/coverage_reports/metrics/coverage_trend_report.html
           retention-days: 30
 
       - name: Coverage summary
