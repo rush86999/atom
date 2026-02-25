@@ -271,60 +271,60 @@ class TestUniqueConstraintInvariants:
     """Property-based tests for unique constraint invariants."""
 
     @given(
-        email=st.text(min_size=5, max_size=100, alphabet='abcDEF0123456789@.-_'),
-        attempt_duplicate=st.booleans()
+        email=st.text(min_size=5, max_size=100, alphabet='abcDEF0123456789@.-_')
     )
     @DB_SETTINGS
-    @example(email='test@example.com', attempt_duplicate=True)
-    def test_unique_email_rejects_duplicates(self, db_session, email, attempt_duplicate):
+    @example(email='test@example.com')
+    def test_unique_email_rejects_duplicates(self, db_session, email):
         """
         INVARIANT: Unique constraints prevent duplicate records.
 
         Tests that:
         - First record with unique value succeeds
         - Second record with same unique value fails
-        - Email uniqueness is enforced (case-insensitive if applicable)
+        - Email uniqueness is enforced
 
-        NOTE: Uses flush() to detect constraint violations before commit
-        to avoid session state issues with Hypothesis replay.
+        SIMPLIFIED: Uses UUID suffix to ensure unique emails across test runs
+        and prevent Hypothesis replay issues with session state.
         """
-        # Normalize email to lowercase for consistency
+        # Normalize email and add UUID for uniqueness across test runs
         normalized_email = email.lower()
+        unique_suffix = str(uuid.uuid4())[:8]
+        unique_email = f"{normalized_email}+{unique_suffix}@test.local"
 
         # Create first user
         user1 = User(
             id=str(uuid.uuid4()),
-            email=normalized_email,
+            email=unique_email,
             role=UserRole.MEMBER.value
         )
         db_session.add(user1)
         db_session.commit()
+        assert user1.id is not None, "First user should be created successfully"
 
-        # Try to create duplicate
-        if attempt_duplicate:
-            user2 = User(
-                id=str(uuid.uuid4()),
-                email=normalized_email,
-                role=UserRole.MEMBER.value
-            )
-            db_session.add(user2)
+        # Try to create duplicate with same email (will fail)
+        user2 = User(
+            id=str(uuid.uuid4()),
+            email=unique_email,  # Same email as user1
+            role=UserRole.MEMBER.value
+        )
+        db_session.add(user2)
 
-            # Should raise IntegrityError for duplicate email
-            # Use flush() to detect constraint before commit
-            with pytest.raises(IntegrityError):
-                db_session.flush()
-            # Always rollback to clean up session state
-            db_session.rollback()
-        else:
-            # Different email should succeed
-            user2 = User(
-                id=str(uuid.uuid4()),
-                email=f"different-{normalized_email}",
-                role=UserRole.MEMBER.value
-            )
-            db_session.add(user2)
-            db_session.commit()  # Should succeed
-            assert user2.id is not None, "User with different email should be created"
+        # Should raise IntegrityError for duplicate email
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+
+        db_session.rollback()  # Clean up session state
+
+        # Verify unique email succeeds
+        user3 = User(
+            id=str(uuid.uuid4()),
+            email=f"different-{unique_email}",
+            role=UserRole.MEMBER.value
+        )
+        db_session.add(user3)
+        db_session.commit()
+        assert user3.id is not None, "User with different email should be created"
 
     @given(
         agent_name=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz0123456789_-')
