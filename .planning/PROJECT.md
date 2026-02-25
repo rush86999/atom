@@ -1,17 +1,17 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v2.0 Feature & Coverage Complete
+## Current Milestone: v3.3 Finance Testing & Bug Fixes
 
-**Goal:** Complete all remaining test coverage phases (55 incomplete) and integrate Community Skills feature while achieving 80% overall coverage with 100% test pass rate.
+**Goal:** Comprehensive test coverage and bug fixes for finance/accounting systems to ensure financial accuracy, payment reliability, and audit compliance.
 
 **Target features:**
-- Community Skills Integration (5,000+ OpenClaw skills)
-- Agent Layer Testing (governance, graduation, execution)
-- Test failure fixes (all 40+ failures resolved)
-- Tier 1 coverage push (28% overall coverage target)
-- Memory layer verification (episodic memory coverage)
+- Core accounting logic (financial calculations, transaction processing, operations)
+- Payment integrations (processing, invoices, subscriptions, billing workflows)
+- Cost tracking & budgets (enforcement, reporting, budget alerts)
+- Audit trails & compliance (reconciliation, financial audits, compliance checks)
+- Fix known finance/accounting bugs discovered in testing
 
-**Achievement from v1.0:** 200/203 plans complete (99%), 81 tests passing in Phase 28, production-ready codebase with comprehensive testing infrastructure.
+**Achievement from v3.2:** 5/10 phases complete with 38 property tests (database + governance), error path testing (340 tests), security edge cases (156 tests), 12 bugs/vulnerabilities found and documented
 
 ---
 
@@ -43,14 +43,12 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-<!-- Milestone v2.0: Complete all 55 remaining phases -->
-- [ ] **Community Skills Integration** — Import 5,000+ OpenClaw skills with Docker sandbox security (Phase 14)
-- [ ] **Agent Layer Testing** — Comprehensive governance, graduation, and execution coverage (Phase 17)
-- [ ] **Test Failure Fixes** — Resolve all 40+ remaining test failures across workflow engine, analytics, BYOK, governance (Phases 10, 19)
-- [ ] **Tier 1 Coverage Push** — Achieve 28% overall coverage by testing 6 highest-impact files (>500 lines, <20% coverage) (Phase 12)
-- [ ] **Memory Layer Verification** — Episodic memory coverage with property-based invariants (Phase 3)
-- [ ] **Mobile Coverage Completion** — Resolve Expo SDK 50 compatibility, complete device context tests (Phase 5)
-- [ ] **Documentation Cleanup** — Update all docs to reflect v2.0 features (Phase 24)
+<!-- Milestone v3.3: Finance testing and bug fixes -->
+- [ ] **Core Accounting Logic** — Property tests for financial calculations, transaction processing, accounting operations (Finance-Calc, Finance-Txn)
+- [ ] **Payment Integrations** — Integration tests for payment processing, invoices, subscriptions, billing workflows (Finance-Pay)
+- [ ] **Cost Tracking & Budgets** — Tests for budget enforcement, cost tracking, reporting, alerts (Finance-Budget)
+- [ ] **Audit Trails & Compliance** — Tests for reconciliation, financial audits, compliance checks (Finance-Audit)
+- [ ] **Finance Bug Fixes** — Fix known finance/accounting bugs discovered in testing (Finance-Fix)
 
 ### Out of Scope
 
@@ -113,4 +111,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-02-18 after Milestone v2.0 initialization*
+*Last updated: 2026-02-25 after Milestone v3.3 initialization*
