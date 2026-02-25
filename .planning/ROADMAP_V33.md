@@ -29,14 +29,20 @@ Each phase uses property-based testing with Hypothesis to validate financial inv
   3. Transaction workflow tested end-to-end (ingestion → categorization → posting → reconciliation)
   4. Property-based tests validate financial invariants (precision conservation, idempotency, rounding behavior)
   5. Known finance/accounting bugs discovered in testing are documented and fixed
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Wave Structure:**
+- Wave 1: Plan 01 (Decimal precision foundation) - standalone infrastructure
+- Wave 2: Plans 02 (Double-entry validation), 03 (Database migration) - parallel after 01
+- Wave 3: Plan 04 (Property tests update) - depends on 01, 02
+- Wave 4: Plan 05 (Integration tests & bugs) - depends on all previous
 
 Plans:
-- [ ] 91-01: Decimal precision implementation (FIN-01)
-- [ ] 91-02: Double-entry validation testing (FIN-02)
-- [ ] 91-03: Transaction workflow testing (FIN-03)
-- [ ] 91-04: Financial invariants property tests (FIN-04)
-- [ ] 91-05: Finance bug fixes (FIN-05)
+- [ ] 91-01-PLAN.md — Decimal precision implementation (FIN-01): Create decimal_utils.py, refactor financial_ops_engine.py and ai_accounting_engine.py to use Decimal, add factory_boy/pytest-freezegun to requirements.txt
+- [ ] 91-02-PLAN.md — Double-entry validation testing (FIN-02): Create accounting_validator.py with exact Decimal comparison (no epsilon), refactor ledger.py, property tests for double-entry invariants
+- [ ] 91-03-PLAN.md — Database migration Float to Numeric (FIN-03): Update models.py to Numeric(19,4), create Alembic migration, migration tests
+- [ ] 91-04-PLAN.md — Financial invariants property tests (FIN-04): Create decimal_fixtures.py, update test_financial_invariants.py and test_ai_accounting_invariants.py to use Decimal strategies, new precision invariants tests
+- [ ] 91-05-PLAN.md — Integration tests & bug fixes (FIN-05): Create test_transaction_workflow.py, document all known bugs in FINANCE_BUG_FIXES.md
 
 ### Phase 92: Payment Integration Testing
 **Goal**: Mock payment provider behavior matches real Stripe/PayPal test modes with webhook testing, idempotency validation, and race condition detection
