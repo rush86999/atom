@@ -24,6 +24,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from core.models import FinancialAudit, FinancialAccount
+from core.hash_chain_integrity import HashChainIntegrity
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,7 @@ def _is_financial_model(instance: Any) -> bool:
 
 def _create_audit_entry(session: Session, instance: Any, action: str) -> Optional[str]:
     """
-    Create FinancialAudit entry with hash chain support.
+    Create FinancialAudit entry with hash chain integrity.
 
     Args:
         session: SQLAlchemy session
@@ -156,28 +157,56 @@ def _create_audit_entry(session: Session, instance: Any, action: str) -> Optiona
         Audit entry ID or None if creation failed
     """
     try:
-        # Get account_id from instance
+        # Get account_id from instance before deletion
+        # For deleted objects, we need to get the ID from the instance state
         account_id = str(getattr(instance, 'id', 'unknown'))
+
+        # For DELETE operations, account might already be detached
+        # We need to get values from instance's internal state
+        if action == 'delete':
+            # Use the instance's committed state for deleted objects
+            if hasattr(instance, '_sa_instance_state'):
+                try:
+                    # Try to get ID from the instance's committed state
+                    account_id = str(instance._sa_instance_state.key[1][0])
+                except (KeyError, IndexError, TypeError):
+                    # Fallback to direct attribute access
+                    account_id = str(getattr(instance, 'id', 'unknown'))
 
         # Get previous entry's hash for chain integrity
         prev_entry = session.query(FinancialAudit).filter(
             FinancialAudit.account_id == account_id
-        ).order_by(FinancialAudit.timestamp.desc()).first()
+        ).order_by(FinancialAudit.sequence_number.desc()).first()
 
         prev_hash = prev_entry.entry_hash if prev_entry else ''
 
-        # Extract old/new values based on action
+        # Get next sequence number
+        next_sequence = (prev_entry.sequence_number + 1) if prev_entry else 1
+
+        # Get values
+        user_id = _get_user_id(session)
         old_values = _extract_values(instance, action, 'old') if action in ['update', 'delete'] else None
         new_values = _extract_values(instance, action, 'new') if action in ['create', 'update'] else None
+        agent_maturity = _get_agent_maturity(session)
+        timestamp = datetime.utcnow()
 
-        # Compute entry hash (placeholder - full implementation in Plan 03)
-        entry_hash = _compute_entry_hash(action, old_values, new_values, prev_hash, account_id)
+        # Compute hash using HashChainIntegrity (real cryptographic hash)
+        entry_hash = HashChainIntegrity.compute_entry_hash(
+            account_id=account_id,
+            action_type=action,
+            old_values=old_values,
+            new_values=new_values,
+            timestamp=timestamp,
+            sequence_number=next_sequence,
+            prev_hash=prev_hash,
+            user_id=user_id
+        )
 
         # Create FinancialAudit record
         audit = FinancialAudit(
             id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),  # Will be overwritten by server_default=func.now()
-            user_id=_get_user_id(session),
+            timestamp=timestamp,  # Will be overwritten by server_default=func.now()
+            user_id=user_id,
             agent_id=_get_agent_id(session),
             agent_execution_id=_get_agent_execution_id(session),
             account_id=account_id,
@@ -187,14 +216,14 @@ def _create_audit_entry(session: Session, instance: Any, action: str) -> Optiona
             new_values=new_values,
             success=True,  # after_flush means operation succeeded
             error_message=None,
-            agent_maturity=_get_agent_maturity(session),
+            agent_maturity=agent_maturity,
             governance_check_passed=True,  # Placeholder
             required_approval=False,  # Placeholder
             approval_granted=None,
             request_id=_get_request_id(session),
             ip_address=_get_ip_address(session),
             user_agent=_get_user_agent(session),
-            sequence_number=_get_next_sequence(session, account_id),
+            sequence_number=next_sequence,
             entry_hash=entry_hash,
             prev_hash=prev_hash
         )
@@ -261,28 +290,6 @@ def _compute_changes(old_values: Optional[Dict], new_values: Optional[Dict]) -> 
             changes[key] = {'old': old_values[key], 'new': new_values[key]}
 
     return changes
-
-
-def _compute_entry_hash(action: str, old_values: Optional[Dict],
-                        new_values: Optional[Dict], prev_hash: str,
-                        account_id: str) -> str:
-    """
-    Compute hash for audit entry (placeholder - full implementation in Plan 03).
-
-    Args:
-        action: Operation type
-        old_values: Old state dictionary
-        new_values: New state dictionary
-        prev_hash: Previous entry's hash
-        account_id: Account identifier
-
-    Returns:
-        SHA-256 hash as hex string
-    """
-    # Simplified hash computation for Plan 01
-    # Full implementation in Plan 03 will include old_values, new_values
-    data = f"{action}{account_id}{prev_hash}{datetime.utcnow().isoformat()}"
-    return hashlib.sha256(data.encode()).hexdigest()
 
 
 def _get_next_sequence(session: Session, account_id: str) -> int:
@@ -394,3 +401,30 @@ def _get_user_agent(session: Session) -> Optional[str]:
         User agent string or None
     """
     return session.info.get('user_agent')
+
+
+# ==================== HASH CHAIN INTEGRITY ====================
+
+def verify_audit_chain(
+    db: Session,
+    account_id: str
+) -> Dict[str, Any]:
+    """
+    Verify hash chain integrity for an account's audit trail.
+
+    Convenience function that creates HashChainIntegrity instance
+    and verifies the chain.
+
+    Args:
+        db: SQLAlchemy session
+        account_id: Account to verify
+
+    Returns:
+        Dict with verification results:
+        - is_valid: bool - True if all hashes match
+        - total_entries: int - Number of entries checked
+        - first_break: Optional[Dict] - First mismatch found
+        - break_count: int - Number of broken links
+    """
+    integrity = HashChainIntegrity(db)
+    return integrity.verify_chain(account_id)
