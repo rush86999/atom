@@ -89,6 +89,121 @@ class CostLeakDetector:
             "potential_annual_savings": float(unused_savings * 12)
         }
 
+    def validate_categorization(self) -> Dict[str, Any]:
+        """
+        Validate that all subscriptions have valid categories.
+
+        Returns:
+            Dict with:
+            - valid: bool - True if all subscriptions categorized
+            - uncategorized: List[str] - IDs of subscriptions with empty/invalid categories
+            - invalid: List[str] - IDs of subscriptions with None or missing categories
+        """
+        uncategorized = []
+        invalid = []
+
+        for sub_id, sub in self._subscriptions.items():
+            if not sub.category or sub.category.strip() == "":
+                uncategorized.append(sub_id)
+            if sub.category is None:
+                invalid.append(sub_id)
+
+        return {
+            "valid": len(uncategorized) == 0 and len(invalid) == 0,
+            "uncategorized": uncategorized,
+            "invalid": invalid
+        }
+
+    def get_subscription_by_id(self, sub_id: str) -> Optional[SaaSSubscription]:
+        """
+        Get subscription by ID.
+
+        Args:
+            sub_id: Subscription ID
+
+        Returns:
+            SaaSSubscription or None if not found
+        """
+        return self._subscriptions.get(sub_id)
+
+    def calculate_total_cost(self) -> Decimal:
+        """
+        Calculate total monthly cost of all subscriptions.
+
+        Returns:
+            Decimal: Total monthly cost across all subscriptions
+        """
+        total = sum((to_decimal(sub.monthly_cost) for sub in self._subscriptions.values()), Decimal('0.00'))
+        return total
+
+    def verify_savings_calculation(self) -> Dict[str, Any]:
+        """
+        Verify savings calculation by recalculating from detected unused subscriptions.
+
+        Returns:
+            Dict with:
+            - match: bool - True if recalculated savings matches report
+            - expected: Decimal - Recalculated savings from unused subscriptions
+            - actual: Decimal - Savings from get_savings_report()
+            - diff: Decimal - Difference between expected and actual
+        """
+        # Recalculate from unused subscriptions
+        unused = self.detect_unused()
+        expected_savings = sum((to_decimal(u["monthly_cost"]) for u in unused), Decimal('0.00'))
+
+        # Get actual from report
+        report = self.get_savings_report()
+        actual_savings = to_decimal(report["potential_monthly_savings"])
+
+        diff = abs(expected_savings - actual_savings)
+
+        return {
+            "match": diff == Decimal('0.00'),
+            "expected": expected_savings,
+            "actual": actual_savings,
+            "diff": diff
+        }
+
+    def detect_anomalies(self) -> List[Dict[str, Any]]:
+        """
+        Detect unusual cost patterns in subscriptions.
+
+        Returns:
+            List of anomaly dictionaries with type, subscription_id, description
+        """
+        anomalies = []
+
+        for sub in self._subscriptions.values():
+            # Anomaly 1: Zero user cost (high cost with no active users)
+            if sub.active_users == 0 and sub.monthly_cost > Decimal('100.00'):
+                anomalies.append({
+                    "type": "zero_active_users_high_cost",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' costs ${sub.monthly_cost}/month but has 0 active users"
+                })
+
+            # Anomaly 2: Cost spike (if we had historical data)
+            # Not implemented without historical data
+
+            # Anomaly 3: Very high unused cost
+            cutoff = datetime.now() - timedelta(days=self.unused_threshold_days)
+            if sub.last_used < cutoff and sub.monthly_cost > Decimal('500.00'):
+                anomalies.append({
+                    "type": "high_cost_unused",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' costs ${sub.monthly_cost}/month and hasn't been used in {(datetime.now() - sub.last_used).days} days"
+                })
+
+            # Anomaly 4: Inactive but has active users (data inconsistency)
+            if sub.active_users > 0 and sub.last_used < cutoff:
+                anomalies.append({
+                    "type": "data_inconsistency",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' has {sub.active_users} active users but last_used is {(datetime.now() - sub.last_used).days} days ago"
+                })
+
+        return anomalies
+
 # ==================== BUDGET GUARDRAILS ====================
 
 class SpendStatus(Enum):
@@ -105,6 +220,9 @@ class BudgetLimit:
     current_spend: Decimal = Decimal('0.00')
     deal_stage_required: Optional[str] = None  # e.g., "closed_won"
     milestone_required: Optional[str] = None   # e.g., "kickoff_complete"
+    warn_threshold_pct: int = 80  # Warn at this percentage
+    pause_threshold_pct: int = 90  # Pause at this percentage
+    block_threshold_pct: int = 100  # Block at this percentage
 
 class BudgetGuardrails:
     """Enforces spending limits and approval rules"""
