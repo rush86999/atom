@@ -1,287 +1,302 @@
-# Feature Research: Comprehensive Testing Initiative
+# Feature Landscape
 
-**Domain:** Software Testing - 80% Coverage in 1-2 Weeks
-**Researched:** February 10, 2026
-**Confidence:** MEDIUM
+**Domain:** Finance/Accounting Testing for Automation Platform
+**Researched:** February 25, 2026
+**Overall confidence:** MEDIUM
 
-## Feature Landscape
+## Executive Summary
 
-### Table Stakes (Users Expect These)
+Finance and accounting testing requires extreme precision, audit trail integrity, and compliance with regulatory standards. Based on research across payment processing, financial calculations, and accounting systems, this document outlines table stakes features (must-haves), differentiators (competitive advantages), and anti-features (pitfalls to avoid) for v3.3 finance testing capabilities.
 
-Features users assume exist in comprehensive testing initiatives. Missing these = testing framework feels incomplete.
+**Key Findings:**
+- **Precision is non-negotiable**: Financial systems require exact decimal arithmetic (Python's `decimal` module, not floats)
+- **Property-based testing is ideal**: Hypothesis-style tests excel at finding edge cases in financial calculations
+- **Mock payment servers are critical**: Stripe-mock, VCR, or similar for realistic integration testing without real money
+- **Audit trails are legal requirements**: Financial transactions must have complete, chronological, immutable audit logs
+- **Existing Atom infrastructure is strong**: Property-based testing framework and database invariants are already in place
+
+## Table Stakes
+
+Features users expect in any finance/accounting testing system. Missing = product feels incomplete or unusable.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Test Coverage Metrics** | Industry standard (80% threshold) - teams require coverage before code review | LOW | pytest-cov integrated, targets configured in pytest.ini (line 58: `--cov-fail-under=80`) |
-| **Unit Tests** | Foundation of any testing strategy - verify individual components in isolation | LOW | 517 test files exist, pytest configured with standard markers |
-| **Property-Based Tests** | Modern testing best practice - verify invariants across random inputs | MEDIUM | Hypothesis integrated, 108 property test files, ~3,699 test functions |
-| **Integration Tests** | Required to verify component interactions | MEDIUM | Present across test suite, focus on governance, security, episodic memory |
-| **CI/CD Integration** | Tests must run automatically in pipeline | LOW | pytest.ini configured for CI (hypothesis_strategy = conservative) |
-| **Test Discovery & Organization** | Standard pytest feature - find and run tests by pattern | LOW | Configured in pytest.ini lines 5-10 |
-| **Fixtures & Test Data** | Required for repeatable, isolated tests | MEDIUM | conftest.py exists in property_tests for shared fixtures |
-| **Assertion Libraries** | Basic requirement for any test framework | LOW | pytest built-in assertions |
-| **Test Markers** | Required for categorizing and running test subsets | LOW | 20+ markers defined in pytest.ini lines 13-45 |
-| **Async Test Support** | Required for modern async frameworks (FastAPI) | LOW | Configured in pytest.ini line 63: `asyncio_mode = auto` |
-| **Failure Reporting** | Essential for debugging - needs tracebacks and context | LOW | `--tb=short --showlocals` in pytest.ini line 60 |
-| **Coverage Reports** | Required to track progress toward 80% goal | LOW | HTML, terminal, and JSON reports configured lines 54-56 |
+| **Decimal Precision** | Financial calculations MUST use exact arithmetic (no floating-point errors) | Low | Use Python `Decimal` module for all monetary values. Initialize with strings, not floats. |
+| **Double-Entry Validation** | Every financial transaction must balance (debits = credits) | Medium | Core accounting invariant. Test that all transactions maintain balance. |
+| **Audit Trail Integrity** | Legal requirement for financial systems (SOX, GAAP) | Medium | Complete chronological logs with who/what/when. Immutability critical. |
+| **Reconciliation Testing** | Match invoices to contracts, detect discrepancies | Medium | Verify tolerance-based matching (e.g., 5% variance acceptable). |
+| **Currency Conversion** | Multi-currency businesses require accurate FX handling | Medium | Test round-trip conversions (USD→EUR→USD ≈ original). |
+| **Tax Calculations** | Sales tax, VAT, GST must be calculated correctly | Low | Test tax-inclusive vs tax-exclusive, compound taxes (federal + state). |
+| **Invoice Aging** | Track overdue payments for cash flow management | Low | Test aging buckets (current, 1-30, 31-60, 61+ days). |
+| **Payment Term Enforcement** | Late fees, early payment discounts | Low | Verify terms applied correctly (Net 30, 2/10 Net 30). |
+| **Transaction Status Workflow** | Ingest → Categorize → Review → Post | Medium | Test state transitions, gatekeeping (can't post if review required). |
+| **Mock Payment Servers** | Test Stripe/PayPal integration without real money | High | Use stripe-mock, VCR, or build mock HTTP servers. |
 
-### Differentiators (Competitive Advantage)
+## Differentiators
 
-Features that set this testing initiative apart from standard approaches. Not required, but valuable for the 1-2 week aggressive timeline.
+Features that set product apart. Not expected, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Property-Based Testing Framework** | Finds edge cases unit tests miss - 10x-100x more test cases per test | HIGH | Already implemented - 108 files, tests invariants across random inputs |
-| **Critical Path Prioritization** | Achieve 80% coverage faster by focusing on governance, security, episodic memory | MEDIUM | P0/P1/P2/P3 markers already defined (lines 36-39) |
-| **Hypothesis Integration** | Automatically generates counterexamples - reduces debugging time | MEDIUM | Configured with conservative strategy, max 200 examples |
-| **Risk-Based Testing** | Focus on high-impact areas (governance, security) for maximum coverage ROI | MEDIUM | Domain markers: financial, security, api, database, workflow, episode, agent, governance |
-| **Test Protection Mechanisms** | Prevents AI/automation from modifying critical invariant tests | MEDIUM | PROPERTY_TEST_GUARDIAN.md referenced in README |
-| **Parallel Test Execution** | Reduces CI time from hours to minutes - critical for 1-2 week sprint | MEDIUM | Requires pytest-xdist configuration |
-| **Coverage by Domain** | Track coverage for critical subsystems (governance, security, episodic memory) | LOW | Can use `--cov=core/governance` for domain-specific reports |
-| **Test Impact Analysis** | Only run tests affected by code changes - speeds up iteration | HIGH | Requires pytest-picked or similar tool |
-| **Fuzzy Testing** | Find security vulnerabilities through random malformed inputs | HIGH | Fuzzy marker exists (line 21), implementation incomplete |
-| **Mutation Testing** | Verify test quality by introducing code mutations | HIGH | Mutation marker exists (line 22), implementation incomplete |
-| **Chaos Engineering** | Test system resilience under failure conditions | HIGH | Chaos marker exists (line 23), implementation incomplete |
-| **API Contract Testing** | Verify API contracts across versions - prevents breaking changes | MEDIUM | api_contracts/ directory exists with tests |
-| **Performance Regression Tests** | Catch performance degradations before they hit production | MEDIUM | Performance marker exists, performance/ directory with invariants |
-| **Coverage Trending** | Track coverage over time - shows progress toward 80% goal | LOW | JSON coverage report enables historical tracking |
-| **Governance-Specific Testing** | Test agent maturity levels, confidence scores, action complexity matrix | MEDIUM | UNIQUE to Atom - governance/ property tests validate critical invariants |
+| **Property-Based Financial Tests** | Find edge cases that example-based tests miss | Medium | Use Hypothesis to generate random valid inputs (amounts, rates, dates). |
+| **Cost Leak Detection** | Automatically find unused subscriptions/redundant tools | High | Analyze usage patterns, flag wasteful spending. |
+| **Budget Guardrails** | Prevent overspending with real-time enforcement | Medium | Pause spending when budgets exceeded, require approvals. |
+| **AI-Powered Categorization** | Auto-categorize transactions with confidence scores | High | Test confidence thresholds (0.85 = auto-post, <0.85 = review). |
+| **Reconciliation Discrepancy Detection** | Flag invoices outside expected variance | Medium | Test tolerance thresholds, automatic discrepancy reports. |
+| **Multi-Currency Consistency** | Test cross-currency conversions, triangulation | Medium | Verify USD→EUR→GBP consistent with direct USD→GBP rate. |
+| **Compound Tax Scenarios** | Federal + state + local tax combinations | Medium | Test tax layering, ensure total calculated correctly. |
+| **Revenue Recognition Timing** | Recognize revenue over contract period | Medium | Test linear recognition vs milestone-based. |
+| **Integration Test Snapshots** | VCR-style recording of payment provider responses | High | Speed up tests, avoid rate limits, deterministic results. |
+| **Financial Invariant Suite** | Comprehensive property tests for all financial logic | High | Net worth, balance sheet, revenue recognition, aging calculations. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Anti-Features
 
-Features that seem good but create problems for aggressive 1-2 week timeline.
+Features to explicitly NOT build.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **100% Coverage Goal** | Seems like "complete" testing | Diminishing returns, impossible in 2 weeks, tests trivial code | 80% is industry standard, focus on critical paths |
-| **E2E Tests for All Workflows** | Comprehensive coverage across full stack | Extremely slow, fragile, hard to maintain, blocks 1-2 week goal | Integration tests for critical workflows only |
-| **Manual Test Plans** | Thoroughness, human judgment | Too slow for 2-week sprint, not repeatable, hard to measure | Automated tests with coverage metrics |
-| **Mutation Testing in CI** | Ensures test quality | Very slow (10x-100x test runtime), blocks rapid iteration | Run mutation tests nightly/weekly, not in PR checks |
-| **Chaos Engineering in Production** | Real-world resilience testing | Too risky for aggressive timeline, requires production infrastructure | Chaos tests in dev/staging with controlled failures |
-| **Fuzzy Testing for All Inputs** | Find security vulnerabilities | Extremely slow, high false positive rate, hard to triage | Fuzzy tests for security-critical endpoints only |
-| **Custom Test Framework** | Tailored to specific needs | Reinventing wheel, maintenance burden, slower implementation | Use pytest + Hypothesis (already integrated) |
-| **Flaky Test Retry Logic** | Hide intermittent test failures | Masks real problems, makes debugging harder, wastes CI time | Fix flaky tests at source (make them deterministic) |
-| **Testing Implementation Details** | Feels like "thorough" coverage | Brittle tests, break on refactoring, slow maintenance | Test public interfaces and invariants only |
-| **Snapshot Testing** | Easy to write UI/component tests | Committing snapshots creates noise, hard to review, version control pollution | Property-based tests for component invariants instead |
-| **Test-Driven Development (TDD)** | Ensures tests exist | Slows down initial development, learning curve, conflicts with 2-week goal | Test-After Development for existing codebase |
-| **Coverage-Based Commits** | "Tests must pass to commit" | Blocks progress, encourages writing bad tests, gameable metric | Coverage gates on PR merge, not on commit |
-| **Multiple Testing Frameworks** | "Best tool for each job" | Fragmentation, maintenance burden, slower onboarding | Standardize on pytest + Hypothesis |
-| **Complex Test Doubles** | Isolate dependencies | Brittle, hard to maintain, drift from real implementations | Use real dependencies in integration tests, minimal mocks |
-| **Golden Master Testing** | Verify legacy behavior | Unmaintainable, hard to understand, blocks refactoring | Property-based invariants instead of golden master |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Float-based Money** | Floating-point precision errors cause accounting discrepancies | Always use `Decimal` initialized with strings |
+| **Live Payment Testing** | Risk of accidental real money transactions, slow, non-deterministic | Use stripe-mock, VCR cassettes, or mock HTTP servers |
+| **Incomplete Audit Trails** | Legal compliance failure, cannot reconstruct financial history | Immutable logs with complete who/what/when for every transaction |
+| **Silent Rounding** | Hidden rounding errors accumulate to material discrepancies | Explicit rounding at each calculation step, track rounding differences |
+| **Hardcoded Currency Rates** | FX rates change constantly, outdated data causes errors | Fetch live rates from provider API or use test fixtures with timestamps |
+| **Missing Idempotency** | Duplicate payments/invoices from retry logic | Unique idempotency keys, detect duplicate transaction IDs |
+| **Time-Dependent Tests** | Tests fail at month boundaries, leap years, timezones | Freeze time with freezegun, use fixed dates in property tests |
+| **State-Sharing Tests** | Tests interfere with each other, flaky failures | Isolate test data, use transactions with rollback, clean up fixtures |
+| **Missing Negative Tests** | Don't test error paths (insufficient funds, invalid cards) | Test failure scenarios: declines, timeouts, network errors |
+| **Blind Spot in Edge Cases** | Only testing "happy path" misses critical bugs | Property tests with Hypothesis generate thousands of random inputs |
 
 ## Feature Dependencies
 
 ```
-[Critical Path Prioritization]
-    └──requires──> [Test Coverage Metrics]
-                   └──requires──> [Test Markers]
-                                  └──enhances──> [Coverage by Domain]
-
-[Property-Based Testing Framework]
-    └──requires──> [Hypothesis Integration]
-                   └──requires──> [Test Fixtures]
-                                  └──enhances──> [Governance-Specific Testing]
-
-[Parallel Test Execution]
-    └──requires──> [Test Isolation]
-                   └──conflicts──> [Shared State]
-
-[Test Impact Analysis]
-    └──requires──> [Git Integration]
-                   └──enhances──> [CI/CD Integration]
-
-[API Contract Testing]
-    └──requires──> [Integration Tests]
-                   └──enhances──> [Coverage by Domain]
-
-[Mutation Testing]
-    └──requires──> [Unit Tests]
-                   └──conflicts──> [Fast CI/CD] (too slow for main pipeline)
-
-[Coverage Trending]
-    └──requires──> [Coverage Reports]
-                   └──requires──> [Historical Data Storage]
+Decimal Precision → Double-Entry Validation (requires exact arithmetic)
+Audit Trail Integrity → Transaction Status Workflow (log each transition)
+Mock Payment Servers → Reconciliation Testing (need consistent test data)
+Property-Based Tests → All Financial Features (Hypothesis finds edge cases)
+Currency Conversion → Multi-Currency Consistency (prerequisite)
+Tax Calculations → Compound Tax Scenarios (build on basic tax)
 ```
 
-### Dependency Notes
+## MVP Recommendation
 
-- **Critical Path Prioritization requires Test Coverage Metrics**: Can't prioritize what you can't measure. Coverage metrics are the foundation.
-- **Test Markers enhance Coverage by Domain**: Markers (P0/P1, security, governance) enable domain-specific coverage reporting.
-- **Property-Based Testing Framework requires Hypothesis Integration**: Can't do property-based tests without a strategy/generation library.
-- **Test Fixtures enhance Governance-Specific Testing**: Shared fixtures (db_session, mock_agents) make governance tests faster to write.
-- **Parallel Test Execution requires Test Isolation**: Tests must be independent to run in parallel without race conditions.
-- **Test Isolation conflicts with Shared State**: Any shared mutable state breaks parallel execution.
-- **Test Impact Analysis requires Git Integration**: Needs git diff to determine which tests to run.
-- **Test Impact Analysis enhances CI/CD Integration**: Makes CI faster by running only relevant tests.
-- **API Contract Testing requires Integration Tests**: Contract tests are a specialized form of integration testing.
-- **API Contract Testing enhances Coverage by Domain**: Improves API domain coverage specifically.
-- **Mutation Testing requires Unit Tests**: Can't mutate code if there are no tests to verify the mutation.
-- **Mutation Testing conflicts with Fast CI/CD**: Too slow for main pipeline, move to separate job.
-- **Coverage Trending requires Coverage Reports**: JSON reports (line 56) provide data for trending.
-- **Coverage Trending requires Historical Data Storage**: Need to persist coverage.json over time to show trends.
+**Prioritize for v3.3:**
 
-## MVP Definition
+1. **Core Accounting Logic** (High Priority)
+   - Decimal precision for all monetary values
+   - Double-entry validation (debits = credits)
+   - Transaction status workflow (ingest → categorize → review → post)
+   - Property-based tests using Hypothesis
 
-### Launch With (v1) - Week 1-2
+2. **Payment Integration Testing** (High Priority)
+   - Mock payment server (stripe-mock or custom)
+   - Test failure scenarios (declines, timeouts, insufficient funds)
+   - Idempotency key validation
+   - Webhook testing (simulated payment callbacks)
 
-Minimum viable product to achieve 80% coverage on critical paths.
+3. **Audit Trails & Compliance** (High Priority)
+   - Complete chronological logging (who/what/when)
+   - Immutability (logs cannot be altered)
+   - Required fields validation (timestamp, action, transaction_id, user_id)
+   - Log aggregation and querying
 
-- [x] **Test Coverage Metrics** - Already configured (pytest-cov, 80% threshold)
-- [x] **Unit Tests** - 517 test files exist
-- [x] **Property-Based Tests** - 108 files with Hypothesis integration
-- [x] **Test Markers** - 20+ markers defined for prioritization
-- [x] **CI/CD Integration** - pytest.ini configured for CI
-- [ ] **Critical Path Prioritization** - Need to identify and prioritize governance, security, episodic memory tests
-- [ ] **Coverage by Domain** - Generate separate coverage reports for core/, api/, tools/
-- [ ] **Coverage Trending** - Set up historical tracking of coverage.json
-- [ ] **Test Isolation Verification** - Ensure all tests can run in parallel (fix shared state issues)
-- [ ] **Critical Path Test Coverage** - Achieve 80% on governance, security, episodic memory specifically
+4. **Cost Tracking & Budgets** (Medium Priority)
+   - Budget limit enforcement (pause when exceeded)
+   - Cost leak detection (unused subscriptions)
+   - Reconciliation discrepancy detection
+   - Tolerance-based matching (5% variance acceptable)
 
-### Add After Validation (v1.x) - Post Sprint
+**Defer to Future Releases:**
+- AI-powered categorization (requires ML infrastructure)
+- Real-time FX rate fetching (requires provider integration)
+- Advanced revenue recognition (complex contract scenarios)
+- Multi-entity consolidation (requires chart of accounts mapping)
 
-Features to add once core 80% coverage is achieved.
+## Complexity Assessment
 
-- [ ] **Parallel Test Execution** - Add pytest-xdist to reduce CI time
-- [ ] **Test Impact Analysis** - Add pytest-picked to run only affected tests
-- [ ] **API Contract Testing** - Expand api_contracts/ tests
-- [ ] **Performance Regression Tests** - Set up performance baselines and regression detection
-- [ ] **Governance-Specific Test Reports** - Custom coverage reports for governance domain
+| Area | Complexity | Why |
+|------|------------|-----|
+| Decimal Precision | **Low** | Python `Decimal` module well-documented, straightforward usage |
+| Double-Entry Validation | **Medium** | Requires understanding debits/credits, account types |
+| Mock Payment Servers | **High** | HTTP mocking, webhooks, error scenarios, idempotency |
+| Budget Enforcement | **Medium** | State tracking, threshold logic, alert triggers |
+| Reconciliation | **Medium** | Tolerance matching, discrepancy detection, variance calculation |
+| Audit Trails | **Medium** | Immutability, log structure, querying, retention policies |
+| Property-Based Tests | **Medium** | Hypothesis learning curve, strategy design, invariant definition |
+| Currency Conversion | **Medium** | FX rates, rounding, triangulation, timestamp handling |
+| Tax Calculations | **Low** | Straightforward formulas, test inclusive/exclusive scenarios |
+| Invoice Aging | **Low** | Date arithmetic, bucket assignment, aggregation |
 
-### Future Consideration (v2+) - After MVP
+## Integration with Existing Atom Architecture
 
-Features to defer until testing infrastructure is stable.
+**Existing Infrastructure to Leverage:**
 
-- [ ] **Fuzzy Testing** - Implement fuzzy/ marker tests for security endpoints
-- [ ] **Mutation Testing** - Add mutation testing (separate CI job)
-- [ ] **Chaos Engineering** - Implement chaos/ marker tests for resilience
-- [ ] **E2E Tests for Critical Workflows** - Add full-stack E2E tests for 5-10 critical user journeys
-- [ ] **Advanced Coverage Analytics** - Dashboards, coverage by feature, coverage trends over time
-- [ ] **Test Quality Metrics** - Track test flakiness, test runtime, test failure rate
+1. **Property-Based Testing Framework** ✅
+   - `backend/tests/property_tests/` already has Hypothesis tests
+   - `test_governance_maturity_invariants.py` shows pattern for property tests
+   - Reuse `@given`, `@settings`, `st.*` strategies
 
-## Feature Prioritization Matrix
+2. **Database Models & Migrations** ✅
+   - SQLAlchemy 2.0 models in `core/models.py`
+   - Use existing patterns for financial models (Transaction, Invoice, Account)
+   - Alembic migrations for schema changes
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Test Coverage Metrics | HIGH | LOW | P1 |
-| Critical Path Prioritization | HIGH | MEDIUM | P1 |
-| Coverage by Domain | HIGH | LOW | P1 |
-| Property-Based Tests | HIGH | MEDIUM (already done) | P1 |
-| Test Isolation Verification | HIGH | MEDIUM | P1 |
-| Coverage Trending | MEDIUM | LOW | P2 |
-| Parallel Test Execution | MEDIUM | MEDIUM | P2 |
-| API Contract Testing | MEDIUM | MEDIUM | P2 |
-| Performance Regression Tests | MEDIUM | MEDIUM | P2 |
-| Test Impact Analysis | MEDIUM | HIGH | P2 |
-| Governance-Specific Testing | HIGH | LOW (already done) | P1 |
-| Fuzzy Testing | LOW | HIGH | P3 |
-| Mutation Testing | LOW | HIGH | P3 |
-| Chaos Engineering | LOW | HIGH | P3 |
-| E2E Tests for All Workflows | LOW | VERY HIGH | P3 |
+3. **Service Layer Architecture** ✅
+   - `agent_governance_service.py` pattern for financial services
+   - Dependency injection with `db_session`
+   - Error handling with structured logging
 
-**Priority key:**
-- **P1**: Must have for 80% coverage in 1-2 weeks
-- **P2**: Should have, add when possible during sprint
-- **P3**: Nice to have, defer to post-sprint
+4. **Governance & RBAC** ✅
+   - Apply maturity gates to financial actions (INTERN+ for payments)
+   - Use existing permission system for financial approvals
+   - Audit trail integration with existing governance cache
 
-## Competitor Feature Analysis
+**New Components Needed:**
 
-| Feature | Typical Testing Framework | Atom's Approach | Competitive Advantage |
-|---------|---------------------------|-----------------|----------------------|
-| Coverage Thresholds | 70-80% standard | 80% configured (pytest.ini line 58) | Table stakes, met |
-| Property-Based Testing | Rare (mostly functional) | 108 property test files, Hypothesis integrated | **STRONG DIFFERENTIATOR** |
-| Test Organization | By file/module | By domain (governance, security, episodes) + markers | **DIFFERENTIATOR** - domain-driven testing |
-| Critical Path Focus | Ad-hoc, manual | P0/P1/P2/P3 markers, domain-specific markers | **DIFFERENTIATOR** - systematic prioritization |
-| Async Testing | Often separate framework | Integrated (pytest.ini line 63) | Table stakes, met |
-| CI/CD Integration | Manual or basic hooks | Configured for CI (conservative strategy) | Table stakes, met |
-| Coverage Reports | HTML + terminal | HTML + terminal + JSON (line 54-56) | Table stakes, met |
-| Test Protection | Not common | PROPERTY_TEST_GUARDIAN.md protection | **DIFFERENTIATOR** - prevents AI/automation corruption |
-| Governance Testing | Not applicable (unique to Atom) | governance/ property tests, confidence invariants | **UNIQUE** - no competitor has this |
-| Episodic Memory Testing | Not applicable | episodes/ property tests | **UNIQUE** - no competitor has this |
-| Fuzzy Testing | Rare (security-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
-| Mutation Testing | Rare (quality-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
-| Chaos Engineering | Rare (resilience-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
+1. **Financial Models** (SQLAlchemy)
+   - `FinancialTransaction` (amount, currency, debit_account, credit_account)
+   - `Invoice` (vendor, amount, date, contract_id, status)
+   - `BudgetLimit` (category, monthly_limit, current_spend)
+   - `AuditLogEntry` (timestamp, action, user_id, transaction_id, details)
 
-## Key Insights for 1-2 Week Sprint
+2. **Financial Services**
+   - `AccountingService` (double-entry posting, balance calculation)
+   - `PaymentService` (Stripe integration, mock provider switching)
+   - `ReconciliationService` (invoice matching, discrepancy detection)
+   - `BudgetService` (enforcement, alerts, reporting)
 
-### What's Already Done (Table Stakes Met)
-1. **pytest Configuration** - Complete with markers, coverage, async support
-2. **Property-Based Testing** - 108 files, Hypothesis integrated, ~3,699 tests
-3. **Test Organization** - Domain-specific directories (governance, security, episodes)
-4. **Coverage Infrastructure** - HTML, terminal, JSON reports configured
-5. **CI Readiness** - Conservative Hypothesis strategy for CI
+3. **Test Infrastructure**
+   - `stripe_mock_server.py` (HTTP server responding like Stripe API)
+   - `financial_fixtures.py` (test data generators for Hypothesis)
+   - `vcr_cassettes/` (recorded payment provider responses)
 
-### What's Missing (Critical for 80% in 2 Weeks)
-1. **Coverage by Domain** - Need separate reports for core/, api/, tools/
-2. **Coverage Trending** - Need to track coverage.json over time
-3. **Critical Path Identification** - Need to identify highest-impact tests for governance/security/episodes
-4. **Test Isolation** - Need to verify all tests can run in parallel (fix shared state)
-5. **Domain-Specific 80%** - Need to achieve 80% on governance, security, episodic memory specifically
+## Test Coverage Targets
 
-### What to Defer (Anti-Features for Sprint)
-1. **100% Coverage** - Not realistic in 2 weeks, focus on 80% critical paths
-2. **E2E Tests** - Too slow, focus on integration tests
-3. **Mutation/Fuzzy/Chaos Testing** - Too complex for sprint, markers exist for future
-4. **Test Impact Analysis** - Nice to have, but not blocking for 80% coverage
-5. **Parallel Test Execution** - Speed optimization, defer until after 80% achieved
+| Area | Target Coverage | Priority |
+|------|----------------|----------|
+| Decimal Precision | 100% | Critical (precision errors = financial bugs) |
+| Double-Entry Validation | 100% | Critical (accounting invariant) |
+| Payment Integration | 90%+ | High (include failure scenarios) |
+| Audit Trail | 100% | Critical (compliance requirement) |
+| Budget Enforcement | 85%+ | High (business logic) |
+| Reconciliation | 85%+ | High (discrepancy detection) |
+| Currency Conversion | 80%+ | Medium (edge cases in FX) |
+| Tax Calculations | 90%+ | Medium (regulatory impact) |
+| Invoice Aging | 80%+ | Low (date arithmetic) |
 
-### Recommended Sprint Plan (2 Weeks)
+## Existing Atom Financial Test Infrastructure
 
-**Week 1: Infrastructure + Critical Paths**
-- Day 1-2: Set up coverage by domain (core/, api/, tools/), implement trending
-- Day 3-4: Identify critical paths (governance, security, episodic memory), write missing tests
-- Day 5: Fix test isolation issues, verify parallel execution readiness
+**Already Implemented (from codebase analysis):**
 
-**Week 2: Coverage + Domain Focus**
-- Day 1-3: Achieve 80% coverage on governance domain (highest priority)
-- Day 4: Achieve 80% coverage on security domain
-- Day 5: Achieve 80% coverage on episodic memory domain, verify overall 80%
+1. **Financial Invariants** (`backend/tests/property_tests/financial/test_financial_invariants.py`)
+   - Cost leak detection (unused subscriptions, redundant tools)
+   - Budget guardrails (spend limits, approvals, pauses)
+   - Invoice reconciliation (matching, discrepancies)
+   - Multi-currency handling
+   - Tax calculations
+   - Net worth calculations
+   - Revenue recognition
+   - Invoice aging
+   - Payment terms enforcement
+   - **814 lines of property-based tests using Hypothesis**
 
-**Success Criteria:**
-- [ ] 80% coverage on governance (core/governance_service.py, agent_context_resolver.py, governance_cache.py)
-- [ ] 80% coverage on security (auth/, crypto/, tools_security/)
-- [ ] 80% coverage on episodic memory (episode_*.py services)
-- [ ] Overall 80% coverage across backend/
-- [ ] All tests pass in CI with parallel execution
-- [ ] Coverage trending shows upward trajectory
+2. **AI Accounting Invariants** (`backend/tests/property_tests/accounting/test_ai_accounting_invariants.py`)
+   - Transaction ingestion and categorization
+   - Chart of Accounts learning and consistency
+   - Confidence scoring thresholds (0.85 = auto-post)
+   - Posting and approval workflows
+   - Audit trail integrity
+   - Ledger integration
+   - Financial accuracy and correctness
+   - **705 lines of property-based tests using Hypothesis**
+
+3. **Database CRUD Invariants** (`backend/tests/property_tests/database/test_database_crud_invariants.py`)
+   - CRUD invariants (create, read, update, delete behavior)
+   - Foreign key constraints (referential integrity)
+   - Transaction atomicity (all-or-nothing)
+   - **150+ lines showing pattern for database property tests**
+
+**Key Patterns to Follow:**
+
+```python
+# From test_financial_invariants.py
+@given(
+    invoice_amounts=st.lists(
+        st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        min_size=1, max_size=20
+    ),
+    contract_amount=st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+    tolerance_percent=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False)
+)
+@settings(max_examples=50)
+def test_invoice_matching_within_tolerance(self, invoice_amounts, contract_amount, tolerance_percent):
+    """Test that invoices within tolerance are matched"""
+    # Test implementation...
+```
+
+```python
+# From test_ai_accounting_invariants.py
+@given(
+    amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+    description=st.text(min_size=5, max_size=100)
+)
+@settings(max_examples=50)
+def test_cannot_post_review_required(self, amount, description):
+    """Test that review-required transactions cannot be posted"""
+    # Test implementation...
+```
 
 ## Sources
 
-### Testing Best Practices (2026)
-- [Software Testing Best Practices for 2026 - N-iX](https://www.n-ix.com/software-testing-best-practices/) - Risk-based testing, automation, metrics, and AI (January 18, 2026)
-- [Software Testing Best Practices in 2026 - STC Technologies](https://softwaretechnologyconsultants.com/software-testing-best-practices-in-2026-a-complete-guide-for-modern-qa-devops-teams/) - Comprehensive guide for modern QA DevOps teams (February 2026)
-- [Software Testing Best Practices for 2026 - BugBug.io](https://bugbug.io/blog/test-automation/software-testing-best-practices/) - Code coverage maximization strategies (January 13, 2026)
-- [Top 5 Software Testing Trends for 2026 - Xray Blog](https://www.getxray.app/blog/top-5-software-testing-trends-2026) - Autonomous AI Testing Agents, Testing AI-Generated Code, Continuous Quality (December 11, 2025)
-- [7 Tips to Set Your 2026 Testing Strategy - Sauce Labs](https://saucelabs.com/resources/blog/new-year-better-tests-7-tips-to-set-your-2026-testing-strategy-up) - Performance benchmarks and mobile test coverage (January 7, 2026)
-- [Top 12 Software Testing Trends to Watch for in 2026 - Aqua Cloud](https://aqua-cloud.io/top-12-software-testing-trends/) - Teams requiring 80% coverage before code review
-- [2026 QA Priority: Shift to Test Intelligence - Photon](https://www.linkedin.com/posts/photontesting_2026-qa-priority-stop-breaking-your-own-activity-7419326365717463040-RdYi) - No-code test automation is table stakes
+### High Confidence (Official Documentation)
+- **Python `decimal` module** - Exact decimal arithmetic for financial calculations
+- **Stripe API documentation** - Payment testing, webhooks, idempotency keys
+- **SQLAlchemy 2.0 documentation** - Database models, transactions, constraints
+- **Hypothesis documentation** - Property-based testing strategies, settings, examples
 
-### Rapid Testing Strategies
-- [Zero to 92% Test Coverage: A Week-Long Journey - Medium](https://medium.com/@jaivalsuthar/building-a-comprehensive-testing-suite-a-week-long-journey-to-92-coverage-1a9f5df8c4e0) - Directly addresses achieving high coverage in one week
-- [How to Write an Effective Test Coverage Plan - QA Wolf](https://www.qawolf.com/blog/how-to-write-an-effective-test-coverage-plan) - Prioritize automation by impact, not comprehensive coverage
-- [Automated Testing Strategies for Critical Application Functions - LinkedIn](https://www.linkedin.com/top-content/technology/software-testing-best-practices/automated-testing-strategies-for-critical-application-functions/) - Focus on critical path testing
-- [12 Faster Testing Strategies for Large Codebases - Augment Code](https://www.augmentcode.com/guides/12-faster-testing-strategies) - Reduce CI times from 45 minutes to under 10 minutes
-- [A Practical Guide to Test Automation Strategy - MuukTest](https://muuktest.com/blog/test-automation-strategy) - Achieving 80% automation coverage on critical user paths
-- [Strategies for Higher Test Coverage - Qt](https://www.qt.io/quality-assurance/blog/strategies-for-higher-test-coverage) - Using code coverage tooling efficiently
+### Medium Confidence (WebSearch Verified)
+- [Dinero.js Testing Strategy Guide](https://m.blog.csdn.net/gitblog_00990/article/details/150984135) (December 2025)
+  - Property-based testing for financial calculations using fast-check
+  - Complex rounding algorithms (banker's rounding)
+  - Testing multiple data types (number, bigint, Big.js)
 
-### Property-Based Testing
-- [Property-Based Testing for Cybersecurity - ResearchGate](https://www.researchgate.net/publication/391511964_Property-Based_Testing_for_Cybersecurity_Towards_Automated_Validation_of_Security_Protocols) - PBT for automated validation of security protocols (October 2025)
-- [Towards Automated Validation of Security Protocols - MDPI](https://www.mdpi.com/2073-431X/14/5/179) - PBT for security protocol validation
-- [LLM-Based Property-Based Test Generation for Guardrailing Cyber-Physical Systems - Springer](https://link.springer.com/chapter/10.1007/978-3-032-07132-3_3) - Automated PBT approaches (October 2025)
+- [Stripe-Mock Server](https://github.com/stripe/stripe-mock)
+  - Official mock HTTP server responding like Stripe API
+  - Ports 12111 (HTTP) and 12112 (HTTPS)
+  - Installation via Homebrew, Docker, or Go
 
-### High-Velocity Testing
-- [6 Best Practices for a High-Velocity Testing Strategy - Perfecto](https://www.perfecto.io/blog/6-best-practices-high-velocity-testing) - Stay organized, parallel testing, reduce regression time
-- [10 Software Testing Best Practices for Elite Teams in 2025 - Group107](https://group107.com/blog/software-testing-best-practices/) - Start with high-impact cases, prioritize critical workflows
-- [Test Strategy Optimization: Best Practices - TestDevLab](https://www.testdevlab.com/blog/test-strategy-optimization-best-practices) - Build QA strategy, leverage AI for coverage
-- [End-to-End Testing Best Practices: Complete 2025 Guide - Maestro](https://maestro.dev/insights/end-to-end-testing-best-practices-complete-2025-guide) - E2E testing for reliability
-- [Top Test Coverage Techniques for Testers - Virtuoso QA](https://www.virtuosoqa.com/post/test-coverage-techniques) - Coverage techniques and strategies
+- [Python Decimal Best Practices](https://docs.python.org/3/library/decimal.html)
+  - Initialize with strings, not floats: `Decimal('0.1')` not `Decimal(0.1)`
+  - Adjustable precision (default 28 places)
+  - Rounding modes: `ROUND_HALF_UP` for financial calculations
 
-### Atom Platform Specific
-- `/Users/rushiparikh/projects/atom/backend/pytest.ini` - Pytest configuration with markers, coverage, Hypothesis settings
-- `/Users/rushiparikh/projects/atom/backend/tests/property_tests/README.md` - Property-based testing documentation (108 files, ~3,699 tests)
-- `/Users/rushiparikh/projects/atom/backend/tests/property_tests/database/test_database_invariants.py` - Example property-based tests (49 test functions, 808 lines)
+- [Financial Software Testing Analysis](https://m.blog.csdn.net/2201_76100073/article/details/141262616) (February 2025)
+  - Core testing focus: business correctness, reconciliation, settlement
+  - Algorithm testing: numerical accuracy verification
+  - Interface testing: external systems (custody banks)
+
+- [ThoughtWorks Technology Radar - Property-Based Unit Testing](https://www.thoughtworks.com/pt-br/radar/techniques/property-based-unit-testing) (February 2025)
+  - Valued technique for finding edge cases
+  - Data generators create randomized inputs within defined ranges
+  - Good for checking boundary conditions
+
+### Low Confidence (WebSearch Only - Needs Verification)
+- **Chinese accounting resources** on audit trail testing (walkthrough testing, 穿行测试)
+- **Reconciliation patterns** from Chinese financial software sources
+- **Invoice/billing workflow** test scenarios from Microsoft Dynamics, Oracle, SAP documentation
+
+**Gaps Identified:**
+- Limited English-language sources on reconciliation testing patterns
+- Sparse documentation on financial property-based testing examples
+- Need more specific audit trail testing best practices for SaaS systems
+- Missing sources on double-entry bookkeeping validation techniques
+
+**Next Research Phases:**
+- Phase-specific research needed for payment provider mock architecture
+- Deep dive on double-entry bookkeeping testing patterns
+- Investigation into regulatory compliance testing requirements (SOX, GAAP)
 
 ---
 
-*Feature research for: Comprehensive Testing Initiative - 80% Coverage in 1-2 Weeks*
-*Researched: February 10, 2026*
-*Confidence: MEDIUM (web search sources, not verified with official docs)*
+*Feature research for: Atom v3.3 Finance Testing & Bug Fixes*
+*Researched: February 25, 2026*
+*Confidence: MEDIUM (mix of official docs, WebSearch verified, and codebase analysis)*

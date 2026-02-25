@@ -1,342 +1,295 @@
 # Project Research Summary
 
-**Project:** Atom - AI-Powered Business Automation Platform
-**Domain:** Multi-Agent AI Platform with Governance, Episodic Memory, and Community Skills
-**Researched:** February 18, 2026
+**Project:** Atom v3.3 Finance Testing & Bug Fixes
+**Domain:** Finance/Accounting Testing for AI Automation Platform
+**Researched:** February 25, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom is a production-ready multi-agent AI automation platform with sophisticated governance, episodic memory, and community skills integration. The platform is built on Python 3.11/FastAPI with SQLAlchemy 2.0, leveraging Docker for sandboxed skill execution and PostgreSQL/LanceDB for hybrid memory storage. The codebase demonstrates exceptional completion with 15 major phases delivered, including CI/CD pipelines, comprehensive monitoring (health checks, Prometheus metrics), and type safety enforcement (MyPy).
+Atom v3.3 requires comprehensive finance and accounting testing capabilities to support transaction processing, budget enforcement, invoice reconciliation, and payment integration. Based on research across precision mathematics, property-based testing patterns, audit trail requirements, and payment provider integration, the recommended approach leverages Atom's existing pytest/Hypothesis infrastructure with two strategic additions: `pytest-freezegun` for time-dependent testing (aging reports, payment terms, revenue recognition) and `factory_boy` for financial test data generation.
 
-The research reveals two complementary enhancement opportunities: (1) **Comprehensive Testing Initiative** - achieving 80% test coverage across governance, security, and episodic memory domains within 1-2 weeks using existing pytest infrastructure with 517 test files and Hypothesis property-based testing; and (2) **Community Skills Integration** - enabling agents to use 5,000+ OpenClaw/ClawHub skills through Docker sandbox isolation, LLM security scanning, and governance workflow integration. Both initiatives are technically sound with HIGH confidence, requiring only one new dependency (python-frontmatter) and building on proven patterns from Phase 14 (82 tests, 13/13 success criteria verified).
+The most critical finding is that **floating-point precision is the single highest-risk pitfall** - using `float` instead of Python's `decimal.Decimal` for monetary values causes accumulation errors that violate accounting standards (GAAP/IFRS) and create reconciliation failures. The second most critical risk is **inadequate audit trail testing** - missing or incomplete audit entries make SOX compliance impossible and prevent debugging payment discrepancies. Atom's existing property-based testing framework (161 test files, 814 lines of financial invariants, 705 lines of accounting invariants) provides a strong foundation, but requires extension for payment integration, audit trail verification, and time-dependent financial workflows.
 
-**Critical risks identified:** Coverage churn under timeline pressure (writing low-value tests to hit 80%), weak property-based tests without meaningful invariants, and integration test state contamination. Mitigation strategies include establishing quality thresholds before measuring coverage, requiring documented invariants for property tests, and enforcing parallel execution from day one to catch state sharing issues. The recommended approach prioritizes quality over speed: 80% quality coverage in 4 weeks > 80% junk coverage in 1 week.
+Key risks are mitigated through: (1) **Decimal-first design pattern** enforced at API boundaries, database layer, and calculation functions; (2) **Property-based financial invariants** testing double-entry bookkeeping (debits = credits), conservation of value, and balance sheet equations; (3) **Mock payment provider integration** using the `responses` library (already in requirements.txt) for deterministic testing without real money transactions; (4) **Time-dependent testing** with `pytest-freezegun` to freeze time for aging reports, revenue recognition, and payment term validation. The recommended implementation order prioritizes precision foundation first (Phase 1), then payment integration (Phase 2), then cost tracking (Phase 3), then audit trails (Phase 4) - this ordering prevents foundational errors from cascading into later phases.
 
 ## Key Findings
 
 ### Recommended Stack
 
 **Core technologies:**
-- **Python 3.11+ with FastAPI** — Async web framework with automatic OpenAPI docs, type hints enforcement via MyPy (Phase 15), production-tested across 517 test files
-- **SQLAlchemy 2.0+** — Database ORM with 4 new models (CommunitySkill, SkillSecurityScan, SkillExecution), hybrid PostgreSQL (hot) + LanceDB (cold) storage for episodic memory
-- **pytest + pytest-asyncio + Hypothesis** — Test framework with 108 property-based test files (~3,699 tests), configured for CI with conservative Hypothesis strategy, supports async/await testing patterns
-- **Docker SDK for Python 7.0+** — HazardSandbox isolation for community skills, resource limits (memory, CPU), security constraints (network_disabled, read_only), already verified in Phase 14
-- **OpenAI SDK 1.0+** — GPT-4 security scanning for 21+ malicious patterns, semantic analysis for obfuscated threats, cached by SHA-256 hash
-- **LangChain BaseTool** — Tool wrapper for community skills, automatic schema validation, agent integration compatibility
-- **python-frontmatter 1.0+** (NEW) — Only new dependency required, parses YAML frontmatter from SKILL.md files with auto-fix for malformed metadata
+- **Python `decimal.Decimal`** (stdlib) — Exact decimal arithmetic for all monetary values. Initialize with strings `Decimal("100.00")` not floats to avoid binary representation errors (0.1 + 0.2 != 0.3)
+- **Hypothesis 6.92+** (existing) — Property-based testing for financial invariants. Already proven with 814 lines of financial invariants testing cost leaks, budget guardrails, invoice reconciliation
+- **pytest-freezegun 0.4+** (add) — Time freezing for date-dependent tests. Critical for aging reports, payment terms (Net 30, Net 60), revenue recognition timing. Prevents tests that fail at month boundaries
+- **factory_boy 3.3+** (add) — Financial test data generation. Declarative factories for complex objects (Invoice -> LineItems -> Payments) with relationships, sequences, fuzzy data. Eliminates 100+ lines of boilerplate per test file
+- **`responses` 0.23+** (already in requirements.txt) — HTTP mocking for payment providers (Stripe, PayPal, bank APIs). Mock API calls without network calls, validates request payloads, provides controlled responses
 
-**Why this stack:** All components verified in production (Phase 14: 82 tests, Phase 15: CI/CD pipeline, monitoring, type hints). The existing codebase demonstrates exceptional test coverage infrastructure with pytest.ini fully configured for parallel execution, coverage metrics (80% threshold), and domain-specific markers (governance, security, episodic memory).
+**No major stack changes required** - Atom's existing pytest 7.4+, SQLAlchemy 2.0+, and property testing infrastructure remain the foundation. These additions provide domain-specific financial testing capabilities.
 
 ### Expected Features
 
 **Must have (table stakes):**
-- **Test Coverage Metrics** — 80% threshold configured in pytest.ini, industry standard for code review gates, tracks progress toward quality goals
-- **Unit Tests** — Foundation of testing strategy, 517 test files exist, verify individual components (governance service, LLM handler, episodic memory)
-- **Integration Tests** — Verify component interactions (agent execution with governance, skill execution with sandbox, episodic memory retrieval)
-- **Property-Based Tests** — Modern testing best practice, 108 files with Hypothesis integration, finds edge cases unit tests miss through random input generation
-- **Critical Path Prioritization** — Focus on high-impact areas (governance, security, episodic memory) for maximum coverage ROI, achieve 80% faster by prioritizing what matters
-- **Test Isolation** — Tests must run independently (no shared state), enables parallel execution with pytest-xdist, prevents flaky tests
-- **Security Scanning for Skills** — Static pattern matching (21+ malicious patterns) + GPT-4 semantic analysis, defense-in-depth before skill activation
-- **Sandboxed Skill Execution** — Docker containers with strict limits (network disabled, read-only filesystem, 5-min timeout), prevents malicious code escape
-- **Governance Integration** — Maturity-based routing (STUDENT blocked from Python skills, INTERN requires approval, SUPERVISED monitored, AUTONOMOUS full execution)
+- **Decimal precision** — Financial calculations MUST use exact arithmetic (no floating-point errors). Use Python `Decimal` module, initialize with strings not floats
+- **Double-entry validation** — Every financial transaction must balance (debits = credits). Core accounting invariant
+- **Audit trail integrity** — Legal requirement for financial systems (SOX, GAAP). Complete chronological logs with who/what/when. Immutability critical
+- **Reconciliation testing** — Match invoices to contracts, detect discrepancies. Verify tolerance-based matching (e.g., 5% variance acceptable)
+- **Currency conversion** — Multi-currency businesses require accurate FX handling. Test round-trip conversions (USD->EUR->USD ~= original)
+- **Tax calculations** — Sales tax, VAT, GST must be calculated correctly. Test tax-inclusive vs tax-exclusive, compound taxes (federal + state)
+- **Invoice aging** — Track overdue payments for cash flow management. Test aging buckets (current, 1-30, 31-60, 61+ days)
+- **Mock payment servers** — Test Stripe/PayPal integration without real money. Use stripe-mock, VCR, or build mock HTTP servers
 
 **Should have (competitive):**
-- **Coverage by Domain** — Separate coverage reports for core/, api/, tools/ to track progress on critical subsystems (governance, security, episodic memory)
-- **Coverage Trending** — Historical tracking of coverage.json to show progress toward 80% goal, identify areas needing attention
-- **Parallel Test Execution** — pytest-xdist to reduce CI time from hours to minutes, critical for 1-2 week sprint velocity
-- **Test Impact Analysis** — Run only tests affected by code changes (pytest-picked), speeds up iteration during development
-- **Governance-Specific Testing** — Property tests for agent maturity invariants (maturity never decreases without explicit promotion), confidence score validation, action complexity gating
-- **Episodic Memory Testing** — Verify episode segmentation (time gaps, topic changes), retrieval modes (temporal, semantic, sequential, contextual), lifecycle (decay, consolidation, archival)
-- **Skill Usage Metrics** — Track execution success rate, unique skills used, skill diversity bonus (up to +5% for graduation readiness)
+- **Property-based financial tests** — Find edge cases that example-based tests miss. Use Hypothesis to generate random valid inputs (amounts, rates, dates)
+- **Cost leak detection** — Automatically find unused subscriptions/redundant tools. Analyze usage patterns, flag wasteful spending
+- **Budget guardrails** — Prevent overspending with real-time enforcement. Pause spending when budgets exceeded, require approvals
+- **AI-powered categorization** — Auto-categorize transactions with confidence scores. Test confidence thresholds (0.85 = auto-post, <0.85 = review)
+- **Reconciliation discrepancy detection** — Flag invoices outside expected variance. Test tolerance thresholds, automatic discrepancy reports
 
 **Defer (v2+):**
-- **Fuzzy Testing** — Marker exists (fuzzy), implementation incomplete, defer until security-critical endpoints identified
-- **Mutation Testing** — Marker exists (mutation), very slow (10x-100x test runtime), add as separate CI job post-sprint
-- **Chaos Engineering** — Marker exists (chaos), requires production infrastructure, defer until operational maturity
-- **E2E Tests for All Workflows** — Too slow for 1-2 week sprint, focus on integration tests for critical paths only
-- **100% Coverage Goal** — Diminishing returns, impossible in 2 weeks, focus on 80% critical paths instead
+- **AI-powered categorization** — Requires ML infrastructure, defer to v3.4+
+- **Real-time FX rate fetching** — Requires provider integration, use test fixtures with timestamps for v3.3
+- **Advanced revenue recognition** — Complex contract scenarios, defer to v3.4+
+- **Multi-entity consolidation** — Requires chart of accounts mapping, defer to v3.4+
 
 ### Architecture Approach
 
-**Three-Layer Architecture:** Community Skills Integration follows defense-in-depth security with (1) **Import Layer** (SkillParser → SkillSecurityScanner → SkillRegistryService), (2) **Governance Layer** (GovernanceCache <1ms, TriggerInterceptor <5ms, AgentGraduationService), (3) **Execution Layer** (SkillAdapter → HazardSandbox → EpisodeSegmentationService). This pattern ensures no skill executes without security scanning, maturity verification, and episodic tracking.
-
 **Major components:**
-1. **SkillParser** — Parse SKILL.md files (YAML + Markdown) using python-frontmatter, auto-fix malformed metadata, detect skill type (prompt/python/CLI), lenient parsing with graceful error handling
-2. **SkillSecurityScanner** — Static analysis (21+ malicious patterns: `__import__`, `eval`, `exec`, `subprocess`, `os.system`) + GPT-4 semantic analysis for obfuscated threats, cache by SHA-256 hash
-3. **HazardSandbox** — Isolated Docker execution with resource limits (mem_limit, cpu_quota), security constraints (network_disabled, read_only), 5-min timeout, no host filesystem mount
-4. **GovernanceCache** — <1ms cached permission checks for agent maturity + skill access, cache key format: `{agent_id}:skill:{skill_type}`, prevents repeated governance queries
-5. **TriggerInterceptor** — <5ms routing decisions based on agent maturity, STUDENT → Python skills blocked (route to training), INTERN → approval required, SUPERVISED → real-time monitoring
-6. **EpisodeSegmentationService** — Create EpisodeSegments for all skill executions (success/failure), track skill metadata (name, source, type), support temporal/semantic/sequential/contextual retrieval
-7. **AgentGraduationService** — Calculate readiness scores with skill usage metrics (total_executions, success_rate, unique_skills_used), skill diversity bonus (up to +5% for diverse skill usage)
+1. **Property Tests** (Hypothesis) — Verify financial invariants across all inputs. Test cost leak detection, budget enforcement, invoice reconciliation, tax calculations with auto-generated edge cases
+2. **Integration Tests** — Test payment flows, budget enforcement with real database. End-to-end transaction posting, payment processing with DB commit, audit trail verification
+3. **Unit Tests** — Test individual calculation logic, tax formulas, currency conversion, discount math in isolation
+4. **Finance Fixtures** — Create test transactions, budgets, invoices, accounts. Centralized fixture creation with `factory_boy` for consistent test data
+5. **AI Accounting Engine** (existing) — Transaction ingestion, categorization, posting logic. Already has 705 lines of property tests
+6. **Financial Ops Engine** (existing) — Cost leak detection, budget guardrails, reconciliation. Already has 814 lines of property tests
+7. **Payment Engine** (new) — Payment processing, refunds, multi-currency. Requires mock payment provider integration
 
-**Data flow:** Import workflow (User → API → SkillParser → SecurityScanner → Registry), Execution workflow (Agent → GovernanceCache → TriggerInterceptor → [BLOCK/EXECUTE] → Sandbox → EpisodeSegment → Graduation tracking). Every skill execution creates an EpisodeSegment with metadata (skill_name, skill_source, skill_type, sandbox_execution, duration_seconds), enabling agents to learn from past skill usage patterns.
+**Recommended project structure:**
+```
+backend/tests/
+├── property_tests/financial/         # Finance property tests (EXISTING - 814 lines)
+├── integration/financial/            # NEW: Integration test folder
+├── unit/financial/                   # NEW: Unit test folder
+├── fixtures/finance_fixtures.py      # NEW: Financial test fixtures
+└── conftest.py                       # Root pytest config (EXISTING)
+```
 
 ### Critical Pitfalls
 
-1. **Coverage Churn Under Timeline Pressure** — Teams write low-value tests (assert True, trivial checks) to hit 80% coverage targets, creating false sense of security. Tests become "coverage checks" rather than "quality assurances." Prevention: Set quality thresholds (80% coverage AND 70% assertion quality), track "critical path coverage" vs. "overall coverage" (governance/episodic memory need >90%), ban trivial tests with single-line assertions. Timebox properly: 80% quality coverage in 4 weeks > 80% junk coverage in 1 week.
+1. **Floating-point precision in financial calculations** — Using `float` instead of `Decimal` causes binary representation errors (0.1 + 0.2 != 0.3) that accumulate in batch processing, violating accounting standards (GAAP/IFRS) and causing reconciliation failures. **Prevention:** Use `decimal.Decimal` for all monetary values, initialize with strings, store amounts as integer cents, define rounding strategy (banker's rounding), property test precision invariants.
 
-2. **Property-Based Testing Without Meaningful Invariants** — Hypothesis tests that check obvious truths (x + y == y + x) or implementation details rather than domain invariants. Tests generate hundreds of examples but catch no bugs. Prevention: Identify invariants first (list 3-5 domain invariants per module: "Agent maturity never decreases without explicit promotion"), require bug-finding evidence in docstrings ("example bug this would have caught"), pair with senior developers who understand domain invariants. Focus property tests on governance checks, episodic memory retrieval, agent graduation.
+2. **Inadequate audit trail testing** — Tests verify entries are created but don't validate completeness (all financial operations logged), integrity (entries tamper-proof), or traceability (can reconstruct transaction). **Prevention:** Test audit trail completeness, property test audit invariants (count = number of operations), end-to-end traceability tests, test audit entry immutability, performance test audit queries.
 
-3. **Integration Test State Contamination** — Tests share database state, file systems, or external service mocks, causing intermittent failures when run concurrently. FastAPI tests share SQLAlchemy sessions without proper isolation, WebSocket connections not torn down. Prevention: Transaction rollback pattern (wrap each test in transaction, rollback at end), test-scoped fixtures (`@pytest.fixture(scope="function")`), parallel execution from day one (`pytest-xdist -n auto`) to catch state sharing early, unique test data (f"test_agent_{uuid4()}").
+3. **Property testing without financial invariants** — Tests generate hundreds of examples but don't verify accounting principles (debits = credits, conservation of value, balance sheet equation). **Prevention:** Identify financial invariants first (document 3-5 domain invariants per module), use established property patterns (round-trip, inductive, invariant preservation), test critical financial paths, require bug-finding evidence in docstrings.
 
-4. **Async Test Race Conditions** — FastAPI async endpoints tested with improper async patterns, tests pass 90% of time but fail randomly due to timing issues. WebSocket tests not awaiting message reception, background tasks not given time to complete, `time.sleep(1)` instead of proper async coordination. Prevention: Use pytest-asyncio with `@pytest.mark.asyncio`, explicit async coordination (`asyncio.Event`, `asyncio.Queue`), await background tasks (poll for completion status), WebSocket testing with `receive_json(timeout=5)`, test timeout annotations (`@pytest.mark.timeout(30)`).
+4. **Payment integration mock mismatch** — Mocks don't match real payment provider behavior, missing race conditions, webhook failures, timeout scenarios, idempotency issues. **Prevention:** Use provider test mode (Stripe Test Mode, PayPal Sandbox), test failure modes (declined cards, timeouts), test webhook reliability, test idempotency, use VCR/recording, test provider-specific quirks.
 
-5. **Test Data Fragility** — Tests depend on specific data states (agent_id="test-agent-123") that become invalid as code evolves, causing false failures. Prevention: Factory pattern (factory_boy) for dynamic test data creation, test data isolation (each test creates own data), minimal assumptions (only assume database schema), fixture versioning (tag with schema version), external data mocking (mock Slack/GitHub APIs instead of relying on live data).
+5. **Test data edge cases missing** — Tests use typical values ($100, $50) but miss critical edge cases (zero amounts, negative amounts, maximum limits). **Prevention:** Property test edge cases with Hypothesis, test boundary values (min valid amount 0.01, max account limit), test format variations (commas, European formats), test business rules (negative balance validation).
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Foundation & Quality Standards (Week 1)
+### Phase 1: Core Accounting Logic
+**Rationale:** Precision errors are foundational - if caught late, require rewriting all financial calculations. Establish Decimal-first design pattern before writing any financial calculations. This phase creates the precision foundation that all subsequent phases depend on.
 
-**Rationale:** Must establish testing infrastructure and quality gates before writing tests to prevent coverage churn (Pitfall #1). Cannot measure coverage quality without defining what "good test" means first.
+**Delivers:**
+- Decimal precision for all monetary values (API boundaries, database layer, calculations)
+- Double-entry validation (debits = credits invariant)
+- Transaction status workflow (ingest -> categorize -> review -> post)
+- Property-based tests using Hypothesis with financial invariants
+- Rounding strategy documentation (banker's rounding, edge case handling)
+- Edge case coverage (zero, negative, large amounts, format variations)
 
-**Delivers:** Test infrastructure setup (pytest-xdist, pytest-asyncio, factory_boy), quality threshold definitions (assertion density, critical path coverage), test data factories for dynamic data creation, dual-platform CI for mobile (iOS + Android)
+**Addresses features:**
+- Decimal Precision (table stakes)
+- Double-Entry Validation (table stakes)
+- Transaction Status Workflow (table stakes)
+- Tax Calculations (table stakes)
+- Property-Based Financial Tests (differentiator)
 
-**Addresses:** Test Coverage Metrics, Test Isolation, Test Data Fragility (Pitfall #7), Foundation for parallel execution
+**Avoids pitfalls:**
+- Floating-point precision in financial calculations
+- Rounding strategy inconsistency
+- Test data edge cases missing
+- Property testing without financial invariants
 
-**Avoids:** Coverage churn under timeline pressure, hardcoded test fixtures, shared state between tests
+**Uses stack elements:**
+- Python `decimal.Decimal` (stdlib)
+- Hypothesis 6.92+ (existing)
+- factory_boy 3.3+ (new)
 
-**Success criteria:**
-- [ ] All tests pass with `pytest-xdist -n auto` (parallel execution verified)
-- [ ] Factory pattern implemented for test data (zero hardcoded IDs)
-- [ ] Quality thresholds defined: 80% coverage + 70% assertion quality
-- [ ] CI pipeline runs both iOS and Android mobile tests
-- [ ] Critical path identification complete (governance, security, episodic memory)
+**Implements architecture:**
+- Unit tests for calculation logic
+- Property tests for financial invariants
+- Finance fixtures for test data
 
-### Phase 2: Core Property Tests & Invariants (Week 1-2)
+### Phase 2: Payment Integration Testing
+**Rationale:** Payment integrations have complex race conditions and failure modes that benefit from early property testing. Mock payment providers must match real behavior to prevent production failures. This phase prevents duplicate charges, lost payments, and reconciliation failures.
 
-**Rationale:** Property-based testing is Atom's strongest differentiator (108 files, ~3,699 tests) but meaningless without documented invariants. Focus on governance, episodic memory, agent coordination where invariants are most valuable.
+**Delivers:**
+- Mock payment server (stripe-mock or custom using `responses` library)
+- Test failure scenarios (declines, timeouts, insufficient funds)
+- Idempotency key validation
+- Webhook testing (simulated payment callbacks)
+- Reconciliation testing (invoice-to-contract matching, discrepancy detection)
+- Property tests for payment invariants
 
-**Delivers:** Documented invariants for governance (maturity transitions, permission checks, cache performance), episodic memory (segmentation triggers, retrieval consistency, lifecycle transitions), agent coordination (multi-agent view orchestration, error guidance), property tests with "example bug this catches" docstrings
+**Addresses features:**
+- Mock Payment Servers (table stakes)
+- Reconciliation Testing (table stakes)
+- Currency Conversion (table stakes)
+- Reconciliation Discrepancy Detection (differentiator)
+- Integration Test Snapshots (differentiator)
 
-**Addresses:** Property-Based Tests (table stakes + differentiator), Governance-Specific Testing, Episodic Memory Testing, Weak Property Tests (Pitfall #2)
+**Avoids pitfalls:**
+- Payment integration mock mismatch
+- Reconciliation test coverage gaps
+- Test data edge cases missing (for payment scenarios)
 
-**Uses:** Hypothesis integration (already configured), pytest markers (governance, episode, agent), existing property test infrastructure
+**Uses stack elements:**
+- `responses` 0.23+ (existing in requirements.txt)
+- Hypothesis 6.92+ (existing)
+- pytest-freezegun 0.4+ (new) for payment term testing
 
-**Implements:** Pattern: Invariant identification → Property test → Bug-finding documentation
+**Implements architecture:**
+- Integration tests for payment flows
+- Property tests for payment invariants
+- Mock payment provider infrastructure
 
-**Success criteria:**
-- [ ] 15+ governance invariants documented (maturity, permissions, cache)
-- [ ] 10+ episodic memory invariants documented (segmentation, retrieval, lifecycle)
-- [ ] Each property test has docstring with "example bug this catches"
-- [ ] Property tests have found at least 1 real bug (counterexample verified)
-- [ ] Fuzzy tests with error contracts (invalid inputs raise specific exceptions)
+### Phase 3: Cost Tracking & Budgets
+**Rationale:** Budget tracking depends on accurate precision from Phase 1 and payment processing from Phase 2. This phase builds on the precision foundation to add business logic for cost control and leak detection.
 
-### Phase 3: Integration Tests & Async Coordination (Week 2)
+**Delivers:**
+- Budget limit enforcement (pause when exceeded)
+- Cost leak detection (unused subscriptions, redundant tools)
+- Reconciliation discrepancy detection
+- Tolerance-based matching (5% variance acceptable)
+- Property tests for budget guardrail invariants
+- Performance test budget queries (concurrent checks)
 
-**Rationale:** Integration tests verify component interactions but are most vulnerable to state contamination (Pitfall #3) and async race conditions (Pitfall #4). FastAPI endpoints, WebSocket connections, background tasks require explicit async coordination.
+**Addresses features:**
+- Budget Guardrails (differentiator)
+- Cost Leak Detection (differentiator)
+- Invoice Aging (table stakes)
+- Payment Term Enforcement (table stakes)
 
-**Delivers:** API contract tests (FastAPI endpoints, request/response validation), database transaction tests (rollback, isolation, consistency), async coordination tests (WebSocket, background tasks, agent execution), external service mocking (LLM providers, Slack, GitHub)
+**Avoids pitfalls:**
+- Budget guardrail race conditions
+- Slow financial tests blocking CI
+- Property testing without financial invariants
 
-**Addresses:** Integration Tests, Async Test Support, Integration Test State Contamination (Pitfall #3), Async Test Race Conditions (Pitfall #4)
+**Uses stack elements:**
+- Hypothesis 6.92+ (existing)
+- pytest-xdist (existing) for parallel execution
+- pytest-benchmark 4.0+ (optional) for performance tests
 
-**Uses:** pytest-asyncio (configured line 63), transaction rollback pattern, explicit async coordination (asyncio.Event, asyncio.Queue)
+**Implements architecture:**
+- Property tests for budget invariants
+- Integration tests for budget enforcement
+- Performance tests for concurrent access
 
-**Implements:** Pattern: Transaction wrapper → Test execution → Rollback (never commit)
+### Phase 4: Audit Trails & Compliance
+**Rationale:** Audit trails span all phases and require complete implementation of all financial operations to test meaningfully. Testing completeness after core logic, payments, and budgets are implemented ensures end-to-end traceability.
 
-**Success criteria:**
-- [ ] All integration tests pass with `pytest-xdist -n auto` (no shared state)
-- [ ] Zero `time.sleep()` calls in async tests (replaced with asyncio.Event)
-- [ ] WebSocket tests use `receive_json(timeout=5)` with error handling
-- [ ] Database tests use transaction rollback (never commit in tests)
-- [ ] Background task tests poll for completion before asserting
+**Delivers:**
+- Complete chronological logging (who/what/when)
+- Immutability (logs cannot be altered)
+- Required fields validation (timestamp, action, transaction_id, user_id)
+- Log aggregation and querying
+- End-to-end traceability tests
+- Property tests for audit invariants (count, ordering, immutability)
 
-### Phase 4: Mobile Tests & Platform Coverage (Week 2)
+**Addresses features:**
+- Audit Trail Integrity (table stakes)
+- Transaction Status Workflow (table stakes)
+- SOX compliance testing requirements
 
-**Rationale:** React Native tests often written for iOS only, assuming Android behavior is identical (Pitfall #5). Platform-specific APIs (permissions, file paths, native modules) cause iOS-passing tests to fail on Android.
+**Avoids pitfalls:**
+- Inadequate audit trail testing
+- SOX compliance gaps
+- Property testing without financial invariants
 
-**Delivers:** Dual-platform CI pipeline (iOS simulator + Android emulator), platform-specific fixtures (`@pytest.fixture(params=["ios", "android"])`), device capability tests (Camera, Location, Notifications with platform-specific prompts), file path abstraction (RNFS.DocumentDirectoryPath instead of hardcoded paths)
+**Uses stack elements:**
+- pytest (existing) for integration tests
+- Hypothesis 6.92+ (existing) for audit invariants
 
-**Addresses:** React Native Testing, Platform Neglect (Pitfall #5), Device Capabilities, Mobile Workflows
-
-**Avoids:** iOS-only tests, platform-specific code not mocked correctly, hardcoded file paths
-
-**Success criteria:**
-- [ ] CI pipeline runs both iOS and Android tests (require both pass to merge)
-- [ ] Platform-specific fixtures for permissions, file system, native modules
-- [ ] Device permission tests pass on both platforms (Camera, Location, Notifications)
-- [ ] File path tests use platform-agnostic abstractions (no hardcoded /var/mobile/ or /data/data/)
-- [ ] Native module tests simulate platform differences (Expo async behavior)
-
-### Phase 5: Coverage by Domain & Trending (Week 2)
-
-**Rationale:** 80% overall coverage is insufficient if critical subsystems (governance, security, episodic memory) have low coverage. Domain-specific coverage reports track progress where it matters most.
-
-**Delivers:** Coverage reports by domain (core/governance, core/security, core/episodic_memory), trending analysis (coverage.json historical tracking), critical path coverage >90% (governance, security, episodic memory), overall 80% coverage across backend/
-
-**Addresses:** Coverage by Domain, Coverage Trending, Critical Path Prioritization
-
-**Uses:** pytest-cov with `--cov=core/governance` for domain-specific reports, JSON coverage report for trending
-
-**Success criteria:**
-- [ ] 80% coverage on governance (agent_governance_service.py, governance_cache.py, trigger_interceptor.py)
-- [ ] 80% coverage on security (auth/, crypto/, tools_security/)
-- [ ] 80% coverage on episodic memory (episode_segmentation_service.py, episode_retrieval_service.py, episode_lifecycle_service.py)
-- [ ] Overall 80% coverage across backend/
-- [ ] Coverage trending shows upward trajectory (historical tracking working)
-
-### Phase 6: Community Skills Integration (Week 3-4)
-
-**Rationale:** Enable Atom agents to use 5,000+ OpenClaw/ClawHub skills while maintaining enterprise security. Phase 14 already implemented core components (82 tests, 13/13 success criteria), this phase completes gap closures and production hardening.
-
-**Delivers:** python-frontmatter dependency added to requirements.txt, skill import UI with security scan results display, governance workflow (Untrusted → Active → Banned), episodic memory integration (skill episodes with metadata), graduation tracking (skill usage metrics, diversity bonus)
-
-**Addresses:** Security Scanning for Skills, Sandboxed Skill Execution, Governance Integration, Skill Usage Metrics
-
-**Uses:** Docker SDK 7.0+ (already in requirements.txt), OpenAI SDK 1.0+ (already in requirements.txt), LangChain BaseTool (already in requirements.txt), python-frontmatter 1.0+ (NEW - only addition needed)
-
-**Implements:** Three-layer security validation (static patterns → GPT-4 semantic → cache by hash), maturity-based routing (STUDENT blocked, INTERN approval, SUPERVISED monitored, AUTONOMOUS full execution)
-
-**Success criteria:**
-- [ ] python-frontmatter added to requirements.txt
-- [ ] Skill import workflow: Parse → Security Scan → Governance Decision → Registry
-- [ ] 21+ malicious patterns detected + GPT-4 semantic analysis
-- [ ] HazardSandbox execution: network disabled, read-only, 5-min timeout
-- [ ] Every skill execution creates EpisodeSegment with skill metadata
-- [ ] Graduation calculation includes skill usage metrics (executions, success_rate, unique_skills)
-- [ ] Governance integration: STUDENT blocked from Python skills, INTERN+ require approval
-
-### Phase 7: Performance & CI Optimization (Post-Sprint)
-
-**Rationale:** After 80% coverage achieved, optimize test execution time for developer velocity. Parallel test execution and test impact analysis reduce CI time from hours to minutes.
-
-**Delivers:** pytest-xdist parallel execution configuration, pytest-picked for test impact analysis (run only affected tests), test prioritization (smoke → critical → comprehensive), CI pipeline optimization (<10 min feedback loop)
-
-**Addresses:** Parallel Test Execution, Test Impact Analysis, Performance Regression Tests
-
-**Uses:** pytest-xdist (requires test isolation from Phase 1), pytest-picked (git integration), pytest markers for prioritization (P0/P1, smoke, critical)
-
-**Success criteria:**
-- [ ] Full test suite runs in <10 minutes with pytest-xdist -n auto
-- [ ] Smoke tests (P0) complete in <2 minutes (rapid feedback)
-- [ ] Test impact analysis runs only affected tests (git diff based)
-- [ ] CI pipeline shows clear progression: smoke → critical → comprehensive
-- [ ] Performance baselines established (governance cache <1ms, agent resolution <50ms)
+**Implements architecture:**
+- Integration tests for end-to-end audit trail verification
+- Property tests for audit invariants
+- Performance tests for audit query performance
 
 ### Phase Ordering Rationale
 
-**Why this order:** Phases 1-5 establish testing infrastructure and quality standards before measuring coverage (prevents Pitfall #1: coverage churn). Phase 6 (Community Skills) builds on proven patterns from Phase 14 with security-first architecture. Phase 7 (Performance) optimizes after coverage achieved, not before.
+- **Why this order based on dependencies:** Phase 1 establishes the precision foundation (Decimal) that all financial calculations depend on. Phase 2 builds on precision to add payment processing. Phase 3 uses precision + payments to track costs and enforce budgets. Phase 4 requires complete implementation of all previous phases to test end-to-end audit trails.
 
-**Why this grouping:** Phases 1-4 grouped by testing type (unit → property → integration → mobile), Phase 5 grouped by domain coverage, Phase 6 grouped by feature (community skills), Phase 7 grouped by optimization. This grouping allows parallel execution within phases (e.g., governance property tests and episodic memory property tests can be written concurrently).
+- **Why this grouping based on architecture patterns:** Unit tests and property tests (Phase 1) are fast and isolated, providing quick feedback on precision logic. Integration tests (Phase 2) add database and external provider dependencies. Business logic tests (Phase 3) build on integration tests. End-to-end tests (Phase 4) verify complete workflows.
 
-**How this avoids pitfalls:** Each phase explicitly addresses research-identified pitfalls (coverage churn, weak properties, state contamination, async races, platform neglect). Phase 1 prevents Pitfall #7 (test data fragility) with factory pattern. Phase 2 prevents Pitfall #2 (weak properties) with invariant documentation. Phase 3 prevents Pitfall #3 (state contamination) and Pitfall #4 (async races) with parallel execution and explicit coordination. Phase 4 prevents Pitfall #5 (platform neglect) with dual-platform CI.
+- **How this avoids pitfalls from research:** This order prevents floating-point errors from cascading into payment processing (Pitfall 1). Early mock payment testing prevents production failures (Pitfall 4). Audit trail testing last ensures complete coverage (Pitfall 2). Property tests in every phase prevent generic property testing without invariants (Pitfall 3).
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-
-- **Phase 2: Core Property Tests & Invariants** — Complex domain (governance, episodic memory, agent coordination) with undocumented invariants. Requires domain expert workshops to identify "what is invariant here?" before writing tests. Sparse documentation on governance maturity transitions and episodic memory lifecycle rules.
-
-- **Phase 4: Mobile Tests & Platform Coverage** — React Native platform-specific testing has sparse documentation. Need to research Expo mock modules that simulate platform differences, permission testing patterns for iOS vs Android, file path abstraction best practices.
-
-- **Phase 6: Community Skills Integration** — OpenClaw skill format may change (research valid for 30 days until 2026-03-20). Need to verify OpenClaw/ClawHub skill format hasn't evolved since Phase 14 (February 16, 2026), review security scanning patterns for new threat vectors.
+- **Phase 2 (Payment Integration):** Specific payment provider testing patterns (Stripe, PayPal, Braintree have different webhook formats). Research provider-specific test tokens, error codes, and quirks during planning.
+- **Phase 3 (Cost Tracking):** Budget guardrail race condition testing strategies. Database locking patterns (`SELECT FOR UPDATE` vs. compare-and-swap) need research for concurrent budget checks.
 
 **Phases with standard patterns (skip research-phase):**
-
-- **Phase 1: Foundation & Quality Standards** — Well-documented pytest infrastructure, factory_boy patterns, test isolation best practices. No deep research needed, follow pytest documentation and existing Atom test patterns.
-
-- **Phase 3: Integration Tests & Async Coordination** — FastAPI async testing patterns well-documented, transaction rollback pattern standard, pytest-asyncio configuration straightforward. Follow existing Atom async test examples.
-
-- **Phase 5: Coverage by Domain & Trending** — pytest-cov documentation comprehensive, coverage trending uses standard JSON format, domain-specific coverage reports well-understood pattern.
-
-- **Phase 7: Performance & CI Optimization** — pytest-xdist and pytest-picked well-documented, test prioritization patterns standard, CI optimization follows established best practices.
+- **Phase 1 (Core Accounting):** Decimal precision patterns are well-documented. Property-based testing for financial invariants follows established Hypothesis patterns (814 lines of existing tests demonstrate the pattern).
+- **Phase 4 (Audit Trails):** Audit trail testing is standard for financial systems. SOX compliance testing requirements are well-documented. Property tests for audit invariants follow established patterns.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies verified in production (Phase 14: 82 tests, Phase 15: CI/CD pipeline active). Only python-frontmatter is new dependency, well-established library with 1.0+ release. Docker SDK, OpenAI SDK, LangChain already in requirements.txt. |
-| Features | HIGH | 517 test files exist, pytest infrastructure complete, 108 property-based test files verified. Hypothesis integration configured, async support enabled. Test markers (P0/P1/P2/P3, governance, security, episodic memory) already defined. |
-| Architecture | HIGH | Architecture patterns validated against existing codebase (skill_registry_service.py, skill_adapter.py, skill_sandbox.py). Three-layer security, governance routing, episodic integration all verified through code analysis. Data flow confirmed through service method analysis. |
-| Pitfalls | HIGH | All 7 critical pitfalls documented with prevention strategies, backed by official sources (Hypothesis docs, React Native testing guide, FastAPI testing strategies). Warning signs and recovery strategies comprehensive. |
+| Stack (Decimal, Hypothesis, pytest-freezegun, factory_boy) | HIGH | Official Python Decimal docs, Hypothesis documentation, pytest-freezegun active maintenance (2025 releases), factory_boy SQLAlchemy 2.0+ compatibility verified |
+| Features (table stakes, differentiators, anti-features) | MEDIUM | Mix of official docs (Decimal, Stripe testing) and WebSearch verified sources (reconciliation patterns, audit trail testing). Some sources in Chinese require translation validation |
+| Architecture (component responsibilities, patterns, data flow) | HIGH | Based on existing Atom codebase analysis (814 lines financial invariants, 705 lines accounting invariants, 1205 lines governance invariants). Established patterns verified |
+| Pitfalls (precision errors, audit trails, property testing) | HIGH | Multiple authoritative sources on IEEE 754 limitations in finance. SOX compliance documentation. Existing Atom property test patterns demonstrate invariants |
 
-**Overall confidence:** HIGH - Research based on existing production code (Phase 14, Phase 15 verified), official documentation (pytest, Hypothesis, React Native, FastAPI), and proven patterns (82 tests, 13/13 success criteria).
+**Overall confidence:** HIGH
+
+**Why HIGH:** Stack recommendations are based on official documentation and existing verified implementations. Architecture patterns are derived from 1,500+ lines of existing property tests in the codebase. Pitfalls are supported by multiple authoritative sources on IEEE 754, GAAP/IFRS standards, and SOX compliance requirements. Primary gaps are around specific payment provider quirks (addressed in Phase 2 research flag).
 
 ### Gaps to Address
 
-- **Governance Invariants Documentation** — While HIGH confidence in architecture, specific governance invariants (maturity transition rules, permission check invariants, cache performance guarantees) not documented. Requires domain expert workshops during Phase 2 planning.
-
-- **Episodic Memory Lifecycle Edge Cases** — Research HIGH confidence on segmentation/retrieval patterns, but lifecycle edge cases (decay triggers, consolidation criteria, archival thresholds) need validation during Phase 2 implementation. Consult episode_lifecycle_service.py implementation.
-
-- **React Native Platform Differences** — Mobile testing research MEDIUM confidence due to sparse documentation on Expo mock modules and platform-specific permission testing. Need to prototype platform fixtures during Phase 4 planning to validate assumptions.
-
-- **OpenClaw Skill Format Stability** — Community Skills research HIGH confidence for current state (Phase 14 verified February 16, 2026), but skill format may evolve. Research valid for 30 days until 2026-03-20. Verify OpenClaw/ClawHub skill format hasn't changed during Phase 6 planning.
-
-- **Property Test Invariant Identification** — While property-based testing infrastructure is HIGH confidence (108 files, Hypothesis configured), identifying meaningful invariants requires domain expertise not captured in research. Mitigation: Pair with senior developers during Phase 2, require "example bug this catches" docstrings.
-
-**Gap handling strategy:**
-- Document invariants during Phase 2 planning workshops (governance, episodic memory, agent coordination)
-- Prototype platform fixtures during Phase 4 planning (Expo mocks, permission testing)
-- Verify OpenClaw skill format during Phase 6 planning (check for format changes since Feb 16, 2026)
-- Require documented invariants before writing property tests (prevents Pitfall #2)
-- Use existing codebase as invariant source (agent_governance_service.py, episode_segmentation_service.py)
+- **Specific payment provider testing patterns:** Stripe, PayPal, Braintree have different webhook formats and error codes. Phase 2 should research specific providers used in Atom for provider-specific test patterns.
+- **Currency exchange rate precision:** Banker's rounding (half-even) research shows complexity for multi-currency systems. May need dedicated phase for multi-currency if Atom supports international payments.
+- **Property test performance:** 100+ examples for financial invariants may be slow. Need benchmarking with Atom's existing property test suite to validate performance targets.
+- **Chinese language sources:** Several sources on reconciliation patterns and audit trail testing are in Chinese. Translation validation needed during planning.
 
 ## Sources
 
 ### Primary (HIGH confidence)
 
-- **[python-frontmatter documentation](https://github.com/eyeseast/python-frontmatter)** — YAML frontmatter parsing library for SKILL.md files
-- **[Docker SDK for Python 7.0](https://docker-py.readthedocs.io/en/stable/)** — Container management, resource limits, security constraints
-- **[OpenAI API Reference](https://platform.openai.com/docs/api-reference)** — GPT-4 security scanning for 21+ malicious patterns
-- **[LangChain BaseTool Guide](https://python.langchain.com/docs/modules/agents/tools/how_to/custom_tools)** — Tool integration patterns, schema validation
-- **[OpenClaw Skills Format Specification](https://github.com/openclaw/clawhub/blob/main/docs/skill-format.md)** — SKILL.md file structure, YAML + Markdown format
-- **[Using Hypothesis and Schemathesis to Test FastAPI](https://testdriven.io/blog/fastapi-hypothesis/)** — Property-based testing for FastAPI with Hypothesis
-- **[Testing - React Native](https://reactnative.dev/docs/testing-overview)** — Official React Native testing strategies (Updated Jan 16, 2026)
-- **[Getting Started With Property-Based Testing in Python With Hypothesis](https://semaphore.io/blog/property-based-testing-python-hypothesis-pytest)** — Detailed Hypothesis tutorial
-- **[Let Hypothesis Break Your Python Code Before Your Users Do](https://towardsdatascience.com/let-hypothesis-break-your-python-code-before-your-users-do/)** — Practical property-based testing guide
-- **[An Empirical Evaluation of Property-Based Testing in Python](https://dl.acm.org/doi/10.1145/3764068)** (ACM OOPSLA 2025) — Academic research on property-based testing challenges
-- **[Common Pitfalls of Integration Testing in Java](https://www.atomicjar.com/2023/11/common-pitfalls-of-integration-testing-in-java/)** — Database state isolation, test data management (applicable to Python/FastAPI)
-- **[The Fuzzing Book - Reducing Failure-Inducing Inputs](https://www.fuzzingbook.org/html/Reducer.html)** — Fuzzing techniques and minimizing failure cases
-- **[The Human Side of Fuzzing: Challenges Faced by Developers](https://dl.acm.org/doi/10.1145/3611668)** (ACM) — Fuzzing implementation challenges
-- **[FastAPI Testing Strategies to Raise Quality](https://blog.greeden.me/en/2025/11/04/fastapi-testing-strategies-to-raise-quality-pytest-testclient-httpx-dependency-overrides-db-rollbacks-mocks-contract-tests-and-load-testing/)** — Comprehensive FastAPI testing strategies
+- **Python `decimal` module** - Official documentation for exact decimal arithmetic in financial calculations. HIGH confidence, authoritative source.
+- **Hypothesis documentation** - Property-based testing strategies, settings, examples for financial invariants. HIGH confidence, actively maintained.
+- **pytest-freezegun documentation** - Time freezing for date-dependent tests (aging reports, revenue recognition). HIGH confidence, 2025 releases.
+- **factory_boy documentation** - Test data generation for complex financial objects (Invoice, LineItems, Payments). HIGH confidence, SQLAlchemy 2.0+ compatible.
+- **responses library documentation** - HTTP mocking for payment providers (Stripe, PayPal). HIGH confidence, already in requirements.txt v0.23.0+.
+- **Stripe API Testing Guide** - Test cards, test tokens, mock scenarios for payment integration. HIGH confidence, official Stripe documentation.
+- **Existing Atom property tests** - 814 lines of financial invariants (`test_financial_invariants.py`), 705 lines of accounting invariants (`test_ai_accounting_invariants.py`), 1205 lines of governance invariants (`test_governance_maturity_invariants.py`). HIGH confidence, verified implementation patterns.
 
 ### Secondary (MEDIUM confidence)
 
-- **[Software Testing Best Practices for 2026 - N-iX](https://www.n-ix.com/software-testing-best-practices/)** — Risk-based testing, automation, metrics (January 18, 2026)
-- **[Software Testing Best Practices in 2026 - STC Technologies](https://softwaretechnologyconsultants.com/software-testing-best-practices-in-2026-a-complete-guide-for-modern-qa-devops-teams/)** — Modern QA DevOps testing guide (February 2026)
-- **[Zero to 92% Test Coverage: A Week-Long Journey - Medium](https://medium.com/@jaivalsuthar/building-a-comprehensive-testing-suite-a-week-long-journey-to-92-coverage-1a9f5df8c4e0)** — Achieving high coverage in one week
-- **[How to Write an Effective Test Coverage Plan - QA Wolf](https://www.qawolf.com/blog/how-to-write-an-effective-test-coverage-plan)** — Prioritize automation by impact
-- **[12 Faster Testing Strategies for Large Codebases - Augment Code](https://www.augmentcode.com/guides/12-faster-testing-strategies)** — Reduce CI times from 45 minutes to under 10 minutes
-- **[A Practical Guide to Test Automation Strategy - MuukTest](https://muuktest.com/blog/test-automation-strategy)** — Achieving 80% automation coverage on critical paths
-- **[6 Common React Native mistakes I still see in production apps](https://medium.com/@eduardofelipi/6-common-react-native-mistakes-i-still-see-in-production-apps-01bd81260628)** (Medium, Jan 2, 2026) — Platform differences, testing issues
-- **[Is fuzzing Python code worth it? Yes!](https://medium.com/cognite/is-fuzzing-python-code-worth-it-yes-862f2a9cb086)** — Python fuzzing value and common bugs found
-- **[Integration Testing: Avoid Common Mistakes in 2025](https://testquality.com/integration-testing-common-mistakes-pitfalls/)** — Integration testing pitfalls
+- [Dinero.js Testing Strategy Guide](https://m.blog.csdn.net/gitblog_00990/article/details/150984135) (December 2025) - Property-based testing for financial calculations using fast-check. Complex rounding algorithms (banker's rounding). Testing multiple data types.
+- [Stripe-Mock Server](https://github.com/stripe/stripe-mock) - Official mock HTTP server responding like Stripe API. Ports 12111 (HTTP) and 12112 (HTTPS). Installation via Homebrew, Docker, or Go.
+- [Python Decimal Best Practices](https://docs.python.org/3/library/decimal.html) - Initialize with strings, not floats: `Decimal('0.1')` not `Decimal(0.1)`. Adjustable precision (default 28 places). Rounding modes: `ROUND_HALF_UP` for financial calculations.
+- [Financial Software Testing Analysis](https://m.blog.csdn.net/2201_76100073/article/details/141262616) (February 2025) - Core testing focus: business correctness, reconciliation, settlement. Algorithm testing: numerical accuracy verification. Interface testing: external systems (custody banks).
+- [ThoughtWorks Technology Radar - Property-Based Unit Testing](https://www.thoughtworks.com/pt-br/radar/techniques/property-based-unit-testing) (February 2025) - Valued technique for finding edge cases. Data generators create randomized inputs within defined ranges. Good for checking boundary conditions.
+- [Why 0.1 + 0.2 != 0.3: Building a Precise Calculator with Go's Decimal](https://dev.to/jayk0001/why-01-02-03-building-a-precise-calculator-with-gos-decimal-package-i8) (November 2025) - Demonstrates arbitrary-precision decimals. MEDIUM confidence, technical blog post.
+- [Float and Decimal Golden Rule](https://juejin.cn/post/7522367598815739913) (July 2025) - Performance testing with 1M records comparing FLOAT vs DECIMAL. Industry-specific use cases for financial reconciliation.
+- [pytest Mock Technology Complete Guide](https://blog.csdn.net/weixin_63779518/article/details/148582244) (June 10, 2025) - Payment gateway mock implementation examples. MEDIUM confidence.
+- [Common Problems in Payment Systems](https://blog.csdn.net/Rookie_CEO/article/details/141039745) - Testing challenges with third-party payment systems, mock limitations. MEDIUM confidence.
+- [CI/CD Performance Testing Pitfalls](https://dev.to/ci_cd/improving-ci-performance-6x-faster) - 6-10x CI performance improvements, test parallelization. MEDIUM confidence.
 
 ### Tertiary (LOW confidence)
 
-- **[Hypothesis: Property-Based Testing for Python](https://news.ycombinator.com/item?id=45818562)** (Hacker News Discussion) — Community discussion on property-based testing challenges
-- **[Integration test fails intermittently when CI builds run concurrently](https://www.reddit.com/r/softwaretesting/comments/1on5qee/integration_test_fails_intermittently_when_ci/)** (Reddit) — Real-world test isolation issues
-- **[The argument against clearing the database between tests](https://calpaterson.com/against-database-teardown.html)** — Alternative viewpoint on database state management
-
-### Codebase Analysis (HIGH confidence)
-
-- `/Users/rushiparikh/projects/atom/backend/core/skill_registry_service.py` — Skill registry service implementation
-- `/Users/rushiparikh/projects/atom/backend/core/skill_adapter.py` — LangChain BaseTool wrapper
-- `/Users/rushiparikh/projects/atom/backend/core/skill_security_scanner.py` — 21+ malicious patterns + GPT-4 scanning
-- `/Users/rushiparikh/projects/atom/backend/core/skill_sandbox.py` — HazardSandbox Docker isolation
-- `/Users/rushiparikh/projects/atom/backend/core/skill_parser.py` — SKILL.md frontmatter parsing with auto-fix
-- `/Users/rushiparikh/projects/atom/backend/core/agent_governance_service.py` — Existing governance system
-- `/Users/rushiparikh/projects/atom/backend/core/governance_cache.py` — <1ms permission cache
-- `/Users/rushiparikh/projects/atom/backend/core/trigger_interceptor.py` — <5ms routing decisions
-- `/Users/rushiparikh/projects/atom/backend/core/agent_graduation_service.py` — Graduation framework with skill metrics
-- `/Users/rushiparikh/projects/atom/backend/core/episode_segmentation_service.py` — EpisodeSegment creation with skill metadata
-- `/Users/rushiparikh/projects/atom/backend/api/skill_routes.py` — REST API endpoints
-- `/Users/rushiparikh/projects/atom/backend/core/models.py` — SkillExecution, EpisodeSegment models
-- `/Users/rushiparikh/projects/atom/backend/pytest.ini` — Pytest configuration with markers, coverage, Hypothesis settings
-- `/Users/rushiparikh/projects/atom/docs/COMMUNITY_SKILLS.md` — Comprehensive user guide (508 lines)
-- `/Users/rushiparikh/projects/atom/docs/ATOM_VS_OPENCLAW.md` — Feature comparison (297 lines)
-
-### Verification Status (HIGH confidence)
-
-- **Phase 14 Implementation Research** (February 16, 2026) — Verified 13/13 success criteria, 82 tests passing, community skills integration complete
-- **Phase 15 Codebase Completion** (February 16, 2026) — CI/CD pipeline active, monitoring configured, type hints enforced (MyPy)
-- **Test Infrastructure Review** (February 10, 2026) — 517 test files, 108 property-based test files, pytest configuration complete
-- **Codebase Analysis** (February 18, 2026) — All integration points verified through service method analysis, security patterns validated
+- **Chinese accounting resources** on audit trail testing (walkthrough testing, 穿行测试). LOW confidence, needs translation validation.
+- **Reconciliation patterns** from Chinese financial software sources. LOW confidence, needs verification.
+- **Invoice/billing workflow** test scenarios from Microsoft Dynamics, Oracle, SAP documentation. LOW confidence, vendor-specific patterns.
+- [Hacker News: Floating Point in Financial Systems](https://news.ycombinator.com/item?id=44144207) (May 2025) - Community discussion on binary floating-point vs. fixed-point for accounting. LOW confidence, forum discussion.
+- [Banker's rounding(银行家舍入法)](https://zhidao.baidu.com/question/1809928104317370587.html) - Q&A format explaining half-even rounding. LOW confidence, needs translation.
+- [兑换外币小数点后的怎么算](https://zhidao.baidu.com/question/1124391813496637219.html) - Q&A on foreign exchange precision requirements. LOW confidence, needs translation.
 
 ---
 
-*Research completed: February 18, 2026*
+*Research completed: February 25, 2026*
 *Ready for roadmap: yes*
-*Confidence: HIGH*
