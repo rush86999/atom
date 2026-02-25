@@ -35,6 +35,17 @@
       "lines_covered": 8272,
       "lines_total": 45366,
       "trend": "regressing"
+    },
+    {
+      "date": "2026-02-25T23:03:27Z",
+      "phase": "090",
+      "plan": "01",
+      "coverage_pct": 74.55,
+      "files_covered": 156,
+      "files_total": 205,
+      "branches_covered": 52,
+      "branches_total": 74,
+      "trend": "improving"
     }
   ],
   "baselines": {
@@ -53,6 +64,17 @@
       "coverage_pct": 5.13,
       "lines_covered": 2901,
       "lines_total": 56529
+    },
+    "090-baseline": {
+      "name": "090-baseline",
+      "phase": "090",
+      "plan": "01",
+      "date": "2026-02-25T23:03:27Z",
+      "coverage_pct": 74.55,
+      "files_covered": 156,
+      "files_total": 205,
+      "branches_covered": 52,
+      "branches_total": 74
     }
   },
   "migrated_from": "phases_format",
