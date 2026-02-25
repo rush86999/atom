@@ -393,7 +393,8 @@ def test_direct_status_field_change_blocked(db_session: Session):
     SECURITY: Direct agent.status field change doesn't bypass governance.
 
     ATTACK: Directly modify agent.status to "AUTONOMOUS".
-    EXPECTED: Governance still checks actual maturity, not just status field.
+    EXPECTED: Governance still checks actual maturity based on confidence_score.
+    SECURITY FIX: can_perform_action validates status matches confidence.
     """
     service = AgentGovernanceService(db_session)
 
@@ -416,12 +417,11 @@ def test_direct_status_field_change_blocked(db_session: Session):
         action_type="execute_command"
     )
 
-    # The governance check uses agent.status directly, not confidence
-    # So if status is AUTONOMOUS, it would be allowed
-    # This test documents current behavior - may need improvement
-    if agent.status == AgentStatus.AUTONOMOUS.value:
-        # Current implementation: status check bypasses confidence
-        assert result["allowed"] is True  # This is a potential vulnerability
+    # SECURITY FIX: Governance check now validates status matches confidence
+    # Even though status is AUTONOMOUS, low confidence (0.3) should block the action
+    assert result["allowed"] is False, \
+        "Agent with low confidence (0.3) should be blocked even if status is AUTONOMOUS"
+    assert "student" in result["reason"].lower() or "confidence" in result["reason"].lower() or "maturity" in result["reason"].lower()
 
 
 @pytest.mark.governance_bypass
