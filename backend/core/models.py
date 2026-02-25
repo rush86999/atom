@@ -21,7 +21,7 @@ from sqlalchemy import (
     Table,
     Text,
 )
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, relationship, validates
 from sqlalchemy.sql import func
 
 from core.data_visibility import DataVisibility
@@ -636,6 +636,15 @@ class AgentRegistry(Base):
     # Flexible Configuration
     configuration = Column(JSON, default={}) # System prompts, tools, constraints
     schedule_config = Column(JSON, default={}) # Cron expression, active status
+
+    @validates('confidence_score')
+    def validate_confidence_score(self, key, value):
+        """Validate confidence_score is within [0.0, 1.0] range."""
+        if value is not None:
+            # Clamp to valid range to prevent governance bypass
+            # SECURITY: Prevents confidence manipulation attacks
+            value = max(0.0, min(1.0, float(value)))
+        return value
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, status={self.status}, confidence={self.confidence_score})>"

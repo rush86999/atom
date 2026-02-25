@@ -148,22 +148,22 @@ def test_student_agent_cannot_execute_command(db_session: Session):
 
 
 @pytest.mark.governance_bypass
-@pytest.mark.parametrize("invalid_score", [
-    -1.0,        # Negative
-    -0.5,        # Negative
-    0.0,         # Zero (valid edge)
-    1.0,         # Maximum (valid edge)
-    1.5,         # Above maximum
-    2.0,         # Way above maximum
-    999.0,       # Extreme
+@pytest.mark.parametrize("invalid_score,expected_clamped", [
+    (-1.0, 0.0),        # Negative clamped to 0.0
+    (-0.5, 0.0),        # Negative clamped to 0.0
+    (0.0, 0.0),         # Zero (valid edge)
+    (1.0, 1.0),         # Maximum (valid edge)
+    (1.5, 1.0),         # Above maximum clamped to 1.0
+    (2.0, 1.0),         # Way above maximum clamped to 1.0
+    (999.0, 1.0),       # Extreme clamped to 1.0
 ])
-def test_confidence_score_validation(db_session: Session, invalid_score):
+def test_confidence_score_validation(db_session: Session, invalid_score, expected_clamped):
     """
-    SECURITY: Invalid confidence scores are NOT clamped (VULNERABILITY).
+    SECURITY: Invalid confidence scores are clamped to [0.0, 1.0] range.
 
     ATTACK: Try to set confidence_score outside [0.0, 1.0] range.
-    EXPECTED: Score should be clamped to valid range, but currently is not.
-    VULNERABILITY: Database accepts any float value, no validation in model or service layer.
+    EXPECTED: Score should be clamped to valid range.
+    SECURITY FIX: Model-level validator ensures confidence scores are always in valid range.
     """
     service = AgentGovernanceService(db_session)
 
@@ -181,25 +181,20 @@ def test_confidence_score_validation(db_session: Session, invalid_score):
     # Refresh from DB
     db_session.refresh(agent)
 
-    # VULNERABILITY: Scores are NOT clamped to [0.0, 1.0]
-    # This could allow maturity bypass through confidence manipulation
-    # Documenting as security finding rather than asserting clamped behavior
-    if invalid_score < 0.0:
-        # Negative scores are stored as-is (vulnerability)
-        assert agent.confidence_score == invalid_score
-    elif invalid_score > 1.0:
-        # Scores > 1.0 are stored as-is (vulnerability)
-        assert agent.confidence_score == invalid_score
+    # SECURITY FIX: Scores are NOW clamped to [0.0, 1.0]
+    # Validator in models.py prevents governance bypass through confidence manipulation
+    assert agent.confidence_score == expected_clamped, \
+        f"Confidence score {invalid_score} should be clamped to {expected_clamped}"
 
 
 @pytest.mark.governance_bypass
 def test_negative_confidence_rejected(db_session: Session):
     """
-    SECURITY: Negative confidence scores accepted (VULNERABILITY).
+    SECURITY: Negative confidence scores clamped to 0.0.
 
     ATTACK: Try negative confidence to bypass maturity.
-    EXPECTED: Should be rejected or clamped to 0.0, but currently accepted.
-    VULNERABILITY: Negative scores stored in database, could affect maturity calculations.
+    EXPECTED: Should be clamped to 0.0.
+    SECURITY FIX: Model-level validator clamps negative values to 0.0.
     """
     service = AgentGovernanceService(db_session)
 
@@ -214,18 +209,18 @@ def test_negative_confidence_rejected(db_session: Session):
     db_session.commit()
     db_session.refresh(agent)
 
-    # VULNERABILITY: Negative score accepted and stored
-    assert agent.confidence_score == -1.0  # This is a bug
+    # SECURITY FIX: Negative score clamped to 0.0
+    assert agent.confidence_score == 0.0
 
 
 @pytest.mark.governance_bypass
 def test_confidence_above_1_rejected(db_session: Session):
     """
-    SECURITY: Confidence scores above 1.0 accepted (VULNERABILITY).
+    SECURITY: Confidence scores above 1.0 clamped to 1.0.
 
     ATTACK: Try confidence > 1.0 to bypass maturity.
-    EXPECTED: Should be rejected or clamped to 1.0, but currently accepted.
-    VULNERABILITY: Scores > 1.0 could prematurely trigger AUTONOMOUS maturity.
+    EXPECTED: Should be clamped to 1.0.
+    SECURITY FIX: Model-level validator clamps high values to 1.0.
     """
     service = AgentGovernanceService(db_session)
 
@@ -240,8 +235,8 @@ def test_confidence_above_1_rejected(db_session: Session):
     db_session.commit()
     db_session.refresh(agent)
 
-    # VULNERABILITY: Score > 1.0 accepted and stored
-    assert agent.confidence_score == 2.0  # This is a bug
+    # SECURITY FIX: Score > 1.0 clamped to 1.0
+    assert agent.confidence_score == 1.0
 
 
 @pytest.mark.governance_bypass
