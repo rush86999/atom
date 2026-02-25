@@ -32,7 +32,7 @@ from core.ai_accounting_engine import (
 )
 
 # Import Decimal strategies
-from tests.fixtures.decimal_fixtures import money_strategy
+from tests.fixtures.decimal_fixtures import money_strategy, lists_of_decimals
 
 
 class TestTransactionIngestionInvariants:
