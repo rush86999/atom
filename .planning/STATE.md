@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 93 of 94 (Cost Tracking & Budgets)
-Plan: 1 of 5 (Budget Enforcement Testing)
-Status: Plan 093-01 complete ✅
-Last activity: 2026-02-25 — Plan 093-01: Budget Enforcement Testing (BudgetEnforcementService with atomic spend approval, 32 tests, 100% pass rate)
+Plan: 4 of 5 (Budget Guardrail Threshold Testing)
+Status: Plan 093-04 complete ✅
+Last activity: 2026-02-25 — Plan 093-04: Budget Guardrail Threshold Testing (Configurable thresholds with 39 validation tests, 100% pass rate)
 
-Progress: [█████░░░░░░] 45% (v3.3: Phases 91-92 complete, Phase 93 Plan 1 complete, 11/20 plans done)
+Progress: [█████░░░░░░] 60% (v3.3: Phases 91-92 complete, Phase 93 Plans 1-2-4 complete, 14/20 plans done)
 
 ## Milestone v3.3 Finance Testing & Bug Fixes
 
@@ -72,9 +72,9 @@ Progress: [█████░░░░░░] 45% (v3.3: Phases 91-92 complete, 
 **v3.3 Milestone Progress:**
 - Phases planned: 4
 - Phases complete: 2 (Phases 91, 92)
-- Plans complete: 11/20 (55%)
+- Plans complete: 14/20 (70%)
 - Requirements mapped: 20/20 (100%) ✅
-- Tests created: 198 tests (48 Phase 91 + 117 Phase 92 + 33 Phase 93)
+- Tests created: 279 tests (48 Phase 91 + 117 Phase 92 + 114 Phase 93)
 
 **Historical Velocity (v3.1):**
 - Total plans completed: 35
@@ -86,7 +86,7 @@ Progress: [█████░░░░░░] 45% (v3.3: Phases 91-92 complete, 
 - Trend: Fast execution (property testing takes longer due to Hypothesis examples)
 - Average duration: ~23 minutes
 
-*Updated: 2026-02-25 (Phase 93-01 COMPLETE: Budget Enforcement Testing)*
+*Updated: 2026-02-25 (Phase 93-04 COMPLETE: Budget Guardrail Threshold Testing)*
 
 ---
 
@@ -122,6 +122,10 @@ Recent decisions affecting current work:
 - [Phase 93-02]: 10 Standard Cost Categories - llm_tokens, compute, storage, network, labor, software, infrastructure, support, sales, other
 - [Phase 93-02]: Cost Allocation Sum Validation - Exact Decimal comparison (no epsilon) ensures allocations sum to original amount
 - [Phase 93-02]: Attribution Invariant Testing - 33 unit tests validate sum of categorized spends equals total spend (budget attribution accuracy)
+- [Phase 93-04]: Per-Project Budget Thresholds - Different projects can have different thresholds (warn/pause/block) based on risk tolerance
+- [Phase 93-04]: Configurable Threshold Defaults - 80% warn, 90% pause, 100% block balance early warning without false positives
+- [Phase 93-04]: Threshold Validation Strict Ordering - Enforce warn < pause < block to prevent ambiguous states
+- [Phase 93-04]: Utilization-Based Status - Calculate (current_spend + amount) / limit * 100 for accurate "what if" status determination
 - [Phase 94]: Audit trails last - requires complete implementation of all financial operations for meaningful end-to-end testing
 - [Research]: Phase 92 needs provider-specific research (Stripe/PayPal/Braintree webhook formats, error codes)
 - [Research]: Phase 93 needs database locking pattern research (SELECT FOR UPDATE vs compare-and-swap)
@@ -168,7 +172,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Plan 093-02 (Cost Attribution Accuracy Testing) - Created CostAttributionService with 33 unit tests for category validation, budget attribution, and cost allocation
+Stopped at: Completed Plan 093-04 (Budget Guardrail Threshold Testing) - Enhanced BudgetGuardrails with configurable thresholds, 39 validation tests, 100% pass rate
 Resume file: None
 
 ---
