@@ -24,7 +24,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -e backend/[test]
+        pip install -e backend/[test,test-quality]
         pip install pytest-cov diff-cover
 
     - name: Run tests with coverage
@@ -35,7 +35,16 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term-missing \
-          --cov-fail-under=25
+          --cov-fail-under=25 \
+          --json-report --json-report-file=pytest_report.json
+
+    - name: Validate test pass rate
+      run: |
+        cd backend
+        python tests/scripts/check_pass_rate.py \
+          --json-file pytest_report.json \
+          --minimum 98 \
+          --verbose
 
     - name: Check coverage diff
       run: |
