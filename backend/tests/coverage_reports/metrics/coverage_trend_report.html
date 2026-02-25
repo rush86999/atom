@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Trend Report - Atom</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .timestamp {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .card-label {
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .card-sub {
+            font-size: 0.9em;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .trend-up { color: #28a745; }
+        .trend-down { color: #dc3545; }
+        .trend-stable { color: #6c757d; }
+
+        .chart-section {
+            padding: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+
+        .alerts-section {
+            padding: 0 30px 30px;
+        }
+
+        .alert {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .alert-high {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .alert-medium {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Coverage Trend Report</h1>
+            <div class="timestamp">Last updated: 2026-02-25 18:16:09</div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-label">Current Coverage</div>
+                <div class="card-value">74.5%</div>
+                <div class="card-sub">
+                    ➡️ Stable
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">30-Day Average</div>
+                <div class="card-value">37.2%</div>
+                <div class="card-sub">Moving average</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">Week-over-Week</div>
+                <div class="card-value trend-stable">
+                    +0.0%
+                </div>
+                <div class="card-sub">Change from last week</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">Target Prediction</div>
+                <div class="card-value">
+                    2026-02-28
+                </div>
+                <div class="card-sub">
+                    Confidence: Medium
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-container">
+                <div class="chart-title">Coverage History (Last 30 Data Points)</div>
+                <div class="chart">
+                    <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#667eea;stop-opacity:0" />
+        </linearGradient>
+    </defs>
+    <line x1="40" y1="40.0" x2="760" y2="40.0" stroke="#e0e0e0" stroke-dasharray="5,5"/><text x="35" y="44.0" text-anchor="end" font-size="10" fill="#888">80.0%</text><line x1="40" y1="120.0" x2="760" y2="120.0" stroke="#e0e0e0" stroke-dasharray="5,5"/><text x="35" y="124.0" text-anchor="end" font-size="10" fill="#888">63.8%</text><line x1="40" y1="200.0" x2="760" y2="200.0" stroke="#e0e0e0" stroke-dasharray="5,5"/><text x="35" y="204.0" text-anchor="end" font-size="10" fill="#888">47.6%</text><line x1="40" y1="280.0" x2="760" y2="280.0" stroke="#e0e0e0" stroke-dasharray="5,5"/><text x="35" y="284.0" text-anchor="end" font-size="10" fill="#888">31.4%</text><line x1="40" y1="360.0" x2="760" y2="360.0" stroke="#e0e0e0" stroke-dasharray="5,5"/><text x="35" y="364.0" text-anchor="end" font-size="10" fill="#888">15.2%</text><line x1="40" y1="40.0" x2="760" y2="40.0" stroke="#28a745" stroke-width="2" stroke-dasharray="10,5"/><text x="765" y="44.0" font-size="10" fill="#28a745" font-weight="bold">Target (80.0%)</text><path d="M40.0,326.6 L184.0,360.0 L328.0,328.6 L472.0,360.0 L616.0,66.9 L760.0,66.9" fill="none" stroke="#667eea" stroke-width="3"/><path d="M40.0,326.6 L184.0,360.0 L328.0,328.6 L472.0,360.0 L616.0,66.9 L760.0,66.9 L760.0,360 L40.0,360 Z" fill="url(#gradient)" opacity="0.3"/><circle cx="40.0" cy="326.6" r="5" fill="#dc3545" stroke="white" stroke-width="2"/><text x="40.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-17</text><circle cx="184.0" cy="360.0" r="5" fill="#dc3545" stroke="white" stroke-width="2"/><text x="184.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-18</text><circle cx="328.0" cy="328.6" r="5" fill="#dc3545" stroke="white" stroke-width="2"/><text x="328.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-18</text><circle cx="472.0" cy="360.0" r="5" fill="#dc3545" stroke="white" stroke-width="2"/><text x="472.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-24</text><circle cx="616.0" cy="66.9" r="5" fill="#ffc107" stroke="white" stroke-width="2"/><text x="616.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-25</text><circle cx="760.0" cy="66.9" r="5" fill="#ffc107" stroke="white" stroke-width="2"/><text x="760.0" y="390" text-anchor="middle" font-size="9" fill="#666">2026-02-25</text>
+</svg>
+                </div>
+            </div>
+        </div>
+
+        
+
+        <div class="footer">
+            Generated by Coverage Trend System |
+            <a href="../html/index.html">Full Coverage Report</a> |
+            <a href="coverage.json">Raw Data</a>
+        </div>
+    </div>
+</body>
+</html>
