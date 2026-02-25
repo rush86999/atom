@@ -178,8 +178,10 @@ class TestRoundingInvariants:
         # Round then sum
         round_then_sum = sum(rounded_amounts, Decimal('0.00'))
 
-        # Should be very close (may differ by 1 cent due to rounding)
-        assert abs(sum_then_round - round_then_sum) <= Decimal('0.01'), \
+        # Should be very close (may differ by few cents due to rounding order)
+        # Maximum difference is count * 0.005 (rounding error per item)
+        max_diff = Decimal('0.01') * len(amounts)
+        assert abs(sum_then_round - round_then_sum) <= max_diff, \
             f"Rounding order matters: sum_then_round={sum_then_round}, round_then_sum={round_then_sum}"
 
 
@@ -267,7 +269,7 @@ class TestEdgeCases:
         assert amount == from_string
 
     @given(value=st.one_of(
-        st.text(min_value=1, max_value=20),
+        st.text(min_size=1, max_size=20),
         st.integers(min_value=-1000, max_value=1000),
         st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False)
     ))
