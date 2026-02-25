@@ -79,14 +79,19 @@ Plans:
   3. Property tests detect cost leaks (unexpected spend, uncategorized costs, zombie subscriptions)
   4. Budget guardrail validation covers alerts, thresholds, and enforcement actions (pause vs warn vs block)
   5. Concurrent spend checks use database locking to prevent race conditions (distributed locks tested)
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Wave Structure:**
+- Wave 1: Plan 01 (Budget enforcement), Plan 02 (Cost attribution) - parallel foundation
+- Wave 2: Plan 03 (Cost leak detection), Plan 04 (Guardrail validation) - depends on 01, 02
+- Wave 3: Plan 05 (Concurrent spend checks) - depends on 01, 04
 
 Plans:
-- [ ] 93-01: Budget enforcement testing (BUD-01)
-- [ ] 93-02: Cost attribution accuracy (BUD-02)
-- [ ] 93-03: Cost leak detection property tests (BUD-03)
-- [ ] 93-04: Budget guardrail validation (BUD-04)
-- [ ] 93-05: Concurrent spend checks (BUD-05)
+- [ ] 93-01-PLAN.md — Budget enforcement testing (BUD-01): BudgetEnforcementService with atomic spend approval, overdraft prevention tests, property tests for budget invariants
+- [ ] 93-02-PLAN.md — Cost attribution accuracy (BUD-02): CostAttributionService with category validation, allocation logic, Transaction NOT NULL category constraint
+- [ ] 93-03-PLAN.md — Cost leak detection property tests (BUD-03): Hypothesis property tests for uncategorized costs, zombie subscriptions, savings calculation invariants
+- [ ] 93-04-PLAN.md — Budget guardrail validation (BUD-04): Configurable thresholds (warn/pause/block), enforcement action tests, threshold transition validation
+- [ ] 93-05-PLAN.md — Concurrent spend checks (BUD-05): Pessimistic locking (SELECT FOR UPDATE), property tests for concurrent invariants, stress tests with 50-100 workers
 
 ### Phase 94: Audit Trails & Compliance
 **Goal**: All financial operations logged completely and immutably with chronological integrity, SOX compliance validation, and end-to-end traceability
