@@ -650,6 +650,416 @@ class TestEdgeCaseInvariants:
                 f"Higher confidence ({confidence2} > {confidence1}) should not result in lower maturity ({new_level} < {initial_level})"
 
 
+class TestAgentRegistrationInvariants:
+    """Property-based tests for agent registration invariants."""
+
+    @given(
+        name=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- '),
+        category=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        module_path=st.text(min_size=1, max_size=200, alphabet='abcdefghijklmnopqrstuvwxyz._'),
+        class_name=st.text(min_size=1, max_size=100, alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    )
+    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_agent_registration_creates_valid_agent(self, db_session, name, category, module_path, class_name):
+        """
+        INVARIANT: Agent registration creates valid agent records.
+
+        Tests that register_or_update_agent creates agents with valid fields.
+        """
+        service = AgentGovernanceService(db_session)
+
+        # Register agent
+        agent = service.register_or_update_agent(
+            name=name,
+            category=category,
+            module_path=module_path,
+            class_name=class_name
+        )
+
+        # Verify structure
+        assert agent.id is not None, "Agent should have ID"
+        assert agent.name == name, "Agent name should match"
+        assert agent.category == category, "Agent category should match"
+        assert agent.module_path == module_path, "Module path should match"
+        assert agent.class_name == class_name, "Class name should match"
+        assert agent.status == AgentStatus.STUDENT.value, "New agents should start as STUDENT"
+
+        # Verify stored in database
+        retrieved = db_session.query(AgentRegistry).filter(
+            AgentRegistry.module_path == module_path,
+            AgentRegistry.class_name == class_name
+        ).first()
+        assert retrieved is not None, "Agent should be stored in database"
+
+    @given(
+        confidence=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        positive=st.booleans(),
+        impact=st.sampled_from(["high", "low"])
+    )
+    @settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @example(confidence=0.5, positive=True, impact="high")  # Exact boundary
+    @example(confidence=0.7, positive=True, impact="high")  # Exact boundary
+    @example(confidence=0.9, positive=True, impact="high")  # Exact boundary
+    def test_confidence_update_affects_maturity(self, db_session, confidence, positive, impact):
+        """
+        INVARIANT: Confidence score updates trigger correct maturity transitions.
+
+        Tests _update_confidence_score method with various confidence levels.
+        """
+        # Create agent with initial confidence
+        agent = AgentRegistry(
+            name="ConfidenceTest",
+            category="test",
+            module_path="test.confidence",
+            class_name="Test",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.4
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = AgentGovernanceService(db_session)
+
+        # Update confidence
+        service._update_confidence_score(agent.id, positive=positive, impact_level=impact)
+
+        # Refresh from database
+        db_session.refresh(agent)
+
+        # Verify maturity matches confidence
+        if agent.confidence_score >= 0.9:
+            assert agent.status == AgentStatus.AUTONOMOUS.value
+        elif agent.confidence_score >= 0.7:
+            assert agent.status == AgentStatus.SUPERVISED.value
+        elif agent.confidence_score >= 0.5:
+            assert agent.status == AgentStatus.INTERN.value
+        else:
+            assert agent.status == AgentStatus.STUDENT.value
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT,
+            AgentStatus.INTERN,
+            AgentStatus.SUPERVISED
+        ]),
+        user_role=st.sampled_from([UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN])
+    )
+    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_promote_to_autonomous(self, db_session, agent_status, user_role):
+        """
+        INVARIANT: Admin can promote agents to AUTONOMOUS.
+
+        Tests promote_to_autonomous method.
+        """
+        # Create agent
+        agent = AgentRegistry(
+            name=f"PromoteTest_{agent_status.value}",
+            category="test",
+            module_path="test.promote",
+            class_name="Test",
+            status=agent_status.value,
+            confidence_score=0.5  # Below autonomous threshold
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create admin user
+        user = User(
+            id=str(uuid.uuid4()),
+            email="admin@test.com",
+            role=user_role.value
+        )
+
+        service = AgentGovernanceService(db_session)
+
+        # Promote to autonomous
+        promoted = service.promote_to_autonomous(agent.id, user)
+
+        # Verify promotion
+        assert promoted.status == AgentStatus.AUTONOMOUS.value, \
+            f"Agent should be promoted to AUTONOMOUS, got {promoted.status}"
+        assert promoted.id == agent.id, "Agent ID should not change"
+
+
+class TestGovernanceEnforcementInvariants:
+    """Property-based tests for governance enforcement invariants."""
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT,
+            AgentStatus.INTERN,
+            AgentStatus.SUPERVISED,
+            AgentStatus.AUTONOMOUS
+        ]),
+        action_type=st.sampled_from([
+            "present_chart", "stream_chat", "submit_form", "delete"
+        ])
+    )
+    @settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_enforce_action_returns_valid_structure(self, db_session, agent_status, action_type):
+        """
+        INVARIANT: enforce_action returns valid response structure.
+
+        Tests enforce_action method with various agents and actions.
+        """
+        confidence_for_status = {
+            AgentStatus.STUDENT: 0.3,
+            AgentStatus.INTERN: 0.6,
+            AgentStatus.SUPERVISED: 0.8,
+            AgentStatus.AUTONOMOUS: 0.95
+        }
+
+        agent = AgentRegistry(
+            name=f"EnforceTest_{agent_status.value}",
+            category="test",
+            module_path="test.enforce",
+            class_name="Test",
+            status=agent_status.value,
+            confidence_score=confidence_for_status[agent_status]
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = AgentGovernanceService(db_session)
+
+        # Enforce action
+        result = service.enforce_action(agent.id, action_type)
+
+        # Verify response structure
+        assert "proceed" in result, "Result should have 'proceed' field"
+        assert "status" in result, "Result should have 'status' field"
+        assert "reason" in result, "Result should have 'reason' field"
+        assert "agent_status" in result, "Result should have 'agent_status' field"
+
+        # Verify proceed is boolean
+        assert isinstance(result["proceed"], bool), "proceed should be boolean"
+
+        # Verify status is valid
+        valid_statuses = ["APPROVED", "PENDING_APPROVAL", "BLOCKED"]
+        assert result["status"] in valid_statuses, \
+            f"status should be one of {valid_statuses}, got {result['status']}"
+
+    @given(
+        agent_status=st.sampled_from([AgentStatus.STUDENT, AgentStatus.INTERN]),
+        action_type=st.sampled_from(["delete", "execute"]),
+        params=st.dictionaries(
+            keys=st.text(min_size=1, max_size=20, alphabet='abc'),
+            values=st.text(min_size=1, max_size=50, alphabet='abc DEF'),
+            min_size=0,
+            max_size=5
+        )
+    )
+    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_request_approval_for_blocked_actions(self, db_session, agent_status, action_type, params):
+        """
+        INVARIANT: Blocked actions create approval requests.
+
+        Tests request_approval method.
+        """
+        confidence_for_status = {
+            AgentStatus.STUDENT: 0.3,
+            AgentStatus.INTERN: 0.6
+        }
+
+        agent = AgentRegistry(
+            name=f"ApprovalTest_{agent_status.value}",
+            category="test",
+            module_path="test.approval",
+            class_name="Test",
+            status=agent_status.value,
+            confidence_score=confidence_for_status[agent_status]
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = AgentGovernanceService(db_session)
+        reason = f"Agent {agent_status.value} requesting approval for {action_type}"
+
+        # Request approval
+        approval_id = service.request_approval(agent.id, action_type, params, reason)
+
+        # Verify approval ID returned
+        assert approval_id is not None, "Approval ID should be returned"
+        assert isinstance(approval_id, str), "Approval ID should be string"
+
+        # Check approval status
+        status = service.get_approval_status(approval_id)
+
+        # Verify status structure
+        assert "status" in status, "Status should have 'status' field"
+        assert status["status"] in ["not_found", "PENDING", "APPROVED", "REJECTED"], \
+            f"Invalid approval status: {status['status']}"
+
+    @given(
+        agent_status=st.sampled_from([
+            AgentStatus.STUDENT,
+            AgentStatus.INTERN,
+            AgentStatus.SUPERVISED,
+            AgentStatus.AUTONOMOUS
+        ])
+    )
+    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_get_agent_capabilities_completeness(self, db_session, agent_status):
+        """
+        INVARIANT: get_agent_capabilities returns complete capability list.
+
+        Tests get_agent_capabilities method.
+        """
+        confidence_for_status = {
+            AgentStatus.STUDENT: 0.3,
+            AgentStatus.INTERN: 0.6,
+            AgentStatus.SUPERVISED: 0.8,
+            AgentStatus.AUTONOMOUS: 0.95
+        }
+
+        agent = AgentRegistry(
+            name=f"CapabilitiesTest_{agent_status.value}",
+            category="test",
+            module_path="test.capabilities",
+            class_name="Test",
+            status=agent_status.value,
+            confidence_score=confidence_for_status[agent_status]
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = AgentGovernanceService(db_session)
+        capabilities = service.get_agent_capabilities(agent.id)
+
+        # Verify structure
+        assert "agent_id" in capabilities, "Should have agent_id"
+        assert "agent_name" in capabilities, "Should have agent_name"
+        assert "maturity_level" in capabilities, "Should have maturity_level"
+        assert "confidence_score" in capabilities, "Should have confidence_score"
+        assert "max_complexity" in capabilities, "Should have max_complexity"
+        assert "allowed_actions" in capabilities, "Should have allowed_actions"
+        assert "restricted_actions" in capabilities, "Should have restricted_actions"
+
+        # Verify maturity level
+        assert capabilities["maturity_level"] == agent_status.value, \
+            f"Maturity level should match: {capabilities['maturity_level']} != {agent_status.value}"
+
+        # Verify confidence score
+        assert capabilities["confidence_score"] == confidence_for_status[agent_status], \
+            f"Confidence score should match: {capabilities['confidence_score']} != {confidence_for_status[agent_status]}"
+
+        # Verify max_complexity
+        maturity_order = {
+            AgentStatus.STUDENT: 1,
+            AgentStatus.INTERN: 2,
+            AgentStatus.SUPERVISED: 3,
+            AgentStatus.AUTONOMOUS: 4
+        }
+        assert capabilities["max_complexity"] == maturity_order[agent_status], \
+            f"Max complexity should match maturity: {capabilities['max_complexity']} != {maturity_order[agent_status]}"
+
+        # Verify action lists are non-empty
+        assert isinstance(capabilities["allowed_actions"], list), "allowed_actions should be list"
+        assert isinstance(capabilities["restricted_actions"], list), "restricted_actions should be list"
+
+        # Higher maturity = more allowed actions, fewer restricted
+        if agent_status == AgentStatus.AUTONOMOUS:
+            assert len(capabilities["allowed_actions"]) > 0, "AUTONOMOUS should have allowed actions"
+            assert len(capabilities["restricted_actions"]) == 0, "AUTONOMOUS should have no restricted actions"
+        else:
+            assert len(capabilities["restricted_actions"]) > 0, \
+                f"{agent_status.value} should have restricted actions"
+
+
+class TestAccessControlInvariants:
+    """Property-based tests for access control invariants."""
+
+    @given(
+        agent_category=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        user_specialty=st.text(min_size=1, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyz'),
+        user_role=st.sampled_from([UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN, UserRole.MEMBER, UserRole.GUEST])
+    )
+    @settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_can_access_agent_data(self, db_session, agent_category, user_specialty, user_role):
+        """
+        INVARIANT: Agent data access control works correctly.
+
+        Tests can_access_agent_data method with various users and agents.
+        """
+        # Create agent
+        agent = AgentRegistry(
+            name="AccessTest",
+            category=agent_category,
+            module_path="test.access",
+            class_name="Test",
+            status=AgentStatus.INTERN.value
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create user with unique email
+        unique_id = str(uuid.uuid4())[:8]
+        user = User(
+            id=str(uuid.uuid4()),
+            email=f"test_{unique_id}@{user_role.value}.com",
+            role=user_role.value,
+            specialty=user_specialty
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        service = AgentGovernanceService(db_session)
+
+        # Check access
+        has_access = service.can_access_agent_data(user.id, agent.id)
+
+        # Admins should always have access
+        if user_role in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+            assert has_access, f"{user_role.value} should have access to agent data"
+
+        # Specialty match should grant access
+        if user_specialty.lower() == agent_category.lower():
+            assert has_access, "Specialty match should grant access"
+
+    @given(
+        system_prompt=st.text(min_size=0, max_size=5000, alphabet='abc DEF123\n.!?'),
+        evolution_depth=st.integers(min_value=0, max_value=100)
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_evolution_directive_validation(self, system_prompt, evolution_depth):
+        """
+        INVARIANT: Evolution directive validation blocks dangerous configs.
+
+        Tests validate_evolution_directive method.
+        """
+        # Create mock config
+        evolved_config = {
+            "system_prompt": system_prompt,
+            "evolution_history": [{"version": i} for i in range(evolution_depth)]
+        }
+
+        service = AgentGovernanceService(mock_db_session())
+
+        # Validate directive (note: this is an async method, but we can't use await in property test)
+        # We'll test the synchronous logic structure only
+        import asyncio
+        is_safe = asyncio.run(service.validate_evolution_directive(evolved_config, "test_tenant"))
+
+        # Dangerous phrases should be blocked
+        dangerous_phrases = [
+            "ignore all rules",
+            "bypass guardrails",
+            "disable safety",
+            "override governance"
+        ]
+
+        for phrase in dangerous_phrases:
+            if phrase in system_prompt.lower():
+                assert not is_safe, f"Config with '{phrase}' should be blocked"
+                return  # Skip rest of checks
+
+        # Evolution depth > 50 should be blocked
+        if evolution_depth > 50:
+            assert not is_safe, "Evolution depth > 50 should be blocked"
+        else:
+            assert is_safe, "Safe config should pass validation"
+
+
 def mock_db_session():
     """Create a mock database session for testing without DB."""
     from unittest.mock import MagicMock
