@@ -54,14 +54,20 @@ Plans:
   3. Idempotency validation prevents duplicate charges and lost payments (idempotency keys work correctly)
   4. Race condition testing covers concurrent payments, webhook order, and transaction conflicts
   5. Integration tests validate payment flows (charges, refunds, subscriptions, invoices)
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Wave Structure:**
+- Wave 1: Plan 01 (Mock server infrastructure) - standalone foundation
+- Wave 2: Plans 02 (Webhooks), 03 (Idempotency) - parallel after 01
+- Wave 3: Plan 04 (Race conditions) - depends on 01, 03
+- Wave 4: Plan 05 (Integration tests) - depends on all previous
 
 Plans:
-- [ ] 92-01: Payment provider mock servers (PAY-01)
-- [ ] 92-02: Webhook testing scenarios (PAY-02)
-- [ ] 92-03: Idempotency validation (PAY-03)
-- [ ] 92-04: Race condition testing (PAY-04)
-- [ ] 92-05: Payment flow integration tests (PAY-05)
+- [ ] 92-01-PLAN.md — Payment provider mock servers (PAY-01): stripe-mock Docker wrapper, Factory Boy factories, pytest fixtures, mock validation tests
+- [ ] 92-02-PLAN.md — Webhook testing scenarios (PAY-02): Webhook simulator, signature verification, deduplication, out-of-order delivery, retry testing
+- [ ] 92-03-PLAN.md — Idempotency validation (PAY-03): UUID key generation, integration tests, Hypothesis property tests for key uniqueness
+- [ ] 92-04-PLAN.md — Race condition testing (PAY-04): Concurrent payment stress tests, per-customer locks, database row locking, property tests
+- [ ] 92-05-PLAN.md — Payment flow integration tests (PAY-05): End-to-end charge/refund/subscription/invoice flows with accounting ledger integration
 
 ### Phase 93: Cost Tracking & Budgets
 **Goal**: Budget enforcement prevents overspending with accurate cost attribution, cost leak detection, and concurrent spend check safety
