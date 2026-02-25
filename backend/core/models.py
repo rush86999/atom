@@ -10,6 +10,7 @@ from cryptography.fernet import Fernet
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum as SQLEnum,
@@ -4905,11 +4906,18 @@ class FinancialAudit(Base):
 
     Tracks all financial account operations for governance and compliance.
     Ensures all financial actions are attributable and governable.
+
+    Enhanced for SOX compliance with hash chain integrity (Phase 94).
     """
     __tablename__ = "financial_audit"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Hash chain fields for tamper evidence (Phase 94)
+    sequence_number = Column(Integer, nullable=False, index=True)  # Strict chronological ordering
+    entry_hash = Column(String(64), nullable=False, index=True)  # SHA-256 hash
+    prev_hash = Column(String(64), nullable=True, index=True)  # Previous entry's hash
 
     # Agent context
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
@@ -4946,14 +4954,31 @@ class FinancialAudit(Base):
     user = relationship("User", backref="financial_audits")
     account = relationship("FinancialAccount", backref="audit_logs")
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
+        # Chronological integrity indexes (Phase 94-02)
         Index("ix_financial_audit_timestamp", "timestamp"),
         Index("ix_financial_audit_account", "account_id", "timestamp"),
         Index("ix_financial_audit_action", "action_type", "timestamp"),
         Index("ix_financial_audit_agent", "agent_id", "timestamp"),
         Index("ix_financial_audit_user", "user_id", "timestamp"),
         Index("ix_financial_audit_maturity", "agent_maturity", "governance_check_passed"),
+        # Hash chain integrity indexes (Phase 94-01)
+        Index("ix_financial_audit_sequence", "account_id", "sequence_number"),  # For gap detection
+        Index("ix_financial_audit_hash_chain", "account_id", "prev_hash"),  # For chain verification
+
+        # NEW: Chronological integrity constraints (Phase 94-02)
+        # Prevent invalid sequence numbers
+        CheckConstraint('sequence_number > 0', name='ck_financial_audit_sequence_positive'),
+        # Validate action_type enum
+        CheckConstraint("action_type IN ('create', 'update', 'delete')", name='ck_financial_audit_valid_action'),
+        # Validate agent_maturity enum
+        CheckConstraint("agent_maturity IN ('STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS')", name='ck_financial_audit_valid_maturity'),
+        # Hash length constraint (SHA-256 = 64 hex chars)
+        CheckConstraint("length(entry_hash) = 64", name='ck_financial_audit_hash_length'),
+        # Note: Regex constraint for hash format is PostgreSQL-only:
+        # CheckConstraint("entry_hash ~ '^[a-f0-9]{64}$'", name='ck_financial_audit_hash_format'),
+        # For cross-platform compatibility, hash format validated in application code
     )
 
 
