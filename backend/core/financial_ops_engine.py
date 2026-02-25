@@ -5,9 +5,12 @@ Cost Leak Detection, Budget Guardrails, Invoice Reconciliation
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal
 from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+from core.decimal_utils import to_decimal, round_money
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ class SaaSSubscription:
     """SaaS subscription record"""
     id: str
     name: str
-    monthly_cost: float
+    monthly_cost: Decimal
     last_used: datetime
     user_count: int
     active_users: int = 0
@@ -38,17 +41,17 @@ class CostLeakDetector:
         """Find subscriptions not used in threshold period"""
         cutoff = datetime.now() - timedelta(days=self.unused_threshold_days)
         unused = []
-        
+
         for sub in self._subscriptions.values():
             if sub.last_used < cutoff:
                 unused.append({
                     "id": sub.id,
                     "name": sub.name,
-                    "monthly_cost": sub.monthly_cost,
+                    "monthly_cost": float(sub.monthly_cost),  # Convert for JSON serialization
                     "days_unused": (datetime.now() - sub.last_used).days,
                     "recommendation": "Cancel or review usage"
                 })
-        
+
         return sorted(unused, key=lambda x: -x["monthly_cost"])
     
     def detect_redundant(self) -> List[Dict[str, Any]]:
@@ -58,32 +61,32 @@ class CostLeakDetector:
             if sub.category not in by_category:
                 by_category[sub.category] = []
             by_category[sub.category].append(sub)
-        
+
         redundant = []
         for category, subs in by_category.items():
             if len(subs) > 1:
-                total_cost = sum(s.monthly_cost for s in subs)
+                total_cost = sum((to_decimal(s.monthly_cost) for s in subs), Decimal('0.00'))
                 redundant.append({
                     "category": category,
                     "tools": [s.name for s in subs],
-                    "total_monthly_cost": total_cost,
+                    "total_monthly_cost": float(total_cost),  # Convert for JSON serialization
                     "recommendation": f"Consolidate {len(subs)} tools in {category}"
                 })
-        
+
         return redundant
     
     def get_savings_report(self) -> Dict[str, Any]:
         """Generate potential savings report"""
         unused = self.detect_unused()
         redundant = self.detect_redundant()
-        
-        unused_savings = sum(u["monthly_cost"] for u in unused)
-        
+
+        unused_savings = sum((to_decimal(u["monthly_cost"]) for u in unused), Decimal('0.00'))
+
         return {
             "unused_subscriptions": unused,
             "redundant_tools": redundant,
-            "potential_monthly_savings": unused_savings,
-            "potential_annual_savings": unused_savings * 12
+            "potential_monthly_savings": float(unused_savings),  # Convert for JSON serialization
+            "potential_annual_savings": float(unused_savings * 12)
         }
 
 # ==================== BUDGET GUARDRAILS ====================
@@ -98,8 +101,8 @@ class SpendStatus(Enum):
 class BudgetLimit:
     """Budget limit configuration"""
     category: str
-    monthly_limit: float
-    current_spend: float = 0
+    monthly_limit: Decimal
+    current_spend: Decimal = Decimal('0.00')
     deal_stage_required: Optional[str] = None  # e.g., "closed_won"
     milestone_required: Optional[str] = None   # e.g., "kickoff_complete"
 
@@ -116,19 +119,22 @@ class BudgetGuardrails:
     def check_spend(
         self,
         category: str,
-        amount: float,
+        amount: Union[Decimal, str, float],
         deal_stage: Optional[str] = None,
         milestone: Optional[str] = None
     ) -> Dict[str, Any]:
         """Check if spend is allowed"""
-        
+
         if category in self._paused_categories:
             return {"status": SpendStatus.PAUSED.value, "reason": "Category spending paused"}
-        
+
         limit = self._limits.get(category)
         if not limit:
             return {"status": SpendStatus.APPROVED.value, "reason": "No limit set"}
-        
+
+        # Convert amount to Decimal
+        amount_decimal = to_decimal(amount)
+
         # Check deal stage requirement
         if limit.deal_stage_required:
             if deal_stage != limit.deal_stage_required:
@@ -136,7 +142,7 @@ class BudgetGuardrails:
                     "status": SpendStatus.REJECTED.value,
                     "reason": f"Requires deal stage: {limit.deal_stage_required}"
                 }
-        
+
         # Check milestone requirement
         if limit.milestone_required:
             if milestone != limit.milestone_required:
@@ -144,22 +150,22 @@ class BudgetGuardrails:
                     "status": SpendStatus.PENDING.value,
                     "reason": f"Waiting for milestone: {limit.milestone_required}"
                 }
-        
+
         # Check budget limit
-        if limit.current_spend + amount > limit.monthly_limit:
+        if limit.current_spend + amount_decimal > limit.monthly_limit:
             self._paused_categories.add(category)
             return {
                 "status": SpendStatus.PAUSED.value,
                 "reason": f"Would exceed limit: ${limit.monthly_limit}",
-                "remaining": limit.monthly_limit - limit.current_spend
+                "remaining": float(limit.monthly_limit - limit.current_spend)
             }
-        
-        return {"status": SpendStatus.APPROVED.value, "remaining": limit.monthly_limit - limit.current_spend - amount}
+
+        return {"status": SpendStatus.APPROVED.value, "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)}
     
-    def record_spend(self, category: str, amount: float):
+    def record_spend(self, category: str, amount: Union[Decimal, str, float]):
         """Record approved spend"""
         if category in self._limits:
-            self._limits[category].current_spend += amount
+            self._limits[category].current_spend += to_decimal(amount)
 
 # ==================== INVOICE RECONCILIATION ====================
 
@@ -167,7 +173,7 @@ class BudgetGuardrails:
 class Invoice:
     id: str
     vendor: str
-    amount: float
+    amount: Decimal
     date: datetime
     contract_id: Optional[str] = None
     approval_id: Optional[str] = None
@@ -176,7 +182,7 @@ class Invoice:
 class Contract:
     id: str
     vendor: str
-    monthly_amount: float
+    monthly_amount: Decimal
     start_date: datetime
     end_date: datetime
 
@@ -228,8 +234,8 @@ class InvoiceReconciler:
     
     def _match_invoice(self, invoice: Invoice) -> Dict[str, Any]:
         """Match single invoice"""
-        result = {"invoice_id": invoice.id, "vendor": invoice.vendor, "amount": invoice.amount}
-        
+        result = {"invoice_id": invoice.id, "vendor": invoice.vendor, "amount": float(invoice.amount)}
+
         # Find matching contract
         contract = None
         if invoice.contract_id:
@@ -240,24 +246,24 @@ class InvoiceReconciler:
                 if c.vendor.lower() == invoice.vendor.lower():
                     contract = c
                     break
-        
+
         if not contract:
             result["status"] = "unmatched"
             result["reason"] = "No matching contract found"
             return result
-        
+
         # Check amount within tolerance
         expected = contract.monthly_amount
-        diff_percent = abs(invoice.amount - expected) / expected * 100
-        
+        diff_percent = abs(float(invoice.amount - expected)) / float(expected) * 100
+
         if diff_percent > self.tolerance_percent:
             result["status"] = "discrepancy"
-            result["expected_amount"] = expected
-            result["difference"] = invoice.amount - expected
+            result["expected_amount"] = float(expected)
+            result["difference"] = float(invoice.amount - expected)
             result["difference_percent"] = round(diff_percent, 1)
             result["reason"] = f"Amount differs by {result['difference_percent']}%"
             return result
-        
+
         result["status"] = "matched"
         result["contract_id"] = contract.id
         return result
