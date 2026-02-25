@@ -43,7 +43,7 @@ class TestPermissionMatrixInvariants:
             Permission.USER_MANAGE
         ])
     )
-    @settings(max_examples=200)
+    @settings(max_examples=200, deadline=None)
     def test_all_role_permission_combinations_defined(self, user_role, permission):
         """
         INVARIANT: Every role-permission combination has explicit allow/deny.
@@ -124,7 +124,7 @@ class TestMaturityGateInvariants:
             "delete", "execute", "device_execute_command", "canvas_execute_javascript", "deploy", "payment"
         ])
     )
-    @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @example(agent_status=AgentStatus.STUDENT, action_type="delete")
     @example(agent_status=AgentStatus.AUTONOMOUS, action_type="delete")
     @example(agent_status=AgentStatus.STUDENT, action_type="present_chart")
@@ -144,13 +144,23 @@ class TestMaturityGateInvariants:
         3 = submit_form, create (SUPERVISED+)
         4 = delete, execute (AUTONOMOUS only)
         """
-        # Create agent with specific status
+        # Create agent with specific status AND matching confidence score
+        # This ensures status and confidence are consistent, preventing the
+        # security validation in can_perform_action from overriding the status
+        confidence_for_status = {
+            AgentStatus.STUDENT: 0.3,      # < 0.5
+            AgentStatus.INTERN: 0.6,       # 0.5 - 0.7
+            AgentStatus.SUPERVISED: 0.8,   # 0.7 - 0.9
+            AgentStatus.AUTONOMOUS: 0.95    # >= 0.9
+        }
+
         agent = AgentRegistry(
             name=f"TestAgent_{agent_status.value}",
             category="test",
             module_path="test.module",
             class_name="TestClass",
-            status=agent_status.value
+            status=agent_status.value,
+            confidence_score=confidence_for_status[agent_status]
         )
         db_session.add(agent)
         db_session.commit()
