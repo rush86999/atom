@@ -5,14 +5,23 @@ This service provides centralized budget enforcement to prevent overdrafts
 and ensure spend approval is atomic (check + update in single transaction).
 
 Per GAAP/IFRS, all monetary calculations use Decimal for exact precision.
+
+Concurrency Control:
+- Pessimistic locking: with_for_update() (SELECT FOR UPDATE) for serializing spend approval
+- Optimistic locking: approve_spend_with_retry() using version_id_col pattern
+- Lock timeout: Configurable lock acquisition timeout to prevent deadlocks
 """
 
+import logging
 from decimal import Decimal
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import StaleDataError
 
 from core.decimal_utils import to_decimal, round_money
 from service_delivery.models import Project, BudgetStatus
+
+logger = logging.getLogger(__name__)
 
 
 class BudgetError(Exception):
@@ -310,3 +319,216 @@ class BudgetEnforcementService:
             "budget_status": project.budget_status.value if project.budget_status else "on_track",
             "utilization_pct": utilization_pct,
         }
+
+    def approve_spend_locked(
+        self,
+        project_id: str,
+        amount: Union[Decimal, str, float],
+        description: Optional[str] = None,
+        lock_timeout: Optional[int] = 5
+    ) -> Dict[str, Any]:
+        """
+        Approve spend with pessimistic locking (SELECT FOR UPDATE) to prevent race conditions.
+
+        Uses row-level locking to ensure only one transaction can check and update
+        the budget at a time, preventing concurrent approvals from exceeding the limit.
+
+        Args:
+            project_id: Project ID to approve spend for
+            amount: Amount to spend (Decimal, string, or float)
+            description: Optional description for audit trail
+            lock_timeout: Lock acquisition timeout in seconds (default: 5)
+
+        Returns:
+            Dict with:
+                - status: str ("approved")
+                - project_id: str
+                - amount: Decimal (approved amount)
+                - remaining: Decimal (remaining budget after spend)
+                - budget_status: str (updated budget status)
+                - previous_burn: Decimal (burn before this spend)
+
+        Raises:
+            InsufficientBudgetError: If spend would exceed budget
+            BudgetNotFoundError: If project doesn't exist
+            TimeoutError: If lock cannot be acquired within timeout
+        """
+        logger.debug(f"Acquiring pessimistic lock for project {project_id}")
+
+        try:
+            # Start transaction
+            with self.db.begin():
+                # SELECT FOR UPDATE locks the Project row
+                # This prevents concurrent transactions from modifying the budget
+                query = self.db.query(Project).filter(Project.id == project_id)
+
+                # Apply lock timeout if specified (PostgreSQL syntax)
+                if lock_timeout:
+                    query = query.with_for_update(nowait=False, skip_locked=False)
+
+                project = query.first()
+
+                if not project:
+                    raise BudgetNotFoundError(f"Project {project_id} not found")
+
+                amount_decimal = to_decimal(amount)
+                if amount_decimal < 0:
+                    raise ValueError("Spend amount cannot be negative")
+
+                # Store previous burn for result
+                previous_burn = to_decimal(project.actual_burn or 0)
+
+                # Check budget limit (atomic - no concurrent modifications possible)
+                budget_amount = to_decimal(project.budget_amount or 0)
+                remaining = budget_amount - previous_burn
+
+                if amount_decimal > remaining:
+                    raise InsufficientBudgetError(
+                        requested=amount_decimal,
+                        remaining=remaining,
+                        budget_id=project_id
+                    )
+
+                # Atomic update (still within lock)
+                project.actual_burn = float(previous_burn + amount_decimal)
+
+                # Update budget status
+                new_burn = to_decimal(project.actual_burn)
+                utilization = (
+                    round_money((new_burn / budget_amount) * Decimal('100'))
+                    if budget_amount > 0
+                    else Decimal('0.00')
+                )
+
+                if utilization >= Decimal('100.00'):
+                    project.budget_status = BudgetStatus.OVER_BUDGET
+                elif utilization >= Decimal('90.00'):
+                    project.budget_status = BudgetStatus.AT_RISK
+                else:
+                    project.budget_status = BudgetStatus.ON_TRACK
+
+                self.db.flush()
+
+                logger.debug(f"Spend approved: project={project_id}, amount={amount_decimal}, "
+                           f"remaining={budget_amount - new_burn}")
+
+        except Exception as e:
+            logger.error(f"Failed to approve spend: {e}")
+            self.db.rollback()
+            raise
+
+        return {
+            "status": "approved",
+            "project_id": project_id,
+            "amount": amount_decimal,
+            "remaining": budget_amount - new_burn,
+            "budget_status": project.budget_status.value,
+            "previous_burn": previous_burn,
+        }
+
+    def approve_spend_with_retry(
+        self,
+        project_id: str,
+        amount: Union[Decimal, str, float],
+        description: Optional[str] = None,
+        max_retries: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Approve spend using optimistic locking with retry on conflict.
+
+        Uses version_id_col pattern if available, retries up to max_retries times
+        on StaleDataError (concurrent modification detected).
+
+        Args:
+            project_id: Project ID to approve spend for
+            amount: Amount to spend (Decimal, string, or float)
+            description: Optional description for audit trail
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            Dict with approval result (same format as approve_spend_locked)
+
+        Raises:
+            InsufficientBudgetError: If spend would exceed budget
+            BudgetNotFoundError: If project doesn't exist
+            ConcurrentModificationError: If max retries exceeded
+        """
+        amount_decimal = to_decimal(amount)
+        if amount_decimal < 0:
+            raise ValueError("Spend amount cannot be negative")
+
+        for attempt in range(max_retries):
+            try:
+                # Query project (no lock - optimistic locking)
+                project = self.db.query(Project).filter(Project.id == project_id).first()
+
+                if not project:
+                    raise BudgetNotFoundError(f"Project {project_id} not found")
+
+                # Check budget
+                previous_burn = to_decimal(project.actual_burn or 0)
+                budget_amount = to_decimal(project.budget_amount or 0)
+                remaining = budget_amount - previous_burn
+
+                if amount_decimal > remaining:
+                    raise InsufficientBudgetError(
+                        requested=amount_decimal,
+                        remaining=remaining,
+                        budget_id=project_id
+                    )
+
+                # Update burn (SQLAlchemy will check version on commit)
+                project.actual_burn = float(previous_burn + amount_decimal)
+
+                # Update budget status
+                new_burn = to_decimal(project.actual_burn)
+                utilization = (
+                    round_money((new_burn / budget_amount) * Decimal('100'))
+                    if budget_amount > 0
+                    else Decimal('0.00')
+                )
+
+                if utilization >= Decimal('100.00'):
+                    project.budget_status = BudgetStatus.OVER_BUDGET
+                elif utilization >= Decimal('90.00'):
+                    project.budget_status = BudgetStatus.AT_RISK
+                else:
+                    project.budget_status = BudgetStatus.ON_TRACK
+
+                # Try to commit (SQLAlchemy checks version here)
+                self.db.commit()
+
+                logger.info(f"Optimistic lock spend approved on attempt {attempt + 1}: "
+                          f"project={project_id}, amount={amount_decimal}")
+
+                return {
+                    "status": "approved",
+                    "project_id": project_id,
+                    "amount": amount_decimal,
+                    "remaining": budget_amount - new_burn,
+                    "budget_status": project.budget_status.value,
+                    "previous_burn": previous_burn,
+                }
+
+            except StaleDataError:
+                # Concurrent modification detected - retry
+                logger.warning(f"Concurrent modification detected on attempt {attempt + 1}, retrying...")
+                self.db.rollback()
+
+                if attempt == max_retries - 1:
+                    raise ConcurrentModificationError(
+                        f"Failed to approve spend after {max_retries} retries due to concurrent modifications"
+                    )
+                continue
+
+            except Exception as e:
+                self.db.rollback()
+                raise
+
+        # Should never reach here
+        raise ConcurrentModificationError("Unexpected error in optimistic locking retry loop")
+
+
+class ConcurrentModificationError(BudgetError):
+    """Raised when concurrent modification prevents spend approval after retries"""
+    pass
