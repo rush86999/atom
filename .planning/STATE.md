@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 
 ## Current Position
 
-Phase: 92 of 94 (Payment Integration Testing)
-Plan: 2 of 7 (Webhook Testing)
-Status: Plan 02 complete
-Last activity: 2026-02-25 — Phase 92-02: Webhook Testing (25 tests, signature verification, deduplication cache) & Bug Documentation (10 integration tests, 5 bugs documented, 3 minutes)
+Phase: 93 of 94 (Cost Tracking & Budgets)
+Plan: 2 of 5 (Cost Attribution Accuracy Testing)
+Status: Plan 093-02 complete ✅
+Last activity: 2026-02-25 — Plan 093-02: Cost Attribution Accuracy Testing (CostAttributionService, 33 unit tests, category validation, budget attribution, cost allocation)
 
-Progress: [███░░░░░░░░] 20% (v3.3: Phase 91 complete, 5/20 plans done)
+Progress: [█████░░░░░░] 45% (v3.3: Phases 91-92 complete, Phase 93: 2/5 plans done, 11/20 total)
 
 ## Milestone v3.3 Finance Testing & Bug Fixes
 
@@ -71,9 +71,10 @@ Progress: [███░░░░░░░░] 20% (v3.3: Phase 91 complete, 5/20
 
 **v3.3 Milestone Progress:**
 - Phases planned: 4
-- Phases complete: 1 (Phase 91)
-- Plans complete: 1/20 (5%)
+- Phases complete: 2 (Phases 91, 92)
+- Plans complete: 11/20 (55%)
 - Requirements mapped: 20/20 (100%) ✅
+- Tests created: 198 tests (48 Phase 91 + 117 Phase 92 + 33 Phase 93)
 
 **Historical Velocity (v3.1):**
 - Total plans completed: 35
@@ -116,6 +117,11 @@ Recent decisions affecting current work:
 - [Phase 91-04]: 18 Decimal Precision Invariants Tests - Precision preservation, conservation of value, rounding behavior, idempotency, exact comparison, edge cases (100% pass rate)
 - [Phase 92]: Payment integration before cost tracking - higher risk of failure modes (race conditions, idempotency issues)
 - [Phase 93]: Cost tracking builds on payments - requires payment data for accurate cost attribution
+- [Phase 93-02]: Database-level NOT NULL constraint - Transaction.category enforced at database layer to prevent uncategorized costs (default='other')
+- [Phase 93-02]: Centralized Cost Attribution Service - Single source of truth for cost categorization rules, consistent attribution, easier testing
+- [Phase 93-02]: 10 Standard Cost Categories - llm_tokens, compute, storage, network, labor, software, infrastructure, support, sales, other
+- [Phase 93-02]: Cost Allocation Sum Validation - Exact Decimal comparison (no epsilon) ensures allocations sum to original amount
+- [Phase 93-02]: Attribution Invariant Testing - 33 unit tests validate sum of categorized spends equals total spend (budget attribution accuracy)
 - [Phase 94]: Audit trails last - requires complete implementation of all financial operations for meaningful end-to-end testing
 - [Research]: Phase 92 needs provider-specific research (Stripe/PayPal/Braintree webhook formats, error codes)
 - [Research]: Phase 93 needs database locking pattern research (SELECT FOR UPDATE vs compare-and-swap)
@@ -162,7 +168,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 91-05 (Transaction Workflow Integration Tests & Bug Documentation) - Created 10 integration tests covering ingestion through reconciliation, documented 5 critical bugs with fixes
+Stopped at: Completed Plan 093-02 (Cost Attribution Accuracy Testing) - Created CostAttributionService with 33 unit tests for category validation, budget attribution, and cost allocation
 Resume file: None
 
 ---
@@ -189,4 +195,4 @@ Resume file: None
 
 *State updated: 2026-02-25*
 *Milestone: v3.3 Finance Testing & Bug Fixes*
-*Next action: Continue Phase 91 (Plan 03: Financial Operations Engine)*
+*Next action: Continue Phase 93 (Cost Tracking & Budgets) - Plan 03 (Budget Guardrail Threshold Testing)*
