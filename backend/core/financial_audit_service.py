@@ -82,6 +82,173 @@ class FinancialAuditService:
 
         logger.info(f"Registered {len(self._models_registered)} financial models for audit")
 
+    def get_linked_audits(
+        self,
+        db,  # Session
+        account_id: str,
+        depth: int = 1
+    ) -> Dict[str, List[FinancialAudit]]:
+        """
+        Get audit entries linked across financial models.
+
+        For comprehensive traceability, financial operations often span
+        multiple models (e.g., Project -> Budget -> Transaction -> Invoice).
+
+        Args:
+            db: Database session
+            account_id: Starting account ID
+            depth: How many levels deep to follow links (1 = direct only)
+
+        Returns:
+            Dict mapping model/account to related audit entries
+        """
+        result = {account_id: []}
+
+        # Get direct audits for this account
+        direct_audits = db.query(FinancialAudit).filter(
+            FinancialAudit.account_id == account_id
+        ).order_by(FinancialAudit.timestamp).all()
+
+        result[account_id] = direct_audits
+
+        if depth <= 1:
+            return result
+
+        # Follow links based on audit content
+        linked_ids = set()
+
+        for audit in direct_audits:
+            # Extract linked IDs from new_values and old_values
+            if audit.new_values:
+                linked_ids.update(self._extract_linked_ids(audit.new_values))
+            if audit.old_values:
+                linked_ids.update(self._extract_linked_ids(audit.old_values))
+
+        # Recursively get audits for linked entities
+        for linked_id in linked_ids:
+            if linked_id != account_id:  # Avoid cycles
+                linked = self.get_linked_audits(db, linked_id, depth - 1)
+                result.update(linked)
+
+        return result
+
+    @staticmethod
+    def _extract_linked_ids(values) -> set:
+        """Extract potential linked account/transaction IDs from audit values."""
+        linked_ids = set()
+
+        # Common field names for linked entities
+        link_fields = ['project_id', 'subscription_id', 'invoice_id',
+                       'transaction_id', 'account_id', 'contract_id']
+
+        if not values:
+            return linked_ids
+
+        for field in link_fields:
+            if field in values and values[field]:
+                linked_ids.add(str(values[field]))
+
+        return linked_ids
+
+    def reconstruct_transaction(
+        self,
+        db,  # Session
+        account_id: str,
+        sequence_number: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Reconstruct a financial transaction from audit trail.
+
+        Args:
+            db: Database session
+            account_id: Account ID
+            sequence_number: Specific sequence to reconstruct (None = latest)
+
+        Returns:
+            Dict with reconstructed transaction state
+        """
+        query = db.query(FinancialAudit).filter(
+            FinancialAudit.account_id == account_id
+        )
+
+        if sequence_number is not None:
+            query = query.filter(FinancialAudit.sequence_number == sequence_number)
+        else:
+            query = query.order_by(FinancialAudit.sequence_number.desc()).limit(1)
+
+        audit = query.first()
+
+        if not audit:
+            return {'error': 'Audit entry not found'}
+
+        # Reconstruct from audit data
+        return {
+            'audit_id': audit.id,
+            'timestamp': audit.timestamp.isoformat(),
+            'sequence_number': audit.sequence_number,
+            'action': audit.action_type,
+            'actor': {
+                'user_id': audit.user_id,
+                'agent_maturity': audit.agent_maturity,
+                'agent_id': audit.agent_id
+            },
+            'state': {
+                'before': audit.old_values,
+                'after': audit.new_values,
+                'changes': audit.changes
+            },
+            'governance': {
+                'passed': audit.governance_check_passed,
+                'required_approval': audit.required_approval,
+                'approval_granted': audit.approval_granted
+            },
+            'result': {
+                'success': audit.success,
+                'error': audit.error_message
+            },
+            'integrity': {
+                'entry_hash': audit.entry_hash,
+                'prev_hash': audit.prev_hash
+            }
+        }
+
+    def get_full_audit_trail(
+        self,
+        db,  # Session
+        account_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get full audit trail for an account with reconstructed transactions.
+
+        Args:
+            db: Database session
+            account_id: Account ID
+            start_time: Start of time range
+            end_time: End of time range
+
+        Returns:
+            List of reconstructed transactions
+        """
+        query = db.query(FinancialAudit).filter(
+            FinancialAudit.account_id == account_id
+        )
+
+        if start_time:
+            query = query.filter(FinancialAudit.timestamp >= start_time)
+        if end_time:
+            query = query.filter(FinancialAudit.timestamp <= end_time)
+
+        audits = query.order_by(FinancialAudit.sequence_number).all()
+
+        trail = []
+        for audit in audits:
+            reconstructed = self.reconstruct_transaction(db, account_id, audit.sequence_number)
+            trail.append(reconstructed)
+
+        return trail
+
     def get_registered_models(self) -> Set[str]:
         """
         Return set of registered model names.
