@@ -97,6 +97,13 @@ class Project(Base):
     budget_amount = Column(Float, default=0.0) # Total financial budget
     actual_burn = Column(Float, default=0.0) # Total costs (labor + expenses)
     budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
+
+    # Budget Guardrail Thresholds (per-project configuration)
+    # Different projects can have different thresholds based on risk tolerance
+    # Application-level validation ensures: warn < pause < block
+    warn_threshold_pct = Column(Integer, default=80)  # Warn at 80% utilization
+    pause_threshold_pct = Column(Integer, default=90)  # Pause at 90% utilization
+    block_threshold_pct = Column(Integer, default=100)  # Block at 100% utilization
     
     priority = Column(String, default="medium") # low, medium, high, critical
     project_type = Column(String, default="general")
