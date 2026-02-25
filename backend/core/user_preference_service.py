@@ -1,11 +1,15 @@
 
 import json
+import logging
 import uuid
 from sqlalchemy import Column, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 from core.database import Base
+
+logger = logging.getLogger(__name__)
+
 
 
 class UserPreference(Base):
