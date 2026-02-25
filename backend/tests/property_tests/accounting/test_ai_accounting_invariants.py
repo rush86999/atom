@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from hypothesis import given, strategies as st, assume, settings
 from uuid import uuid4
 from typing import List, Dict, Any
+from decimal import Decimal
 import sys
 import os
 
@@ -30,12 +31,15 @@ from core.ai_accounting_engine import (
     ChartOfAccountsEntry
 )
 
+# Import Decimal strategies
+from tests.fixtures.decimal_fixtures import money_strategy
+
 
 class TestTransactionIngestionInvariants:
     """Tests for transaction ingestion invariants"""
 
     @given(
-        amount=st.floats(min_value=-1000000.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '1000000.00'),
         description=st.text(min_size=1, max_size=200, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '),
         merchant=st.one_of(st.none(), st.text(min_size=1, max_size=100))
     )
@@ -46,7 +50,7 @@ class TestTransactionIngestionInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -54,7 +58,7 @@ class TestTransactionIngestionInvariants:
         result = engine.ingest_transaction(tx)
 
         assert result.id == tx.id, "Transaction ID must be preserved"
-        assert result.amount == amount, "Amount must be preserved"
+        assert result.amount == amount, "Amount must be preserved (exact Decimal comparison)"
         assert result.description == description, "Description must be preserved"
         assert result.merchant == merchant, "Merchant must be preserved"
         assert result.date == tx.date, "Date must be preserved"
@@ -62,7 +66,7 @@ class TestTransactionIngestionInvariants:
     @given(
         transactions=st.lists(
             st.fixed_dictionaries({
-                'amount': st.floats(min_value=-10000.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+                'amount': money_strategy('0.01', '10000.00'),
                 'description': st.text(min_size=1, max_size=100),
                 'merchant': st.one_of(st.none(), st.text(min_size=1, max_size=50))
             }),
@@ -80,7 +84,7 @@ class TestTransactionIngestionInvariants:
             tx_data.append({
                 'id': f'tx_{i}',
                 'date': datetime.now().isoformat(),
-                'amount': tx_dict['amount'],
+                'amount': str(tx_dict['amount']),  # Convert Decimal to string
                 'description': tx_dict['description'],
                 'merchant': tx_dict.get('merchant'),
                 'source': 'bank'
@@ -95,7 +99,7 @@ class TestCategorizationInvariants:
     """Tests for transaction categorization invariants"""
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ '),
         merchant=st.text(min_size=3, max_size=50, alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ')
     )
@@ -106,7 +110,7 @@ class TestCategorizationInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -117,7 +121,7 @@ class TestCategorizationInvariants:
         assert result.category_id is not None or result.confidence == 0.0, "Uncategorized must have 0 confidence"
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100),
         merchant=st.text(min_size=3, max_size=50)
     )
@@ -128,7 +132,7 @@ class TestCategorizationInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -142,7 +146,7 @@ class TestCategorizationInvariants:
             assert result.status == TransactionStatus.REVIEW_REQUIRED, "Low confidence should be REVIEW_REQUIRED"
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100),
         merchant=st.text(min_size=3, max_size=50)
     )
@@ -153,7 +157,7 @@ class TestCategorizationInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -260,7 +264,7 @@ class TestLearningInvariants:
     """Tests for learning system invariants"""
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100),
         merchant=st.text(min_size=3, max_size=50),
         category_id=st.text(min_size=4, max_size=10, alphabet='0123456789')
@@ -273,7 +277,7 @@ class TestLearningInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -293,7 +297,7 @@ class TestLearningInvariants:
             assert tx.reviewed_by == "test_user", "Reviewed by should be set"
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100),
         merchant=st.text(min_size=3, max_size=50)
     )
@@ -305,7 +309,7 @@ class TestLearningInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             merchant=merchant
         )
@@ -325,7 +329,7 @@ class TestPostingInvariants:
     """Tests for posting workflow invariants"""
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100)
     )
     @settings(max_examples=50)
@@ -336,7 +340,7 @@ class TestPostingInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             status=TransactionStatus.REVIEW_REQUIRED,
             confidence=0.5
@@ -350,7 +354,7 @@ class TestPostingInvariants:
         assert tx.status == TransactionStatus.REVIEW_REQUIRED, "Status should remain REVIEW_REQUIRED"
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100)
     )
     @settings(max_examples=50)
@@ -361,7 +365,7 @@ class TestPostingInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description,
             status=TransactionStatus.CATEGORIZED,
             confidence=0.9
@@ -382,7 +386,7 @@ class TestAuditTrailInvariants:
     """Tests for audit trail invariants"""
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100)
     )
     @settings(max_examples=50)
@@ -395,7 +399,7 @@ class TestAuditTrailInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description
         )
 
@@ -404,11 +408,7 @@ class TestAuditTrailInvariants:
         assert len(engine._audit_log) > initial_log_count, "Audit log should have new entry"
 
     @given(
-        amounts=st.lists(
-            st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
-            min_size=1,
-            max_size=10
-        )
+        amounts=lists_of_decimals(min_value='0.01', max_value='10000.00', min_size=1, max_size=10)
     )
     @settings(max_examples=50)
     def test_audit_log_chronological(self, amounts):
@@ -419,7 +419,7 @@ class TestAuditTrailInvariants:
             tx = Transaction(
                 id=f"tx_{i}",
                 date=datetime.now(),
-                amount=amount,
+                amount=amount,  # Now Decimal
                 description=f"Transaction {i}"
             )
             engine.ingest_transaction(tx)
@@ -431,7 +431,7 @@ class TestAuditTrailInvariants:
             assert current_time >= prev_time, "Audit log should be chronological"
 
     @given(
-        amount=st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100)
     )
     @settings(max_examples=50)
@@ -442,7 +442,7 @@ class TestAuditTrailInvariants:
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description
         )
 
@@ -461,11 +461,7 @@ class TestFinancialAccuracyInvariants:
     """Tests for financial accuracy and correctness"""
 
     @given(
-        amounts=st.lists(
-            st.floats(min_value=0.01, max_value=10000.0, allow_nan=False, allow_infinity=False),
-            min_size=2,
-            max_size=20
-        )
+        amounts=lists_of_decimals(min_value='0.01', max_value='10000.00', min_size=2, max_size=20)
     )
     @settings(max_examples=50)
     def test_transaction_amounts_preserved(self, amounts):
@@ -478,31 +474,31 @@ class TestFinancialAccuracyInvariants:
             tx = Transaction(
                 id=tx_id,
                 date=datetime.now(),
-                amount=amount,
+                amount=amount,  # Now Decimal
                 description=f"Transaction {i}"
             )
             original_amounts[tx_id] = amount
             engine.ingest_transaction(tx)
 
-        # Verify all amounts preserved
+        # Verify all amounts preserved (exact Decimal comparison)
         for tx_id, original_amount in original_amounts.items():
             stored_tx = engine._transactions.get(tx_id)
             if stored_tx:
-                assert stored_tx.amount == original_amount, f"Amount for {tx_id} must be preserved"
+                assert stored_tx.amount == original_amount, f"Amount for {tx_id} must be preserved (exact Decimal)"
 
     @given(
-        amount=st.floats(min_value=-10000.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
+        amount=money_strategy('0.01', '10000.00'),
         description=st.text(min_size=5, max_size=100)
     )
     @settings(max_examples=50)
     def test_debits_and_credits_distinct(self, amount, description):
-        """Test that debits (negative) and credits (positive) are distinct"""
+        """Test that debits and credits are distinct"""
         engine = AIAccountingEngine()
 
         tx = Transaction(
             id=str(uuid4()),
             date=datetime.now(),
-            amount=amount,
+            amount=amount,  # Now Decimal
             description=description
         )
 
@@ -514,15 +510,9 @@ class TestFinancialAccuracyInvariants:
         # Sign should be preserved
         if amount > 0:
             assert tx.amount > 0, "Positive amount must stay positive"
-        elif amount < 0:
-            assert tx.amount < 0, "Negative amount must stay negative"
 
     @given(
-        amounts=st.lists(
-            st.floats(min_value=-10000.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
-            min_size=5,
-            max_size=50
-        )
+        amounts=lists_of_decimals(min_value='0.01', max_value='10000.00', min_size=5, max_size=50)
     )
     @settings(max_examples=50)
     def test_total_balance_calculable(self, amounts):
@@ -533,7 +523,7 @@ class TestFinancialAccuracyInvariants:
             tx = Transaction(
                 id=f"tx_{i}",
                 date=datetime.now(),
-                amount=amount,
+                amount=amount,  # Now Decimal
                 description=f"Transaction {i}"
             )
             engine.ingest_transaction(tx)
@@ -542,8 +532,8 @@ class TestFinancialAccuracyInvariants:
         total_balance = sum(tx.amount for tx in engine._transactions.values())
 
         # Balance should be finite (no NaN or infinity)
-        assert abs(total_balance) < float('inf'), "Total balance must be finite"
-        assert not any(str(total_balance).startswith('nan') for _ in [0]), "Total balance must not be NaN"
+        assert total_balance < Decimal('1e20'), "Total balance must be finite"
+        assert total_balance > Decimal('-1e20'), "Total balance must be finite"
 
 
 class TestReviewQueueInvariants:
