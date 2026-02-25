@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 91 of 94 (Core Accounting Logic)
-Plan: 4 of 5 (Property Tests with Decimal Strategies)
-Status: Plan 04 complete
-Last activity: 2026-02-25 — Phase 91-04: Property Tests with Decimal Strategies (Decimal fixtures, 18 precision tests, exact comparison, 8 minutes)
+Plan: 5 of 5 (Transaction Workflow Integration Tests)
+Status: Plan 05 complete
+Last activity: 2026-02-25 — Phase 91-05: Transaction Workflow Integration Tests & Bug Documentation (10 integration tests, 5 bugs documented, 3 minutes)
 
-Progress: [███░░░░░░░░] 15% (v3.3: Phase 91 in progress, 3/20 plans done)
+Progress: [███░░░░░░░░] 20% (v3.3: Phase 91 complete, 5/20 plans done)
 
 ## Milestone v3.3 Finance Testing & Bug Fixes
 
@@ -109,6 +109,7 @@ Recent decisions affecting current work:
 - [Phase 91-03]: Scale=4 for Tax Calculations - Numeric scale=4 supports 4 decimal places (tenth of a cent) for tax precision
 - [Phase 91-03]: Migration Testing Strategy - 7 tests verify data preservation, type conversion, large amounts, fractional cents, and rounding behavior
 - [Phase 91-04]: Decimal Strategies for Property Tests - Replace st.floats with money_strategy/lists_of_decimals in all financial property tests
+- [Phase 91-05]: Balance Sheet Calculation Fix - Separate revenue and expense accounts in equity calculation, subtract expenses from revenue for net equity
 - [Phase 91-04]: Exact Decimal Comparison in Tests - Remove epsilon tolerances, use exact == for all Decimal comparisons per GAAP/IFRS
 - [Phase 91-04]: Rounding Order Tolerance - Allow max_diff = 0.01 * count for accumulated rounding differences in sum-then-round vs round-then-sum
 - [Phase 91-04]: Decimal Fixtures Module - 8+ reusable Hypothesis strategies (money_strategy, high_precision_strategy, large_amount_strategy, etc.)
@@ -161,7 +162,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 91-04 (Property Tests with Decimal Strategies) - Created Decimal fixtures module, 18 precision invariants tests, updated financial/accounting property tests to use Decimal strategies, removed epsilon tolerances
+Stopped at: Completed Phase 91-05 (Transaction Workflow Integration Tests & Bug Documentation) - Created 10 integration tests covering ingestion through reconciliation, documented 5 critical bugs with fixes
 Resume file: None
 
 ---
