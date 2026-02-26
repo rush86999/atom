@@ -18,7 +18,7 @@ Examples:
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -219,7 +219,7 @@ def aggregate_coverage(
             "branches_covered": total_branches_covered,
             "branches_total": total_branches,
         },
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
 
