@@ -2,7 +2,8 @@
 """
 Unified Coverage Aggregation Script
 
-Combines pytest JSON coverage (backend) and Jest JSON coverage (frontend)
+Combines pytest JSON coverage (backend), Jest JSON coverage (frontend),
+jest-expo JSON coverage (mobile), and cargo-tarpaulin JSON coverage (desktop)
 into a single unified report with per-platform breakdown.
 
 Usage:
@@ -252,21 +253,96 @@ def load_jest_expo_coverage(path: Path) -> Dict[str, Any]:
     return result
 
 
+def load_tarpaulin_coverage(path: Path) -> Dict[str, Any]:
+    """
+    Load cargo-tarpaulin coverage.json from desktop tests.
+
+    Args:
+        path: Path to coverage.json (tarpaulin format)
+
+    Returns:
+        Dict with platform='rust', coverage_pct, covered, total metrics
+        Returns coverage_pct=0.0 and error message if file not found
+    """
+    result = {
+        "platform": "rust",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 0,
+        "branches_covered": 0,
+        "branches_total": 0,
+        "branch_coverage_pct": 0.0,
+        "file": str(path),
+    }
+
+    if not path.exists():
+        result["error"] = "file not found"
+        return result
+
+    try:
+        with open(path, 'r') as f:
+            coverage_data = json.load(f)
+
+        # Tarpaulin coverage.json format:
+        # {
+        #   "files": {
+        #     "path/to/file.rs": {
+        #       "stats": {
+        #         "covered": 50,
+        #         "coverable": 100,
+        #         "percent": 50.0
+        #       }
+        #     }
+        #   }
+        # }
+
+        total_covered = 0
+        total_lines = 0
+
+        files = coverage_data.get("files", {})
+        for file_path, file_data in files.items():
+            stats = file_data.get("stats", {})
+            total_covered += stats.get("covered", 0)
+            total_lines += stats.get("coverable", 0)
+
+        result["covered"] = total_covered
+        result["total"] = total_lines
+
+        # Calculate line coverage percentage
+        if result["total"] > 0:
+            result["coverage_pct"] = (result["covered"] / result["total"] * 100)
+        else:
+            result["coverage_pct"] = 0.0
+
+        # Note: tarpaulin doesn't provide branch coverage
+        result["branches_covered"] = 0
+        result["branches_total"] = 0
+        result["branch_coverage_pct"] = 0.0
+
+    except (json.JSONDecodeError, IOError) as e:
+        result["error"] = str(e)
+
+    return result
+
+
 def aggregate_coverage(
     pytest_path: Path,
     jest_path: Path,
-    jest_expo_path: Optional[Path] = None
+    jest_expo_path: Optional[Path] = None,
+    tarpaulin_path: Optional[Path] = None
 ) -> Dict[str, Any]:
     """
     Aggregate coverage from all platforms.
 
     Computes overall coverage as weighted average:
-    (covered_backend + covered_frontend + covered_mobile) / (total_backend + total_frontend + total_mobile)
+    (covered_backend + covered_frontend + covered_mobile + covered_rust) /
+    (total_backend + total_frontend + total_mobile + total_rust)
 
     Args:
         pytest_path: Path to pytest coverage.json
         jest_path: Path to Jest coverage-final.json
         jest_expo_path: Optional path to jest-expo coverage-final.json
+        tarpaulin_path: Optional path to tarpaulin coverage.json
 
     Returns:
         Dict with platforms, overall, timestamp keys
@@ -274,6 +350,7 @@ def aggregate_coverage(
     python_coverage = load_pytest_coverage(pytest_path)
     javascript_coverage = load_jest_coverage(jest_path)
     mobile_coverage = load_jest_expo_coverage(jest_expo_path) if jest_expo_path else None
+    rust_coverage = load_tarpaulin_coverage(tarpaulin_path) if tarpaulin_path else None
 
     # Build platforms dict
     platforms = {
@@ -282,6 +359,8 @@ def aggregate_coverage(
     }
     if mobile_coverage:
         platforms["mobile"] = mobile_coverage
+    if rust_coverage:
+        platforms["rust"] = rust_coverage
 
     # Compute overall coverage (weighted average)
     total_covered = python_coverage["covered"] + javascript_coverage["covered"]
@@ -300,6 +379,13 @@ def aggregate_coverage(
         total_lines += mobile_coverage["total"]
         total_branches_covered += mobile_coverage["branches_covered"]
         total_branches += mobile_coverage["branches_total"]
+
+    # Add rust/desktop coverage if available
+    if rust_coverage:
+        total_covered += rust_coverage["covered"]
+        total_lines += rust_coverage["total"]
+        total_branches_covered += rust_coverage["branches_covered"]
+        total_branches += rust_coverage["branches_total"]
 
     overall_coverage_pct = 0.0
     if total_lines > 0:
@@ -431,7 +517,7 @@ def generate_markdown_report(aggregate_data: Dict[str, Any]) -> str:
 def main():
     """Main execution entry point."""
     parser = argparse.ArgumentParser(
-        description="Aggregate coverage from backend (pytest), frontend (Jest), and mobile (jest-expo) tests"
+        description="Aggregate coverage from backend (pytest), frontend (Jest), mobile (jest-expo), and desktop (tarpaulin) tests"
     )
     parser.add_argument(
         "--pytest-coverage",
@@ -452,6 +538,12 @@ def main():
         help="Path to jest-expo coverage-final.json (default: mobile/coverage/coverage-final.json)"
     )
     parser.add_argument(
+        "--desktop-coverage",
+        type=Path,
+        default=Path(__file__).parent.parent.parent.parent / "frontend-nextjs" / "src-tauri" / "coverage" / "coverage.json",
+        help="Path to tarpaulin coverage.json (default: frontend-nextjs/src-tauri/coverage/coverage.json)"
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path(__file__).parent / "coverage_reports" / "unified" / "coverage.json",
@@ -468,7 +560,12 @@ def main():
     args = parser.parse_args()
 
     # Aggregate coverage
-    aggregate_data = aggregate_coverage(args.pytest_coverage, args.jest_coverage, args.mobile_coverage)
+    aggregate_data = aggregate_coverage(
+        args.pytest_coverage,
+        args.jest_coverage,
+        args.mobile_coverage,
+        args.desktop_coverage
+    )
 
     # Create output directory if needed
     args.output.parent.mkdir(parents=True, exist_ok=True)
