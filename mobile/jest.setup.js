@@ -204,6 +204,11 @@ jest.mock('expo-local-authentication', () => ({
   }),
   supportedAuthenticationTypesAsync: jest.fn().mockResolvedValue([1, 2]),
   getEnrolledLevelAsync: jest.fn().mockResolvedValue(2),
+  AuthenticationType: {
+    FACIAL_RECOGNITION: 1,
+    FINGERPRINT: 2,
+    IRIS: 3,
+  },
 }));
 
 // ============================================================================
