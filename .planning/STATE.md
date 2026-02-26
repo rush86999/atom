@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 1 of 5 (Phase 095: Backend + Frontend Integration)
-Plan: 8 of 8 in current phase
-Status: Plan 08 complete
-Last activity: 2026-02-26 — Plan 08: Frontend test fixes (96% → 100% pass rate, 636/636 tests passing)
+Plan: 2 of 8 in current phase
+Status: Plans 02, 08 complete
+Last activity: 2026-02-26 — Plan 02: Unified coverage aggregation script (4 min), Plan 08: Frontend test fixes (96% → 100% pass rate)
 
-Progress: [██████████] 12.5% (v4.0 milestone - 1/8 plans in Phase 095)
+Progress: [██░░░░░░░] 25% (v4.0 milestone - 2/8 plans in Phase 095)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -87,6 +87,12 @@ Progress: [██████████] 12.5% (v4.0 milestone - 1/8 plans in 
 - Property tests fourth (Phase 098) — Require deep understanding of invariants, better after integration tests stable
 - Cross-platform last (Phase 099) — Depends on all platforms being testable, validates end-to-end integration
 
+**Phase 095-02 Decisions:**
+- Weighted average formula for overall coverage: (covered_backend + covered_frontend) / (total_backend + total_frontend)
+- Graceful degradation for missing coverage files (warnings, not errors)
+- Branch coverage tracked separately for both platforms (statement vs branch metrics)
+- UTC timestamps with timezone-aware datetime to avoid Python 3.14+ deprecation warnings
+
 **Phase 095-08 Decisions:**
 - Test utility modules should be named `*.test-utils.ts` to avoid Jest test discovery
 - Use standard Jest matchers (typeof) instead of Vitest/jest-extended (toBeTypeOf) for maximum compatibility
@@ -132,13 +138,13 @@ Progress: [██████████] 12.5% (v4.0 milestone - 1/8 plans in 
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 095-08: Frontend test fixes)
-Stopped at: Plan 08 complete - 100% frontend test pass rate achieved (636/636 tests passing), test utility module pattern established, Jest matcher compatibility documented
+Last session: 2026-02-26 (Phase 095-02: Unified coverage aggregation)
+Stopped at: Plan 02 complete - Unified coverage aggregation script with pytest/Jest support (388 lines, 2 commits, 4 min), graceful error handling for missing files, 3 output formats (json/text/markdown)
 Resume file: None
 
 **Next Steps:**
-1. Continue Phase 095 with remaining plans (01-07) - Coverage aggregation, FastCheck property tests, unified test reporting
-2. Implement unified coverage aggregation script across backend/frontend/mobile
+1. Continue Phase 095 with remaining plans (01, 03-07) - Coverage JSON parsing, FastCheck property tests, unified test reporting
+2. Fix remaining failing frontend tests (achieved 100% in Plan 08)
 3. Add FastCheck property tests for frontend state management (10-15 properties)
 4. Complete Phase 095 and move to Phase 096 (Mobile Integration)
 
@@ -161,4 +167,4 @@ Resume file: None
 
 *State updated: 2026-02-26*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: 📋 READY TO PLAN - Phase 095*
+*Status: 🔄 IN PROGRESS - Phase 095 (2/8 plans complete)*
