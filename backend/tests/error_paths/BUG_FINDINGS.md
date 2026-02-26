@@ -372,6 +372,50 @@ Add `category="general"` to all AgentRegistry creations in tests
 
 ---
 
+### Bug #9: EpisodeSegmentationService workspace_id AttributeError
+
+**File:** `backend/core/episode_segmentation_service.py`
+**Line:** 249
+**Found By:** `test_concurrent_episode_creation` and 7 other tests in Phase 088
+**Status:** FIXED ✅
+**Fix Commit:** `83ffcc4c4` (fix(088): resolve EpisodeSegmentationService workspace_id bug and test fixtures)
+**Severity:** HIGH
+**Impact:** Blocks 8 tests from passing, AttributeError in production if session creation logic changes
+
+**Description:**
+Service accessed `session.workspace_id` but ChatSession model doesn't have this field.
+Line 249: `workspace_id=session.workspace_id or "default"` caused AttributeError.
+
+**Root Cause:**
+ChatSession model (core/models.py:1046-1061) does NOT have a workspace_id field.
+EpisodeSegmentationService already had a comment acknowledging this:
+"# Single-tenant: always use default (ChatSession doesn't have workspace_id field)"
+
+But the code still tried to access the non-existent field, causing AttributeError.
+
+**Test Case:**
+```python
+# Test that creates ChatSession and attempts episode creation
+session = ChatSession(id="test-session", user_id="user-1")
+# ... create episode from session ...
+# AttributeError: 'ChatSession' object has no attribute 'workspace_id'
+```
+
+**Fix:**
+Changed to hardcoded "default" value consistent with single-tenant architecture:
+```python
+workspace_id="default",  # Single-tenant: always use default workspace
+```
+
+**Impact:**
+- Blocked 8 tests from passing (3 error_paths, 5 concurrent_operations)
+- Production risk: AttributeError if ChatSession-based episode creation triggered
+- Consistent with Atom's single-tenant architecture
+
+**Validated:** ✅ Fixed and all 24 error path tests now pass (0 AttributeError)
+
+---
+
 ## Potential Issues (Requiring Investigation)
 
 ### Issue #1: AsyncProvider Client Not Initialized
