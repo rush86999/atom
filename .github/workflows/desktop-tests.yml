@@ -1,0 +1,70 @@
+name: Desktop Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest  # x86_64 for tarpaulin compatibility
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install tarpaulin
+        run: cd frontend-nextjs/src-tauri && cargo install cargo-tarpaulin
+
+      - name: Run cargo test
+        run: cd frontend-nextjs/src-tauri && cargo test --verbose
+
+      - name: Generate coverage report
+        run: |
+          cd frontend-nextjs/src-tauri
+          cargo tarpaulin \
+            --verbose \
+            --timeout 300 \
+            --exclude-files='tests/*' \
+            --output-dir coverage \
+            --out Json
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-coverage
+          path: frontend-nextjs/src-tauri/coverage/coverage.json
+          retention-days: 7
+
+      - name: Upload coverage to codecov (optional)
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./frontend-nextjs/src-tauri/coverage/coverage.json
+          flags: desktop
+          fail_ci_if_error: false
