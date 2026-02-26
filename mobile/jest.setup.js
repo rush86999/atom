@@ -427,17 +427,19 @@ global.__resetMmkvMock = () => {
 // @react-native-community/netinfo Mock
 // ============================================================================
 
-jest.mock('@react-native-community/netinfo', () => ({
-  default: {
-    fetch: jest.fn().mockResolvedValue({
-      isConnected: true,
-      isInternetReachable: true,
-      type: 'wifi',
-      details: {
-        isConnectionExpensive: false,
-        ssid: 'TestNetwork',
-      },
-    }),
+jest.mock('@react-native-community/netinfo', () => {
+  const mockFetch = jest.fn().mockResolvedValue({
+    isConnected: true,
+    isInternetReachable: true,
+    type: 'wifi',
+    details: {
+      isConnectionExpensive: false,
+      ssid: 'TestNetwork',
+    },
+  });
+
+  const mockModule = {
+    fetch: mockFetch,
     addEventListener: jest.fn().mockReturnValue({
       remove: jest.fn(),
     }),
@@ -446,8 +448,13 @@ jest.mock('@react-native-community/netinfo', () => ({
       isInternetReachable: true,
       type: 'wifi',
     }),
-  },
-}));
+  };
+
+  return {
+    default: mockModule,
+    ...mockModule,
+  };
+});
 
 // ============================================================================
 // Mock Timers for Async Tests
