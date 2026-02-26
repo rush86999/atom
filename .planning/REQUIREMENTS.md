@@ -60,27 +60,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FRONT-01 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-02 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-03 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-04 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-05 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-06 | Phase 1 (Backend + Frontend) | Pending |
-| FRONT-07 | Phase 4 (Property Tests) | Pending |
-| MOBL-01 | Phase 2 (Mobile) | Pending |
-| MOBL-02 | Phase 2 (Mobile) | Pending |
-| MOBL-03 | Phase 2 (Mobile) | Pending |
-| MOBL-04 | Phase 5 (Cross-Platform) | Pending |
-| MOBL-05 | Phase 4 (Property Tests) | Pending |
-| DESK-01 | Phase 3 (Desktop) | Pending |
-| DESK-02 | Phase 4 (Property Tests) | Pending |
-| DESK-03 | Phase 3 (Desktop) | Pending |
-| DESK-04 | Phase 5 (Cross-Platform) | Pending |
-| INFRA-01 | Phase 1 (Backend + Frontend) | Pending |
-| INFRA-02 | Phase 1 (Backend + Frontend) | Pending |
-| INFRA-03 | Phase 5 (Cross-Platform) | Pending |
-| INFRA-04 | Phase 5 (Cross-Platform) | Pending |
-| INFRA-05 | Phase 5 (Cross-Platform) | Pending |
+| FRONT-01 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-02 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-03 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-04 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-05 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-06 | Phase 095 (Backend + Frontend Integration) | Pending |
+| FRONT-07 | Phase 098 (Property Testing Expansion) | Pending |
+| MOBL-01 | Phase 096 (Mobile Integration) | Pending |
+| MOBL-02 | Phase 096 (Mobile Integration) | Pending |
+| MOBL-03 | Phase 096 (Mobile Integration) | Pending |
+| MOBL-04 | Phase 096 (Mobile Integration, partial), Phase 099 (Cross-Platform E2E) | Pending |
+| MOBL-05 | Phase 098 (Property Testing Expansion) | Pending |
+| DESK-01 | Phase 097 (Desktop Testing) | Pending |
+| DESK-02 | Phase 098 (Property Testing Expansion) | Pending |
+| DESK-03 | Phase 097 (Desktop Testing) | Pending |
+| DESK-04 | Phase 098 (Property Testing Expansion, partial), Phase 099 (Cross-Platform E2E) | Pending |
+| INFRA-01 | Phase 095 (Backend + Frontend Integration) | Pending |
+| INFRA-02 | Phase 095 (Backend + Frontend Integration) | Pending |
+| INFRA-03 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
+| INFRA-04 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
+| INFRA-05 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
 
 **Coverage:**
 - v4.0 requirements: 21 total
@@ -89,12 +89,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 - No orphaned requirements
 
 **Phase Distribution:**
-- Phase 1 (Backend + Frontend): 9 requirements (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02)
-- Phase 2 (Mobile): 4 requirements (MOBL-01 to MOBL-03, MOBL-04 partially)
-- Phase 3 (Desktop): 2 requirements (DESK-01, DESK-03)
-- Phase 4 (Property Tests): 4 requirements (FRONT-07, MOBL-05, DESK-02, DESK-04 partially)
-- Phase 5 (Cross-Platform E2E): 5 requirements (MOBL-04, DESK-04, INFRA-03 to INFRA-05)
+- Phase 095 (Backend + Frontend Integration): 9 requirements (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02)
+- Phase 096 (Mobile Integration): 4 requirements (MOBL-01 to MOBL-03, MOBL-04 partially)
+- Phase 097 (Desktop Testing): 2 requirements (DESK-01, DESK-03)
+- Phase 098 (Property Testing Expansion): 4 requirements (FRONT-07, MOBL-05, DESK-02, DESK-04 partially)
+- Phase 099 (Cross-Platform Integration & E2E): 5 requirements (MOBL-04, DESK-04, INFRA-03 to INFRA-05)
+
+**Quality Targets:**
+- 80% overall coverage across all platforms (backend, frontend, mobile, desktop)
+- 98% test pass rate with flaky test detection
+- Fix 21 failing frontend tests (40% → 100% pass rate)
+- 30+ property tests across all platforms (Hypothesis, FastCheck, QuickCheck)
+- Parallel CI execution (<30 min total feedback)
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after research synthesis*
+*Last updated: 2026-02-26 after roadmap creation (v4.0 Platform Integration & Property Testing)*
