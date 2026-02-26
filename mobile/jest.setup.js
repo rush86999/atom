@@ -139,56 +139,68 @@ jest.mock('expo-location', () => ({
 // expo-notifications Mock
 // ============================================================================
 
-jest.mock('expo-notifications', () => ({
-  requestPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-    ios: {
-      allowsAlert: true,
-      allowsBadge: true,
-      allowsSound: true,
+jest.mock('expo-notifications', () => {
+  const createMockNotifications = () => ({
+    requestPermissionsAsync: jest.fn().mockResolvedValue({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+      ios: {
+        allowsAlert: true,
+        allowsBadge: true,
+        allowsSound: true,
+      },
+      android: {},
+    }),
+    getPermissionsAsync: jest.fn().mockResolvedValue({
+      status: 'granted',
+      canAskAgain: true,
+      granted: true,
+      expires: 'never',
+    }),
+    getBadgeCountAsync: jest.fn().mockResolvedValue(0),
+    setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
+    scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
+    cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+    getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
+    getExpoPushTokenAsync: jest.fn().mockResolvedValue({
+      type: 'expo',
+      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+    }),
+    presentNotificationAsync: jest.fn().mockResolvedValue(undefined),
+    dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
+    dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+    getAllNotificationsAsync: jest.fn().mockResolvedValue([]),
+    setNotificationHandler: jest.fn(),
+    setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+    addNotificationReceivedListener: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    removeNotificationSubscription: jest.fn(),
+    NotificationContentInput: jest.fn(),
+    NotificationRequestInput: jest.fn(),
+    AndroidImportance: {
+      HIGH: 'high',
+      DEFAULT: 'default',
+      LOW: 'low',
+      MIN: 'min',
     },
-    android: {},
-  }),
-  getPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-  }),
-  getBadgeCountAsync: jest.fn().mockResolvedValue(0),
-  setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
-  scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
-  cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
-  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-  getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
-  getExpoPushTokenAsync: jest.fn().mockResolvedValue({
-    type: 'expo',
-    data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
-  }),
-  presentNotificationAsync: jest.fn().mockResolvedValue(undefined),
-  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
-  dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-  getAllNotificationsAsync: jest.fn().mockResolvedValue([]),
-  setNotificationHandler: jest.fn(),
-  addNotificationReceivedListener: jest.fn().mockReturnValue({
-    remove: jest.fn(),
-  }),
-  addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
-    remove: jest.fn(),
-  }),
-  removeNotificationSubscription: jest.fn(),
-  NotificationContentInput: jest.fn(),
-  NotificationRequestInput: jest.fn(),
-  AndroidImportance: {
-    HIGH: 'high',
-    DEFAULT: 'default',
-    LOW: 'low',
-    MIN: 'min',
-  },
-}));
+  });
+
+  const mockNotifications = createMockNotifications();
+
+  return {
+    ...mockNotifications,
+    Notifications: mockNotifications,
+    Notification: class MockNotification {},
+    default: mockNotifications,
+  };
+});
 
 // ============================================================================
 // expo-local-authentication Mock
