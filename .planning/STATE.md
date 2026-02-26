@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 096 - Mobile Integration ✅ COMPLETE
+**Current focus:** Phase 097 - Desktop Testing (Plan 01/07)
 
 ## Current Position
 
-Phase: 2 of 5 (Phase 096: Mobile Integration)
-Plan: 7 of 7 in current phase
-Status: All plans 01-07 complete
-Last activity: 2026-02-26 — Plan 07: Phase verification and metrics summary (6min, 2 verification docs created)
+Phase: 3 of 5 (Phase 097: Desktop Testing)
+Plan: 1 of 7 in current phase
+Status: Plan 01 complete, Plans 02-07 pending
+Last activity: 2026-02-26 — Plan 01: Desktop coverage aggregation (2min, 4-platform support with tarpaulin)
 
-Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phase 096) ✅ PHASE COMPLETE
+Progress: [█        ] 14% (v4.0 milestone - 1/7 plans in Phase 097)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -52,14 +52,14 @@ Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phas
 **v4.0 Milestone Progress:**
 - Phases planned: 5
 - Phases complete: 2 (Phase 095 complete, Phase 096 complete) ✅
-- Plans complete: 8/8 + 7/7 (Phase 095 complete, Phase 096 complete) ✅
+- Plans complete: 8/8 + 7/7 + 1/7 (Phase 095 complete, Phase 096 complete, Phase 097: 1/7)
 - Requirements mapped: 21/21 (100%) ✅
 - Requirements complete: 12/12 (100%) ✅ (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02, MOBL-01 to MOBL-04)
 - Tests added: 821 (241 integration + 28 property + 27 validation + 32 component + 194 mobile + 126 integration + 55 cross-platform + 68 property)
 - CI workflows: 3 (frontend-tests.yml, unified-tests.yml, mobile-tests.yml)
-- Coverage aggregation: ✅ operational with 3-platform support (aggregate_coverage.py)
+- Coverage aggregation: ✅ operational with 4-platform support (aggregate_coverage.py + tarpaulin)
 - Frontend pass rate: 100% (821/821 tests, up from 96%)
-- Actual coverage: Backend 21.67%, Frontend 3.45%, Mobile 33.05%, Overall 21.42% (55 cross-platform tests added)
+- Actual coverage: Backend 21.67%, Frontend 3.45%, Mobile 16.16%, Desktop 0.00% (pending), Overall 20.81%
 - Target tests: 30+ property tests (achieved: 96), 80% overall coverage (pending), 98% pass rate (achieved: 100%)
 
 **Historical Velocity (v3.3):**
@@ -68,7 +68,7 @@ Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phas
 - Total execution time: ~7.2 hours
 
 **Recent Trend:**
-- Last 13 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min, 11min, 2min, 11min, 8min, 6min]
+- Last 14 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min, 11min, 2min, 11min, 8min, 6min, 2min]
 - Phase 095-01: Jest configuration and npm scripts (10 min)
 - Phase 095-02: Unified coverage aggregation script (4 min)
 - Phase 095-03: Unified CI workflows with parallel execution (8 min)
@@ -84,7 +84,8 @@ Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phas
 - Phase 096-05: FastCheck property tests for queue invariants (13 tests, 8 min)
 - Phase 096-06: Cross-platform API contracts and feature parity tests (55 tests, 5 min)
 - Phase 096-07: Phase verification and metrics summary (6 min)
-- Trend: Fast execution (average 7.0 min per plan)
+- Phase 097-01: Desktop tarpaulin coverage aggregation (2 min)
+- Trend: Fast execution (average 6.7 min per plan)
 
 **Recent Trend:**
 - Last 8 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min]
@@ -166,6 +167,13 @@ Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phas
 - numRuns settings tuned for performance - 100 for fast invariants, 50 for IO-bound, 10 for expensive operations
 - VALIDATED_BUG docstrings for mobile tests - Document bugs found or prevented, same pattern as backend tests
 
+**Phase 097-01 Decisions:**
+- Tarpaulin JSON format parsing from `files.{path}.stats` structure (covered, coverable, percent)
+- Branch coverage set to 0 for Rust - tarpaulin doesn't provide branch metrics, acceptable for line coverage tracking
+- Graceful degradation with error field - Missing desktop coverage returns warning, not error (ARM Macs, CI environments)
+- Default path: `frontend-nextjs/src-tauri/coverage/coverage.json` - Aligns with coverage.sh script
+- Overall coverage formula extended: (covered_backend + covered_frontend + covered_mobile + covered_rust) / (total_backend + total_frontend + total_mobile + total_rust)
+
 **Key Technologies:**
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests (Hypothesis equivalent)
 - pytest-json-report 1.5.0 for unified reporting
@@ -206,14 +214,14 @@ Progress: [█████████] 100% (v4.0 milestone - 7/7 plans in Phas
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 096-07: Phase verification and metrics summary)
-Stopped at: Plan 07 complete - Comprehensive verification report created, 100% success criteria validated, Phase 096 fully complete
+Last session: 2026-02-26 (Phase 097-01: Desktop coverage aggregation)
+Stopped at: Plan 01 complete - Tarpaulin coverage loader added, 4-platform aggregation operational
 Resume file: None
 
 **Next Steps:**
-1. ✅ Phase 096 COMPLETE - All 7 plans executed, 194 new tests (100% pass rate)
-2. Phase 097-01: Desktop test infrastructure setup (jest, tauri-driver, coverage)
-3. Phase 097-02: Desktop integration tests (window management, file system, IPC)
+1. ✅ Phase 097-01 COMPLETE - Tarpaulin coverage aggregation with 4-platform support
+2. Phase 097-02: Desktop test infrastructure setup (jest, tauri-driver, coverage)
+3. Phase 097-03: Desktop integration tests (window management, file system, IPC)
 
 ## Research Context
 
@@ -234,5 +242,5 @@ Resume file: None
 
 *State updated: 2026-02-26*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: ✅ COMPLETE - Phase 096 (7/7 plans complete)*
-*Next: Phase 097 - Desktop Testing*
+*Status: 🔄 IN PROGRESS - Phase 097 (1/7 plans complete)*
+*Next: Phase 097-02 - Desktop Test Infrastructure Setup*
