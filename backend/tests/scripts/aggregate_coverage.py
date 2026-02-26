@@ -164,41 +164,146 @@ def load_jest_coverage(path: Path) -> Dict[str, Any]:
     return result
 
 
+def load_jest_expo_coverage(path: Path) -> Dict[str, Any]:
+    """
+    Load jest-expo coverage-final.json from mobile tests.
+
+    Args:
+        path: Path to coverage-final.json (jest-expo format, same as Jest)
+
+    Returns:
+        Dict with platform='mobile', coverage_pct, covered, total metrics
+        Returns coverage_pct=0.0 and error message if file not found
+    """
+    result = {
+        "platform": "mobile",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 0,
+        "branches_covered": 0,
+        "branches_total": 0,
+        "branch_coverage_pct": 0.0,
+        "file": str(path),
+    }
+
+    if not path.exists():
+        result["error"] = "file not found"
+        return result
+
+    try:
+        with open(path, 'r') as f:
+            coverage_data = json.load(f)
+
+        # jest-expo uses the same Jest coverage-final.json format
+        # {
+        #   "/path/to/file.ts": {
+        #     "s": { "1": 10, "2": 5 },  # statement counts
+        #     "b": { "1": [10, 5], "2": [8, 2] },  # branch counts [taken, not taken]
+        #     "f": { "1": 10 },  # function counts
+        #     "l": { "1": 10 }  # line counts
+        #   }
+        # }
+
+        total_statements = 0
+        covered_statements = 0
+        total_branches = 0
+        covered_branches = 0
+
+        for file_path, file_data in coverage_data.items():
+            # Skip node_modules and test files
+            if "node_modules" in file_path or "__tests__" in file_path:
+                continue
+
+            # Aggregate statements (s)
+            statements = file_data.get("s", {})
+            for stmt_id, count in statements.items():
+                total_statements += 1
+                if count > 0:
+                    covered_statements += 1
+
+            # Aggregate branches (b)
+            branches = file_data.get("b", {})
+            for branch_id, counts in branches.items():
+                if isinstance(counts, list) and len(counts) >= 2:
+                    total_branches += len(counts)
+                    covered_branches += sum(1 for c in counts if c > 0)
+
+        result["covered"] = covered_statements
+        result["total"] = total_statements
+        result["branches_covered"] = covered_branches
+        result["branches_total"] = total_branches
+
+        # Calculate percentages
+        if result["total"] > 0:
+            result["coverage_pct"] = (result["covered"] / result["total"] * 100)
+        else:
+            result["coverage_pct"] = 0.0
+
+        if result["branches_total"] > 0:
+            result["branch_coverage_pct"] = (
+                result["branches_covered"] / result["branches_total"] * 100
+            )
+        else:
+            result["branch_coverage_pct"] = 0.0
+
+    except (json.JSONDecodeError, IOError) as e:
+        result["error"] = str(e)
+
+    return result
+
+
 def aggregate_coverage(
     pytest_path: Path,
-    jest_path: Path
+    jest_path: Path,
+    jest_expo_path: Optional[Path] = None
 ) -> Dict[str, Any]:
     """
-    Aggregate coverage from both platforms.
+    Aggregate coverage from all platforms.
 
     Computes overall coverage as weighted average:
-    (covered_backend + covered_frontend) / (total_backend + total_frontend)
+    (covered_backend + covered_frontend + covered_mobile) / (total_backend + total_frontend + total_mobile)
 
     Args:
         pytest_path: Path to pytest coverage.json
         jest_path: Path to Jest coverage-final.json
+        jest_expo_path: Optional path to jest-expo coverage-final.json
 
     Returns:
         Dict with platforms, overall, timestamp keys
     """
     python_coverage = load_pytest_coverage(pytest_path)
     javascript_coverage = load_jest_coverage(jest_path)
+    mobile_coverage = load_jest_expo_coverage(jest_expo_path) if jest_expo_path else None
+
+    # Build platforms dict
+    platforms = {
+        "python": python_coverage,
+        "javascript": javascript_coverage,
+    }
+    if mobile_coverage:
+        platforms["mobile"] = mobile_coverage
 
     # Compute overall coverage (weighted average)
     total_covered = python_coverage["covered"] + javascript_coverage["covered"]
     total_lines = python_coverage["total"] + javascript_coverage["total"]
 
-    overall_coverage_pct = 0.0
-    if total_lines > 0:
-        overall_coverage_pct = (total_covered / total_lines * 100)
-
-    # Compute overall branch coverage
     total_branches_covered = (
         python_coverage["branches_covered"] + javascript_coverage["branches_covered"]
     )
     total_branches = (
         python_coverage["branches_total"] + javascript_coverage["branches_total"]
     )
+
+    # Add mobile coverage if available
+    if mobile_coverage:
+        total_covered += mobile_coverage["covered"]
+        total_lines += mobile_coverage["total"]
+        total_branches_covered += mobile_coverage["branches_covered"]
+        total_branches += mobile_coverage["branches_total"]
+
+    overall_coverage_pct = 0.0
+    if total_lines > 0:
+        overall_coverage_pct = (total_covered / total_lines * 100)
 
     overall_branch_coverage_pct = 0.0
     if total_branches > 0:
@@ -207,10 +312,7 @@ def aggregate_coverage(
         )
 
     return {
-        "platforms": {
-            "python": python_coverage,
-            "javascript": javascript_coverage,
-        },
+        "platforms": platforms,
         "overall": {
             "coverage_pct": round(overall_coverage_pct, 2),
             "covered": total_covered,
@@ -329,7 +431,7 @@ def generate_markdown_report(aggregate_data: Dict[str, Any]) -> str:
 def main():
     """Main execution entry point."""
     parser = argparse.ArgumentParser(
-        description="Aggregate coverage from backend (pytest) and frontend (Jest) tests"
+        description="Aggregate coverage from backend (pytest), frontend (Jest), and mobile (jest-expo) tests"
     )
     parser.add_argument(
         "--pytest-coverage",
@@ -342,6 +444,12 @@ def main():
         type=Path,
         default=Path(__file__).parent.parent.parent.parent / "frontend-nextjs" / "coverage" / "coverage-final.json",
         help="Path to Jest coverage-final.json (default: frontend-nextjs/coverage/coverage-final.json)"
+    )
+    parser.add_argument(
+        "--mobile-coverage",
+        type=Path,
+        default=Path(__file__).parent.parent.parent.parent / "mobile" / "coverage" / "coverage-final.json",
+        help="Path to jest-expo coverage-final.json (default: mobile/coverage/coverage-final.json)"
     )
     parser.add_argument(
         "--output",
@@ -360,7 +468,7 @@ def main():
     args = parser.parse_args()
 
     # Aggregate coverage
-    aggregate_data = aggregate_coverage(args.pytest_coverage, args.jest_coverage)
+    aggregate_data = aggregate_coverage(args.pytest_coverage, args.jest_coverage, args.mobile_coverage)
 
     # Create output directory if needed
     args.output.parent.mkdir(parents=True, exist_ok=True)
