@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 095 - Backend + Frontend Integration
+**Current focus:** Phase 096 - Mobile Integration
 
 ## Current Position
 
-Phase: 1 of 5 (Phase 095: Backend + Frontend Integration)
-Plan: 7 of 8 in current phase
-Status: Plans 01, 02, 03, 04, 05, 06, 07, 08 complete
-Last activity: 2026-02-26 — Plan 07: Phase verification and metrics summary (all 6 success criteria validated, 8/8 requirements COMPLETE, ready for Phase 096)
+Phase: 2 of 5 (Phase 096: Mobile Integration)
+Plan: 1 of 7 in current phase
+Status: Plans 01 complete
+Last activity: 2026-02-26 — Plan 01: Mobile jest-expo coverage aggregation (3 platforms supported, graceful degradation, ready for Plan 02)
 
-Progress: [██████░░░] 88% (v4.0 milestone - 7/8 plans in Phase 095)
+Progress: [██████░░░] 91% (v4.0 milestone - 1/7 plans in Phase 096)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -51,15 +51,15 @@ Progress: [██████░░░] 88% (v4.0 milestone - 7/8 plans in Phase
 
 **v4.0 Milestone Progress:**
 - Phases planned: 5
-- Phases complete: 0
-- Plans complete: 7/8 (88%)
+- Phases complete: 0 (Phase 095 complete)
+- Plans complete: 8/8 + 1/7 (Phase 095 complete, Phase 096 started)
 - Requirements mapped: 21/21 (100%) ✅
 - Requirements complete: 8/8 (100%) ✅ (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02)
 - Tests added: 528 (241 integration + 28 property + 27 validation + 32 component)
 - CI workflows: 2 (frontend-tests.yml, unified-tests.yml)
-- Coverage aggregation: ✅ operational (aggregate_coverage.py)
+- Coverage aggregation: ✅ operational with mobile support (aggregate_coverage.py)
 - Frontend pass rate: 100% (821/821 tests, up from 96%)
-- Actual coverage: Backend 21.67%, Frontend 3.45%, Overall 21.12%
+- Actual coverage: Backend 21.67%, Frontend 3.45%, Mobile 33.05%, Overall 21.42%
 - Target tests: 30+ property tests (achieved: 28), 80% overall coverage (pending), 98% pass rate (achieved: 100%)
 
 **Historical Velocity (v3.3):**
@@ -68,17 +68,18 @@ Progress: [██████░░░] 88% (v4.0 milestone - 7/8 plans in Phase
 - Total execution time: ~7.2 hours
 
 **Recent Trend:**
-- Last 7 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min]
-- Plan 01: Jest configuration and npm scripts (10 min)
-- Plan 02: Unified coverage aggregation script (4 min)
-- Plan 03: Unified CI workflows with parallel execution (8 min)
-- Plan 04: Frontend integration tests (94 tests, 5 min)
-- Plan 05: FastCheck property tests for state management (28 properties, 5 min)
-- Plan 06: Integration tests for flows (147 tests, 12 min)
-- Plan 07: Phase verification and metrics summary (5 min)
-- Plan 08: Frontend test fixes (96% → 100% pass rate, 5 min)
-- Trend: Fast execution (average 7 min per plan)
-- Average duration: ~7 minutes
+- Last 8 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min]
+- Phase 095-01: Jest configuration and npm scripts (10 min)
+- Phase 095-02: Unified coverage aggregation script (4 min)
+- Phase 095-03: Unified CI workflows with parallel execution (8 min)
+- Phase 095-04: Frontend integration tests (94 tests, 5 min)
+- Phase 095-05: FastCheck property tests for state management (28 properties, 5 min)
+- Phase 095-06: Integration tests for flows (147 tests, 12 min)
+- Phase 095-07: Phase verification and metrics summary (5 min)
+- Phase 095-08: Frontend test fixes (96% → 100% pass rate, 5 min)
+- Phase 096-01: Mobile jest-expo coverage aggregation (2 min)
+- Trend: Fast execution (average 6.4 min per plan)
+- Average duration: ~6 minutes
 
 *Updated: 2026-02-26*
 
@@ -126,6 +127,12 @@ Progress: [██████░░░] 88% (v4.0 milestone - 7/8 plans in Phase
 - 528 new tests created during Phase 095 (241 integration + 28 property + 27 validation + 32 component)
 - Recommendations for Phase 096: Reuse test patterns (survey-first, property tests, integration tests), focus on device-specific testing, extend coverage aggregator for jest-expo
 
+**Phase 096-01 Decisions:**
+- Use same Jest format parser for jest-expo coverage (coverage-final.json) with separate load_jest_expo_coverage function
+- Mobile coverage parameter optional with default value, degrade gracefully if missing (warning, not error)
+- Overall coverage formula extended: (covered_backend + covered_frontend + covered_mobile) / (total_backend + total_frontend + total_mobile)
+- Mobile's 33.05% coverage (highest of 3 platforms) lifts overall from 21.12% → 21.42%
+
 **Key Technologies:**
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests (Hypothesis equivalent)
 - pytest-json-report 1.5.0 for unified reporting
@@ -166,15 +173,17 @@ Progress: [██████░░░] 88% (v4.0 milestone - 7/8 plans in Phase
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 095-07: Phase verification and metrics summary)
-Stopped at: Plan 07 complete - Phase 095 verification report with all 6 success criteria validated (5 fully met, 1 partial), 8/8 requirements COMPLETE, 528 new tests, 100% frontend pass rate, ready for Phase 096
+Last session: 2026-02-26 (Phase 096-01: Mobile coverage aggregation)
+Stopped at: Plan 01 complete - Extended aggregate_coverage.py to support jest-expo mobile coverage with graceful degradation, 3 platforms (python, javascript, mobile), overall coverage 21.42%
 Resume file: None
 
 **Next Steps:**
-1. Complete Phase 095 with Plan 01 (if not done) or move to Phase 096 (Mobile Integration)
-2. Phase 096: Mobile integration tests with FastCheck properties for device invariants
-3. Coverage expansion phase to reach 80% overall coverage target
-4. E2E tests in Phase 099 (Cross-Platform Integration)
+1. Phase 096-02: Mobile integration tests for device permissions (Camera, Location, Notifications, Biometric)
+2. Phase 096-03: Mobile property tests with FastCheck for device invariants
+3. Phase 096-04: Mobile component tests for React Native screens
+4. Phase 096-05: Mobile E2E tests with Detox
+5. Phase 096-06: Extend mobile coverage to reach 80% threshold
+6. Phase 096-07: Phase verification and metrics summary
 
 ## Research Context
 
@@ -195,4 +204,4 @@ Resume file: None
 
 *State updated: 2026-02-26*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: 🔄 IN PROGRESS - Phase 095 (3/8 plans complete)*
+*Status: 🔄 IN PROGRESS - Phase 096 (1/7 plans complete)*
