@@ -1,0 +1,33 @@
+{
+  "platforms": {
+    "python": {
+      "platform": "python",
+      "coverage_pct": 74.55197132616487,
+      "covered": 156,
+      "total": 205,
+      "branches_covered": 52,
+      "branches_total": 74,
+      "branch_coverage_pct": 70.27027027027027,
+      "file": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json"
+    },
+    "javascript": {
+      "platform": "javascript",
+      "coverage_pct": 18.75,
+      "covered": 9,
+      "total": 48,
+      "branches_covered": 3,
+      "branches_total": 60,
+      "branch_coverage_pct": 5.0,
+      "file": "/Users/rushiparikh/projects/atom/frontend-nextjs/coverage/coverage-final.json"
+    }
+  },
+  "overall": {
+    "coverage_pct": 65.22,
+    "covered": 165,
+    "total": 253,
+    "branch_coverage_pct": 41.04,
+    "branches_covered": 55,
+    "branches_total": 134
+  },
+  "timestamp": "2026-02-26T19:09:31.346172Z"
+}
