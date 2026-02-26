@@ -1,295 +1,263 @@
 # Project Research Summary
 
-**Project:** Atom v3.3 Finance Testing & Bug Fixes
-**Domain:** Finance/Accounting Testing for AI Automation Platform
-**Researched:** February 25, 2026
+**Project:** Atom Test Coverage Initiative v4.0 — Platform Integration & Property-Based Testing
+**Domain:** Multi-platform testing infrastructure (Next.js, React Native, Tauri, Python)
+**Researched:** February 26, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom v3.3 requires comprehensive finance and accounting testing capabilities to support transaction processing, budget enforcement, invoice reconciliation, and payment integration. Based on research across precision mathematics, property-based testing patterns, audit trail requirements, and payment provider integration, the recommended approach leverages Atom's existing pytest/Hypothesis infrastructure with two strategic additions: `pytest-freezegun` for time-dependent testing (aging reports, payment terms, revenue recognition) and `factory_boy` for financial test data generation.
+Atom v4.0 requires a unified testing architecture that integrates four distinct platforms (Python backend, Next.js frontend, React Native mobile, Tauri desktop) with property-based testing parity. The existing backend has comprehensive Hypothesis property tests (100+ files), while frontend/mobile have Jest configured but limited test coverage (40% pass rate, 21/35 frontend tests failing). The recommended approach uses a **platform-first testing strategy** where each platform runs tests independently in CI, then aggregates results via Python scripts for unified coverage reporting.
 
-The most critical finding is that **floating-point precision is the single highest-risk pitfall** - using `float` instead of Python's `decimal.Decimal` for monetary values causes accumulation errors that violate accounting standards (GAAP/IFRS) and create reconciliation failures. The second most critical risk is **inadequate audit trail testing** - missing or incomplete audit entries make SOX compliance impossible and prevent debugging payment discrepancies. Atom's existing property-based testing framework (161 test files, 814 lines of financial invariants, 705 lines of accounting invariants) provides a strong foundation, but requires extension for payment integration, audit trail verification, and time-dependent financial workflows.
+The most critical risk is **fragmented testing infrastructure** — frontend/mobile/desktop tests currently run in isolation without unified quality gates. Research shows this leads to inconsistent coverage, missed integration bugs, and slow feedback loops. Mitigation requires: (1) centralized coverage aggregation using pytest-cov as source of truth, (2) FastCheck for JavaScript/TypeScript property tests (matching Hypothesis patterns), (3) unified CI orchestration with parallel platform execution, and (4) incremental rollout starting with backend+frontend integration before adding mobile/desktop.
 
-Key risks are mitigated through: (1) **Decimal-first design pattern** enforced at API boundaries, database layer, and calculation functions; (2) **Property-based financial invariants** testing double-entry bookkeeping (debits = credits), conservation of value, and balance sheet equations; (3) **Mock payment provider integration** using the `responses` library (already in requirements.txt) for deterministic testing without real money transactions; (4) **Time-dependent testing** with `pytest-freezegun` to freeze time for aging reports, revenue recognition, and payment term validation. The recommended implementation order prioritizes precision foundation first (Phase 1), then payment integration (Phase 2), then cost tracking (Phase 3), then audit trails (Phase 4) - this ordering prevents foundational errors from cascading into later phases.
+Key differentiator: Property-based testing for frontend state management (Redux/Zustand reducers, API contracts, data transformations) using FastCheck — an approach not widely adopted in production but highly recommended for catching edge cases in business logic invariants. This extends Atom's existing Hypothesis-based property test patterns to JavaScript/TypeScript platforms.
 
 ## Key Findings
 
 ### Recommended Stack
 
 **Core technologies:**
-- **Python `decimal.Decimal`** (stdlib) — Exact decimal arithmetic for all monetary values. Initialize with strings `Decimal("100.00")` not floats to avoid binary representation errors (0.1 + 0.2 != 0.3)
-- **Hypothesis 6.92+** (existing) — Property-based testing for financial invariants. Already proven with 814 lines of financial invariants testing cost leaks, budget guardrails, invoice reconciliation
-- **pytest-freezegun 0.4+** (add) — Time freezing for date-dependent tests. Critical for aging reports, payment terms (Net 30, Net 60), revenue recognition timing. Prevents tests that fail at month boundaries
-- **factory_boy 3.3+** (add) — Financial test data generation. Declarative factories for complex objects (Invoice -> LineItems -> Payments) with relationships, sequences, fuzzy data. Eliminates 100+ lines of boilerplate per test file
-- **`responses` 0.23+** (already in requirements.txt) — HTTP mocking for payment providers (Stripe, PayPal, bank APIs). Mock API calls without network calls, validates request payloads, provides controlled responses
+- **Jest (30.0.5/29.7.0)** — Test runner for Next.js and React Native — Already configured with 80% coverage threshold, jsdom/jest-expo presets working
+- **pytest (8.4.2)** — Backend orchestration and unified reporting — Existing infrastructure with CI/CD integration, coverage enforcement
+- **Hypothesis (6.151.5)** — Python property-based testing — Already in use with 60+ property test files, proven patterns
+- **FastCheck (4.5.3)** — TypeScript/JavaScript property-based testing — Hypothesis equivalent for JS/TS, integrates with Jest, type-safe
+- **Playwright Python (1.58.0) + Node (1.58.2)** — Cross-platform E2E — Backend has 17 tests, frontend needs integration
+- **Detox (20.47.0)** — React Native grey-box E2E — 10x faster than Appium, grey-box architecture
+- **pytest-cov (4.1.0)** — Python coverage aggregation — Already configured, use as source of truth
 
-**No major stack changes required** - Atom's existing pytest 7.4+, SQLAlchemy 2.0+, and property testing infrastructure remain the foundation. These additions provide domain-specific financial testing capabilities.
+**Integration strategy:** Frontend/mobile tests run in native Jest environments but report to unified pytest-based CI pipeline using JSON report aggregation. Python scripts parse all coverage formats (pytest JSON, Jest JSON) and produce unified reports.
 
 ### Expected Features
 
 **Must have (table stakes):**
-- **Decimal precision** — Financial calculations MUST use exact arithmetic (no floating-point errors). Use Python `Decimal` module, initialize with strings not floats
-- **Double-entry validation** — Every financial transaction must balance (debits = credits). Core accounting invariant
-- **Audit trail integrity** — Legal requirement for financial systems (SOX, GAAP). Complete chronological logs with who/what/when. Immutability critical
-- **Reconciliation testing** — Match invoices to contracts, detect discrepancies. Verify tolerance-based matching (e.g., 5% variance acceptable)
-- **Currency conversion** — Multi-currency businesses require accurate FX handling. Test round-trip conversions (USD->EUR->USD ~= original)
-- **Tax calculations** — Sales tax, VAT, GST must be calculated correctly. Test tax-inclusive vs tax-exclusive, compound taxes (federal + state)
-- **Invoice aging** — Track overdue payments for cash flow management. Test aging buckets (current, 1-30, 31-60, 61+ days)
-- **Mock payment servers** — Test Stripe/PayPal integration without real money. Use stripe-mock, VCR, or build mock HTTP servers
+- **Component Integration Tests** — Verify components work together with state management, API calls, routing — React Testing Library for Next.js, React Native Testing Library for mobile
+- **API Contract Validation** — Frontend must correctly call backend APIs and handle responses — Test request/response shapes, error handling, timeout scenarios
+- **State Management Consistency** — Redux/Zustand/Context state must be predictable and consistent — Test state updates, selectors, async actions, middleware
+- **Form Validation & Submission** — Forms must validate correctly and submit data to backend — Test validation rules, error display, success/error states
+- **Navigation & Routing** — Users must navigate between screens/pages correctly — Test routing, navigation params, deep links, back navigation
+- **Authentication Flow** — Login/register/logout must work correctly with token storage — Test auth flows, token refresh, session persistence, biometric auth
+- **Offline Data Sync** — Mobile/desktop must handle offline mode gracefully — Test offline queue, sync on reconnect, conflict resolution
+- **Device Feature Mocking** — Camera, location, notifications must work across platforms — Mock Expo modules, device APIs, test permissions
 
-**Should have (competitive):**
-- **Property-based financial tests** — Find edge cases that example-based tests miss. Use Hypothesis to generate random valid inputs (amounts, rates, dates)
-- **Cost leak detection** — Automatically find unused subscriptions/redundant tools. Analyze usage patterns, flag wasteful spending
-- **Budget guardrails** — Prevent overspending with real-time enforcement. Pause spending when budgets exceeded, require approvals
-- **AI-powered categorization** — Auto-categorize transactions with confidence scores. Test confidence thresholds (0.85 = auto-post, <0.85 = review)
-- **Reconciliation discrepancy detection** — Flag invoices outside expected variance. Test tolerance thresholds, automatic discrepancy reports
+**Should have (competitive differentiators):**
+- **Property-Based State Testing** — Use fast-check to generate random state transitions and verify invariants — State machines, Redux reducers, context providers should maintain invariants
+- **Visual Regression Testing** — Detect unintended UI changes across releases — Percy, Chromatic, or Playwright screenshots
+- **Cross-Platform Consistency** — Verify feature parity across web/mobile/desktop — Same tests run on multiple platforms, validate consistent behavior
+- **Performance Regression Tests** — Detect rendering performance degradation — Lighthouse CI, render time budgets, bundle size tracking
+- **Accessibility Testing** — Ensure WCAG compliance with automated tests — jest-axe, aria labels, keyboard navigation, screen reader tests
+- **End-to-End User Flows** — Test complete workflows from UI to backend — Playwright for web, Detox for mobile
 
 **Defer (v2+):**
-- **AI-powered categorization** — Requires ML infrastructure, defer to v3.4+
-- **Real-time FX rate fetching** — Requires provider integration, use test fixtures with timestamps for v3.3
-- **Advanced revenue recognition** — Complex contract scenarios, defer to v3.4+
-- **Multi-entity consolidation** — Requires chart of accounts mapping, defer to v3.4+
+- **Mutation Testing** — Verify test quality by mutating code — Requires baseline test quality first
+- **Memory Leak Detection** — Find memory leaks in long-running sessions — Advanced performance testing
 
 ### Architecture Approach
 
-**Major components:**
-1. **Property Tests** (Hypothesis) — Verify financial invariants across all inputs. Test cost leak detection, budget enforcement, invoice reconciliation, tax calculations with auto-generated edge cases
-2. **Integration Tests** — Test payment flows, budget enforcement with real database. End-to-end transaction posting, payment processing with DB commit, audit trail verification
-3. **Unit Tests** — Test individual calculation logic, tax formulas, currency conversion, discount math in isolation
-4. **Finance Fixtures** — Create test transactions, budgets, invoices, accounts. Centralized fixture creation with `factory_boy` for consistent test data
-5. **AI Accounting Engine** (existing) — Transaction ingestion, categorization, posting logic. Already has 705 lines of property tests
-6. **Financial Ops Engine** (existing) — Cost leak detection, budget guardrails, reconciliation. Already has 814 lines of property tests
-7. **Payment Engine** (new) — Payment processing, refunds, multi-currency. Requires mock payment provider integration
+**Platform-first testing architecture:** Each platform runs tests independently in CI (pytest for backend, Jest for frontend/mobile, cargo test for Tauri), then uploads coverage artifacts to a unified aggregation job. Python scripts parse multiple coverage formats and produce unified reports with per-platform breakdowns. Quality gates enforce 50% overall coverage + 98% pass rate across all platforms.
 
-**Recommended project structure:**
-```
-backend/tests/
-├── property_tests/financial/         # Finance property tests (EXISTING - 814 lines)
-├── integration/financial/            # NEW: Integration test folder
-├── unit/financial/                   # NEW: Unit test folder
-├── fixtures/finance_fixtures.py      # NEW: Financial test fixtures
-└── conftest.py                       # Root pytest config (EXISTING)
-```
+**Major components:**
+1. **Platform-Specific Test Runners** — pytest (backend), Jest (frontend/mobile), cargo test (desktop Rust) — Each runs independently in parallel CI jobs
+2. **Coverage Aggregator** — Python script (`backend/tests/scripts/aggregate_coverage.py`) — Parses pytest JSON, Jest JSON, Rust coverage; produces unified report
+3. **Unified Quality Gates** — Python script (`unified_quality_gate.py`) — Enforces coverage thresholds, pass rate, flaky test detection
+4. **Property Test Frameworks** — Hypothesis (Python), FastCheck (JavaScript/TypeScript) — Shared invariant testing patterns across platforms
+5. **CI Orchestration** — GitHub Actions workflows — Parallel test execution, artifact upload/download, aggregation job
+
+**Data flow:** Developer push → Trigger CI jobs (backend, frontend, mobile, desktop in parallel) → Upload coverage artifacts → Download all artifacts → Aggregate coverage → Quality gate evaluation → PR comment with breakdown
 
 ### Critical Pitfalls
 
-1. **Floating-point precision in financial calculations** — Using `float` instead of `Decimal` causes binary representation errors (0.1 + 0.2 != 0.3) that accumulate in batch processing, violating accounting standards (GAAP/IFRS) and causing reconciliation failures. **Prevention:** Use `decimal.Decimal` for all monetary values, initialize with strings, store amounts as integer cents, define rounding strategy (banker's rounding), property test precision invariants.
-
-2. **Inadequate audit trail testing** — Tests verify entries are created but don't validate completeness (all financial operations logged), integrity (entries tamper-proof), or traceability (can reconstruct transaction). **Prevention:** Test audit trail completeness, property test audit invariants (count = number of operations), end-to-end traceability tests, test audit entry immutability, performance test audit queries.
-
-3. **Property testing without financial invariants** — Tests generate hundreds of examples but don't verify accounting principles (debits = credits, conservation of value, balance sheet equation). **Prevention:** Identify financial invariants first (document 3-5 domain invariants per module), use established property patterns (round-trip, inductive, invariant preservation), test critical financial paths, require bug-finding evidence in docstrings.
-
-4. **Payment integration mock mismatch** — Mocks don't match real payment provider behavior, missing race conditions, webhook failures, timeout scenarios, idempotency issues. **Prevention:** Use provider test mode (Stripe Test Mode, PayPal Sandbox), test failure modes (declined cards, timeouts), test webhook reliability, test idempotency, use VCR/recording, test provider-specific quirks.
-
-5. **Test data edge cases missing** — Tests use typical values ($100, $50) but miss critical edge cases (zero amounts, negative amounts, maximum limits). **Prevention:** Property test edge cases with Hypothesis, test boundary values (min valid amount 0.01, max account limit), test format variations (commas, European formats), test business rules (negative balance validation).
+1. **Monolithic Test Workflow** — Single CI job running all platforms sequentially causes 40+ minute feedback loops — **Avoid:** Use platform-specific jobs with parallel execution
+2. **Coverage Without Context** — Reporting single percentage without breakdown masks regressions in specific platforms — **Avoid:** Provide detailed per-platform breakdown with trends
+3. **Property Tests for Everything** — Replacing all unit tests with property tests slows execution 100x without proportional bug-finding value — **Avoid:** Use property tests for critical invariants only (state machines, data transformations, API contracts)
+4. **Fragmented Coverage Reporting** — No unified view of coverage across platforms leads to inconsistent quality — **Avoid:** Centralize aggregation using Python scripts as source of truth
+5. **Test Data Edge Cases Missing** — Financial test data uses typical values but misses critical edge cases (zero, negative, maximum limits) — **Avoid:** Use property-based testing with explicit min/max values in Hypothesis strategies
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Core Accounting Logic
-**Rationale:** Precision errors are foundational - if caught late, require rewriting all financial calculations. Establish Decimal-first design pattern before writing any financial calculations. This phase creates the precision foundation that all subsequent phases depend on.
+### Phase 1: Backend + Frontend Integration (Week 1-2)
+**Rationale:** Backend has established property test patterns (Hypothesis) and CI infrastructure. Frontend shares TypeScript types with backend API, making integration highest impact. Fixes 21 failing frontend tests (40% → 100% pass rate).
 
 **Delivers:**
-- Decimal precision for all monetary values (API boundaries, database layer, calculations)
-- Double-entry validation (debits = credits invariant)
-- Transaction status workflow (ingest -> categorize -> review -> post)
-- Property-based tests using Hypothesis with financial invariants
-- Rounding strategy documentation (banker's rounding, edge case handling)
-- Edge case coverage (zero, negative, large amounts, format variations)
+- Unified coverage aggregation (pytest + Jest)
+- Frontend integration tests (API contracts, state management, form validation)
+- FastCheck property tests for frontend invariants (10-15 tests)
 
-**Addresses features:**
-- Decimal Precision (table stakes)
-- Double-Entry Validation (table stakes)
-- Transaction Status Workflow (table stakes)
-- Tax Calculations (table stakes)
-- Property-Based Financial Tests (differentiator)
+**Addresses:**
+- Component Integration Tests, API Contract Validation, State Management Consistency (from FEATURES.md)
+- Property-Based State Testing (differentiator)
 
-**Avoids pitfalls:**
-- Floating-point precision in financial calculations
-- Rounding strategy inconsistency
-- Test data edge cases missing
-- Property testing without financial invariants
+**Uses:**
+- FastCheck 4.5.3 for property tests, pytest-json-report 1.5.0 for unified reporting
+- Playwright Node 1.58.2 for E2E, React Testing Library 16.3.0 for component tests
 
-**Uses stack elements:**
-- Python `decimal.Decimal` (stdlib)
-- Hypothesis 6.92+ (existing)
-- factory_boy 3.3+ (new)
+**Implements:**
+- Coverage aggregator script (`backend/tests/scripts/aggregate_coverage.py`)
+- Unified CI workflow (`.github/workflows/unified-tests.yml`)
+- Frontend tests workflow (`.github/workflows/frontend-tests.yml`)
 
-**Implements architecture:**
-- Unit tests for calculation logic
-- Property tests for financial invariants
-- Finance fixtures for test data
+**Avoids:**
+- Monolithic test workflow pitfall (parallel execution)
+- Fragmented coverage reporting (unified aggregation)
 
-### Phase 2: Payment Integration Testing
-**Rationale:** Payment integrations have complex race conditions and failure modes that benefit from early property testing. Mock payment providers must match real behavior to prevent production failures. This phase prevents duplicate charges, lost payments, and reconciliation failures.
+### Phase 2: Mobile Integration (Week 3-4)
+**Rationale:** Mobile has Jest infrastructure configured (jest-expo), just needs integration with unified coverage. Property test patterns from Phase 1 can be reused.
 
 **Delivers:**
-- Mock payment server (stripe-mock or custom using `responses` library)
-- Test failure scenarios (declines, timeouts, insufficient funds)
-- Idempotency key validation
-- Webhook testing (simulated payment callbacks)
-- Reconciliation testing (invoice-to-contract matching, discrepancy detection)
-- Property tests for payment invariants
+- Mobile integration tests (device features, offline sync, platform permissions)
+- FastCheck property tests for mobile invariants (5-10 tests)
+- Cross-platform consistency tests
 
-**Addresses features:**
-- Mock Payment Servers (table stakes)
-- Reconciliation Testing (table stakes)
-- Currency Conversion (table stakes)
-- Reconciliation Discrepancy Detection (differentiator)
-- Integration Test Snapshots (differentiator)
+**Addresses:**
+- Offline Data Sync, Device Feature Mocking, Authentication Flow (from FEATURES.md)
+- Cross-Platform Consistency (differentiator)
 
-**Avoids pitfalls:**
-- Payment integration mock mismatch
-- Reconciliation test coverage gaps
-- Test data edge cases missing (for payment scenarios)
+**Uses:**
+- Detox 20.47.0 for grey-box E2E, React Native Testing Library 13.3.3
+- expo-mock for device API mocking, detox-expo-helpers for Expo integration
 
-**Uses stack elements:**
-- `responses` 0.23+ (existing in requirements.txt)
-- Hypothesis 6.92+ (existing)
-- pytest-freezegun 0.4+ (new) for payment term testing
+**Implements:**
+- Mobile tests workflow (modify existing `.github/workflows/mobile-ci.yml`)
+- Extend coverage aggregator for jest-expo coverage format
 
-**Implements architecture:**
-- Integration tests for payment flows
-- Property tests for payment invariants
-- Mock payment provider infrastructure
+**Avoids:**
+- Test data edge cases missing (property tests with device-specific strategies)
+- Fragmented coverage (mobile included in unified report)
 
-### Phase 3: Cost Tracking & Budgets
-**Rationale:** Budget tracking depends on accurate precision from Phase 1 and payment processing from Phase 2. This phase builds on the precision foundation to add business logic for cost control and leak detection.
+### Phase 3: Desktop Testing (Week 5)
+**Rationale:** Desktop is most complex (Rust + JavaScript), defer until patterns established from Phases 1-2. Tauri requires native module mocking and cross-platform validation.
 
 **Delivers:**
-- Budget limit enforcement (pause when exceeded)
-- Cost leak detection (unused subscriptions, redundant tools)
-- Reconciliation discrepancy detection
-- Tolerance-based matching (5% variance acceptable)
-- Property tests for budget guardrail invariants
-- Performance test budget queries (concurrent checks)
+- Tauri integration tests (native API mocks, cross-platform tests)
+- Rust property tests (QuickCheck) + JavaScript property tests
+- Desktop-specific feature tests (menu bar, notifications, auto-updates)
 
-**Addresses features:**
-- Budget Guardrails (differentiator)
-- Cost Leak Detection (differentiator)
-- Invoice Aging (table stakes)
-- Payment Term Enforcement (table stakes)
+**Addresses:**
+- Desktop integration (system APIs, filesystem access, Tauri commands)
+- Cross-Platform Consistency (differentiator)
 
-**Avoids pitfalls:**
-- Budget guardrail race conditions
-- Slow financial tests blocking CI
-- Property testing without financial invariants
+**Uses:**
+- tauri-driver 2.10.1 for WebDriver E2E, cargo test for Rust backend
+- Tauri API mocks for @tauri-apps/plugin-* modules
 
-**Uses stack elements:**
-- Hypothesis 6.92+ (existing)
-- pytest-xdist (existing) for parallel execution
-- pytest-benchmark 4.0+ (optional) for performance tests
+**Implements:**
+- Desktop tests workflow (`.github/workflows/desktop-tests.yml`)
+- Extend coverage aggregator for Rust coverage (tarpaulin or covector)
 
-**Implements architecture:**
-- Property tests for budget invariants
-- Integration tests for budget enforcement
-- Performance tests for concurrent access
+**Avoids:**
+- Property tests for everything pitfall (focus on critical invariants only)
+- Cross-platform inconsistencies (shared test suite where possible)
 
-### Phase 4: Audit Trails & Compliance
-**Rationale:** Audit trails span all phases and require complete implementation of all financial operations to test meaningfully. Testing completeness after core logic, payments, and budgets are implemented ensures end-to-end traceability.
+### Phase 4: Property Testing Expansion (Week 6)
+**Rationale:** Property test patterns proven in Phases 1-3, now expand to cover critical invariants across all platforms. Requires deep understanding of business logic invariants.
 
 **Delivers:**
-- Complete chronological logging (who/what/when)
-- Immutability (logs cannot be altered)
-- Required fields validation (timestamp, action, transaction_id, user_id)
-- Log aggregation and querying
-- End-to-end traceability tests
-- Property tests for audit invariants (count, ordering, immutability)
+- 30+ property tests across all platforms (backend Hypothesis, frontend/mobile FastCheck, desktop QuickCheck)
+- Documented property testing patterns for each platform
+- Invariant identification (state transitions, data validation, API contracts)
 
-**Addresses features:**
-- Audit Trail Integrity (table stakes)
-- Transaction Status Workflow (table stakes)
-- SOX compliance testing requirements
+**Addresses:**
+- Property-Based State Testing (differentiator — full implementation)
+- Component Contract Tests, Data Transformation Invariants (differentiator)
 
-**Avoids pitfalls:**
-- Inadequate audit trail testing
-- SOX compliance gaps
-- Property testing without financial invariants
+**Uses:**
+- Hypothesis 6.151.5 (backend), FastCheck 4.5.3 (frontend/mobile), QuickCheck (Rust)
+- Existing Atom property test patterns (governance maturity invariants, financial invariants)
 
-**Uses stack elements:**
-- pytest (existing) for integration tests
-- Hypothesis 6.92+ (existing) for audit invariants
+**Implements:**
+- `frontend-nextjs/tests/property/` directory
+- `mobile/src/__tests__/property/` directory
+- `frontend-nextjs/src-tauri/tests/property_tests.rs`
 
-**Implements architecture:**
-- Integration tests for end-to-end audit trail verification
-- Property tests for audit invariants
-- Performance tests for audit query performance
+**Avoids:**
+- Property tests for everything pitfall (critical invariants only, 50-100 examples)
+- Weak properties (require bug-finding evidence in docstrings)
+
+### Phase 5: Cross-Platform Integration & E2E (Week 7-8)
+**Rationale:** Depends on all platforms being testable. Validates backend API integration with frontend/mobile/desktop end-to-end.
+
+**Delivers:**
+- Cross-platform integration tests (same tests run on web/mobile/desktop)
+- E2E user flows (authentication, navigation, data persistence)
+- Visual regression testing (optional, if time permits)
+
+**Addresses:**
+- End-to-End User Flows (differentiator)
+- Visual Regression Testing (differentiator, optional)
+
+**Uses:**
+- Playwright for web E2E, Detox for mobile E2E, tauri-driver for desktop E2E
+- Percy/Chromatic for visual regression (optional)
+
+**Implements:**
+- Shared test suite for cross-platform validation
+- E2E test workflows (`.github/workflows/e2e-tests.yml`)
+
+**Avoids:**
+- E2E tests for everything pitfall (critical user workflows only)
+- Slow tests blocking CI (separate E2E job, run on merge to main)
 
 ### Phase Ordering Rationale
 
-- **Why this order based on dependencies:** Phase 1 establishes the precision foundation (Decimal) that all financial calculations depend on. Phase 2 builds on precision to add payment processing. Phase 3 uses precision + payments to track costs and enforce budgets. Phase 4 requires complete implementation of all previous phases to test end-to-end audit trails.
-
-- **Why this grouping based on architecture patterns:** Unit tests and property tests (Phase 1) are fast and isolated, providing quick feedback on precision logic. Integration tests (Phase 2) add database and external provider dependencies. Business logic tests (Phase 3) build on integration tests. End-to-end tests (Phase 4) verify complete workflows.
-
-- **How this avoids pitfalls from research:** This order prevents floating-point errors from cascading into payment processing (Pitfall 1). Early mock payment testing prevents production failures (Pitfall 4). Audit trail testing last ensures complete coverage (Pitfall 2). Property tests in every phase prevent generic property testing without invariants (Pitfall 3).
+- **Backend + Frontend first:** Both use TypeScript (backend API + frontend share types), highest impact, fixes immediate pain point (21 failing frontend tests)
+- **Mobile second:** Already has Jest infrastructure, easy integration, property test patterns reusable from Phase 1
+- **Desktop third:** Most complex (Rust + JavaScript), need to establish patterns first, Tauri testing less documented
+- **Property tests fourth:** Require deep understanding of invariants, better to write after integration tests stable
+- **Cross-platform last:** Depends on all platforms being testable, validates end-to-end integration
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-- **Phase 2 (Payment Integration):** Specific payment provider testing patterns (Stripe, PayPal, Braintree have different webhook formats). Research provider-specific test tokens, error codes, and quirks during planning.
-- **Phase 3 (Cost Tracking):** Budget guardrail race condition testing strategies. Database locking patterns (`SELECT FOR UPDATE` vs. compare-and-swap) need research for concurrent budget checks.
+- **Phase 2 (Mobile):** Device feature mocking patterns — Expo module APIs vary, iOS vs Android differences need research
+- **Phase 3 (Desktop):** Tauri native module mocking strategies — Less documentation than web/mobile, may need prototype testing
+- **Phase 4 (Property Tests):** Invariant identification for frontend state — FastCheck adoption low, few real-world examples, may need research into generator strategies for complex UI state
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Core Accounting):** Decimal precision patterns are well-documented. Property-based testing for financial invariants follows established Hypothesis patterns (814 lines of existing tests demonstrate the pattern).
-- **Phase 4 (Audit Trails):** Audit trail testing is standard for financial systems. SOX compliance testing requirements are well-documented. Property tests for audit invariants follow established patterns.
+- **Phase 1 (Backend + Frontend):** Well-documented, established patterns — Jest, React Testing Library, pytest all have comprehensive documentation
+- **Phase 5 (Cross-Platform E2E):** Standard E2E patterns — Playwright, Detox both mature tools with extensive guides
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack (Decimal, Hypothesis, pytest-freezegun, factory_boy) | HIGH | Official Python Decimal docs, Hypothesis documentation, pytest-freezegun active maintenance (2025 releases), factory_boy SQLAlchemy 2.0+ compatibility verified |
-| Features (table stakes, differentiators, anti-features) | MEDIUM | Mix of official docs (Decimal, Stripe testing) and WebSearch verified sources (reconciliation patterns, audit trail testing). Some sources in Chinese require translation validation |
-| Architecture (component responsibilities, patterns, data flow) | HIGH | Based on existing Atom codebase analysis (814 lines financial invariants, 705 lines accounting invariants, 1205 lines governance invariants). Established patterns verified |
-| Pitfalls (precision errors, audit trails, property testing) | HIGH | Multiple authoritative sources on IEEE 754 limitations in finance. SOX compliance documentation. Existing Atom property test patterns demonstrate invariants |
+| Stack (Jest, pytest, FastCheck, Detox) | HIGH | All package versions verified via npm/pip, integration strategy based on existing working setup |
+| Features (component integration, API contracts) | MEDIUM | Mix of official docs (React Testing Library, FastCheck) and codebase analysis (21 failing frontend tests, 25+ mobile tests) |
+| Architecture (platform-first, aggregation) | HIGH | Based on existing Atom infrastructure (pytest, Hypothesis patterns, CI/CD workflows), proven architectural patterns |
+| Pitfalls (monolithic workflow, fragmented coverage) | HIGH | Anti-patterns identified from existing infrastructure analysis, well-documented CI/CD best practices |
 
-**Overall confidence:** HIGH
-
-**Why HIGH:** Stack recommendations are based on official documentation and existing verified implementations. Architecture patterns are derived from 1,500+ lines of existing property tests in the codebase. Pitfalls are supported by multiple authoritative sources on IEEE 754, GAAP/IFRS standards, and SOX compliance requirements. Primary gaps are around specific payment provider quirks (addressed in Phase 2 research flag).
+**Overall confidence:** HIGH (stack verification + existing infrastructure analysis + official documentation)
 
 ### Gaps to Address
 
-- **Specific payment provider testing patterns:** Stripe, PayPal, Braintree have different webhook formats and error codes. Phase 2 should research specific providers used in Atom for provider-specific test patterns.
-- **Currency exchange rate precision:** Banker's rounding (half-even) research shows complexity for multi-currency systems. May need dedicated phase for multi-currency if Atom supports international payments.
-- **Property test performance:** 100+ examples for financial invariants may be slow. Need benchmarking with Atom's existing property test suite to validate performance targets.
-- **Chinese language sources:** Several sources on reconciliation patterns and audit trail testing are in Chinese. Translation validation needed during planning.
+- **FastCheck generator strategies for complex UI state:** FastCheck adoption is low in production, few real-world examples for React state management — May need prototype testing during Phase 1 planning
+- **Tauri native module mocking:** Less documentation than web/mobile, may need spike research during Phase 3 planning — Mitigation: Start with cargo test for Rust logic, defer complex mocking if patterns unclear
+- **Cross-platform test sharing:** Limited patterns for shared test suites across web/mobile/desktop — Mitigation: Start with platform-specific tests, consolidate shared patterns in Phase 5
+- **Visual regression testing infrastructure:** Tool fragmentation (Percy vs Chromatic), unclear best practices — Defer to Phase 5 optional, skip if time-constrained
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- **Python `decimal` module** - Official documentation for exact decimal arithmetic in financial calculations. HIGH confidence, authoritative source.
-- **Hypothesis documentation** - Property-based testing strategies, settings, examples for financial invariants. HIGH confidence, actively maintained.
-- **pytest-freezegun documentation** - Time freezing for date-dependent tests (aging reports, revenue recognition). HIGH confidence, 2025 releases.
-- **factory_boy documentation** - Test data generation for complex financial objects (Invoice, LineItems, Payments). HIGH confidence, SQLAlchemy 2.0+ compatible.
-- **responses library documentation** - HTTP mocking for payment providers (Stripe, PayPal). HIGH confidence, already in requirements.txt v0.23.0+.
-- **Stripe API Testing Guide** - Test cards, test tokens, mock scenarios for payment integration. HIGH confidence, official Stripe documentation.
-- **Existing Atom property tests** - 814 lines of financial invariants (`test_financial_invariants.py`), 705 lines of accounting invariants (`test_ai_accounting_invariants.py`), 1205 lines of governance invariants (`test_governance_maturity_invariants.py`). HIGH confidence, verified implementation patterns.
+- **Backend test infrastructure** — pytest 8.4.2, Hypothesis 6.151.5, pytest-playwright 1.58.0 verified via `pip list`
+- **Frontend Testing Stack** — Jest 30.0.5, @testing-library/react 16.3.0 verified via frontend-nextjs/package.json
+- **Mobile Testing Stack** — jest-expo 50.0.0, React Native 0.73.6 verified via mobile/package.json
+- **FastCheck official documentation** — Property-based testing framework for TypeScript/JavaScript (https://fast-check.dev/)
+- **Detox documentation** — React Native grey-box E2E testing (https://wix.github.io/Detox/)
+- **Tauri Testing documentation** — Desktop application testing patterns (https://tauri.app/v2/guides/testing/)
+- **Existing Atom property tests** — 1,205 lines of governance maturity tests, 814 lines of financial invariants, 705 lines of accounting invariants
 
 ### Secondary (MEDIUM confidence)
+- **Playwright documentation** — Cross-browser automation (https://playwright.dev/)
+- **React Testing Library** — Component testing patterns, queries, async utilities
+- **pytest-json-report** — Unified JSON reporting (https://github.com/numirias/pytest-json-report)
+- **CI/CD workflows** — `.github/workflows/ci.yml`, `test-coverage.yml`, `mobile-ci.yml` analysis showing existing backend/mobile integration
 
-- [Dinero.js Testing Strategy Guide](https://m.blog.csdn.net/gitblog_00990/article/details/150984135) (December 2025) - Property-based testing for financial calculations using fast-check. Complex rounding algorithms (banker's rounding). Testing multiple data types.
-- [Stripe-Mock Server](https://github.com/stripe/stripe-mock) - Official mock HTTP server responding like Stripe API. Ports 12111 (HTTP) and 12112 (HTTPS). Installation via Homebrew, Docker, or Go.
-- [Python Decimal Best Practices](https://docs.python.org/3/library/decimal.html) - Initialize with strings, not floats: `Decimal('0.1')` not `Decimal(0.1)`. Adjustable precision (default 28 places). Rounding modes: `ROUND_HALF_UP` for financial calculations.
-- [Financial Software Testing Analysis](https://m.blog.csdn.net/2201_76100073/article/details/141262616) (February 2025) - Core testing focus: business correctness, reconciliation, settlement. Algorithm testing: numerical accuracy verification. Interface testing: external systems (custody banks).
-- [ThoughtWorks Technology Radar - Property-Based Unit Testing](https://www.thoughtworks.com/pt-br/radar/techniques/property-based-unit-testing) (February 2025) - Valued technique for finding edge cases. Data generators create randomized inputs within defined ranges. Good for checking boundary conditions.
-- [Why 0.1 + 0.2 != 0.3: Building a Precise Calculator with Go's Decimal](https://dev.to/jayk0001/why-01-02-03-building-a-precise-calculator-with-gos-decimal-package-i8) (November 2025) - Demonstrates arbitrary-precision decimals. MEDIUM confidence, technical blog post.
-- [Float and Decimal Golden Rule](https://juejin.cn/post/7522367598815739913) (July 2025) - Performance testing with 1M records comparing FLOAT vs DECIMAL. Industry-specific use cases for financial reconciliation.
-- [pytest Mock Technology Complete Guide](https://blog.csdn.net/weixin_63779518/article/details/148582244) (June 10, 2025) - Payment gateway mock implementation examples. MEDIUM confidence.
-- [Common Problems in Payment Systems](https://blog.csdn.net/Rookie_CEO/article/details/141039745) - Testing challenges with third-party payment systems, mock limitations. MEDIUM confidence.
-- [CI/CD Performance Testing Pitfalls](https://dev.to/ci_cd/improving-ci-performance-6x-faster) - 6-10x CI performance improvements, test parallelization. MEDIUM confidence.
-
-### Tertiary (LOW confidence)
-
-- **Chinese accounting resources** on audit trail testing (walkthrough testing, 穿行测试). LOW confidence, needs translation validation.
-- **Reconciliation patterns** from Chinese financial software sources. LOW confidence, needs verification.
-- **Invoice/billing workflow** test scenarios from Microsoft Dynamics, Oracle, SAP documentation. LOW confidence, vendor-specific patterns.
-- [Hacker News: Floating Point in Financial Systems](https://news.ycombinator.com/item?id=44144207) (May 2025) - Community discussion on binary floating-point vs. fixed-point for accounting. LOW confidence, forum discussion.
-- [Banker's rounding(银行家舍入法)](https://zhidao.baidu.com/question/1809928104317370587.html) - Q&A format explaining half-even rounding. LOW confidence, needs translation.
-- [兑换外币小数点后的怎么算](https://zhidao.baidu.com/question/1124391813496637219.html) - Q&A on foreign exchange precision requirements. LOW confidence, needs translation.
+### Tertiary (LOW confidence — needs validation)
+- **Property-based testing for React** — Limited adoption, few production examples (FastCheck ecosystem growing but not mainstream)
+- **Cross-platform testing patterns** — Platform-specific differences hard to generalize, may need phase-specific research
+- **Visual regression testing** — Multiple tools (Percy, Chromatic), unclear best practices (defer to Phase 5 optional)
 
 ---
-
-*Research completed: February 25, 2026*
+*Research completed: February 26, 2026*
 *Ready for roadmap: yes*
