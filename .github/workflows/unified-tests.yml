@@ -218,6 +218,13 @@ jobs:
           name: frontend-coverage
           path: frontend-nextjs/coverage/
 
+      - name: Download mobile coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-coverage
+          path: mobile/coverage/
+        continue-on-error: true
+
       - name: Run coverage aggregator
         working-directory: ./backend
         run: |
@@ -295,6 +302,7 @@ jobs:
               |----------|---------------|-----------------|--------|
               | **Backend (Python)** | ${platforms.python.coverage_pct}% | ${platforms.python.branch_coverage_pct}% | ${platforms.python.error ? '❌ ' + platforms.python.error : '✅'} |
               | **Frontend (JavaScript)** | ${platforms.javascript.coverage_pct}% | ${platforms.javascript.branch_coverage_pct}% | ${platforms.javascript.error ? '❌ ' + platforms.javascript.error : '✅'} |
+              | **Mobile (React Native)** | ${platforms.javascript_expo ? platforms.javascript_expo.coverage_pct + '%' : 'N/A'} | ${platforms.javascript_expo ? platforms.javascript_expo.branch_coverage_pct + '%' : 'N/A'} | ${platforms.javascript_expo && platforms.javascript_expo.error ? '❌ ' + platforms.javascript_expo.error : (platforms.javascript_expo ? '✅' : '⚠️ Not included')} |
 
               `;
 
@@ -308,9 +316,10 @@ jobs:
             comment += `### Remediation Steps
             1. **Backend coverage below 80%**: Run \`cd backend && pytest tests/ --cov=core --cov=api --cov=tools --cov-report=term-missing\`
             2. **Frontend coverage below 80%**: Run \`cd frontend-nextjs && npm run test:coverage\`
-            3. **Test failures**: Check individual test job logs for specific failures
-            4. **Type errors**: Run \`cd frontend-nextjs && npm run type-check\`
-            5. **Lint errors**: Run \`cd frontend-nextjs && npm run lint\`
+            3. **Mobile coverage below 80%**: Run \`cd mobile && npm run test:coverage\`
+            4. **Test failures**: Check individual test job logs for specific failures
+            5. **Type errors**: Run \`cd frontend-nextjs && npm run type-check\`
+            6. **Lint errors**: Run \`cd frontend-nextjs && npm run lint\`
 
             See [backend/docs/CODE_QUALITY_STANDARDS.md](backend/docs/CODE_QUALITY_STANDARDS.md) for detailed quality standards.
 
