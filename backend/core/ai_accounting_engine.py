@@ -232,12 +232,16 @@ class AIAccountingEngine:
         if not tx:
             return False
         
-        if tx.status == TransactionStatus.REVIEW_REQUIRED:
-            logger.warning(f"Cannot post {tx_id}: requires review")
+        if tx.status == TransactionStatus.REVIEW_REQUIRED and not user_id:
+            logger.warning(f"Cannot post {tx_id}: requires review and no user_id provided")
             return False
         
         tx.status = TransactionStatus.POSTED
         tx.posted_at = datetime.now()
+        tx.reviewed_by = user_id or tx.reviewed_by
+
+        if tx_id in self._pending_review:
+            self._pending_review.remove(tx_id)
         
         self._log_audit("posted", tx, f"Posted by {user_id or 'system'}")
         return True

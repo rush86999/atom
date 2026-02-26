@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/ta
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Plus, Download, Filter } from "lucide-react";
+import { useToast } from "../../components/ui/use-toast";
 import FinanceOverview from "../../components/finance/FinanceOverview";
 import TransactionsList from "../../components/finance/TransactionsList";
 import BudgetPlanner from "../../components/finance/BudgetPlanner";
@@ -13,6 +14,7 @@ import AccountantPortal from "../../components/finance/AccountantPortal";
 import ForecastingSandbox from "../../components/finance/ForecastingSandbox";
 
 const FinancePage = () => {
+    const { toast } = useToast();
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -23,10 +25,10 @@ const FinancePage = () => {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={() => toast({ title: "Export", description: "Export functionality is coming soon." })}>
                         <Download className="mr-2 h-4 w-4" /> Export
                     </Button>
-                    <Button>
+                    <Button onClick={() => toast({ title: "New Transaction", description: "Transaction creation is coming soon." })}>
                         <Plus className="mr-2 h-4 w-4" /> New Transaction
                     </Button>
                 </div>

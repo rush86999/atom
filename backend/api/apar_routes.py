@@ -3,13 +3,16 @@ AP/AR API Routes - Phase 41
 """
 
 from datetime import datetime
+import io
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
 
-router = BaseAPIRouter(prefix="/api/apar", tags=["AP/AR"])
+router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"])
 
 class APIntakeRequest(BaseModel):
     vendor: str
@@ -166,7 +169,7 @@ async def send_reminder(invoice_id: str):
         message="Reminder generated successfully"
     )
 
-@router.get("/ar/summary")
+@router.get("/summary")
 async def get_collection_summary():
     from core.apar_engine import apar_engine
     summary = apar_engine.get_collection_summary()
@@ -174,3 +177,31 @@ async def get_collection_summary():
         data=summary,
         message="Collection summary retrieved successfully"
     )
+
+@router.get("/ar/{invoice_id}/download")
+async def download_ar_invoice(invoice_id: str):
+    from core.apar_engine import apar_engine
+    try:
+        content = apar_engine.generate_invoice_content(invoice_id)
+        file_obj = io.BytesIO(content.encode('utf-8'))
+        return StreamingResponse(
+            file_obj,
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/ap/{invoice_id}/download")
+async def download_ap_invoice(invoice_id: str):
+    from core.apar_engine import apar_engine
+    try:
+        content = apar_engine.generate_invoice_content(invoice_id)
+        file_obj = io.BytesIO(content.encode('utf-8'))
+        return StreamingResponse(
+            file_obj,
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

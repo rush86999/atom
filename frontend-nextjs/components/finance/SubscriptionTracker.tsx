@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Calendar, CreditCard, AlertCircle } from "lucide-react";
+import { useToast } from "../ui/use-toast";
 
 const SubscriptionTracker = () => {
+    const { toast } = useToast();
     const subscriptions = [
         { name: "AWS", plan: "Pro", cost: 142.00, cycle: "Monthly", nextBill: "2025-12-01", status: "Active" },
         { name: "Adobe Creative Cloud", plan: "All Apps", cost: 54.99, cycle: "Monthly", nextBill: "2025-12-05", status: "Active" },
@@ -76,7 +78,7 @@ const SubscriptionTracker = () => {
                                     <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                                         {sub.status}
                                     </Badge>
-                                    <Button variant="ghost" size="sm">Manage</Button>
+                                    <Button variant="ghost" size="sm" onClick={() => toast({ title: "Manage", description: "Subscription management coming soon." })}>Manage</Button>
                                 </div>
                             </div>
                         ))}

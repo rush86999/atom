@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Progress } from "../ui/progress";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
+import { useToast } from "../ui/use-toast";
 
 const BudgetPlanner = () => {
+    const { toast } = useToast();
     const budgets = [
         { category: "Infrastructure", spent: 142, limit: 200, color: "bg-blue-500" },
         { category: "Software Subscriptions", spent: 345, limit: 500, color: "bg-purple-500" },
@@ -21,7 +23,7 @@ const BudgetPlanner = () => {
                         <CardTitle>Monthly Budget</CardTitle>
                         <CardDescription>Track your spending against your targets.</CardDescription>
                     </div>
-                    <Button>
+                    <Button onClick={() => toast({ title: "Add Budget", description: "Budget creation coming soon." })}>
                         <Plus className="mr-2 h-4 w-4" /> Add Budget
                     </Button>
                 </CardHeader>

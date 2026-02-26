@@ -20,7 +20,7 @@ async def get_sales_pipeline(
     Aggregates data from all connected CRMs (Salesforce, HubSpot, etc).
     """
     try:
-        from saas.models import IntegrationMetric
+        from core.models import IntegrationMetric
 
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(

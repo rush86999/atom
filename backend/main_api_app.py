@@ -510,19 +510,19 @@ try:
 
     try:
         from api.ai_accounting_routes import router as accounting_router
-        app.include_router(accounting_router, prefix="/api/accounting", tags=["ai-accounting"])
+        app.include_router(accounting_router, prefix="/api", tags=["ai-accounting"])
     except ImportError as e:
         logger.warning(f"Failed to load AI accounting routes: {e}")
 
     try:
         from api.reconciliation_routes import router as reconciliation_router
-        app.include_router(reconciliation_router, prefix="/api/reconciliation", tags=["reconciliation"])
+        app.include_router(reconciliation_router, prefix="/api", tags=["reconciliation"])
     except ImportError as e:
         logger.warning(f"Failed to load reconciliation routes: {e}")
 
     try:
         from api.apar_routes import router as apar_router
-        app.include_router(apar_router, prefix="/api/apar", tags=["ap-ar"])
+        app.include_router(apar_router, prefix="/api", tags=["ap-ar"])
     except ImportError as e:
         logger.warning(f"Failed to load AP/AR routes: {e}")
 
