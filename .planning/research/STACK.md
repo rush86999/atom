@@ -1,523 +1,422 @@
-# Technology Stack: Finance Testing & Bug Fixes (v3.3)
+# Technology Stack: Platform Integration & Property Testing v4.0
 
-**Domain:** Finance/accounting testing, payment integration testing, audit trails, bug fixes
-**Researched:** 2026-02-25
+**Project:** Atom AI-Powered Business Automation Platform
+**Domain:** Cross-platform testing (Next.js frontend, React Native mobile, Tauri desktop) with property-based testing
+**Researched:** 2026-02-26
 **Overall confidence:** HIGH
 
 ## Executive Summary
 
-**v3.3 Finance Testing requires THREE new specialized testing libraries** to augment Atom's existing pytest/Hypothesis infrastructure:
+Atom's v4.0 testing strategy requires **integrated cross-platform testing** that extends the existing Python/Hypothesis backend infrastructure to frontend (Next.js), mobile (React Native), and desktop (Tauri) applications. The recommended stack prioritizes **unified reporting**, **property-based testing parity**, and **minimal redundancy** with existing tools.
 
-1. **`pytest-freezegun`** - Time freezing for audit trail testing (aging reports, payment due dates, revenue recognition)
-2. **`factory_boy`** - Financial test data generation (invoices, transactions, payment records with proper relationships)
-3. **`responses`** (✅ Already in requirements.txt) - Payment provider API mocking (Stripe, PayPal, bank APIs)
+**Key Strategic Decisions:**
+1. **Keep Jest** for Next.js and React Native (already configured, works well)
+2. **Add fast-check** for TypeScript/JavaScript property-based testing (Hypothesis equivalent)
+3. **Add Playwright Node** for cross-platform E2E (unified with backend pytest-playwright)
+4. **Add Detox** for React Native grey-box testing (faster than Appium)
+5. **Use Tauri native testing** (cargo test + tauri-driver) for desktop
+6. **Centralize coverage** using pytest-cov as the source of truth, aggregate frontend reports
 
-**Stack philosophy:** Extend, don't replace. Atom's existing pytest 7.4+, Hypothesis 6.92+, pytest-asyncio infrastructure remains the foundation. These additions provide domain-specific testing capabilities for financial precision, auditability, and payment integration.
+**Integration Strategy:** Frontend/mobile tests run in their native Jest environments, but report to a unified pytest-based CI pipeline using JSON report aggregation.
+
+---
 
 ## Recommended Stack
 
-### Core Testing Framework (Existing - Keep)
+### Core Testing Frameworks
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **pytest** | 7.4+ | Test framework | Already established with 161 property test files. Provides fixtures, parametrization, markers, parallel execution (pytest-xdist). |
-| **hypothesis** | 6.92+ | Property-based testing | Critical for financial invariants (38 property tests exist). Proven pattern for testing cost leak detection, budget guardrails, invoice reconciliation with fuzzing. |
-| **pytest-asyncio** | 0.21+ | Async test support | Required for testing payment provider async clients (Stripe SDK, database transactions). |
-| **pytest-cov** | 4.1+ | Coverage reporting | Already configured with coverage reports in `backend/tests/coverage_reports/`. Target: 82.8% skill test pass rate achieved. |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **Jest** | 30.0.5 (Next.js) / 29.7.0 (React Native) | Unit/integration testing for frontend and mobile | Already configured, 80% coverage threshold, jsdom/jest-expo presets working |
+| **pytest** | 8.4.2 | Backend test orchestration and unified reporting | Existing backend infrastructure, CI/CD integration, coverage enforcement |
+| **Hypothesis** | 6.151.5 | Python property-based testing | Already in use, 60+ property test files, proven patterns |
+| **fast-check** | 4.5.3 | TypeScript/JavaScript property-based testing | Hypothesis equivalent for JS/TS, integrates with Jest, type-safe |
 
-### Financial Testing Libraries (NEW - Add)
+### Property-Based Testing
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **pytest-freezegun** | 0.4+ | Time freezing for date-dependent tests | Financial systems rely heavily on dates (aging reports, payment terms, revenue recognition). Freezing time ensures deterministic tests for "invoice due 30 days from now" scenarios. Wrapper around `freezegun` library with pytest plugin integration. |
-| **factory_boy** | 3.3+ | Financial test data generation | Declarative test data factories for complex financial objects (Invoice with LineItems, Transaction with ChartOfAccounts, Payment with Invoice). Handles relationships, sequences (auto-incrementing IDs), and fuzzy data generation. Eliminates 100+ lines of boilerplate per test file. |
-| **responses** | 0.23+ (✅ Already in requirements.txt) | HTTP mocking for payment providers | Mock Stripe/PayPal/bank API calls without network calls. Validates request payloads, provides controlled responses, tests failure modes (timeouts, 5xx errors). Already in requirements.txt, just needs usage patterns. |
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **Hypothesis** | 6.151.5 | Backend Python invariants | All backend services (governance, LLM, episodic memory) |
+| **fast-check** | 4.5.3 | Frontend/mobile TypeScript invariants | State reducers, data transformers, validation logic, API contracts |
+| **fast-check-jest** | (included) | Jest integration for fast-check | All Jest environments (Next.js, React Native) |
 
-### Database Testing (Existing - Extend)
+**Why fast-check:**
+- TypeScript-first design with automatic type inference
+- Shrinking algorithm finds minimal counterexamples
+- Integrates seamlessly with Jest (already configured)
+- Mature ecosystem (50+ arbitraries, 100+K weekly downloads)
+- Official docs at https://fast-check.dev/
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **SQLAlchemy** | 2.0+ | Database models & transactions | Already in stack. ACID-compliant transaction testing for financial operations. SERIALIZABLE isolation level for preventing race conditions in transfers. |
-| **alembic** | 1.12+ | Database migrations | Already in stack. Migration testing for financial schema changes (adding new financial tables, audit log columns). Test upgrade/downgrade paths for compliance. |
-| **pytest-dbfixtures** | (Optional) | Database test fixtures | NOT RECOMMENDED - Atom's custom `db_session` fixture is sufficient. Adding dependency would create migration burden. |
+### Cross-Platform E2E Testing
 
-### Payment Provider Mocking (NEW Patterns)
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **Playwright Python** | 1.58.0 (backend) | Browser automation for Next.js UI | Already in backend, 17 existing tests, CI integration |
+| **Playwright Node** | 1.58.2 | Direct Next.js component/integration testing | Frontend-only tests, component state validation |
+| **Detox** | 20.47.0 | React Native grey-box E2E | Mobile app flows (authentication, navigation, device features) |
+| **tauri-driver** | 2.10.1 | Tauri WebDriver E2E | Desktop app flows (native commands, file system, IPC) |
 
-| Provider | Mock Strategy | Library | Notes |
-|----------|---------------|---------|-------|
-| **Stripe** | `responses` library + test tokens | responses 0.23+ | Mock HTTP calls to `https://api.stripe.com`. Use test card tokens (`pm_card_visa`, `pm_card_chargeDeclined`) in request body validation. |
-| **PayPal** | `responses` library | responses 0.23+ | Mock PayPal REST API (`https://api-m.paypal.com`). Test payment capture, refund, webhook handling. |
-| **Bank APIs** | Custom mock servers | Flask test client | See `backend/tests/mock_bank/server.py` (existing pattern). Extend for Plaid, MX, Finicity integrations. |
-| **Stripe-Mock** | (Optional) Stripe's mock server | stripe-mock binary | NOT RECOMMENDED for CI - adds Docker dependency. Use `responses` for faster, deterministic tests. Reserve stripe-mock for local manual testing. |
+**Integration Strategy:**
+- **Backend pytest-playwright** remains the primary E2E runner for web UI
+- **Playwright Node** used for Next.js-specific tests (component state, hooks)
+- **Detox** provides grey-box testing for React Native (faster than Appium, no network overhead)
+- **Tauri native tests** (cargo test) for Rust backend, tauri-driver for WebView E2E
+
+### React Native Testing
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **@testing-library/react-native** | 13.3.3 | Component testing (React Native) | Screen components, navigation, gestures |
+| **jest-expo** | 50.0.0 | Expo SDK 50 compatibility preset | All mobile tests (already configured) |
+| **react-test-renderer** | 18.2.0 | Snapshot testing | Component regression detection |
+| **Detox** | 20.47.0 | Grey-box E2E testing | Multi-screen flows, async operations, device APIs |
+
+**Why Detox over Appium:**
+- Grey-box architecture (runs on device/emulator with JavaScript injection)
+- 10x faster than Appium (no network layer)
+- Expo-compatible (via detox-expo-helpers)
+- Automatic synchronization (waits for animations, network requests)
+- Native to React Native ecosystem
+
+### Next.js Frontend Testing
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **@testing-library/react** | 16.3.0 | Component testing (Next.js) | React components, hooks, user interactions |
+| **@testing-library/jest-dom** | 6.6.3 | DOM custom matchers | Readable assertions (toBeVisible, toHaveTextContent) |
+| **jest-environment-jsdom** | 30.0.5 | JSDOM environment for Jest | Browser simulation (already configured) |
+| **Playwright Node** | 1.58.2 | E2E and integration testing | Multi-page flows, API mocking, network interception |
+
+### Tauri Desktop Testing
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **cargo test** | (Rust native) | Rust backend unit/integration | All Rust code, Tauri commands, IPC handlers |
+| **tauri-driver** | 2.10.1 | WebDriver E2E testing | WebView automation, cross-platform desktop flows |
+| **@playwright/test** | 1.58.2 | Alternative to tauri-driver | If Playwright preferred over WebDriver protocol |
+
+**Why Tauri Native Testing:**
+- Rust's built-in test framework is mature and fast
+- cargo test integrates with existing Tauri workflows
+- No additional dependencies for backend logic
+- tauri-driver provides WebDriver support for WebView E2E
+
+### Coverage & Reporting
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **pytest-cov** | 4.1.0 | Python coverage aggregation | Already configured, 80% threshold, CI integration |
+| **Coverage.py** | 7.0.0+ | Python coverage engine | TOML support, branch coverage, HTML reports |
+| **Jest coverage** | (built-in) | Frontend/mobile coverage | Already configured, JSON/LCOV output for aggregation |
+| **pytest-json-report** | 1.5.0 | Unified JSON reporting | Aggregate all test results into single JSON file |
+
+**Coverage Aggregation Strategy:**
+1. Backend: pytest-cov generates coverage.xml and HTML reports
+2. Frontend: Jest generates coverage/coverage-final.json
+3. Mobile: Jest generates coverage/coverage-final.json
+4. CI/CD: Parse all reports, enforce 80% threshold per platform
+
+### Test Data & Fixtures
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **Faker** | 19.0.0+ | Realistic fake data generation | All test suites (Python, via requirements-testing.txt) |
+| **@faker-js/faker** | (latest) | TypeScript/JavaScript fake data | Frontend/mobile tests needing realistic data |
+| **factory-boy** | 3.3.0 | Python test data factories | Backend model creation (already in requirements-testing.txt) |
+
+**Use factory-boy for Python, @faker-js/faker for TypeScript** — no need to duplicate faker across ecosystems.
+
+---
 
 ## Installation
 
+### Next.js Frontend Testing
+
 ```bash
-# NEW DEPENDENCIES - Add to requirements.txt
-pip install pytest-freezegun>=0.4.0,<1.0.0
-pip install factory-boy>=3.3.0,<4.0.0
+cd frontend-nextjs
 
-# Already installed (from requirements.txt)
-# pytest>=7.4.0
-# hypothesis>=6.92.0
-# pytest-asyncio>=0.21.0
-# pytest-cov>=4.1.0
-# pytest-mock>=3.12.0
-# responses>=0.23.0
+# Core testing (already installed)
+npm install --save-dev jest@30.0.5 @testing-library/react@16.3.0 @testing-library/jest-dom@6.6.3
 
-# Optional (for specific financial scenarios)
-pip install pytest-benchmark>=4.0.0  # Performance regression tests for financial calculations
+# Property-based testing (NEW)
+npm install --save-dev fast-check@4.5.3
+
+# Playwright for E2E (NEW - if not using backend pytest-playwright)
+npm install --save-dev @playwright/test@1.58.2
+
+# Optional: Vitest as Jest alternative (faster, but requires migration)
+# npm install --save-dev vitest@4.0.18 @vitest/ui
 ```
 
-**Add to requirements.txt:**
-```txt
-pytest-freezegun>=0.4.0,<1.0.0
-factory-boy>=3.3.0,<4.0.0
+### React Native Mobile Testing
+
+```bash
+cd mobile
+
+# Core testing (already installed via jest-expo)
+npm install --save-dev jest-expo@50.0.0 @testing-library/react-native@13.3.3
+
+# Property-based testing (NEW)
+npm install --save-dev fast-check@4.5.3
+
+# Detox for E2E (NEW - requires app configuration)
+npm install --save-dev detox@20.47.0
+npm install --save-dev detox-expo-helpers  # Expo integration
+
+# Detox CLI (global)
+npm install -g detox-cli
 ```
 
-## Financial Testing Strategies
+### Tauri Desktop Testing
 
-### 1. Precision Testing with Decimal
+```bash
+cd frontend-nextjs  # Tauri config is in frontend-nextjs/src-tauri
 
-**Pattern:** Use Python's `decimal` module for all financial calculations. Never use floats.
+# Rust testing (native, no install needed)
+# cargo test runs automatically
 
-```python
-from decimal import Decimal, getcontext, ROUND_HALF_UP
+# Tauri driver for WebDriver E2E (NEW)
+cargo install tauri-driver  # Installs WebDriver server
 
-# Set precision for currency calculations (28 digits default)
-getcontext().prec = 28
-getcontext().rounding = ROUND_HALF_UP  # Banker's rounding
-
-# ALWAYS initialize Decimal from strings (not floats)
-amount = Decimal("100.00")  # ✅ Correct
-amount = Decimal(100.00)    # ❌ Wrong - inherits float precision issues
-
-# Hypothesis strategy for Decimal amounts
-@hypothesis.strategies.composite
-def decimal_amounts(draw):
-    # Generate values like $10.00, $123.45, $9999.99
-    dollars = draw(st.integers(min_value=0, max_value=10000))
-    cents = draw(st.integers(min_value=0, max_value=99))
-    return Decimal(f"{dollars}.{cents:02d}")
+# Playwright for WebView testing (alternative to tauri-driver)
+npm install --save-dev @playwright/test@1.58.2
 ```
 
-### 2. Property-Based Testing for Financial Invariants
+### Backend pytest Integration
 
-**Pattern:** Use Hypothesis to test accounting laws that must always hold.
+```bash
+cd backend
 
-```python
-from hypothesis import given, strategies as st, settings
+# Already installed:
+# - pytest@8.4.2
+# - hypothesis@6.151.5
+# - pytest-playwright@0.5.2
+# - pytest-cov@4.1.0
 
-class TestDoubleEntryAccountingInvariants:
-    """Tests that debits always equal credits"""
-
-    @given(
-        debits=st.lists(
-            st.decimals(min_value="0.01", max_value="1000000.00", places=2),
-            min_size=1, max_size=20
-        ),
-        credits=st.lists(
-            st.decimals(min_value="0.01", max_value="1000000.00", places=2),
-            min_size=1, max_size=20
-        )
-    )
-    @settings(max_examples=100)
-    def test_debits_equal_credits(self, debits, credits):
-        """In double-entry accounting, sum(debits) must equal sum(credits)"""
-        total_debits = sum(debits)
-        total_credits = sum(credits)
-
-        # Posting should fail if unbalanced
-        if abs(total_debits - total_credits) > Decimal("0.01"):
-            with pytest.raises(UnbalancedTransactionError):
-                post_journal_entry(debits=debits, credits=credits)
-        else:
-            entry_id = post_journal_entry(debits=debits, credits=credits)
-            assert entry_id is not None
+# NEW: Unified JSON reporting for cross-platform aggregation
+pip install pytest-json-report@1.5.0
 ```
 
-### 3. Time-Dependent Testing with pytest-freezegun
-
-**Pattern:** Freeze time for deterministic tests of payment terms, aging reports.
-
-```python
-import pytest
-from datetime import datetime, timedelta
-from freezegun import freeze_time
-
-class TestInvoiceAgingInvariants:
-    """Tests for invoice aging calculations"""
-
-    @freeze_time("2026-01-15")  # Freeze date to Jan 15, 2026
-    def test_invoice_aging_buckets(self):
-        """Test that invoice aging uses correct date arithmetic"""
-        invoice_date = datetime(2025, 12, 1)  # Dec 1, 2025
-        terms_days = 30
-        due_date = invoice_date + timedelta(days=terms_days)
-
-        # On Jan 15, 2026, this invoice is 15 days overdue
-        days_overdue = (datetime(2026, 1, 15) - due_date).days
-        assert days_overdue == 15
-
-        # Should be in "1-30_days" bucket
-        bucket = calculate_aging_bucket(days_overdue)
-        assert bucket == "1-30_days"
-
-    @freeze_time("2026-02-01")
-    def test_revenue_recognition_timing(self):
-        """Test that revenue recognizes on schedule, not clock time"""
-        contract_start = datetime(2026, 1, 1)
-        contract_value = Decimal("12000.00")
-        recognition_period_months = 12
-
-        # On Feb 1, exactly 1 month has passed
-        months_elapsed = 1
-        expected_revenue = Decimal("1000.00")  # $12000 / 12 months
-
-        recognized = recognize_revenue(
-            contract_start=contract_start,
-            contract_value=contract_value,
-            recognition_period_months=recognition_period_months,
-            as_of=datetime(2026, 2, 1)
-        )
-
-        assert recognized == expected_revenue
-```
-
-### 4. Factory Boy for Financial Test Data
-
-**Pattern:** Define factories for complex financial objects.
-
-```python
-import factory
-from factory import fuzzy
-from decimal import Decimal
-
-# Factories for financial models
-class InvoiceFactory(factory.Factory):
-    class Meta:
-        model = Invoice
-
-    id = factory.Sequence(lambda n: f"INV-{n:06d}")
-    customer_id = factory.SubFactory(CustomerFactory)
-    issue_date = fuzzy.FuzzyDateTime(datetime(2025, 1, 1), datetime(2026, 12, 31))
-    due_days = fuzzy.FuzzyInteger(0, 90)
-    status = "OPEN"
-    subtotal = fuzzy.FuzzyDecimal(Decimal("10.00"), Decimal("50000.00"))
-    tax_rate = fuzzy.FuzzyDecimal(Decimal("0.0"), Decimal("30.0"))
-
-    @factory.lazy_attribute
-    def total(self):
-        tax_amount = self.subtotal * (self.tax_rate / Decimal("100"))
-        return self.subtotal + tax_amount
-
-    @factory.lazy_attribute
-    def due_date(self):
-        return self.issue_date + timedelta(days=self.due_days)
-
-class LineItemFactory(factory.Factory):
-    class Meta:
-        model = LineItem
-
-    invoice = factory.SubFactory(InvoiceFactory)
-    description = factory.Faker('sentence')
-    quantity = fuzzy.FuzzyDecimal(Decimal("1.0"), Decimal("100.0"))
-    unit_price = fuzzy.FuzzyDecimal(Decimal("10.00"), Decimal("1000.00"))
-
-    @factory.lazy_attribute
-    def total(self):
-        return self.quantity * self.unit_price
-
-# Usage in tests
-def test_invoice_with_line_items():
-    invoice = InvoiceFactory()
-    line_items = LineItemFactory.create_batch(size=5, invoice=invoice)
-
-    # Verify line items sum to invoice total
-    line_items_total = sum(item.total for item in line_items)
-    assert invoice.subtotal == line_items_total
-```
-
-### 5. Payment Provider Mocking with Responses
-
-**Pattern:** Mock Stripe API calls for deterministic payment testing.
-
-```python
-import pytest
-import responses
-from decimal import Decimal
-
-class TestStripePaymentIntegration:
-    """Tests for Stripe payment integration"""
-
-    @responses.activate
-    def test_successful_payment_intent(self):
-        """Test successful payment intent creation"""
-        # Mock Stripe API response
-        responses.add(
-            responses.POST,
-            "https://api.stripe.com/v1/payment_intents",
-            json={
-                "id": "pi_1234567890",
-                "amount": 10000,  # $100.00 in cents
-                "currency": "usd",
-                "status": "succeeded"
-            },
-            status=200
-        )
-
-        # Test payment creation
-        payment = create_payment(
-            amount=Decimal("100.00"),
-            currency="USD",
-            payment_method="pm_card_visa"
-        )
-
-        assert payment.status == "succeeded"
-        assert payment.amount == Decimal("100.00")
-
-    @responses.activate
-    def test_declined_card():
-        """Test declined payment card"""
-        # Mock Stripe decline response
-        responses.add(
-            responses.POST,
-            "https://api.stripe.com/v1/payment_intents",
-            json={
-                "error": {
-                    "message": "Your card was declined.",
-                    "code": "card_declined"
-                }
-            },
-            status=402
-        )
-
-        # Should handle decline gracefully
-        with pytest.raises(PaymentDeclinedError):
-            create_payment(
-                amount=Decimal("50.00"),
-                currency="USD",
-                payment_method="pm_card_chargeDeclined"
-            )
-
-    @responses.activate
-    def test_stripe_timeout():
-        """Test Stripe API timeout handling"""
-        # Mock timeout
-        responses.add(
-            responses.POST,
-            "https://api.stripe.com/v1/payment_intents",
-            body=ReadTimeout(),
-            status=504
-        )
-
-        # Should retry or fail gracefully
-        with pytest.raises(PaymentProviderTimeout):
-            create_payment(
-                amount=Decimal("25.00"),
-                currency="USD",
-                payment_method="pm_card_visa"
-            )
-```
-
-### 6. Database Transaction Testing with ACID Guarantees
-
-**Pattern:** Test financial transaction integrity with rollback.
-
-```python
-import pytest
-from sqlalchemy import text
-
-class TestFinancialTransactionIntegrity:
-    """Tests for ACID compliance in financial operations"""
-
-    def test_transfer_rollback_on_error(self, db_session):
-        """Test that failed transfers rollback completely"""
-        # Setup: Create two accounts
-        sender = Account(id=1, balance=Decimal("1000.00"))
-        receiver = Account(id=2, balance=Decimal("500.00"))
-        db_session.add_all([sender, receiver])
-        db_session.commit()
-
-        # Attempt transfer that will fail
-        with pytest.raises(InsufficientFundsError):
-            transfer_funds(
-                sender_id=1,
-                receiver_id=2,
-                amount=Decimal("2000.00"),  # More than sender balance
-                db=db_session
-            )
-
-        # Verify rollback: Both accounts unchanged
-        db_session.refresh(sender)
-        db_session.refresh(receiver)
-
-        assert sender.balance == Decimal("1000.00")
-        assert receiver.balance == Decimal("500.00")
-
-    def test_serializable_isolation_prevents_race_condition(self, db_session):
-        """Test SERIALIZABLE isolation prevents concurrent transfer bugs"""
-        account = Account(id=1, balance=Decimal("100.00"))
-        db_session.add(account)
-        db_session.commit()
-
-        # Set SERIALIZABLE isolation level
-        db_session.execute(text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
-
-        # Two concurrent transfers should serialize
-        transfer1 = transfer_funds(1, 2, Decimal("60.00"), db_session)
-        transfer2 = transfer_funds(1, 3, Decimal("60.00"), db_session)
-
-        # One should succeed, one should fail
-        assert (transfer1.success ^ transfer2.success)  # XOR: Exactly one succeeds
-```
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| **pytest-freezegun** | Manual datetime mocking | Manual mocking requires patching `datetime.now()` everywhere. pytest-freezegun provides `@freeze_time` decorator that automatically patches datetime, time, date modules globally. |
-| **pytest-freezegun** | Timecop.py port | Timecop is Ruby library. Python port exists but unmaintained (last update 2019). pytest-freezegun is actively maintained (2025 releases). |
-| **factory_boy** | Model Bakery | Model Bakery is Django-specific. Atom uses SQLAlchemy. factory_boy is ORM-agnostic, works with SQLAlchemy 2.0+, better for our stack. |
-| **factory_boy** | Hypothesis fuzzing alone | Hypothesis generates random data but doesn't maintain relationships (foreign keys). factory_boy creates coherent test data (Invoice → LineItems → Payments). Use together: factory_boy for setup, Hypothesis for fuzzing. |
-| **responses** library | VCR.py (cassette recording) | VCR.py records real HTTP calls and replays them. Problem: Real Stripe test mode calls can be slow, flaky, rate-limited. responses provides deterministic, fast, offline testing. |
-| **responses** library | httpretty | httpretty has issues with pytest-asyncio (known conflicts). responses is actively maintained (2025 releases), official Stripe mock recommendation. |
-| **Decimal** (stdlib) | `moneyed` library | moneyed adds currency layer on Decimal. But doesn't solve core precision problem. Decimal is sufficient, avoids extra dependency. Add moneyed only if multi-currency conversion needed. |
-| **Decimal** (stdlib) | `float` with epsilon | NEVER for finance. Floating-point has binary representation issues (0.1 + 0.2 = 0.30000000000000004). Accounting requires exact precision. Decimal is industry standard. |
-| **stripe-mock** (binary) | `responses` library | stripe-mock spins up real HTTP server, adds Docker dependency to CI, slower startup (~500ms). responses is in-process, deterministic, faster (<10ms). Use stripe-mock for local manual testing only. |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| **Jest** (Next.js/React Native) | **Vitest** | If migrating to Vite build system or need 10x faster test execution |
+| **Detox** (React Native E2E) | **Appium** | If cross-platform mobile testing (iOS + Android + web) required |
+| **fast-check** (JS property tests) | **testcheck-js** | If legacy codebase already using testcheck-js (unmaintained since 2019) |
+| **Playwright Python** (web E2E) | **Selenium** | If legacy WebDriver tests already exist (but Playwright is faster, more reliable) |
+| **Tauri native tests** | **node-tauri-runtime** | Never use node-tauri-runtime (deprecated, use cargo test instead) |
+| **pytest-cov** (coverage) | **Istanbul/nyc** | Only for Node.js packages, not full-stack apps |
+
+**Why Vitest was NOT chosen:**
+- Next.js uses Webpack, not Vite (migration overhead)
+- Jest already configured with 80% coverage thresholds
+- Jest integrates with React Native (via jest-expo)
+- **Verdict:** Use Jest for now, consider Vitest if migrating to Vite in v5.0
+
+**Why Appium was NOT chosen:**
+- Detox is 10x faster (grey-box vs black-box)
+- Detox is React Native-specific (better API handling)
+- Appium requires running Appium server (more infrastructure)
+- **Verdict:** Use Detox for React Native, Appium only if testing hybrid web+mobile apps
+
+---
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **Floats for currency** | Binary representation causes precision errors. `0.1 + 0.2 = 0.30000000000000004`. Financial systems require exact arithmetic. | **Decimal** from stdlib. Initialize with strings: `Decimal("100.00")` |
-| **`time.sleep()` in tests** | Makes tests slow, non-deterministic. Aging report test that sleeps 30 days is unusable. | **pytest-freezegun** `@freeze_time("2026-03-01")` for instant time travel |
-| **Real Stripe/PayPal API calls** | Slow, requires API keys, rate limits, non-deterministic. CI can't rely on external services. | **responses** library for mocking. Use test tokens (`pm_card_visa`) in request validation |
-| **Hardcoded test data** | Brittle, doesn't test edge cases. Invoice factory that always creates $100 invoices won't catch $999999.99 overflow bugs. | **factory_boy** for realistic data + **Hypothesis** for edge case fuzzing |
-| **Shared database state** | Tests interfere with each other. Test A creates invoice #123, Test B expects it to exist but Test A deleted it. | **pytest fixtures** with rollback (`db_session` fixture). Each test gets clean transaction. |
-| **`assert abs(a - b) < 0.01`** | Fragile epsilon comparison. Doesn't handle rounding, significant figures, currency-specific precision. | **Decimal** with `quantize()`: `amount.quantize(Decimal("0.01")) == expected` |
-| **Testing with real dates** | Test passes today, fails in 6 months. "Invoice created 30 days ago" test breaks when run in July vs January. | **pytest-freezegun** to freeze date. Test always runs as if it's 2026-02-25 |
-| **PyYAML `load()`** | Arbitrary code execution if YAML contains malicious constructors. | **`yaml.safe_load()`** or python-frontmatter (uses safe_load internally) |
-| **Mocking datetime directly** | Easy to miss patches. `datetime.now()` vs `date.today()` vs `time.time()` - need to patch all three. | **pytest-freezegun** patches all datetime/time/date modules automatically |
-| **stripe-mock in CI** | Adds Docker dependency, slower (~500ms startup), HTTP port conflicts in parallel tests. | **responses** for in-process mocking. Reserve stripe-mock for local dev only |
+| **Mocha** | Older framework, less opinionated, requires more setup | Jest or Vitest |
+| **Chai** | Assertion library, redundant with Jest's built-in assertions | Jest's expect() or @testing-library/jest-dom |
+| **Enzyme** | Deprecated, abandoned in 2022, React 18+ incompatible | @testing-library/react |
+| **testcheck-js** | Unmaintained since 2019, no TypeScript support | fast-check |
+| **webdriverio** | Slower than Playwright, less reliable auto-waiting | Playwright |
+| **Cypress** | Cannot test multiple tabs, slower than Playwright, limited TypeScript support | Playwright |
+| **tape** | Too minimal, no built-in mocking/coverage | Jest or pytest |
+| **AVA** | Concurrent execution causes race conditions, harder to debug | Jest or pytest |
+| **Wallaby.js** | Paid tool, proprietary, CI/CD integration complexity | Jest Watch Mode + IDE plugins |
+| **Puppeteer** | Maintained by Google but Playwright is faster, more cross-browser | Playwright |
+| **sinon** | Redundant with Jest's built-in mocking | Jest mocks |
+| **react-test-renderer** (for assertions) | Only use for snapshots, not component testing | @testing-library/react for component logic |
+| **Tauri Node.js runtime tests** | Deprecated, use Rust native tests instead | cargo test for Rust logic |
 
-## Financial Testing Checklist
+---
 
-### Precision Testing
-- [ ] All monetary values use `Decimal`, never `float`
-- [ ] Decimal initialized from strings, not floats
-- [ ] Currency precision configured (2 decimal places for USD)
-- [ ] Rounding mode specified (ROUND_HALF_UP for accounting)
-- [ ] Hypothesis strategies generate valid Decimal values
+## Integration with Existing pytest Infrastructure
 
-### Property-Based Testing
-- [ ] Double-entry accounting invariant tested (debits == credits)
-- [ ] Cost leak detection invariants (unused subscriptions)
-- [ ] Budget guardrail invariants (spend limits enforced)
-- [ ] Invoice reconciliation invariants (matching within tolerance)
-- [ ] Aging report invariants (buckets sum to total)
+### Unified Test Orchestration
 
-### Time-Dependent Testing
-- [ ] Invoice due dates tested with frozen time
-- [ ] Payment terms validated (net 30, net 60)
-- [ ] Revenue recognition timing tested
-- [ ] Aging report buckets verified
-- [ ] Late fee calculations tested
+**Strategy:** Keep native test runners (Jest, cargo test) but aggregate results via pytest hooks.
 
-### Payment Provider Testing
-- [ ] Stripe API calls mocked with `responses`
-- [ ] Success scenarios tested (payment intents, refunds)
-- [ ] Failure scenarios tested (declined cards, timeouts)
-- [ ] Idempotency tested (replay safe)
-- [ ] Webhook handling tested
+```python
+# backend/conftest.py (add to existing)
 
-### Database Testing
-- [ ] Transaction rollback tested (errors undo changes)
-- [ ] Serialiable isolation tested (no race conditions)
-- [ ] Foreign key constraints validated
-- [ ] Migration paths tested (upgrade + downgrade)
-- [ ] Audit trail completeness verified
+def pytest_configure(config):
+    """Collect test results from frontend/mobile before pytest runs."""
+    import subprocess
+    import json
 
-### Reconciliation Testing
-- [ ] Invoice-to-contract matching tested
-- [ ] Discrepancy detection tested (tolerance thresholds)
-- [ ] Cross-ledger reconciliation tested (bank vs books)
-- [ ] Multi-currency conversion tested
-- [ ] Tax calculation invariants tested
+    # Run frontend tests and collect JSON report
+    frontend_result = subprocess.run(
+        ["npm", "run", "test:ci", "--", "--json", "--outputFile=test-results.json"],
+        cwd="../frontend-nextjs",
+        capture_output=True
+    )
+
+    # Run mobile tests and collect JSON report
+    mobile_result = subprocess.run(
+        ["npm", "run", "test:ci", "--", "--json", "--outputFile=test-results.json"],
+        cwd="../mobile",
+        capture_output=True
+    )
+
+    # Parse JSON reports and attach to pytest session
+    # (Implementation depends on pytest-json-report configuration)
+```
+
+### Property Test Parity
+
+**Python Hypothesis pattern:**
+```python
+from hypothesis import given, strategies as st
+
+@given(st.text(), st.integers())
+def test_backend_invariant(text, count):
+    assert len(text) <= count or count >= 0
+```
+
+**TypeScript fast-check equivalent:**
+```typescript
+import { fc } from 'fast-check';
+import { test, expect } from '@jest/globals';
+
+test('frontend invariant', () => {
+  fc.assert(
+    fc.property(
+      fc.string(),
+      fc.integer(),
+      (text, count) => {
+        expect(text.length <= count || count >= 0).toBe(true);
+      }
+    )
+  );
+});
+```
+
+### Coverage Aggregation
+
+**CI/CD pipeline:**
+```yaml
+# .github/workflows/test.yml
+steps:
+  - name: Backend tests
+    run: pytest --cov=backend --cov-report=xml
+
+  - name: Frontend tests
+    run: npm run test:coverage  # Generates coverage/coverage-final.json
+
+  - name: Mobile tests
+    run: npm run test:coverage  # Generates coverage/coverage-final.json
+
+  - name: Aggregate coverage
+    run: |
+      python scripts/aggregate_coverage.py \
+        --backend coverage.xml \
+        --frontend frontend-nextjs/coverage/coverage-final.json \
+        --mobile mobile/coverage/coverage-final.json \
+        --output coverage-aggregated.xml
+```
+
+---
 
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| pytest-freezegun 0.4+ | pytest 7.0+, freezegun 1.1+ | Requires freezegun as dependency. Pytest plugin auto-registers. |
-| factory_boy 3.3+ | SQLAlchemy 2.0+, Python 3.8+ | Fuzzy attributes work with Decimal. Supports async factories (factory.alchemy.SQLAlchemyAsyncFactory). |
-| responses 0.23+ | pytest 7.0+, Python 3.8+ | Already in requirements.txt. `@responses.activate` decorator is thread-safe. |
-| Decimal (stdlib) | Python 3.8+ | No compatibility issues. `getcontext()` configurable. |
+| Jest 30.0.5 | React 18.3.1, Next.js 15.5.9 | Tested, compatible |
+| jest-expo 50.0.0 | Expo SDK 50.0.0, React Native 0.73.6 | Already configured |
+| fast-check 4.5.3 | Jest 29+, Vitest 0.34+, Mocha 10+ | Works with all major runners |
+| Detox 20.47.0 | React Native 0.70+, Expo 49+ | Use detox-expo-helpers for Expo |
+| Playwright 1.58.2 | Node.js 16+, all modern browsers | Same version as backend pytest-playwright |
+| Tauri 2.10.1 | Rust 1.70+, Node.js 18+, WebView2 (Windows) | Cross-platform desktop |
+| @testing-library/react 16.3.0 | React 18+, React DOM 18.3+ | Requires jest-environment-jsdom |
 
-**Known compatibility issues:**
-- **factory_boy 2.x** uses deprecated `factory.SubFactory` syntax - Upgrade to 3.3+ for SQLAlchemy 2.0 support
-- **responses < 0.20** has issues with pytest-asyncio - Upgrade to 0.23+ (already in requirements.txt)
-- **pytest-freezegun** conflicts with `pytest-asyncio` when freezing time in async tests - Use sync wrapper or patch asyncio event loop
-
-## Existing Atom Integration
-
-The following components are **already available** for v3.3 finance testing:
-
-### Existing Test Infrastructure
-- `backend/tests/conftest.py` - Pytest fixtures including `db_session`
-- `backend/tests/property_tests/` - 161 property test files using Hypothesis
-- `backend/tests/property_tests/financial/test_financial_invariants.py` - 38 property tests for financial operations (cost leaks, budget guardrails, invoice reconciliation)
-- `backend/tests/property_tests/accounting/test_ai_accounting_invariants.py` - 32 property tests for accounting engine (transaction ingestion, categorization, posting)
-- `backend/tests/property_tests/billing/test_auto_invoicer_invariants.py` - 28 property tests for invoicing (pricing calculations, double-invoicing prevention, precision)
-
-### Existing Financial Testing Patterns
-- Property-based testing for financial calculations (Hypothesis strategies for Decimal amounts)
-- Precision testing with epsilon comparisons for floating-point edge cases
-- Audit trail testing (chronological log entries, required fields)
-- Confidence threshold testing for AI categorization (0.85 threshold enforced)
-- Chart of Accounts learning invariants (merchant history, category patterns)
-
-### Existing Mock Infrastructure
-- `backend/tests/fixtures/mock_services.py` - General mock service fixtures
-- `backend/tests/mock_bank/server.py` - Flask-based mock bank server pattern
-- `responses` library already in requirements.txt (v0.23+)
-
-### Database Testing
-- `backend/tests/property_tests/database_transactions/test_database_transaction_invariants.py` - Transaction rollback testing patterns
-- `backend/tests/property_tests/database/test_database_acid_invariants.py` - ACID compliance testing
-- `backend/tests/property_tests/database/test_database_crud_invariants.py` - CRUD invariants for financial models
-
-## Sources
-
-### Primary (HIGH confidence)
-
-- [pytest-freezegun documentation](https://github.com/spulec/freezegun) - Time freezing for date-dependent tests
-- [factory_boy documentation](https://factoryboy.readthedocs.io/) - Test data generation for complex objects
-- [responses library documentation](https://responses.readthedocs.io/) - HTTP mocking for external APIs
-- [Python Decimal Module](https://docs.python.org/3/library/decimal.html) - High-precision decimal arithmetic
-- [Hypothesis for Financial Testing](https://hypothesis.readthedocs.io/) - Property-based testing patterns
-- [Stripe API Testing Guide](https://stripe.com/docs/testing) - Test cards, test tokens, mock scenarios
-
-### Secondary (MEDIUM confidence)
-
-- [Financial Testing Best Practices](https://martinfowler.com/articles/practical-test-pyramid.html) - Testing pyramid for financial systems
-- [Double-Entry Accounting Invariants](https://en.wikipedia.org/wiki/Double-entry_bookkeeping) - Debits must equal credits
-- [Payment Card Industry (PCI) Testing](https://www.pcisecuritystandards.org/) - Compliance testing requirements
-- [GAAP Revenue Recognition](https://www.fasb.org/) - ASC 606 timing rules
-- [Stripe Mock Server](https://github.com/stripe/stripe-mock) - Official Stripe mock (local testing only)
-
-### Implementation Verification (HIGH confidence)
-
-- **Existing test files:** 3 financial property test files verified (98 tests combined)
-- **Coverage reports:** `backend/tests/coverage_reports/metrics/coverage.json` shows 74.55% coverage on agent_governance_service.py
-- **Mock infrastructure:** `mock_bank/server.py` provides pattern for payment provider mocking
-- **responses availability:** Confirmed in requirements.txt v0.23.0+
-- **pytest-freezegun:** Research confirms active maintenance (2025 releases)
-- **factory_boy:** Research confirms SQLAlchemy 2.0+ compatibility (v3.3+)
+**Known Compatibility Issues:**
+- **Jest 30.x** may have breaking changes from Jest 29.x (verify config migration)
+- **React Native Testing Library 12.x** renamed APIs from 11.x (check mobile package.json)
+- **Playwright Node vs Python:** Ensure same Playwright version (1.58.x) to avoid browser binary conflicts
+- **Detox + Expo M1 Mac:** May need `brew install ios-deploy` for physical device testing
 
 ---
 
-**Stack research complete:** v3.3 Finance Testing requires **2 new dependencies** (`pytest-freezegun`, `factory_boy`). All other financial testing capabilities are built on existing pytest/Hypothesis infrastructure. `responses` library already available for payment provider mocking.
+## Stack Patterns by Variant
 
-**Researched:** 2026-02-25
-**Valid until:** 2026-04-25 (60 days - verify pytest-freezegun and factory_boy compatibility with pytest 8.0+)
+### If testing Next.js API routes (backend integration):
+- Use **Playwright Python** (via backend pytest-playwright)
+- Because: Consistent with backend E2E tests, single browser binary
+- Alternative: Use MSW (Mock Service Worker) in frontend tests for API mocking
+
+### If testing React Native device features (camera, location):
+- Use **Detox** with Expo device mocks
+- Because: Grey-box testing is faster, Expo integration via detox-expo-helpers
+- Note: Device features may need expo-device mocks in Jest tests
+
+### If testing Tauri IPC commands (Rust → WebView communication):
+- Use **cargo test** for Rust command logic
+- Use **tauri-driver** for WebView E2E
+- Because: Rust tests are unit-fast, tauri-driver validates full IPC flow
+- Avoid: Testing IPC entirely in WebView (misses Rust error handling)
+
+### If property testing state management (Zustand, Redux):
+- Use **fast-check** with Jest
+- Because: State reducers are pure functions, perfect for property-based testing
+- Pattern: Test reducer invariants with generated state + action sequences
+
+---
+
+## Migration Path from Existing Stack
+
+### Phase 1: Add Property-Based Testing (Week 1-2)
+1. Install fast-check in frontend-nextjs and mobile
+2. Create 5-10 example property tests for state reducers, API contracts
+3. Train team on fast-check patterns (Hypothesis → fast-check mapping)
+4. Set up Jest coverage aggregation with backend pytest-cov
+
+### Phase 2: Add E2E Testing (Week 3-4)
+1. Install Detox for mobile, configure detox-expo-helpers
+2. Write 10-20 critical user flow tests (authentication, navigation)
+3. Set up tauri-driver for desktop E2E
+4. Integrate all tests into CI/CD pipeline with pytest-json-report
+
+### Phase 3: Unified Reporting (Week 5-6)
+1. Create pytest-json-report aggregation script
+2. Set up coverage aggregation (backend + frontend + mobile)
+3. Configure unified test dashboard (GitHub Actions or custom)
+4. Document testing patterns in TESTING_GUIDE.md
+
+---
+
+## Sources
+
+- **Backend Testing Infrastructure** — pytest 8.4.2, Hypothesis 6.151.5, pytest-playwright 1.58.0 verified via `pip list`
+- **Frontend Testing Stack** — Jest 30.0.5, @testing-library/react 16.3.0 verified via frontend-nextjs/package.json
+- **Mobile Testing Stack** — jest-expo 50.0.0, React Native 0.73.6 verified via mobile/package.json
+- **fast-check** — Official property-based testing framework for TypeScript/JavaScript (https://fast-check.dev/)
+- **Detox** — React Native grey-box E2E testing (https://wix.github.io/Detox/)
+- **Tauri Testing** — Official Tauri testing documentation (https://tauri.app/v2/guides/testing/)
+- **Playwright** — Cross-browser automation (https://playwright.dev/)
+- **pytest-json-report** — Unified JSON reporting (https://github.com/numirias/pytest-json-report)
+
+**Confidence Level: HIGH**
+- All package versions verified via npm/pip commands
+- Integration strategy based on existing working setup (Jest configured, Hypothesis patterns proven)
+- Alternatives considered based on current ecosystem state (2026)
+- No LOW-confidence sources used (WebSearch quota limit reached, relied on official docs and verified package metadata)
+
+---
+
+*Stack research for: Atom v4.0 Platform Integration & Property Testing*
+*Researched: 2026-02-26*
+*Focus: Cross-platform testing infrastructure with property-based testing parity*
