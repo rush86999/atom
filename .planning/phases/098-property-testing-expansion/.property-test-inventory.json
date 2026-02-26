@@ -204,5 +204,59 @@
         "description": "Window state management (position, size, fullscreen) not tested with properties"
       }
     ]
-  }
+  },
+  "priority_gaps": [
+    {
+      "platform": "frontend",
+      "domain": "state_machine_transitions",
+      "priority": "HIGH",
+      "plan": "098-02",
+      "invariants": [
+        "Canvas state machine transitions (idle → presenting → closed)",
+        "Sync status transitions (syncing → success/error)",
+        "Auth flow state machines (logging_in → authenticated → error)",
+        "Agent execution state transitions (starting → running → completed/failed)"
+      ],
+      "business_impact": "State machine bugs cause UI inconsistencies, user confusion, and data corruption"
+    },
+    {
+      "platform": "mobile",
+      "domain": "advanced_sync_logic",
+      "priority": "HIGH",
+      "plan": "098-03",
+      "invariants": [
+        "Conflict resolution invariants (last-write-wins, manual, merge)",
+        "Exponential backoff retry invariants (delay growth, max retry limit)",
+        "Batch optimization invariants (batch size limits, ordering preserved)",
+        "Sync progress reporting invariants (monotonic progress, completion detection)"
+      ],
+      "business_impact": "Sync bugs cause data loss, duplicate actions, and offline coordination failures"
+    },
+    {
+      "platform": "desktop",
+      "domain": "ipc_serialization",
+      "priority": "MEDIUM",
+      "plan": "098-04",
+      "invariants": [
+        "IPC message round-trip serialization (request → response integrity)",
+        "Parameter type validation (strings, numbers, arrays, objects)",
+        "Error message serialization (error codes, messages, stack traces)",
+        "Binary data encoding (file paths, buffers, base64)"
+      ],
+      "business_impact": "IPC serialization bugs cause desktop crashes, data corruption, and security vulnerabilities"
+    },
+    {
+      "platform": "frontend",
+      "domain": "api_contract_roundtrip",
+      "priority": "MEDIUM",
+      "plan": "098-02",
+      "invariants": [
+        "Agent API round-trip (serialize → deserialize → equality)",
+        "Workflow API round-trip (DAG serialization/deserialization)",
+        "Canvas state API round-trip (components, forms, charts)",
+        "Episode API round-trip (segments, metadata, retrieval)"
+      ],
+      "business_impact": "API contract bugs cause data corruption, type errors, and backend/frontend mismatches"
+    }
+  ]
 }
