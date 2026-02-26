@@ -1,0 +1,324 @@
+{
+  "forms": {
+    "components": [
+      {
+        "path": "components/canvas/InteractiveForm.tsx",
+        "name": "InteractiveForm",
+        "description": "Generic canvas form component with validation",
+        "fields": ["text", "email", "number", "select", "checkbox"],
+        "validation": true,
+        "onSubmit": true,
+        "import_path": "@/components/canvas/InteractiveForm"
+      },
+      {
+        "path": "components/Agents/AgentStudio.tsx",
+        "name": "AgentStudio",
+        "description": "Agent creation and configuration form",
+        "has_form": true,
+        "import_path": "@/components/Agents/AgentStudio"
+      },
+      {
+        "path": "components/Automations/WorkflowBuilder.tsx",
+        "name": "WorkflowBuilder",
+        "description": "Workflow creation and editing form",
+        "has_form": true,
+        "import_path": "@/components/Automations/WorkflowBuilder"
+      },
+      {
+        "path": "components/Teams/TeamManagementModal.tsx",
+        "name": "TeamManagementModal",
+        "description": "Team creation and management form",
+        "has_form": true,
+        "import_path": "@/components/Teams/TeamManagementModal"
+      },
+      {
+        "path": "components/Agents/RoleSettings.tsx",
+        "name": "RoleSettings",
+        "description": "Agent role configuration form",
+        "has_form": true,
+        "import_path": "@/components/Agents/RoleSettings"
+      }
+    ],
+    "pages": [
+      {
+        "path": "pages/auth/signin.tsx",
+        "name": "SignIn",
+        "description": "User sign-in form with email/password and 2FA",
+        "fields": ["email", "password", "totpCode"],
+        "has_validation": true,
+        "import_path": "@/pages/auth/signin"
+      },
+      {
+        "path": "pages/auth/signup.tsx",
+        "name": "SignUp",
+        "description": "User registration form",
+        "has_form": true,
+        "import_path": "@/pages/auth/signup"
+      },
+      {
+        "path": "pages/auth/forgot-password.tsx",
+        "name": "ForgotPassword",
+        "description": "Password reset request form",
+        "has_form": true,
+        "import_path": "@/pages/auth/forgot-password"
+      },
+      {
+        "path": "pages/auth/reset-password.tsx",
+        "name": "ResetPassword",
+        "description": "Password reset form with token",
+        "has_form": true,
+        "import_path": "@/pages/auth/reset-password"
+      },
+      {
+        "path": "pages/admin/skills/new.tsx",
+        "name": "NewSkill",
+        "description": "Skill creation form",
+        "has_form": true,
+        "import_path": "@/pages/admin/skills/new"
+      }
+    ]
+  },
+  "routes": {
+    "pages": [
+      {
+        "path": "pages/index.tsx",
+        "route": "/",
+        "name": "Home",
+        "description": "Main landing page"
+      },
+      {
+        "path": "pages/dashboard.tsx",
+        "route": "/dashboard",
+        "name": "Dashboard",
+        "description": "Main dashboard with integrations overview",
+        "uses_router": true
+      },
+      {
+        "path": "pages/chat/index.tsx",
+        "route": "/chat",
+        "name": "Chat",
+        "description": "AI chat interface"
+      },
+      {
+        "path": "pages/agents/index.tsx",
+        "route": "/agents",
+        "name": "Agents",
+        "description": "Agent management page"
+      },
+      {
+        "path": "pages/search.tsx",
+        "route": "/search",
+        "name": "Search",
+        "description": "Search page",
+        "uses_router": true
+      },
+      {
+        "path": "pages/tasks.tsx",
+        "route": "/tasks",
+        "name": "Tasks",
+        "description": "Task management page"
+      },
+      {
+        "path": "pages/settings/index.tsx",
+        "route": "/settings",
+        "name": "Settings",
+        "description": "Settings page"
+      },
+      {
+        "path": "pages/settings/account.tsx",
+        "route": "/settings/account",
+        "name": "Account Settings",
+        "description": "Account settings page"
+      },
+      {
+        "path": "pages/settings/sessions.tsx",
+        "route": "/settings/sessions",
+        "name": "Sessions",
+        "description": "Active sessions management",
+        "uses_router": true
+      },
+      {
+        "path": "pages/settings/ai.tsx",
+        "route": "/settings/ai",
+        "name": "AI Settings",
+        "description": "AI configuration settings"
+      },
+      {
+        "path": "pages/workflows/builder.tsx",
+        "route": "/workflows/builder",
+        "name": "Workflow Builder",
+        "description": "Workflow creation and editing",
+        "has_form": true
+      },
+      {
+        "path": "pages/workflows/editor/[id].tsx",
+        "route": "/workflows/editor/[id]",
+        "name": "Workflow Editor",
+        "description": "Workflow editing with ID parameter",
+        "dynamic": true
+      }
+    ],
+    "auth_pages": [
+      {
+        "path": "pages/auth/signin.tsx",
+        "route": "/auth/signin",
+        "name": "Sign In",
+        "description": "Login page"
+      },
+      {
+        "path": "pages/auth/signup.tsx",
+        "route": "/auth/signup",
+        "name": "Sign Up",
+        "description": "Registration page"
+      },
+      {
+        "path": "pages/auth/forgot-password.tsx",
+        "route": "/auth/forgot-password",
+        "name": "Forgot Password",
+        "description": "Password reset request"
+      },
+      {
+        "path": "pages/auth/reset-password.tsx",
+        "route": "/auth/reset-password",
+        "name": "Reset Password",
+        "description": "Password reset with token"
+      },
+      {
+        "path": "pages/auth/verify-email.tsx",
+        "route": "/auth/verify-email",
+        "name": "Verify Email",
+        "description": "Email verification"
+      },
+      {
+        "path": "pages/auth/verification-sent.tsx",
+        "route": "/auth/verification-sent",
+        "name": "Verification Sent",
+        "description": "Confirmation page"
+      },
+      {
+        "path": "pages/auth/error.tsx",
+        "route": "/auth/error",
+        "name": "Auth Error",
+        "description": "Error page"
+      }
+    ],
+    "oauth_pages": [
+      {
+        "path": "pages/oauth/jira/callback.tsx",
+        "route": "/oauth/jira/callback",
+        "name": "Jira OAuth Callback",
+        "description": "OAuth callback handler for Jira"
+      },
+      {
+        "path": "pages/oauth/success.tsx",
+        "route": "/oauth/success",
+        "name": "OAuth Success",
+        "description": "OAuth success page"
+      },
+      {
+        "path": "pages/oauth/error.tsx",
+        "route": "/oauth/error",
+        "name": "OAuth Error",
+        "description": "OAuth error page"
+      }
+    ]
+  },
+  "auth": {
+    "library": "next-auth/react",
+    "components": [
+      {
+        "path": "pages/auth/signin.tsx",
+        "name": "SignIn",
+        "uses": ["signIn", "getSession"],
+        "import": "next-auth/react",
+        "has_2fa": true
+      },
+      {
+        "path": "components/Settings/GDriveManager.tsx",
+        "name": "GDriveManager",
+        "uses": ["useSession"],
+        "import": "next-auth/react"
+      },
+      {
+        "path": "components/Settings/AtomAgentSettings.tsx",
+        "name": "AtomAgentSettings",
+        "uses": ["useSession"],
+        "import": "next-auth/react"
+      },
+      {
+        "path": "components/Settings/GitLabManager.tsx",
+        "name": "GitLabManager",
+        "uses": ["useSession"],
+        "import": "next-auth/react"
+      },
+      {
+        "path": "components/Settings/ShopifyManager.tsx",
+        "name": "ShopifyManager",
+        "uses": ["useSession"],
+        "import": "next-auth/react"
+      },
+      {
+        "path": "components/Settings/ThirdPartyIntegrations.tsx",
+        "name": "ThirdPartyIntegrations",
+        "uses": ["useSession"],
+        "import": "next-auth/react"
+      }
+    ],
+    "flows": [
+      {
+        "name": "Login",
+        "pages": ["signin.tsx"],
+        "has_2fa": true,
+        "redirect_to": "/"
+      },
+      {
+        "name": "Logout",
+        "method": "signOut",
+        "library": "next-auth/react"
+      },
+      {
+        "name": "Session Check",
+        "method": "getSession",
+        "library": "next-auth/react"
+      },
+      {
+        "name": "2FA Setup",
+        "component": "components/Settings/TwoFactorSettings.tsx",
+        "has_qr_code": true
+      }
+    ]
+  },
+  "navigation": {
+    "router_library": "next/router",
+    "components_with_router": [
+      {
+        "path": "pages/dashboard.tsx",
+        "uses": ["useRouter"]
+      },
+      {
+        "path": "pages/settings/sessions.tsx",
+        "uses": ["useRouter"]
+      },
+      {
+        "path": "pages/search.tsx",
+        "uses": ["useRouter"]
+      },
+      {
+        "path": "pages/auth/signin.tsx",
+        "uses": ["useRouter", "router.push"]
+      }
+    ],
+    "dynamic_routes": [
+      {
+        "path": "pages/workflows/editor/[id].tsx",
+        "parameter": "id",
+        "description": "Workflow ID parameter"
+      }
+    ]
+  },
+  "deep_links": {
+    "protocol": "atom://",
+    "handlers": [],
+    "note": "No atom:// deep link handlers found in components or lib directories. Deep linking may be handled by backend or not yet implemented."
+  }
+}
