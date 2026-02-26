@@ -276,8 +276,8 @@ def main():
 
     # Change to backend directory
     backend_dir = Path(__file__).parent.parent
-    coverage_json = backend_dir / "coverage.json"
-    htmlcov_dir = backend_dir / "htmlcov"
+    coverage_json = backend_dir / "coverage_reports" / "metrics" / "coverage.json"
+    htmlcov_dir = backend_dir / "coverage_reports" / "html"
 
     # Run tests with coverage
     if not args.skip_run:

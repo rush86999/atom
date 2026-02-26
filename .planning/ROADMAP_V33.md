@@ -103,14 +103,14 @@ Plans:
   3. Immutability validation prevents audit entry modification/deletion (database constraints + application logic tested)
   4. SOX compliance testing validates traceability (who/what/when), authorization (sign-offs), and non-repudiation (cryptographic integrity)
   5. End-to-end audit trail verification tests walk-through scenarios and reconciliation (can reconstruct any transaction from logs)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 94-01: Transaction logging completeness (AUD-01)
-- [ ] 94-02: Chronological integrity testing (AUD-02)
-- [ ] 94-03: Immutability validation (AUD-03)
-- [ ] 94-04: SOX compliance testing (AUD-04)
-- [ ] 94-05: End-to-end audit trail verification (AUD-05)
+- [ ] 94-01-PLAN.md — Transaction logging completeness (AUD-01): FinancialAuditService with SQLAlchemy event listeners, enhanced FinancialAudit model with hash chain fields, property-based tests for audit completeness
+- [ ] 94-02-PLAN.md — Chronological integrity testing (AUD-02): ChronologicalIntegrityValidator for monotonicity and gap detection, database constraints for timestamp integrity, property-based tests for chronological invariants
+- [ ] 94-03-PLAN.md — Immutability validation + SOX compliance (AUD-03, AUD-04): HashChainIntegrity for cryptographic verification, database triggers preventing modification, property-based tests for immutability, SOX compliance integration tests
+- [ ] 94-04-PLAN.md — End-to-end audit trail verification (AUD-05): E2E scenario factories, cross-model audit linking, reconciliation validation, property-based tests for traceability
+- [ ] 94-05-PLAN.md — Orchestration and API (AUD complete): FinancialAuditOrchestrator with unified compliance validation, REST API endpoints for audit operations, API integration tests, verification document
 
 ## Progress
 

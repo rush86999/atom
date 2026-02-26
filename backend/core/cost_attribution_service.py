@@ -90,7 +90,8 @@ class CostAttributionService:
         category: str,
         project_id: Optional[str] = None,
         description: Optional[str] = None,
-        allow_custom_category: bool = False
+        allow_custom_category: bool = False,
+        workspace_id: Optional[str] = None
     ) -> Transaction:
         """
         Attribute a cost to a category and optionally to a project budget.
@@ -101,6 +102,7 @@ class CostAttributionService:
             project_id: Optional project ID for budget tracking
             description: Optional transaction description
             allow_custom_category: Allow non-standard categories with warning
+            workspace_id: Optional workspace ID (defaults to 'test_workspace' for testing)
 
         Returns:
             Transaction: Created transaction record
@@ -131,6 +133,7 @@ class CostAttributionService:
 
         # Create transaction
         transaction = Transaction(
+            workspace_id=workspace_id or 'test_workspace',
             amount=amount_decimal,
             category=category,
             project_id=project_id,
