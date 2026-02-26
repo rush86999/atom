@@ -23,14 +23,14 @@ describe('API Contract Validation', () => {
 
     it('should accept valid agent execution request shape', () => {
       expect(VALID_AGENT_REQUEST.input).toBeDefined();
-      expect(VALID_AGENT_REQUEST.input).toBeTypeOf('string');
-      expect(VALID_AGENT_REQUEST.context).toBeTypeOf('object');
+      expect(typeof VALID_AGENT_REQUEST.input).toBe('string');
+      expect(typeof VALID_AGENT_REQUEST.context).toBe('object');
       expect(typeof VALID_AGENT_REQUEST.stream).toBe('boolean');
     });
 
     it('should reject invalid input type (must be string)', () => {
       const invalidRequest = { ...VALID_AGENT_REQUEST, input: 123 };
-      expect(invalidRequest.input).not.toBeTypeOf('string');
+      expect(typeof invalidRequest.input).not.toBe('string');
     });
 
     it('should reject missing input field', () => {
@@ -40,12 +40,12 @@ describe('API Contract Validation', () => {
 
     it('should reject invalid context type (must be object)', () => {
       const invalidRequest = { ...VALID_AGENT_REQUEST, context: 'invalid' };
-      expect(invalidRequest.context).not.toBeTypeOf('object');
+      expect(typeof invalidRequest.context).not.toBe('object');
     });
 
     it('should accept optional conversation_id', () => {
       const requestWithConvId = { ...VALID_AGENT_REQUEST, conversation_id: 'conv-123' };
-      expect(requestWithConvId.conversation_id).toBeTypeOf('string');
+      expect(typeof requestWithConvId.conversation_id).toBe('string');
     });
   });
 
@@ -93,8 +93,8 @@ describe('API Contract Validation', () => {
         agent_id: 'agent-123',
         conversation_id: 'conv-456'
       };
-      expect(request.agent_id).toBeTypeOf('string');
-      expect(request.conversation_id).toBeTypeOf('string');
+      expect(typeof request.agent_id).toBe('string');
+      expect(typeof request.conversation_id).toBe('string');
     });
   });
 
@@ -106,8 +106,8 @@ describe('API Contract Validation', () => {
     };
 
     it('should accept valid login request shape', () => {
-      expect(VALID_LOGIN_REQUEST.email).toBeTypeOf('string');
-      expect(VALID_LOGIN_REQUEST.password).toBeTypeOf('string');
+      expect(typeof VALID_LOGIN_REQUEST.email).toBe('string');
+      expect(typeof VALID_LOGIN_REQUEST.password).toBe('string');
       expect(typeof VALID_LOGIN_REQUEST.remember_me).toBe('boolean');
     });
 
@@ -133,7 +133,7 @@ describe('API Contract Validation', () => {
     };
 
     it('should accept valid 2FA request shape', () => {
-      expect(VALID_2FA_REQUEST.token).toBeTypeOf('string');
+      expect(typeof VALID_2FA_REQUEST.token).toBe('string');
       expect(VALID_2FA_REQUEST.token).toHaveLength(6);
     });
 
@@ -144,7 +144,7 @@ describe('API Contract Validation', () => {
 
     it('should reject non-numeric token', () => {
       const invalidRequest = { token: 'abcdef' };
-      expect(invalidRequest.token).toMatch(/^[0-9]+$/);
+      expect(invalidRequest.token).not.toMatch(/^[0-9]+$/);
     });
   });
 });
@@ -173,7 +173,7 @@ describe('Error Response Shapes', () => {
         message: 'Invalid input',
         details: { field: 'email', error: 'Invalid format' }
       };
-      expect(errorResponse.details).toBeTypeOf('object');
+      expect(typeof errorResponse.details).toBe('object');
       expect(errorResponse.details).toHaveProperty('field');
     });
   });
@@ -258,8 +258,8 @@ describe('Integration Credentials API Contract (POST /api/integrations/credentia
   };
 
   it('should accept valid credentials request shape', () => {
-    expect(VALID_CREDENTIALS_REQUEST.service).toBeTypeOf('string');
-    expect(VALID_CREDENTIALS_REQUEST.credentials).toBeTypeOf('object');
+    expect(typeof VALID_CREDENTIALS_REQUEST.service).toBe('string');
+    expect(typeof VALID_CREDENTIALS_REQUEST.credentials).toBe('object');
   });
 
   it('should reject missing service field', () => {
@@ -274,7 +274,7 @@ describe('Integration Credentials API Contract (POST /api/integrations/credentia
 
   it('should accept query parameter for GET requests', () => {
     const queryParams = { service: 'zapier_webhook_url' };
-    expect(queryParams.service).toBeTypeOf('string');
+    expect(typeof queryParams.service).toBe('string');
     expect(queryParams.service).toContain('zapier');
   });
 });
@@ -287,8 +287,8 @@ describe('Tasks API Contract (GET/POST /api/v1/tasks)', () => {
       status: 'pending',
       platform: 'web'
     };
-    expect(validTask.title).toBeTypeOf('string');
-    expect(validTask.status).toBeTypeOf('string');
+    expect(typeof validTask.title).toBe('string');
+    expect(typeof validTask.status).toBe('string');
   });
 
   it('should reject task without title', () => {
