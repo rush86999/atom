@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 097 - Desktop Testing (Plan 01/07)
+**Current focus:** Phase 097 - Desktop Testing (Plan 04/07)
 
 ## Current Position
 
 Phase: 3 of 5 (Phase 097: Desktop Testing)
-Plan: 2 of 7 in current phase
-Status: Plans 01-02 complete, Plans 03-07 pending
-Last activity: 2026-02-26 — Plan 02: proptest dependency and property test module (3min, 3 sample tests passing)
+Plan: 4 of 7 in current phase
+Status: Plans 01-02 complete, Plan 04 complete, Plans 03, 05-07 pending
+Last activity: 2026-02-26 — Plan 04: Desktop tests GitHub Actions workflow (53 seconds)
 
-Progress: [██       ] 29% (v4.0 milestone - 2/7 plans in Phase 097)
+Progress: [██       ] 29% (v4.0 milestone - 3/7 plans in Phase 097)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -56,7 +56,7 @@ Progress: [██       ] 29% (v4.0 milestone - 2/7 plans in Phase 097)
 - Requirements mapped: 21/21 (100%) ✅
 - Requirements complete: 12/12 (100%) ✅ (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02, MOBL-01 to MOBL-04)
 - Tests added: 821 (241 integration + 28 property + 27 validation + 32 component + 194 mobile + 126 integration + 55 cross-platform + 68 property)
-- CI workflows: 3 (frontend-tests.yml, unified-tests.yml, mobile-tests.yml)
+- CI workflows: 4 (frontend-tests.yml, unified-tests.yml, mobile-tests.yml, desktop-tests.yml)
 - Coverage aggregation: ✅ operational with 4-platform support (aggregate_coverage.py + tarpaulin)
 - Frontend pass rate: 100% (821/821 tests, up from 96%)
 - Actual coverage: Backend 21.67%, Frontend 3.45%, Mobile 16.16%, Desktop 0.00% (pending), Overall 20.81%
@@ -85,7 +85,10 @@ Progress: [██       ] 29% (v4.0 milestone - 2/7 plans in Phase 097)
 - Phase 096-06: Cross-platform API contracts and feature parity tests (55 tests, 5 min)
 - Phase 096-07: Phase verification and metrics summary (6 min)
 - Phase 097-01: Desktop tarpaulin coverage aggregation (2 min)
-- Trend: Fast execution (average 6.7 min per plan)
+- Phase 097-02: Desktop test infrastructure setup (3 min)
+- Phase 097-03: Desktop integration tests (pending)
+- Phase 097-04: Desktop tests GitHub Actions workflow (53 seconds)
+- Trend: Fast execution (average 5.6 min per plan)
 
 **Recent Trend:**
 - Last 8 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min]
@@ -174,6 +177,13 @@ Progress: [██       ] 29% (v4.0 milestone - 2/7 plans in Phase 097)
 - Default path: `frontend-nextjs/src-tauri/coverage/coverage.json` - Aligns with coverage.sh script
 - Overall coverage formula extended: (covered_backend + covered_frontend + covered_mobile + covered_rust) / (total_backend + total_frontend + total_mobile + total_rust)
 
+**Phase 097-04 Decisions:**
+- Ubuntu-latest runner for desktop tests - Required for tarpaulin compatibility (x86_64 only, ARM Macs unsupported)
+- Three-layer cargo caching strategy - Registry, index, and target caches for 60-80% faster subsequent runs
+- 15-minute timeout for cargo test + tarpaulin - Sufficient for worst-case compilation and coverage generation
+- Coverage artifact named "desktop-coverage" - Matches unified aggregation script expectations (Phase 095-02)
+- Optional codecov upload with fail_ci_if_error: false - External dashboard integration without blocking CI
+
 **Key Technologies:**
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests (Hypothesis equivalent)
 - pytest-json-report 1.5.0 for unified reporting
@@ -214,14 +224,16 @@ Progress: [██       ] 29% (v4.0 milestone - 2/7 plans in Phase 097)
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 097-01: Desktop coverage aggregation)
-Stopped at: Plan 01 complete - Tarpaulin coverage loader added, 4-platform aggregation operational
+Last session: 2026-02-26 (Phase 097-04: Desktop tests CI/CD workflow)
+Stopped at: Plan 04 complete - GitHub Actions workflow for desktop testing with cargo test and tarpaulin coverage
 Resume file: None
 
 **Next Steps:**
 1. ✅ Phase 097-01 COMPLETE - Tarpaulin coverage aggregation with 4-platform support
-2. Phase 097-02: Desktop test infrastructure setup (jest, tauri-driver, coverage)
-3. Phase 097-03: Desktop integration tests (window management, file system, IPC)
+2. ✅ Phase 097-02 COMPLETE - Desktop test infrastructure setup (proptest dependency, property test module)
+3. ⏸️ Phase 097-03 PENDING - Desktop integration tests (window management, file system, IPC)
+4. ✅ Phase 097-04 COMPLETE - Desktop tests GitHub Actions workflow (cargo test + tarpaulin coverage)
+5. Phase 097-05: Desktop property-based tests (proptest for state invariants)
 
 ## Research Context
 
@@ -242,5 +254,5 @@ Resume file: None
 
 *State updated: 2026-02-26*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: 🔄 IN PROGRESS - Phase 097 (1/7 plans complete)*
-*Next: Phase 097-02 - Desktop Test Infrastructure Setup*
+*Status: 🔄 IN PROGRESS - Phase 097 (3/7 plans complete)*
+*Next: Phase 097-03 - Desktop Integration Tests*
