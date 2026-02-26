@@ -2,32 +2,53 @@
   "platforms": {
     "python": {
       "platform": "python",
-      "coverage_pct": 74.55197132616487,
-      "covered": 156,
-      "total": 205,
-      "branches_covered": 52,
-      "branches_total": 74,
-      "branch_coverage_pct": 70.27027027027027,
+      "coverage_pct": 21.672427945477878,
+      "covered": 18552,
+      "total": 69417,
+      "branches_covered": 194,
+      "branches_total": 17080,
+      "branch_coverage_pct": 1.135831381733021,
       "file": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json"
     },
     "javascript": {
       "platform": "javascript",
-      "coverage_pct": 18.75,
-      "covered": 9,
-      "total": 48,
-      "branches_covered": 3,
-      "branches_total": 60,
-      "branch_coverage_pct": 5.0,
+      "coverage_pct": 3.454223594026599,
+      "covered": 761,
+      "total": 22031,
+      "branches_covered": 382,
+      "branches_total": 15374,
+      "branch_coverage_pct": 2.4847144529725513,
       "file": "/Users/rushiparikh/projects/atom/frontend-nextjs/coverage/coverage-final.json"
+    },
+    "mobile": {
+      "platform": "mobile",
+      "coverage_pct": 16.164112703905094,
+      "covered": 981,
+      "total": 6069,
+      "branches_covered": 363,
+      "branches_total": 3348,
+      "branch_coverage_pct": 10.842293906810035,
+      "file": "/Users/rushiparikh/projects/atom/mobile/coverage/coverage-final.json"
+    },
+    "rust": {
+      "platform": "rust",
+      "coverage_pct": 0.0,
+      "covered": 0,
+      "total": 0,
+      "branches_covered": 0,
+      "branches_total": 0,
+      "branch_coverage_pct": 0.0,
+      "file": "/Users/rushiparikh/projects/atom/frontend-nextjs/src-tauri/coverage/coverage.json",
+      "error": "file not found"
     }
   },
   "overall": {
-    "coverage_pct": 65.22,
-    "covered": 165,
-    "total": 253,
-    "branch_coverage_pct": 41.04,
-    "branches_covered": 55,
-    "branches_total": 134
+    "coverage_pct": 20.81,
+    "covered": 20294,
+    "total": 97517,
+    "branch_coverage_pct": 2.62,
+    "branches_covered": 939,
+    "branches_total": 35802
   },
-  "timestamp": "2026-02-26T19:09:31.346172Z"
+  "timestamp": "2026-02-26T22:34:23.542606Z"
 }
