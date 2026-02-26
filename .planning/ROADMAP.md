@@ -142,7 +142,14 @@ Comprehensive test coverage initiative for Atom platform backend services, front
   5. CI/CD orchestration runs backend and frontend tests in parallel, uploads coverage artifacts, runs aggregation job
   6. All 21 failing frontend tests fixed (40% → 100% pass rate)
 
-**Plans**: TBD
+**Plans**: 7 plans (4 waves)
+  - [ ] 095-01-PLAN.md — Jest configuration and npm scripts for coverage JSON output (Wave 1)
+  - [ ] 095-02-PLAN.md — Unified coverage aggregation script for backend and frontend (Wave 1)
+  - [ ] 095-03-PLAN.md — Unified CI workflows for parallel test execution (Wave 2)
+  - [ ] 095-04-PLAN.md — Frontend integration tests (TDD) for components and API contracts (Wave 1)
+  - [ ] 095-05-PLAN.md — FastCheck property tests for state management invariants (Wave 2)
+  - [ ] 095-06-PLAN.md — Integration tests for forms, navigation, and auth flows (Wave 3)
+  - [ ] 095-07-PLAN.md — Phase verification and metrics summary (Wave 4)
 
 **Key Technologies**:
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests
