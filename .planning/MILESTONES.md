@@ -39,3 +39,13 @@
 
 ---
 
+
+## v3.2 Bug Finding & Coverage Expansion (Shipped: 2026-02-26)
+
+**Phases completed:** 76 phases, 357 plans, 263 tasks
+
+**Key accomplishments:**
+- JWT token lifecycle validation across browser refreshes, multiple tabs, and expiration scenarios with localStorage testing
+
+---
+
