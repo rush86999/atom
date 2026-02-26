@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 2 of 5 (Phase 096: Mobile Integration)
-Plan: 6 of 7 in current phase
-Status: Plans 01, 02, 03, 04, 06 complete
-Last activity: 2026-02-26 — Plan 06: Cross-platform consistency tests (5min, 55 tests created)
+Plan: 5 of 7 in current phase
+Status: Plans 01, 02, 03, 04, 05 complete
+Last activity: 2026-02-26 — Plan 05: FastCheck property tests for queue invariants (6min, 13 tests created)
 
-Progress: [███████░░] 100% (v4.0 milestone - 6/7 plans in Phase 096)
+Progress: [██████░░░] 86% (v4.0 milestone - 5/7 plans in Phase 096)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -66,6 +66,20 @@ Progress: [███████░░] 100% (v4.0 milestone - 6/7 plans in Phas
 - Total plans completed: 18/18 (100%)
 - Average duration: ~24 minutes
 - Total execution time: ~7.2 hours
+
+**Recent Trend:**
+- Last 10 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min, 6min, 6min]
+- Phase 095-01: Jest configuration and npm scripts (10 min)
+- Phase 095-02: Unified coverage aggregation script (4 min)
+- Phase 095-03: Unified CI workflows with parallel execution (8 min)
+- Phase 095-04: Frontend integration tests (94 tests, 5 min)
+- Phase 095-05: FastCheck property tests for state management (28 properties, 5 min)
+- Phase 095-06: Integration tests for flows (147 tests, 12 min)
+- Phase 095-07: Phase verification and metrics summary (5 min)
+- Phase 095-08: Frontend test fixes (96% → 100% pass rate, 5 min)
+- Phase 096-01: Mobile jest-expo coverage aggregation (2 min)
+- Phase 096-05: FastCheck property tests for queue invariants (13 tests, 6 min)
+- Trend: Fast execution (average 6.4 min per plan)
 
 **Recent Trend:**
 - Last 8 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min]
@@ -140,6 +154,13 @@ Progress: [███████░░] 100% (v4.0 milestone - 6/7 plans in Phas
 - Node.js 20 for mobile tests (matches frontend workflow, latest LTS)
 - maxWorkers=2 for Jest execution (balance speed vs GitHub Actions 2-core runner limit)
 
+**Phase 096-05 Decisions:**
+- FastCheck for TypeScript property tests - JavaScript equivalent of Python Hypothesis for property-based testing
+- Pure invariant tests without service integration - Avoid MMKV mocking complexity by testing sorting logic and state machines directly
+- Generator strategies match data types - Use fc.integer, fc.constantFrom, fc.record, fc.array for appropriate data types
+- numRuns settings tuned for performance - 100 for fast invariants, 50 for IO-bound, 10 for expensive operations
+- VALIDATED_BUG docstrings for mobile tests - Document bugs found or prevented, same pattern as backend tests
+
 **Key Technologies:**
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests (Hypothesis equivalent)
 - pytest-json-report 1.5.0 for unified reporting
@@ -180,14 +201,14 @@ Progress: [███████░░] 100% (v4.0 milestone - 6/7 plans in Phas
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 096-06: Cross-platform consistency tests)
-Stopped at: Plan 06 complete - 55 cross-platform tests created (24 API contract + 31 feature parity), all passing
+Last session: 2026-02-26 (Phase 096-05: FastCheck property tests for queue invariants)
+Stopped at: Plan 05 complete - 13 property tests created for offline queue invariants, all passing, FastCheck dependency installed
 Resume file: None
 
 **Next Steps:**
-1. Phase 096-07: Component tests for React Native screens
-2. Phase 096-08: Extend mobile coverage to reach 80% threshold
-3. Phase 096-09: Phase verification and metrics summary
+1. Phase 096-06: Property tests with FastCheck for device invariants (already complete per STATE.md)
+2. Phase 096-07: Component tests for React Native screens
+3. Phase 096-08: Phase verification and metrics summary
 
 ## Research Context
 
