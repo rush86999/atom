@@ -1,0 +1,200 @@
+{
+  "survey_date": "2026-02-26T19:05:00Z",
+  "top_api_endpoints": [
+    {
+      "endpoint": "/api/integrations/credentials",
+      "usage_count": 5,
+      "methods": ["GET", "POST", "DELETE"],
+      "components": [
+        "components/Settings/AtomAgentSettings.tsx",
+        "components/Settings/ThirdPartyIntegrations.tsx",
+        "components/Settings/VoiceSettings.tsx",
+        "components/Settings/GithubManager.tsx"
+      ],
+      "purpose": "Manage third-party integration credentials (GitHub, Zapier, TTS, etc.)"
+    },
+    {
+      "endpoint": "/api/reasoning/feedback",
+      "usage_count": 4,
+      "methods": ["POST"],
+      "components": [],
+      "purpose": "Submit agent reasoning feedback for learning"
+    },
+    {
+      "endpoint": "/api/v1/tasks",
+      "usage_count": 2,
+      "methods": ["GET", "POST"],
+      "components": ["components/TaskManagement.tsx"],
+      "purpose": "Task management CRUD operations"
+    },
+    {
+      "endpoint": "/api/v1/calendar/events",
+      "usage_count": 2,
+      "methods": ["GET", "POST"],
+      "components": [],
+      "purpose": "Calendar event management"
+    },
+    {
+      "endpoint": "/api/auth/2fa/*",
+      "usage_count": 4,
+      "methods": ["GET", "POST"],
+      "components": ["components/Settings/TwoFactorSettings.tsx"],
+      "purpose": "Two-factor authentication setup and management"
+    }
+  ],
+  "ui_components_found": {
+    "button": {
+      "path": "components/ui/button.tsx",
+      "exports": ["Button"],
+      "props": ["onClick", "disabled", "variant", "size", "isLoading", "className"],
+      "usage": "Used across 50+ components for actions and navigation"
+    },
+    "input": {
+      "path": "components/ui/input.tsx",
+      "exports": ["Input"],
+      "props": ["value", "onChange", "placeholder", "disabled", "type"],
+      "usage": "Used across 40+ components for form inputs"
+    },
+    "card": {
+      "path": "components/ui/card.tsx",
+      "exports": ["Card", "CardHeader", "CardTitle", "CardDescription", "CardContent", "CardFooter"],
+      "props": ["className", "children"],
+      "usage": "Used for content grouping and layout"
+    },
+    "other_components": [
+      "components/ui/tabs.tsx",
+      "components/ui/dialog.tsx",
+      "components/ui/tooltip.tsx",
+      "components/ui/alert.tsx",
+      "components/ui/badge.tsx",
+      "components/ui/table.tsx"
+    ]
+  },
+  "validation_utilities": {
+    "password_validator": {
+      "path": "lib/password-validator.ts",
+      "functions": ["validatePassword", "isStrongPassword"],
+      "usage": "Password strength validation during registration and settings changes"
+    },
+    "email_validator": {
+      "path": "lib/email.ts",
+      "functions": ["isValidEmail"],
+      "usage": "Email format validation"
+    }
+  },
+  "api_request_patterns": {
+    "authentication": {
+      "lib": "lib/auth.ts",
+      "endpoints": [
+        "/api/auth/login",
+        "/api/auth/logout",
+        "/api/auth/2fa/setup",
+        "/api/auth/2fa/enable",
+        "/api/auth/2fa/disable"
+      ],
+      "request_shape": {
+        "login": {
+          "email": "string",
+          "password": "string",
+          "remember_me": "boolean (optional)"
+        },
+        "2fa": {
+          "token": "string (6-digit code)"
+        }
+      },
+      "response_shape": {
+        "success": "boolean",
+        "data": "object (contains user, token)",
+        "error_code": "string (on failure)",
+        "message": "string"
+      }
+    },
+    "agent_execution": {
+      "endpoints": [
+        "/api/agents/{id}/execute",
+        "/api/agents/{id}/stop"
+      ],
+      "request_shape": {
+        "input": "string",
+        "context": "object (optional)",
+        "stream": "boolean",
+        "conversation_id": "string (optional)"
+      },
+      "response_shape": {
+        "success": "boolean",
+        "data": "object (agent response)",
+        "error_code": "string (on failure)"
+      }
+    },
+    "canvas_presentation": {
+      "endpoints": [
+        "/api/canvas/present",
+        "/api/canvas/update",
+        "/api/canvas/close"
+      ],
+      "request_shape": {
+        "type": "string (chart|form|sheet|docs|orchestration|terminal|coding)",
+        "title": "string",
+        "data": "object",
+        "agent_id": "string (optional)",
+        "conversation_id": "string (optional)"
+      },
+      "response_shape": {
+        "success": "boolean",
+        "data": {
+          "canvas_id": "string",
+          "url": "string"
+        },
+        "error_code": "string (on failure)"
+      }
+    }
+  },
+  "error_response_shapes": {
+    "validation_error": {
+      "status": 400,
+      "error_code": "VALIDATION_ERROR",
+      "message": "string",
+      "details": "object (field-level errors)"
+    },
+    "unauthorized": {
+      "status": 401,
+      "error_code": "UNAUTHORIZED",
+      "message": "Authentication required"
+    },
+    "not_found": {
+      "status": 404,
+      "error_code": "NOT_FOUND",
+      "message": "Resource not found"
+    },
+    "internal_error": {
+      "status": 500,
+      "error_code": "INTERNAL_ERROR",
+      "message": "Internal server error"
+    },
+    "timeout": {
+      "status": 408,
+      "error_code": "TIMEOUT",
+      "message": "Request timed out"
+    }
+  },
+  "recommendations": {
+    "api_contract_tests": [
+      "/api/integrations/credentials (GET, POST, DELETE)",
+      "/api/auth/login (POST)",
+      "/api/auth/2fa/* (GET, POST)",
+      "/api/v1/tasks (GET, POST)",
+      "Error response shapes (400, 401, 404, 500, 408)"
+    ],
+    "component_tests": [
+      "Button (onClick, disabled, variants, loading)",
+      "Input (value, onChange, placeholder, disabled)",
+      "Card (layout, children rendering)"
+    ],
+    "validation_tests": [
+      "Email validation (lib/email.ts)",
+      "Password validation (lib/password-validator.ts)",
+      "Required field validation",
+      "Length validation"
+    ]
+  }
+}
