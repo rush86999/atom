@@ -1,23 +1,19 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: Planning Next Milestone
+## Current Milestone: v4.0 Platform Integration & Property Testing
 
-**Last Completed:** v3.2 Bug Finding & Coverage Expansion (shipped 2026-02-26)
+**Goal:** Complete test coverage through integration tests and property-based testing across all Atom platform components — frontend, mobile, desktop, and infrastructure reliability
 
-**Achievement from v3.2:**
-- 37 plans executed across 10 phases with comprehensive test coverage infrastructure
-- Property-based testing with Hypothesis for edge case discovery (70+ property tests)
-- Bug discovery with 12 bugs/vulnerabilities documented and fixed
-- Quality gates established (80% coverage enforcement, 98% pass rate, trend tracking)
-- Coverage trend tracking with regression detection and HTML visualization
-- Comprehensive documentation (2,223 lines across 3 guides)
+**Target features:**
+- Frontend integration tests (Next.js) - Component integration, state management, API interactions
+- Mobile integration tests (React Native) - Cross-platform integration, device features, native modules
+- Desktop integration tests (Tauri) - System integration, native APIs, shell commands
+- Property-based testing expansion - Frontend/mobile/desktop invariants with Hypothesis
+- Infrastructure reliability - Load testing, stress testing, chaos engineering for production readiness
 
-**Achievement from v3.3:**
-- 384 tests created (48 core accounting + 117 payment integration + 197 cost tracking + 22 audit trails)
-- Decimal precision foundation established (GAAP/IFRS compliant)
-- Payment integration testing with stripe-mock Docker infrastructure
-- Budget enforcement with concurrent spend safety (zero overdrafts)
-- SOX-compliant audit trails with hash chain integrity verification
+**Strategy:** Integration-first with property testing — focus on how components work together (integration) and invariant validation (property tests) rather than unit testing individual components
+
+**Timeline:** 4-6 weeks
 
 ---
 
@@ -64,16 +60,19 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-<!-- Planning next milestone -->
-- **TBD** — Requirements to be defined for next milestone
+**v4.0 Comprehensive Platform Testing (2026-02-26):**
+- [ ] Frontend testing (Next.js) — React Testing Library, Jest, component coverage
+- [ ] Mobile testing (React Native) — iOS/Android app testing, device features
+- [ ] Desktop app testing (Tauri) — Desktop apps, system integration, native features
+- [ ] Menu bar testing — System integration, native API testing
+- [ ] Infrastructure reliability — Load testing, stress testing, chaos engineering
+- [ ] Performance benchmarking — Monitoring, observability, optimization
 
 ### Out of Scope
 
 <!-- Explicit boundaries -->
-- **E2E UI testing** — Requires separate tooling (Playwright/Cypress), defer to v2
-- **Load testing** — Performance tests beyond coverage, defer to v2
-- **Chaos engineering** — Resilience testing, defer to v2
-- **Visual regression** — UI snapshot testing, defer to v2
+- **New feature development** — This milestone focuses on testing existing features, not building new ones
+- **Production deployment** — Infrastructure setup and deployment automation (separate initiative)
 
 ## Context
 
@@ -118,6 +117,9 @@ If everything else fails, the following must have comprehensive test coverage:
 | max_examples=50 for IO-bound tests | API, database tests bounded by IO, not example count | **Adopted** (Phase 2) |
 | VALIDATED_BUG docstring pattern | Document bug-finding evidence per QUAL-05 requirement | **Adopted** (Phase 2) |
 | INVARIANTS.md external documentation | Document invariants separately from tests per DOCS-02 | **Adopted** (Phase 2) |
+| Comprehensive testing for AI-generated code | Research shows AI "writes like" experts but doesn't "think like" experts (pattern-matching vs genuine reasoning) | **Adopted** (Phase 90) |
+| Hybrid AI-human validation workflow | 40% productivity boost requires expert validation; quality gates enforce 80% coverage, 98% pass rate | **Adopted** (Phase 90) |
+| Property tests for AI pattern-matching failures | Chain-of-thought prompting has reliability limits; property tests catch semantic errors AI misses | **Adopted** (Phases 86-87) |
 
 **Strategic max_examples Decision:**
 Research revealed that increasing max_examples from 50 to 1000 would increase execution time from ~30 minutes to ~10 hours. The diminishing returns analysis shows that 50-100 examples capture 95%+ of bugs for most properties. The adopted strategy:
