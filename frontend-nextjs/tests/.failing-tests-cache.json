@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-02-26T19:05:28Z",
+  "total_suites": 25,
+  "failed_suites": [
+    {
+      "file": "components/canvas/__tests__/canvas-accessibility-tree.test.tsx",
+      "error": "Test suite must contain at least one test",
+      "fix_required": "File is a test utility module (helper functions), not actual tests. Rename to canvas-accessibility-tree.test-utils.tsx or add actual tests."
+    }
+  ],
+  "failed_tests": [],
+  "pass_rate": "96%"
+}
