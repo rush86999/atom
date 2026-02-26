@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 1 of 5 (Phase 095: Backend + Frontend Integration)
-Plan: 4 of 8 in current phase
-Status: Plans 02, 04, 08 complete
-Last activity: 2026-02-26 — Plan 04: Frontend integration tests (94 tests, 5 min, API contracts + component tests)
+Plan: 5 of 8 in current phase
+Status: Plans 02, 03, 04, 08 complete
+Last activity: 2026-02-26 — Plan 03: Unified CI workflows (2 workflows, 8 min, parallel test execution with coverage aggregation)
 
-Progress: [███░░░░░░] 38% (v4.0 milestone - 3/8 plans in Phase 095)
+Progress: [████░░░░░] 50% (v4.0 milestone - 4/8 plans in Phase 095)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -52,9 +52,10 @@ Progress: [███░░░░░░] 38% (v4.0 milestone - 3/8 plans in Phase
 **v4.0 Milestone Progress:**
 - Phases planned: 5
 - Phases complete: 0
-- Plans complete: 3/8 (38%)
+- Plans complete: 4/8 (50%)
 - Requirements mapped: 21/21 (100%) ✅
 - Tests added: 94 (API contracts + component tests)
+- CI workflows: 2 (frontend-tests.yml, unified-tests.yml)
 - Target tests: 30+ property tests, 80% overall coverage, 98% pass rate
 
 **Historical Velocity (v3.3):**
@@ -63,12 +64,13 @@ Progress: [███░░░░░░] 38% (v4.0 milestone - 3/8 plans in Phase
 - Total execution time: ~7.2 hours
 
 **Recent Trend:**
-- Last 3 plans (v4.0): [4min, 96%→100%, 5min]
+- Last 4 plans (v4.0): [4min, 8min, 5min, 96%→100%]
 - Plan 02: Unified coverage aggregation script (4 min)
+- Plan 03: Unified CI workflows with parallel execution (8 min)
 - Plan 04: Frontend integration tests (94 tests, 5 min)
 - Plan 08: Frontend test fixes (96% → 100% pass rate)
-- Trend: Fast execution (average 5 min)
-- Average duration: ~5 minutes
+- Trend: Fast execution (average 6 min)
+- Average duration: ~6 minutes
 
 *Updated: 2026-02-26*
 
@@ -96,6 +98,12 @@ Progress: [███░░░░░░] 38% (v4.0 milestone - 3/8 plans in Phase
 - Graceful degradation for missing coverage files (warnings, not errors)
 - Branch coverage tracked separately for both platforms (statement vs branch metrics)
 - UTC timestamps with timezone-aware datetime to avoid Python 3.14+ deprecation warnings
+
+**Phase 095-03 Decisions:**
+- Parallel execution strategy: All test jobs run simultaneously to minimize total execution time (<30 min target)
+- Artifact-based coverage sharing: Coverage files uploaded as artifacts, downloaded by aggregation job
+- Quality gate thresholds: 80% overall coverage (weighted average), 98% pass rate
+- PR comment automation: GitHub Actions script action generates platform breakdown table on failure
 
 **Phase 095-08 Decisions:**
 - Test utility modules should be named `*.test-utils.ts` to avoid Jest test discovery
@@ -142,15 +150,14 @@ Progress: [███░░░░░░] 38% (v4.0 milestone - 3/8 plans in Phase
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 095-02: Unified coverage aggregation)
-Stopped at: Plan 02 complete - Unified coverage aggregation script with pytest/Jest support (388 lines, 2 commits, 4 min), graceful error handling for missing files, 3 output formats (json/text/markdown)
+Last session: 2026-02-26 (Phase 095-03: Unified CI workflows)
+Stopped at: Plan 03 complete - Unified CI workflows with parallel test execution (2 workflows, 2 commits, 8 min), coverage aggregation with quality gates, PR comments on failure
 Resume file: None
 
 **Next Steps:**
-1. Continue Phase 095 with remaining plans (01, 03-07) - Coverage JSON parsing, FastCheck property tests, unified test reporting
-2. Fix remaining failing frontend tests (achieved 100% in Plan 08)
-3. Add FastCheck property tests for frontend state management (10-15 properties)
-4. Complete Phase 095 and move to Phase 096 (Mobile Integration)
+1. Continue Phase 095 with remaining plans (01, 05-07) - Coverage JSON parsing, FastCheck property tests, unified test reporting
+2. Add FastCheck property tests for frontend state management (10-15 properties)
+3. Complete Phase 095 and move to Phase 096 (Mobile Integration)
 
 ## Research Context
 
