@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 1 of 5 (Phase 095: Backend + Frontend Integration)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-26 — ROADMAP.md created for v4.0 milestone with 5 phases (095-099), requirements traceability complete (21/21 mapped)
+Plan: 8 of 8 in current phase
+Status: Plan 08 complete
+Last activity: 2026-02-26 — Plan 08: Frontend test fixes (96% → 100% pass rate, 636/636 tests passing)
 
-Progress: [░░░░░░░░░░] 0% (v4.0 milestone)
+Progress: [██████████] 12.5% (v4.0 milestone - 1/8 plans in Phase 095)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -87,6 +87,11 @@ Progress: [░░░░░░░░░░] 0% (v4.0 milestone)
 - Property tests fourth (Phase 098) — Require deep understanding of invariants, better after integration tests stable
 - Cross-platform last (Phase 099) — Depends on all platforms being testable, validates end-to-end integration
 
+**Phase 095-08 Decisions:**
+- Test utility modules should be named `*.test-utils.ts` to avoid Jest test discovery
+- Use standard Jest matchers (typeof) instead of Vitest/jest-extended (toBeTypeOf) for maximum compatibility
+- Document all test failures in cache file for traceability and before/after metrics
+
 **Key Technologies:**
 - FastCheck 4.5.3 for TypeScript/JavaScript property tests (Hypothesis equivalent)
 - pytest-json-report 1.5.0 for unified reporting
@@ -127,15 +132,15 @@ Progress: [░░░░░░░░░░] 0% (v4.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Roadmap creation)
-Stopped at: ROADMAP.md created with 5 phases (095-099), STATE.md initialized, requirements traceability complete (21/21 mapped to phases)
+Last session: 2026-02-26 (Phase 095-08: Frontend test fixes)
+Stopped at: Plan 08 complete - 100% frontend test pass rate achieved (636/636 tests passing), test utility module pattern established, Jest matcher compatibility documented
 Resume file: None
 
 **Next Steps:**
-1. Plan Phase 095 (Backend + Frontend Integration) — Determine number of plans required
-2. Implement unified coverage aggregation script
-3. Fix 21 failing frontend tests (40% → 100% pass rate)
-4. Add FastCheck property tests for frontend state management (10-15 properties)
+1. Continue Phase 095 with remaining plans (01-07) - Coverage aggregation, FastCheck property tests, unified test reporting
+2. Implement unified coverage aggregation script across backend/frontend/mobile
+3. Add FastCheck property tests for frontend state management (10-15 properties)
+4. Complete Phase 095 and move to Phase 096 (Mobile Integration)
 
 ## Research Context
 
