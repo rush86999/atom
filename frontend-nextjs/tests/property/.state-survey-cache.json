@@ -1,0 +1,100 @@
+{
+  "survey_date": "2026-02-26T19:16:00Z",
+  "state_management_libraries": {
+    "zustand": false,
+    "redux": false,
+    "context_api": true,
+    "custom_hooks": true
+  },
+  "react_context_usage": [
+    {
+      "file": "components/ui/use-toast.tsx",
+      "context": "ToastContext",
+      "import_path": "@/components/ui/use-toast"
+    },
+    {
+      "file": "components/ui/tabs.tsx",
+      "context": "TabsContext",
+      "import_path": "@/components/ui/tabs"
+    },
+    {
+      "file": "components/ui/tooltip.tsx",
+      "context": "TooltipContext",
+      "import_path": "@/components/ui/tooltip"
+    }
+  ],
+  "custom_hooks": [
+    {
+      "file": "hooks/useCanvasState.ts",
+      "hook": "useCanvasState",
+      "description": "Canvas state subscription hook for AI accessibility",
+      "import_path": "@/hooks/useCanvasState",
+      "manages_state": true,
+      "api": {
+        "returns": "state, allStates, getState, getAllStates",
+        "methods": ["getState", "getAllStates", "subscribe", "subscribeAll"]
+      }
+    },
+    {
+      "file": "hooks/useChatMemory.ts",
+      "hook": "useChatMemory",
+      "description": "Chat memory management",
+      "import_path": "@/hooks/useChatMemory",
+      "manages_state": true
+    },
+    {
+      "file": "hooks/useUndoRedo.ts",
+      "hook": "useUndoRedo",
+      "description": "Undo/redo state management",
+      "import_path": "@/hooks/useUndoRedo",
+      "manages_state": true
+    },
+    {
+      "file": "hooks/useUserActivity.ts",
+      "hook": "useUserActivity",
+      "description": "User activity tracking",
+      "import_path": "@/hooks/useUserActivity",
+      "manages_state": true
+    },
+    {
+      "file": "hooks/useCognitiveTier.ts",
+      "hook": "useCognitiveTier",
+      "description": "Cognitive tier preferences",
+      "import_path": "@/hooks/useCognitiveTier",
+      "manages_state": true
+    },
+    {
+      "file": "hooks/use-toast.ts",
+      "hook": "useToast",
+      "description": "Toast notification state",
+      "import_path": "@/hooks/use-toast",
+      "manages_state": true
+    }
+  ],
+  "components_with_state": [
+    "components/Settings/CognitiveTierSettings.tsx",
+    "components/Settings/AtomAgentSettings.tsx",
+    "components/OutlookIntegration.tsx"
+  ],
+  "key_findings": {
+    "no_redux": "Redux not found in codebase",
+    "no_zustand": "Zustand not found in codebase",
+    "primary_pattern": "React Context API + custom hooks",
+    "key_hook": "useCanvasState is the primary state management hook for canvas/AI integration",
+    "state_pattern": "Functional components with useState/useContext hooks"
+  },
+  "recommendations": {
+    "test_targets": [
+      "useCanvasState - Canvas state subscription and management",
+      "useUndoRedo - Undo/redo state history",
+      "useChatMemory - Chat state management",
+      "Context providers - Toast, Tabs, Tooltip contexts"
+    ],
+    "invariant_focus": [
+      "State immutability - spread operator usage",
+      "Subscription lifecycle - mount/unmount behavior",
+      "State rollback - undo/redo functionality",
+      "Context propagation - provider/consumer patterns"
+    ]
+  }
+}
