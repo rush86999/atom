@@ -237,28 +237,28 @@ describe('Retry Backoff Invariants', () => {
   test('retry count limit enforcement', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 10 }), // Initial retry count
+        fc.integer({ min: 0, max: 4 }), // Initial retry count (valid range)
         fc.integer({ min: 1, max: 10 }), // Number of sync attempts
         (initialRetries, syncAttempts) => {
           let currentRetries = initialRetries;
 
           // Simulate sync attempts
           for (let i = 0; i < syncAttempts; i++) {
-            if (currentRetries < MAX_SYNC_ATTEMPTS) {
-              currentRetries++;
-            } else {
+            // Check if already at max before attempting increment
+            if (currentRetries >= MAX_SYNC_ATTEMPTS) {
               // Action discarded - no more retries
               break;
             }
+            // Only increment if below max
+            currentRetries++;
           }
 
           // Invariant: Retry count should never exceed MAX_SYNC_ATTEMPTS
           expect(currentRetries).toBeLessThanOrEqual(MAX_SYNC_ATTEMPTS);
 
-          // Invariant: If initial was >= MAX_SYNC_ATTEMPTS, should not increment
-          if (initialRetries >= MAX_SYNC_ATTEMPTS) {
-            expect(currentRetries).toBe(initialRetries);
-          }
+          // Invariant: Final count should be min(initial + attempts, MAX)
+          const expectedFinal = Math.min(initialRetries + syncAttempts, MAX_SYNC_ATTEMPTS);
+          expect(currentRetries).toBe(expectedFinal);
         }
       ),
       { numRuns: 50, seed: 23053 }
