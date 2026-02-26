@@ -174,7 +174,7 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 
 **Depends on**: Phase 95 (frontend integration complete)
 
-**Requirements**: MOBL-01, MOBL-02, MOBL-03, MOBL-04 (partial)
+**Requirements**: MOBL-01, MOBL-02, MOBL-03, MOBL-04 (partial), MOBL-05 (partial - basic queue invariants, advanced invariants in Phase 98)
 
 **Rationale**: Mobile has Jest infrastructure configured (jest-expo), just needs integration with unified coverage. Property test patterns from Phase 1 can be reused.
 
@@ -182,24 +182,35 @@ Comprehensive test coverage initiative for Atom platform backend services, front
   1. Mobile integration tests cover device features (camera, location, notifications) with proper mocking and permission testing
   2. Offline data sync tests verify offline queue, sync on reconnect, conflict resolution
   3. Platform permissions & auth tests cover iOS/Android permission flows, biometric auth, credential storage
-  4. FastCheck property tests validate mobile-specific invariants (device state, offline queue, sync logic) with 5-10 properties
+  4. FastCheck property tests validate mobile queue invariants (ordering, idempotency, size limits) with 5-10 properties (basic invariants; advanced invariants in Phase 98)
   5. Mobile tests workflow runs in CI, uploads coverage artifacts, integrated with unified aggregation
   6. Cross-platform consistency tests verify feature parity between web and mobile
 
-**Plans**: TBD
+**Plans**: 7 plans (4 waves)
+  - [ ] 096-01-PLAN.md — Extend coverage aggregator for jest-expo format (Wave 1)
+  - [ ] 096-02-PLAN.md — Device feature tests (biometric, notifications) (Wave 1)
+  - [ ] 096-03-PLAN.md — Mobile CI workflow with coverage artifacts (Wave 2)
+  - [ ] 096-04-PLAN.md — Device permissions and offline sync integration tests (Wave 2)
+  - [ ] 096-05-PLAN.md — FastCheck property tests for queue invariants (Wave 3)
+  - [ ] 096-06-PLAN.md — Cross-platform API contracts and feature parity tests (Wave 3)
+  - [ ] 096-07-PLAN.md — Phase verification and metrics summary (Wave 4)
 
 **Key Technologies**:
-- Detox 20.47.0 for grey-box E2E testing
-- React Native Testing Library 13.3.3 for component tests
-- expo-mock for device API mocking
-- detox-expo-helpers for Expo integration
+- jest-expo 50.0.0 (already configured)
+- React Native Testing Library 12.4.2 (already configured)
+- FastCheck 4.5.3 for property-based testing
 
 **Implements**:
-- Mobile tests workflow (modify existing `.github/workflows/mobile-ci.yml`)
-- Extend coverage aggregator for jest-expo coverage format
+- Mobile tests workflow (`.github/workflows/mobile-tests.yml`)
+- Extended coverage aggregator for jest-expo coverage format
+- Device feature integration tests (biometric auth, notifications)
+- Offline sync network integration tests
+- FastCheck property tests (5-10 properties)
+- Cross-platform consistency tests
 
 **Avoids**:
-- Test data edge cases missing (property tests with device-specific strategies)
+- Detox E2E (deferred to Phase 099)
+- Test data edge cases missing (property tests cover this)
 - Fragmented coverage (mobile included in unified report)
 
 ---
@@ -245,14 +256,14 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 
 **Depends on**: Phase 97 (desktop integration complete)
 
-**Requirements**: FRONT-07, MOBL-05, DESK-02, DESK-04 (partial)
+**Requirements**: FRONT-07, MOBL-05 (advanced - expands on Phase 96 basic queue invariants), DESK-02, DESK-04 (partial)
 
-**Rationale**: Property test patterns proven in Phases 95-97, now expand to cover critical invariants across all platforms. Requires deep understanding of business logic invariants.
+**Rationale**: Property test patterns proven in Phases 95-97, now expand to cover critical invariants across all platforms. Phase 96 implemented basic mobile queue invariants; Phase 98 adds advanced invariants and expands coverage on all platforms. Requires deep understanding of business logic invariants.
 
 **Success Criteria** (what must be TRUE):
   1. 30+ property tests across all platforms (backend Hypothesis, frontend/mobile FastCheck, desktop QuickCheck)
   2. Frontend property tests validate state transitions, Redux reducers, context providers, API contracts (10-15 properties)
-  3. Mobile property tests validate device state, offline queue, sync logic (5-10 properties)
+  3. Mobile property tests expand beyond basic queue invariants (device state, advanced sync logic, state machine invariants) to reach 10-15 properties total
   4. Desktop property tests validate Rust backend logic and JavaScript frontend logic (5-10 properties)
   5. Property testing patterns documented for each platform with examples and best practices
   6. Critical invariants identified and tested (state machines, data transformations, API contracts, business rules)
@@ -318,13 +329,13 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 95. Backend + Frontend Integration | 0/? | 📋 Planned | - |
-| 96. Mobile Integration | 0/? | 📋 Planned | - |
+| 95. Backend + Frontend Integration | 8/8 | ✅ Complete | 2026-02-26 |
+| 96. Mobile Integration | 0/7 | 📋 Planned | - |
 | 97. Desktop Testing | 0/? | 📋 Planned | - |
 | 98. Property Testing Expansion | 0/? | 📋 Planned | - |
 | 99. Cross-Platform Integration & E2E | 0/? | 📋 Planned | - |
 
-**Overall Progress**: 0/5 phases complete (0%) | Phase planning in progress
+**Overall Progress**: 1/5 phases complete (20%) | Phase 096 planning complete
 
 ---
 
@@ -336,10 +347,10 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 
 **Phase Distribution**:
 - Phase 95 (Backend + Frontend): 9 requirements (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02)
-- Phase 96 (Mobile): 4 requirements (MOBL-01 to MOBL-03, MOBL-04 partially)
+- Phase 96 (Mobile): 5 requirements (MOBL-01 to MOBL-03, MOBL-04 partially, MOBL-05 basic queue invariants)
 - Phase 97 (Desktop): 2 requirements (DESK-01, DESK-03)
-- Phase 98 (Property Tests): 4 requirements (FRONT-07, MOBL-05, DESK-02, DESK-04 partially)
-- Phase 99 (Cross-Platform E2E): 5 requirements (MOBL-04, DESK-04, INFRA-03 to INFRA-05)
+- Phase 98 (Property Tests): 4 requirements (FRONT-07, MOBL-05 advanced invariants, DESK-02, DESK-04 partially)
+- Phase 99 (Cross-Platform E2E): 5 requirements (MOBL-04 complete, DESK-04 complete, INFRA-03 to INFRA-05)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -354,7 +365,7 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 | MOBL-02: Offline data sync | 96 | Pending |
 | MOBL-03: Platform permissions & auth | 96 | Pending |
 | MOBL-04: Cross-platform consistency | 96 (partial), 99 | Pending |
-| MOBL-05: Mobile property tests | 98 | Pending |
+| MOBL-05: Mobile property tests | 96 (basic queue invariants), 98 (advanced) | Pending |
 | DESK-01: Tauri integration tests | 97 | Pending |
 | DESK-02: Desktop property tests | 98 | Pending |
 | DESK-03: Menu bar & notifications | 97 | Pending |
