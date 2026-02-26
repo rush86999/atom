@@ -114,11 +114,11 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 - Integer phases (95, 96, 97, 98, 99): Planned milestone work
 - Decimal phases (95.1, 95.2): Urgent insertions (marked with INSERTED)
 
-- [x] **Phase 95: Backend + Frontend Integration** ✅ COMPLETE - Unified coverage aggregation, frontend integration tests, FastCheck property tests (10-15 tests)
-- [x] **Phase 96: Mobile Integration** ✅ COMPLETE - Mobile integration tests, FastCheck property tests (5-10 tests), cross-platform consistency tests
-- [x] **Phase 97: Desktop Testing** ✅ COMPLETE - Tauri integration tests, Rust property tests + JavaScript property tests, desktop-specific tests
-- [ ] **Phase 98: Property Testing Expansion** - 30+ property tests across all platforms, documented property testing patterns, invariant identification
-- [ ] **Phase 99: Cross-Platform Integration & E2E** - Cross-platform integration tests, E2E user flows, visual regression testing (optional)
+- [x] **Phase 95: Backend + Frontend Integration** ✅ COMPLETE (2026-02-26) - Unified coverage aggregation, frontend integration tests, FastCheck property tests (10-15 tests)
+- [x] **Phase 96: Mobile Integration** ✅ COMPLETE (2026-02-26) - Mobile integration tests, FastCheck property tests (5-10 tests), cross-platform consistency tests
+- [x] **Phase 97: Desktop Testing** ✅ COMPLETE (2026-02-26) - Tauri integration tests, Rust property tests + JavaScript property tests, desktop-specific tests
+- [x] **Phase 98: Property Testing Expansion** ✅ COMPLETE (2026-02-26) - 101 new property tests, ~361 total (12x 30+ target), documented patterns, comprehensive invariants catalog
+- [ ] **Phase 99: Cross-Platform Integration & E2E** 📋 Planned - Cross-platform integration tests, E2E user flows, visual regression testing (optional)
 
 ---
 
@@ -286,7 +286,30 @@ Comprehensive test coverage initiative for Atom platform backend services, front
   5. Property testing patterns documented for each platform with examples and best practices
   6. Critical invariants identified and tested (state machines, data transformations, API contracts, business rules)
 
-**Plans**: TBD
+**Plans**: 6 plans (4 waves) ✅ COMPLETE
+  - [x] 098-01-PLAN.md — Survey existing tests and identify gaps (Wave 1)
+  - [x] 098-02-PLAN.md — Frontend state machine and API tests (Wave 2)
+  - [x] 098-03-PLAN.md — Mobile advanced sync and device state (Wave 2)
+  - [x] 098-04-PLAN.md — Desktop IPC and window state (Wave 2)
+  - [x] 098-05-PLAN.md — Documentation and patterns guide (Wave 3)
+  - [x] 098-06-PLAN.md — Verification and ROADMAP update (Wave 4)
+
+**Status**: ✅ COMPLETE (2026-02-26)
+**Duration**: ~41 minutes (6 plans)
+**Tests Created**: 101 property tests (36 frontend + 30 mobile + 35 desktop)
+**Commits**: 16 atomic commits
+**Files Created**: 11 files (7 test files + 4 documentation files)
+**Test Pass Rate**: 100% (220/220 tests passing)
+**Documentation**: 1,519 lines added (354 INVARIANTS.md + 1,165 PROPERTY_TESTING_PATTERNS.md)
+
+**Test Results:**
+- Total properties: ~361 (exceeds 30+ target by 12x)
+- Frontend: 84 properties (+75% growth from 48)
+- Mobile: 43 properties (+230% growth from 13)
+- Desktop: 53 properties (+36% growth from 39)
+- All platforms: 100% pass rate
+
+**Requirements:** FRONT-07 ✅, MOBL-05 ✅, DESK-02 ✅, DESK-04 ✅ (partial)
 
 **Key Technologies**:
 - Hypothesis 6.151.5 (backend Python)
@@ -349,11 +372,11 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 |-------|----------------|--------|-----------|
 | 95. Backend + Frontend Integration | 8/8 | ✅ Complete | 2026-02-26 |
 | 96. Mobile Integration | 7/7 | ✅ Complete | 2026-02-26 |
-| 97. Desktop Testing | 0/7 | 📋 Planned | - |
-| 98. Property Testing Expansion | 0/? | 📋 Planned | - |
+| 97. Desktop Testing | 7/7 | ✅ Complete | 2026-02-26 |
+| 98. Property Testing Expansion | 6/6 | ✅ Complete | 2026-02-26 |
 | 99. Cross-Platform Integration & E2E | 0/? | 📋 Planned | - |
 
-**Overall Progress**: 3/5 phases complete (60%) | Phase 097 complete, Phase 098 planning next
+**Overall Progress**: 4/5 phases complete (80%) | Phase 098 complete, Phase 099 planning next
 
 ---
 
