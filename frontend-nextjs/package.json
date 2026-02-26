@@ -169,6 +169,7 @@
     "@tauri-apps/cli": "^2.9.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/commons-validator-js": "^1.0.1266",
     "@types/cors": "^2.8.13",
     "@types/jest": "^30.0.0",
