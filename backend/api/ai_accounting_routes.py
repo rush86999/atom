@@ -14,7 +14,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/ai-accounting", tags=["AI Accounting"])
+router = BaseAPIRouter(prefix="/ai-accounting", tags=["AI Accounting"])
 
 # ==================== REQUEST MODELS ====================
 
@@ -212,7 +212,7 @@ async def get_accounting_dashboard_summary(
     Aggregates data from Stripe, Xero, etc.
     """
     try:
-        from saas.models import IntegrationMetric
+        from core.models import IntegrationMetric
 
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(
