@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 07/8)
+**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 06/8 COMPLETE)
 
 ## Current Position
 
 Phase: 5 of 5 (Phase 099: Cross-Platform Integration & E2E)
-Plan: 7 of 8 in current phase
-Status: Plan 07 COMPLETE - Unified E2E orchestration and aggregation (E2E aggregator, unified workflow, coverage integration)
-Last activity: 2026-02-27 — Plan 07: Unified E2E orchestration (7min, 3 commits, e2e_aggregator.py + e2e-unified.yml)
+Plan: 6 of 8 in current phase
+Status: Plan 06 COMPLETE - Performance regression testing (Lighthouse CI, Percy visual regression)
+Last activity: 2026-02-27 — Plan 06: Performance testing (15min, 5 commits, Lighthouse CI + Percy)
 
-Progress: [█████▒▒▒▒] 88% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-07 complete)
+Progress: [█████▒▒▒▒] 88% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-06 complete)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -68,7 +68,8 @@ Progress: [█████▒▒▒▒] 88% (v4.0 milestone - Phase 098 COMPLETE
 - Total execution time: ~7.2 hours
 
 **Recent Trend:**
-- Last 29 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min, 11min, 2min, 11min, 8min, 6min, 2min, 2min, 3min, 12min, 3min, 2min, 12min, 4min, 3min, 53s, 4min, 3min, 3min, 7min, 9min, 4min, 7min]
+- Last 30 plans (v4.0): [10min, 4min, 8min, 5min, 5min, 12min, 5min, 2min, 11min, 2min, 11min, 8min, 6min, 2min, 2min, 3min, 12min, 3min, 2min, 12min, 4min, 3min, 53s, 4min, 3min, 3min, 7min, 9min, 4min, 7min, 15min]
+- Phase 099-06: Performance regression testing (15 min, 5 commits, Lighthouse CI + Percy)
 - Phase 095-01: Jest configuration and npm scripts (10 min)
 - Phase 095-02: Unified coverage aggregation script (4 min)
 - Phase 095-03: Unified CI workflows with parallel execution (8 min)
@@ -260,24 +261,27 @@ Progress: [█████▒▒▒▒] 88% (v4.0 milestone - Phase 098 COMPLETE
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 099-07: Unified E2E orchestration and aggregation)
-Stopped at: Phase 099 Plan 07 COMPLETE - Unified E2E orchestration (e2e_aggregator.py, e2e-unified.yml, coverage integration)
+Last session: 2026-02-27 (Phase 099-06: Performance regression testing)
+Stopped at: Phase 099 Plan 06 COMPLETE - Performance regression testing (Lighthouse CI, Percy visual regression, bundle size tracking)
 Resume file: None
 
 **Next Steps:**
-1. ✅ Phase 099-07 COMPLETE - Unified E2E orchestration and aggregation
-   - Created e2e_aggregator.py (173 lines, combines Playwright/Detox/WebDriverIO formats)
-   - Created e2e-unified.yml (315 lines, parallel platform jobs + aggregation)
-   - Extended aggregate_coverage.py (163 lines added, E2E metrics integration)
-   - E2E tests run on main push only (not PRs) to avoid blocking development
+1. ✅ Phase 099-06 COMPLETE - Performance regression testing
+   - Created lighthouserc.json (performance budgets: Performance >90, FCP <2s, TTI <5s, CLS <0.1, TBT <300ms)
+   - Created .percyrc.js (Percy config: 3 widths, percyCSS for dynamic content)
+   - Created visual regression tests (5 critical pages: dashboard, agent chat, canvas sheets/charts/forms)
+   - Created .github/workflows/lighthouse-ci.yml (CI workflow for performance tests)
+   - Created .github/workflows/visual-regression.yml (CI workflow for Percy)
+   - Documented setup and usage (LIGHTHOUSE.md, PERCY.md - 600+ lines combined)
 2. Phase 099: Cross-Platform Integration & E2E (IN PROGRESS)
    - ✅ Plan 01: Cross-platform test directory and shared workflow page objects
    - ✅ Plan 02: Detox E2E spike (BLOCKED - expo-dev-client required)
    - ✅ Plan 03: WebDriverIO + tauri-driver spike (BLOCKED - tauri-driver unavailable)
    - ✅ Plan 04: Mobile cross-platform tests (adapted to API-level, 79 tests)
    - ✅ Plan 05: Desktop test documentation (adapted, 54 Tauri tests cataloged)
+   - ✅ Plan 06: Performance regression testing (Lighthouse CI, Percy visual regression)
    - ✅ Plan 07: Unified E2E orchestration (e2e_aggregator.py, e2e-unified.yml, coverage integration)
-   - ⏳ Plan 06, 08: Performance tests, phase verification
+   - ⏳ Plan 08: Phase verification and ROADMAP update (FINAL PLAN)
 
 ## Research Context
 
@@ -317,3 +321,12 @@ Resume file: None
 - Mobile E2E adapted to API-level tests - Uses 79 cross-platform API tests from Plan 099-04 (Detox BLOCKED)
 - Desktop E2E adapted to Tauri integration tests - Uses 54 cargo test integration tests from Plan 099-05 (tauri-driver BLOCKED)
 - Added cargo test JSON parsing for desktop - Converts Tauri integration test output to pytest-compatible format
+
+**Phase 099-06 Decisions:**
+- Implement Visual Regression Testing - User chose implement-vrt at Task 3 checkpoint to complete INFRA-05 in v4.0
+- Percy over Chromatic - Percy Playwright integration matches existing E2E infrastructure (no Storybook setup required)
+- Multi-width snapshots - 1280 (desktop), 768 (tablet), 375 (mobile) covers 95%+ of device screen sizes
+- Percy CSS for dynamic content - Hide timestamps, loading spinners to reduce false positives (add selectors as discovered)
+- GitHub App optional - Lighthouse CI GitHub App integration optional for initial rollout (manual PR comments sufficient)
+- Performance budgets - Performance >90, FCP <2s, TTI <5s, CLS <0.1, TBT <300ms based on Web.dev best practices
+- Bundle size budgets - 500KB total, 200KB per chunk to prevent JavaScript bloat
