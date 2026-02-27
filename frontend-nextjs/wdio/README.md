@@ -114,6 +114,39 @@ Despite the lack of desktop E2E, Atom has strong test coverage:
 
 **Overall:** 2,336 tests across all platforms
 
+### Desktop Test Documentation (NEW - Phase 099-05)
+
+**See Also:**
+- **[TAURI_INTEGRATION_TESTS.md](../../.planning/phases/099-cross-platform-integration/TAURI_INTEGRATION_TESTS.md)** - Complete catalog of 54 Tauri integration tests (8,083 lines)
+- **[CONTRACT.md](../../../backend/tests/e2e_ui/tests/cross-platform/CONTRACT.md)** - Cross-platform test contracts mapping web ↔ desktop tests
+
+**Desktop Test Categories:**
+1. **IPC Command Tests** (1,058 lines) - File operations, window management, notifications, device capabilities
+2. **WebSocket Tests** (582 lines) - Real-time LLM streaming, connection handling
+3. **Device Capabilities** (709 lines) - Camera, location, notifications, clipboard
+4. **Canvas Integration** (358 lines) - All 7 canvas types (generic, docs, email, sheets, orchestration, terminal, coding)
+5. **File Dialog Tests** (343 lines) - Native file dialogs for open/save operations
+6. **Cross-Platform Validation** (481 lines) - Platform detection, path separators, temp directory access
+7. **Property Tests** (1,739 lines) - Window state, file operations, IPC serialization invariants
+8. **Error Handling** (662 lines) - Invalid configuration, missing resources, permission errors
+
+**Cross-Platform Contract Mapping:**
+- `test_authentication_workflow` → `auth_test.rs` (placeholder)
+- `test_agent_execution_workflow` → `commands_test.rs` + `websocket_test.rs`
+- `test_canvas_presentation_workflow` → `canvas_integration_test.rs`
+- `test_skill_execution_workflow` → `commands_test.rs`
+- `test_data_persistence_workflow` → `file_dialog_integration_test.rs`
+- `test_device_capabilities` → `device_capabilities_test.rs`
+
+**Running Desktop Tests:**
+```bash
+cd frontend-nextjs/src-tauri
+cargo test                              # Run all tests
+cargo test --test commands_test         # Run specific test file
+cargo test test_present_canvas          # Run specific test
+./coverage.sh                           # Generate coverage report
+```
+
 ### Recommendations
 
 **For Phase 099 (Cross-Platform Integration):**
