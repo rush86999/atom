@@ -1,9 +1,14 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: Post-v4.0 Planning
+## Current Milestone: v5.0 Coverage Expansion
 
-**Status:** v4.0 Platform Integration & Property Testing SHIPPED (2026-02-27)
-**Next:** Planning next milestone - questioning → research → requirements → roadmap
+**Goal:** Achieve 80% overall test coverage across all platforms through systematic test expansion targeting highest-impact files first
+
+**Target features:**
+- Backend coverage expansion (21.67% → 80%)
+- Frontend coverage expansion (3.45% → 80%)
+- Mobile and desktop coverage improvements as needed to reach 80% overall
+- Quick-wins strategy - maximize coverage gain per test added
 
 ---
 
@@ -57,7 +62,11 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-*Next milestone planning in progress. Run `/gsd:new-milestone` to define v5.0 scope.*
+**v5.0 Coverage Expansion (2026-02-27):**
+- [ ] Backend coverage expansion — Target high-impact files, achieve 80% overall coverage contribution — v5.0
+- [ ] Frontend coverage expansion — Component testing, state management, API integration — v5.0
+- [ ] Coverage gap analysis — Identify lowest-coverage modules with highest impact — v5.0
+- [ ] Quick-wins test development — Maximize coverage per test added — v5.0
 
 ### Out of Scope
 
@@ -131,4 +140,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-02-27 after Milestone v4.0 Platform Integration & Property Testing*
+*Last updated: 2026-02-27 after Milestone v4.0 completion, starting v5.0 Coverage Expansion*
