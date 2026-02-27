@@ -346,7 +346,15 @@ Comprehensive test coverage initiative for Atom platform backend services, front
   5. E2E test workflows run in CI, separate from unit/integration tests, run on merge to main
   6. Unified coverage report includes all platforms with per-platform breakdown and trend tracking
 
-**Plans**: TBD
+**Plans**: 8 plans (4 waves)
+  - [ ] 099-01-PLAN.md — Cross-platform integration tests for web (Wave 1)
+  - [ ] 099-02-PLAN.md — Detox E2E infrastructure spike (Wave 1)
+  - [ ] 099-03-PLAN.md — tauri-driver E2E infrastructure spike (Wave 1)
+  - [ ] 099-04-PLAN.md — Mobile E2E tests (Wave 2)
+  - [ ] 099-05-PLAN.md — Desktop E2E tests (Wave 2)
+  - [ ] 099-06-PLAN.md — Performance regression tests with Lighthouse CI (Wave 3)
+  - [ ] 099-07-PLAN.md — Unified E2E orchestration and aggregation (Wave 3)
+  - [ ] 099-08-PLAN.md — Phase verification and documentation (Wave 4)
 
 **Key Technologies**:
 - Playwright for web E2E
@@ -374,9 +382,9 @@ Comprehensive test coverage initiative for Atom platform backend services, front
 | 96. Mobile Integration | 7/7 | ✅ Complete | 2026-02-26 |
 | 97. Desktop Testing | 7/7 | ✅ Complete | 2026-02-26 |
 | 98. Property Testing Expansion | 6/6 | ✅ Complete | 2026-02-26 |
-| 99. Cross-Platform Integration & E2E | 0/? | 📋 Planned | - |
+| 99. Cross-Platform Integration & E2E | 0/8 | 📋 Planned | - |
 
-**Overall Progress**: 4/5 phases complete (80%) | Phase 098 complete, Phase 099 planning next
+**Overall Progress**: 4/5 phases complete (80%) | Phase 098 complete, Phase 099 ready to execute
 
 ---
 
