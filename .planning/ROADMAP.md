@@ -56,7 +56,7 @@ Atom's testing initiative achieves 80% overall code coverage through systematic 
 **Strategy:** Backend (Phases 101-104) → Frontend (Phases 105-109) → Quality Gates (Phase 110)
 
 - ✅ **Phase 100: Coverage Analysis** - Establish baseline coverage, identify gaps, and prioritize high-impact files (2026-02-27)
-- [ ] **Phase 101: Backend Core Services Unit Tests** - Achieve 60%+ coverage for low-coverage core services (governance, episodes, canvas)
+- [ ] **Phase 101: Backend Core Services Unit Tests** ⚠️ PARTIAL - Tests created but coverage target not met (mock configuration issues)
 - [ ] **Phase 102: Backend API Integration Tests** - Cover all API routes with request/response validation and error handling
 - [ ] **Phase 103: Backend Property-Based Tests** - Validate business logic invariants using Hypothesis property-based testing
 - [ ] **Phase 104: Backend Error Path Testing** - Comprehensive error path and edge case tests for critical services
@@ -87,7 +87,7 @@ Plans:
 - [x] 100-04-PLAN.md — Coverage trend tracking system setup
 - [x] 100-05-PLAN.md — Phase verification and metrics summary
 
-### Phase 101: Backend Core Services Unit Tests
+### Phase 101: Backend Core Services Unit Tests ⚠️ PARTIAL
 **Goal**: Achieve 60%+ coverage for low-coverage core services (governance, episodes, canvas)
 **Depends on**: Phase 100
 **Requirements**: BACK-01
@@ -96,14 +96,17 @@ Plans:
   2. Episode services (segmentation, retrieval, lifecycle) have 60%+ coverage with memory operations
   3. Canvas services (canvas_tool, agent_guidance_canvas) have 60%+ coverage with presentation tests
   4. All unit tests use property-based testing for invariants (e.g., governance cache <1ms lookup)
+**Status**: ⚠️ PARTIAL - 182 tests created but coverage target not met (0/4 criteria)
 **Plans**: 5 plans
 
 Plans:
-- [ ] 101-01-PLAN.md — Agent governance service unit tests (60%+ coverage target, 25+ tests)
-- [ ] 101-02-PLAN.md — Episode services unit tests (segmentation, retrieval, lifecycle, 70+ tests)
-- [ ] 101-03-PLAN.md — Canvas services unit tests (canvas_tool, agent_guidance_canvas, 50+ tests)
-- [ ] 101-04-PLAN.md — Property-based invariants testing for core services (24+ properties)
-- [ ] 101-05-PLAN.md — Phase verification and coverage metrics
+- [x] 101-01-PLAN.md — Agent governance service unit tests (46 tests created, 10.39% coverage)
+- [x] 101-02-PLAN.md — Episode services unit tests (70 tests created, 9.37% avg coverage)
+- [x] 101-03-PLAN.md — Canvas services unit tests (66 tests created, 9.24% avg coverage)
+- [ ] 101-04-PLAN.md — Property-based invariants testing for core services (tests exist, execution not verified)
+- [x] 101-05-PLAN.md — Phase verification and coverage metrics ✅
+
+**Issues**: Mock configuration blocking test execution, 0% coverage improvement, see 101-VERIFICATION.md
 
 ### Phase 102: Backend API Integration Tests
 **Goal**: Cover all API routes with request/response validation and error handling

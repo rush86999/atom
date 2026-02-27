@@ -1,0 +1,102 @@
+{
+  "phase": "101",
+  "generated_at": "2026-02-27T18:15:00+00:00Z",
+  "baseline_version": "v5.0",
+  "target_threshold": 60.0,
+  "summary": {
+    "total_services": 6,
+    "services_meeting_threshold": 0,
+    "overall_coverage_pct_before": 9.47,
+    "overall_coverage_pct_after": 9.47,
+    "threshold_met": false,
+    "tests_added": 182,
+    "delta_pct": 0.0
+  },
+  "services": [
+    {
+      "file": "core/agent_governance_service.py",
+      "coverage_pct_before": 10.39,
+      "coverage_pct_after": 10.39,
+      "covered_lines_before": 29,
+      "covered_lines_after": 29,
+      "total_lines": 279,
+      "threshold_met": false,
+      "tests_added": 46,
+      "delta_pct": 0.0,
+      "note": "46 unit tests created but not executed due to mock configuration issues"
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "coverage_pct_before": 8.25,
+      "coverage_pct_after": 8.25,
+      "covered_lines_before": 70,
+      "covered_lines_after": 70,
+      "total_lines": 580,
+      "threshold_met": false,
+      "tests_added": 30,
+      "delta_pct": 0.0,
+      "note": "30 unit tests created but not executed due to mock configuration issues"
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "coverage_pct_before": 9.03,
+      "coverage_pct_after": 9.03,
+      "covered_lines_before": 42,
+      "covered_lines_after": 42,
+      "total_lines": 313,
+      "threshold_met": false,
+      "tests_added": 25,
+      "delta_pct": 0.0,
+      "note": "25 unit tests created but not executed due to mock configuration issues"
+    },
+    {
+      "file": "core/episode_lifecycle_service.py",
+      "coverage_pct_before": 10.85,
+      "coverage_pct_after": 10.85,
+      "covered_lines_before": 14,
+      "covered_lines_after": 14,
+      "total_lines": 97,
+      "threshold_met": false,
+      "tests_added": 15,
+      "delta_pct": 0.0,
+      "note": "15 unit tests created but not executed due to mock configuration issues"
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "coverage_pct_before": 3.80,
+      "coverage_pct_after": 3.80,
+      "covered_lines_before": 21,
+      "covered_lines_after": 21,
+      "total_lines": 406,
+      "threshold_met": false,
+      "tests_added": 35,
+      "delta_pct": 0.0,
+      "note": "35 unit tests created but mocking issues prevent execution"
+    },
+    {
+      "file": "tools/agent_guidance_canvas_tool.py",
+      "coverage_pct_before": 14.67,
+      "coverage_pct_after": 14.67,
+      "covered_lines_before": 22,
+      "covered_lines_after": 22,
+      "total_lines": 112,
+      "threshold_met": false,
+      "tests_added": 31,
+      "delta_pct": 0.0,
+      "note": "31 unit tests created but mocking issues prevent execution"
+    }
+  ],
+  "deviations": [
+    "Tests created in Plans 01-03 but not fully executed due to mock configuration issues",
+    "Coverage modules not imported correctly during test execution",
+    "Canvas tool tests failing due to Mock vs float comparison issues",
+    "182 total tests created across 6 services, but coverage remains at baseline levels",
+    "Phase 101 did not achieve 60% coverage target - significant deviation from plan"
+  ],
+  "recommendations": [
+    "Fix mock configuration in test files to enable proper test execution",
+    "Re-run coverage analysis after tests are fixed to get accurate metrics",
+    "Consider integration tests instead of unit tests for complex service interactions",
+    "Re-prioritize Phase 101 to focus on executable tests that improve coverage"
+  ]
+}
