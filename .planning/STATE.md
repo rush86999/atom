@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 03/8)
+**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 05/8)
 
 ## Current Position
 
 Phase: 5 of 5 (Phase 099: Cross-Platform Integration & E2E)
-Plan: 3 of 8 in current phase
-Status: Plan 03 COMPLETE - WebDriverIO + tauri-driver spike (BLOCKED due to tauri-driver unavailability, defer desktop E2E to post-v4.0)
-Last activity: 2026-02-27 — Plan 03: WebDriverIO feasibility spike (BLOCKED, 8min, 3 tasks, recommendation to use Tauri built-in tests)
+Plan: 5 of 8 in current phase
+Status: Plan 05 COMPLETE - Desktop test documentation adapted for BLOCKED tauri-driver (54 Tauri integration tests cataloged, 8 cross-platform contracts defined)
+Last activity: 2026-02-27 — Plan 05: Desktop test documentation (6min, 1,228 lines, adapted from WebDriverIO E2E)
 
-Progress: [█████▒▒▒▒] 81% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-03 complete)
+Progress: [█████▒▒▒▒] 84% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-05 complete)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -260,24 +260,23 @@ Progress: [█████▒▒▒▒] 81% (v4.0 milestone - Phase 098 COMPLETE
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 099-03: WebDriverIO + tauri-driver spike)
-Stopped at: Phase 099 Plan 03 COMPLETE - WebDriverIO feasibility spike (BLOCKED due to tauri-driver unavailability)
+Last session: 2026-02-27 (Phase 099-05: Desktop test documentation adapted for BLOCKED tauri-driver)
+Stopped at: Phase 099 Plan 05 COMPLETE - Desktop test documentation (54 Tauri integration tests cataloged, 8 cross-platform contracts defined)
 Resume file: None
 
 **Next Steps:**
-1. ✅ Phase 099-03 COMPLETE - WebDriverIO + tauri-driver spike (BLOCKED)
-   - Plan 01: Property test inventory (283 tests cataloged, 4 gaps identified)
-   - Plan 02: Frontend state machine + API tests (36 new tests, 100% pass rate)
-   - Plan 03: Mobile advanced sync + device state (30 new tests, 100% pass rate)
-   - Plan 04: Desktop IPC + window state (35 new tests, 100% pass rate)
-   - Plan 05: Documentation consolidation (1,519 lines added)
-   - Plan 06: Verification and ROADMAP update (1,417 lines added)
+1. ✅ Phase 099-05 COMPLETE - Desktop test documentation (adapted from WebDriverIO E2E)
+   - Created TAURI_INTEGRATION_TESTS.md (421 lines, 54 tests cataloged)
+   - Created CONTRACT.md (423 lines, 8 cross-platform contracts defined)
+   - Created CI_WORKFLOWS.md (384 lines, 4 workflows documented)
+   - Updated WebDriverIO README.md (33 lines, links to desktop docs)
+   - 54 Tauri integration tests documented (8,083 lines total)
 2. Phase 099: Cross-Platform Integration & E2E (IN PROGRESS)
    - ✅ Plan 01: Cross-platform test directory and shared workflow page objects
    - ✅ Plan 02: Detox E2E spike (BLOCKED - expo-dev-client required)
-   - ⏳ Plan 03: Desktop E2E spike with tauri-driver
-   - ⏳ Plan 04: Web E2E expansion (Playwright already operational)
-   - ⏳ Plan 05: Cross-platform integration tests (web + desktop only)
+   - ✅ Plan 03: WebDriverIO + tauri-driver spike (BLOCKED - tauri-driver unavailable)
+   - ✅ Plan 04: Mobile cross-platform tests (adapted to API-level, 79 tests)
+   - ✅ Plan 05: Desktop test documentation (adapted, 54 Tauri tests cataloged)
    - ⏳ Plan 06-08: Performance tests, CI orchestration, verification
 
 ## Research Context
@@ -299,5 +298,12 @@ Resume file: None
 
 *State updated: 2026-02-27*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: Phase 099 IN PROGRESS - Plan 02 COMPLETE (Detox spike BLOCKED)*
-*Next: Phase 099-03 - Desktop E2E spike with tauri-driver*
+*Status: Phase 099 IN PROGRESS - Plan 05 COMPLETE (Desktop test documentation)*
+*Next: Phase 099-06 - Web E2E expansion with Playwright*
+
+**Phase 099-04 Decisions:**
+- Adapt Plan 099-04 to API-level tests - Detox E2E BLOCKED by expo-dev-client requirement (from Plan 099-02)
+- Use API contracts to verify mobile supports all backend workflows - Mirrors test_shared_workflows.py structure
+- API-level testing provides equivalent workflow verification - 79 tests passing without Detox infrastructure
+- Defer Detox E2E to post-v4.0 dedicated phase - Requires expo-dev-client, native builds, testIDs on all components
+- Contract-first testing pattern established - Backend schemas → mobile validation (single source of truth)
