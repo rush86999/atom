@@ -41,12 +41,75 @@
         "relative_change": 0.0,
         "direction": "baseline"
       }
+    },
+    {
+      "timestamp": "2026-02-27T16:26:12.778485Z",
+      "commit": "d9cab6e443e6b3e465b48f6e6e1f9f19cb6ab294",
+      "commit_message": "feat(100-04): Initialize trend tracking with v5.0 baseline",
+      "overall_coverage": 21.67,
+      "covered_lines": 18552,
+      "total_lines": 69417,
+      "branch_coverage": 1.14,
+      "covered_branches": 194,
+      "total_branches": 17080,
+      "module_breakdown": {
+        "api": 36.38,
+        "core": 24.28,
+        "tools": 12.93
+      },
+      "delta": {
+        "absolute_change": 0.0,
+        "relative_change": 0.0,
+        "direction": "no_change"
+      }
+    },
+    {
+      "timestamp": "2026-02-27T16:26:16.583602Z",
+      "commit": "d9cab6e443e6b3e465b48f6e6e1f9f19cb6ab294",
+      "commit_message": "feat(100-04): Initialize trend tracking with v5.0 baseline",
+      "overall_coverage": 21.67,
+      "covered_lines": 18552,
+      "total_lines": 69417,
+      "branch_coverage": 1.14,
+      "covered_branches": 194,
+      "total_branches": 17080,
+      "module_breakdown": {
+        "api": 36.38,
+        "core": 24.28,
+        "tools": 12.93
+      },
+      "delta": {
+        "absolute_change": 0.0,
+        "relative_change": 0.0,
+        "direction": "no_change"
+      }
+    },
+    {
+      "timestamp": "2026-02-27T16:26:24.381617Z",
+      "commit": "d9cab6e443e6b3e465b48f6e6e1f9f19cb6ab294",
+      "commit_message": "feat(100-04): Initialize trend tracking with v5.0 baseline",
+      "overall_coverage": 21.67,
+      "covered_lines": 18552,
+      "total_lines": 69417,
+      "branch_coverage": 1.14,
+      "covered_branches": 194,
+      "total_branches": 17080,
+      "module_breakdown": {
+        "api": 36.38,
+        "core": 24.28,
+        "tools": 12.93
+      },
+      "delta": {
+        "absolute_change": 0.0,
+        "relative_change": 0.0,
+        "direction": "no_change"
+      }
     }
   ],
   "current": {
-    "timestamp": "2026-02-27T16:25:48.959874Z",
-    "commit": "09ae09bb78e2c220a7df3b720ec7711c19a0efbf",
-    "commit_message": "feat(100-04): Create coverage trend tracker script",
+    "timestamp": "2026-02-27T16:26:24.381617Z",
+    "commit": "d9cab6e443e6b3e465b48f6e6e1f9f19cb6ab294",
+    "commit_message": "feat(100-04): Initialize trend tracking with v5.0 baseline",
     "overall_coverage": 21.67,
     "covered_lines": 18552,
     "total_lines": 69417,
@@ -61,7 +124,7 @@
     "delta": {
       "absolute_change": 0.0,
       "relative_change": 0.0,
-      "direction": "baseline"
+      "direction": "no_change"
     }
   },
   "metadata": {
@@ -69,7 +132,7 @@
     "target_coverage": 80.0,
     "max_history_entries": 30,
     "created_at": "2026-02-27T16:25:48.934438Z",
-    "last_updated": "2026-02-27T16:25:48.960241Z",
-    "total_snapshots": 1
+    "last_updated": "2026-02-27T16:26:24.382651Z",
+    "total_snapshots": 4
   }
 }
