@@ -66,6 +66,9 @@ CRITICAL_PATTERNS = {
     # Student Agent Training
     'student_training',
     'meta_agent_training',
+
+    # Browser Automation (Critical business impact)
+    'browser',
 }
 
 # High (score=7): Tools, device, browser, package governance, skills, security
@@ -166,7 +169,7 @@ KNOWN_HIGH_FILES = [
     'tools/device_tool.py',
     'core/package_governance_service.py',
     'core/skill_adapter.py',
-    'core/hazard_sandbox.py',
+    # Note: hazard_sandbox.py may not exist in coverage data yet
 ]
 
 
