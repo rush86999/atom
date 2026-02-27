@@ -1,49 +1,38 @@
-# Lighthouse CI Configuration for Performance Monitoring
-ci:
-  collect:
-    # Number of runs for each URL
-    numberOfRuns: 3
-    # Add local development URLs
-    url:
-      - http://localhost:3000
-      - http://localhost:3000/dashboard
-      - http://localhost:3000/integrations
-      - http://localhost:3000/search
-      - http://localhost:3000/health
-    # Collect settings
-    startServerCommand: npm run dev
-    startServerReadyPattern: 'ready on http://localhost:3000'
-    startServerReadyTimeout: 30000
-  # Server settings for uploading results
-  upload:
-    target: temporary-public-storage
-    uploadUrlMap: '[outputUrl]'
-  assert:
-    # Performance assertions
-    assertions:
-      'categories:performance': ['warn', {minScore: 0.8}]
-      'categories:accessibility': ['error', {minScore: 0.9}]
-      'categories:best-practices': ['warn', {minScore: 0.8}]
-      'categories:seo': ['warn', {minScore: 0.8}]
-  # Build settings
-  server:
-    # Use the same port as the development server
-    port: 3000
-  # Automatically use production build settings
-  run: {
-    # Using Chrome with proper settings
-    chromePath: 'chrome'
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:3001/dashboard",
+        "http://localhost:3001/agent/test-agent",
+        "http://localhost:3001/canvas/test-canvas"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1,
+          "requestLatencyMs": 0,
+          "downloadThroughputKbps": 0,
+          "uploadThroughputKbps": 0
+        }
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["warn", { "minScore": 0.8 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:seo": ["off"],
+        "first-contentful-paint": ["error", { "maxNumericValue": 2000 }],
+        "interactive": ["error", { "maxNumericValue": 5000 }],
+        "cumulative-layout-shift": ["warn", { "maxNumericValue": 0.1 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 300 }]
+      }
+    }
   }
-  
-# Development server configuration
-server:
-  port: 3000
-  host: 'localhost'
-
-# Configuration for local development
-lighthouserc:
-  extends: './lighthouserc.production.json'
-  ci:
-    collect:
-      url:
-        - http://localhost:3000
+}

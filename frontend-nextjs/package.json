@@ -20,6 +20,8 @@
     "analyze": "ANALYZE=true npm run build",
     "lighthouse": "lhci autorun --upload.target=temporary-public-storage",
     "lighthouse:ci": "lhci autorun",
+    "lighthouse:collect": "lhci collect",
+    "lighthouse:assert": "lhci assert",
     "type-check": "tsc --noEmit",
     "docker:build": "docker build -t atom:latest .",
     "docker:run": "docker run -p 3000:3000 atom:latest",
