@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-27T16:11:39+00:00Z",
+  "timestamp": "2026-02-27T16:12:53+00:00Z",
   "baseline_version": "v5.0",
   "overall": {
     "percent_covered": 21.67,
@@ -391,5 +391,39 @@
       "covered_lines": 21,
       "uncovered_lines": 198
     }
-  ]
+  ],
+  "unified": {
+    "platforms": {
+      "python": {
+        "platform": "python",
+        "coverage_pct": 21.672427945477878,
+        "covered": 18552,
+        "total": 69417,
+        "branches_covered": 194,
+        "branches_total": 17080,
+        "branch_coverage_pct": 1.135831381733021,
+        "file": "tests/coverage_reports/metrics/coverage.json"
+      },
+      "javascript": {
+        "platform": "javascript",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 0,
+        "branches_covered": 0,
+        "branches_total": 0,
+        "branch_coverage_pct": 0.0,
+        "file": "../../../frontend-nextjs/coverage/coverage-final.json",
+        "error": "file not found"
+      }
+    },
+    "overall": {
+      "coverage_pct": 26.73,
+      "covered": 18552,
+      "total": 69417,
+      "branch_coverage_pct": 1.14,
+      "branches_covered": 194,
+      "branches_total": 17080
+    },
+    "timestamp": "2026-02-27T16:12:53.059232Z"
+  }
 }
