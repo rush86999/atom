@@ -58,6 +58,12 @@ def mock_agent():
     agent.name = "TestAgent"
     agent.status = AgentStatus.AUTONOMOUS.value
     agent.workspace_id = "default"
+    agent.confidence_score = 0.95
+    agent.category = "Testing"
+    agent.module_path = "test.test_agent"
+    agent.class_name = "TestAgent"
+    agent.user_id = "test-user-1"
+    agent.required_role_for_autonomy = "team_lead"
     return agent
 
 
