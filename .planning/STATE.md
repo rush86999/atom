@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 100 of 110 (Coverage Analysis)
-Plan: 01 of 05 (Baseline Coverage Report)
+Plan: 04 of 05 (Test Type Mapping)
 Status: Executing Phase 100
-Last activity: 2026-02-27 — Plan 100-01 complete: Baseline coverage report generated (21.67% backend, 499 files below 80%, 50,865 uncovered lines)
+Last activity: 2026-02-27 — Plan 100-03 complete: File prioritization by impact-weighted scoring (50 files ranked, 15,385 uncovered lines, top priority: enterprise_user_management.py with score 1065)
 
-Progress: [██░░░░░░░░] 20% (v5.0 milestone - Phase 100 Plan 01 complete, Plans 02-05 remaining)
+Progress: [███░░░░░░░] 60% (v5.0 milestone - Phase 100 Plans 01-03 complete, Plans 04-05 remaining)
 
 **Milestone v5.0:** Coverage Expansion (1-2 weeks aggressive timeline)
 - Phase 100: Coverage Analysis (foundation)
@@ -107,6 +107,14 @@ Progress: [██░░░░░░░░] 20% (v5.0 milestone - Phase 100 Plan 
 - Validation against known critical files — All 9 files from critical_path_mapper.py correctly scored as Critical
 - Enables COVR-02 requirement — Rank files by (uncovered_lines * impact_score / current_coverage) for quick wins
 
+**Phase 100-03 Decisions:**
+- Priority formula: (uncovered_lines * impact_score) / (coverage_pct + 1) — Maximizes coverage gain per test added
+- +1 denominator prevents division by zero for 0% coverage files — Creates "quick wins" bias toward very low coverage
+- Quick wins defined as 0% coverage AND Critical/High tier — Stricter than 0% alone to avoid low-impact prioritization
+- Accepted 50-file limit from baseline — Top 50 files represent highest impact targets (15,385 uncovered lines, 30% of total)
+- Phase assignments for 101-110 — 101 (Backend Core): 12 Critical/High, 102 (Backend API): 4 files, 103 (Property): 12 files, 104 (Error): 1 file
+- Estimated tests = max(10, uncovered_lines * 0.5 / 20) — Target 50% coverage, 20 lines per test average, minimum 10 tests
+
 **From PROJECT.md (v3.3 Quality Gates):**
 - Tiered coverage targets (critical >90%, core >85%, standard >80%, support >70%)
 - Testing philosophy (tests are code, single responsibility, independence, mocking)
@@ -156,13 +164,27 @@ Resume file: None
    - Baseline established: 21.67% coverage, 499 files below 80%, 50,865 uncovered lines
    - Top uncovered file: core/workflow_engine.py (1,089 lines)
    - Module breakdown: Core 24.28%, API 36.38%, Tools 12.93%
+4. ✅ Phase 100 Plan 02 executed - Business Impact Scoring
+   - Created business_impact_scorer.py script (490 lines)
+   - Generated business_impact_scores.json (503 files scored)
+   - Generated BUSINESS_IMPACT_SCORES.md (tier distribution report)
+   - 4-tier system: Critical (10), High (7), Medium (5), Low (3)
+   - 30 Critical files (4,868 uncovered lines)
+   - 25 High files (2,874 uncovered lines)
+5. ✅ Phase 100 Plan 03 executed - File Prioritization by Impact-Weighted Scoring
+   - Created prioritize_high_impact_files.py script (450 lines)
+   - Generated prioritized_files_v5.0.json (50 ranked files)
+   - Generated HIGH_IMPACT_PRIORITIZATION.md (top 50 table with formula docs)
+   - Priority formula: (uncovered_lines * impact_score) / (coverage_pct + 1)
+   - Top priority: enterprise_user_management.py (0% coverage, priority 1065)
+   - 8 Critical tier files (2,731 uncovered lines)
+   - 4 High tier files (1,024 uncovered lines)
+   - Phase assignments for 101-110 created
 
 **Next Steps:**
-1. Execute Phase 100 Plan 02 (Coverage Gap Analysis)
-2. Execute Phase 100 Plan 03 (File Prioritization)
-3. Execute Phase 100 Plan 04 (Test Type Mapping)
-4. Execute Phase 100 Plan 05 (Test Planning Roadmap)
-4. Transition to Phase 101 (Backend Core Services Unit Tests)
+1. Execute Phase 100 Plan 04 (Test Type Mapping)
+2. Execute Phase 100 Plan 05 (Test Planning Roadmap)
+3. Transition to Phase 101 (Backend Core Services Unit Tests)
 
 **v5.0 Milestone Status:** 📋 PLANNING - Roadmap complete, Phase 100 ready to plan
 
