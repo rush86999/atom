@@ -56,6 +56,12 @@ def mock_agent():
     agent.name = "TestAgent"
     agent.status = AgentStatus.AUTONOMOUS.value
     agent.workspace_id = "default"
+    agent.confidence_score = 0.95  # Float: 0.0 to 1.0
+    agent.category = "Testing"
+    agent.module_path = "test.test_agent"
+    agent.class_name = "TestAgent"
+    agent.user_id = "test-user-1"
+    agent.required_role_for_autonomy = "team_lead"
     return agent
 
 
@@ -105,7 +111,53 @@ def mock_db_context():
         db.add = Mock()
         db.commit = Mock()
         db.refresh = Mock()
-        db.query = Mock(return_value=Mock(first=Mock(return_value=None)))
+        db.rollback = Mock()
+
+        # Track different types of objects
+        mock_agent = None
+        mock_agent_execution = None
+        mock_canvas_audit = None
+
+        def capture_and_return(obj_type):
+            """Capture added object and return appropriate query result."""
+            def side_effect(obj):
+                nonlocal mock_agent, mock_agent_execution, mock_canvas_audit
+                if hasattr(obj, 'module_path'):  # AgentRegistry
+                    mock_agent = obj
+                elif hasattr(obj, 'triggered_by'):  # AgentExecution
+                    mock_agent_execution = obj
+                elif hasattr(obj, 'canvas_id'):  # CanvasAudit
+                    mock_canvas_audit = obj
+            return side_effect
+
+        db.add = Mock(side_effect=capture_and_return("add"))
+
+        def mock_query(model):
+            """Mock query that returns appropriate object based on model."""
+            query_obj = Mock()
+
+            def mock_filter(*args, **kwargs):
+                """Mock filter that returns appropriate object."""
+                result = Mock()
+                # Return the appropriate object based on what was added
+                if hasattr(model, '__tablename__'):
+                    if model.__tablename__ == 'agent_registry':
+                        result.first = Mock(return_value=mock_agent)
+                    elif model.__tablename__ == 'agent_execution':
+                        result.first = Mock(return_value=mock_agent_execution)
+                    elif model.__tablename__ == 'canvas_audit':
+                        result.first = Mock(return_value=mock_canvas_audit)
+                    else:
+                        result.first = Mock(return_value=None)
+                else:
+                    result.first = Mock(return_value=None)
+                return result
+
+            query_obj.filter = mock_filter
+            return query_obj
+
+        db.query = Mock(side_effect=mock_query)
+
         mock_ctx.return_value.__enter__ = Mock(return_value=db)
         mock_ctx.return_value.__exit__ = Mock(return_value=False)
         yield mock_ctx
