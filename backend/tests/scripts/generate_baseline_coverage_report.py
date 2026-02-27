@@ -377,17 +377,21 @@ def main() -> int:
             print("Aggregating unified platform coverage...")
             try:
                 # Import aggregate_coverage function
-                sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-                from tests.scripts.aggregate_coverage import aggregate_coverage
+                sys.path.insert(0, str(Path(__file__).parent.parent))
+                from aggregate_coverage import aggregate_coverage
 
-                # Run aggregation with default paths
+                # Resolve paths for all platforms
+                backend_path = Path(args.coverage_file)
+                frontend_path = Path("../../../frontend-nextjs/coverage/coverage-final.json")
+                mobile_path = Path("../../../mobile/coverage/coverage-final.json")
+                desktop_path = Path("../../../frontend-nextjs/src-tauri/coverage/coverage.json")
+
+                # Run aggregation
                 unified_result = aggregate_coverage(
-                    format="json",
-                    backend_file=args.coverage_file,
-                    frontend_file="frontend-nextjs/coverage/coverage-final.json",
-                    mobile_file="mobile/coverage/coverage-final.json",
-                    desktop_file="frontend-nextjs/src-tauri/coverage.json",
-                    output=None
+                    pytest_path=backend_path,
+                    jest_path=frontend_path,
+                    jest_expo_path=mobile_path if mobile_path.exists() else None,
+                    tarpaulin_path=desktop_path if desktop_path.exists() else None
                 )
 
                 # Parse unified result
