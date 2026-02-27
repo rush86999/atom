@@ -97,10 +97,53 @@ def mock_governance_check_blocked():
 
 @pytest.fixture
 def mock_ws_manager():
-    """Mock WebSocket manager."""
-    with patch('core.websockets.manager') as mock_mgr:
+    """Mock WebSocket manager.
+
+    Patch at import location (tools.canvas_tool.ws_manager) not definition location.
+    """
+    with patch('tools.canvas_tool.ws_manager') as mock_mgr:
         mock_mgr.broadcast = AsyncMock()
         yield mock_mgr
+
+
+@pytest.fixture(autouse=True)
+def mock_canvas_type_registry():
+    """Mock canvas type registry with maturity requirements.
+
+    Auto-use fixture that applies to all tests in this module.
+    """
+    with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
+        # Mock validate_canvas_type to return True for all types
+        mock_registry.validate_canvas_type = Mock(return_value=True)
+        mock_registry.validate_component = Mock(return_value=True)
+
+        # Mock get_all_types to return supported types
+        mock_registry.get_all_types = Mock(return_value={
+            "generic": ["chart", "markdown", "form"],
+            "sheets": ["sheet"],
+            "docs": ["rich_editor"],
+            "email": ["thread_view"],
+            "orchestration": ["workflow"],
+            "terminal": ["terminal"],
+            "coding": ["code_editor"]
+        })
+
+        # Mock get_min_maturity to return maturity levels
+        # All canvas types need "student" (lowest maturity) to pass tests
+        def mock_get_min_maturity(canvas_type):
+            maturity_requirements = {
+                "generic": "student",
+                "sheets": "student",
+                "docs": "student",
+                "email": "student",
+                "orchestration": "student",
+                "terminal": "student",
+                "coding": "student"
+            }
+            return maturity_requirements.get(canvas_type, "student")
+
+        mock_registry.get_min_maturity = Mock(side_effect=mock_get_min_maturity)
+        yield mock_registry
 
 
 @pytest.fixture
@@ -530,7 +573,10 @@ class TestSheetPresentations:
             registry.validate_canvas_type = Mock(return_value=True)
             registry.validate_component = Mock(return_value=True)
             registry.validate_layout = Mock(return_value=True)
-            registry.get_min_maturity = Mock()
+            # Mock get_min_maturity to return object with .value attribute
+            mock_maturity = Mock()
+            mock_maturity.value = "student"
+            registry.get_min_maturity = Mock(return_value=mock_maturity)
 
             result = await present_specialized_canvas(
                 user_id="user-1",
@@ -562,7 +608,10 @@ class TestSheetPresentations:
             registry.validate_canvas_type = Mock(return_value=True)
             registry.validate_component = Mock(return_value=True)
             registry.validate_layout = Mock(return_value=True)
-            registry.get_min_maturity = Mock()
+            # Mock get_min_maturity to return object with .value attribute
+            mock_maturity = Mock()
+            mock_maturity.value = "student"
+            registry.get_min_maturity = Mock(return_value=mock_maturity)
 
             result = await present_specialized_canvas(
                 user_id="user-1",
@@ -585,7 +634,10 @@ class TestSheetPresentations:
             registry.validate_canvas_type = Mock(return_value=True)
             registry.validate_component = Mock(return_value=True)
             registry.validate_layout = Mock(return_value=True)
-            registry.get_min_maturity = Mock()
+            # Mock get_min_maturity to return object with .value attribute
+            mock_maturity = Mock()
+            mock_maturity.value = "student"
+            registry.get_min_maturity = Mock(return_value=mock_maturity)
 
             result = await present_specialized_canvas(
                 user_id="user-1",
@@ -723,7 +775,10 @@ class TestComponentTypeRegistry:
             registry.validate_canvas_type = Mock(return_value=True)
             registry.validate_component = Mock(return_value=True)
             registry.validate_layout = Mock(return_value=True)
-            registry.get_min_maturity = Mock()
+            # Mock get_min_maturity to return object with .value attribute
+            mock_maturity = Mock()
+            mock_maturity.value = "student"
+            registry.get_min_maturity = Mock(return_value=mock_maturity)
 
             result = await present_specialized_canvas(
                 user_id="user-1",
