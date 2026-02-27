@@ -72,14 +72,22 @@ def load_all_artifacts(metrics_dir: Path) -> Dict[str, Any]:
 def generate_executive_summary(artifacts: Dict[str, Any]) -> str:
     """Generate Executive Summary section."""
     baseline = artifacts.get("baseline", {})
-    overall = baseline.get("overall_coverage", {})
-    files_below = baseline.get("files_below_80_percent", [])
+    overall = baseline.get("overall", {})
+    files_below = baseline.get("files_below_threshold", [])
+    modules = baseline.get("modules", {})
 
     # Extract coverage percentages
-    overall_pct = overall.get("coverage_pct", "N/A")
-    backend_pct = overall.get("backend", {}).get("coverage_pct", "N/A")
-    frontend_pct = overall.get("frontend", {}).get("coverage_pct", "N/A")
-    mobile_pct = overall.get("mobile", {}).get("coverage_pct", "N/A")
+    overall_pct = overall.get("percent_covered", "N/A")
+    coverage_gap = overall.get("coverage_gap", 0)
+
+    # Get module breakdown
+    core_module = modules.get("core", {})
+    api_module = modules.get("api", {})
+    tools_module = modules.get("tools", {})
+
+    core_pct = core_module.get("percent", "N/A")
+    api_pct = api_module.get("percent", "N/A")
+    tools_pct = tools_module.get("percent", "N/A")
 
     # Calculate distance to 80% target
     try:
@@ -96,22 +104,22 @@ def generate_executive_summary(artifacts: Dict[str, Any]) -> str:
 
 | Metric | Value | Target | Gap |
 |--------|-------|--------|-----|
-| **Overall Coverage** | **{overall_pct}** | 80% | {distance_to_target if isinstance(distance_to_target, str) else f"{distance_to_target:.1f}%" } |
-| Backend | {backend_pct} | 80% | {80 - float(backend_pct) if isinstance(backend_pct, (int, float)) else "N/A"}% |
-| Frontend | {frontend_pct} | 80% | {80 - float(frontend_pct) if isinstance(frontend_pct, (int, float)) else "N/A"}% |
-| Mobile | {mobile_pct} | 80% | {80 - float(mobile_pct) if isinstance(mobile_pct, (int, float)) else "N/A"}% |
+| **Overall Coverage** | **{overall_pct}%** | 80% | {distance_to_target if isinstance(distance_to_target, str) else f"{distance_to_target:.1f}%" } |
+| Core Module | {core_pct}% | 80% | {80 - float(core_pct) if isinstance(core_pct, (int, float)) else "N/A"}% |
+| API Module | {api_pct}% | 80% | {80 - float(api_pct) if isinstance(api_pct, (int, float)) else "N/A"}% |
+| Tools Module | {tools_pct}% | 80% | {80 - float(tools_pct) if isinstance(tools_pct, (int, float)) else "N/A"}% |
 
 ### Files Below 80% Threshold
 
-- **Total files:** {len(files_below)} files below 80% coverage
-- **Uncovered lines:** {baseline.get('total_uncovered_lines', 'N/A'):,} lines
+- **Total files:** {len(files_below)} files below 80% coverage (top 50 shown)
+- **Uncovered lines:** {coverage_gap:,} lines
 - **Priority files:** Top 50 files account for {sum(f.get('uncovered_lines', 0) for f in files_below[:50]):,} uncovered lines
 
 ### Gap Analysis
 
 The codebase currently has **{distance_to_target if isinstance(distance_to_target, str) else f'{distance_to_target:.1f}%'}** overall coverage gap to reach the 80% target.
 
-**Quick Wins:** {len([f for f in files_below if f.get('coverage_pct', 0) == 0])} files have 0% coverage and are prime candidates for rapid improvement.
+**Quick Wins:** {len([f for f in files_below if f.get('percent_covered', 0) == 0])} files have 0% coverage and are prime candidates for rapid improvement.
 
 ---
 
@@ -122,19 +130,15 @@ The codebase currently has **{distance_to_target if isinstance(distance_to_targe
 def generate_impact_breakdown(artifacts: Dict[str, Any]) -> str:
     """Generate Impact Breakdown section."""
     impact_scores = artifacts.get("impact_scores", {})
-    files_by_tier = impact_scores.get("files_by_tier", {})
+    summary = impact_scores.get("summary", {})
 
-    # Count files and uncovered lines by tier
-    tier_counts = {}
-    tier_uncovered = {}
-
-    for tier_name, tier_data in files_by_tier.items():
-        tier_counts[tier_name] = len(tier_data.get("files", []))
-        tier_uncovered[tier_name] = tier_data.get("total_uncovered_lines", 0)
+    # Use summary data for tier counts and uncovered lines
+    tier_counts = summary.get("tier_counts", {})
+    tier_uncovered = summary.get("tier_uncovered_lines", {})
 
     # Get top files by (uncovered * impact)
     prioritized = artifacts.get("prioritized_files", {})
-    top_files = prioritized.get("prioritized_files", [])[:5]
+    top_files = prioritized.get("ranked_files", [])[:5]
 
     section = f"""## Impact Breakdown
 
@@ -156,7 +160,7 @@ Priority formula: `(uncovered_lines × impact_score) / (coverage_pct + 1)`
 """
 
     for i, file_data in enumerate(top_files, 1):
-        filepath = file_data.get("filepath", "Unknown")
+        filepath = file_data.get("file", "Unknown")
         coverage = file_data.get("coverage_pct", 0)
         uncovered = file_data.get("uncovered_lines", 0)
         tier = file_data.get("tier", "Unknown")
@@ -174,7 +178,7 @@ Priority formula: `(uncovered_lines × impact_score) / (coverage_pct + 1)`
 def generate_prioritized_list(artifacts: Dict[str, Any]) -> str:
     """Generate Prioritized Files section."""
     prioritized = artifacts.get("prioritized_files", {})
-    all_files = prioritized.get("prioritized_files", [])
+    all_files = prioritized.get("ranked_files", [])
 
     # Top 20 files
     top_20 = all_files[:20]
@@ -191,7 +195,7 @@ def generate_prioritized_list(artifacts: Dict[str, Any]) -> str:
 """
 
     for i, file_data in enumerate(top_20, 1):
-        filepath = file_data.get("filepath", "Unknown")
+        filepath = file_data.get("file", "Unknown")
         coverage = file_data.get("coverage_pct", 0)
         uncovered = file_data.get("uncovered_lines", 0)
         tier = file_data.get("tier", "Unknown")
@@ -210,7 +214,7 @@ def generate_prioritized_list(artifacts: Dict[str, Any]) -> str:
 """
 
     for i, file_data in enumerate(quick_wins[:10], 1):
-        filepath = file_data.get("filepath", "Unknown")
+        filepath = file_data.get("file", "Unknown")
         tier = file_data.get("tier", "Unknown")
         uncovered = file_data.get("uncovered_lines", 0)
 
@@ -247,12 +251,11 @@ def generate_trend_section(artifacts: Dict[str, Any]) -> str:
     trend = artifacts.get("trend", {})
     current = trend.get("current", {})
     baseline = trend.get("baseline", {})
-    delta = trend.get("delta", {})
     history = trend.get("history", [])
 
     current_pct = current.get("overall_coverage", "N/A")
     baseline_pct = baseline.get("overall_coverage", "N/A")
-    delta_pct = delta.get("overall_coverage", "N/A")
+    delta_pct = current.get("delta", {}).get("overall_coverage", "N/A")
 
     # Generate ASCII trend chart
     section = f"""## Coverage Trend
@@ -305,13 +308,14 @@ def generate_trend_section(artifacts: Dict[str, Any]) -> str:
 def generate_next_steps(artifacts: Dict[str, Any]) -> str:
     """Generate Next Steps section."""
     prioritized = artifacts.get("prioritized_files", {})
-    all_files = prioritized.get("prioritized_files", [])
+    phase_assignments = prioritized.get("phase_assignments", {})
 
-    # Count by phase assignment
+    # Extract phase counts from assignments
     phase_counts = {}
-    for file_data in all_files:
-        phase = file_data.get("assigned_phase", "Unassigned")
-        phase_counts[phase] = phase_counts.get(phase, 0) + 1
+    for phase_key, phase_data in phase_assignments.items():
+        # Extract phase number from key (e.g., "101-backend-core" -> "101")
+        phase_num = phase_key.split("-")[0]
+        phase_counts[phase_num] = phase_data.get("count", 0)
 
     section = f"""## Next Steps
 
@@ -362,7 +366,7 @@ def generate_next_steps(artifacts: Dict[str, Any]) -> str:
 
 **Focus:** Frontend component tests (React, Tauri)
 
-**Current Frontend Coverage:** {artifacts.get('baseline', {}).get('overall_coverage', {}).get('frontend', {}).get('coverage_pct', 'N/A')}%
+**Current Frontend Coverage:** 3.45% (from baseline report)
 
 **Estimated Coverage Gain:** +20-25 percentage points
 
@@ -381,7 +385,7 @@ def generate_next_steps(artifacts: Dict[str, Any]) -> str:
 
 **Phase 100 establishes the foundation for v5.0 Coverage Expansion:**
 
-1. ✅ **Baseline Coverage:** {artifacts.get('baseline', {}).get('overall_coverage', {}).get('coverage_pct', 'N/A')}% overall, {len(artifacts.get('baseline', {}).get('files_below_80_percent', []))} files below 80%
+1. ✅ **Baseline Coverage:** {artifacts.get('baseline', {}).get('overall', {}).get('percent_covered', 'N/A')}% overall, {len(artifacts.get('baseline', {}).get('files_below_threshold', []))} files below 80%
 2. ✅ **Business Impact Scoring:** 4-tier system (Critical/High/Medium/Low) for prioritization
 3. ✅ **File Prioritization:** Top 50 files ranked by (uncovered × impact / coverage)
 4. ✅ **Trend Tracking:** Baseline established, history tracking operational
