@@ -1,0 +1,86 @@
+# Requirements: Atom v5.0 Coverage Expansion
+
+**Defined:** 2026-02-27
+**Core Value:** Critical system paths are thoroughly tested and validated before production deployment
+
+## v5.0 Requirements
+
+Requirements for achieving 80% overall test coverage through systematic expansion targeting highest-impact files first. Each maps to roadmap phases.
+
+### Coverage Analysis
+
+- [ ] **COVR-01**: Coverage gap analysis identifies all files below 80% with business impact score
+- [ ] **COVR-02**: High-impact file prioritization report ranks files by (lines * impact / current_coverage)
+- [ ] **COVR-03**: Coverage trend tracking establishes baseline and tracks per-commit changes
+
+### Backend Coverage Expansion
+
+- [ ] **BACK-01**: Unit tests achieve 60%+ coverage for low-coverage core services (governance, episodes, canvas)
+- [ ] **BACK-02**: Integration tests cover all API routes with request/response validation
+- [ ] **BACK-03**: Property-based tests validate business logic invariants (Hypothesis)
+- [ ] **BACK-04**: Error path and edge case tests for critical services (security, auth, finance)
+
+### Frontend Coverage Expansion
+
+- [ ] **FRNT-01**: Component tests using React Testing Library achieve 50%+ coverage
+- [ ] **FRNT-02**: State management tests validate Redux/Zustand store logic and transitions
+- [ ] **FRNT-03**: API integration tests mock backend and verify error handling
+- [ ] **FRNT-04**: FastCheck property tests validate state machine invariants
+- [ ] **FRNT-05**: Form validation tests cover all form components with edge cases
+
+### Quality Gates & Reporting
+
+- [ ] **GATE-01**: PR comments show coverage changes with file breakdown on drops
+- [ ] **GATE-02**: 80% overall coverage gate enforced on merge to main
+- [ ] **GATE-03**: Coverage trend dashboard shows progress toward 80% goal
+- [ ] **GATE-04**: Automated coverage reports generated per commit
+
+## v6+ Requirements
+
+Deferred to future releases. Tracked but not in current roadmap.
+
+*None identified yet*
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| E2E test expansion | Detox/tauri-driver infrastructure deferred to post-v5.0 |
+| Mobile/Desktop coverage prioritization | Focus on Backend + Frontend for 80% overall target |
+| New feature development | This milestone focuses on testing existing features, not building new ones |
+| Production deployment | Infrastructure setup and deployment automation (separate initiative) |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| COVR-01 | Phase 100 | Pending |
+| COVR-02 | Phase 100 | Pending |
+| COVR-03 | Phase 100 | Pending |
+| BACK-01 | Phase 101 | Pending |
+| BACK-02 | Phase 102 | Pending |
+| BACK-03 | Phase 103 | Pending |
+| BACK-04 | Phase 104 | Pending |
+| FRNT-01 | Phase 105 | Pending |
+| FRNT-02 | Phase 106 | Pending |
+| FRNT-03 | Phase 107 | Pending |
+| FRNT-04 | Phase 108 | Pending |
+| FRNT-05 | Phase 109 | Pending |
+| GATE-01 | Phase 110 | Pending |
+| GATE-02 | Phase 110 | Pending |
+| GATE-03 | Phase 110 | Pending |
+| GATE-04 | Phase 110 | Pending |
+
+**Coverage:**
+- v5.0 requirements: 17 total
+- Mapped to phases: 17
+- Unmapped: 0 ✓
+- No orphaned requirements
+
+---
+*Requirements defined: 2026-02-27*
+*Last updated: 2026-02-27 after initial requirements definition*
