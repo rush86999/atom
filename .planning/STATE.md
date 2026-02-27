@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 05/8)
+**Current focus:** Phase 099 - Cross-Platform Integration & E2E (Plan 07/8)
 
 ## Current Position
 
 Phase: 5 of 5 (Phase 099: Cross-Platform Integration & E2E)
-Plan: 5 of 8 in current phase
-Status: Plan 05 COMPLETE - Desktop test documentation adapted for BLOCKED tauri-driver (54 Tauri integration tests cataloged, 8 cross-platform contracts defined)
-Last activity: 2026-02-27 — Plan 05: Desktop test documentation (6min, 1,228 lines, adapted from WebDriverIO E2E)
+Plan: 7 of 8 in current phase
+Status: Plan 07 COMPLETE - Unified E2E orchestration and aggregation (E2E aggregator, unified workflow, coverage integration)
+Last activity: 2026-02-27 — Plan 07: Unified E2E orchestration (7min, 3 commits, e2e_aggregator.py + e2e-unified.yml)
 
-Progress: [█████▒▒▒▒] 84% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-05 complete)
+Progress: [█████▒▒▒▒] 88% (v4.0 milestone - Phase 098 COMPLETE, Phase 099-07 complete)
 
 **Milestone v4.0:** Platform Integration & Property Testing (8 weeks, 5 phases)
 - Phase 095: Backend + Frontend Integration (Week 1-2)
@@ -260,24 +260,24 @@ Progress: [█████▒▒▒▒] 84% (v4.0 milestone - Phase 098 COMPLETE
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 099-05: Desktop test documentation adapted for BLOCKED tauri-driver)
-Stopped at: Phase 099 Plan 05 COMPLETE - Desktop test documentation (54 Tauri integration tests cataloged, 8 cross-platform contracts defined)
+Last session: 2026-02-27 (Phase 099-07: Unified E2E orchestration and aggregation)
+Stopped at: Phase 099 Plan 07 COMPLETE - Unified E2E orchestration (e2e_aggregator.py, e2e-unified.yml, coverage integration)
 Resume file: None
 
 **Next Steps:**
-1. ✅ Phase 099-05 COMPLETE - Desktop test documentation (adapted from WebDriverIO E2E)
-   - Created TAURI_INTEGRATION_TESTS.md (421 lines, 54 tests cataloged)
-   - Created CONTRACT.md (423 lines, 8 cross-platform contracts defined)
-   - Created CI_WORKFLOWS.md (384 lines, 4 workflows documented)
-   - Updated WebDriverIO README.md (33 lines, links to desktop docs)
-   - 54 Tauri integration tests documented (8,083 lines total)
+1. ✅ Phase 099-07 COMPLETE - Unified E2E orchestration and aggregation
+   - Created e2e_aggregator.py (173 lines, combines Playwright/Detox/WebDriverIO formats)
+   - Created e2e-unified.yml (315 lines, parallel platform jobs + aggregation)
+   - Extended aggregate_coverage.py (163 lines added, E2E metrics integration)
+   - E2E tests run on main push only (not PRs) to avoid blocking development
 2. Phase 099: Cross-Platform Integration & E2E (IN PROGRESS)
    - ✅ Plan 01: Cross-platform test directory and shared workflow page objects
    - ✅ Plan 02: Detox E2E spike (BLOCKED - expo-dev-client required)
    - ✅ Plan 03: WebDriverIO + tauri-driver spike (BLOCKED - tauri-driver unavailable)
    - ✅ Plan 04: Mobile cross-platform tests (adapted to API-level, 79 tests)
    - ✅ Plan 05: Desktop test documentation (adapted, 54 Tauri tests cataloged)
-   - ⏳ Plan 06-08: Performance tests, CI orchestration, verification
+   - ✅ Plan 07: Unified E2E orchestration (e2e_aggregator.py, e2e-unified.yml, coverage integration)
+   - ⏳ Plan 06, 08: Performance tests, phase verification
 
 ## Research Context
 
@@ -298,8 +298,8 @@ Resume file: None
 
 *State updated: 2026-02-27*
 *Milestone: v4.0 Platform Integration & Property Testing*
-*Status: Phase 099 IN PROGRESS - Plan 05 COMPLETE (Desktop test documentation)*
-*Next: Phase 099-06 - Web E2E expansion with Playwright*
+*Status: Phase 099 IN PROGRESS - Plan 07 COMPLETE (Unified E2E orchestration)*
+*Next: Phase 099-06, 08 - Performance tests and phase verification*
 
 **Phase 099-04 Decisions:**
 - Adapt Plan 099-04 to API-level tests - Detox E2E BLOCKED by expo-dev-client requirement (from Plan 099-02)
@@ -307,3 +307,13 @@ Resume file: None
 - API-level testing provides equivalent workflow verification - 79 tests passing without Detox infrastructure
 - Defer Detox E2E to post-v4.0 dedicated phase - Requires expo-dev-client, native builds, testIDs on all components
 - Contract-first testing pattern established - Backend schemas → mobile validation (single source of truth)
+
+**Phase 099-07 Decisions:**
+- E2E tests run on main push only, not on PRs - Avoids blocking development workflow (E2E: 5-15 min vs unit/integration: 1-2 min)
+- Parallel platform execution - Web, mobile, and desktop E2E jobs run simultaneously to minimize feedback time
+- Artifact-based aggregation - Each platform uploads results, aggregate job downloads and combines into unified report
+- Graceful degradation for missing platforms - continue-on-error: true prevents one platform failure from blocking aggregation
+- Coverage aggregator extended to include E2E metrics - Optional --e2e-results argument adds E2E section to unified coverage report
+- Mobile E2E adapted to API-level tests - Uses 79 cross-platform API tests from Plan 099-04 (Detox BLOCKED)
+- Desktop E2E adapted to Tauri integration tests - Uses 54 cargo test integration tests from Plan 099-05 (tauri-driver BLOCKED)
+- Added cargo test JSON parsing for desktop - Converts Tauri integration test output to pytest-compatible format
