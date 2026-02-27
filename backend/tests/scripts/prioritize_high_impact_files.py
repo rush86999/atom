@@ -109,10 +109,12 @@ def rank_files(
     # Extract files below threshold from baseline
     files_below_threshold = baseline_data.get("files_below_threshold", [])
 
-    # Build impact score lookup
+    # Build impact score lookup from all_files array
     impact_lookup = {}
-    for file_path, file_data in impact_scores.get("file_scores", {}).items():
-        impact_lookup[file_path] = file_data.get("tier", "Low")
+    for file_data in impact_scores.get("all_files", []):
+        file_path = file_data.get("file", "")
+        tier = file_data.get("tier", "Low")
+        impact_lookup[file_path] = tier
 
     # Tier to score mapping
     tier_scores = {
