@@ -96,14 +96,14 @@ Plans:
   2. Episode services (segmentation, retrieval, lifecycle) have 60%+ coverage with memory operations
   3. Canvas services (canvas_tool, agent_guidance_canvas) have 60%+ coverage with presentation tests
   4. All unit tests use property-based testing for invariants (e.g., governance cache <1ms lookup)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 101-01: Agent governance service unit tests (60%+ coverage target)
-- [ ] 101-02: Episode services unit tests (segmentation, retrieval, lifecycle)
-- [ ] 101-03: Canvas services unit tests (canvas_tool, agent_guidance_canvas)
-- [ ] 101-04: Property-based invariants testing for core services
-- [ ] 101-05: Phase verification and coverage metrics
+- [ ] 101-01-PLAN.md — Agent governance service unit tests (60%+ coverage target, 25+ tests)
+- [ ] 101-02-PLAN.md — Episode services unit tests (segmentation, retrieval, lifecycle, 70+ tests)
+- [ ] 101-03-PLAN.md — Canvas services unit tests (canvas_tool, agent_guidance_canvas, 50+ tests)
+- [ ] 101-04-PLAN.md — Property-based invariants testing for core services (24+ properties)
+- [ ] 101-05-PLAN.md — Phase verification and coverage metrics
 
 ### Phase 102: Backend API Integration Tests
 **Goal**: Cover all API routes with request/response validation and error handling
