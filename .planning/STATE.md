@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 100 of 110 (Coverage Analysis)
-Plan: TBD (planning next)
-Status: Ready to plan Phase 100
-Last activity: 2026-02-27 — Roadmap created for v5.0 Coverage Expansion (11 phases, 17 requirements)
+Plan: 02 of 05 (Business Impact Scoring)
+Status: Executing Phase 100
+Last activity: 2026-02-27 — Plan 100-02 complete: Business impact scoring for 503 files across 4 tiers (Critical/High/Medium/Low)
 
-Progress: [████░░░░░░] 0% (v5.0 milestone starting - Phase 100 ready to plan)
+Progress: [███░░░░░░░] 20% (v5.0 milestone - Phase 100 Plan 02 complete, Plans 03-05 remaining)
 
 **Milestone v5.0:** Coverage Expansion (1-2 weeks aggressive timeline)
 - Phase 100: Coverage Analysis (foundation)
@@ -86,6 +86,13 @@ Progress: [████░░░░░░] 0% (v5.0 milestone starting - Phase 1
 - Backend phases (101-104) before Frontend (105-109) — Backend has higher business impact (21.67% vs 3.45% current coverage)
 - Sequential phase execution — Each phase depends on previous (100 → 101 → 102 → ... → 110)
 - Quality gates last (Phase 110) — Enforce 80% threshold only after coverage expansion complete
+
+**Phase 100-02 Decisions:**
+- 4-tier business impact scoring — Critical (10), High (7), Medium (5), Low (3) for coverage prioritization
+- Pattern-based tier assignment — filepath keyword matching for automated scoring (37 Critical, 15 High, 18 Medium, 10 Low patterns)
+- Browser automation promoted to Critical tier — Security and data access risks justify score=10
+- Validation against known critical files — All 9 files from critical_path_mapper.py correctly scored as Critical
+- Enables COVR-02 requirement — Rank files by (uncovered_lines * impact_score / current_coverage) for quick wins
 
 **From PROJECT.md (v3.3 Quality Gates):**
 - Tiered coverage targets (critical >90%, core >85%, standard >80%, support >70%)
