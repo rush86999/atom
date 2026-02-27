@@ -117,15 +117,15 @@ Plans:
   2. Request validation tests cover schema validation, authentication, and error responses
   3. Response validation tests verify success/error response structure and status codes
   4. Database transaction tests cover rollback scenarios and concurrent operations
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 102-01: Agent endpoints integration tests (chat, execution, status)
-- [ ] 102-02: Canvas routes integration tests (present, submit, close)
-- [ ] 102-03: Browser and device capabilities API tests
-- [ ] 102-04: Request/response validation and error handling
-- [ ] 102-05: Database transaction and rollback tests
-- [ ] 102-06: Phase verification and API coverage summary
+- [ ] 102-01-PLAN.md — Agent endpoints integration tests (chat, sessions, execution) — 40+ tests
+- [ ] 102-02-PLAN.md — Canvas routes integration tests (submit, status, governance) — 30+ tests
+- [ ] 102-03-PLAN.md — Browser routes integration tests (session, navigate, actions, audit) — 35+ tests
+- [ ] 102-04-PLAN.md — Device routes integration tests (camera, screen, location, execute) — 40+ tests
+- [ ] 102-05-PLAN.md — Request validation tests for all API endpoints — 35+ tests
+- [ ] 102-06-PLAN.md — Database transactions and phase coverage summary — 20+ tests
 
 ### Phase 103: Backend Property-Based Tests
 **Goal**: Validate business logic invariants using Hypothesis property-based testing
