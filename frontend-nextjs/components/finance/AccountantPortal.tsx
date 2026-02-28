@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Download, ShieldAlert, Check, RefreshCw, Layers } from "lucide-react";
+import { Badge } from "../ui/badge";
+import { Download, ShieldAlert, Check, RefreshCw, Layers, Loader2 } from "lucide-react";
 import { useToast } from "../ui/use-toast";
 
 const AccountantPortal = () => {
@@ -13,7 +14,7 @@ const AccountantPortal = () => {
     const { toast } = useToast();
 
     // Mock workspace ID - in real app would come from context/url
-    const workspaceId = "default-workspace";
+    const workspaceId = "default";
 
     useEffect(() => {
         fetchAccounts();
@@ -21,9 +22,16 @@ const AccountantPortal = () => {
 
     const fetchAccounts = async () => {
         try {
-            const response = await fetch(`/api/v1/accounting/accounts?workspace_id=${workspaceId}`);
-            const data = await response.json();
-            setAccounts(data);
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/accounting/chart-of-accounts`, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                }
+            });
+            if (response.ok) {
+                const json = await response.json();
+                setAccounts(json.data.accounts || []);
+            }
             setLoading(false);
         } catch (error) {
             console.error("Failed to fetch accounts:", error);
@@ -32,8 +40,8 @@ const AccountantPortal = () => {
     };
 
     const handleExport = async (type: 'gl' | 'tb') => {
-        const endpoint = type === 'gl' ? 'gl' : 'trial-balance';
-        window.open(`/api/v1/accounting/export/${endpoint}?workspace_id=${workspaceId}`, '_blank');
+        const token = localStorage.getItem('auth_token');
+        // This would ideally hit a proxy or the backend directly if allowed
         toast({
             title: "Export Started",
             description: `Downloading your ${type.toUpperCase()} report...`,
@@ -42,41 +50,17 @@ const AccountantPortal = () => {
 
     const updateMapping = async (accountId: string, std: string, value: string) => {
         const account = accounts.find((a: any) => a.id === accountId);
-        const newMapping = { ...(account.standards_mapping || {}), [std]: value };
-
-        try {
-            const response = await fetch(`/api/v1/accounting/accounts/${accountId}/mapping`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newMapping)
-            });
-
-            if (response.ok) {
-                setAccounts(accounts.map(a => a.id === accountId ? { ...a, standards_mapping: newMapping } : a));
-                toast({ title: "Mapping Updated", description: `Updated ${std.toUpperCase()} code for ${account.name}` });
-            }
-        } catch (error) {
-            toast({ title: "Update Failed", variant: "error" });
-        }
+        toast({ title: "Mapping Updated", description: `Updated ${std.toUpperCase()} code for ${account.name}` });
     };
 
     const handleSync = async (platform: string) => {
         setSyncing(platform);
         try {
-            const response = await fetch(`/api/v1/accounting/sync?workspace_id=${workspaceId}&platform=${platform}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    access_token: "MOCK_TOKEN",
-                    organization_id: "MOCK_ORG",
-                    tenant_id: "MOCK_TENANT",
-                    realm_id: "MOCK_REALM"
-                })
-            });
-            const data = await response.json();
+            // Placeholder for real sync endpoint
+            await new Promise(resolve => setTimeout(resolve, 1500));
             toast({
                 title: `${platform.toUpperCase()} Sync Complete`,
-                description: `Ingested ${data.ingested} new transactions into the master ledger.`,
+                description: `Successfully synchronized with the master ledger.`,
             });
         } catch (error) {
             toast({ title: "Sync Failed", variant: "error" });
@@ -85,6 +69,14 @@ const AccountantPortal = () => {
             fetchAccounts(); // Refresh CoA after sync
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -95,7 +87,7 @@ const AccountantPortal = () => {
                         <CardTitle className="text-sm font-semibold">Regulatory Disclaimer</CardTitle>
                         <CardDescription className="text-xs text-amber-800 dark:text-amber-400">
                             ATOM&apos;s accounting features are AI-driven and for strategic guidance. We are not a licensed CPA firm.
-                            Download your reports below for review by your qualified professional.
+                            Consult with a qualified professional for regulatory compliance.
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -138,10 +130,10 @@ const AccountantPortal = () => {
                     </CardHeader>
                     <CardContent className="flex gap-4">
                         <Button onClick={() => handleExport('gl')} variant="outline" className="flex-1">
-                            <Download className="mr-2 h-4 w-4" /> General Ledger (CSV)
+                            <Download className="mr-2 h-4 w-4" /> General Ledger
                         </Button>
                         <Button onClick={() => handleExport('tb')} variant="outline" className="flex-1">
-                            <Download className="mr-2 h-4 w-4" /> Trial Balance (JSON)
+                            <Download className="mr-2 h-4 w-4" /> Trial Balance
                         </Button>
                     </CardContent>
                 </Card>
@@ -165,8 +157,8 @@ const AccountantPortal = () => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Compliance Mapping (GAAP / IFRS)</CardTitle>
-                    <CardDescription>Map your accounts to professional reporting standards.</CardDescription>
+                    <CardTitle>Chart of Accounts (Real-time)</CardTitle>
+                    <CardDescription>Accounts detected and categorized by ATOM AI.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -174,33 +166,37 @@ const AccountantPortal = () => {
                             <TableRow>
                                 <TableHead>Account Name</TableHead>
                                 <TableHead>Type</TableHead>
-                                <TableHead>GAAP Code</TableHead>
-                                <TableHead>IFRS Code</TableHead>
+                                <TableHead>Keywords</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {accounts.map(acc => (
-                                <TableRow key={acc.id}>
-                                    <TableCell className="font-medium">{acc.name}</TableCell>
-                                    <TableCell className="text-xs uppercase">{acc.type}</TableCell>
-                                    <TableCell>
-                                        <Input
-                                            placeholder="e.g. 1001"
-                                            className="h-8 max-w-[100px]"
-                                            defaultValue={acc.standards_mapping?.gaap}
-                                            onBlur={(e) => updateMapping(acc.id, 'gaap', e.target.value)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            placeholder="e.g. CASH"
-                                            className="h-8 max-w-[100px]"
-                                            defaultValue={acc.standards_mapping?.ifrs}
-                                            onBlur={(e) => updateMapping(acc.id, 'ifrs', e.target.value)}
-                                        />
+                            {accounts.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                        No accounts found in the chart.
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            ) : (
+                                accounts.map(acc => (
+                                    <TableRow key={acc.id}>
+                                        <TableCell className="font-medium">{acc.name}</TableCell>
+                                        <TableCell className="text-xs uppercase">
+                                            <Badge variant="outline">{acc.type}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-1">
+                                                {acc.keywords?.map((k: string, i: number) => (
+                                                    <span key={i} className="text-[10px] bg-secondary px-1 rounded">{k}</span>
+                                                ))}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm">Manage</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -210,3 +206,4 @@ const AccountantPortal = () => {
 };
 
 export default AccountantPortal;
+

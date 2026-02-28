@@ -3,13 +3,16 @@ AP/AR API Routes - Phase 41
 """
 
 from datetime import datetime
+import io
 import logging
 from typing import Any, Dict, List, Optional
+from fastapi import Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
 
-router = BaseAPIRouter(prefix="/api/apar", tags=["AP/AR"])
+router = BaseAPIRouter(prefix="/apar", tags=["AP/AR"])
 
 class APIntakeRequest(BaseModel):
     vendor: str
@@ -156,6 +159,36 @@ async def get_overdue_invoices():
         message=f"Retrieved {len(overdue)} overdue invoices"
     )
 
+@router.get("/all")
+async def get_all_invoices():
+    """Get all invoices (AR and AP)"""
+    from core.apar_engine import apar_engine
+    
+    all_invoices = apar_engine.get_all_invoices()
+    
+    formatted_invoices = []
+    for inv in all_invoices:
+        # Check if it is an ARInvoice based on customer attribute
+        is_ar = hasattr(inv, "customer")
+        
+        formatted_invoices.append({
+            "id": inv.id,
+            "customer": inv.customer if is_ar else None,
+            "vendor": getattr(inv, "vendor", None) if not is_ar else None,
+            "amount": inv.amount,
+            "due_date": inv.due_date.isoformat(),
+            "status": inv.status.value,
+            "type": "AR" if is_ar else "AP"
+        })
+
+    return router.success_response(
+        data={
+            "count": len(formatted_invoices),
+            "invoices": formatted_invoices
+        },
+        message=f"Retrieved {len(formatted_invoices)} invoices"
+    )
+
 @router.post("/ar/{invoice_id}/remind")
 async def send_reminder(invoice_id: str):
     from core.apar_engine import apar_engine
@@ -166,7 +199,7 @@ async def send_reminder(invoice_id: str):
         message="Reminder generated successfully"
     )
 
-@router.get("/ar/summary")
+@router.get("/summary")
 async def get_collection_summary():
     from core.apar_engine import apar_engine
     summary = apar_engine.get_collection_summary()
@@ -174,3 +207,31 @@ async def get_collection_summary():
         data=summary,
         message="Collection summary retrieved successfully"
     )
+
+@router.get("/ar/{invoice_id}/download")
+async def download_ar_invoice(invoice_id: str):
+    from core.apar_engine import apar_engine
+    try:
+        content = apar_engine.generate_invoice_content(invoice_id)
+        file_obj = io.BytesIO(content.encode('utf-8'))
+        return StreamingResponse(
+            file_obj,
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/ap/{invoice_id}/download")
+async def download_ap_invoice(invoice_id: str):
+    from core.apar_engine import apar_engine
+    try:
+        content = apar_engine.generate_invoice_content(invoice_id)
+        file_obj = io.BytesIO(content.encode('utf-8'))
+        return StreamingResponse(
+            file_obj,
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

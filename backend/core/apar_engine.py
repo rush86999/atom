@@ -131,7 +131,7 @@ class APAREngine:
             id=invoice_id,
             customer=data.get("customer", "Unknown Customer"),
             amount=data.get("amount", 0.0),
-            due_date=datetime.fromisoformat(data["due_date"]) if "due_date" in data else datetime.now() + timedelta(days=30),
+            due_date=datetime.fromisoformat(data["due_date"]) if data.get("due_date") else datetime.now() + timedelta(days=30),
             line_items=data.get("line_items", []),
             source=source,
             status=InvoiceStatus.DRAFT
@@ -172,6 +172,29 @@ class APAREngine:
         
         return overdue
     
+    def get_all_invoices(self) -> List[Any]:
+        """Get all AR and AP invoices combined and sorted by creation date"""
+        all_invs = list(self._ar_invoices.values()) + list(self._ap_invoices.values())
+        return sorted(all_invs, key=lambda inv: inv.created_at, reverse=True)
+    
+    def generate_invoice_content(self, invoice_id: str) -> str:
+        """Generate text-based content for an invoice (simulates PDF generation)"""
+        invoice = self._ar_invoices.get(invoice_id) or self._ap_invoices.get(invoice_id)
+        if not invoice:
+            raise ValueError(f"Invoice {invoice_id} not found")
+        
+        content = f"--- INVOICE {invoice.id} ---\n"
+        content += f"Type: {'AR' if invoice_id.startswith('ar') else 'AP'}\n"
+        content += f"Entity: {invoice.customer if hasattr(invoice, 'customer') else invoice.vendor}\n"
+        content += f"Amount: ${invoice.amount:.2f}\n"
+        content += f"Due Date: {invoice.due_date.strftime('%Y-%m-%d')}\n"
+        content += f"Status: {invoice.status.value}\n"
+        content += "Line Items:\n"
+        for item in invoice.line_items:
+            content += f"- {item.get('description', 'Item')}: ${item.get('amount', 0.0):.2f}\n"
+        content += "--- END ---\n"
+        return content
+
     def generate_reminder(self, invoice_id: str) -> Dict[str, Any]:
         """
         Generate collection reminder with appropriate tone.
@@ -207,7 +230,7 @@ class APAREngine:
             "message": message,
             "reminders_sent": invoice.reminders_sent
         }
-    
+
     def get_collection_summary(self) -> Dict[str, Any]:
         """Get AR collection summary"""
         total_outstanding = sum(

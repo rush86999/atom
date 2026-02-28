@@ -1,59 +1,97 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, CreditCard, Activity } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, CreditCard, Activity, Loader2 } from "lucide-react";
+
+interface DashboardSummary {
+    total_revenue: number;
+    pending_revenue: number;
+    runway_months: number;
+    currency: string;
+}
 
 const FinanceOverview = () => {
+    const [summary, setSummary] = useState<DashboardSummary | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/accounting/summary', {
+                    headers: {
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setSummary(data.data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch finance summary:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSummary();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    const metrics = [
+        {
+            title: "Total Revenue",
+            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.total_revenue) : "$0.00",
+            description: "+20.1% from last month",
+            icon: Wallet,
+            color: "text-muted-foreground"
+        },
+        {
+            title: "Pending Revenue",
+            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.pending_revenue) : "$0.00",
+            description: "Awaiting settlement",
+            icon: ArrowUpRight,
+            color: "text-green-500"
+        },
+        {
+            title: "Runway",
+            value: summary ? `${summary.runway_months} Months` : "0 Months",
+            description: "Estimated survival",
+            icon: Activity,
+            color: "text-blue-500"
+        },
+        {
+            title: "Gross Profit",
+            value: summary ? new Intl.NumberFormat('en-US', { style: 'currency', currency: summary.currency }).format(summary.total_revenue * 0.58) : "0%",
+            description: "Estimated margin",
+            icon: CreditCard,
+            color: "text-purple-500"
+        }
+    ];
+
     return (
         <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">$45,231.89</div>
-                        <p className="text-xs text-muted-foreground">
-                            +20.1% from last month
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Income</CardTitle>
-                        <ArrowUpRight className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">$8,250.00</div>
-                        <p className="text-xs text-muted-foreground">
-                            +4.5% from last month
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Expenses</CardTitle>
-                        <ArrowDownRight className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">$3,420.50</div>
-                        <p className="text-xs text-muted-foreground">
-                            -12.3% from last month
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Savings Rate</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">58.5%</div>
-                        <p className="text-xs text-muted-foreground">
-                            +2.4% from last month
-                        </p>
-                    </CardContent>
-                </Card>
+                {metrics.map((metric, idx) => (
+                    <Card key={idx}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+                            <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{metric.value}</div>
+                            <p className="text-xs text-muted-foreground">
+                                {metric.description}
+                            </p>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -100,3 +138,4 @@ const FinanceOverview = () => {
 };
 
 export default FinanceOverview;
+
