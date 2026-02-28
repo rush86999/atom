@@ -3,6 +3,9 @@ import "@testing-library/jest-dom";
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
 
+// Mock window.scrollTo
+global.scrollTo = jest.fn();
+
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -32,14 +35,48 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }));
 
+// Mock IntersectionObserverEntry
+global.IntersectionObserverEntry = jest.fn().mockImplementation((entry) => ({
+  ...entry,
+  isIntersecting: false,
+  intersectionRatio: 0,
+  boundingClientRect: {},
+  intersectionRect: {},
+  rootBounds: {},
+  time: 0,
+}));
+
 // Mock URL.createObjectURL and URL.revokeObjectURL
 global.URL.createObjectURL = jest.fn();
 global.URL.revokeObjectURL = jest.fn();
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+global.localStorage = localStorageMock as any;
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+global.sessionStorage = sessionStorageMock as any;
 
 // Mock clipboard API
 Object.assign(navigator, {
   clipboard: {
     writeText: jest.fn(),
+    readText: jest.fn(),
   },
 });
 
@@ -51,6 +88,19 @@ jest.mock('got', () => ({
   get: jest.fn(() => Promise.resolve({ body: '{}' })),
   extend: jest.fn(() => jest.fn(() => Promise.resolve({ body: '{}' }))),
 }));
+
+// Mock fetch API
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    status: 200,
+    json: async () => ({}),
+    text: async () => '',
+    blob: async () => new Blob(),
+    arrayBuffer: async () => new ArrayBuffer(0),
+    headers: {},
+  })
+) as any;
 
 // Mock console methods to reduce noise in tests
 global.console = {
@@ -93,5 +143,43 @@ jest.mock('@/contexts/WakeWordContext', () => ({
     stopListening: jest.fn(),
     wakeWord: 'hey atom',
   }),
+}));
+
+// Mock Next.js router
+jest.mock('next/router', () => ({
+  useRouter: () => ({
+    route: '/',
+    pathname: '/',
+    query: {},
+    asPath: '/',
+    push: jest.fn(),
+    replace: jest.fn(),
+    reload: jest.fn(),
+    back: jest.fn(),
+    prefetch: jest.fn().mockResolvedValue(undefined),
+    beforePopState: jest.fn(),
+    events: {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    },
+  }),
+  default: {
+    route: '/',
+    pathname: '/',
+    query: {},
+    asPath: '/',
+    push: jest.fn(),
+    replace: jest.fn(),
+    reload: jest.fn(),
+    back: jest.fn(),
+    prefetch: jest.fn().mockResolvedValue(undefined),
+    beforePopState: jest.fn(),
+    events: {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    },
+  },
 }));
 

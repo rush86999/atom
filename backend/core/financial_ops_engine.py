@@ -5,9 +5,12 @@ Cost Leak Detection, Budget Guardrails, Invoice Reconciliation
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal
 from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+from core.decimal_utils import to_decimal, round_money
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ class SaaSSubscription:
     """SaaS subscription record"""
     id: str
     name: str
-    monthly_cost: float
+    monthly_cost: Decimal
     last_used: datetime
     user_count: int
     active_users: int = 0
@@ -38,17 +41,17 @@ class CostLeakDetector:
         """Find subscriptions not used in threshold period"""
         cutoff = datetime.now() - timedelta(days=self.unused_threshold_days)
         unused = []
-        
+
         for sub in self._subscriptions.values():
             if sub.last_used < cutoff:
                 unused.append({
                     "id": sub.id,
                     "name": sub.name,
-                    "monthly_cost": sub.monthly_cost,
+                    "monthly_cost": float(sub.monthly_cost),  # Convert for JSON serialization
                     "days_unused": (datetime.now() - sub.last_used).days,
                     "recommendation": "Cancel or review usage"
                 })
-        
+
         return sorted(unused, key=lambda x: -x["monthly_cost"])
     
     def detect_redundant(self) -> List[Dict[str, Any]]:
@@ -58,33 +61,148 @@ class CostLeakDetector:
             if sub.category not in by_category:
                 by_category[sub.category] = []
             by_category[sub.category].append(sub)
-        
+
         redundant = []
         for category, subs in by_category.items():
             if len(subs) > 1:
-                total_cost = sum(s.monthly_cost for s in subs)
+                total_cost = sum((to_decimal(s.monthly_cost) for s in subs), Decimal('0.00'))
                 redundant.append({
                     "category": category,
                     "tools": [s.name for s in subs],
-                    "total_monthly_cost": total_cost,
+                    "total_monthly_cost": float(total_cost),  # Convert for JSON serialization
                     "recommendation": f"Consolidate {len(subs)} tools in {category}"
                 })
-        
+
         return redundant
     
     def get_savings_report(self) -> Dict[str, Any]:
         """Generate potential savings report"""
         unused = self.detect_unused()
         redundant = self.detect_redundant()
-        
-        unused_savings = sum(u["monthly_cost"] for u in unused)
-        
+
+        unused_savings = sum((to_decimal(u["monthly_cost"]) for u in unused), Decimal('0.00'))
+
         return {
             "unused_subscriptions": unused,
             "redundant_tools": redundant,
-            "potential_monthly_savings": unused_savings,
-            "potential_annual_savings": unused_savings * 12
+            "potential_monthly_savings": float(unused_savings),  # Convert for JSON serialization
+            "potential_annual_savings": float(unused_savings * 12)
         }
+
+    def validate_categorization(self) -> Dict[str, Any]:
+        """
+        Validate that all subscriptions have valid categories.
+
+        Returns:
+            Dict with:
+            - valid: bool - True if all subscriptions categorized
+            - uncategorized: List[str] - IDs of subscriptions with empty/invalid categories
+            - invalid: List[str] - IDs of subscriptions with None or missing categories
+        """
+        uncategorized = []
+        invalid = []
+
+        for sub_id, sub in self._subscriptions.items():
+            if not sub.category or sub.category.strip() == "":
+                uncategorized.append(sub_id)
+            if sub.category is None:
+                invalid.append(sub_id)
+
+        return {
+            "valid": len(uncategorized) == 0 and len(invalid) == 0,
+            "uncategorized": uncategorized,
+            "invalid": invalid
+        }
+
+    def get_subscription_by_id(self, sub_id: str) -> Optional[SaaSSubscription]:
+        """
+        Get subscription by ID.
+
+        Args:
+            sub_id: Subscription ID
+
+        Returns:
+            SaaSSubscription or None if not found
+        """
+        return self._subscriptions.get(sub_id)
+
+    def calculate_total_cost(self) -> Decimal:
+        """
+        Calculate total monthly cost of all subscriptions.
+
+        Returns:
+            Decimal: Total monthly cost across all subscriptions
+        """
+        total = sum((to_decimal(sub.monthly_cost) for sub in self._subscriptions.values()), Decimal('0.00'))
+        return total
+
+    def verify_savings_calculation(self) -> Dict[str, Any]:
+        """
+        Verify savings calculation by recalculating from detected unused subscriptions.
+
+        Returns:
+            Dict with:
+            - match: bool - True if recalculated savings matches report
+            - expected: Decimal - Recalculated savings from unused subscriptions
+            - actual: Decimal - Savings from get_savings_report()
+            - diff: Decimal - Difference between expected and actual
+        """
+        # Recalculate from unused subscriptions
+        unused = self.detect_unused()
+        expected_savings = sum((to_decimal(u["monthly_cost"]) for u in unused), Decimal('0.00'))
+
+        # Get actual from report
+        report = self.get_savings_report()
+        actual_savings = to_decimal(report["potential_monthly_savings"])
+
+        diff = abs(expected_savings - actual_savings)
+
+        return {
+            "match": diff == Decimal('0.00'),
+            "expected": expected_savings,
+            "actual": actual_savings,
+            "diff": diff
+        }
+
+    def detect_anomalies(self) -> List[Dict[str, Any]]:
+        """
+        Detect unusual cost patterns in subscriptions.
+
+        Returns:
+            List of anomaly dictionaries with type, subscription_id, description
+        """
+        anomalies = []
+
+        for sub in self._subscriptions.values():
+            # Anomaly 1: Zero user cost (high cost with no active users)
+            if sub.active_users == 0 and sub.monthly_cost > Decimal('100.00'):
+                anomalies.append({
+                    "type": "zero_active_users_high_cost",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' costs ${sub.monthly_cost}/month but has 0 active users"
+                })
+
+            # Anomaly 2: Cost spike (if we had historical data)
+            # Not implemented without historical data
+
+            # Anomaly 3: Very high unused cost
+            cutoff = datetime.now() - timedelta(days=self.unused_threshold_days)
+            if sub.last_used < cutoff and sub.monthly_cost > Decimal('500.00'):
+                anomalies.append({
+                    "type": "high_cost_unused",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' costs ${sub.monthly_cost}/month and hasn't been used in {(datetime.now() - sub.last_used).days} days"
+                })
+
+            # Anomaly 4: Inactive but has active users (data inconsistency)
+            if sub.active_users > 0 and sub.last_used < cutoff:
+                anomalies.append({
+                    "type": "data_inconsistency",
+                    "subscription_id": sub.id,
+                    "description": f"Subscription '{sub.name}' has {sub.active_users} active users but last_used is {(datetime.now() - sub.last_used).days} days ago"
+                })
+
+        return anomalies
 
 # ==================== BUDGET GUARDRAILS ====================
 
@@ -98,10 +216,13 @@ class SpendStatus(Enum):
 class BudgetLimit:
     """Budget limit configuration"""
     category: str
-    monthly_limit: float
-    current_spend: float = 0
+    monthly_limit: Decimal
+    current_spend: Decimal = Decimal('0.00')
     deal_stage_required: Optional[str] = None  # e.g., "closed_won"
     milestone_required: Optional[str] = None   # e.g., "kickoff_complete"
+    warn_threshold_pct: int = 80  # Warn at this percentage
+    pause_threshold_pct: int = 90  # Pause at this percentage
+    block_threshold_pct: int = 100  # Block at this percentage
 
 class BudgetGuardrails:
     """Enforces spending limits and approval rules"""
@@ -116,19 +237,22 @@ class BudgetGuardrails:
     def check_spend(
         self,
         category: str,
-        amount: float,
+        amount: Union[Decimal, str, float],
         deal_stage: Optional[str] = None,
         milestone: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Check if spend is allowed"""
-        
+        """Check if spend is allowed using configurable thresholds"""
+
         if category in self._paused_categories:
             return {"status": SpendStatus.PAUSED.value, "reason": "Category spending paused"}
-        
+
         limit = self._limits.get(category)
         if not limit:
             return {"status": SpendStatus.APPROVED.value, "reason": "No limit set"}
-        
+
+        # Convert amount to Decimal
+        amount_decimal = to_decimal(amount)
+
         # Check deal stage requirement
         if limit.deal_stage_required:
             if deal_stage != limit.deal_stage_required:
@@ -136,7 +260,7 @@ class BudgetGuardrails:
                     "status": SpendStatus.REJECTED.value,
                     "reason": f"Requires deal stage: {limit.deal_stage_required}"
                 }
-        
+
         # Check milestone requirement
         if limit.milestone_required:
             if milestone != limit.milestone_required:
@@ -144,22 +268,162 @@ class BudgetGuardrails:
                     "status": SpendStatus.PENDING.value,
                     "reason": f"Waiting for milestone: {limit.milestone_required}"
                 }
-        
-        # Check budget limit
-        if limit.current_spend + amount > limit.monthly_limit:
+
+        # Calculate utilization percentage
+        if limit.monthly_limit > 0:
+            utilization_pct = (limit.current_spend + amount_decimal) / limit.monthly_limit * Decimal('100')
+        else:
+            utilization_pct = Decimal('0')
+
+        # Check block threshold (100% by default)
+        if utilization_pct >= to_decimal(limit.block_threshold_pct):
             self._paused_categories.add(category)
             return {
-                "status": SpendStatus.PAUSED.value,
-                "reason": f"Would exceed limit: ${limit.monthly_limit}",
-                "remaining": limit.monthly_limit - limit.current_spend
+                "status": SpendStatus.REJECTED.value,
+                "reason": f"Would exceed block threshold ({limit.block_threshold_pct}%): ${limit.monthly_limit}",
+                "utilization_pct": float(utilization_pct),
+                "remaining": float(limit.monthly_limit - limit.current_spend)
             }
-        
-        return {"status": SpendStatus.APPROVED.value, "remaining": limit.monthly_limit - limit.current_spend - amount}
+
+        # Check pause threshold (90% by default)
+        if utilization_pct >= to_decimal(limit.pause_threshold_pct):
+            return {
+                "status": SpendStatus.PAUSED.value,
+                "reason": f"Pause threshold reached ({limit.pause_threshold_pct}%)",
+                "utilization_pct": float(utilization_pct),
+                "remaining": float(limit.monthly_limit - limit.current_spend)
+            }
+
+        # Check warn threshold (80% by default)
+        if utilization_pct >= to_decimal(limit.warn_threshold_pct):
+            return {
+                "status": SpendStatus.PENDING.value,
+                "reason": f"Warn threshold reached ({limit.warn_threshold_pct}%)",
+                "utilization_pct": float(utilization_pct),
+                "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+            }
+
+        # Below warn threshold - approved
+        return {
+            "status": SpendStatus.APPROVED.value,
+            "utilization_pct": float(utilization_pct),
+            "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+        }
     
-    def record_spend(self, category: str, amount: float):
+    def record_spend(self, category: str, amount: Union[Decimal, str, float]):
         """Record approved spend"""
         if category in self._limits:
-            self._limits[category].current_spend += amount
+            self._limits[category].current_spend += to_decimal(amount)
+
+    def get_threshold_status(self, limit: BudgetLimit) -> Dict[str, Any]:
+        """
+        Get current threshold status for a budget limit.
+
+        Args:
+            limit: BudgetLimit to check
+
+        Returns:
+            Dict with:
+            - status: str (approved, pending, paused, rejected)
+            - usage_pct: Decimal (current utilization percentage)
+            - next_threshold: str (next threshold to cross)
+            - remaining_until_threshold: Decimal (amount until next threshold)
+        """
+        if limit.monthly_limit > 0:
+            usage_pct = limit.current_spend / limit.monthly_limit * Decimal('100')
+        else:
+            usage_pct = Decimal('0')
+
+        # Determine current status
+        if usage_pct >= to_decimal(limit.block_threshold_pct):
+            status = SpendStatus.REJECTED.value
+            next_threshold = None
+            remaining_until_threshold = Decimal('0')
+        elif usage_pct >= to_decimal(limit.pause_threshold_pct):
+            status = SpendStatus.PAUSED.value
+            next_threshold = f"Block at {limit.block_threshold_pct}%"
+            # Amount until block threshold
+            block_amount = limit.monthly_limit * to_decimal(limit.block_threshold_pct) / Decimal('100')
+            remaining_until_threshold = block_amount - limit.current_spend
+        elif usage_pct >= to_decimal(limit.warn_threshold_pct):
+            status = SpendStatus.PENDING.value
+            next_threshold = f"Pause at {limit.pause_threshold_pct}%"
+            # Amount until pause threshold
+            pause_amount = limit.monthly_limit * to_decimal(limit.pause_threshold_pct) / Decimal('100')
+            remaining_until_threshold = pause_amount - limit.current_spend
+        else:
+            status = SpendStatus.APPROVED.value
+            next_threshold = f"Warn at {limit.warn_threshold_pct}%"
+            # Amount until warn threshold
+            warn_amount = limit.monthly_limit * to_decimal(limit.warn_threshold_pct) / Decimal('100')
+            remaining_until_threshold = warn_amount - limit.current_spend
+
+        return {
+            "status": status,
+            "usage_pct": usage_pct,
+            "next_threshold": next_threshold,
+            "remaining_until_threshold": max(remaining_until_threshold, Decimal('0'))
+        }
+
+    def update_thresholds(
+        self,
+        category: str,
+        warn: Optional[int] = None,
+        pause: Optional[int] = None,
+        block: Optional[int] = None
+    ) -> None:
+        """
+        Update threshold configuration for existing limit.
+
+        Args:
+            category: Category to update
+            warn: New warn threshold (None = no change)
+            pause: New pause threshold (None = no change)
+            block: New block threshold (None = no change)
+
+        Raises:
+            ValueError: If thresholds are invalid (warn < pause < block required)
+            KeyError: If category doesn't exist
+        """
+        if category not in self._limits:
+            raise KeyError(f"Category '{category}' not found in limits")
+
+        limit = self._limits[category]
+
+        # Build new threshold values
+        new_warn = warn if warn is not None else limit.warn_threshold_pct
+        new_pause = pause if pause is not None else limit.pause_threshold_pct
+        new_block = block if block is not None else limit.block_threshold_pct
+
+        # Validate thresholds: must be strictly increasing
+        if not (0 <= new_warn < new_pause < new_block <= 100):
+            raise ValueError(
+                f"Invalid thresholds: warn ({new_warn}) < pause ({new_pause}) < block ({new_block}) required, "
+                f"all must be between 0 and 100"
+            )
+
+        # Update threshold values
+        limit.warn_threshold_pct = new_warn
+        limit.pause_threshold_pct = new_pause
+        limit.block_threshold_pct = new_block
+
+    def reset_thresholds(self, category: str) -> None:
+        """
+        Reset thresholds to defaults (80, 90, 100).
+
+        Args:
+            category: Category to reset
+
+        Raises:
+            KeyError: If category doesn't exist
+        """
+        if category not in self._limits:
+            raise KeyError(f"Category '{category}' not found in limits")
+
+        limit = self._limits[category]
+        limit.warn_threshold_pct = 80
+        limit.pause_threshold_pct = 90
+        limit.block_threshold_pct = 100
 
 # ==================== INVOICE RECONCILIATION ====================
 
@@ -167,7 +431,7 @@ class BudgetGuardrails:
 class Invoice:
     id: str
     vendor: str
-    amount: float
+    amount: Decimal
     date: datetime
     contract_id: Optional[str] = None
     approval_id: Optional[str] = None
@@ -176,7 +440,7 @@ class Invoice:
 class Contract:
     id: str
     vendor: str
-    monthly_amount: float
+    monthly_amount: Decimal
     start_date: datetime
     end_date: datetime
 
@@ -228,8 +492,8 @@ class InvoiceReconciler:
     
     def _match_invoice(self, invoice: Invoice) -> Dict[str, Any]:
         """Match single invoice"""
-        result = {"invoice_id": invoice.id, "vendor": invoice.vendor, "amount": invoice.amount}
-        
+        result = {"invoice_id": invoice.id, "vendor": invoice.vendor, "amount": float(invoice.amount)}
+
         # Find matching contract
         contract = None
         if invoice.contract_id:
@@ -240,24 +504,24 @@ class InvoiceReconciler:
                 if c.vendor.lower() == invoice.vendor.lower():
                     contract = c
                     break
-        
+
         if not contract:
             result["status"] = "unmatched"
             result["reason"] = "No matching contract found"
             return result
-        
+
         # Check amount within tolerance
         expected = contract.monthly_amount
-        diff_percent = abs(invoice.amount - expected) / expected * 100
-        
+        diff_percent = abs(float(invoice.amount - expected)) / float(expected) * 100
+
         if diff_percent > self.tolerance_percent:
             result["status"] = "discrepancy"
-            result["expected_amount"] = expected
-            result["difference"] = invoice.amount - expected
+            result["expected_amount"] = float(expected)
+            result["difference"] = float(invoice.amount - expected)
             result["difference_percent"] = round(diff_percent, 1)
             result["reason"] = f"Amount differs by {result['difference_percent']}%"
             return result
-        
+
         result["status"] = "matched"
         result["contract_id"] = contract.id
         return result

@@ -113,6 +113,13 @@ test = [
     "faker>=19.0.0",
 ]
 
+# Test quality dependencies (Phase 90)
+test-quality = [
+    "pytest-json-report>=1.5.0",
+    "pytest-random-order>=1.1.0",
+    "pytest-rerunfailures>=14.0",
+]
+
 # All dependencies (dev + enterprise)
 all = [
     "atom-os[enterprise,dev,test]",

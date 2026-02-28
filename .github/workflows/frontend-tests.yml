@@ -1,0 +1,117 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests with coverage
+        working-directory: ./frontend-nextjs
+        run: npm run test:ci -- --maxWorkers=2
+
+      - name: Generate test results JSON
+        working-directory: ./frontend-nextjs
+        run: |
+          # Run tests again with JSON output for pass rate check
+          npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+
+      - name: Check pass rate (98%+ required)
+        working-directory: ./frontend-nextjs
+        run: |
+          if [ -f test-results.json ]; then
+            echo "=== Calculating Test Pass Rate ==="
+
+            # Parse test-results.json for pass rate
+            PASS_RATE=$(node -e "
+              const fs = require('fs');
+              try {
+                const data = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+                const total = data.numTotalTests || 0;
+                const failed = data.numFailedTests || 0;
+                const passed = total - failed;
+                const passRate = total > 0 ? ((passed / total) * 100).toFixed(2) : '0.00';
+                console.log(passRate);
+              } catch (e) {
+                console.log('0.00');
+              }
+            ")
+
+            echo "Pass Rate: ${PASS_RATE}%"
+
+            # Compare with 98% threshold
+            if python3 -c "import sys; exit(0 if float('${PASS_RATE}') >= 98.0 else 1)"; then
+              echo "✅ Pass rate meets 98% threshold"
+            else
+              echo "❌ Pass rate below 98% threshold"
+              exit 1
+            fi
+          else
+            echo "⚠️ test-results.json not found - using Jest exit code"
+            # Exit code check already handled by test step
+          fi
+
+      - name: Upload coverage artifact (JSON)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage/coverage-final.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload coverage artifact (HTML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-html
+          path: frontend-nextjs/coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-results
+          path: frontend-nextjs/test-results.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Coverage summary
+        working-directory: ./frontend-nextjs
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "=== Frontend Coverage Summary ==="
+            node -e "
+              const fs = require('fs');
+              const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              const total = summary.total;
+              console.log(\`Lines:   \${total.lines.pct}% (\${total.lines.covered}/\${total.lines.total})\`);
+              console.log(\`Branches: \${total.branches.pct}% (\${total.branches.covered}/\${total.branches.total})\`);
+              console.log(\`Functions: \${total.functions.pct}% (\${total.functions.covered}/\${total.functions.total})\`);
+              console.log(\`Statements: \${total.statements.pct}% (\${total.statements.covered}/\${total.statements.total})\`);
+            "
+          fi

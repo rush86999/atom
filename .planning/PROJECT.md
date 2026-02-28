@@ -1,17 +1,19 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v2.0 Feature & Coverage Complete
+## Current Milestone: v4.0 Platform Integration & Property Testing
 
-**Goal:** Complete all remaining test coverage phases (55 incomplete) and integrate Community Skills feature while achieving 80% overall coverage with 100% test pass rate.
+**Goal:** Complete test coverage through integration tests and property-based testing across all Atom platform components — frontend, mobile, desktop, and infrastructure reliability
 
 **Target features:**
-- Community Skills Integration (5,000+ OpenClaw skills)
-- Agent Layer Testing (governance, graduation, execution)
-- Test failure fixes (all 40+ failures resolved)
-- Tier 1 coverage push (28% overall coverage target)
-- Memory layer verification (episodic memory coverage)
+- Frontend integration tests (Next.js) - Component integration, state management, API interactions
+- Mobile integration tests (React Native) - Cross-platform integration, device features, native modules
+- Desktop integration tests (Tauri) - System integration, native APIs, shell commands
+- Property-based testing expansion - Frontend/mobile/desktop invariants with Hypothesis
+- Infrastructure reliability - Load testing, stress testing, chaos engineering for production readiness
 
-**Achievement from v1.0:** 200/203 plans complete (99%), 81 tests passing in Phase 28, production-ready codebase with comprehensive testing infrastructure.
+**Strategy:** Integration-first with property testing — focus on how components work together (integration) and invariant validation (property tests) rather than unit testing individual components
+
+**Timeline:** 4-6 weeks
 
 ---
 
@@ -33,7 +35,22 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Validated
 
-<!-- Existing tested capabilities from codebase analysis -->
+**v3.2 Bug Finding & Coverage Expansion (2026-02-26):**
+- ✓ Coverage Analysis & Prioritization — Coverage reports, high-impact file identification, gap mapping — v3.2
+- ✓ Core Services Unit Testing — Governance, episodes, canvas, browser, training, graduation (28+ tests) — v3.2
+- ✓ Database & Integration Testing — Models, migrations, transactions, critical paths (135 tests) — v3.2
+- ✓ Property-Based Testing — Core services, database, auth invariants (70+ property tests) — v3.2
+- ✓ Bug Discovery — Error paths, boundaries, concurrent operations, failure modes, security (500+ tests) — v3.2
+- ✓ Quality Gates & CI/CD — Coverage enforcement (80%), pass rate (98%), trend tracking, documentation — v3.2
+
+**v3.3 Finance Testing & Bug Fixes (2026-02-25):**
+- ✓ Core Accounting Logic — Decimal precision, double-entry validation, financial invariants (48 tests) — v3.3
+- ✓ Payment Integrations — Mock servers, webhooks, idempotency, race conditions, payment flows (117 tests) — v3.3
+- ✓ Cost Tracking & Budgets — Enforcement, attribution, leak detection, guardrails, concurrent safety (197 tests) — v3.3
+- ✓ Audit Trails & Compliance — Transaction logging, chronological integrity, immutability, SOX compliance (22 tests) — v3.3
+- ✓ Finance Bug Fixes — 5 bugs documented and fixed (FINANCE_BUG_FIXES.md) — v3.3
+
+**Existing tested capabilities:**
 - ✓ Property-based testing framework established (Hypothesis) — existing
 - ✓ Integration test infrastructure in place — existing
 - ✓ Browser automation tests (17 tests) — existing
@@ -43,22 +60,19 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-<!-- Milestone v2.0: Complete all 55 remaining phases -->
-- [ ] **Community Skills Integration** — Import 5,000+ OpenClaw skills with Docker sandbox security (Phase 14)
-- [ ] **Agent Layer Testing** — Comprehensive governance, graduation, and execution coverage (Phase 17)
-- [ ] **Test Failure Fixes** — Resolve all 40+ remaining test failures across workflow engine, analytics, BYOK, governance (Phases 10, 19)
-- [ ] **Tier 1 Coverage Push** — Achieve 28% overall coverage by testing 6 highest-impact files (>500 lines, <20% coverage) (Phase 12)
-- [ ] **Memory Layer Verification** — Episodic memory coverage with property-based invariants (Phase 3)
-- [ ] **Mobile Coverage Completion** — Resolve Expo SDK 50 compatibility, complete device context tests (Phase 5)
-- [ ] **Documentation Cleanup** — Update all docs to reflect v2.0 features (Phase 24)
+**v4.0 Comprehensive Platform Testing (2026-02-26):**
+- [ ] Frontend testing (Next.js) — React Testing Library, Jest, component coverage
+- [ ] Mobile testing (React Native) — iOS/Android app testing, device features
+- [ ] Desktop app testing (Tauri) — Desktop apps, system integration, native features
+- [ ] Menu bar testing — System integration, native API testing
+- [ ] Infrastructure reliability — Load testing, stress testing, chaos engineering
+- [ ] Performance benchmarking — Monitoring, observability, optimization
 
 ### Out of Scope
 
 <!-- Explicit boundaries -->
-- **E2E UI testing** — Requires separate tooling (Playwright/Cypress), defer to v2
-- **Load testing** — Performance tests beyond coverage, defer to v2
-- **Chaos engineering** — Resilience testing, defer to v2
-- **Visual regression** — UI snapshot testing, defer to v2
+- **New feature development** — This milestone focuses on testing existing features, not building new ones
+- **Production deployment** — Infrastructure setup and deployment automation (separate initiative)
 
 ## Context
 
@@ -103,6 +117,9 @@ If everything else fails, the following must have comprehensive test coverage:
 | max_examples=50 for IO-bound tests | API, database tests bounded by IO, not example count | **Adopted** (Phase 2) |
 | VALIDATED_BUG docstring pattern | Document bug-finding evidence per QUAL-05 requirement | **Adopted** (Phase 2) |
 | INVARIANTS.md external documentation | Document invariants separately from tests per DOCS-02 | **Adopted** (Phase 2) |
+| Comprehensive testing for AI-generated code | Research shows AI "writes like" experts but doesn't "think like" experts (pattern-matching vs genuine reasoning) | **Adopted** (Phase 90) |
+| Hybrid AI-human validation workflow | 40% productivity boost requires expert validation; quality gates enforce 80% coverage, 98% pass rate | **Adopted** (Phase 90) |
+| Property tests for AI pattern-matching failures | Chain-of-thought prompting has reliability limits; property tests catch semantic errors AI misses | **Adopted** (Phases 86-87) |
 
 **Strategic max_examples Decision:**
 Research revealed that increasing max_examples from 50 to 1000 would increase execution time from ~30 minutes to ~10 hours. The diminishing returns analysis shows that 50-100 examples capture 95%+ of bugs for most properties. The adopted strategy:
@@ -113,4 +130,5 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-02-18 after Milestone v2.0 initialization*
+---
+*Last updated: 2026-02-26 after Milestone v3.2 completion*

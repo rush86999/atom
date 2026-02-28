@@ -26,6 +26,9 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
+# Import Decimal strategies
+from tests.fixtures.decimal_fixtures import money_strategy, lists_of_decimals
+
 
 class TestCostLeakDetectionInvariants:
     """Tests for SaaS cost leak detection invariants"""
@@ -57,7 +60,7 @@ class TestCostLeakDetectionInvariants:
             sub = SaaSSubscription(
                 id=f"sub_{i}",
                 name=f"Service {i}",
-                monthly_cost=100.0 + i,
+                monthly_cost=Decimal('100.00') + Decimal(str(i)),
                 last_used=last_used,
                 user_count=5,
                 active_users=0 if i % 2 == 0 else 3,
@@ -120,16 +123,13 @@ class TestCostLeakDetectionInvariants:
             assert r["category"] in categories, "Category should be valid"
 
     @given(
-        unused_costs=st.lists(
-            st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-            min_size=1,
-            max_size=20
-        )
+        unused_costs=lists_of_decimals(min_value='10.00', max_value='1000.00', min_size=1, max_size=20)
     )
     @settings(max_examples=50)
     def test_savings_calculation_accuracy(self, unused_costs):
         """Test that savings calculations are accurate"""
         from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
+        from core.decimal_utils import to_decimal
 
         detector = CostLeakDetector(unused_threshold_days=30)
         now = datetime.now()
@@ -139,7 +139,7 @@ class TestCostLeakDetectionInvariants:
             sub = SaaSSubscription(
                 id=f"sub_{i}",
                 name=f"Service {i}",
-                monthly_cost=cost,
+                monthly_cost=cost,  # Now Decimal
                 last_used=now - timedelta(days=60),
                 user_count=5,
                 active_users=0,
@@ -149,17 +149,16 @@ class TestCostLeakDetectionInvariants:
 
         report = detector.get_savings_report()
 
-        # Verify monthly savings (with epsilon for floating-point precision)
-        expected_monthly = sum(unused_costs)
-        actual_monthly = report["potential_monthly_savings"]
-        epsilon = 1e-9
-        assert abs(actual_monthly - expected_monthly) < epsilon * max(1.0, expected_monthly), \
+        # Verify monthly savings (exact comparison, no epsilon)
+        expected_monthly = sum(unused_costs, Decimal('0.00'))
+        actual_monthly = to_decimal(str(report["potential_monthly_savings"]))
+        assert actual_monthly == expected_monthly, \
             f"Monthly savings should be {expected_monthly}, got {actual_monthly}"
 
         # Verify annual savings (12x monthly)
-        expected_annual = expected_monthly * 12
-        actual_annual = report["potential_annual_savings"]
-        assert abs(actual_annual - expected_annual) < epsilon * max(1.0, expected_annual), \
+        expected_annual = expected_monthly * Decimal('12')
+        actual_annual = to_decimal(str(report["potential_annual_savings"]))
+        assert actual_annual == expected_annual, \
             f"Annual savings should be {expected_annual}, got {actual_annual}"
 
         # Verify unused subscriptions are listed

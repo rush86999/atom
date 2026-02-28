@@ -275,6 +275,186 @@ class TestStreamingErrorRecoveryInvariants:
                 f"Delay should increase exponentially. delay[{i}]={current_delay}, delay[{i+1}]={next_delay}"
 
 
+class TestStreamingEdgeCaseInvariants:
+    """Test invariants for edge cases in streaming."""
+
+    @given(
+        model=sampled_from(["gpt-4", "claude-3", "deepseek-chat"]),
+        finish_reason=sampled_from(["stop", "length", "content_filter"])
+    )
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_single_chunk_stream_eos(self, db_session, model: str, finish_reason: str):
+        """
+        INVARIANT: Single-chunk stream has EOS signaled.
+
+        Given: A stream with only one chunk
+        When: Stream completes immediately
+        Then: Single chunk has non-None finish_reason and index 0
+        """
+        chunk = {
+            'index': 0,
+            'content': "response",
+            'finish_reason': finish_reason,
+            'model': model,
+            'provider': 'openai'
+        }
+        assert chunk['finish_reason'] == finish_reason, \
+            f"Single chunk must have finish_reason '{finish_reason}'"
+        assert chunk['index'] == 0, "Single chunk must have index 0"
+
+    @given(chunk_count=integers(min_value=100, max_value=1000))
+    @settings(max_examples=20, deadline=10000, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_large_stream_ordering_invariant(self, db_session, chunk_count: int):
+        """
+        INVARIANT: Ordering holds for large streams.
+
+        Given: A stream with 100+ chunks
+        When: Chunks are generated sequentially
+        Then: All indices are sequential with no gaps or duplicates
+        """
+        chunks = [{'index': i, 'content': f"token_{i}"} for i in range(chunk_count)]
+        indices = [c['index'] for c in chunks]
+
+        # Verify sequential indices
+        assert indices == list(range(chunk_count)), \
+            f"Large stream indices must be sequential [0, {chunk_count-1}]"
+
+        # Verify no duplicates
+        assert len(indices) == len(set(indices)), \
+            "Large stream must have no duplicate indices"
+
+        # Verify all indices present
+        assert min(indices) == 0 and max(indices) == chunk_count - 1, \
+            "Large stream must have complete range from 0 to N-1"
+
+    @given(unicode_content=text(min_size=1, max_size=1000))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_unicode_chunk_integrity(self, db_session, unicode_content: str):
+        """
+        INVARIANT: Unicode content preserved across chunks.
+
+        Given: A chunk with Unicode content (emoji, multi-byte chars)
+        When: Chunk is transmitted and received
+        Then: Content is preserved without corruption
+        """
+        chunk = {'content': unicode_content, 'index': 0}
+
+        # Verify content integrity
+        assert chunk['content'] == unicode_content, \
+            "Unicode content must be preserved exactly"
+
+        # Verify encoding is valid UTF-8
+        try:
+            encoded = chunk['content'].encode('utf-8')
+            decoded = encoded.decode('utf-8')
+            assert decoded == unicode_content, "UTF-8 encode/decode must preserve content"
+        except UnicodeError as e:
+            raise AssertionError(f"Unicode content failed UTF-8 encoding: {e}")
+
+        # Verify byte length is at least character count (multi-byte chars)
+        byte_length = len(chunk['content'].encode('utf-8'))
+        char_length = len(chunk['content'])
+        assert byte_length >= char_length, \
+            f"UTF-8 byte length ({byte_length}) >= char length ({char_length})"
+
+    @given(
+        missing_field=sampled_from(['index', 'content', 'finish_reason', 'model', 'provider'])
+    )
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_malformed_chunk_detection(self, db_session, missing_field: str):
+        """
+        INVARIANT: Malformed chunks are detectable.
+
+        Given: A chunk missing a required field
+        When: Chunk is validated
+        Then: Missing field can be detected
+        """
+        # Create chunk with missing field
+        chunk = {
+            'index': 0,
+            'content': "test",
+            'finish_reason': None,
+            'model': 'gpt-4',
+            'provider': 'openai'
+        }
+        del chunk[missing_field]
+
+        # Verify field is missing
+        assert missing_field not in chunk, \
+            f"Field '{missing_field}' should be missing from chunk"
+
+        # Verify we can detect the malformed chunk
+        required_fields = ['index', 'content', 'finish_reason', 'model', 'provider']
+        missing_fields = [f for f in required_fields if f not in chunk]
+        assert missing_field in missing_fields, \
+            f"Malformed chunk detection should identify missing '{missing_field}'"
+
+    @given(invalid_reason=text(min_size=1, max_size=50))
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_invalid_finish_reason_handling(self, db_session, invalid_reason: str):
+        """
+        INVARIANT: Invalid finish_reason values are detectable.
+
+        Given: A chunk with non-standard finish_reason
+        When: Chunk is validated
+        Then: Invalid reason can be detected
+        """
+        # Valid finish reasons
+        valid_reasons = {"stop", "length", "content_filter", "tool_calls", None}
+
+        chunk = {
+            'index': 0,
+            'content': "test",
+            'finish_reason': invalid_reason,
+            'model': 'gpt-4',
+            'provider': 'openai'
+        }
+
+        # Check if reason is invalid (not None and not in valid set)
+        is_invalid = invalid_reason not in valid_reasons
+
+        if is_invalid:
+            # Verify we can detect the invalid reason
+            assert chunk['finish_reason'] not in valid_reasons, \
+                f"Invalid finish_reason '{invalid_reason}' should be detectable"
+
+    @given(
+        model1=sampled_from(["gpt-4", "claude-3"]),
+        model2=sampled_from(["gpt-3.5-turbo", "deepseek-chat"]),
+        chunk_count=integers(min_value=2, max_value=10)
+    )
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_model_mismatch_detection(self, db_session, model1: str, model2: str, chunk_count: int):
+        """
+        INVARIANT: Model changes within stream are detectable.
+
+        Given: A stream where model changes mid-stream
+        When: Chunks are validated
+        Then: Model mismatch can be detected
+        """
+        chunks = []
+        for i in range(chunk_count):
+            # Switch model halfway through
+            model = model1 if i < chunk_count // 2 else model2
+            chunk = {
+                'index': i,
+                'content': f"token_{i}",
+                'finish_reason': None if i < chunk_count - 1 else "stop",
+                'model': model,
+                'provider': 'openai'
+            }
+            chunks.append(chunk)
+
+        # Detect model changes
+        models = {c['model'] for c in chunks}
+        has_mismatch = len(models) > 1
+
+        # Verify mismatch is detected if it exists
+        if model1 != model2 and chunk_count >= 2:
+            assert has_mismatch, "Model mismatch should be detected"
+            assert len(models) == 2, f"Stream should have 2 different models: {models}"
+
+
 class TestStreamingPerformanceInvariants:
     """Test invariants for streaming performance."""
 

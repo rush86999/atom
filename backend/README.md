@@ -140,6 +140,157 @@ pytest tests/ -v
 atom-os start --dev
 ```
 
+## Testing
+
+### Quick Start
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=core --cov-report=html
+
+# View coverage report
+open htmlcov/index.html  # macOS
+# On Linux: xdg-open htmlcov/index.html
+```
+
+### Running Tests
+
+**Run all tests**:
+```bash
+pytest tests/ -v
+```
+
+**Run specific module**:
+```bash
+pytest tests/test_governance.py -v
+```
+
+**Run with markers**:
+```bash
+pytest tests/ -m "unit" -v           # Unit tests only
+pytest tests/ -m "integration" -v    # Integration tests only
+pytest tests/ -m "not slow" -v       # Exclude slow tests
+```
+
+**Run single test**:
+```bash
+pytest tests/test_governance.py::test_agent_permission -v
+```
+
+**Run failed tests only**:
+```bash
+pytest tests/ --lf
+```
+
+**Run with output (print statements)**:
+```bash
+pytest tests/test_governance.py -v -s
+```
+
+### Coverage Reports
+
+**Generate HTML coverage report**:
+```bash
+pytest tests/ --cov=core --cov-report=html
+open htmlcov/index.html
+```
+
+**Coverage for specific module**:
+```bash
+pytest tests/ --cov=core.agent_governance_service --cov-report=term-missing
+```
+
+**Parse coverage JSON for CI**:
+```bash
+python tests/scripts/parse_coverage_json.py --format text
+python tests/scripts/parse_coverage_json.py --below-threshold 80
+```
+
+**View coverage gaps**:
+```bash
+python tests/scripts/analyze_coverage_gaps.py --below 80
+```
+
+### Quality Gates
+
+**Pre-commit coverage enforcement**:
+```bash
+python tests/scripts/enforce_coverage.py --minimum 80
+```
+
+**Check test suite health**:
+```bash
+python tests/scripts/check_pass_rate.py --threshold 98
+```
+
+**Detect flaky tests**:
+```bash
+python tests/scripts/detect_flaky_tests.py --runs 3
+```
+
+**CI quality gate**:
+```bash
+python tests/scripts/ci_quality_gate.py --verbose
+```
+
+### Coverage Targets
+
+- **Critical modules** (governance, security, financial): >90%
+- **Core services** (agents, episodes, LLM): >85%
+- **Standard modules** (API, tools): >80%
+- **Support modules** (utilities, fixtures): >70%
+
+**Current overall coverage**: 74.55% (goal: 80%)
+
+### Troubleshooting
+
+**View HTML report for drill-down**:
+```bash
+pytest tests/ --cov=core --cov-report=html
+open htmlcov/index.html
+```
+
+**Debug with pytest**:
+```bash
+# Run with debugger
+pytest tests/test_governance.py --pdb
+
+# Run single test with output
+pytest tests/test_governance.py::test_agent_permission -v -s
+```
+
+**Check for flaky tests**:
+```bash
+pytest tests/ --random-order --random-order-seed=12345
+```
+
+**Profile slow tests**:
+```bash
+pytest tests/ --durations=10
+```
+
+For more details, see:
+- [TEST_COVERAGE_GUIDE.md](docs/TEST_COVERAGE_GUIDE.md) - Coverage strategy and improvement
+- [QUALITY_STANDARDS.md](docs/QUALITY_STANDARDS.md) - Testing patterns and conventions
+- [QUALITY_RUNBOOK.md](docs/QUALITY_RUNBOOK.md) - Troubleshooting and debugging
+
+### Before Committing
+
+1. **Run tests**: `pytest tests/ -v`
+2. **Check coverage**: `pytest tests/ --cov=core --cov-report=html`
+3. **Verify quality gates**: `python tests/scripts/enforce_coverage.py --files-only`
+4. **Review coverage report**: Open `htmlcov/index.html`
+
+### Opening PR
+
+1. **Ensure CI passes**: All tests must pass (98%+ pass rate)
+2. **Check coverage comments**: CI posts coverage summary on PR
+3. **Verify coverage targets**: Overall coverage should be ≥80%
+4. **Address flaky tests**: Run with `--random-order` to detect state issues
+
 ## Architecture
 
 - **FastAPI** - Web framework

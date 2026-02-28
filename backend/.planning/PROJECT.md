@@ -82,16 +82,17 @@ These requirements are validated and active in the current codebase.
 ### Active Requirements
 These requirements are currently being worked on or are next in priority.
 
-## Current Milestone: v1.1 Coverage Expansion to 50%
+## Current Milestone: v3.2 Bug Finding & Coverage Expansion
 
-**Goal:** Expand test coverage from 15.2% to 50% using high-impact file strategy
+**Goal:** Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.
 
 **Target features:**
-- Fix remaining 25-30 test failures from Phase 09
-- Add unit and integration tests for high-impact files (>200 lines)
-- Add property-based tests for system invariants
-- Maintain 98%+ test pass rate
-- Complete in 1 week (aggressive timeline)
+- Backend coverage expansion (identify gaps, prioritize high-impact areas)
+- Property-based testing expansion (more Hypothesis tests for edge cases)
+- Bug-focused test development (target areas with low coverage)
+- Quality gates for test reliability and bug detection
+
+**Achievement from v3.1:** 61 phases executed (300 plans, 204 tasks), production-ready E2E UI test suite with Playwright covering authentication, agent chat, canvas presentations, skills, and quality gates.
 
 **Strategy:** High-impact files first
 - Prioritize largest untested files (>200 lines of code)

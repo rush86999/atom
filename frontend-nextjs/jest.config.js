@@ -13,9 +13,21 @@ module.exports = {
     "components/**/*.{ts,tsx}",
     "pages/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
+    "hooks/**/*.{ts,tsx}",
     "!**/*.d.ts",
     "!**/node_modules/**",
+    "!**/.next/**",
   ],
+  coverageDirectory: "coverage",
+  coverageReporters: ["json", "json-summary", "text", "lcov"],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 75,
+    },
+  },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transformIgnorePatterns: [
     "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got))"
@@ -26,6 +38,7 @@ module.exports = {
     "^@layouts/(.*)$": "<rootDir>/layouts/$1",
     "^@components/(.*)$": "<rootDir>/components/$1",
     "^@lib/(.*)$": "<rootDir>/lib/$1",
+    "^@hooks/(.*)$": "<rootDir>/hooks/$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
   },
 };

@@ -259,6 +259,13 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
+def audit_service():
+    """Provide FinancialAuditService instance for tests."""
+    from core.financial_audit_service import FinancialAuditService
+    return FinancialAuditService()
+
+
+@pytest.fixture(scope="function")
 def test_agent_student(db_session: Session):
     """Create a STUDENT maturity test agent (confidence < 0.5).
 

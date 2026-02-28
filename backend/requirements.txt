@@ -112,6 +112,8 @@ pytest>=7.4.0,<8.0.0
 pytest-asyncio>=0.21.0,<1.0.0
 pytest-cov>=4.1.0,<5.0.0
 mypy>=1.8.0
+factory_boy>=3.3.0
+pytest-freezegun>=0.4.0
 
 # Production Monitoring
 prometheus-client>=0.19.0,<1.0.0

@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-02-26T19:10:00Z",
+  "status": "ALL_PASSING",
+  "total_suites": 25,
+  "failed_suites": [],
+  "failed_tests": [],
+  "pass_rate": "100%",
+  "fixes_applied": [
+    "Renamed canvas-accessibility-tree.test.tsx to .test-utils.tsx (it was a utility module, not tests)",
+    "Updated import in agent-operation-tracker.test.tsx to use .test-utils file",
+    "Fixed api-contracts.test.ts to use standard Jest typeof checks instead of toBeTypeOf()"
+  ],
+  "before": {
+    "test_suites": 25,
+    "passed_suites": 24,
+    "failed_suites": 1,
+    "total_tests": 636,
+    "passed_tests": 625,
+    "failed_tests": 11,
+    "pass_rate": "96%"
+  },
+  "after": {
+    "test_suites": 25,
+    "passed_suites": 25,
+    "failed_suites": 0,
+    "total_tests": 636,
+    "passed_tests": 636,
+    "failed_tests": 0,
+    "pass_rate": "100%"
+  }
+}

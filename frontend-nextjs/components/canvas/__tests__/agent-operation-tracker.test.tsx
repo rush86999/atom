@@ -20,7 +20,7 @@ import {
   assertAccessibilityTreeARIA,
   assertCanvasStateFields,
   mockWebSocket
-} from './canvas-accessibility-tree.test';
+} from './canvas-accessibility-tree.test-utils';
 
 // Mock WebSocket hook
 jest.mock('@/hooks/useWebSocket', () => ({

@@ -145,7 +145,13 @@ class TestTimeGapDetection:
         assert len(gaps) == 0
 
     def test_detect_gaps_exactly_threshold(self):
-        """Test gap detection at exactly 30 minutes (boundary condition)."""
+        """
+        Test gap detection at exactly 30 minutes (boundary condition).
+
+        CRITICAL: Boundary is EXCLUSIVE (> not >=).
+        Gap of exactly 30 minutes should NOT trigger segmentation.
+        This is the correct invariant - exact boundary does not break episode.
+        """
         now = datetime.now()
         messages = [
             Mock(id="msg-0", created_at=now),
@@ -156,9 +162,9 @@ class TestTimeGapDetection:
         detector = EpisodeBoundaryDetector(lancedb)
         gaps = detector.detect_time_gap(messages)
 
-        # 30 minutes should trigger gap (>= threshold)
-        assert len(gaps) == 1
-        assert 1 in gaps
+        # Exactly 30 minutes should NOT trigger gap (exclusive > not >=)
+        # This is the CORRECT behavior after fixing the boundary bug
+        assert len(gaps) == 0, f"Expected no gaps at exact threshold, but got {gaps}"
 
 
 # ============================================================================

@@ -5,10 +5,13 @@ Transaction ingestion, AI categorization, and Chart of Accounts learning.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from core.decimal_utils import to_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +33,14 @@ class Transaction:
     """Financial transaction record"""
     id: str
     date: datetime
-    amount: float
+    amount: Decimal
     description: str
     merchant: Optional[str] = None
     source: TransactionSource = TransactionSource.BANK
     status: TransactionStatus = TransactionStatus.PENDING
     category_id: Optional[str] = None
     category_name: Optional[str] = None
-    confidence: float = 0.0
+    confidence: float = 0.0  # Confidence remains float (0.0 to 1.0)
     reasoning: Optional[str] = None
     posted_at: Optional[datetime] = None
     reviewed_by: Optional[str] = None
@@ -126,13 +129,13 @@ class AIAccountingEngine:
             tx = Transaction(
                 id=tx_data.get("id", f"tx_{datetime.now().timestamp()}"),
                 date=datetime.fromisoformat(tx_data["date"]) if isinstance(tx_data["date"], str) else tx_data["date"],
-                amount=tx_data["amount"],
+                amount=to_decimal(tx_data["amount"]),  # Convert to Decimal
                 description=tx_data["description"],
                 merchant=tx_data.get("merchant"),
                 source=TransactionSource(tx_data.get("source", "bank"))
             )
             results.append(self.ingest_transaction(tx))
-        
+
         logger.info(f"Ingested {len(results)} transactions from bank feed")
         return results
     

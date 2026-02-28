@@ -1,0 +1,335 @@
+name: Unified Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: atom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-asyncio httpx pytest-json-report
+
+      - name: Run tests with coverage
+        working-directory: ./backend
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+        run: |
+          pytest tests/ -v -n auto \
+            --json-report --json-report-file=pytest_report.json \
+            --cov=core \
+            --cov=api \
+            --cov=tools \
+            --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+            --cov-report=term-missing:skip-covered \
+            --maxfail=10
+
+      - name: Upload backend coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/tests/coverage_reports/metrics/coverage.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload backend test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend/pytest_report.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests with coverage
+        working-directory: ./frontend-nextjs
+        run: npm run test:ci -- --maxWorkers=2
+
+      - name: Generate test results JSON
+        working-directory: ./frontend-nextjs
+        run: npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+
+      - name: Check pass rate (98%+ required)
+        working-directory: ./frontend-nextjs
+        run: |
+          if [ -f test-results.json ]; then
+            echo "=== Calculating Test Pass Rate ==="
+
+            PASS_RATE=$(node -e "
+              const fs = require('fs');
+              try {
+                const data = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+                const total = data.numTotalTests || 0;
+                const failed = data.numFailedTests || 0;
+                const passed = total - failed;
+                const passRate = total > 0 ? ((passed / total) * 100).toFixed(2) : '0.00';
+                console.log(passRate);
+              } catch (e) {
+                console.log('0.00');
+              }
+            ")
+
+            echo "Pass Rate: ${PASS_RATE}%"
+
+            if python3 -c "import sys; exit(0 if float('${PASS_RATE}') >= 98.0 else 1)"; then
+              echo "✅ Pass rate meets 98% threshold"
+            else
+              echo "❌ Pass rate below 98% threshold"
+              exit 1
+            fi
+          else
+            echo "⚠️ test-results.json not found - using Jest exit code"
+          fi
+
+      - name: Upload frontend coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage/coverage-final.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload frontend test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-results
+          path: frontend-nextjs/test-results.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  type-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript type check
+        working-directory: ./frontend-nextjs
+        run: npm run type-check
+
+      - name: Lint check
+        working-directory: ./frontend-nextjs
+        run: npm run lint
+
+  aggregate-coverage:
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download backend coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/tests/coverage_reports/metrics/
+
+      - name: Download frontend coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage/
+
+      - name: Download mobile coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-coverage
+          path: mobile/coverage/
+        continue-on-error: true
+
+      - name: Run coverage aggregator
+        working-directory: ./backend
+        run: |
+          python tests/scripts/aggregate_coverage.py \
+            --format json \
+            --output tests/scripts/coverage_reports/unified/coverage.json
+
+      - name: Upload unified coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-coverage
+          path: backend/tests/scripts/coverage_reports/unified/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Check quality gate (80% coverage, 98% pass rate)
+        id: gates
+        working-directory: ./backend
+        env:
+          COVERAGE_MIN: 80
+          PASS_RATE_MIN: 98
+        run: |
+          # Check unified coverage
+          if [ -f tests/scripts/coverage_reports/unified/coverage.json ]; then
+            COVERAGE_PCT=$(python -c "
+              import json
+              with open('tests/scripts/coverage_reports/unified/coverage.json', 'r') as f:
+                data = json.load(f)
+              print(data['overall']['coverage_pct'])
+            ")
+
+            echo "Overall Coverage: ${COVERAGE_PCT}%"
+
+            if python3 -c "import sys; exit(0 if float('${COVERAGE_PCT}') >= ${COVERAGE_MIN} else 1)"; then
+              echo "✅ Coverage meets ${COVERAGE_MIN}% threshold"
+            else
+              echo "❌ Coverage below ${COVERAGE_MIN}% threshold"
+              exit 1
+            fi
+          else
+            echo "⚠️ Unified coverage file not found"
+            exit 1
+          fi
+
+      - name: PR comment on failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = `## ❌ Quality Gates Failed
+
+            One or more quality gates failed. Please review the details below.
+
+            `;
+
+            // Try to read unified coverage
+            try {
+              const unifiedCoverage = JSON.parse(
+                fs.readFileSync('backend/tests/scripts/coverage_reports/unified/coverage.json', 'utf8')
+              );
+
+              const overall = unifiedCoverage.overall;
+              const platforms = unifiedCoverage.platforms;
+
+              comment += `### Overall Coverage
+              | Metric | Value | Threshold | Status |
+              |--------|-------|-----------|--------|
+              | **Line Coverage** | **${overall.coverage_pct}%** | 80% | ${overall.coverage_pct >= 80 ? '✅' : '❌'} |
+              | **Branch Coverage** | ${overall.branch_coverage_pct}% | 80% | ${overall.branch_coverage_pct >= 80 ? '✅' : '❌'} |
+
+              ### Platform Breakdown
+              | Platform | Line Coverage | Branch Coverage | Status |
+              |----------|---------------|-----------------|--------|
+              | **Backend (Python)** | ${platforms.python.coverage_pct}% | ${platforms.python.branch_coverage_pct}% | ${platforms.python.error ? '❌ ' + platforms.python.error : '✅'} |
+              | **Frontend (JavaScript)** | ${platforms.javascript.coverage_pct}% | ${platforms.javascript.branch_coverage_pct}% | ${platforms.javascript.error ? '❌ ' + platforms.javascript.error : '✅'} |
+              | **Mobile (React Native)** | ${platforms.javascript_expo ? platforms.javascript_expo.coverage_pct + '%' : 'N/A'} | ${platforms.javascript_expo ? platforms.javascript_expo.branch_coverage_pct + '%' : 'N/A'} | ${platforms.javascript_expo && platforms.javascript_expo.error ? '❌ ' + platforms.javascript_expo.error : (platforms.javascript_expo ? '✅' : '⚠️ Not included')} |
+
+              `;
+
+            } catch (e) {
+              comment += `### Coverage Report
+              ⚠️ Could not read unified coverage report: ${e.message}
+
+              `;
+            }
+
+            comment += `### Remediation Steps
+            1. **Backend coverage below 80%**: Run \`cd backend && pytest tests/ --cov=core --cov=api --cov=tools --cov-report=term-missing\`
+            2. **Frontend coverage below 80%**: Run \`cd frontend-nextjs && npm run test:coverage\`
+            3. **Mobile coverage below 80%**: Run \`cd mobile && npm run test:coverage\`
+            4. **Test failures**: Check individual test job logs for specific failures
+            5. **Type errors**: Run \`cd frontend-nextjs && npm run type-check\`
+            6. **Lint errors**: Run \`cd frontend-nextjs && npm run lint\`
+
+            See [backend/docs/CODE_QUALITY_STANDARDS.md](backend/docs/CODE_QUALITY_STANDARDS.md) for detailed quality standards.
+
+            ---
+
+            *This comment was automatically generated by the unified-tests workflow.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

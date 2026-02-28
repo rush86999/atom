@@ -7,19 +7,135 @@ from datetime import datetime, timedelta
 import json
 import os
 import time
+import threading
+import uuid
+from functools import wraps
 from typing import Any, Dict, List, Optional
 from loguru import logger
 import requests
 
 
+def synchronized_payment(func):
+    """
+    Decorator to prevent concurrent payment processing for same customer.
+
+    Uses per-customer locks to ensure that payment operations for the same
+    customer are serialized, preventing race conditions and double-charging.
+
+    IMPORTANT: This is a defense-in-depth measure. The PRIMARY defense against
+    race conditions is Stripe's idempotency key system. Database transactions
+    provide additional safety. Client-side locks are the final safety layer.
+
+    Usage:
+        @synchronized_payment
+        def create_payment(self, access_token, amount, customer=None, ...):
+            # Payment creation logic
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Extract customer_id from kwargs or args
+        # create_payment signature: (self, access_token, amount, currency, customer, ...)
+        customer_id = kwargs.get('customer')
+
+        # If not in kwargs, check args (customer is at index 3 after self, access_token, amount)
+        if customer_id is None and len(args) > 3:
+            customer_id = args[3]
+
+        # If we have a customer, acquire their lock
+        if customer_id:
+            lock = self._get_customer_lock(str(customer_id))
+            with lock:
+                return func(self, *args, **kwargs)
+        else:
+            # No customer specified, no locking needed
+            return func(self, *args, **kwargs)
+    return wrapper
+
+
 class StripeService:
     """Stripe API service for payment processing and financial management"""
+
+    # Class-level lock registry for preventing concurrent charges to same customer
+    _customer_locks = {}
+    _lock_registry_lock = threading.Lock()
 
     def __init__(self):
         self.api_base_url = "https://api.stripe.com/v1"
         self.timeout = 60
         self.max_retries = 3
         self.retry_delay = 1
+
+    @classmethod
+    def _get_customer_lock(cls, customer_id: str) -> threading.Lock:
+        """
+        Get or create lock for specific customer (prevents double-charging).
+
+        Defense-in-depth layer to prevent concurrent payment processing for same customer.
+        NOTE: Client-side locks are NOT a substitute for database transactions or
+        Stripe's idempotency keys. This is an additional safety layer.
+
+        Args:
+            customer_id: Stripe customer ID
+
+        Returns:
+            threading.Lock instance for this customer
+        """
+        customer_id_str = str(customer_id)
+        with cls._lock_registry_lock:
+            if customer_id_str not in cls._customer_locks:
+                cls._customer_locks[customer_id_str] = threading.Lock()
+            return cls._customer_locks[customer_id_str]
+
+    @classmethod
+    def cleanup_old_locks(cls, max_age_seconds: int = 3600):
+        """
+        Remove locks for customers not seen in specified time (prevents memory leak).
+
+        Call this periodically (e.g., every hour) to clean up unused locks.
+
+        Args:
+            max_age_seconds: Remove locks older than this (default: 1 hour)
+        """
+        # In production, you'd track last access time for each lock
+        # For now, this is a placeholder for lock cleanup logic
+        with cls._lock_registry_lock:
+            if len(cls._customer_locks) > 10000:
+                # Emergency cleanup if too many locks accumulated
+                cls._customer_locks.clear()
+
+    @staticmethod
+    def generate_idempotency_key(operation_type: str, *identifier_parts) -> str:
+        """
+        Generate unique idempotency key for Stripe operations.
+
+        Format: {operation_type}_{uuid8}_{identifiers}_timestamp
+        Example: charge_a1b2c3d4_cust123_order456_1700000000
+
+        Args:
+            operation_type: Type of operation (charge, refund, subscription)
+            *identifier_parts: Business identifiers (customer_id, order_id, etc.)
+
+        Returns:
+            Unique idempotency key (string, <255 chars per Stripe limits)
+        """
+        # UUID v4 for base uniqueness (8 hex chars = 32 bits entropy)
+        uuid_suffix = uuid.uuid4().hex[:8]
+
+        # Business identifiers for cross-request uniqueness
+        identifier = "_".join(str(p) for p in identifier_parts if p) if identifier_parts else "generic"
+
+        # Timestamp for temporal uniqueness (prevents replay across sessions)
+        timestamp = int(datetime.now().timestamp())
+
+        # Combine: operation + uuid + identifiers + timestamp
+        key = f"{operation_type}_{uuid_suffix}_{identifier}_{timestamp}"
+
+        # Stripe limits idempotency keys to 255 characters
+        if len(key) > 255:
+            # Truncate identifier if too long
+            key = f"{operation_type}_{uuid_suffix}_{timestamp}"
+
+        return key
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for Stripe API requests"""
@@ -96,6 +212,7 @@ class StripeService:
         """Get specific payment by ID"""
         return self._make_request("GET", f"charges/{payment_id}", access_token)
 
+    @synchronized_payment
     def create_payment(
         self,
         access_token: str,
@@ -104,6 +221,7 @@ class StripeService:
         customer: Optional[str] = None,
         description: Optional[str] = None,
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new payment"""
         data = {
@@ -117,6 +235,11 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            idempotency_key = self.generate_idempotency_key("charge", customer, description)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "charges", access_token, data=data)
 
@@ -150,6 +273,7 @@ class StripeService:
         name: Optional[str] = None,
         description: Optional[str] = None,
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new customer"""
         data = {"email": email}
@@ -160,6 +284,11 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            idempotency_key = self.generate_idempotency_key("customer", email, name)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "customers", access_token, data=data)
 
@@ -224,6 +353,7 @@ class StripeService:
         customer: str,
         items: List[Dict],
         metadata: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a new subscription"""
         data = {
@@ -240,6 +370,12 @@ class StripeService:
         if metadata:
             for key, value in metadata.items():
                 data[f"metadata[{key}]"] = str(value)
+
+        # Add idempotency key if provided or generate one
+        if idempotency_key is None:
+            item_ids = [item.get("price", "") for item in items]
+            idempotency_key = self.generate_idempotency_key("subscription", customer, *item_ids)
+        data["idempotency_key"] = idempotency_key
 
         return self._make_request("POST", "subscriptions", access_token, data=data)
 

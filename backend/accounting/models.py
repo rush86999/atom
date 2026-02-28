@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -79,7 +80,12 @@ class Account(Base):
     entries = relationship("JournalEntry", back_populates="account")
 
 class Transaction(Base):
-    """Event-sourced transaction header"""
+    """Event-sourced transaction header
+
+    All transactions MUST have a category for cost attribution accuracy.
+    The category field enforces that every cost is properly categorized,
+    preventing uncategorized transactions that would bypass budget tracking.
+    """
     __tablename__ = "accounting_transactions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -89,15 +95,20 @@ class Transaction(Base):
     status = Column(SQLEnum(TransactionStatus), default=TransactionStatus.PENDING)
     transaction_date = Column(DateTime(timezone=True), nullable=False)
     description = Column(Text, nullable=True)
-    amount = Column(Float, nullable=True) # Denormalized for convenience
+    amount = Column(Numeric(precision=19, scale=4), nullable=True) # Denormalized for convenience
     metadata_json = Column(JSON, nullable=True)
     is_intercompany = Column(Boolean, default=False)
     counterparty_workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)
-    
+
+    # Cost Attribution - Category is NOT NULL to enforce cost categorization
+    # Standard categories: llm_tokens, compute, storage, network, labor, software,
+    # infrastructure, support, sales, other
+    category = Column(String(50), nullable=False, index=True, default='other')
+
     # Project Linking
     project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
     milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -112,7 +123,7 @@ class JournalEntry(Base):
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
     account_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=False)
     type = Column(SQLEnum(EntryType), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -168,7 +179,7 @@ class Bill(Base):
     bill_number = Column(String, nullable=True)
     issue_date = Column(DateTime(timezone=True), nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
     status = Column(SQLEnum(BillStatus), default=BillStatus.DRAFT)
     description = Column(Text, nullable=True)
@@ -195,7 +206,7 @@ class Invoice(Base):
     invoice_number = Column(String, nullable=True)
     issue_date = Column(DateTime(timezone=True), nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(precision=19, scale=4), nullable=False)
     currency = Column(String, default="USD")
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
     description = Column(Text, nullable=True)
@@ -275,7 +286,7 @@ class Budget(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     project_id = Column(String, nullable=True) # Linked to task systems
     category_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=True)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(precision=19, scale=4), nullable=False)
     period = Column(String, default="month") # "month", "quarter", "year"
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
