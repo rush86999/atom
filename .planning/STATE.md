@@ -170,6 +170,7 @@ Progress: [████░░░░░] 29.5% (v5.0 milestone - Phase 106 comple
 - Tiered coverage targets (critical >90%, core >85%, standard >80%, support >70%)
 - Testing philosophy (tests are code, single responsibility, independence, mocking)
 - Quality metrics (assertion density 15+, pass rate 98%, execution time <5min)
+- [Phase 107]: MSW 1.x selected over 2.x due to Jest ESM compatibility issues — MSW 2.x uses ESM modules that Jest cannot transform; MSW 1.x uses CommonJS compatible with existing Jest/Babel setup
 
 ### Pending Todos
 
