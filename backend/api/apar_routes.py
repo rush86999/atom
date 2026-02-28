@@ -159,6 +159,36 @@ async def get_overdue_invoices():
         message=f"Retrieved {len(overdue)} overdue invoices"
     )
 
+@router.get("/all")
+async def get_all_invoices():
+    """Get all invoices (AR and AP)"""
+    from core.apar_engine import apar_engine
+    
+    all_invoices = apar_engine.get_all_invoices()
+    
+    formatted_invoices = []
+    for inv in all_invoices:
+        # Check if it is an ARInvoice based on customer attribute
+        is_ar = hasattr(inv, "customer")
+        
+        formatted_invoices.append({
+            "id": inv.id,
+            "customer": inv.customer if is_ar else None,
+            "vendor": getattr(inv, "vendor", None) if not is_ar else None,
+            "amount": inv.amount,
+            "due_date": inv.due_date.isoformat(),
+            "status": inv.status.value,
+            "type": "AR" if is_ar else "AP"
+        })
+
+    return router.success_response(
+        data={
+            "count": len(formatted_invoices),
+            "invoices": formatted_invoices
+        },
+        message=f"Retrieved {len(formatted_invoices)} invoices"
+    )
+
 @router.post("/ar/{invoice_id}/remind")
 async def send_reminder(invoice_id: str):
     from core.apar_engine import apar_engine

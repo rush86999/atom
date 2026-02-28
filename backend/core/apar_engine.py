@@ -172,6 +172,11 @@ class APAREngine:
         
         return overdue
     
+    def get_all_invoices(self) -> List[Any]:
+        """Get all AR and AP invoices combined and sorted by creation date"""
+        all_invs = list(self._ar_invoices.values()) + list(self._ap_invoices.values())
+        return sorted(all_invs, key=lambda inv: inv.created_at, reverse=True)
+    
     def generate_invoice_content(self, invoice_id: str) -> str:
         """Generate text-based content for an invoice (simulates PDF generation)"""
         invoice = self._ar_invoices.get(invoice_id) or self._ap_invoices.get(invoice_id)
