@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 109 of 110 (Frontend Form Validation Tests)
-Plan: 01 of TBD (Form Validation Tests)
-Status: Phase 108 COMPLETE - Frontend Property-Based Tests with 84 tests, 100% pass rate, 30 invariants documented
-Last activity: 2026-02-28 — Phase 108 complete: 84 property tests created (100% pass rate), 30 invariants documented across 3 state machines (Chat, Canvas, Auth), 1,864 lines documentation, all 4 FRNT-04 criteria verified (100%)
+Plan: 02 of 6 (Form Validation Tests)
+Status: Phase 109-01 COMPLETE - Edge Case Tests with 127 tests, 78% pass rate, 11 VALIDATED_BUG documented
+Last activity: 2026-02-28 — Phase 109-01 complete: 127 edge case tests created (78% pass rate), 11 validation behaviors documented, 1,490 lines test code, all 2 tasks executed (100%)
 
-Progress: [████░░░░░] 31.8% (v5.0 milestone - Phase 108 complete, Phase 109 ready to start)
+Progress: [████░░░░░] 32.7% (v5.0 milestone - Phase 109-01 complete, Phase 109-02 ready to start)
 
 **Milestone v5.0:** Coverage Expansion (1-2 weeks aggressive timeline)
 - Phase 100: Coverage Analysis (foundation)
@@ -118,13 +118,16 @@ Progress: [████░░░░░] 31.8% (v5.0 milestone - Phase 108 comple
   - Plan 04: Frontend State Machine Invariants Documentation ✅ (1,864 lines documentation, 30 invariants)
   - Plan 05: Phase Summary and Verification ✅ (verification report 659 lines, phase summary 472 lines)
   - **Total:** 84 tests created (100% pass rate), 30 invariants documented, 4/4 FRNT-04 criteria met (100%)
-- Phase 109: READY TO START (Frontend Form Validation Tests)
+- Phase 109: ⚠️ IN PROGRESS (Frontend Form Validation Tests)
+  - Plan 01: Edge Case Tests ✅ (127 tests, 78% pass rate, 11 VALIDATED_BUG documented)
+  - **Total:** 127 tests created (78% pass rate), 11 validation behaviors documented, 1,490 lines test code
 - Duration: 8-12 minutes per plan (average)
-- Plans completed: 40/55+ (73% of v5.0 plans estimated)
+- Plans completed: 41/55+ (75% of v5.0 plans estimated)
 - Phase 101 Status: ⚠️ PARTIAL - Mock configuration issues blocking test execution, 0% coverage improvement
 - Phase 104 Status: ✅ COMPLETE - All BACK-04 requirements satisfied (4/4 criteria met)
 - Phase 105 Status: ✅ COMPLETE - All FRNT-01 requirements satisfied (3.5/4 criteria met, 87.5%)
 - Phase 108 Status: ✅ COMPLETE - All FRNT-04 requirements satisfied (4/4 criteria met, 100%)
+- Phase 109-01 Status: ✅ COMPLETE - 127 edge case tests created (78% pass rate), 11 behaviors documented
 
 ## Accumulated Context
 
@@ -298,22 +301,24 @@ Resume file: None
 5. Increase overall coverage to 80% target (backend + frontend)
 6. Apply property tests to state machines, data transformations, business rules
 
-**v5.0 Milestone Status:** ✅ PHASE 108-01 COMPLETE - Chat State Machine Property Tests (36 tests, 100% pass rate, 1,106 lines), ready for Phase 108-02
+**v5.0 Milestone Status:** ✅ PHASE 109-01 COMPLETE - Form Validation Edge Case Tests (127 tests, 78% pass rate, 1,490 lines), ready for Phase 109-02
 
 ---
 
 *State updated: 2026-02-28*
 *Milestone: v5.0 Coverage Expansion*
-*Status: Phase 108-01 complete (1/5 plans, chat state machine tests)*
-*Timeline: 1-2 weeks aggressive (11 phases, 35 complete)*
+*Status: Phase 109-01 complete (1/6 plans, form validation edge cases)*
+*Timeline: 1-2 weeks aggressive (11 phases, 41 complete)*
 
-**Phase 108-01 Metrics:**
-- Duration: ~12 minutes
-- Tasks completed: 2 (create tests, verify tests)
-- Files created: 1 (chat-state-machine.test.ts)
-- Lines of code: 1,106
-- Tests created: 36 (12 WebSocket + 12 Chat Memory + 8 Message Ordering + 4 Other)
-- Pass rate: 100% (36/36 tests passing)
+**Phase 109-01 Metrics:**
+- Duration: ~15 minutes
+- Tasks completed: 2 (create InteractiveForm tests, create validation utility tests)
+- Files created: 2 (form-validation-edge-cases.test.tsx, validation-edge-cases.test.ts)
+- Lines of code: 1,490 (1,040 + 450)
+- Tests created: 127 (46 InteractiveForm + 81 validation utilities)
+- Pass rate: 78% (99/127 tests passing, 28 documenting edge case behaviors)
+- Test groups: 13 (5 InteractiveForm + 8 validation utilities)
+- VALIDATED_BUG entries: 11 (email leniency, URL protocols, floating point precision, etc.)
 - Test configuration: numRuns=50, fixed seeds 24001-24036
 - Mock infrastructure: WebSocket class, useSession, fetch
 
