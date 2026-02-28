@@ -212,26 +212,30 @@ async def get_collection_summary():
 async def download_ar_invoice(invoice_id: str):
     from core.apar_engine import apar_engine
     try:
-        content = apar_engine.generate_invoice_content(invoice_id)
-        file_obj = io.BytesIO(content.encode('utf-8'))
+        pdf_bytes = apar_engine.generate_invoice_pdf(invoice_id)
+        file_obj = io.BytesIO(pdf_bytes)
         return StreamingResponse(
             file_obj,
-            media_type="text/plain",
-            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.pdf"}
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/ap/{invoice_id}/download")
 async def download_ap_invoice(invoice_id: str):
     from core.apar_engine import apar_engine
     try:
-        content = apar_engine.generate_invoice_content(invoice_id)
-        file_obj = io.BytesIO(content.encode('utf-8'))
+        pdf_bytes = apar_engine.generate_invoice_pdf(invoice_id)
+        file_obj = io.BytesIO(pdf_bytes)
         return StreamingResponse(
             file_obj,
-            media_type="text/plain",
-            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.txt"}
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{invoice_id}.pdf"}
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=str(e))
