@@ -157,28 +157,6 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
       </div>
 
       <div className={`operation-error-guide bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500 ${className}`}>
-
-// Helper function moved outside component
-const getErrorIcon = (type: string) => {
-  switch (type) {
-    case 'permission_denied':
-      return '🔒';
-    case 'auth_expired':
-      return '🔑';
-    case 'network_error':
-      return '🌐';
-    case 'rate_limit':
-      return '⏱️';
-    case 'invalid_input':
-      return '⚠️';
-    case 'resource_not_found':
-      return '🔍';
-    default:
-      return '❌';
-  }
-};
-
-// Fix duplicate component export - the component is already properly exported above
       {/* Error Header */}
       <div className="flex items-start space-x-3 mb-4">
         <span className="text-3xl">{getErrorIcon(errorData.error.type)}</span>

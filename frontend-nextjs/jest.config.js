@@ -7,7 +7,8 @@ module.exports = {
   testMatch: [
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/*.test.(ts|tsx|js)",
-    "<rootDir>/lib/**/__tests__/*.test.(ts|tsx|js)"
+    "<rootDir>/lib/**/__tests__/*.test.(ts|tsx|js)",
+    "<rootDir>/hooks/**/__tests__/*.test.(ts|tsx|js)"
   ],
   collectCoverageFrom: [
     "components/**/*.{ts,tsx}",
