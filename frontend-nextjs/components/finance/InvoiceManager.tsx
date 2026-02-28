@@ -129,7 +129,7 @@ const InvoiceManager = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `invoice_${invoiceId}.txt`;
+            a.download = `invoice_${invoiceId}.pdf`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
