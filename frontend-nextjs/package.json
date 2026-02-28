@@ -212,12 +212,15 @@
     "jest-environment-jsdom": "^30.0.5",
     "lodash": "^4.17.21",
     "metro-react-native-babel-preset": "^0.76.0",
+    "msw": "^1.3.5",
+    "node-fetch": "^2.7.0",
     "postcss": "^8.4.21",
     "sass": "^1.58.3",
     "tailwind-bootstrap-grid": "^5.0.1",
     "tailwindcss": "^3.2.7",
     "tailwindcss-animate": "^1.0.6",
     "ts-jest": "^29.4.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "web-streams-polyfill": "^4.2.0"
   }
 }
