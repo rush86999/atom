@@ -91,10 +91,12 @@ def api_test_client(db_session: Session):
         return test_user
 
     # Override dependency if it exists
+    get_current_user = None
     try:
+        from core.security_dependencies import get_current_user
         app.dependency_overrides[get_current_user] = get_current_user_override
-    except (NameError, AttributeError):
-        # get_current_user might not be imported, that's okay
+    except (ImportError, AttributeError):
+        # get_current_user might not be available, that's okay
         pass
 
     # Create TestClient
@@ -107,10 +109,11 @@ def api_test_client(db_session: Session):
     yield client
 
     # Clean up
-    try:
-        del app.dependency_overrides[get_current_user]
-    except (KeyError, AttributeError):
-        pass
+    if get_current_user is not None:
+        try:
+            del app.dependency_overrides[get_current_user]
+        except (KeyError, AttributeError):
+            pass
 
 
 @pytest.fixture(scope="function")
