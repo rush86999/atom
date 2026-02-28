@@ -1,4 +1,47 @@
+// Polyfill for MSW 2.x - must come before any other imports
+import * as WebStreamsPolyfill from 'web-streams-polyfill';
+import { TextEncoder, TextDecoder } from 'util';
+import { Blob, File } from 'buffer';
+import { Request, Response, Headers } from 'node-fetch';
+
+Object.defineProperties(globalThis, {
+  ReadableStream: { value: WebStreamsPolyfill.ReadableStream },
+  TransformStream: { value: WebStreamsPolyfill.TransformStream },
+  TextEncoder: { value: TextEncoder },
+  TextDecoder: { value: TextDecoder },
+  Blob: { value: Blob },
+  File: { value: File },
+  Request: { value: Request },
+  Response: { value: Response },
+  Headers: { value: Headers },
+});
+
 import "@testing-library/jest-dom";
+
+// Optional MSW server - only if no import errors
+let server: any;
+try {
+  server = require('./mocks/server').server;
+} catch (e) {
+  console.warn('MSW server not available:', (e as Error).message);
+}
+
+// Establish API mocking before all tests (only if server loaded)
+if (server) {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  // Reset any request handlers that we may add during the tests,
+  // so they don't affect other tests
+  afterEach(() => server.resetHandlers());
+  // Clean up after the tests are finished
+  afterAll(() => server.close());
+}
+
+// Reset any request handlers that we may add during the tests,
+// so they don't affect other tests
+afterEach(() => server.resetHandlers());
+
+// Clean up after the tests are finished
+afterAll(() => server.close());
 
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
