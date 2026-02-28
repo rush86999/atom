@@ -235,12 +235,16 @@ class AIAccountingEngine:
         if not tx:
             return False
         
-        if tx.status == TransactionStatus.REVIEW_REQUIRED:
-            logger.warning(f"Cannot post {tx_id}: requires review")
+        if tx.status == TransactionStatus.REVIEW_REQUIRED and not user_id:
+            logger.warning(f"Cannot post {tx_id}: requires review and no user_id provided")
             return False
         
         tx.status = TransactionStatus.POSTED
         tx.posted_at = datetime.now()
+        tx.reviewed_by = user_id or tx.reviewed_by
+
+        if tx_id in self._pending_review:
+            self._pending_review.remove(tx_id)
         
         self._log_audit("posted", tx, f"Posted by {user_id or 'system'}")
         return True
@@ -259,6 +263,59 @@ class AIAccountingEngine:
     def get_pending_review(self) -> List[Transaction]:
         """Get transactions pending review"""
         return [self._transactions[tid] for tid in self._pending_review if tid in self._transactions]
+    
+    def get_all_transactions(self) -> List[Transaction]:
+        """Get all documented transactions sorted by date descending"""
+        return sorted(list(self._transactions.values()), key=lambda tx: tx.date, reverse=True)
+        
+    def update_transaction(self, tx_id: str, updates: Dict[str, Any], user_id: str) -> bool:
+        """Update transaction details (amount, description, merchant, date)"""
+        tx = self._transactions.get(tx_id)
+        if not tx:
+            return False
+            
+        old_values = {}
+        for key, value in updates.items():
+            if hasattr(tx, key) and key in ["amount", "description", "merchant"]:
+                old_values[key] = getattr(tx, key)
+                setattr(tx, key, value)
+            elif key == "date" and isinstance(value, str):
+                old_values["date"] = tx.date.isoformat()
+                tx.date = datetime.fromisoformat(value)
+                
+        if old_values:
+            # Re-categorize after an update as merchant/description may change
+            if "description" in old_values or "merchant" in old_values:
+                category_id, category_name, confidence, reasoning = self._categorize_transaction(tx)
+                tx.category_id = category_id
+                tx.category_name = category_name
+                tx.confidence = confidence
+                tx.reasoning = f"Re-categorized after update: {reasoning}"
+                
+                # Update review queue status
+                if confidence < self.CONFIDENCE_THRESHOLD and tx.id not in self._pending_review:
+                    self._pending_review.append(tx.id)
+                    tx.status = TransactionStatus.REVIEW_REQUIRED
+                elif confidence >= self.CONFIDENCE_THRESHOLD and tx.id in self._pending_review:
+                    self._pending_review.remove(tx.id)
+                    tx.status = TransactionStatus.CATEGORIZED
+            
+            self._log_audit("updated", tx, f"User {user_id} updated: {old_values} -> {updates}")
+        return True
+        
+    def delete_transaction(self, tx_id: str, user_id: str) -> bool:
+        """Delete a transaction"""
+        tx = self._transactions.get(tx_id)
+        if not tx:
+            return False
+            
+        if tx_id in self._pending_review:
+            self._pending_review.remove(tx_id)
+            
+        del self._transactions[tx_id]
+        
+        self._log_audit("deleted", tx, f"User {user_id} deleted transaction")
+        return True
     
     # ==================== AUDIT TRAIL ====================
     
