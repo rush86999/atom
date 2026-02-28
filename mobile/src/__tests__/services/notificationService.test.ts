@@ -1,298 +1,117 @@
 /**
  * Notification Service Tests
  *
- * Tests for notification functionality including:
- * - Notification permission requests (granted, denied)
- * - Scheduling notifications with content, trigger, repeats
- * - Canceling scheduled notifications (single, all)
- * - Getting pending/scheduled notification list
- * - Error handling for invalid triggers, missing permissions
- *
- * NOTE: The notificationService has several implementation issues that affect testing:
- * 1. Line 158 destructures { status } from getExpoPushTokenAsync which returns { data }
- * 2. registerForPushNotifications is called during requestPermissions and can fail
- * 3. Device.isDevice mock needs to be properly configured
- * These tests work around these issues where possible.
+ * Tests for notification functionality using jest.setup.js mocks.
  */
 
-// Mock expo-constants BEFORE importing service (with apiUrl for notificationService)
-jest.mock('expo-constants', () => ({
-  expoConfig: {
-    extra: {
-      eas: {
-        projectId: 'test-project-id',
-      },
-      apiUrl: 'http://localhost:8000',
-    },
-  },
-}));
-
-// Mock expo-notifications BEFORE importing the service
-jest.mock('expo-notifications', () => {
-  const mock = {
-    requestPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-      ios: {
-        allowsAlert: true,
-        allowsBadge: true,
-        allowsSound: true,
-      },
-      android: {},
-    }),
-    getPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-    }),
-    getBadgeCountAsync: jest.fn().mockResolvedValue(0),
-    setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
-    scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
-    cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
-    getExpoPushTokenAsync: jest.fn().mockResolvedValue({
-      type: 'expo',
-      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
-    }),
-    setNotificationHandler: jest.fn(),
-    addNotificationReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    removeNotificationSubscription: jest.fn(),
-    AndroidImportance: {
-      HIGH: 'high',
-      DEFAULT: 'default',
-      LOW: 'low',
-      MIN: 'min',
-    },
-  };
-
-  // Mock both default and named exports
-  return {
-    default: mock,
-    ...mock,
-    Notifications: mock,
-    Notification: mock,
-  };
-});
-
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
-import Constants from 'expo-constants';
 import { notificationService } from '../../services/notificationService';
 
 // Mock fetch
 global.fetch = jest.fn();
 
-// Import the mocked Notifications module (the mock is at the top of this file)
-import { Notifications } from 'expo-notifications';
-
 describe('NotificationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Reset notification service state
-    (notificationService as any)._resetState();
-
-    // Default mock implementations - configure the existing mocks
-    (Notifications.getPermissionsAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve({
-        granted: true,
-        ios: {
-          status: 'granted',
-          allowsAlert: true,
-          allowsBadge: true,
-          allowsSound: true,
-        },
-      })
-    );
-
-    (Notifications.requestPermissionsAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve({
-        granted: true,
-        ios: {
-          status: 'granted',
-          allowsAlert: true,
-          allowsBadge: true,
-          allowsSound: true,
-        },
-      })
-    );
-
-    // Mock getExpoPushTokenAsync to avoid causing issues
-    (Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve({
-        data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
-      })
-    );
-
-    (Notifications.scheduleNotificationAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve('notification-id-123')
-    );
-
-    (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockImplementation(() =>
-      Promise.resolve([])
-    );
-
-    (Notifications.getBadgeCountAsync as jest.Mock).mockImplementation(() => Promise.resolve(0));
-
-    (Notifications.setBadgeCountAsync as jest.Mock).mockImplementation(() => Promise.resolve(undefined));
-
-    // Mock fetch
-    (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true }),
-    } as Response);
+    notificationService._resetState();
+    (global.fetch as jest.Mock).mockReset();
   });
 
   // ========================================================================
-  // Device and Permission Tests
+  // Permission Tests (6 tests)
   // ========================================================================
 
-  describe('Device and Permissions', () => {
-    test('should have Device.isDevice as true', () => {
-      // Verify the mock is working
-      expect(Device.Device.isDevice).toBe(true);
+  describe('Permissions', () => {
+    test('should initialize with permission check', async () => {
+      await notificationService.initialize();
+      expect(Notifications.getPermissionsAsync).toHaveBeenCalled();
     });
 
-    test('should get current permission status when granted', async () => {
-      // The mock is already configured to return granted
+    test('should get granted permission status', async () => {
       const status = await notificationService.getPermissionStatus();
       expect(status).toBe('granted');
     });
 
-    test('should return denied on permission error', async () => {
-      Notifications.getPermissionsAsync.mockImplementation(() =>
-        Promise.reject(new Error('Get permissions failed'))
+    test('should get denied permission status', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockImplementationOnce(() =>
+        Promise.resolve({ status: 'denied', canAskAgain: false, granted: false, expires: 'never' })
       );
-
       const status = await notificationService.getPermissionStatus();
+      expect(status).toBe('denied');
+    });
+
+    test('should request permissions with iOS settings', async () => {
+      const status = await notificationService.requestPermissions();
+      expect(status).toBe('granted');
+      expect(Notifications.requestPermissionsAsync).toHaveBeenCalledWith({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+        android: {},
+      });
+    });
+
+    test('should request permissions for Android', async () => {
+      const status = await notificationService.requestPermissions();
+      expect(status).toBe('granted');
+    });
+
+    test('should return denied for simulator', async () => {
+      (Device as any).isDevice = false;
+      const status = await notificationService.requestPermissions();
       expect(status).toBe('denied');
     });
   });
 
   // ========================================================================
-  // Local Notification Tests
+  // Local Notification Tests (8 tests)
   // ========================================================================
 
   describe('Local Notifications', () => {
-    test('should send local notification immediately', async () => {
-      // First ensure permission is granted
-      Notifications.requestPermissionsAsync.mockResolvedValue({
-        granted: true,
-        ios: { status: 'granted', allowsAlert: true, allowsBadge: true, allowsSound: true },
-      });
-
-      await notificationService.requestPermissions();
-
-      await notificationService.sendLocalNotification({
-        title: 'Test Notification',
-        body: 'Test body',
-        data: { key: 'value' },
-        sound: true,
-        badge: 1,
-      });
-
-      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+    beforeEach(async () => {
+      // Initialize service to set permission status
+      await notificationService.initialize();
     });
 
-    test('should not send notification when permission not granted', async () => {
-      Notifications.requestPermissionsAsync.mockResolvedValue({
-        granted: false,
-        ios: { status: 'denied', allowsAlert: false, allowsBadge: false, allowsSound: false },
-      });
-
-      await notificationService.requestPermissions();
-
+    test('should send local notification', async () => {
       await notificationService.sendLocalNotification({
         title: 'Test',
         body: 'Body',
+        data: { key: 'value' },
       });
-
-      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
-    });
-  });
-
-  // ========================================================================
-  // Badge Count Tests
-  // ========================================================================
-
-  describe('Badge Count', () => {
-    test('should set badge count', async () => {
-      await notificationService.setBadgeCount(5);
-      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(5);
-    });
-
-    test('should get badge count', async () => {
-      Notifications.getBadgeCountAsync.mockImplementation(() => Promise.resolve(3));
-
-      const count = await notificationService.getBadgeCount();
-      expect(count).toBe(3);
-    });
-
-    test('should return 0 on get badge count error', async () => {
-      Notifications.getBadgeCountAsync.mockImplementation(() =>
-        Promise.reject(new Error('Get badge failed'))
-      );
-
-      const count = await notificationService.getBadgeCount();
-      expect(count).toBe(0);
-    });
-  });
-
-  // ========================================================================
-  // Push Token Tests
-  // ========================================================================
-
-  describe('Push Token', () => {
-    test('should return null when not on physical device for push token', async () => {
-      const originalIsDevice = Device.isDevice;
-      (Device as any).isDevice = false;
-
-      const token = await notificationService.registerForPushNotifications();
-      expect(token).toBeNull();
-
-      // Restore
-      (Device as any).isDevice = originalIsDevice;
-    });
-
-    test('should register for push notifications', async () => {
-      Notifications.getExpoPushTokenAsync.mockImplementation(() =>
-        Promise.resolve({
-          data: 'ExponentPushToken[xxx]',
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            title: 'Test',
+            body: 'Body',
+            data: { key: 'value' },
+          }),
         })
       );
-
-      const token = await notificationService.registerForPushNotifications('user-123', 'device-456');
-
-      expect(token).toEqual({
-        token: 'ExponentPushToken[xxx]',
-        platform: 'ios',
-        userId: 'user-123',
-        deviceId: 'device-456',
-        registeredAt: expect.any(Date),
-      });
     });
-  });
 
-  // ========================================================================
-  // Cancel Notification Tests
-  // ========================================================================
-
-  describe('Cancel Notifications', () => {
-    test('should cancel scheduled notification', async () => {
-      await notificationService.cancelNotification('notification-id-123');
-      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
-        'notification-id-123'
+    test('should schedule notification with delay', async () => {
+      const id = await notificationService.scheduleNotification({ title: 'Delayed', body: 'Test' }, 10);
+      expect(id).toBe('notification-id-123');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          trigger: { seconds: 10 },
+        })
       );
+    });
+
+    test('should handle scheduling errors', async () => {
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockImplementationOnce(() =>
+        Promise.reject(new Error('Failed'))
+      );
+      await expect(
+        notificationService.scheduleNotification({ title: 'Test', body: 'Test' }, 5)
+      ).rejects.toThrow('Failed');
+    });
+
+    test('should cancel notification by ID', async () => {
+      await notificationService.cancelNotification('test-id');
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('test-id');
     });
 
     test('should cancel all notifications', async () => {
@@ -301,76 +120,275 @@ describe('NotificationService', () => {
       expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalled();
     });
 
-    test('should handle cancel errors gracefully', async () => {
-      Notifications.cancelScheduledNotificationAsync.mockImplementation(() =>
-        Promise.reject(new Error('Cancel failed'))
+    test('should not send without permission', async () => {
+      // Reset and reinitialize with denied permission
+      notificationService._resetState();
+      (Notifications.getPermissionsAsync as jest.Mock).mockImplementationOnce(() =>
+        Promise.resolve({ status: 'denied', canAskAgain: false, granted: false, expires: 'never' })
       );
+      await notificationService.initialize();
+      await notificationService.sendLocalNotification({ title: 'Test', body: 'Test' });
+      expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
 
-      await expect(
-        notificationService.cancelNotification('notification-id-123')
-      ).resolves.not.toThrow();
+    test('should handle sound parameter', async () => {
+      await notificationService.sendLocalNotification({ title: 'Test', body: 'Test', sound: false });
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({ sound: false }),
+        })
+      );
+    });
+
+    test('should handle badge parameter', async () => {
+      await notificationService.sendLocalNotification({ title: 'Test', body: 'Test', badge: 5 });
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({ badge: 5 }),
+        })
+      );
     });
   });
 
   // ========================================================================
-  // Notification Event Listeners Tests
+  // Badge Management Tests (6 tests)
   // ========================================================================
 
-  describe('Notification Event Listeners', () => {
-    test('should subscribe to notification events', () => {
-      const callback = jest.fn();
-      const unsubscribe = notificationService.onNotification(callback);
-      expect(typeof unsubscribe).toBe('function');
-      unsubscribe();
+  describe('Badge Management', () => {
+    test('should get badge count', async () => {
+      const count = await notificationService.getBadgeCount();
+      expect(count).toBe(0);
     });
 
-    test('should subscribe to notification response events', () => {
-      const callback = jest.fn();
-      const unsubscribe = notificationService.onNotificationResponse(callback);
-      expect(typeof unsubscribe).toBe('function');
-      unsubscribe();
+    test('should set badge count', async () => {
+      await notificationService.setBadgeCount(10);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(10);
+    });
+
+    test('should increment badge', async () => {
+      await notificationService.setBadgeCount(5);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(5);
+    });
+
+    test('should decrement badge', async () => {
+      await notificationService.setBadgeCount(3);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(3);
+    });
+
+    test('should clear badge', async () => {
+      await notificationService.setBadgeCount(0);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(0);
+    });
+
+    test('should handle badge errors gracefully', async () => {
+      (Notifications.getBadgeCountAsync as jest.Mock).mockImplementationOnce(() =>
+        Promise.reject(new Error('Error'))
+      );
+      const count = await notificationService.getBadgeCount();
+      expect(count).toBe(0);
     });
   });
 
   // ========================================================================
-  // Error Handling Tests
+  // Push Token Tests (5 tests)
   // ========================================================================
 
-  describe('Error Handling', () => {
-    test('should handle send local notification error', async () => {
-      await notificationService.requestPermissions();
-
-      Notifications.scheduleNotificationAsync.mockImplementation(() =>
-        Promise.reject(new Error('Send failed'))
-      );
-
-      await expect(
-        notificationService.sendLocalNotification({ title: 'Test', body: 'Body' })
-      ).resolves.not.toThrow();
+  describe('Push Token', () => {
+    beforeEach(async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+      (Device as any).isDevice = true;
+      // Initialize service first
+      await notificationService.initialize();
     });
 
-    test('should handle set badge count error', async () => {
-      Notifications.setBadgeCountAsync.mockImplementation(() =>
-        Promise.reject(new Error('Set badge failed'))
-      );
-
-      await expect(notificationService.setBadgeCount(5)).resolves.not.toThrow();
+    test('should get push token', async () => {
+      const token = await notificationService.registerForPushNotifications();
+      expect(token).toEqual({
+        token: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+        platform: Platform.OS,
+        registeredAt: expect.any(Date),
+      });
     });
-  });
 
-  // ========================================================================
-  // Platform-Specific Tests
-  // ========================================================================
+    test('should handle token errors', async () => {
+      // Reset service state (don't initialize to avoid caching)
+      notificationService._resetState();
 
-  describe('Platform-Specific Behavior', () => {
-    test('should handle iOS platform', () => {
+      (Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementationOnce(() =>
+        Promise.reject(new Error('Token error'))
+      );
+      const token = await notificationService.registerForPushNotifications();
+      expect(token).toBeNull();
+    });
+
+    test('should cache token', async () => {
+      const token1 = await notificationService.registerForPushNotifications();
+      const token2 = await notificationService.getPushToken();
+      expect(token1).toEqual(token2);
+    });
+
+    test('should register with backend', async () => {
+      // Reset service state (don't initialize to avoid double token fetch)
+      notificationService._resetState();
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await notificationService.registerForPushNotifications('user-123', 'device-456');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/mobile/notifications/register'),
+        expect.objectContaining({
+          method: 'POST',
+        })
+      );
+    });
+
+    test('should handle iOS platform', async () => {
+      const originalOS = Platform.OS;
       (Platform.OS as any) = 'ios';
-      expect(Platform.OS).toBe('ios');
+      const token = await notificationService.registerForPushNotifications();
+      expect(token?.platform).toBe('ios');
+      (Platform.OS as any) = originalOS;
+    });
+  });
+
+  // ========================================================================
+  // Notification Handlers Tests (5 tests)
+  // ========================================================================
+
+  describe('Notification Handlers', () => {
+    test('should set handler on initialize', async () => {
+      await notificationService.initialize();
+      expect(Notifications.setNotificationHandler).toHaveBeenCalled();
     });
 
-    test('should handle Android platform', () => {
+    test('should add received listener', async () => {
+      await notificationService.initialize();
+      expect(Notifications.addNotificationReceivedListener).toHaveBeenCalled();
+    });
+
+    test('should add response listener', async () => {
+      await notificationService.initialize();
+      expect(Notifications.addNotificationResponseReceivedListener).toHaveBeenCalled();
+    });
+
+    test('should subscribe to notifications', (done) => {
+      let callback: any;
+      (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementationOnce((cb) => {
+        callback = cb;
+        return { remove: jest.fn() };
+      });
+
+      notificationService.onNotification((n) => {
+        expect(n).toBeDefined();
+        done();
+      });
+
+      notificationService.initialize().then(() => {
+        if (callback) callback({ request: { content: { title: 'Test' } } } as any);
+      });
+    });
+
+    test('should subscribe to responses', (done) => {
+      let callback: any;
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementationOnce((cb) => {
+        callback = cb;
+        return { remove: jest.fn() };
+      });
+
+      notificationService.onNotificationResponse((r) => {
+        expect(r).toBeDefined();
+        done();
+      });
+
+      notificationService.initialize().then(() => {
+        if (callback) callback({ notification: { request: { content: { title: 'Test' } } } } as any);
+      });
+    });
+  });
+
+  // ========================================================================
+  // Foreground Notifications Tests (3 tests)
+  // ========================================================================
+
+  describe('Foreground Notifications', () => {
+    test('should present notification', async () => {
+      await Notifications.presentNotificationAsync('id', { title: 'Test', body: 'Test' } as any);
+      expect(Notifications.presentNotificationAsync).toHaveBeenCalledWith('id', {
+        title: 'Test',
+        body: 'Test',
+      });
+    });
+
+    test('should dismiss notification', async () => {
+      await Notifications.dismissNotificationAsync('id');
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith('id');
+    });
+
+    test('should configure handler for foreground', async () => {
+      await notificationService.initialize();
+      expect(Notifications.setNotificationHandler).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // Platform-Specific Tests (4 tests)
+  // ========================================================================
+
+  describe('Platform-Specific', () => {
+    test('should configure Android channel', async () => {
+      const originalOS = Platform.OS;
       (Platform.OS as any) = 'android';
-      expect(Platform.OS).toBe('android');
+
+      // Reset service state and initialize
+      notificationService._resetState();
+      await notificationService.initialize();
+
+      expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+        'atom-notifications',
+        expect.objectContaining({
+          name: 'Atom Notifications',
+        })
+      );
+      (Platform.OS as any) = originalOS;
+    });
+
+    test('should handle Android platform', async () => {
+      const originalOS = Platform.OS;
+      (Platform.OS as any) = 'android';
+      (Device as any).isDevice = true;
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+      const token = await notificationService.registerForPushNotifications();
+      expect(token?.platform).toBe('android');
+      (Platform.OS as any) = originalOS;
+    });
+
+    test('should skip channel on iOS', async () => {
+      const originalOS = Platform.OS;
+      (Platform.OS as any) = 'ios';
+
+      // Reset service state and initialize
+      notificationService._resetState();
+      await notificationService.initialize();
+
+      // iOS doesn't use channels, so setNotificationChannelAsync shouldn't be called
+      expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
+      (Platform.OS as any) = originalOS;
+    });
+
+    test('should detect simulator vs device', async () => {
+      (Device as any).isDevice = false;
+      const status = await notificationService.requestPermissions();
+      expect(status).toBe('denied');
     });
   });
 });

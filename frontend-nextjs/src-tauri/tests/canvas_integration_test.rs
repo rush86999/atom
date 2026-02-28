@@ -315,9 +315,9 @@ mod tests {
         assert_eq!(checklist_items.len(), 6, "Should have 6 checklist items");
 
         // Verify all major test categories
-        let has_dev_build = checklist_items.iter().any(|(category, _)| category == "Development build");
-        let has_prod_build = checklist_items.iter().any(|(category, _)| category == "Production build");
-        let has_realtime = checklist_items.iter().any(|(category, _)| category == "Real-time updates");
+        let has_dev_build = checklist_items.iter().any(|(category, _)| *category == "Development build");
+        let has_prod_build = checklist_items.iter().any(|(category, _)| *category == "Production build");
+        let has_realtime = checklist_items.iter().any(|(category, _)| *category == "Real-time updates");
 
         assert!(has_dev_build, "Should test development build");
         assert!(has_prod_build, "Should test production build");

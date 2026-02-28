@@ -48,8 +48,8 @@ class AgentOperationTrackerFactory(BaseFactory):
     next_steps = factory.Faker('text', max_nb_chars=200)
 
     # Operation metadata
-    operation_metadata = factory.LambdaFunction(lambda: {})
-    logs = factory.LambdaFunction(lambda: [])
+    operation_metadata = factory.LazyFunction(lambda: {})
+    logs = factory.LazyFunction(lambda: [])
 
     # Timing
     started_at = factory.Faker('date_time_this_year')

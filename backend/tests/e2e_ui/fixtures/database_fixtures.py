@@ -46,12 +46,13 @@ def is_sqlite(get_engine: sqlalchemy.Engine) -> bool:
 
 
 @pytest.fixture(scope="session")
-def worker_schema(worker_id: str) -> str:
+def worker_schema(worker_id: str = "master") -> str:
     """
     Return worker-specific schema name (PostgreSQL only).
 
     Args:
         worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', 'master')
+                   Defaults to 'master' when not using xdist
 
     Returns:
         Schema name for this worker (e.g., 'test_schema_gw0')

@@ -841,7 +841,7 @@ class AgentGraduationService:
         start_date = datetime.now() - timedelta(days=days_back)
 
         # Query skill executions
-        skill_executions_result = await self.db.execute(
+        skill_executions_result = self.db.execute(
             select(SkillExecution)
             .where(SkillExecution.agent_id == agent_id)
             .where(SkillExecution.created_at >= start_date)
@@ -855,7 +855,7 @@ class AgentGraduationService:
         unique_skills_used = len(set(s.skill_id for s in skills))
 
         # Get skill episodes (EpisodeSegment doesn't have agent_id, need to join differently)
-        skill_episodes_result = await self.db.execute(
+        skill_episodes_result = self.db.execute(
             select(EpisodeSegment)
             .where(EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"]))
             .where(EpisodeSegment.created_at >= start_date)

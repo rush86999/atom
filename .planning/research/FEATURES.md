@@ -1,287 +1,816 @@
-# Feature Research: Comprehensive Testing Initiative
+# Feature Landscape
 
-**Domain:** Software Testing - 80% Coverage in 1-2 Weeks
-**Researched:** February 10, 2026
-**Confidence:** MEDIUM
+**Domain:** Frontend/Mobile/Desktop Integration & Property-Based Testing
+**Researched:** February 26, 2026
+**Overall confidence:** MEDIUM
 
-## Feature Landscape
+## Executive Summary
 
-### Table Stakes (Users Expect These)
+Integration testing and property-based testing for frontend (Next.js), mobile (React Native), and desktop (Tauri) applications require different approaches than backend testing. While the backend has comprehensive Hypothesis-based property tests, frontend/mobile/desktop testing focuses on component integration, state consistency, API contracts, UI predictability, and platform-specific features (camera, location, filesystem). Based on analysis of the Atom codebase, industry patterns, and existing backend test infrastructure, this document outlines table stakes features, differentiators, and anti-features for v4.0 platform integration testing.
 
-Features users assume exist in comprehensive testing initiatives. Missing these = testing framework feels incomplete.
+**Key Findings:**
+- **Frontend integration testing**: Component-level testing with React Testing Library + Jest is standard (40% pass rate currently, needs improvement)
+- **Mobile testing**: React Native Testing Library with device-specific mocks (camera, location, biometrics) required for comprehensive coverage
+- **Desktop testing**: Tauri requires native module mocking and cross-platform validation (Windows/macOS/Linux)
+- **Property-based testing**: fast-check for TypeScript/JavaScript frontend state invariants, not widely adopted in production yet
+- **API contract testing**: Existing backend property tests provide good foundation, frontend needs contract validation
+- **Gap analysis**: No property-based tests exist for frontend/mobile/desktop, 21/35 frontend tests failing, mobile tests lack property-based invariants
+
+## Table Stakes
+
+Features users expect in any frontend/mobile/desktop testing system. Missing = product feels incomplete or unusable.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Test Coverage Metrics** | Industry standard (80% threshold) - teams require coverage before code review | LOW | pytest-cov integrated, targets configured in pytest.ini (line 58: `--cov-fail-under=80`) |
-| **Unit Tests** | Foundation of any testing strategy - verify individual components in isolation | LOW | 517 test files exist, pytest configured with standard markers |
-| **Property-Based Tests** | Modern testing best practice - verify invariants across random inputs | MEDIUM | Hypothesis integrated, 108 property test files, ~3,699 test functions |
-| **Integration Tests** | Required to verify component interactions | MEDIUM | Present across test suite, focus on governance, security, episodic memory |
-| **CI/CD Integration** | Tests must run automatically in pipeline | LOW | pytest.ini configured for CI (hypothesis_strategy = conservative) |
-| **Test Discovery & Organization** | Standard pytest feature - find and run tests by pattern | LOW | Configured in pytest.ini lines 5-10 |
-| **Fixtures & Test Data** | Required for repeatable, isolated tests | MEDIUM | conftest.py exists in property_tests for shared fixtures |
-| **Assertion Libraries** | Basic requirement for any test framework | LOW | pytest built-in assertions |
-| **Test Markers** | Required for categorizing and running test subsets | LOW | 20+ markers defined in pytest.ini lines 13-45 |
-| **Async Test Support** | Required for modern async frameworks (FastAPI) | LOW | Configured in pytest.ini line 63: `asyncio_mode = auto` |
-| **Failure Reporting** | Essential for debugging - needs tracebacks and context | LOW | `--tb=short --showlocals` in pytest.ini line 60 |
-| **Coverage Reports** | Required to track progress toward 80% goal | LOW | HTML, terminal, and JSON reports configured lines 54-56 |
+| **Component Integration Tests** | Verify components work together with state management, API calls, routing | Low | React Testing Library for Next.js, React Native Testing Library for mobile |
+| **API Contract Validation** | Frontend must correctly call backend APIs and handle responses | Medium | Test request/response shapes, error handling, timeout scenarios |
+| **State Management Consistency** | Redux/Zustand/Context state must be predictable and consistent | Medium | Test state updates, selectors, async actions, middleware |
+| **Form Validation & Submission** | Forms must validate correctly and submit data to backend | Low | Test validation rules, error display, success/error states |
+| **Navigation & Routing** | Users must navigate between screens/pages correctly | Low | Test routing, navigation params, deep links, back navigation |
+| **Authentication Flow** | Login/register/logout must work correctly with token storage | Medium | Test auth flows, token refresh, session persistence, biometric auth |
+| **Offline Data Sync** | Mobile/desktop must handle offline mode gracefully | High | Test offline queue, sync on reconnect, conflict resolution |
+| **Device Feature Mocking** | Camera, location, notifications must work across platforms | Medium | Mock Expo modules, device APIs, test permissions |
+| **Error Boundary Handling** | React error boundaries must catch errors gracefully | Low | Test error boundaries, fallback UI, error logging |
+| **Responsive Layout** | UI must work across screen sizes (mobile, tablet, desktop) | Medium | Test breakpoints, responsive components, orientation changes |
 
-### Differentiators (Competitive Advantage)
+## Differentiators
 
-Features that set this testing initiative apart from standard approaches. Not required, but valuable for the 1-2 week aggressive timeline.
+Features that set product apart. Not expected, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Property-Based Testing Framework** | Finds edge cases unit tests miss - 10x-100x more test cases per test | HIGH | Already implemented - 108 files, tests invariants across random inputs |
-| **Critical Path Prioritization** | Achieve 80% coverage faster by focusing on governance, security, episodic memory | MEDIUM | P0/P1/P2/P3 markers already defined (lines 36-39) |
-| **Hypothesis Integration** | Automatically generates counterexamples - reduces debugging time | MEDIUM | Configured with conservative strategy, max 200 examples |
-| **Risk-Based Testing** | Focus on high-impact areas (governance, security) for maximum coverage ROI | MEDIUM | Domain markers: financial, security, api, database, workflow, episode, agent, governance |
-| **Test Protection Mechanisms** | Prevents AI/automation from modifying critical invariant tests | MEDIUM | PROPERTY_TEST_GUARDIAN.md referenced in README |
-| **Parallel Test Execution** | Reduces CI time from hours to minutes - critical for 1-2 week sprint | MEDIUM | Requires pytest-xdist configuration |
-| **Coverage by Domain** | Track coverage for critical subsystems (governance, security, episodic memory) | LOW | Can use `--cov=core/governance` for domain-specific reports |
-| **Test Impact Analysis** | Only run tests affected by code changes - speeds up iteration | HIGH | Requires pytest-picked or similar tool |
-| **Fuzzy Testing** | Find security vulnerabilities through random malformed inputs | HIGH | Fuzzy marker exists (line 21), implementation incomplete |
-| **Mutation Testing** | Verify test quality by introducing code mutations | HIGH | Mutation marker exists (line 22), implementation incomplete |
-| **Chaos Engineering** | Test system resilience under failure conditions | HIGH | Chaos marker exists (line 23), implementation incomplete |
-| **API Contract Testing** | Verify API contracts across versions - prevents breaking changes | MEDIUM | api_contracts/ directory exists with tests |
-| **Performance Regression Tests** | Catch performance degradations before they hit production | MEDIUM | Performance marker exists, performance/ directory with invariants |
-| **Coverage Trending** | Track coverage over time - shows progress toward 80% goal | LOW | JSON coverage report enables historical tracking |
-| **Governance-Specific Testing** | Test agent maturity levels, confidence scores, action complexity matrix | MEDIUM | UNIQUE to Atom - governance/ property tests validate critical invariants |
+| **Property-Based State Testing** | Use fast-check to generate random state transitions and verify invariants | High | State machines, Redux reducers, context providers should maintain invariants |
+| **Visual Regression Testing** | Detect unintended UI changes across releases | Medium | Percy, Chromatic, or Playwright screenshots |
+| **Cross-Platform Consistency** | Verify feature parity across web/mobile/desktop | High | Same tests run on multiple platforms, validate consistent behavior |
+| **Performance Regression Tests** | Detect rendering performance degradation | Medium | Lighthouse CI, render time budgets, bundle size tracking |
+| **Accessibility Testing** | Ensure WCAG compliance with automated tests | Medium | jest-axe, aria labels, keyboard navigation, screen reader tests |
+| **Network Failure Simulation** | Test app behavior under poor network conditions | Medium | Mock slow networks, offline mode, retry logic, timeout handling |
+| **End-to-End User Flows** | Test complete workflows from UI to backend | High | Playwright for web, Detox for mobile,跨组件集成测试 |
+| **Mutation Testing** | Verify test quality by mutating code | Medium | StrykerJS for frontend, ensures tests catch bugs |
+| **Component Contract Tests** | Verify props, events, and behavior contracts | Medium | Test component API, prop validation, event callbacks |
+| **State Snapshot Testing** | Detect unintended state shape changes | Low | Immutable state snapshots,Redux store serialization |
+| **Memory Leak Detection** | Find memory leaks in long-running sessions | High | Test component unmount, cleanup, subscription disposal |
+| **Internationalization Testing** | Verify UI works across languages/locales | Medium | Test translations, date/currency formatting, RTL languages |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Anti-Features
 
-Features that seem good but create problems for aggressive 1-2 week timeline.
+Features to explicitly NOT build.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **100% Coverage Goal** | Seems like "complete" testing | Diminishing returns, impossible in 2 weeks, tests trivial code | 80% is industry standard, focus on critical paths |
-| **E2E Tests for All Workflows** | Comprehensive coverage across full stack | Extremely slow, fragile, hard to maintain, blocks 1-2 week goal | Integration tests for critical workflows only |
-| **Manual Test Plans** | Thoroughness, human judgment | Too slow for 2-week sprint, not repeatable, hard to measure | Automated tests with coverage metrics |
-| **Mutation Testing in CI** | Ensures test quality | Very slow (10x-100x test runtime), blocks rapid iteration | Run mutation tests nightly/weekly, not in PR checks |
-| **Chaos Engineering in Production** | Real-world resilience testing | Too risky for aggressive timeline, requires production infrastructure | Chaos tests in dev/staging with controlled failures |
-| **Fuzzy Testing for All Inputs** | Find security vulnerabilities | Extremely slow, high false positive rate, hard to triage | Fuzzy tests for security-critical endpoints only |
-| **Custom Test Framework** | Tailored to specific needs | Reinventing wheel, maintenance burden, slower implementation | Use pytest + Hypothesis (already integrated) |
-| **Flaky Test Retry Logic** | Hide intermittent test failures | Masks real problems, makes debugging harder, wastes CI time | Fix flaky tests at source (make them deterministic) |
-| **Testing Implementation Details** | Feels like "thorough" coverage | Brittle tests, break on refactoring, slow maintenance | Test public interfaces and invariants only |
-| **Snapshot Testing** | Easy to write UI/component tests | Committing snapshots creates noise, hard to review, version control pollution | Property-based tests for component invariants instead |
-| **Test-Driven Development (TDD)** | Ensures tests exist | Slows down initial development, learning curve, conflicts with 2-week goal | Test-After Development for existing codebase |
-| **Coverage-Based Commits** | "Tests must pass to commit" | Blocks progress, encourages writing bad tests, gameable metric | Coverage gates on PR merge, not on commit |
-| **Multiple Testing Frameworks** | "Best tool for each job" | Fragmentation, maintenance burden, slower onboarding | Standardize on pytest + Hypothesis |
-| **Complex Test Doubles** | Isolate dependencies | Brittle, hard to maintain, drift from real implementations | Use real dependencies in integration tests, minimal mocks |
-| **Golden Master Testing** | Verify legacy behavior | Unmaintainable, hard to understand, blocks refactoring | Property-based invariants instead of golden master |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Testing Implementation Details** | Tests break on refactoring, become brittle | Test user behavior and component contracts, not internal state |
+| **Flaky Async Tests** | Non-deterministic test failures destroy trust | Use proper async/await, waitFor, fake timers, mock timers consistently |
+| **Over-Mocking External Libraries** | Tests mock too much, don't validate real behavior | Only mock network, device APIs, time - test real component logic |
+| **Brittle Selector Tests** | CSS classes change, tests break | Use data-testid attributes for stable selectors |
+| **Testing Third-Party Libraries** | Don't test what library authors test | Trust React, Next.js, React Native - test your code only |
+| **Shared State Between Tests** | Tests interfere with each other, flaky failures | Isolate test data, cleanup after each test, use fixtures |
+| **Hardcoded Test Data** | Doesn't test edge cases, misses bugs | Use property-based testing, fuzzing, data generators |
+| **Missing Error Path Tests** | Only testing happy path misses critical bugs | Test 401, 500, network errors, malformed responses |
+| **Testing Browser APIs Directly** | Different browsers behave differently | Use jsdom for tests, Playwright for real browser validation |
+| **E2E Tests for Everything** | Slow, brittle, expensive | Use component tests for speed, E2E for critical paths only |
 
 ## Feature Dependencies
 
 ```
-[Critical Path Prioritization]
-    └──requires──> [Test Coverage Metrics]
-                   └──requires──> [Test Markers]
-                                  └──enhances──> [Coverage by Domain]
-
-[Property-Based Testing Framework]
-    └──requires──> [Hypothesis Integration]
-                   └──requires──> [Test Fixtures]
-                                  └──enhances──> [Governance-Specific Testing]
-
-[Parallel Test Execution]
-    └──requires──> [Test Isolation]
-                   └──conflicts──> [Shared State]
-
-[Test Impact Analysis]
-    └──requires──> [Git Integration]
-                   └──enhances──> [CI/CD Integration]
-
-[API Contract Testing]
-    └──requires──> [Integration Tests]
-                   └──enhances──> [Coverage by Domain]
-
-[Mutation Testing]
-    └──requires──> [Unit Tests]
-                   └──conflicts──> [Fast CI/CD] (too slow for main pipeline)
-
-[Coverage Trending]
-    └──requires──> [Coverage Reports]
-                   └──requires──> [Historical Data Storage]
+Component Integration Tests → API Contract Validation (need components to call APIs)
+API Contract Validation → Offline Data Sync (need API calls to queue offline)
+State Management Consistency → Property-Based State Testing (state must exist first)
+Device Feature Mocking → Offline Data Sync (need device APIs to test)
+Authentication Flow → State Management Consistency (auth state drives other features)
+Property-Based State Testing → Cross-Platform Consistency (invariants should hold everywhere)
 ```
 
-### Dependency Notes
+## MVP Recommendation
 
-- **Critical Path Prioritization requires Test Coverage Metrics**: Can't prioritize what you can't measure. Coverage metrics are the foundation.
-- **Test Markers enhance Coverage by Domain**: Markers (P0/P1, security, governance) enable domain-specific coverage reporting.
-- **Property-Based Testing Framework requires Hypothesis Integration**: Can't do property-based tests without a strategy/generation library.
-- **Test Fixtures enhance Governance-Specific Testing**: Shared fixtures (db_session, mock_agents) make governance tests faster to write.
-- **Parallel Test Execution requires Test Isolation**: Tests must be independent to run in parallel without race conditions.
-- **Test Isolation conflicts with Shared State**: Any shared mutable state breaks parallel execution.
-- **Test Impact Analysis requires Git Integration**: Needs git diff to determine which tests to run.
-- **Test Impact Analysis enhances CI/CD Integration**: Makes CI faster by running only relevant tests.
-- **API Contract Testing requires Integration Tests**: Contract tests are a specialized form of integration testing.
-- **API Contract Testing enhances Coverage by Domain**: Improves API domain coverage specifically.
-- **Mutation Testing requires Unit Tests**: Can't mutate code if there are no tests to verify the mutation.
-- **Mutation Testing conflicts with Fast CI/CD**: Too slow for main pipeline, move to separate job.
-- **Coverage Trending requires Coverage Reports**: JSON reports (line 56) provide data for trending.
-- **Coverage Trending requires Historical Data Storage**: Need to persist coverage.json over time to show trends.
+**Prioritize for v4.0:**
 
-## MVP Definition
+### 1. Frontend Integration Testing (High Priority)
+- Fix 21 failing frontend tests (40% → 100% pass rate)
+- Add API contract tests for all backend endpoints
+- Add state management tests (Redux/Zustand/Context)
+- Add form validation and submission tests
+- Add navigation and routing tests
+- Add authentication flow tests
+- **Target**: 80%+ test coverage, <2min test runtime
 
-### Launch With (v1) - Week 1-2
+### 2. Mobile Integration Testing (High Priority)
+- Add device feature mocks (camera, location, biometrics, notifications)
+- Add offline sync tests (queue, retry, conflict resolution)
+- Add platform permission tests (iOS vs Android differences)
+- Add React Native component integration tests
+- Add cross-platform consistency tests
+- **Target**: 70%+ test coverage, support iOS 13+, Android 8+
 
-Minimum viable product to achieve 80% coverage on critical paths.
+### 3. Desktop Integration Testing (Medium Priority)
+- Add Tauri native module mocks (filesystem, system APIs)
+- Add cross-platform tests (Windows/macOS/Linux)
+- Add desktop-specific feature tests (menu bar, notifications, auto-updates)
+- Add desktop-backend integration tests
+- **Target**: 60%+ test coverage, cross-platform validation
 
-- [x] **Test Coverage Metrics** - Already configured (pytest-cov, 80% threshold)
-- [x] **Unit Tests** - 517 test files exist
-- [x] **Property-Based Tests** - 108 files with Hypothesis integration
-- [x] **Test Markers** - 20+ markers defined for prioritization
-- [x] **CI/CD Integration** - pytest.ini configured for CI
-- [ ] **Critical Path Prioritization** - Need to identify and prioritize governance, security, episodic memory tests
-- [ ] **Coverage by Domain** - Generate separate coverage reports for core/, api/, tools/
-- [ ] **Coverage Trending** - Set up historical tracking of coverage.json
-- [ ] **Test Isolation Verification** - Ensure all tests can run in parallel (fix shared state issues)
-- [ ] **Critical Path Test Coverage** - Achieve 80% on governance, security, episodic memory specifically
+### 4. Property-Based Testing (Medium Priority)
+- **Frontend State Invariants**: fast-check for Redux reducers, context providers, state machines
+- **Component Contract Tests**: Props validation, event callbacks, ref forwarding
+- **API Contract Tests**: Request/response shape validation with fast-check generators
+- **Data Transformation Invariants**: Sorting, filtering, pagination with random inputs
+- **Target**: 20-30 property tests covering critical state invariants
 
-### Add After Validation (v1.x) - Post Sprint
+### 5. Advanced Testing (Low Priority - Defer to v4.1+)
+- Visual regression testing (Percy/Chromatic)
+- Performance regression tests (Lighthouse CI)
+- Accessibility testing (jest-axe)
+- Mutation testing (StrykerJS)
+- Memory leak detection
+- E2E tests with Playwright/Detox
 
-Features to add once core 80% coverage is achieved.
+**Defer to Future Releases:**
+- Visual regression testing (requires screenshot infrastructure)
+- Performance regression testing (requires performance budgets)
+- Mutation testing (requires baseline test quality)
+- E2E testing infrastructure (requires test environment setup)
 
-- [ ] **Parallel Test Execution** - Add pytest-xdist to reduce CI time
-- [ ] **Test Impact Analysis** - Add pytest-picked to run only affected tests
-- [ ] **API Contract Testing** - Expand api_contracts/ tests
-- [ ] **Performance Regression Tests** - Set up performance baselines and regression detection
-- [ ] **Governance-Specific Test Reports** - Custom coverage reports for governance domain
+## Complexity Assessment
 
-### Future Consideration (v2+) - After MVP
+| Area | Complexity | Why |
+|------|------------|-----|
+| Component Integration Tests | **Low** | React Testing Library well-documented, straightforward patterns |
+| API Contract Tests | **Medium** | Need to mock fetch, handle async, validate response shapes |
+| State Management Tests | **Medium** | Redux/reducer logic, async actions, middleware, selectors |
+| Form Validation | **Low** | Straightforward validation rules, user input simulation |
+| Device Feature Mocking | **High** | Platform-specific APIs, iOS vs Android differences, permissions |
+| Offline Sync | **High** | Queue management, retry logic, conflict resolution, sync orchestration |
+| Property-Based Testing | **Medium** | fast-check learning curve, invariant identification, generator design |
+| Cross-Platform Testing | **High** | Different platforms, inconsistent APIs, environment-specific code |
+| Visual Regression | **Medium** | Screenshot infrastructure, image diffing, baseline management |
+| Performance Testing | **Medium** | Lighthouse setup, performance budgets, CI integration |
+| Accessibility Testing | **Low** | jest-axe straightforward, aria validation simple |
+| Mutation Testing | **Low** | StrykerJS setup easy, but requires good baseline tests |
 
-Features to defer until testing infrastructure is stable.
+## Integration with Existing Atom Architecture
 
-- [ ] **Fuzzy Testing** - Implement fuzzy/ marker tests for security endpoints
-- [ ] **Mutation Testing** - Add mutation testing (separate CI job)
-- [ ] **Chaos Engineering** - Implement chaos/ marker tests for resilience
-- [ ] **E2E Tests for Critical Workflows** - Add full-stack E2E tests for 5-10 critical user journeys
-- [ ] **Advanced Coverage Analytics** - Dashboards, coverage by feature, coverage trends over time
-- [ ] **Test Quality Metrics** - Track test flakiness, test runtime, test failure rate
+**Existing Infrastructure to Leverage:**
 
-## Feature Prioritization Matrix
+1. **Backend Property-Based Testing Framework** ✅
+   - `backend/tests/property_tests/` has comprehensive Hypothesis tests
+   - Test patterns: `@given`, `@settings`, `st.*` strategies
+   - Reuse patterns for frontend property tests with fast-check
+   - Example: `test_governance_maturity_invariants.py` (1,205 lines) shows property test structure
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Test Coverage Metrics | HIGH | LOW | P1 |
-| Critical Path Prioritization | HIGH | MEDIUM | P1 |
-| Coverage by Domain | HIGH | LOW | P1 |
-| Property-Based Tests | HIGH | MEDIUM (already done) | P1 |
-| Test Isolation Verification | HIGH | MEDIUM | P1 |
-| Coverage Trending | MEDIUM | LOW | P2 |
-| Parallel Test Execution | MEDIUM | MEDIUM | P2 |
-| API Contract Testing | MEDIUM | MEDIUM | P2 |
-| Performance Regression Tests | MEDIUM | MEDIUM | P2 |
-| Test Impact Analysis | MEDIUM | HIGH | P2 |
-| Governance-Specific Testing | HIGH | LOW (already done) | P1 |
-| Fuzzy Testing | LOW | HIGH | P3 |
-| Mutation Testing | LOW | HIGH | P3 |
-| Chaos Engineering | LOW | HIGH | P3 |
-| E2E Tests for All Workflows | LOW | VERY HIGH | P3 |
+2. **Frontend Test Infrastructure** ✅
+   - Jest + React Testing Library configured
+   - Test scripts: `npm test`, `npm run test:coverage`, `npm run test:ci`
+   - Test setup: `tests/setup.ts` with mocks for React contexts
+   - Current baseline: 35 tests, 14 passing (40% pass rate)
 
-**Priority key:**
-- **P1**: Must have for 80% coverage in 1-2 weeks
-- **P2**: Should have, add when possible during sprint
-- **P3**: Nice to have, defer to post-sprint
+3. **Mobile Test Infrastructure** ✅
+   - React Native Testing Library for component tests
+   - Jest configured with mobile-specific mocks
+   - Test files in `mobile/src/__tests__/` (20+ test files)
+   - Existing mocks: Expo modules, device APIs, AsyncStorage
 
-## Competitor Feature Analysis
+4. **CI/CD Pipeline** ✅
+   - GitHub Actions workflows for smoke, property, fuzz, mutation tests
+   - Coverage thresholds: >80% target
+   - Test runtimes: <2min for property tests
+   - Parallel test execution support
 
-| Feature | Typical Testing Framework | Atom's Approach | Competitive Advantage |
-|---------|---------------------------|-----------------|----------------------|
-| Coverage Thresholds | 70-80% standard | 80% configured (pytest.ini line 58) | Table stakes, met |
-| Property-Based Testing | Rare (mostly functional) | 108 property test files, Hypothesis integrated | **STRONG DIFFERENTIATOR** |
-| Test Organization | By file/module | By domain (governance, security, episodes) + markers | **DIFFERENTIATOR** - domain-driven testing |
-| Critical Path Focus | Ad-hoc, manual | P0/P1/P2/P3 markers, domain-specific markers | **DIFFERENTIATOR** - systematic prioritization |
-| Async Testing | Often separate framework | Integrated (pytest.ini line 63) | Table stakes, met |
-| CI/CD Integration | Manual or basic hooks | Configured for CI (conservative strategy) | Table stakes, met |
-| Coverage Reports | HTML + terminal | HTML + terminal + JSON (line 54-56) | Table stakes, met |
-| Test Protection | Not common | PROPERTY_TEST_GUARDIAN.md protection | **DIFFERENTIATOR** - prevents AI/automation corruption |
-| Governance Testing | Not applicable (unique to Atom) | governance/ property tests, confidence invariants | **UNIQUE** - no competitor has this |
-| Episodic Memory Testing | Not applicable | episodes/ property tests | **UNIQUE** - no competitor has this |
-| Fuzzy Testing | Rare (security-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
-| Mutation Testing | Rare (quality-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
-| Chaos Engineering | Rare (resilience-focused) | Marker exists, implementation incomplete | Potential differentiator if completed |
+**New Components Needed:**
 
-## Key Insights for 1-2 Week Sprint
+1. **Frontend Property Tests** (`frontend-nextjs/tests/property/`)
+   - `testStateInvariants.ts` - Redux/context state consistency with fast-check
+   - `testComponentContracts.ts` - Props validation, event callbacks
+   - `testAPIContracts.ts` - Request/response shape validation
+   - `testDataTransformations.ts` - Sorting, filtering, pagination
 
-### What's Already Done (Table Stakes Met)
-1. **pytest Configuration** - Complete with markers, coverage, async support
-2. **Property-Based Testing** - 108 files, Hypothesis integrated, ~3,699 tests
-3. **Test Organization** - Domain-specific directories (governance, security, episodes)
-4. **Coverage Infrastructure** - HTML, terminal, JSON reports configured
-5. **CI Readiness** - Conservative Hypothesis strategy for CI
+2. **Mobile Integration Tests** (`mobile/src/__tests__/integration/`)
+   - `testOfflineSync.test.ts` - Offline queue, sync, conflict resolution
+   - `testDeviceFeatures.test.ts` - Camera, location, biometrics, notifications
+   - `testPlatformPermissions.test.ts` - iOS vs Android permission differences
+   - `testCrossPlatform.test.ts` - Consistent behavior across platforms
 
-### What's Missing (Critical for 80% in 2 Weeks)
-1. **Coverage by Domain** - Need separate reports for core/, api/, tools/
-2. **Coverage Trending** - Need to track coverage.json over time
-3. **Critical Path Identification** - Need to identify highest-impact tests for governance/security/episodes
-4. **Test Isolation** - Need to verify all tests can run in parallel (fix shared state)
-5. **Domain-Specific 80%** - Need to achieve 80% on governance, security, episodic memory specifically
+3. **Desktop Integration Tests** (`desktop/src/tests/`)
+   - `testTauriAPI.test.ts` - Native module mocking, system APIs
+   - `testCrossPlatform.test.ts` - Windows/macOS/Linux differences
+   - `testDesktopFeatures.test.ts` - Menu bar, notifications, auto-updates
 
-### What to Defer (Anti-Features for Sprint)
-1. **100% Coverage** - Not realistic in 2 weeks, focus on 80% critical paths
-2. **E2E Tests** - Too slow, focus on integration tests
-3. **Mutation/Fuzzy/Chaos Testing** - Too complex for sprint, markers exist for future
-4. **Test Impact Analysis** - Nice to have, but not blocking for 80% coverage
-5. **Parallel Test Execution** - Speed optimization, defer until after 80% achieved
+4. **Test Utilities**
+   - `frontend-nextjs/tests/utils/testHelpers.ts` - Custom render, waitFor enhancements
+   - `mobile/src/__tests__/helpers/deviceMocks.ts` - Expo module mocks
+   - `backend/tests/contract_tests/api_contracts.py` - OpenAPI contract validation
 
-### Recommended Sprint Plan (2 Weeks)
+## Test Coverage Targets
 
-**Week 1: Infrastructure + Critical Paths**
-- Day 1-2: Set up coverage by domain (core/, api/, tools/), implement trending
-- Day 3-4: Identify critical paths (governance, security, episodic memory), write missing tests
-- Day 5: Fix test isolation issues, verify parallel execution readiness
+| Area | Target Coverage | Priority | Rationale |
+|------|----------------|----------|-----------|
+| **Frontend Components** | 80%+ | High | Critical UI paths, user interactions |
+| **Frontend State Management** | 90%+ | High | State bugs affect entire app |
+| **Frontend API Integration** | 85%+ | High | API contracts prevent integration bugs |
+| **Mobile Components** | 75%+ | High | Mobile-specific UI patterns |
+| **Mobile Device Features** | 70%+ | Medium | Device APIs harder to test |
+| **Mobile Offline Sync** | 85%+ | High | Offline bugs cause data loss |
+| **Desktop Components** | 65%+ | Medium | Desktop shares code with web |
+| **Desktop Native APIs** | 60%+ | Low | Platform-specific, lower usage |
+| **Property Tests (State)** | 20-30 tests | Medium | Focus on critical invariants |
+| **Property Tests (API)** | 15-20 tests | Medium | Contract validation |
+| **E2E Tests** | 10-15 flows | Low | Only critical user workflows |
 
-**Week 2: Coverage + Domain Focus**
-- Day 1-3: Achieve 80% coverage on governance domain (highest priority)
-- Day 4: Achieve 80% coverage on security domain
-- Day 5: Achieve 80% coverage on episodic memory domain, verify overall 80%
+## Existing Atom Test Infrastructure
 
-**Success Criteria:**
-- [ ] 80% coverage on governance (core/governance_service.py, agent_context_resolver.py, governance_cache.py)
-- [ ] 80% coverage on security (auth/, crypto/, tools_security/)
-- [ ] 80% coverage on episodic memory (episode_*.py services)
-- [ ] Overall 80% coverage across backend/
-- [ ] All tests pass in CI with parallel execution
-- [ ] Coverage trending shows upward trajectory
+**Already Implemented (from codebase analysis):**
+
+### Backend Property Tests (Comprehensive)
+1. **Governance Maturity Invariants** (1,205 lines)
+   - Permission matrix completeness (all role-action combos defined)
+   - Maturity gate enforcement (STUDENT/INTERN/SUPERVISED/AUTONOMOUS)
+   - Action complexity mapping (1-4 levels)
+   - RBAC verification (role-based access control)
+   - Cache consistency (governance cache maintains correctness)
+   - Confidence score transitions (boundary values: 0.5, 0.7, 0.9)
+
+2. **Financial Invariants** (814 lines)
+   - Cost leak detection, budget guardrails
+   - Invoice reconciliation, multi-currency handling
+   - Tax calculations, net worth calculations
+   - Revenue recognition, invoice aging
+
+3. **Database CRUD Invariants** (150+ lines)
+   - CRUD behavior (create, read, update, delete)
+   - Foreign key constraints, unique constraints
+   - Transaction atomicity, cascade behaviors
+
+4. **AI Accounting Invariants** (705 lines)
+   - Transaction ingestion, categorization
+   - Confidence scoring thresholds (0.85 = auto-post)
+   - Audit trail integrity, ledger integration
+
+**Key Patterns to Follow:**
+```python
+# From test_governance_maturity_invariants.py
+@given(
+    agent_status=st.sampled_from([
+        AgentStatus.STUDENT,
+        AgentStatus.INTERN,
+        AgentStatus.SUPERVISED,
+        AgentStatus.AUTONOMOUS
+    ]),
+    action_type=st.sampled_from([
+        "present_chart", "stream_chat", "submit_form", "delete"
+    ])
+)
+@settings(max_examples=200, deadline=None)
+def test_maturity_gate_enforcement(self, db_session, agent_status, action_type):
+    """
+    INVARIANT: Maturity gates enforce action complexity restrictions.
+
+    Tests that:
+    - STUDENT agents can only do complexity 1 actions
+    - INTERN agents can do complexity 1-2 actions
+    - SUPERVISED agents can do complexity 1-3 actions
+    - AUTONOMOUS agents can do all actions (1-4)
+    """
+    # Test implementation...
+```
+
+### Frontend Tests (Baseline Established)
+1. **Test Infrastructure** ✅
+   - Jest + React Testing Library configured
+   - Module resolution fixed (@/ imports working)
+   - React contexts mocked (useToast, AgentAudioControlProvider, WakeWordProvider)
+   - Test scripts: test, test:watch, test:coverage, test:ci
+
+2. **Current Tests** (35 tests, 14 passing)
+   - AgentManager tests (10 tests, 1 passing - needs fixes)
+   - VoiceCommands tests (3 tests, 0 passing)
+   - WhatsAppBusinessIntegration tests (21 tests, 13 passing)
+   - Issues: Missing props, test expectations don't match implementation
+
+3. **Test Configuration** ✅
+   - `jest.config.js`: Module resolution, transform, coverage collection
+   - `tests/setup.ts`: Global mocks, test environment setup
+   - `package.json`: Test scripts, dependencies (@testing-library/*)
+
+### Mobile Tests (React Native)
+1. **Test Files** (20+ test files)
+   - `agentService.test.ts` - Agent API communication
+   - `cameraService.test.ts` - Camera feature testing
+   - `locationService.test.ts` - Geolocation testing
+   - `storageService.test.ts` - AsyncStorage persistence
+   - `notificationService.test.ts` - Push notifications
+   - Screen tests: AgentChatScreen, CanvasViewerScreen, SettingsScreen
+   - Context tests: AuthContext, DeviceContext, BiometricAuth
+
+2. **Test Infrastructure** ✅
+   - Jest configured for React Native
+   - Mock helpers: `mockExpoModules.ts`, `testUtils.ts`
+   - Platform mocks: Expo modules, device APIs
+   - AsyncStorage mock for persistence tests
+
+## Platform-Specific Considerations
+
+### Frontend (Next.js + React)
+**Testing Challenges:**
+- Server Components vs Client Components (Next.js 13+ App Router)
+- Streaming and Suspense boundaries
+- API routes integration
+- Authentication sessions
+- File uploads/downloads
+
+**Recommended Tools:**
+- **Jest** - Test runner (already configured)
+- **React Testing Library** - Component testing
+- **MSW (Mock Service Worker)** - API mocking
+- **Playwright** - E2E testing (for critical flows)
+- **fast-check** - Property-based testing
+
+**Test Patterns:**
+```typescript
+// Example: API contract test with MSW
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+
+const server = setupServer(
+  rest.get('/api/agents', (req, res, ctx) => {
+    return res(ctx.json({ agents: [] }));
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+test('fetches agents from API', async () => {
+  const { result } = renderHook(() => useAgents());
+  await waitFor(() => expect(result.current.agents).toEqual([]));
+});
+```
+
+### Mobile (React Native + Expo)
+**Testing Challenges:**
+- Platform-specific APIs (iOS vs Android)
+- Device permissions (camera, location, notifications)
+- Biometric authentication (Face ID/Touch ID)
+- Offline mode and network switching
+- Deep linking and app state transitions
+
+**Recommended Tools:**
+- **Jest** - Test runner (already configured)
+- **React Native Testing Library** - Component testing
+- **expo-mock** - Expo module mocking
+- **Detox** - E2E testing (gray-box)
+- **react-native-network_logger** - Network debugging
+
+**Test Patterns:**
+```typescript
+// Example: Device feature mock
+import * as ImagePicker from 'expo-image-picker';
+
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  MediaTypeOptions: {
+    Images: 'images',
+  },
+}));
+
+test('picks image from gallery', async () => {
+  (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file://image.jpg' }],
+  });
+
+  await pickImage();
+  expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+});
+```
+
+### Desktop (Tauri + Rust)
+**Testing Challenges:**
+- Native module mocking (filesystem, system APIs)
+- Cross-platform differences (Windows/macOS/Linux)
+- Tauri invoke/bridge communication
+- Desktop-specific features (menu bar, notifications, auto-updates)
+
+**Recommended Tools:**
+- **Jest** - Test runner (reuse frontend config)
+- **React Testing Library** - Component testing (same as web)
+- **Tauri API Mocks** - Mock @tauri-apps/plugin-* modules
+- **Spectron** (deprecated) or Playwright - E2E testing
+
+**Test Patterns:**
+```typescript
+// Example: Tauri API mock
+import { invoke } from '@tauri-apps/api/tauri';
+
+jest.mock('@tauri-apps/api/tauri', () => ({
+  invoke: jest.fn(),
+}));
+
+test('reads file from disk', async () => {
+  (invoke as jest.Mock).mockResolvedValue('file content');
+
+  const content = await readFile('test.txt');
+  expect(content).toBe('file content');
+  expect(invoke).toHaveBeenCalledWith('read_file', { path: 'test.txt' });
+});
+```
+
+## Property-Based Testing Strategy
+
+### Why Property-Based Testing for Frontend/Mobile/Desktop?
+
+**Traditional example-based tests:**
+```typescript
+test('sorts agents by name', () => {
+  const agents = [
+    { name: 'Charlie' },
+    { name: 'Alice' },
+    { name: 'Bob' },
+  ];
+  const sorted = sortAgents(agents);
+  expect(sorted[0].name).toBe('Alice');
+  expect(sorted[1].name).toBe('Bob');
+  expect(sorted[2].name).toBe('Charlie');
+});
+```
+
+**Property-based tests (fast-check):**
+```typescript
+import fc from 'fast-check';
+
+test('sorts agents by name (property-based)', () => {
+  fc.assert(
+    fc.property(
+      fc.array(fc.record({ name: fc.string() })),
+      (agents) => {
+        const sorted = sortAgents(agents);
+
+        // Property: Sorted list is always same length as input
+        expect(sorted.length).toBe(agents.length);
+
+        // Property: Sorted list contains same elements as input
+        expect(sorted.sort()).toEqual(agents.sort());
+
+        // Property: Each element is <= next element
+        for (let i = 0; i < sorted.length - 1; i++) {
+          expect(sorted[i].name <= sorted[i + 1].name).toBe(true);
+        }
+      }
+    )
+  );
+});
+```
+
+### Critical Invariants to Test
+
+**1. State Management Invariants**
+- Redux reducer purity: Same input → same output
+- State immutability: No mutations, always return new objects
+- Selector consistency: Same state → same selected value
+- Middleware order: Applied in correct sequence
+
+**2. Component Contract Invariants**
+- Props validation: Required props always provided
+- Event callbacks: Called with correct arguments
+- Ref forwarding: Refs attached to correct DOM elements
+- Context values: All consumers receive same context value
+
+**3. API Contract Invariants**
+- Request serialization: Request body matches API schema
+- Response deserialization: Response matches expected types
+- Error handling: All error paths handled gracefully
+- Idempotency: Duplicate requests handled correctly
+
+**4. Data Transformation Invariants**
+- Sorting: Output is always sorted
+- Filtering: Output is subset of input
+- Pagination: Total count consistent across pages
+- Searching: Search term appears in results
+
+**5. UI Invariants**
+- Accessibility: All interactive elements are accessible
+- Responsiveness: Layout works at all breakpoints
+- Performance: Render time < 16ms (60fps)
+- Consistency: Same props → same rendered output
+
+### Recommended Property Tests (v4.0 MVP)
+
+**Priority 1: State Management (10 tests)**
+- Reducer purity and immutability
+- Selector consistency
+- Middleware execution order
+- Context provider values
+- State hydration/dehydration
+
+**Priority 2: API Contracts (8 tests)**
+- Request body serialization
+- Response shape validation
+- Error response handling
+- Timeout/retry logic
+
+**Priority 3: Data Transformations (7 tests)**
+- Sorting algorithms
+- Filtering/pagination
+- Search relevance
+- Data aggregation
+
+**Priority 4: Component Contracts (5 tests)**
+- Props validation
+- Event callback signatures
+- Ref forwarding
+- Context propagation
+
+**Total: 30 property tests for v4.0**
+
+## Integration Testing Strategy
+
+### Frontend Integration Tests
+
+**Component Integration (What to Test):**
+1. **Component + State Management**
+   - Component reads from Redux/Zustand store
+   - Component dispatches actions
+   - State updates trigger re-renders
+
+2. **Component + API Layer**
+   - Component fetches data on mount
+   - Loading/error/success states
+   - Retry/refetch logic
+
+3. **Component + Routing**
+   - Navigation between pages
+   - Route params passed correctly
+   - Deep links work correctly
+
+4. **Component + Forms**
+   - Form validation
+   - Error display
+   - Submission to API
+
+**Test Pattern: Component + State + API**
+```typescript
+test('agent list fetches on mount and displays agents', async () => {
+  // Mock API response
+  mockAPI.getAgents.mockResolvedValue({
+    agents: [
+      { id: '1', name: 'Agent 1', maturity: 'AUTONOMOUS' },
+    ],
+  });
+
+  // Render component
+  render(<AgentList />);
+
+  // Verify loading state
+  expect(screen.getByText('Loading...')).toBeInTheDocument();
+
+  // Wait for API call
+  await waitFor(() => expect(mockAPI.getAgents).toHaveBeenCalled());
+
+  // Verify agents displayed
+  expect(screen.getByText('Agent 1')).toBeInTheDocument();
+});
+```
+
+### Mobile Integration Tests
+
+**Device Feature Integration (What to Test):**
+1. **Camera Integration**
+   - Permission request
+   - Image capture
+   - Image upload to backend
+
+2. **Location Integration**
+   - Permission request
+   - Location fetch
+   - Location updates
+   - Geofencing
+
+3. **Biometric Authentication**
+   - Face ID/Touch ID availability
+   - Authentication success/failure
+   - Fallback to PIN
+
+4. **Push Notifications**
+   - Permission request
+   - Notification receipt
+   - Notification tap handling
+
+5. **Offline Sync**
+   - Queue requests when offline
+   - Sync when online
+   - Conflict resolution
+
+**Test Pattern: Offline Sync**
+```typescript
+test('queues agent message when offline', async () => {
+  // Mock offline network
+  NetInfo.fetch.mockResolvedValue({ isInternetReachable: false });
+
+  // Send message
+  await agentService.sendMessage('agent-1', 'test message');
+
+  // Verify queued (not sent)
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+    'offline_queue',
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: 'SEND_MESSAGE',
+        agentId: 'agent-1',
+        message: 'test message',
+      }),
+    ])
+  );
+});
+
+test('syncs queued messages when online', async () => {
+  // Mock offline queue
+  AsyncStorage.getItem.mockResolvedValue(JSON.stringify([
+    { type: 'SEND_MESSAGE', agentId: 'agent-1', message: 'queued' },
+  ]));
+
+  // Mock online network
+  NetInfo.fetch.mockResolvedValue({ isInternetReachable: true });
+
+  // Trigger sync
+  await offlineSyncService.sync();
+
+  // Verify API called
+  expect(apiService.sendMessage).toHaveBeenCalledWith('agent-1', 'queued');
+
+  // Verify queue cleared
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith('offline_queue', '[]');
+});
+```
+
+### Desktop Integration Tests
+
+**Tauri Integration (What to Test):**
+1. **Filesystem Access**
+   - File picker dialog
+   - File read/write
+   - Directory traversal
+
+2. **System Integration**
+   - Menu bar actions
+   - System notifications
+   - Auto-update checks
+
+3. **Cross-Platform Behavior**
+   - Same feature works on Windows/macOS/Linux
+   - Platform-specific code paths tested
+
+**Test Pattern: Tauri File Read**
+```typescript
+test('reads file from filesystem', async () => {
+  // Mock Tauri invoke
+  (invoke as jest.Mock).mockResolvedValue('file content');
+
+  // Call file read
+  const content = await readFile('/path/to/file.txt');
+
+  // Verify result
+  expect(content).toBe('file content');
+
+  // Verify Tauri API called
+  expect(invoke).toHaveBeenCalledWith('read_file', {
+    path: '/path/to/file.txt',
+  });
+});
+```
+
+## Cross-Platform Consistency Tests
+
+**Goal:** Verify feature parity across web/mobile/desktop
+
+**Strategy:**
+1. **Shared Test Suite**
+   - Write tests once, run on all platforms
+   - Use conditional imports for platform-specific code
+   - Assert same behavior across platforms
+
+2. **Platform Matrix**
+   - Test combinations: web (Chrome/Safari), mobile (iOS/Android), desktop (macOS/Windows/Linux)
+   - Validate consistent API responses
+   - Validate consistent UI behavior
+
+3. **Feature Flags**
+   - Test features enabled/disabled per platform
+   - Validate fallback behavior for unsupported features
+
+**Test Pattern: Cross-Platform**
+```typescript
+// test: shared/agentList.test.ts
+describe('AgentList (cross-platform)', () => {
+  test('displays agents on all platforms', async () => {
+    // Mock API (same for all platforms)
+    mockAPI.getAgents.mockResolvedValue({
+      agents: [
+        { id: '1', name: 'Agent 1' },
+      ],
+    });
+
+    // Render platform-specific component
+    const Component = Platform.select({
+      web: () => render(<WebAgentList />),
+      ios: () => render(<MobileAgentList />),
+      android: () => render(<MobileAgentList />),
+      desktop: () => render(<DesktopAgentList />),
+    });
+
+    const { getByText } = Component();
+
+    // Assert same behavior
+    await waitFor(() => {
+      expect(getByText('Agent 1')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## Test Execution Strategy
+
+### Local Development
+- **Fast feedback**: Run only changed tests (`jest --onlyChanged`)
+- **Watch mode**: Re-run tests on file change (`jest --watch`)
+- **Coverage**: Generate coverage reports (`jest --coverage`)
+
+### CI/CD Pipeline
+- **Parallel execution**: Run frontend/mobile/desktop tests in parallel
+- **Test splitting**: Split test suites by platform for faster feedback
+- **Flaky test detection**: Retry failed tests, mark as flaky
+- **Coverage thresholds**: Fail PR if coverage drops
+
+### Test Stages
+1. **Smoke Tests** (< 30s)
+   - Critical paths only
+   - Block PR if failing
+
+2. **Integration Tests** (< 5min)
+   - Component integration tests
+   - API contract tests
+   - Block deployment if failing
+
+3. **Property Tests** (< 2min)
+   - Fast-check property tests
+   - Run on every commit
+
+4. **E2E Tests** (< 15min)
+   - Critical user workflows
+   - Run on merge to main
+
+## Quality Gates
+
+**Must Pass Before Merge:**
+- All smoke tests passing
+- 80%+ code coverage
+- No flaky tests
+- Property tests passing
+- API contracts validated
+
+**Must Pass Before Deployment:**
+- All integration tests passing
+- Cross-platform consistency validated
+- E2E tests passing
+- Performance budgets met
+- Accessibility checks passing
 
 ## Sources
 
-### Testing Best Practices (2026)
-- [Software Testing Best Practices for 2026 - N-iX](https://www.n-ix.com/software-testing-best-practices/) - Risk-based testing, automation, metrics, and AI (January 18, 2026)
-- [Software Testing Best Practices in 2026 - STC Technologies](https://softwaretechnologyconsultants.com/software-testing-best-practices-in-2026-a-complete-guide-for-modern-qa-devops-teams/) - Comprehensive guide for modern QA DevOps teams (February 2026)
-- [Software Testing Best Practices for 2026 - BugBug.io](https://bugbug.io/blog/test-automation/software-testing-best-practices/) - Code coverage maximization strategies (January 13, 2026)
-- [Top 5 Software Testing Trends for 2026 - Xray Blog](https://www.getxray.app/blog/top-5-software-testing-trends-2026) - Autonomous AI Testing Agents, Testing AI-Generated Code, Continuous Quality (December 11, 2025)
-- [7 Tips to Set Your 2026 Testing Strategy - Sauce Labs](https://saucelabs.com/resources/blog/new-year-better-tests-7-tips-to-set-your-2026-testing-strategy-up) - Performance benchmarks and mobile test coverage (January 7, 2026)
-- [Top 12 Software Testing Trends to Watch for in 2026 - Aqua Cloud](https://aqua-cloud.io/top-12-software-testing-trends/) - Teams requiring 80% coverage before code review
-- [2026 QA Priority: Shift to Test Intelligence - Photon](https://www.linkedin.com/posts/photontesting_2026-qa-priority-stop-breaking-your-own-activity-7419326365717463040-RdYi) - No-code test automation is table stakes
+### High Confidence (Official Documentation)
+- **React Testing Library** - Component testing patterns, queries, async utilities
+- **fast-check** - Property-based testing for TypeScript/JavaScript
+- **React Native Testing Library** - React Native component testing
+- **Jest** - Test runner configuration, mocking, async testing
+- **MSW (Mock Service Worker)** - API mocking for integration tests
+- **Tauri Testing** - Desktop application testing patterns
 
-### Rapid Testing Strategies
-- [Zero to 92% Test Coverage: A Week-Long Journey - Medium](https://medium.com/@jaivalsuthar/building-a-comprehensive-testing-suite-a-week-long-journey-to-92-coverage-1a9f5df8c4e0) - Directly addresses achieving high coverage in one week
-- [How to Write an Effective Test Coverage Plan - QA Wolf](https://www.qawolf.com/blog/how-to-write-an-effective-test-coverage-plan) - Prioritize automation by impact, not comprehensive coverage
-- [Automated Testing Strategies for Critical Application Functions - LinkedIn](https://www.linkedin.com/top-content/technology/software-testing-best-practices/automated-testing-strategies-for-critical-application-functions/) - Focus on critical path testing
-- [12 Faster Testing Strategies for Large Codebases - Augment Code](https://www.augmentcode.com/guides/12-faster-testing-strategies) - Reduce CI times from 45 minutes to under 10 minutes
-- [A Practical Guide to Test Automation Strategy - MuukTest](https://muuktest.com/blog/test-automation-strategy) - Achieving 80% automation coverage on critical user paths
-- [Strategies for Higher Test Coverage - Qt](https://www.qt.io/quality-assurance/blog/strategies-for-higher-test-coverage) - Using code coverage tooling efficiently
+### Medium Confidence (Codebase Analysis)
+- **Atom Backend Property Tests** - 1,205 lines of governance maturity tests showing Hypothesis patterns
+- **Atom Frontend Tests** - 35 tests with 40% pass rate, showing baseline infrastructure
+- **Atom Mobile Tests** - 20+ test files covering device features, services, screens
+- **Atom Test Configuration** - Jest configs, setup files, test scripts
 
-### Property-Based Testing
-- [Property-Based Testing for Cybersecurity - ResearchGate](https://www.researchgate.net/publication/391511964_Property-Based_Testing_for_Cybersecurity_Towards_Automated_Validation_of_Security_Protocols) - PBT for automated validation of security protocols (October 2025)
-- [Towards Automated Validation of Security Protocols - MDPI](https://www.mdpi.com/2073-431X/14/5/179) - PBT for security protocol validation
-- [LLM-Based Property-Based Test Generation for Guardrailing Cyber-Physical Systems - Springer](https://link.springer.com/chapter/10.1007/978-3-032-07132-3_3) - Automated PBT approaches (October 2025)
+### Low Confidence (WebSearch Only - Needs Verification)
+- **Property-based testing for React** - Limited adoption, few production examples
+- **Cross-platform testing patterns** - Platform-specific differences hard to generalize
+- **Visual regression testing** - Multiple tools (Percy, Chromatic), unclear best practices
+- **Mobile testing patterns** - Detox vs Appium debate, unclear winner
+- **Desktop testing patterns** - Tauri testing less documented than web/mobile
 
-### High-Velocity Testing
-- [6 Best Practices for a High-Velocity Testing Strategy - Perfecto](https://www.perfecto.io/blog/6-best-practices-high-velocity-testing) - Stay organized, parallel testing, reduce regression time
-- [10 Software Testing Best Practices for Elite Teams in 2025 - Group107](https://group107.com/blog/software-testing-best-practices/) - Start with high-impact cases, prioritize critical workflows
-- [Test Strategy Optimization: Best Practices - TestDevLab](https://www.testdevlab.com/blog/test-strategy-optimization-best-practices) - Build QA strategy, leverage AI for coverage
-- [End-to-End Testing Best Practices: Complete 2025 Guide - Maestro](https://maestro.dev/insights/end-to-end-testing-best-practices-complete-2025-guide) - E2E testing for reliability
-- [Top Test Coverage Techniques for Testers - Virtuoso QA](https://www.virtuosoqa.com/post/test-coverage-techniques) - Coverage techniques and strategies
+### Gaps Identified
+- **Property-based testing for frontend** - fast-check adoption is low, few real-world examples
+- **Cross-platform consistency** - Limited patterns for shared test suites
+- **Tauri testing best practices** - Less documentation than web/mobile
+- **Visual regression testing** - Tool fragmentation, unclear industry standards
+- **Performance regression testing** - Lighthouse CI patterns still evolving
 
-### Atom Platform Specific
-- `/Users/rushiparikh/projects/atom/backend/pytest.ini` - Pytest configuration with markers, coverage, Hypothesis settings
-- `/Users/rushiparikh/projects/atom/backend/tests/property_tests/README.md` - Property-based testing documentation (108 files, ~3,699 tests)
-- `/Users/rushiparikh/projects/atom/backend/tests/property_tests/database/test_database_invariants.py` - Example property-based tests (49 test functions, 808 lines)
+**Next Research Phases:**
+- Phase-specific research needed for property-based test design (which invariants matter most)
+- Investigation into fast-check generator strategies for complex UI state
+- Deep dive on cross-platform test sharing patterns
+- Research on Tauri native module mocking strategies
+- Investigation into visual regression testing infrastructure
 
 ---
 
-*Feature research for: Comprehensive Testing Initiative - 80% Coverage in 1-2 Weeks*
-*Researched: February 10, 2026*
-*Confidence: MEDIUM (web search sources, not verified with official docs)*
+*Feature research for: Atom v4.0 Platform Integration & Property-Based Testing*
+*Researched: February 26, 2026*
+*Confidence: MEDIUM (mix of official docs, codebase analysis, and limited WebSearch verification)*

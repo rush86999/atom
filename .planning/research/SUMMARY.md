@@ -1,342 +1,263 @@
 # Project Research Summary
 
-**Project:** Atom - AI-Powered Business Automation Platform
-**Domain:** Multi-Agent AI Platform with Governance, Episodic Memory, and Community Skills
-**Researched:** February 18, 2026
+**Project:** Atom Test Coverage Initiative v4.0 — Platform Integration & Property-Based Testing
+**Domain:** Multi-platform testing infrastructure (Next.js, React Native, Tauri, Python)
+**Researched:** February 26, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom is a production-ready multi-agent AI automation platform with sophisticated governance, episodic memory, and community skills integration. The platform is built on Python 3.11/FastAPI with SQLAlchemy 2.0, leveraging Docker for sandboxed skill execution and PostgreSQL/LanceDB for hybrid memory storage. The codebase demonstrates exceptional completion with 15 major phases delivered, including CI/CD pipelines, comprehensive monitoring (health checks, Prometheus metrics), and type safety enforcement (MyPy).
+Atom v4.0 requires a unified testing architecture that integrates four distinct platforms (Python backend, Next.js frontend, React Native mobile, Tauri desktop) with property-based testing parity. The existing backend has comprehensive Hypothesis property tests (100+ files), while frontend/mobile have Jest configured but limited test coverage (40% pass rate, 21/35 frontend tests failing). The recommended approach uses a **platform-first testing strategy** where each platform runs tests independently in CI, then aggregates results via Python scripts for unified coverage reporting.
 
-The research reveals two complementary enhancement opportunities: (1) **Comprehensive Testing Initiative** - achieving 80% test coverage across governance, security, and episodic memory domains within 1-2 weeks using existing pytest infrastructure with 517 test files and Hypothesis property-based testing; and (2) **Community Skills Integration** - enabling agents to use 5,000+ OpenClaw/ClawHub skills through Docker sandbox isolation, LLM security scanning, and governance workflow integration. Both initiatives are technically sound with HIGH confidence, requiring only one new dependency (python-frontmatter) and building on proven patterns from Phase 14 (82 tests, 13/13 success criteria verified).
+The most critical risk is **fragmented testing infrastructure** — frontend/mobile/desktop tests currently run in isolation without unified quality gates. Research shows this leads to inconsistent coverage, missed integration bugs, and slow feedback loops. Mitigation requires: (1) centralized coverage aggregation using pytest-cov as source of truth, (2) FastCheck for JavaScript/TypeScript property tests (matching Hypothesis patterns), (3) unified CI orchestration with parallel platform execution, and (4) incremental rollout starting with backend+frontend integration before adding mobile/desktop.
 
-**Critical risks identified:** Coverage churn under timeline pressure (writing low-value tests to hit 80%), weak property-based tests without meaningful invariants, and integration test state contamination. Mitigation strategies include establishing quality thresholds before measuring coverage, requiring documented invariants for property tests, and enforcing parallel execution from day one to catch state sharing issues. The recommended approach prioritizes quality over speed: 80% quality coverage in 4 weeks > 80% junk coverage in 1 week.
+Key differentiator: Property-based testing for frontend state management (Redux/Zustand reducers, API contracts, data transformations) using FastCheck — an approach not widely adopted in production but highly recommended for catching edge cases in business logic invariants. This extends Atom's existing Hypothesis-based property test patterns to JavaScript/TypeScript platforms.
 
 ## Key Findings
 
 ### Recommended Stack
 
 **Core technologies:**
-- **Python 3.11+ with FastAPI** — Async web framework with automatic OpenAPI docs, type hints enforcement via MyPy (Phase 15), production-tested across 517 test files
-- **SQLAlchemy 2.0+** — Database ORM with 4 new models (CommunitySkill, SkillSecurityScan, SkillExecution), hybrid PostgreSQL (hot) + LanceDB (cold) storage for episodic memory
-- **pytest + pytest-asyncio + Hypothesis** — Test framework with 108 property-based test files (~3,699 tests), configured for CI with conservative Hypothesis strategy, supports async/await testing patterns
-- **Docker SDK for Python 7.0+** — HazardSandbox isolation for community skills, resource limits (memory, CPU), security constraints (network_disabled, read_only), already verified in Phase 14
-- **OpenAI SDK 1.0+** — GPT-4 security scanning for 21+ malicious patterns, semantic analysis for obfuscated threats, cached by SHA-256 hash
-- **LangChain BaseTool** — Tool wrapper for community skills, automatic schema validation, agent integration compatibility
-- **python-frontmatter 1.0+** (NEW) — Only new dependency required, parses YAML frontmatter from SKILL.md files with auto-fix for malformed metadata
+- **Jest (30.0.5/29.7.0)** — Test runner for Next.js and React Native — Already configured with 80% coverage threshold, jsdom/jest-expo presets working
+- **pytest (8.4.2)** — Backend orchestration and unified reporting — Existing infrastructure with CI/CD integration, coverage enforcement
+- **Hypothesis (6.151.5)** — Python property-based testing — Already in use with 60+ property test files, proven patterns
+- **FastCheck (4.5.3)** — TypeScript/JavaScript property-based testing — Hypothesis equivalent for JS/TS, integrates with Jest, type-safe
+- **Playwright Python (1.58.0) + Node (1.58.2)** — Cross-platform E2E — Backend has 17 tests, frontend needs integration
+- **Detox (20.47.0)** — React Native grey-box E2E — 10x faster than Appium, grey-box architecture
+- **pytest-cov (4.1.0)** — Python coverage aggregation — Already configured, use as source of truth
 
-**Why this stack:** All components verified in production (Phase 14: 82 tests, Phase 15: CI/CD pipeline, monitoring, type hints). The existing codebase demonstrates exceptional test coverage infrastructure with pytest.ini fully configured for parallel execution, coverage metrics (80% threshold), and domain-specific markers (governance, security, episodic memory).
+**Integration strategy:** Frontend/mobile tests run in native Jest environments but report to unified pytest-based CI pipeline using JSON report aggregation. Python scripts parse all coverage formats (pytest JSON, Jest JSON) and produce unified reports.
 
 ### Expected Features
 
 **Must have (table stakes):**
-- **Test Coverage Metrics** — 80% threshold configured in pytest.ini, industry standard for code review gates, tracks progress toward quality goals
-- **Unit Tests** — Foundation of testing strategy, 517 test files exist, verify individual components (governance service, LLM handler, episodic memory)
-- **Integration Tests** — Verify component interactions (agent execution with governance, skill execution with sandbox, episodic memory retrieval)
-- **Property-Based Tests** — Modern testing best practice, 108 files with Hypothesis integration, finds edge cases unit tests miss through random input generation
-- **Critical Path Prioritization** — Focus on high-impact areas (governance, security, episodic memory) for maximum coverage ROI, achieve 80% faster by prioritizing what matters
-- **Test Isolation** — Tests must run independently (no shared state), enables parallel execution with pytest-xdist, prevents flaky tests
-- **Security Scanning for Skills** — Static pattern matching (21+ malicious patterns) + GPT-4 semantic analysis, defense-in-depth before skill activation
-- **Sandboxed Skill Execution** — Docker containers with strict limits (network disabled, read-only filesystem, 5-min timeout), prevents malicious code escape
-- **Governance Integration** — Maturity-based routing (STUDENT blocked from Python skills, INTERN requires approval, SUPERVISED monitored, AUTONOMOUS full execution)
+- **Component Integration Tests** — Verify components work together with state management, API calls, routing — React Testing Library for Next.js, React Native Testing Library for mobile
+- **API Contract Validation** — Frontend must correctly call backend APIs and handle responses — Test request/response shapes, error handling, timeout scenarios
+- **State Management Consistency** — Redux/Zustand/Context state must be predictable and consistent — Test state updates, selectors, async actions, middleware
+- **Form Validation & Submission** — Forms must validate correctly and submit data to backend — Test validation rules, error display, success/error states
+- **Navigation & Routing** — Users must navigate between screens/pages correctly — Test routing, navigation params, deep links, back navigation
+- **Authentication Flow** — Login/register/logout must work correctly with token storage — Test auth flows, token refresh, session persistence, biometric auth
+- **Offline Data Sync** — Mobile/desktop must handle offline mode gracefully — Test offline queue, sync on reconnect, conflict resolution
+- **Device Feature Mocking** — Camera, location, notifications must work across platforms — Mock Expo modules, device APIs, test permissions
 
-**Should have (competitive):**
-- **Coverage by Domain** — Separate coverage reports for core/, api/, tools/ to track progress on critical subsystems (governance, security, episodic memory)
-- **Coverage Trending** — Historical tracking of coverage.json to show progress toward 80% goal, identify areas needing attention
-- **Parallel Test Execution** — pytest-xdist to reduce CI time from hours to minutes, critical for 1-2 week sprint velocity
-- **Test Impact Analysis** — Run only tests affected by code changes (pytest-picked), speeds up iteration during development
-- **Governance-Specific Testing** — Property tests for agent maturity invariants (maturity never decreases without explicit promotion), confidence score validation, action complexity gating
-- **Episodic Memory Testing** — Verify episode segmentation (time gaps, topic changes), retrieval modes (temporal, semantic, sequential, contextual), lifecycle (decay, consolidation, archival)
-- **Skill Usage Metrics** — Track execution success rate, unique skills used, skill diversity bonus (up to +5% for graduation readiness)
+**Should have (competitive differentiators):**
+- **Property-Based State Testing** — Use fast-check to generate random state transitions and verify invariants — State machines, Redux reducers, context providers should maintain invariants
+- **Visual Regression Testing** — Detect unintended UI changes across releases — Percy, Chromatic, or Playwright screenshots
+- **Cross-Platform Consistency** — Verify feature parity across web/mobile/desktop — Same tests run on multiple platforms, validate consistent behavior
+- **Performance Regression Tests** — Detect rendering performance degradation — Lighthouse CI, render time budgets, bundle size tracking
+- **Accessibility Testing** — Ensure WCAG compliance with automated tests — jest-axe, aria labels, keyboard navigation, screen reader tests
+- **End-to-End User Flows** — Test complete workflows from UI to backend — Playwright for web, Detox for mobile
 
 **Defer (v2+):**
-- **Fuzzy Testing** — Marker exists (fuzzy), implementation incomplete, defer until security-critical endpoints identified
-- **Mutation Testing** — Marker exists (mutation), very slow (10x-100x test runtime), add as separate CI job post-sprint
-- **Chaos Engineering** — Marker exists (chaos), requires production infrastructure, defer until operational maturity
-- **E2E Tests for All Workflows** — Too slow for 1-2 week sprint, focus on integration tests for critical paths only
-- **100% Coverage Goal** — Diminishing returns, impossible in 2 weeks, focus on 80% critical paths instead
+- **Mutation Testing** — Verify test quality by mutating code — Requires baseline test quality first
+- **Memory Leak Detection** — Find memory leaks in long-running sessions — Advanced performance testing
 
 ### Architecture Approach
 
-**Three-Layer Architecture:** Community Skills Integration follows defense-in-depth security with (1) **Import Layer** (SkillParser → SkillSecurityScanner → SkillRegistryService), (2) **Governance Layer** (GovernanceCache <1ms, TriggerInterceptor <5ms, AgentGraduationService), (3) **Execution Layer** (SkillAdapter → HazardSandbox → EpisodeSegmentationService). This pattern ensures no skill executes without security scanning, maturity verification, and episodic tracking.
+**Platform-first testing architecture:** Each platform runs tests independently in CI (pytest for backend, Jest for frontend/mobile, cargo test for Tauri), then uploads coverage artifacts to a unified aggregation job. Python scripts parse multiple coverage formats and produce unified reports with per-platform breakdowns. Quality gates enforce 50% overall coverage + 98% pass rate across all platforms.
 
 **Major components:**
-1. **SkillParser** — Parse SKILL.md files (YAML + Markdown) using python-frontmatter, auto-fix malformed metadata, detect skill type (prompt/python/CLI), lenient parsing with graceful error handling
-2. **SkillSecurityScanner** — Static analysis (21+ malicious patterns: `__import__`, `eval`, `exec`, `subprocess`, `os.system`) + GPT-4 semantic analysis for obfuscated threats, cache by SHA-256 hash
-3. **HazardSandbox** — Isolated Docker execution with resource limits (mem_limit, cpu_quota), security constraints (network_disabled, read_only), 5-min timeout, no host filesystem mount
-4. **GovernanceCache** — <1ms cached permission checks for agent maturity + skill access, cache key format: `{agent_id}:skill:{skill_type}`, prevents repeated governance queries
-5. **TriggerInterceptor** — <5ms routing decisions based on agent maturity, STUDENT → Python skills blocked (route to training), INTERN → approval required, SUPERVISED → real-time monitoring
-6. **EpisodeSegmentationService** — Create EpisodeSegments for all skill executions (success/failure), track skill metadata (name, source, type), support temporal/semantic/sequential/contextual retrieval
-7. **AgentGraduationService** — Calculate readiness scores with skill usage metrics (total_executions, success_rate, unique_skills_used), skill diversity bonus (up to +5% for diverse skill usage)
+1. **Platform-Specific Test Runners** — pytest (backend), Jest (frontend/mobile), cargo test (desktop Rust) — Each runs independently in parallel CI jobs
+2. **Coverage Aggregator** — Python script (`backend/tests/scripts/aggregate_coverage.py`) — Parses pytest JSON, Jest JSON, Rust coverage; produces unified report
+3. **Unified Quality Gates** — Python script (`unified_quality_gate.py`) — Enforces coverage thresholds, pass rate, flaky test detection
+4. **Property Test Frameworks** — Hypothesis (Python), FastCheck (JavaScript/TypeScript) — Shared invariant testing patterns across platforms
+5. **CI Orchestration** — GitHub Actions workflows — Parallel test execution, artifact upload/download, aggregation job
 
-**Data flow:** Import workflow (User → API → SkillParser → SecurityScanner → Registry), Execution workflow (Agent → GovernanceCache → TriggerInterceptor → [BLOCK/EXECUTE] → Sandbox → EpisodeSegment → Graduation tracking). Every skill execution creates an EpisodeSegment with metadata (skill_name, skill_source, skill_type, sandbox_execution, duration_seconds), enabling agents to learn from past skill usage patterns.
+**Data flow:** Developer push → Trigger CI jobs (backend, frontend, mobile, desktop in parallel) → Upload coverage artifacts → Download all artifacts → Aggregate coverage → Quality gate evaluation → PR comment with breakdown
 
 ### Critical Pitfalls
 
-1. **Coverage Churn Under Timeline Pressure** — Teams write low-value tests (assert True, trivial checks) to hit 80% coverage targets, creating false sense of security. Tests become "coverage checks" rather than "quality assurances." Prevention: Set quality thresholds (80% coverage AND 70% assertion quality), track "critical path coverage" vs. "overall coverage" (governance/episodic memory need >90%), ban trivial tests with single-line assertions. Timebox properly: 80% quality coverage in 4 weeks > 80% junk coverage in 1 week.
-
-2. **Property-Based Testing Without Meaningful Invariants** — Hypothesis tests that check obvious truths (x + y == y + x) or implementation details rather than domain invariants. Tests generate hundreds of examples but catch no bugs. Prevention: Identify invariants first (list 3-5 domain invariants per module: "Agent maturity never decreases without explicit promotion"), require bug-finding evidence in docstrings ("example bug this would have caught"), pair with senior developers who understand domain invariants. Focus property tests on governance checks, episodic memory retrieval, agent graduation.
-
-3. **Integration Test State Contamination** — Tests share database state, file systems, or external service mocks, causing intermittent failures when run concurrently. FastAPI tests share SQLAlchemy sessions without proper isolation, WebSocket connections not torn down. Prevention: Transaction rollback pattern (wrap each test in transaction, rollback at end), test-scoped fixtures (`@pytest.fixture(scope="function")`), parallel execution from day one (`pytest-xdist -n auto`) to catch state sharing early, unique test data (f"test_agent_{uuid4()}").
-
-4. **Async Test Race Conditions** — FastAPI async endpoints tested with improper async patterns, tests pass 90% of time but fail randomly due to timing issues. WebSocket tests not awaiting message reception, background tasks not given time to complete, `time.sleep(1)` instead of proper async coordination. Prevention: Use pytest-asyncio with `@pytest.mark.asyncio`, explicit async coordination (`asyncio.Event`, `asyncio.Queue`), await background tasks (poll for completion status), WebSocket testing with `receive_json(timeout=5)`, test timeout annotations (`@pytest.mark.timeout(30)`).
-
-5. **Test Data Fragility** — Tests depend on specific data states (agent_id="test-agent-123") that become invalid as code evolves, causing false failures. Prevention: Factory pattern (factory_boy) for dynamic test data creation, test data isolation (each test creates own data), minimal assumptions (only assume database schema), fixture versioning (tag with schema version), external data mocking (mock Slack/GitHub APIs instead of relying on live data).
+1. **Monolithic Test Workflow** — Single CI job running all platforms sequentially causes 40+ minute feedback loops — **Avoid:** Use platform-specific jobs with parallel execution
+2. **Coverage Without Context** — Reporting single percentage without breakdown masks regressions in specific platforms — **Avoid:** Provide detailed per-platform breakdown with trends
+3. **Property Tests for Everything** — Replacing all unit tests with property tests slows execution 100x without proportional bug-finding value — **Avoid:** Use property tests for critical invariants only (state machines, data transformations, API contracts)
+4. **Fragmented Coverage Reporting** — No unified view of coverage across platforms leads to inconsistent quality — **Avoid:** Centralize aggregation using Python scripts as source of truth
+5. **Test Data Edge Cases Missing** — Financial test data uses typical values but misses critical edge cases (zero, negative, maximum limits) — **Avoid:** Use property-based testing with explicit min/max values in Hypothesis strategies
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Foundation & Quality Standards (Week 1)
+### Phase 1: Backend + Frontend Integration (Week 1-2)
+**Rationale:** Backend has established property test patterns (Hypothesis) and CI infrastructure. Frontend shares TypeScript types with backend API, making integration highest impact. Fixes 21 failing frontend tests (40% → 100% pass rate).
 
-**Rationale:** Must establish testing infrastructure and quality gates before writing tests to prevent coverage churn (Pitfall #1). Cannot measure coverage quality without defining what "good test" means first.
+**Delivers:**
+- Unified coverage aggregation (pytest + Jest)
+- Frontend integration tests (API contracts, state management, form validation)
+- FastCheck property tests for frontend invariants (10-15 tests)
 
-**Delivers:** Test infrastructure setup (pytest-xdist, pytest-asyncio, factory_boy), quality threshold definitions (assertion density, critical path coverage), test data factories for dynamic data creation, dual-platform CI for mobile (iOS + Android)
+**Addresses:**
+- Component Integration Tests, API Contract Validation, State Management Consistency (from FEATURES.md)
+- Property-Based State Testing (differentiator)
 
-**Addresses:** Test Coverage Metrics, Test Isolation, Test Data Fragility (Pitfall #7), Foundation for parallel execution
+**Uses:**
+- FastCheck 4.5.3 for property tests, pytest-json-report 1.5.0 for unified reporting
+- Playwright Node 1.58.2 for E2E, React Testing Library 16.3.0 for component tests
 
-**Avoids:** Coverage churn under timeline pressure, hardcoded test fixtures, shared state between tests
+**Implements:**
+- Coverage aggregator script (`backend/tests/scripts/aggregate_coverage.py`)
+- Unified CI workflow (`.github/workflows/unified-tests.yml`)
+- Frontend tests workflow (`.github/workflows/frontend-tests.yml`)
 
-**Success criteria:**
-- [ ] All tests pass with `pytest-xdist -n auto` (parallel execution verified)
-- [ ] Factory pattern implemented for test data (zero hardcoded IDs)
-- [ ] Quality thresholds defined: 80% coverage + 70% assertion quality
-- [ ] CI pipeline runs both iOS and Android mobile tests
-- [ ] Critical path identification complete (governance, security, episodic memory)
+**Avoids:**
+- Monolithic test workflow pitfall (parallel execution)
+- Fragmented coverage reporting (unified aggregation)
 
-### Phase 2: Core Property Tests & Invariants (Week 1-2)
+### Phase 2: Mobile Integration (Week 3-4)
+**Rationale:** Mobile has Jest infrastructure configured (jest-expo), just needs integration with unified coverage. Property test patterns from Phase 1 can be reused.
 
-**Rationale:** Property-based testing is Atom's strongest differentiator (108 files, ~3,699 tests) but meaningless without documented invariants. Focus on governance, episodic memory, agent coordination where invariants are most valuable.
+**Delivers:**
+- Mobile integration tests (device features, offline sync, platform permissions)
+- FastCheck property tests for mobile invariants (5-10 tests)
+- Cross-platform consistency tests
 
-**Delivers:** Documented invariants for governance (maturity transitions, permission checks, cache performance), episodic memory (segmentation triggers, retrieval consistency, lifecycle transitions), agent coordination (multi-agent view orchestration, error guidance), property tests with "example bug this catches" docstrings
+**Addresses:**
+- Offline Data Sync, Device Feature Mocking, Authentication Flow (from FEATURES.md)
+- Cross-Platform Consistency (differentiator)
 
-**Addresses:** Property-Based Tests (table stakes + differentiator), Governance-Specific Testing, Episodic Memory Testing, Weak Property Tests (Pitfall #2)
+**Uses:**
+- Detox 20.47.0 for grey-box E2E, React Native Testing Library 13.3.3
+- expo-mock for device API mocking, detox-expo-helpers for Expo integration
 
-**Uses:** Hypothesis integration (already configured), pytest markers (governance, episode, agent), existing property test infrastructure
+**Implements:**
+- Mobile tests workflow (modify existing `.github/workflows/mobile-ci.yml`)
+- Extend coverage aggregator for jest-expo coverage format
 
-**Implements:** Pattern: Invariant identification → Property test → Bug-finding documentation
+**Avoids:**
+- Test data edge cases missing (property tests with device-specific strategies)
+- Fragmented coverage (mobile included in unified report)
 
-**Success criteria:**
-- [ ] 15+ governance invariants documented (maturity, permissions, cache)
-- [ ] 10+ episodic memory invariants documented (segmentation, retrieval, lifecycle)
-- [ ] Each property test has docstring with "example bug this catches"
-- [ ] Property tests have found at least 1 real bug (counterexample verified)
-- [ ] Fuzzy tests with error contracts (invalid inputs raise specific exceptions)
+### Phase 3: Desktop Testing (Week 5)
+**Rationale:** Desktop is most complex (Rust + JavaScript), defer until patterns established from Phases 1-2. Tauri requires native module mocking and cross-platform validation.
 
-### Phase 3: Integration Tests & Async Coordination (Week 2)
+**Delivers:**
+- Tauri integration tests (native API mocks, cross-platform tests)
+- Rust property tests (QuickCheck) + JavaScript property tests
+- Desktop-specific feature tests (menu bar, notifications, auto-updates)
 
-**Rationale:** Integration tests verify component interactions but are most vulnerable to state contamination (Pitfall #3) and async race conditions (Pitfall #4). FastAPI endpoints, WebSocket connections, background tasks require explicit async coordination.
+**Addresses:**
+- Desktop integration (system APIs, filesystem access, Tauri commands)
+- Cross-Platform Consistency (differentiator)
 
-**Delivers:** API contract tests (FastAPI endpoints, request/response validation), database transaction tests (rollback, isolation, consistency), async coordination tests (WebSocket, background tasks, agent execution), external service mocking (LLM providers, Slack, GitHub)
+**Uses:**
+- tauri-driver 2.10.1 for WebDriver E2E, cargo test for Rust backend
+- Tauri API mocks for @tauri-apps/plugin-* modules
 
-**Addresses:** Integration Tests, Async Test Support, Integration Test State Contamination (Pitfall #3), Async Test Race Conditions (Pitfall #4)
+**Implements:**
+- Desktop tests workflow (`.github/workflows/desktop-tests.yml`)
+- Extend coverage aggregator for Rust coverage (tarpaulin or covector)
 
-**Uses:** pytest-asyncio (configured line 63), transaction rollback pattern, explicit async coordination (asyncio.Event, asyncio.Queue)
+**Avoids:**
+- Property tests for everything pitfall (focus on critical invariants only)
+- Cross-platform inconsistencies (shared test suite where possible)
 
-**Implements:** Pattern: Transaction wrapper → Test execution → Rollback (never commit)
+### Phase 4: Property Testing Expansion (Week 6)
+**Rationale:** Property test patterns proven in Phases 1-3, now expand to cover critical invariants across all platforms. Requires deep understanding of business logic invariants.
 
-**Success criteria:**
-- [ ] All integration tests pass with `pytest-xdist -n auto` (no shared state)
-- [ ] Zero `time.sleep()` calls in async tests (replaced with asyncio.Event)
-- [ ] WebSocket tests use `receive_json(timeout=5)` with error handling
-- [ ] Database tests use transaction rollback (never commit in tests)
-- [ ] Background task tests poll for completion before asserting
+**Delivers:**
+- 30+ property tests across all platforms (backend Hypothesis, frontend/mobile FastCheck, desktop QuickCheck)
+- Documented property testing patterns for each platform
+- Invariant identification (state transitions, data validation, API contracts)
 
-### Phase 4: Mobile Tests & Platform Coverage (Week 2)
+**Addresses:**
+- Property-Based State Testing (differentiator — full implementation)
+- Component Contract Tests, Data Transformation Invariants (differentiator)
 
-**Rationale:** React Native tests often written for iOS only, assuming Android behavior is identical (Pitfall #5). Platform-specific APIs (permissions, file paths, native modules) cause iOS-passing tests to fail on Android.
+**Uses:**
+- Hypothesis 6.151.5 (backend), FastCheck 4.5.3 (frontend/mobile), QuickCheck (Rust)
+- Existing Atom property test patterns (governance maturity invariants, financial invariants)
 
-**Delivers:** Dual-platform CI pipeline (iOS simulator + Android emulator), platform-specific fixtures (`@pytest.fixture(params=["ios", "android"])`), device capability tests (Camera, Location, Notifications with platform-specific prompts), file path abstraction (RNFS.DocumentDirectoryPath instead of hardcoded paths)
+**Implements:**
+- `frontend-nextjs/tests/property/` directory
+- `mobile/src/__tests__/property/` directory
+- `frontend-nextjs/src-tauri/tests/property_tests.rs`
 
-**Addresses:** React Native Testing, Platform Neglect (Pitfall #5), Device Capabilities, Mobile Workflows
+**Avoids:**
+- Property tests for everything pitfall (critical invariants only, 50-100 examples)
+- Weak properties (require bug-finding evidence in docstrings)
 
-**Avoids:** iOS-only tests, platform-specific code not mocked correctly, hardcoded file paths
+### Phase 5: Cross-Platform Integration & E2E (Week 7-8)
+**Rationale:** Depends on all platforms being testable. Validates backend API integration with frontend/mobile/desktop end-to-end.
 
-**Success criteria:**
-- [ ] CI pipeline runs both iOS and Android tests (require both pass to merge)
-- [ ] Platform-specific fixtures for permissions, file system, native modules
-- [ ] Device permission tests pass on both platforms (Camera, Location, Notifications)
-- [ ] File path tests use platform-agnostic abstractions (no hardcoded /var/mobile/ or /data/data/)
-- [ ] Native module tests simulate platform differences (Expo async behavior)
+**Delivers:**
+- Cross-platform integration tests (same tests run on web/mobile/desktop)
+- E2E user flows (authentication, navigation, data persistence)
+- Visual regression testing (optional, if time permits)
 
-### Phase 5: Coverage by Domain & Trending (Week 2)
+**Addresses:**
+- End-to-End User Flows (differentiator)
+- Visual Regression Testing (differentiator, optional)
 
-**Rationale:** 80% overall coverage is insufficient if critical subsystems (governance, security, episodic memory) have low coverage. Domain-specific coverage reports track progress where it matters most.
+**Uses:**
+- Playwright for web E2E, Detox for mobile E2E, tauri-driver for desktop E2E
+- Percy/Chromatic for visual regression (optional)
 
-**Delivers:** Coverage reports by domain (core/governance, core/security, core/episodic_memory), trending analysis (coverage.json historical tracking), critical path coverage >90% (governance, security, episodic memory), overall 80% coverage across backend/
+**Implements:**
+- Shared test suite for cross-platform validation
+- E2E test workflows (`.github/workflows/e2e-tests.yml`)
 
-**Addresses:** Coverage by Domain, Coverage Trending, Critical Path Prioritization
-
-**Uses:** pytest-cov with `--cov=core/governance` for domain-specific reports, JSON coverage report for trending
-
-**Success criteria:**
-- [ ] 80% coverage on governance (agent_governance_service.py, governance_cache.py, trigger_interceptor.py)
-- [ ] 80% coverage on security (auth/, crypto/, tools_security/)
-- [ ] 80% coverage on episodic memory (episode_segmentation_service.py, episode_retrieval_service.py, episode_lifecycle_service.py)
-- [ ] Overall 80% coverage across backend/
-- [ ] Coverage trending shows upward trajectory (historical tracking working)
-
-### Phase 6: Community Skills Integration (Week 3-4)
-
-**Rationale:** Enable Atom agents to use 5,000+ OpenClaw/ClawHub skills while maintaining enterprise security. Phase 14 already implemented core components (82 tests, 13/13 success criteria), this phase completes gap closures and production hardening.
-
-**Delivers:** python-frontmatter dependency added to requirements.txt, skill import UI with security scan results display, governance workflow (Untrusted → Active → Banned), episodic memory integration (skill episodes with metadata), graduation tracking (skill usage metrics, diversity bonus)
-
-**Addresses:** Security Scanning for Skills, Sandboxed Skill Execution, Governance Integration, Skill Usage Metrics
-
-**Uses:** Docker SDK 7.0+ (already in requirements.txt), OpenAI SDK 1.0+ (already in requirements.txt), LangChain BaseTool (already in requirements.txt), python-frontmatter 1.0+ (NEW - only addition needed)
-
-**Implements:** Three-layer security validation (static patterns → GPT-4 semantic → cache by hash), maturity-based routing (STUDENT blocked, INTERN approval, SUPERVISED monitored, AUTONOMOUS full execution)
-
-**Success criteria:**
-- [ ] python-frontmatter added to requirements.txt
-- [ ] Skill import workflow: Parse → Security Scan → Governance Decision → Registry
-- [ ] 21+ malicious patterns detected + GPT-4 semantic analysis
-- [ ] HazardSandbox execution: network disabled, read-only, 5-min timeout
-- [ ] Every skill execution creates EpisodeSegment with skill metadata
-- [ ] Graduation calculation includes skill usage metrics (executions, success_rate, unique_skills)
-- [ ] Governance integration: STUDENT blocked from Python skills, INTERN+ require approval
-
-### Phase 7: Performance & CI Optimization (Post-Sprint)
-
-**Rationale:** After 80% coverage achieved, optimize test execution time for developer velocity. Parallel test execution and test impact analysis reduce CI time from hours to minutes.
-
-**Delivers:** pytest-xdist parallel execution configuration, pytest-picked for test impact analysis (run only affected tests), test prioritization (smoke → critical → comprehensive), CI pipeline optimization (<10 min feedback loop)
-
-**Addresses:** Parallel Test Execution, Test Impact Analysis, Performance Regression Tests
-
-**Uses:** pytest-xdist (requires test isolation from Phase 1), pytest-picked (git integration), pytest markers for prioritization (P0/P1, smoke, critical)
-
-**Success criteria:**
-- [ ] Full test suite runs in <10 minutes with pytest-xdist -n auto
-- [ ] Smoke tests (P0) complete in <2 minutes (rapid feedback)
-- [ ] Test impact analysis runs only affected tests (git diff based)
-- [ ] CI pipeline shows clear progression: smoke → critical → comprehensive
-- [ ] Performance baselines established (governance cache <1ms, agent resolution <50ms)
+**Avoids:**
+- E2E tests for everything pitfall (critical user workflows only)
+- Slow tests blocking CI (separate E2E job, run on merge to main)
 
 ### Phase Ordering Rationale
 
-**Why this order:** Phases 1-5 establish testing infrastructure and quality standards before measuring coverage (prevents Pitfall #1: coverage churn). Phase 6 (Community Skills) builds on proven patterns from Phase 14 with security-first architecture. Phase 7 (Performance) optimizes after coverage achieved, not before.
-
-**Why this grouping:** Phases 1-4 grouped by testing type (unit → property → integration → mobile), Phase 5 grouped by domain coverage, Phase 6 grouped by feature (community skills), Phase 7 grouped by optimization. This grouping allows parallel execution within phases (e.g., governance property tests and episodic memory property tests can be written concurrently).
-
-**How this avoids pitfalls:** Each phase explicitly addresses research-identified pitfalls (coverage churn, weak properties, state contamination, async races, platform neglect). Phase 1 prevents Pitfall #7 (test data fragility) with factory pattern. Phase 2 prevents Pitfall #2 (weak properties) with invariant documentation. Phase 3 prevents Pitfall #3 (state contamination) and Pitfall #4 (async races) with parallel execution and explicit coordination. Phase 4 prevents Pitfall #5 (platform neglect) with dual-platform CI.
+- **Backend + Frontend first:** Both use TypeScript (backend API + frontend share types), highest impact, fixes immediate pain point (21 failing frontend tests)
+- **Mobile second:** Already has Jest infrastructure, easy integration, property test patterns reusable from Phase 1
+- **Desktop third:** Most complex (Rust + JavaScript), need to establish patterns first, Tauri testing less documented
+- **Property tests fourth:** Require deep understanding of invariants, better to write after integration tests stable
+- **Cross-platform last:** Depends on all platforms being testable, validates end-to-end integration
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-
-- **Phase 2: Core Property Tests & Invariants** — Complex domain (governance, episodic memory, agent coordination) with undocumented invariants. Requires domain expert workshops to identify "what is invariant here?" before writing tests. Sparse documentation on governance maturity transitions and episodic memory lifecycle rules.
-
-- **Phase 4: Mobile Tests & Platform Coverage** — React Native platform-specific testing has sparse documentation. Need to research Expo mock modules that simulate platform differences, permission testing patterns for iOS vs Android, file path abstraction best practices.
-
-- **Phase 6: Community Skills Integration** — OpenClaw skill format may change (research valid for 30 days until 2026-03-20). Need to verify OpenClaw/ClawHub skill format hasn't evolved since Phase 14 (February 16, 2026), review security scanning patterns for new threat vectors.
+- **Phase 2 (Mobile):** Device feature mocking patterns — Expo module APIs vary, iOS vs Android differences need research
+- **Phase 3 (Desktop):** Tauri native module mocking strategies — Less documentation than web/mobile, may need prototype testing
+- **Phase 4 (Property Tests):** Invariant identification for frontend state — FastCheck adoption low, few real-world examples, may need research into generator strategies for complex UI state
 
 **Phases with standard patterns (skip research-phase):**
-
-- **Phase 1: Foundation & Quality Standards** — Well-documented pytest infrastructure, factory_boy patterns, test isolation best practices. No deep research needed, follow pytest documentation and existing Atom test patterns.
-
-- **Phase 3: Integration Tests & Async Coordination** — FastAPI async testing patterns well-documented, transaction rollback pattern standard, pytest-asyncio configuration straightforward. Follow existing Atom async test examples.
-
-- **Phase 5: Coverage by Domain & Trending** — pytest-cov documentation comprehensive, coverage trending uses standard JSON format, domain-specific coverage reports well-understood pattern.
-
-- **Phase 7: Performance & CI Optimization** — pytest-xdist and pytest-picked well-documented, test prioritization patterns standard, CI optimization follows established best practices.
+- **Phase 1 (Backend + Frontend):** Well-documented, established patterns — Jest, React Testing Library, pytest all have comprehensive documentation
+- **Phase 5 (Cross-Platform E2E):** Standard E2E patterns — Playwright, Detox both mature tools with extensive guides
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies verified in production (Phase 14: 82 tests, Phase 15: CI/CD pipeline active). Only python-frontmatter is new dependency, well-established library with 1.0+ release. Docker SDK, OpenAI SDK, LangChain already in requirements.txt. |
-| Features | HIGH | 517 test files exist, pytest infrastructure complete, 108 property-based test files verified. Hypothesis integration configured, async support enabled. Test markers (P0/P1/P2/P3, governance, security, episodic memory) already defined. |
-| Architecture | HIGH | Architecture patterns validated against existing codebase (skill_registry_service.py, skill_adapter.py, skill_sandbox.py). Three-layer security, governance routing, episodic integration all verified through code analysis. Data flow confirmed through service method analysis. |
-| Pitfalls | HIGH | All 7 critical pitfalls documented with prevention strategies, backed by official sources (Hypothesis docs, React Native testing guide, FastAPI testing strategies). Warning signs and recovery strategies comprehensive. |
+| Stack (Jest, pytest, FastCheck, Detox) | HIGH | All package versions verified via npm/pip, integration strategy based on existing working setup |
+| Features (component integration, API contracts) | MEDIUM | Mix of official docs (React Testing Library, FastCheck) and codebase analysis (21 failing frontend tests, 25+ mobile tests) |
+| Architecture (platform-first, aggregation) | HIGH | Based on existing Atom infrastructure (pytest, Hypothesis patterns, CI/CD workflows), proven architectural patterns |
+| Pitfalls (monolithic workflow, fragmented coverage) | HIGH | Anti-patterns identified from existing infrastructure analysis, well-documented CI/CD best practices |
 
-**Overall confidence:** HIGH - Research based on existing production code (Phase 14, Phase 15 verified), official documentation (pytest, Hypothesis, React Native, FastAPI), and proven patterns (82 tests, 13/13 success criteria).
+**Overall confidence:** HIGH (stack verification + existing infrastructure analysis + official documentation)
 
 ### Gaps to Address
 
-- **Governance Invariants Documentation** — While HIGH confidence in architecture, specific governance invariants (maturity transition rules, permission check invariants, cache performance guarantees) not documented. Requires domain expert workshops during Phase 2 planning.
-
-- **Episodic Memory Lifecycle Edge Cases** — Research HIGH confidence on segmentation/retrieval patterns, but lifecycle edge cases (decay triggers, consolidation criteria, archival thresholds) need validation during Phase 2 implementation. Consult episode_lifecycle_service.py implementation.
-
-- **React Native Platform Differences** — Mobile testing research MEDIUM confidence due to sparse documentation on Expo mock modules and platform-specific permission testing. Need to prototype platform fixtures during Phase 4 planning to validate assumptions.
-
-- **OpenClaw Skill Format Stability** — Community Skills research HIGH confidence for current state (Phase 14 verified February 16, 2026), but skill format may evolve. Research valid for 30 days until 2026-03-20. Verify OpenClaw/ClawHub skill format hasn't changed during Phase 6 planning.
-
-- **Property Test Invariant Identification** — While property-based testing infrastructure is HIGH confidence (108 files, Hypothesis configured), identifying meaningful invariants requires domain expertise not captured in research. Mitigation: Pair with senior developers during Phase 2, require "example bug this catches" docstrings.
-
-**Gap handling strategy:**
-- Document invariants during Phase 2 planning workshops (governance, episodic memory, agent coordination)
-- Prototype platform fixtures during Phase 4 planning (Expo mocks, permission testing)
-- Verify OpenClaw skill format during Phase 6 planning (check for format changes since Feb 16, 2026)
-- Require documented invariants before writing property tests (prevents Pitfall #2)
-- Use existing codebase as invariant source (agent_governance_service.py, episode_segmentation_service.py)
+- **FastCheck generator strategies for complex UI state:** FastCheck adoption is low in production, few real-world examples for React state management — May need prototype testing during Phase 1 planning
+- **Tauri native module mocking:** Less documentation than web/mobile, may need spike research during Phase 3 planning — Mitigation: Start with cargo test for Rust logic, defer complex mocking if patterns unclear
+- **Cross-platform test sharing:** Limited patterns for shared test suites across web/mobile/desktop — Mitigation: Start with platform-specific tests, consolidate shared patterns in Phase 5
+- **Visual regression testing infrastructure:** Tool fragmentation (Percy vs Chromatic), unclear best practices — Defer to Phase 5 optional, skip if time-constrained
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- **[python-frontmatter documentation](https://github.com/eyeseast/python-frontmatter)** — YAML frontmatter parsing library for SKILL.md files
-- **[Docker SDK for Python 7.0](https://docker-py.readthedocs.io/en/stable/)** — Container management, resource limits, security constraints
-- **[OpenAI API Reference](https://platform.openai.com/docs/api-reference)** — GPT-4 security scanning for 21+ malicious patterns
-- **[LangChain BaseTool Guide](https://python.langchain.com/docs/modules/agents/tools/how_to/custom_tools)** — Tool integration patterns, schema validation
-- **[OpenClaw Skills Format Specification](https://github.com/openclaw/clawhub/blob/main/docs/skill-format.md)** — SKILL.md file structure, YAML + Markdown format
-- **[Using Hypothesis and Schemathesis to Test FastAPI](https://testdriven.io/blog/fastapi-hypothesis/)** — Property-based testing for FastAPI with Hypothesis
-- **[Testing - React Native](https://reactnative.dev/docs/testing-overview)** — Official React Native testing strategies (Updated Jan 16, 2026)
-- **[Getting Started With Property-Based Testing in Python With Hypothesis](https://semaphore.io/blog/property-based-testing-python-hypothesis-pytest)** — Detailed Hypothesis tutorial
-- **[Let Hypothesis Break Your Python Code Before Your Users Do](https://towardsdatascience.com/let-hypothesis-break-your-python-code-before-your-users-do/)** — Practical property-based testing guide
-- **[An Empirical Evaluation of Property-Based Testing in Python](https://dl.acm.org/doi/10.1145/3764068)** (ACM OOPSLA 2025) — Academic research on property-based testing challenges
-- **[Common Pitfalls of Integration Testing in Java](https://www.atomicjar.com/2023/11/common-pitfalls-of-integration-testing-in-java/)** — Database state isolation, test data management (applicable to Python/FastAPI)
-- **[The Fuzzing Book - Reducing Failure-Inducing Inputs](https://www.fuzzingbook.org/html/Reducer.html)** — Fuzzing techniques and minimizing failure cases
-- **[The Human Side of Fuzzing: Challenges Faced by Developers](https://dl.acm.org/doi/10.1145/3611668)** (ACM) — Fuzzing implementation challenges
-- **[FastAPI Testing Strategies to Raise Quality](https://blog.greeden.me/en/2025/11/04/fastapi-testing-strategies-to-raise-quality-pytest-testclient-httpx-dependency-overrides-db-rollbacks-mocks-contract-tests-and-load-testing/)** — Comprehensive FastAPI testing strategies
+- **Backend test infrastructure** — pytest 8.4.2, Hypothesis 6.151.5, pytest-playwright 1.58.0 verified via `pip list`
+- **Frontend Testing Stack** — Jest 30.0.5, @testing-library/react 16.3.0 verified via frontend-nextjs/package.json
+- **Mobile Testing Stack** — jest-expo 50.0.0, React Native 0.73.6 verified via mobile/package.json
+- **FastCheck official documentation** — Property-based testing framework for TypeScript/JavaScript (https://fast-check.dev/)
+- **Detox documentation** — React Native grey-box E2E testing (https://wix.github.io/Detox/)
+- **Tauri Testing documentation** — Desktop application testing patterns (https://tauri.app/v2/guides/testing/)
+- **Existing Atom property tests** — 1,205 lines of governance maturity tests, 814 lines of financial invariants, 705 lines of accounting invariants
 
 ### Secondary (MEDIUM confidence)
+- **Playwright documentation** — Cross-browser automation (https://playwright.dev/)
+- **React Testing Library** — Component testing patterns, queries, async utilities
+- **pytest-json-report** — Unified JSON reporting (https://github.com/numirias/pytest-json-report)
+- **CI/CD workflows** — `.github/workflows/ci.yml`, `test-coverage.yml`, `mobile-ci.yml` analysis showing existing backend/mobile integration
 
-- **[Software Testing Best Practices for 2026 - N-iX](https://www.n-ix.com/software-testing-best-practices/)** — Risk-based testing, automation, metrics (January 18, 2026)
-- **[Software Testing Best Practices in 2026 - STC Technologies](https://softwaretechnologyconsultants.com/software-testing-best-practices-in-2026-a-complete-guide-for-modern-qa-devops-teams/)** — Modern QA DevOps testing guide (February 2026)
-- **[Zero to 92% Test Coverage: A Week-Long Journey - Medium](https://medium.com/@jaivalsuthar/building-a-comprehensive-testing-suite-a-week-long-journey-to-92-coverage-1a9f5df8c4e0)** — Achieving high coverage in one week
-- **[How to Write an Effective Test Coverage Plan - QA Wolf](https://www.qawolf.com/blog/how-to-write-an-effective-test-coverage-plan)** — Prioritize automation by impact
-- **[12 Faster Testing Strategies for Large Codebases - Augment Code](https://www.augmentcode.com/guides/12-faster-testing-strategies)** — Reduce CI times from 45 minutes to under 10 minutes
-- **[A Practical Guide to Test Automation Strategy - MuukTest](https://muuktest.com/blog/test-automation-strategy)** — Achieving 80% automation coverage on critical paths
-- **[6 Common React Native mistakes I still see in production apps](https://medium.com/@eduardofelipi/6-common-react-native-mistakes-i-still-see-in-production-apps-01bd81260628)** (Medium, Jan 2, 2026) — Platform differences, testing issues
-- **[Is fuzzing Python code worth it? Yes!](https://medium.com/cognite/is-fuzzing-python-code-worth-it-yes-862f2a9cb086)** — Python fuzzing value and common bugs found
-- **[Integration Testing: Avoid Common Mistakes in 2025](https://testquality.com/integration-testing-common-mistakes-pitfalls/)** — Integration testing pitfalls
-
-### Tertiary (LOW confidence)
-
-- **[Hypothesis: Property-Based Testing for Python](https://news.ycombinator.com/item?id=45818562)** (Hacker News Discussion) — Community discussion on property-based testing challenges
-- **[Integration test fails intermittently when CI builds run concurrently](https://www.reddit.com/r/softwaretesting/comments/1on5qee/integration_test_fails_intermittently_when_ci/)** (Reddit) — Real-world test isolation issues
-- **[The argument against clearing the database between tests](https://calpaterson.com/against-database-teardown.html)** — Alternative viewpoint on database state management
-
-### Codebase Analysis (HIGH confidence)
-
-- `/Users/rushiparikh/projects/atom/backend/core/skill_registry_service.py` — Skill registry service implementation
-- `/Users/rushiparikh/projects/atom/backend/core/skill_adapter.py` — LangChain BaseTool wrapper
-- `/Users/rushiparikh/projects/atom/backend/core/skill_security_scanner.py` — 21+ malicious patterns + GPT-4 scanning
-- `/Users/rushiparikh/projects/atom/backend/core/skill_sandbox.py` — HazardSandbox Docker isolation
-- `/Users/rushiparikh/projects/atom/backend/core/skill_parser.py` — SKILL.md frontmatter parsing with auto-fix
-- `/Users/rushiparikh/projects/atom/backend/core/agent_governance_service.py` — Existing governance system
-- `/Users/rushiparikh/projects/atom/backend/core/governance_cache.py` — <1ms permission cache
-- `/Users/rushiparikh/projects/atom/backend/core/trigger_interceptor.py` — <5ms routing decisions
-- `/Users/rushiparikh/projects/atom/backend/core/agent_graduation_service.py` — Graduation framework with skill metrics
-- `/Users/rushiparikh/projects/atom/backend/core/episode_segmentation_service.py` — EpisodeSegment creation with skill metadata
-- `/Users/rushiparikh/projects/atom/backend/api/skill_routes.py` — REST API endpoints
-- `/Users/rushiparikh/projects/atom/backend/core/models.py` — SkillExecution, EpisodeSegment models
-- `/Users/rushiparikh/projects/atom/backend/pytest.ini` — Pytest configuration with markers, coverage, Hypothesis settings
-- `/Users/rushiparikh/projects/atom/docs/COMMUNITY_SKILLS.md` — Comprehensive user guide (508 lines)
-- `/Users/rushiparikh/projects/atom/docs/ATOM_VS_OPENCLAW.md` — Feature comparison (297 lines)
-
-### Verification Status (HIGH confidence)
-
-- **Phase 14 Implementation Research** (February 16, 2026) — Verified 13/13 success criteria, 82 tests passing, community skills integration complete
-- **Phase 15 Codebase Completion** (February 16, 2026) — CI/CD pipeline active, monitoring configured, type hints enforced (MyPy)
-- **Test Infrastructure Review** (February 10, 2026) — 517 test files, 108 property-based test files, pytest configuration complete
-- **Codebase Analysis** (February 18, 2026) — All integration points verified through service method analysis, security patterns validated
+### Tertiary (LOW confidence — needs validation)
+- **Property-based testing for React** — Limited adoption, few production examples (FastCheck ecosystem growing but not mainstream)
+- **Cross-platform testing patterns** — Platform-specific differences hard to generalize, may need phase-specific research
+- **Visual regression testing** — Multiple tools (Percy, Chromatic), unclear best practices (defer to Phase 5 optional)
 
 ---
-
-*Research completed: February 18, 2026*
+*Research completed: February 26, 2026*
 *Ready for roadmap: yes*
-*Confidence: HIGH*

@@ -29,3 +29,23 @@
 
 ---
 
+
+## v3.3 Finance Testing & Bug Fixes (Shipped: 2026-02-25)
+
+**Phases completed:** 75 phases, 351 plans, 263 tasks
+
+**Key accomplishments:**
+- JWT token lifecycle validation across browser refreshes, multiple tabs, and expiration scenarios with localStorage testing
+
+---
+
+
+## v3.2 Bug Finding & Coverage Expansion (Shipped: 2026-02-26)
+
+**Phases completed:** 76 phases, 357 plans, 263 tasks
+
+**Key accomplishments:**
+- JWT token lifecycle validation across browser refreshes, multiple tabs, and expiration scenarios with localStorage testing
+
+---
+
