@@ -223,11 +223,11 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 106-01: Agent chat state management tests (streaming, context, errors)
-- [ ] 106-02: Canvas state management tests (registration, updates, accessibility)
-- [ ] 106-03: Auth state management tests (login, logout, refresh, persistence)
-- [ ] 106-04: State transition validation (no unreachable states)
-- [ ] 106-05: Phase verification and state coverage summary
+- [x] 106-01-PLAN.md — Agent chat state management tests (useWebSocket, useChatMemory, 75+ tests) — Wave 1 ✅ COMPLETE (2026-02-28)
+- [ ] 106-02-PLAN.md — Canvas state management tests (useCanvasState, 50+ tests) — Wave 1
+- [ ] 106-03-PLAN.md — Auth state management tests (login, logout, refresh, persistence, 55+ tests) — Wave 2
+- [ ] 106-04-PLAN.md — State transition validation (FastCheck property tests, 40+ tests) — Wave 2
+- [ ] 106-05-PLAN.md — Phase verification and state coverage summary — Wave 3
 
 ### Phase 107: Frontend API Integration Tests
 **Goal**: Mock backend and verify error handling for all API calls
