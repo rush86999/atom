@@ -21,7 +21,8 @@
 import fc from 'fast-check';
 import { renderHook, act } from '@testing-library/react';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { useChatMemory, { ConversationMemory } from '@/hooks/useChatMemory';
+import { useChatMemory } from '@/hooks/useChatMemory';
+import type { ConversationMemory } from '@/hooks/useChatMemory';
 import { useSession } from 'next-auth/react';
 
 // Mock next-auth useSession
@@ -165,7 +166,8 @@ describe('Chat State Machine Property Tests', () => {
             // 2. Functions are available
             // 3. State doesn't skip directly to connected without async transition
             expect(typeof result.current.subscribe).toBe('function');
-            expect(typeof result.current.disconnect).toBe('function');
+            expect(typeof result.current.unsubscribe).toBe('function');
+            expect(typeof result.current.sendMessage).toBe('function');
           }
         ),
         { numRuns: 50, seed: 24001 }
@@ -809,14 +811,21 @@ describe('Chat State Machine Property Tests', () => {
     it('should maintain message order (seed: 24025)', () => {
       fc.assert(
         fc.property(
-          fc.array(fc.string(), { minLength: 1, maxLength: 10 }),
+          fc.array(fc.string(), { minLength: 2, maxLength: 10 }),
           (messages) => {
-            // Test that array preserves order
+            // Test that array preserves order (need at least 2 elements)
             const original = [...messages];
             const reversed = [...messages].reverse();
 
-            // Order should be preserved
-            expect(original).not.toEqual(reversed.reverse());
+            // Order should be preserved (reversed array should be different)
+            // unless all elements are identical
+            if (messages.length >= 2) {
+              // Check if at least one element is different
+              const hasDifferentElements = messages.some((val, idx) => val !== messages[0]);
+              if (hasDifferentElements) {
+                expect(original).not.toEqual(reversed);
+              }
+            }
           }
         ),
         { numRuns: 50, seed: 24025 }
