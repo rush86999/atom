@@ -25,8 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 const arrayBuffer = await blob.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
 
-                res.setHeader('Content-Type', 'text/plain');
-                res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice_id}.txt`);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoice_id}.pdf`);
                 return res.status(200).send(buffer);
             }
 
