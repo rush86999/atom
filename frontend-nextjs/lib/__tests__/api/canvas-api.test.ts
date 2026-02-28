@@ -731,3 +731,568 @@ describe('Canvas API Integration Tests - useCanvasState Hook', () => {
     });
   });
 });
+
+// ============================================
+// Canvas Form Submission API Tests with Governance
+// ============================================
+
+describe('Canvas API Integration Tests - Form Submission with Governance', () => {
+  let mockFetch: jest.MockedFunction<typeof fetch>;
+
+  beforeEach(() => {
+    setupWindowAtomCanvas();
+    jest.clearAllMocks();
+
+    // Mock fetch if not already mocked
+    if (!jest.isMockFunction(global.fetch)) {
+      mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+      (global as any).fetch = mockFetch;
+    } else {
+      mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+      mockFetch.mockClear();
+    }
+  });
+
+  test('should submit form successfully', async () => {
+    const submissionId = 'sub-123';
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: submissionId,
+        governance_check: { allowed: true }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const formData = {
+      name: 'John Doe',
+      email: 'john@example.com',
+      message: 'Test message'
+    };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: formData
+      })
+    });
+
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.submission_id).toBe(submissionId);
+    expect(data.governance_check.allowed).toBe(true);
+  });
+
+  test('should submit form with different data types', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: 'sub-456',
+        governance_check: { allowed: true }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const textFormData = { field: 'text value' };
+    const selectFormData = { option: 'option2' };
+    const checkboxFormData = { agreed: true };
+    const fileFormData = { file: 'file.txt' };
+
+    const requests = [
+      { canvas_id: 'canvas-1', form_data: textFormData },
+      { canvas_id: 'canvas-2', form_data: selectFormData },
+      { canvas_id: 'canvas-3', form_data: checkboxFormData },
+      { canvas_id: 'canvas-4', form_data: fileFormData }
+    ];
+
+    for (const req of requests) {
+      await fetch('/api/canvas/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+      });
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  test('should submit form with agent context', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: 'sub-789',
+        governance_check: {
+          allowed: true,
+          agent_maturity: 'SUPERVISED',
+          action_complexity: 3
+        }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const formData = { field: 'value' };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: formData,
+        agent_execution_id: 'exec-456',
+        agent_id: 'agent-789'
+      })
+    });
+
+    const data = await response.json();
+
+    expect(data.governance_check.allowed).toBe(true);
+    expect(data.governance_check.agent_maturity).toBe('SUPERVISED');
+    expect(data.governance_check.action_complexity).toBe(3);
+  });
+
+  test('should handle governance blocked submissions', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        success: false,
+        error: 'Governance check failed',
+        reason: 'STUDENT agent cannot submit forms',
+        governance_check: {
+          allowed: false,
+          reason: 'Agent maturity STUDENT cannot perform action submit_form (complexity 3)'
+        }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'Forbidden',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const formData = { field: 'value' };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: formData,
+        agent_id: 'student-agent'
+      })
+    });
+
+    expect(response.status).toBe(403);
+
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.governance_check.allowed).toBe(false);
+    expect(data.governance_check.reason).toContain('STUDENT');
+  });
+
+  test('should handle form validation errors', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        success: false,
+        error: 'Validation error',
+        errors: [
+          { field: 'email', message: 'Invalid email format' },
+          { field: 'name', message: 'Name is required' }
+        ]
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'Bad Request',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const invalidFormData = {
+      email: 'not-an-email',
+      // missing name
+      message: 'test'
+    };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: invalidFormData
+      })
+    });
+
+    expect(response.status).toBe(400);
+
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.errors).toHaveLength(2);
+    expect(data.errors[0].field).toBe('email');
+  });
+
+  test('should handle form submission retry on 500 error', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    // First call fails with 500
+    mockFetch.mockRejectedValueOnce(new Error('Internal Server Error'));
+
+    // Second call succeeds
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: 'sub-retry-123',
+        governance_check: { allowed: true }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const formData = { field: 'value' };
+
+    let attempts = 0;
+    let lastError: Error | null = null;
+
+    // Retry logic
+    while (attempts < 3) {
+      try {
+        const response = await fetch('/api/canvas/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            canvas_id: 'canvas-123',
+            form_data: formData
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          expect(data.submission_id).toBe('sub-retry-123');
+          break;
+        }
+      } catch (error) {
+        lastError = error as Error;
+        attempts++;
+        if (attempts >= 3) {
+          throw lastError;
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('should handle file upload in form submission', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: 'sub-file-123',
+        governance_check: { allowed: true },
+        file_uploads: [
+          { field: 'document', filename: 'test.pdf', size: 1024000 }
+        ]
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const fileData = {
+      field: 'document',
+      filename: 'test.pdf',
+      size: 1024000, // 1MB
+      content: 'base64encodedcontent'
+    };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: { document: fileData }
+      })
+    });
+
+    const data = await response.json();
+
+    expect(data.success).toBe(true);
+    expect(data.file_uploads).toHaveLength(1);
+    expect(data.file_uploads[0].filename).toBe('test.pdf');
+  });
+
+  test('should validate file size limits', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 413,
+      json: async () => ({
+        success: false,
+        error: 'File too large',
+        details: 'Maximum file size is 10MB'
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'Payload Too Large',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const largeFile = {
+      field: 'document',
+      filename: 'large.pdf',
+      size: 15 * 1024 * 1024 // 15MB
+    };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: { document: largeFile }
+      })
+    });
+
+    expect(response.status).toBe(413);
+  });
+
+  test('should validate file type restrictions', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 415,
+      json: async () => ({
+        success: false,
+        error: 'Unsupported file type',
+        allowed_types: ['.pdf', '.doc', '.docx', '.txt'],
+        provided_type: '.exe'
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'Unsupported Media Type',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const invalidFile = {
+      field: 'document',
+      filename: 'malicious.exe'
+    };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: { document: invalidFile }
+      })
+    });
+
+    expect(response.status).toBe(415);
+
+    const data = await response.json();
+    expect(data.error).toBe('Unsupported file type');
+  });
+
+  test('should confirm successful submission with callback', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+    let successCallbackCalled = false;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => {
+        successCallbackCalled = true;
+        return {
+          success: true,
+          submission_id: 'sub-callback-123',
+          governance_check: { allowed: true },
+          confirmed_at: '2024-02-28T10:00:00Z'
+        };
+      },
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const formData = { field: 'value' };
+
+    const response = await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: formData
+      })
+    });
+
+    const data = await response.json();
+
+    expect(data.success).toBe(true);
+    expect(successCallbackCalled).toBe(true);
+    expect(data.confirmed_at).toBeDefined();
+  });
+
+  test('should update canvas state after submission', async () => {
+    const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+    const api = (window as any).atom.canvas;
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        submission_id: 'sub-state-123',
+        governance_check: { allowed: true },
+        canvas_state: {
+          status: 'submitted',
+          submitted_at: '2024-02-28T10:00:00Z'
+        }
+      }),
+      headers: {},
+      bodyUsed: false,
+      redirected: false,
+      statusText: 'OK',
+      type: 'basic' as ResponseType,
+      url: '',
+      clone: jest.fn(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      blob: async () => new Blob(),
+      formData: async () => new FormData(),
+      text: async () => ''
+    });
+
+    const canvasState = createMockCanvasState('generic');
+    api._setState('canvas-123', canvasState);
+
+    const formData = { field: 'value' };
+
+    await fetch('/api/canvas/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canvas_id: 'canvas-123',
+        form_data: formData
+      })
+    });
+
+    // Simulate state update
+    const updatedState = {
+      ...canvasState,
+      status: 'submitted',
+      submitted_at: '2024-02-28T10:00:00Z'
+    };
+    api._setState('canvas-123', updatedState);
+
+    const retrieved = api.getState('canvas-123');
+    expect(retrieved.status).toBe('submitted');
+  });
+});
