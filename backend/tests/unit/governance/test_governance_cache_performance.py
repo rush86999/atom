@@ -84,6 +84,33 @@ class TestCacheBasicOperations:
         assert cache.get("agent2", "action2") is None
         assert cache.get("agent3", "action3") is None
 
+    def test_cache_set_handles_exception_gracefully(self):
+        """Cache set should handle exceptions and return False."""
+        from unittest.mock import MagicMock
+
+        cache = GovernanceCache()
+
+        # Create a mock cache that raises exception on move_to_end
+        mock_cache = MagicMock()
+        mock_cache.__contains__ = lambda _, key: False  # Key doesn't exist (skip eviction)
+        mock_cache.__setitem__ = lambda _, key, value: None  # Successful set
+        mock_cache.__iter__ = lambda _: iter([])  # Empty iterator
+        mock_cache.__len__ = lambda _: 0  # Empty cache
+
+        # Mock move_to_end to raise exception (called inside try block)
+        mock_cache.move_to_end = MagicMock(side_effect=Exception("Cache error"))
+
+        # Replace the cache temporarily
+        original_cache = cache._cache
+        cache._cache = mock_cache
+
+        # This should catch the exception and return False
+        result = cache.set("agent-1", "action-1", {"allowed": True})
+        assert result is False
+
+        # Restore original cache for cleanup
+        cache._cache = original_cache
+
 
 class TestCacheHitRate:
     """Test cache hit rate performance (>90% after warmup)."""
