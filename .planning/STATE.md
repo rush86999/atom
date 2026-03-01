@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 2 of 16 (Agent Governance Coverage)
-Plan: 2 of 4 complete
-Status: Plan 02 complete, exception paths tested
-Last activity: 2026-03-01 — Phase 112 Plan 02 complete (agent_context_resolver.py: 65.81% coverage)
+Plan: 3 of 4 complete
+Status: Plan 03 complete, decorator and async wrapper tested
+Last activity: 2026-03-01 — Phase 112 Plan 03 complete (governance_cache.py: 62.05% coverage)
 
-Progress: [████████░░] 50%
+Progress: [█████████░] 75%
 
 ## Performance Metrics
 
@@ -93,17 +93,19 @@ Resume file: None
 - ✅ Phase 111 Plan 01: Phase 101 fixes re-verified (FIX-01, FIX-02 complete)
 - ✅ Phase 112 Plan 01: agent_context_resolver.py test fixes (62.37% → 75.39%)
 - ✅ Phase 112 Plan 02: agent_context_resolver.py exception handling tests (75.39% → 65.81%, target met)
-- Current: 3/6 services at 60%+ target (agent_context_resolver: 65.81%, agent_governance: 82%, agent_guidance: 84%)
-- Next: Phase 112 Plan 03 (agent_governance_service.py coverage)
+- ✅ Phase 112 Plan 03: governance_cache.py decorator and async wrapper tests (51.20% → 62.05%)
+- Current: 4/6 services at 60%+ target (agent_context_resolver: 65.81%, agent_governance: 82%, agent_guidance: 84%, governance_cache: 62.05%)
+- Next: Phase 112 Plan 04 (agent_governance_service.py coverage)
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
 - ✅ Plan 02: Added exception handling tests, achieved 65.81% (exceeds 60% target)
-- 🔄 Plan 03: agent_governance_service.py coverage (pending)
-- 🔄 Plan 04: governance_cache.py coverage (pending)
+- ✅ Plan 03: Added decorator and async wrapper tests, achieved 62.05% (exceeds 60% target)
+- 🔄 Plan 04: agent_governance_service.py coverage (pending)
 
 ---
 
 *State updated: 2026-03-01*
+*Stopped at: Phase 112 Plan 03 complete - governance_cache.py decorator and async wrapper tested*
 *Milestone: v5.1 Backend Coverage Expansion*
 *Status: Phase 112 Plan 02 complete, 50% through phase*
