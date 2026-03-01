@@ -1,113 +1,118 @@
-# Roadmap: Atom Test Coverage Initiative
+# Roadmap: Atom Backend Coverage Expansion v5.1
 
 ## Overview
 
-Atom's testing initiative achieves 80% overall code coverage through systematic expansion targeting highest-impact files first. The journey begins with coverage analysis and gap identification, then expands backend core services, API routes, and business logic with property-based tests. Frontend coverage follows with component, state management, and integration tests. Quality gates enforce the 80% threshold with automated PR comments and coverage dashboards.
+Achieve 80% backend test coverage through aggressive expansion targeting highest-impact backend services first. Starting from Phase 111 (v5.0 ended at Phase 110), we begin by fixing blocking issues in Phase 101, then systematically expand coverage across 16 requirements organized into 16 phases: Core Backend Services (6 phases), API Routes & Tools (5 phases), and Property-Based Testing (4 phases).
 
 ## Milestones
 
-- ✅ **v1.0 Test Infrastructure** - Phases 1-28 (shipped)
-- ✅ **v2.0 Feature Integration** - Phases 29-74 (shipped)
-- ✅ **v3.1 E2E UI Testing** - Phases 75-80 (shipped 2026-02-24)
-- ✅ **v3.2 Bug Finding & Coverage Expansion** - Phases 81-90 (shipped 2026-02-26)
-- ✅ **v3.3 Finance Testing & Bug Fixes** - Phases 91-94 (shipped 2026-02-26)
-- ✅ **v4.0 Platform Integration & Property Testing** - Phases 95-99 (shipped 2026-02-27)
-- ✅ **v5.0 Coverage Expansion** - Phases 100-110 (shipped 2026-03-01)
+- ✅ **v5.0 Coverage Expansion** - Phases 93-110 (shipped 2026-03-01)
+- 🚧 **v5.1 Backend Coverage Expansion** - Phases 111-126 (in progress)
+- 📋 **v5.2+ Frontend/Mobile Coverage** - Future milestone (deferred)
 
 ## Phases
 
+**Phase Numbering:**
+- Integer phases (111, 112, 113): Planned milestone work
+- Decimal phases (e.g., 111.1): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+### 🚧 v5.1 Backend Coverage Expansion (In Progress)
+
+**Milestone Goal:** Achieve 80% backend test coverage through aggressive expansion of critical services
+
+- [ ] **Phase 111: Phase 101 Fixes** - Unblock testing by resolving canvas mock configuration and module import failures
+- [ ] **Phase 112: Agent Governance Coverage** - Test governance cache, agent governance service, and context resolver
+- [ ] **Phase 113: Episodic Memory Coverage** - Test episode segmentation, retrieval, and lifecycle services
+- [ ] **Phase 114: LLM Services Coverage** - Test BYOK handler, cognitive tier system, and canvas summaries
+- [ ] **Phase 115: Agent Execution Coverage** - Test agent endpoints and workflow orchestration
+- [ ] **Phase 116: Student Training Coverage** - Test trigger interceptor, training service, and supervision service
+- [ ] **Phase 117: Graduation Framework Coverage** - Test agent graduation service with constitutional compliance
+- [ ] **Phase 118: Canvas API Coverage** - Test canvas presentations, forms, and state management
+- [ ] **Phase 119: Browser Automation Coverage** - Test Playwright CDP integration and web scraping
+- [ ] **Phase 120: Device Capabilities Coverage** - Test camera, screen recording, location, and notifications
+- [ ] **Phase 121: Health & Monitoring Coverage** - Test health checks, Prometheus metrics, and structured logging
+- [ ] **Phase 122: Admin Routes Coverage** - Test business facts, citations, and world model
+- [ ] **Phase 123: Governance Property Tests** - Test maturity routing and permission check invariants
+- [ ] **Phase 124: Episode Property Tests** - Test segmentation and retrieval invariants
+- [ ] **Phase 125: Financial Property Tests** - Test decimal precision and audit immutability invariants
+- [ ] **Phase 126: LLM Property Tests** - Test token counting and cost calculation invariants
+
 <details>
-<summary>✅ v4.0 Platform Integration & Property Testing (Phases 95-99) - SHIPPED 2026-02-27</summary>
+<summary>✅ v5.0 Coverage Expansion (Phases 93-110) - SHIPPED 2026-03-01</summary>
 
-### Phase 95: Backend + Frontend Integration
-**Goal**: Backend and frontend have unified coverage aggregation, frontend integration tests cover component interactions and API contracts, FastCheck property tests validate frontend invariants
-**Plans**: 8 plans
+### Phase 93: Coverage Analysis & Prioritization
+**Goal**: Establish coverage baseline and identify high-impact targets
+**Plans**: 5/5 complete
 
-### Phase 96: Mobile Integration
-**Goal**: Mobile app has integration tests for device features, offline sync, and platform permissions, FastCheck property tests validate mobile invariants
-**Plans**: 7 plans
+### Phase 94: Quality Gates & Reporting
+**Goal**: Implement PR comment bot and coverage enforcement
+**Plans**: 5/5 complete
+
+### Phase 95: Frontend State Management Tests
+**Goal**: Expand coverage for React hooks and state management
+**Plans**: 5/5 complete
+
+### Phase 96: Mobile Integration Tests
+**Goal**: React Native device features and cross-platform tests
+**Plans**: 7/7 complete
 
 ### Phase 97: Desktop Testing
-**Goal**: Desktop apps (Tauri) have integration tests for native APIs and system integration, Rust and JavaScript property tests validate desktop invariants
-**Plans**: 7 plans
+**Goal**: Tauri Rust backend and integration tests
+**Plans**: 7/7 complete
 
-### Phase 98: Property Testing Expansion
-**Goal**: All platforms have comprehensive property tests for critical invariants, property testing patterns documented and reusable
-**Plans**: 6 plans
+### Phase 98: Frontend Property-Based Tests
+**Goal**: FastCheck invariants for canvas, chat, and auth
+**Plans**: 4/4 complete
 
-### Phase 99: Cross-Platform Integration & E2E
-**Goal**: Cross-platform integration tests verify feature parity, E2E user flows validate complete workflows from UI to backend
-**Plans**: 8 plans
-
-**Total Impact (v4.0):**
-- 1,048+ tests created (241 integration + 361 property + 42 E2E + 404 other)
-- 1,642 total tests passing (100% pass rate)
-- 20.81% overall coverage (21.67% backend, 3.45% frontend, 16.16% mobile)
-- 36 plans executed across 5 phases
-- Lighthouse CI performance budgets enforced
-- Percy visual regression testing operational
-
-</details>
-
-<details>
-<summary>✅ v5.0 Coverage Expansion (Phases 100-110) - SHIPPED 2026-03-01</summary>
-
-**Full details:** [See v5.0-ROADMAP.md](milestones/v5.0-ROADMAP.md)
-
-### Phase 100: Coverage Analysis ✅
-**Goal**: Establish baseline coverage, identify gaps, and prioritize high-impact files
+### Phase 99: Cross-Platform Integration
+**Goal**: 4-platform coverage aggregation and CI workflows
 **Plans**: 5/5 complete
-**Outcome**: Baseline established (21.67% backend, 3.45% frontend, 20.81% overall), 50 high-priority files identified
 
-### Phase 101: Backend Core Services Unit Tests ⚠️
-**Goal**: Achieve 60%+ coverage for low-coverage core services
+### Phase 100: Coverage Analysis & Trend Tracking
+**Goal**: Weighted average coverage aggregation and historical trending
 **Plans**: 5/5 complete
-**Outcome**: 182 tests created, mock configuration issues (technical debt), 0% coverage improvement
 
-### Phase 102: Backend API Integration Tests ✅
-**Goal**: Cover all API routes with request/response validation
+### Phase 101: Backend Coverage Foundation
+**Goal**: Fix mock configuration blocking 66 canvas tests
+**Plans**: 5/5 complete (partial - mock issues remain)
+
+### Phase 102: Canvas State Management Tests
+**Goal**: Comprehensive React canvas state testing
+**Plans**: 5/5 complete
+
+### Phase 103: Frontend Form Validation Tests
+**Goal**: Form validation and error handling coverage
 **Plans**: 6/6 complete
-**Outcome**: 238 API integration tests created, coverage expanded
 
-### Phase 103: Backend Property-Based Tests ✅
-**Goal**: Validate business logic invariants using Hypothesis
-**Plans**: 5/5 complete
-**Outcome**: 98 property tests, 67 invariants documented, 100% max_examples compliance
-
-### Phase 104: Backend Error Path Testing ✅
-**Goal**: Comprehensive error path and edge case tests
+### Phase 104: Frontend API Integration Tests
+**Goal**: MSW integration and API client testing
 **Plans**: 6/6 complete
-**Outcome**: 143 error path tests, 20 VALIDATED_BUG documented, 65.72% average coverage
 
-### Phase 105: Frontend Component Tests ✅
-**Goal**: React Testing Library achieves 50%+ coverage
+### Phase 105: Frontend Component Tests
+**Goal**: React component testing expansion
 **Plans**: 5/5 complete
-**Outcome**: 370+ component tests, 70%+ average coverage, FRNT-01 requirements met
 
-### Phase 106: Frontend State Management Tests ✅
-**Goal**: Validate Redux/Zustand store logic and state transitions
+### Phase 106: Frontend State Machine Tests
+**Goal**: Canvas state machine and workflow testing
 **Plans**: 5/5 complete
-**Outcome**: 230+ state management tests, 87.74% average coverage, FRNT-02 requirements met
 
-### Phase 107: Frontend API Integration Tests ✅
-**Goal**: Mock backend and verify error handling
+### Phase 107: Frontend Error Boundary Tests
+**Goal**: Error boundary and fallback UI testing
+**Plans**: 3/3 complete
+
+### Phase 108: Frontend Property-Based Tests
+**Goal**: FastCheck property tests for frontend invariants
 **Plans**: 5/5 complete
-**Outcome**: 379 API integration tests, MSW infrastructure (28 handlers), FRNT-03 requirements met
 
-### Phase 108: Frontend Property Tests ✅
-**Goal**: FastCheck property tests validate state machine invariants
+### Phase 109: Frontend Accessibility Tests
+**Goal**: ARIA and accessibility testing coverage
+**Plans**: 3/3 complete
+
+### Phase 110: Documentation & Quality Gates
+**Goal**: Complete documentation and finalize quality infrastructure
 **Plans**: 5/5 complete
-**Outcome**: 84 property tests (100% pass rate), 30 invariants documented, FRNT-04 requirements met
-
-### Phase 109: Frontend Form Validation Tests ✅
-**Goal**: Comprehensive form validation tests
-**Plans**: 6/6 complete
-**Outcome**: 372 form validation tests, 91.3% coverage, FRNT-05 requirements met
-
-### Phase 110: Quality Gates & Reporting ✅
-**Goal**: Automated coverage enforcement with PR comments, dashboards, reports
-**Plans**: 5/5 complete
-**Outcome**: PR comment bot, 80% coverage gate, trend dashboard, per-commit reports operational
 
 **Total Impact (v5.0):**
 - 56 plans executed across 11 phases
@@ -119,31 +124,210 @@ Atom's testing initiative achieves 80% overall code coverage through systematic 
 
 </details>
 
+## Phase Details
+
+### Phase 111: Phase 101 Fixes
+**Goal**: Resolve blocking issues preventing accurate coverage measurement and test execution
+**Depends on**: Nothing (first phase of v5.1)
+**Requirements**: FIX-01, FIX-02
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows accurate measurements for all 6 target backend services
+  2. All 66 canvas tests execute successfully without Mock vs float comparison errors
+  3. Module import failures resolved across backend test infrastructure
+  4. Coverage.py can successfully measure agent_governance_service, agent_context_resolver, governance_cache
+**Plans**: TBD
+
+### Phase 112: Agent Governance Coverage
+**Goal**: Achieve 60%+ coverage for agent governance services
+**Depends on**: Phase 111
+**Requirements**: CORE-01
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for agent_governance_service.py
+  2. Coverage report shows 60%+ coverage for agent_context_resolver.py
+  3. Coverage report shows 60%+ coverage for governance_cache.py
+  4. All critical governance paths (maturity checks, permission validation, cache operations) tested
+**Plans**: TBD
+
+### Phase 113: Episodic Memory Coverage
+**Goal**: Achieve 60%+ coverage for episodic memory services
+**Depends on**: Phase 111
+**Requirements**: CORE-02
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for episode_segmentation_service.py
+  2. Coverage report shows 60%+ coverage for episode_retrieval_service.py
+  3. Coverage report shows 60%+ coverage for episode_lifecycle_service.py
+  4. Temporal, semantic, and sequential retrieval modes tested with realistic episodes
+**Plans**: TBD
+
+### Phase 114: LLM Services Coverage
+**Goal**: Achieve 60%+ coverage for LLM integration services
+**Depends on**: Phase 111
+**Requirements**: CORE-03
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for llm/byok_handler.py
+  2. Coverage report shows 60%+ coverage for llm/cognitive_tier_system.py
+  3. Coverage report shows 60%+ coverage for llm/canvas_summary_service.py
+  4. Multi-provider routing, token counting, and tier escalation tested with mocked LLM responses
+**Plans**: TBD
+
+### Phase 115: Agent Execution Coverage
+**Goal**: Achieve 60%+ coverage for agent execution workflows
+**Depends on**: Phase 111
+**Requirements**: CORE-04
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for atom_agent_endpoints.py
+  2. Agent streaming, execution tracking, and error handling tested
+  3. Workflow orchestration tested with realistic agent scenarios
+  4. Execution lifecycle (start, monitor, stop, timeout) validated
+**Plans**: TBD
+
+### Phase 116: Student Training Coverage
+**Goal**: Achieve 60%+ coverage for student training system
+**Depends on**: Phase 111
+**Requirements**: CORE-05
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for trigger_interceptor.py
+  2. Coverage report shows 60%+ coverage for student_training_service.py
+  3. Coverage report shows 60%+ coverage for supervision_service.py
+  4. STUDENT agent blocking, training proposal generation, and supervision tracking tested
+**Plans**: TBD
+
+### Phase 117: Graduation Framework Coverage
+**Goal**: Achieve 60%+ coverage for agent graduation service
+**Depends on**: Phase 111
+**Requirements**: CORE-06
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for agent_graduation_service.py
+  2. Graduation criteria validation (episode count, intervention rate, constitutional score) tested
+  3. Constitutional compliance checking validated against knowledge graph rules
+  4. Promotion readiness calculation accurate for all maturity levels
+**Plans**: TBD
+
+### Phase 118: Canvas API Coverage
+**Goal**: Achieve 60%+ coverage for canvas presentation routes
+**Depends on**: Phase 111
+**Requirements**: API-01
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for api/canvas_routes.py
+  2. Coverage report shows 60%+ coverage for tools/canvas_tool.py
+  3. Canvas presentation, form submission, and state management tested
+  4. Governance integration (maturity-based canvas access) validated
+**Plans**: TBD
+
+### Phase 119: Browser Automation Coverage
+**Goal**: Achieve 60%+ coverage for Playwright CDP integration
+**Depends on**: Phase 111
+**Requirements**: API-02
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for api/browser_routes.py
+  2. Coverage report shows 60%+ coverage for tools/browser_tool.py
+  3. Web scraping, form filling, and screenshot capture tested
+  4. Playwright session management (create, navigate, close) validated
+**Plans**: TBD
+
+### Phase 120: Device Capabilities Coverage
+**Goal**: Achieve 60%+ coverage for device capability integrations
+**Depends on**: Phase 111
+**Requirements**: API-03
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for api/device_capabilities.py
+  2. Coverage report shows 60%+ coverage for tools/device_tool.py
+  3. Camera, screen recording, location, and notifications tested with mocked device APIs
+  4. Governance gates (INTERN for camera, SUPERVISED for screen recording) validated
+**Plans**: TBD
+
+### Phase 121: Health & Monitoring Coverage
+**Goal**: Achieve 60%+ coverage for health checks and metrics
+**Depends on**: Phase 111
+**Requirements**: API-04
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for api/health_routes.py
+  2. Coverage report shows 60%+ coverage for core/monitoring.py
+  3. Health check endpoints (live, ready, metrics) tested
+  4. Prometheus metrics collection and structured logging validated
+**Plans**: TBD
+
+### Phase 122: Admin Routes Coverage
+**Goal**: Achieve 60%+ coverage for business facts and world model
+**Depends on**: Phase 111
+**Requirements**: API-05
+**Success Criteria** (what must be TRUE):
+  1. Coverage report shows 60%+ coverage for api/admin/business_facts_routes.py
+  2. Coverage report shows 60%+ coverage for core/agent_world_model.py
+  3. Business facts CRUD, citation verification, and JIT fact retrieval tested
+  4. World model service multi-source memory aggregation validated
+**Plans**: TBD
+
+### Phase 123: Governance Property Tests
+**Goal**: Validate governance system invariants with Hypothesis
+**Depends on**: Phase 112
+**Requirements**: PROP-01
+**Success Criteria** (what must be TRUE):
+  1. Property tests validate maturity routing invariants (STUDENT → blocked, AUTONOMOUS → allowed)
+  2. Property tests validate permission check consistency (same agent, same context, same result)
+  3. Property tests validate governance cache invariants (cached result matches direct computation)
+  4. All governance property tests use appropriate max_examples (200 for critical, 100 for standard)
+**Plans**: TBD
+
+### Phase 124: Episode Property Tests
+**Goal**: Validate episodic memory invariants with Hypothesis
+**Depends on**: Phase 113
+**Requirements**: PROP-02
+**Success Criteria** (what must be TRUE):
+  1. Property tests validate segmentation invariants (episodes segment on time gaps, topic changes)
+  2. Property tests validate retrieval ranking invariants (feedback boosts score, recency matters)
+  3. Property tests validate lifecycle transitions (active → decayed → consolidated → archived)
+  4. All episode property tests use appropriate max_examples (100 for retrieval, 50 for lifecycle)
+**Plans**: TBD
+
+### Phase 125: Financial Property Tests
+**Goal**: Validate financial system invariants with Hypothesis
+**Depends on**: Phase 111
+**Requirements**: PROP-03
+**Success Criteria** (what must be TRUE):
+  1. Property tests validate decimal precision invariants (no floating point rounding errors)
+  2. Property tests validate double-entry invariants (debits = credits, balance changes sum to zero)
+  3. Property tests validate audit trail immutability (entries cannot be modified after creation)
+  4. All financial property tests use max_examples=200 (critical invariant)
+**Plans**: TBD
+
+### Phase 126: LLM Property Tests
+**Goal**: Validate LLM system invariants with Hypothesis
+**Depends on**: Phase 114
+**Requirements**: PROP-04
+**Success Criteria** (what must be TRUE):
+  1. Property tests validate token counting invariants (total tokens = prompt + completion)
+  2. Property tests validate cost calculation invariants (cost = tokens × price per token)
+  3. Property tests validate tier escalation invariants (quality threshold breach triggers escalation)
+  4. All LLM property tests use appropriate max_examples (100 for cost, 50 for escalation)
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 95-99 | v4.0 | 36/36 | ✅ Complete | 2026-02-27 |
-| 100 | v5.0 | 5/5 | ✅ Complete | 2026-02-27 |
-| 101 | v5.0 | 5/5 | ⚠️ Partial | 2026-02-27 |
-| 102 | v5.0 | 6/6 | ✅ Complete | 2026-02-27 |
-| 103 | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
-| 104 | v5.0 | 6/6 | ✅ Complete | 2026-02-28 |
-| 105 | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
-| 106 | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
-| 107 | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
-| 108 | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
-| 109 | v5.0 | 6/6 | ✅ Complete | 2026-03-01 |
-| 110 | v5.0 | 5/5 | ✅ Complete | 2026-03-01 |
-
-**Overall Progress**: v4.0 COMPLETE (36/36 plans) | v5.0 COMPLETE (56/56 plans, 11/11 phases)
-
-## Requirements Traceability
-
-See [milestones/v5.0-REQUIREMENTS.md](milestones/v5.0-REQUIREMENTS.md) for complete requirements archive.
+| 111. Phase 101 Fixes | v5.1 | 0/0 | Not started | - |
+| 112. Agent Governance Coverage | v5.1 | 0/0 | Not started | - |
+| 113. Episodic Memory Coverage | v5.1 | 0/0 | Not started | - |
+| 114. LLM Services Coverage | v5.1 | 0/0 | Not started | - |
+| 115. Agent Execution Coverage | v5.1 | 0/0 | Not started | - |
+| 116. Student Training Coverage | v5.1 | 0/0 | Not started | - |
+| 117. Graduation Framework Coverage | v5.1 | 0/0 | Not started | - |
+| 118. Canvas API Coverage | v5.1 | 0/0 | Not started | - |
+| 119. Browser Automation Coverage | v5.1 | 0/0 | Not started | - |
+| 120. Device Capabilities Coverage | v5.1 | 0/0 | Not started | - |
+| 121. Health & Monitoring Coverage | v5.1 | 0/0 | Not started | - |
+| 122. Admin Routes Coverage | v5.1 | 0/0 | Not started | - |
+| 123. Governance Property Tests | v5.1 | 0/0 | Not started | - |
+| 124. Episode Property Tests | v5.1 | 0/0 | Not started | - |
+| 125. Financial Property Tests | v5.1 | 0/0 | Not started | - |
+| 126. LLM Property Tests | v5.1 | 0/0 | Not started | - |
 
 ---
 
 *Last updated: 2026-03-01*
-*Milestone: v5.0 Coverage Expansion*
-*Status: ✅ SHIPPED - 56/56 plans complete, quality infrastructure operational*
+*Milestone: v5.1 Backend Coverage Expansion*
+*Status: 🚧 IN PLANNING - 16 phases defined, 16/16 requirements mapped (100%)*
