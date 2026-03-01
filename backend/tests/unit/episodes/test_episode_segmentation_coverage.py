@@ -621,6 +621,10 @@ class TestEpisodeCreation:
         """Should capture agent maturity at episode creation time"""
         agent_id = "test_agent"
 
+        # Mock agent registry with proper status (not MagicMock)
+        mock_agent = AgentRegistry(id=agent_id, status="AUTONOMOUS")
+        db_session.query.return_value.filter.return_value.first.return_value = mock_agent
+
         maturity = segmentation_service._get_agent_maturity(agent_id)
 
         assert maturity in ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
@@ -701,6 +705,9 @@ class TestEpisodeCreation:
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
@@ -734,6 +741,13 @@ class TestEpisodeCreation:
                 role="user",
                 content="Show me data",
                 created_at=datetime.now()
+            ),
+            ChatMessage(
+                id="msg2",
+                conversation_id=session_id,
+                role="assistant",
+                content="Here is the data",
+                created_at=datetime.now()
             )
         ]
 
@@ -760,12 +774,30 @@ class TestEpisodeCreation:
         ]
 
         db_session.query.return_value.filter.return_value.first.return_value = session
-        db_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = messages
-        db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+
+        # Setup proper mock chain for messages (1 filter) vs executions (2 filters)
+        query_call_count = [0]
+
+        def mock_query_filter(*args, **kwargs):
+            query_call_count[0] += 1
+            mock_result = MagicMock()
+            if query_call_count[0] == 1:
+                # First filter call - messages query (only 1 filter)
+                mock_result.order_by.return_value.all.return_value = messages
+            else:
+                # Any other filter calls (executions, etc.)
+                mock_result.order_by.return_value.all.return_value = []
+                mock_result.filter.return_value.order_by.return_value.all.return_value = []
+            return mock_result
+
+        db_session.query.return_value.filter = mock_query_filter
 
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
@@ -802,6 +834,13 @@ class TestEpisodeCreation:
                 role="user",
                 content="Help me",
                 created_at=datetime.now()
+            ),
+            ChatMessage(
+                id="msg2",
+                conversation_id=session_id,
+                role="assistant",
+                content="I'll help you",
+                created_at=datetime.now()
             )
         ]
 
@@ -810,7 +849,7 @@ class TestEpisodeCreation:
                 id="exec1",
                 agent_id=agent_id,
                 status="completed",
-                task_description="Help task",
+                input_summary="Help task",
                 started_at=datetime.now()
             )
         ]
@@ -819,27 +858,61 @@ class TestEpisodeCreation:
         feedback_records = [
             AgentFeedback(
                 id="fb1",
-                execution_id="exec1",
+                agent_execution_id="exec1",
                 feedback_type="thumbs_up",
-                feedback_value=1.0,
+                thumbs_up_down=True,
                 created_at=datetime.now()
             ),
             AgentFeedback(
                 id="fb2",
-                execution_id="exec1",
+                agent_execution_id="exec1",
                 feedback_type="rating",
-                feedback_value=5.0,
+                rating=5,
                 created_at=datetime.now()
             )
         ]
 
+        # Create execution for feedback to link to
+        executions = [
+            AgentExecution(
+                id="exec1",
+                agent_id=agent_id,
+                status="completed",
+                input_summary="Help task",
+                started_at=datetime.now()
+            )
+        ]
+
         db_session.query.return_value.filter.return_value.first.return_value = session
-        db_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = messages
-        db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = executions
+
+        # Setup proper mock chain for messages (1 filter) vs executions (2 filters)
+        # Messages query: query(ChatMessage).filter(...).order_by(...).all()
+        # Executions query: query(AgentExecution).filter(...).filter(...).order_by(...).all()
+        query_call_count = [0]
+
+        def mock_query_filter(*args, **kwargs):
+            """Mock that distinguishes between messages query (1st call) and executions query (2nd call)"""
+            query_call_count[0] += 1
+            mock_result = MagicMock()
+            if query_call_count[0] == 1:
+                # First filter call - messages query (only 1 filter)
+                mock_result.order_by.return_value.all.return_value = messages
+            elif query_call_count[0] == 2:
+                # Second filter call - start of executions query (has 2 filters)
+                mock_result.filter.return_value.order_by.return_value.all.return_value = executions
+            else:
+                # Any other filter calls
+                mock_result.order_by.return_value.all.return_value = []
+            return mock_result
+
+        db_session.query.return_value.filter = mock_query_filter
 
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
@@ -900,18 +973,43 @@ class TestEpisodeCreation:
                 id="msg2",
                 conversation_id=session_id,
                 role="assistant",
+                content="Working on it",
+                created_at=datetime.now()
+            ),
+            ChatMessage(
+                id="msg3",
+                conversation_id=session_id,
+                role="assistant",
                 content="Done",
                 created_at=datetime.now()
             )
         ]
 
         db_session.query.return_value.filter.return_value.first.return_value = session
-        db_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = messages
-        db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+
+        # Setup proper mock chain for messages (1 filter) vs executions (2 filters)
+        query_call_count = [0]
+
+        def mock_query_filter(*args, **kwargs):
+            query_call_count[0] += 1
+            mock_result = MagicMock()
+            if query_call_count[0] == 1:
+                # First filter call - messages query (only 1 filter)
+                mock_result.order_by.return_value.all.return_value = messages
+            else:
+                # Any other filter calls (executions, etc.)
+                mock_result.order_by.return_value.all.return_value = []
+                mock_result.filter.return_value.order_by.return_value.all.return_value = []
+            return mock_result
+
+        db_session.query.return_value.filter = mock_query_filter
 
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
@@ -957,13 +1055,81 @@ class TestEpisodeCreation:
             )
         ]
 
-        db_session.query.return_value.filter.return_value.first.return_value = session
-        db_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = messages
-        db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        # Simple approach: Patch the service methods directly to return test data
+        # This avoids complex mock chain setup
+
+        # Mock _fetch_canvas_context to return empty list (no canvas in this test)
+        with patch.object(segmentation_service, '_fetch_canvas_context', return_value=[]):
+            # Mock _fetch_feedback_context to return empty list (no feedback in this test)
+            with patch.object(segmentation_service, '_fetch_feedback_context', return_value=[]):
+                # Mock _get_agent_maturity to return a valid maturity level
+                with patch.object(segmentation_service, '_get_agent_maturity', return_value="AUTONOMOUS"):
+                    # Setup basic mocks for queries
+                    mock_query = MagicMock()
+
+                    # Create a filter mock that can handle different query patterns
+                    def create_filter_mock(return_data):
+                        """Create a filter mock that returns the specified data"""
+                        mock_filter = MagicMock()
+                        mock_order = MagicMock()
+                        mock_order.all.return_value = return_data
+                        mock_filter.order_by.return_value = mock_order
+                        # For filter().filter() pattern (executions query)
+                        mock_filter.filter.return_value = mock_filter
+                        # For filter().first() pattern (session lookup)
+                        if isinstance(return_data, list) and len(return_data) > 0 and hasattr(return_data[0], 'conversation_id'):
+                            # This is messages query, don't set first()
+                            pass
+                        else:
+                            mock_filter.first.return_value = return_data[0] if isinstance(return_data, list) and len(return_data) > 0 else return_data
+                        return mock_filter
+
+                    # Setup query mock to return appropriate filter mocks based on call count
+                    query_calls = [0]
+                    original_query = db_session.query
+
+                    def mock_query_func(model):
+                        query_calls[0] += 1
+                        mq = MagicMock()
+                        if query_calls[0] == 1:
+                            # First query - session lookup
+                            mq.filter.return_value.first.return_value = session
+                        elif query_calls[0] == 2:
+                            # Second query - messages
+                            mq.filter.return_value.order_by.return_value.all.return_value = messages
+                        else:
+                            # All other queries - return empty results
+                            mq.filter.return_value.order_by.return_value.all.return_value = []
+                            mq.filter.return_value.first.return_value = None
+                            mq.filter.return_value.filter.return_value.order_by.return_value.all.return_value = []
+                        return mq
+
+                    db_session.query = mock_query_func
+
+                    def mock_add(obj):
+                        if not hasattr(obj, 'id') or not obj.id:
+                            obj.id = str(uuid.uuid4())
+                        # Ensure canvas_action_count is set for Episode objects
+                        if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                            obj.canvas_action_count = 0
+
+                    db_session.add.side_effect = mock_add
+
+                    import asyncio
+                    episode = asyncio.run(segmentation_service.create_episode_from_session(
+                        session_id=session_id,
+                        agent_id=agent_id
+                    ))
+
+                    # Restore original query
+                    db_session.query = original_query
 
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
@@ -999,6 +1165,13 @@ class TestEpisodeCreation:
                 role="user",
                 content="Analyze sales data",
                 created_at=datetime.now()
+            ),
+            ChatMessage(
+                id="msg2",
+                conversation_id=session_id,
+                role="assistant",
+                content="Analyzing...",
+                created_at=datetime.now()
             )
         ]
 
@@ -1015,12 +1188,30 @@ class TestEpisodeCreation:
         ]
 
         db_session.query.return_value.filter.return_value.first.return_value = session
-        db_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = messages
-        db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+
+        # Setup proper mock chain for messages (1 filter) vs executions (2 filters)
+        query_call_count = [0]
+
+        def mock_query_filter(*args, **kwargs):
+            query_call_count[0] += 1
+            mock_result = MagicMock()
+            if query_call_count[0] == 1:
+                # First filter call - messages query (only 1 filter)
+                mock_result.order_by.return_value.all.return_value = messages
+            else:
+                # Any other filter calls (executions, etc.)
+                mock_result.order_by.return_value.all.return_value = []
+                mock_result.filter.return_value.order_by.return_value.all.return_value = []
+            return mock_result
+
+        db_session.query.return_value.filter = mock_query_filter
 
         def mock_add(obj):
             if not hasattr(obj, 'id') or not obj.id:
                 obj.id = str(uuid.uuid4())
+            # Ensure canvas_action_count is set for Episode objects
+            if hasattr(obj, 'canvas_action_count') and obj.canvas_action_count is None:
+                obj.canvas_action_count = 0
 
         db_session.add.side_effect = mock_add
 
