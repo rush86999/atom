@@ -2655,5 +2655,162 @@ class TestWorkflowHandlers:
         mock_scheduler.remove_job.assert_called_once_with("schedule-123")
 
 
+# ==================== Test Task and Finance Handlers ====================
+
+class TestTaskAndFinanceHandlers:
+    """Tests for task and finance handler functions (lines 1194-1282)"""
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.create_task')
+    async def test_handle_create_task_success(self, mock_create_task):
+        """Test successful task creation"""
+        # Setup task creation
+        mock_create_task.return_value = {
+            "id": "task-123",
+            "title": "Test Task",
+            "platform": "asana"
+        }
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_task_intent
+        request = ChatRequest(message="create task in asana", user_id="test-user")
+        result = await handle_task_intent("CREATE_TASK", {"title": "Test Task"}, request)
+
+        # Assertions
+        assert result["success"] is True
+        assert "created task" in result["response"]["message"].lower()
+        assert "asana" in result["response"]["message"].lower()
+        assert result["response"]["data"]["platform"] == "asana"
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.create_task')
+    async def test_handle_create_task_error(self, mock_create_task):
+        """Test task creation error handling"""
+        # Setup task creation to raise exception
+        mock_create_task.side_effect = Exception("Task service unavailable")
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_task_intent
+        request = ChatRequest(message="create failing task", user_id="test-user")
+        result = await handle_task_intent("CREATE_TASK", {"title": "Failing Task"}, request)
+
+        # Assertions
+        assert result["success"] is False
+        assert "failed" in result["response"]["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.get_tasks')
+    async def test_handle_list_tasks_success(self, mock_get_tasks):
+        """Test successful task listing"""
+        # Setup task list
+        mock_get_tasks.return_value = {
+            "tasks": [
+                {"id": "task-1", "title": "Task 1"},
+                {"id": "task-2", "title": "Task 2"}
+            ]
+        }
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_task_intent
+        request = ChatRequest(message="list my tasks", user_id="test-user")
+        result = await handle_task_intent("LIST_TASKS", {}, request)
+
+        # Assertions
+        assert result["success"] is True
+        assert "found 2 tasks" in result["response"]["message"].lower()
+        assert "create" in result["response"]["actions"][0]["type"]
+
+    @pytest.mark.asyncio
+    async def test_handle_get_transactions(self):
+        """Test transaction listing"""
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_finance_intent
+        request = ChatRequest(message="show transactions", user_id="test-user")
+        result = await handle_finance_intent("GET_TRANSACTIONS", {}, request)
+
+        # Assertions
+        assert result["success"] is True
+        assert "transactions" in result["response"]["message"].lower()
+        assert "transactions" in result["response"]["data"]
+        assert len(result["response"]["data"]["transactions"]) == 2
+        assert result["response"]["actions"][0]["type"] == "view_finance"
+
+    @pytest.mark.asyncio
+    async def test_handle_check_balance(self):
+        """Test balance checking"""
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_finance_intent
+        request = ChatRequest(message="check balance", user_id="test-user")
+        result = await handle_finance_intent("CHECK_BALANCE", {}, request)
+
+        # Assertions
+        assert result["success"] is True
+        assert "balance" in result["response"]["message"].lower()
+        assert result["response"]["data"]["balance"] == 12450.00
+        assert result["response"]["data"]["currency"] == "USD"
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.list_quickbooks_items')
+    async def test_handle_invoice_status(self, mock_list_items):
+        """Test invoice status checking"""
+        # Setup QuickBooks items
+        mock_list_items.return_value = {
+            "items": [
+                {"id": "inv-1", "status": "paid"},
+                {"id": "inv-2", "status": "pending"}
+            ]
+        }
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_finance_intent
+        request = ChatRequest(message="check invoices", user_id="test-user")
+        result = await handle_finance_intent("INVOICE_STATUS", {}, request)
+
+        # Assertions
+        assert result["success"] is True
+        assert "found 2" in result["response"]["message"].lower()
+        assert "invoices" in result["response"]["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.list_quickbooks_items')
+    async def test_handle_invoice_status_error(self, mock_list_items):
+        """Test invoice status error handling"""
+        # Setup QuickBooks to raise exception
+        mock_list_items.side_effect = Exception("QuickBooks service unavailable")
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_finance_intent
+        request = ChatRequest(message="check invoices", user_id="test-user")
+        result = await handle_finance_intent("INVOICE_STATUS", {}, request)
+
+        # Assertions
+        assert result["success"] is False
+        assert "failed" in result["response"]["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.SalesAssistant')
+    @patch('core.atom_agent_endpoints.get_db_session')
+    async def test_handle_crm_query(self, mock_get_db, mock_sales_assistant):
+        """Test CRM query handling"""
+        # Setup database session
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        # Setup SalesAssistant
+        mock_assistant = MagicMock()
+        mock_assistant.answer_sales_query = AsyncMock(return_value="You have 5 leads in pipeline")
+        mock_sales_assistant.return_value = mock_assistant
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_crm_intent
+        request = ChatRequest(message="show my pipeline", user_id="test-user")
+        result = await handle_crm_intent(request, {"workspace_id": "test-ws"})
+
+        # Assertions
+        assert result["success"] is True
+        assert "5 leads" in result["response"]["message"]
+        assert len(result["response"]["actions"]) == 2
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
