@@ -345,14 +345,14 @@ Plans:
   2. 80% overall coverage gate enforced on merge to main branch (CI fails if below threshold)
   3. Coverage trend dashboard shows progress toward 80% goal with historical graphs per module
   4. Automated coverage reports generated per commit and stored in coverage_reports/ directory
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 110-01: PR comment bot for coverage delta (file-by-file breakdown on drops)
-- [ ] 110-02: 80% coverage gate enforcement in CI (fail on merge if below threshold)
-- [ ] 110-03: Coverage trend dashboard with historical graphs
-- [ ] 110-04: Per-commit coverage report generation and storage
-- [ ] 110-05: Phase verification and quality gates summary
+- [ ] 110-01-PLAN.md — PR comment bot for coverage delta (file-by-file breakdown on drops)
+- [ ] 110-02-PLAN.md — 80% coverage gate enforcement in CI (fail on merge if below threshold)
+- [ ] 110-03-PLAN.md — Coverage trend dashboard with historical graphs
+- [ ] 110-04-PLAN.md — Per-commit coverage report generation and storage
+- [ ] 110-05-PLAN.md — Phase verification and quality gates summary
 
 ## Progress
 
@@ -376,9 +376,9 @@ Phases execute in numeric order: 100 → 101 → 102 → ... → 110
 | 107. Frontend API Integration Tests | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
 | 108. Frontend Property Tests | v5.0 | 5/5 | ✅ Complete | 2026-02-28 |
 | 109. Frontend Form Validation Tests | v5.0 | 6/6 | ✅ Complete | 2026-03-01 |
-| 110. Quality Gates & Reporting | v5.0 | 0/5 | Not started | - |
+| 110. Quality Gates & Reporting | v5.0 | 0/5 | Plans created | 2026-03-01 |
 
-**Overall Progress**: v4.0 COMPLETE (36/36 plans) | v5.0 IN PROGRESS (52/56 plans complete, 93%)
+**Overall Progress**: v4.0 COMPLETE (36/36 plans) | v5.0 IN PROGRESS (52/56 plans complete, 93%, Phase 110 ready to execute)
 
 ## Requirements Traceability
 
