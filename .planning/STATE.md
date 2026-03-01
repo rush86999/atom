@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 5 of 16 (Agent Execution Coverage)
-Plan: 01
-Status: Phase 115 Plan 01 COMPLETE - Streaming governance flow covered (38.79%, +29.73 pp)
-Last activity: 2026-03-01T22:13:30Z — Plan 01 complete, 15 tests added, coverage increased significantly
+Plan: 02
+Status: Phase 115 Plan 02 COMPLETE - Intent classification covered (49.81%, +11.02 pp)
+Last activity: 2026-03-01T22:23:00Z — Plan 02 complete, 20 tests added, intent classification functions covered
 
-Progress: [███░░░░░░░░] 25%
+Progress: [████░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░░] 25%
 | Phase 114 P01 | 654 | 4 tasks | 1 files |
 | Phase 114 P05 | 300 | 4 tasks | 2 files |
 | Phase 115 P01 | 8 | 3 tasks | 2 files |
+| Phase 115 P02 | 7 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,10 +75,11 @@ Recent decisions affecting current work:
 - [Phase 112]: Query database directly after cross-session commits instead of using refresh() for fresh data
 - [Phase 114]: Accept 35.10% coverage for byok_handler.py as remaining 64.9% uncovered code requires integration tests (async streaming, BPC algorithm, vision coordination). 2 of 3 services exceed 60% target by 34-35%.
 - [Phase 115]: ChatRequest model missing workspace_id field - Added Optional[str] field to enable proper multi-tenancy support in streaming endpoint (Rule 1 bug fix during testing).
+- [Phase 115-02]: Patch BYOK manager at import location (core.byok_endpoints) not usage location (core.atom_agent_endpoints) for get_byok_manager mocking. LLM responses require dict structure with 'success' and 'response' keys.
 
 ### Pending Todos
 
-1. Continue Phase 115: Agent Execution Coverage (Plan 02 - Intent Classification)
+1. Continue Phase 115: Agent Execution Coverage (Plan 03 - Workflow Handlers)
 2. Address canvas_tool coverage gap (49% → 60%) in Phase 118
 3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 4. (Optional) Return to segmentation coverage: 46.58% → 60% (13.42 point gap)
@@ -131,8 +133,9 @@ Resume file: None
 - ✅ Phase 114 Plan 04: Gap analysis + BYOK gap-filling tests (147 tests total, 2/3 services exceed 60%)
 - ✅ Phase 114 Plan 05: Final verification and phase documentation (147 tests total, phase complete)
 - ✅ Phase 115 Plan 01: Streaming governance flow coverage (15 tests, 38.79% coverage, +29.73 pp)
-- Current: Phase 115 Plan 01 COMPLETE - atom_agent_endpoints.py increased from 9.06% to 38.79%
-- Next: Phase 115 Plan 02: Intent classification coverage (CORE-04 requirement continued)
+- ✅ Phase 115 Plan 02: Intent classification coverage (20 tests, 49.81% coverage, +11.02 pp)
+- Current: Phase 115 Plan 02 COMPLETE - Intent classification functions covered (620-848)
+- Next: Phase 115 Plan 03: Workflow handlers coverage (CORE-04 requirement continued)
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -147,6 +150,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-01*
-*Stopped at: Phase 114 Plan 01 complete - BYOKHandler coverage tests (40 tests, 31.68% coverage)*
+*Stopped at: Phase 115 Plan 02 complete - Intent classification coverage (20 tests, 49.81% coverage)*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 114 Plan 01 complete, 1 of 5 plans done*
+*Status: Phase 115 Plan 02 complete, 2 of 5 plans done*
