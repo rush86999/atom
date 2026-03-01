@@ -687,3 +687,99 @@ class TestCachedGovernanceCheckDecorator:
         cache = get_governance_cache()
         cached = cache.get("agent-3", "stream_chat")  # lowercase
         assert cached is not None
+
+
+class TestAsyncGovernanceCache:
+    """Test AsyncGovernanceCache wrapper."""
+
+    @pytest.mark.asyncio
+    async def test_async_get_delegates_to_sync_cache(self):
+        """Async get should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        result = await async_cache.get("agent-1", "action-1")
+
+        assert result is not None
+        assert result["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_set_delegates_to_sync_cache(self):
+        """Async set should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        async_cache = AsyncGovernanceCache(sync_cache)
+
+        result = await async_cache.set("agent-1", "action-1", {"allowed": True})
+        assert result is True
+
+        # Verify it was cached
+        retrieved = await async_cache.get("agent-1", "action-1")
+        assert retrieved["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_invalidate_delegates_to_sync_cache(self):
+        """Async invalidate should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        await async_cache.invalidate("agent-1", "action-1")
+
+        # Should be invalidated
+        result = await async_cache.get("agent-1", "action-1")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_async_invalidate_agent_delegates_to_sync_cache(self):
+        """Async invalidate_agent should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+        sync_cache.set("agent-1", "action-2", {"allowed": False})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        await async_cache.invalidate_agent("agent-1")
+
+        # Both should be invalidated
+        result1 = await async_cache.get("agent-1", "action-1")
+        result2 = await async_cache.get("agent-1", "action-2")
+        assert result1 is None
+        assert result2 is None
+
+    @pytest.mark.asyncio
+    async def test_async_get_stats_delegates_to_sync_cache(self):
+        """Async get_stats should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        stats = await async_cache.get_stats()
+
+        assert stats["size"] == 1
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+
+    @pytest.mark.asyncio
+    async def test_async_get_hit_rate_delegates_to_sync_cache(self):
+        """Async get_hit_rate should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        async_cache = AsyncGovernanceCache(sync_cache)
+
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+        await async_cache.get("agent-1", "action-1")  # hit
+        await async_cache.get("agent-1", "action-2")  # miss
+
+        hit_rate = await async_cache.get_hit_rate()
+        assert hit_rate == 50.0  # 1 hit, 1 miss = 50%
