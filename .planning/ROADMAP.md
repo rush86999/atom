@@ -162,7 +162,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for episode_retrieval_service.py
   3. Coverage report shows 60%+ coverage for episode_lifecycle_service.py
   4. Temporal, semantic, and sequential retrieval modes tested with realistic episodes
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 113-01-PLAN.md — Episode segmentation coverage (37 tests: create_episode_from_session, supervision/skill episodes, LLM canvas context)
+- [ ] 113-02-PLAN.md — Episode retrieval coverage (30 tests: canvas-aware, business data, supervision context, feedback-weighted)
+- [ ] 113-03-PLAN.md — Episode lifecycle completion + verification (6 tests + combined coverage run)
 
 ### Phase 114: LLM Services Coverage
 **Goal**: Achieve 60%+ coverage for LLM integration services
