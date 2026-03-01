@@ -2521,8 +2521,7 @@ class TestWorkflowHandlers:
     @pytest.mark.asyncio
     @patch('core.atom_agent_endpoints.AutomationEngine')
     @patch('core.atom_agent_endpoints.load_workflows')
-    @patch('core.atom_agent_endpoints.uuid')
-    async def test_handle_run_workflow_success(self, mock_uuid, mock_load, mock_engine):
+    async def test_handle_run_workflow_success(self, mock_load, mock_engine):
         """Test successful workflow execution"""
         # Setup existing workflow
         mock_load.return_value = [{
@@ -2540,9 +2539,6 @@ class TestWorkflowHandlers:
         )
         mock_engine.return_value = engine
 
-        # Mock UUID generation
-        mock_uuid.uuid4.return_value = MagicMock(hex="exec123")
-
         # Import and call handler
         from core.atom_agent_endpoints import handle_run_workflow
         request = ChatRequest(message="run test workflow", user_id="test-user")
@@ -2551,7 +2547,7 @@ class TestWorkflowHandlers:
         # Assertions
         assert result["success"] is True
         assert "started" in result["response"]["message"].lower()
-        assert "execution_id" in result["response"]["message"]
+        assert "ID:" in result["response"]["message"]
 
     @pytest.mark.asyncio
     @patch('core.atom_agent_endpoints.load_workflows')
@@ -2570,7 +2566,7 @@ class TestWorkflowHandlers:
         assert "not found" in result["response"]["message"].lower()
 
     @pytest.mark.asyncio
-    @patch('core.atom_agent_endpoints.parse_time_expression')
+    @patch('core.time_expression_parser.parse_time_expression')
     @patch('core.atom_agent_endpoints.workflow_scheduler')
     @patch('core.atom_agent_endpoints.load_workflows')
     async def test_handle_schedule_workflow_cron(self, mock_load, mock_scheduler, mock_parse_time):
@@ -2605,7 +2601,7 @@ class TestWorkflowHandlers:
         mock_scheduler.schedule_workflow_cron.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('core.atom_agent_endpoints.parse_time_expression')
+    @patch('core.time_expression_parser.parse_time_expression')
     @patch('core.atom_agent_endpoints.workflow_scheduler')
     @patch('core.atom_agent_endpoints.load_workflows')
     async def test_handle_schedule_workflow_interval(self, mock_load, mock_scheduler, mock_parse_time):
