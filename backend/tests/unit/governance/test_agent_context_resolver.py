@@ -74,7 +74,6 @@ class TestFallbackChainResolution:
         session = ChatSession(
             id="test_session_id",
             user_id="test_user",
-            workspace_id="default",
             metadata_json={"agent_id": agent.id}
         )
         db_session.add(session)
@@ -112,7 +111,6 @@ class TestFallbackChainResolution:
         session = ChatSession(
             id="test_session_id",
             user_id="test_user",
-            workspace_id="default",
             metadata_json={"agent_id": agent.id}
         )
         db_session.add(session)
@@ -211,6 +209,17 @@ class TestErrorHandling:
         assert agent is None
 
     @pytest.mark.asyncio
+    async def test_get_agent_handles_database_exception(self, context_resolver):
+        """Test _get_agent handles database exceptions gracefully."""
+        # Mock the query to raise an exception
+        with patch.object(context_resolver.db, 'query') as mock_query:
+            mock_query.side_effect = Exception("Database connection lost")
+
+            # Should return None, not crash
+            agent = context_resolver._get_agent("some_agent_id")
+            assert agent is None
+
+    @pytest.mark.asyncio
     async def test_get_session_agent_handles_nonexistent_session(self, context_resolver):
         """Test _get_session_agent handles non-existent session."""
         agent = context_resolver._get_session_agent("nonexistent_session_id")
@@ -230,6 +239,17 @@ class TestErrorHandling:
 
         agent = context_resolver._get_session_agent("test_session_id")
         assert agent is None
+
+    @pytest.mark.asyncio
+    async def test_get_session_agent_handles_database_exception(self, context_resolver):
+        """Test _get_session_agent handles database exceptions gracefully."""
+        # Mock the query to raise an exception
+        with patch.object(context_resolver.db, 'query') as mock_query:
+            mock_query.side_effect = Exception("Database connection lost")
+
+            # Should return None, not crash
+            agent = context_resolver._get_session_agent("some_session_id")
+            assert agent is None
 
     @pytest.mark.asyncio
     async def test_resolution_context_includes_error_info(self, context_resolver):
@@ -442,6 +462,29 @@ class TestSessionManagement:
         db_session.refresh(session)
         assert session.metadata_json["existing_key"] == "existing_value"
         assert session.metadata_json["agent_id"] == agent.id
+
+    @pytest.mark.asyncio
+    async def test_set_session_agent_handles_exception_gracefully(self, context_resolver, db_session):
+        """Test set_session_agent handles exceptions gracefully."""
+        agent = AgentFactory(_session=db_session)
+        session = ChatSession(
+            id="test_session_id",
+            user_id="test_user",
+            metadata_json={}
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        # Mock db.commit to raise exception
+        with patch.object(context_resolver.db, 'commit') as mock_commit:
+            mock_commit.side_effect = Exception("Transaction failed")
+
+            # Should return False, not crash
+            success = context_resolver.set_session_agent(
+                session_id="test_session_id",
+                agent_id=agent.id
+            )
+            assert success is False
 
 
 # ========================================================================
