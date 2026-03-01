@@ -167,7 +167,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 113-02-PLAN.md — Episode retrieval coverage (30 tests: canvas-aware, business data, supervision context, feedback-weighted)
 - [x] 113-03-PLAN.md — Episode lifecycle completion + verification (6 tests + combined coverage run)
 - [x] 113-04-PLAN.md — Fix 10 failing segmentation tests (model field mismatches: task_description->input_summary, canvas_action_count, intervention_type, AgentStatus enum)
-- [ ] 113-05-PLAN.md — Refactor 6 failing tests to helper methods + add 15-20 new tests for 60% coverage target
+- [x] 113-05-PLAN.md — Refactor 6 failing tests to helper methods + add 15-20 new tests for 60% coverage target
 
 ### Phase 114: LLM Services Coverage
 **Goal**: Achieve 60%+ coverage for LLM integration services
@@ -321,7 +321,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 |-------|-----------|----------------|--------|-----------|
 | 111. Phase 101 Fixes | v5.1 | 1/1 | Complete | 2026-03-01 |
 | 112. Agent Governance Coverage | v5.1 | 4/4 | Complete | 2026-03-01 |
-| 113. Episodic Memory Coverage | v5.1 | 3/3 | Complete ⚠️ | 2026-03-01 |
+| 113. Episodic Memory Coverage | v5.1 | 5/5 | Complete ⚠️ | 2026-03-01 |
 | 114. LLM Services Coverage | v5.1 | 0/0 | Not started | - |
 | 115. Agent Execution Coverage | v5.1 | 0/0 | Not started | - |
 | 116. Student Training Coverage | v5.1 | 0/0 | Not started | - |

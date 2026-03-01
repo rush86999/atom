@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 113 - Episodic Memory Coverage ✅ COMPLETE (3/3 services tested, 2/3 ≥60%)
+**Current focus:** Phase 114 - LLM Services Coverage
 
 ## Current Position
 
-Phase: 3 of 16 (Episodic Memory Coverage)
-Plan: 5 of 5 complete
-Status: Phase 113 Plan 05 complete - Refactored 6 failing tests, added 17 new tests, 92/92 passing (100%), segmentation 46.58% (+16.39 points)
-Last activity: 2026-03-01T20:05:04Z — Phase 113 Plan 05 complete (helper method refactoring, 17 new coverage tests, 46.58% coverage achieved)
+Phase: 4 of 16 (LLM Services Coverage)
+Plan: 0 of TBD complete
+Status: Phase 113 COMPLETE - 92/92 tests passing, 2/3 services achieve 60%+ coverage (lifecycle 91.47%, retrieval 66.45%, segmentation 46.58%)
+Last activity: 2026-03-01T20:05:04Z — Phase 113 complete (5 plans, 68 new tests, 100% pass rate)
 
 Progress: [███████████] 100%
 
@@ -67,9 +67,10 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-1. (Optional) Create integration test suite for segmentation remaining coverage (46.58% → 60%)
+1. Plan and execute Phase 114: LLM Services Coverage (CORE-03 requirement)
 2. Address canvas_tool coverage gap (49% → 60%) in Phase 118
 3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
+4. (Optional) Return to segmentation coverage: 46.58% → 60% (13.42 point gap)
 
 ### Blockers/Concerns
 
