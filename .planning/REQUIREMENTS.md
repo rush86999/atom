@@ -15,7 +15,11 @@ Requirements for backend coverage expansion milestone. Each maps to roadmap phas
 
 ### Core Backend Services
 
-- [ ] **CORE-01**: Agent governance service achieves 60%+ coverage — GovernanceCache, AgentGovernanceService, AgentContextResolver tested
+- [x] **CORE-01**: Agent governance service achieves 60%+ coverage — GovernanceCache, AgentGovernanceService, AgentContextResolver tested (Phase 112, 2026-03-01)
+  - agent_governance_service.py: 82.08%
+  - agent_context_resolver.py: 96.58%
+  - governance_cache.py: 62.05%
+  - 46+ governance tests passing
 - [ ] **CORE-02**: Episodic memory services achieve 60%+ coverage — EpisodeSegmentationService, EpisodeRetrievalService, EpisodeLifecycleService tested
 - [ ] **CORE-03**: LLM services achieve 60%+ coverage — BYOK handler, cognitive tier system, canvas summaries tested
 - [ ] **CORE-04**: Agent execution services achieve 60%+ coverage — AtomAgentEndpoints, agent workflows tested
@@ -68,9 +72,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | Phase 111 | Pending |
-| FIX-02 | Phase 111 | Pending |
-| CORE-01 | Phase 112 | Pending |
+| FIX-01 | Phase 111 | Complete |
+| FIX-02 | Phase 111 | Complete |
+| CORE-01 | Phase 112 | Complete |
 | CORE-02 | Phase 113 | Pending |
 | CORE-03 | Phase 114 | Pending |
 | CORE-04 | Phase 115 | Pending |
