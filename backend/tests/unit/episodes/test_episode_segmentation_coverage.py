@@ -1478,7 +1478,8 @@ class TestSupervisionEpisodeCreation:
             id=session_id,
             agent_id=agent_id,
             status="active",
-            intervention_type="human_correction",
+            interventions=[{"type": "human_correction", "timestamp": datetime.now().isoformat()}],
+            intervention_count=1,
             created_at=datetime.now()
         )
 
@@ -1501,12 +1502,12 @@ class TestSupervisionEpisodeCreation:
             id=str(uuid.uuid4()),
             agent_id="agent1",
             status="active",
-            intervention_type="pause",
-            intervention_details={
+            interventions=[{
                 "action": "pause",
                 "reason": "Safety concern",
                 "timestamp": datetime.now().isoformat()
-            },
+            }],
+            intervention_count=1,
             created_at=datetime.now()
         )
 
@@ -1519,7 +1520,20 @@ class TestSupervisionEpisodeCreation:
         self, segmentation_service
     ):
         """Should track graduation metrics in supervision episode"""
-        importance = segmentation_service._calculate_supervision_importance(None)
+        from core.models import SupervisionSession
+
+        # Create a valid supervision session instead of None
+        supervision = SupervisionSession(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            status="completed",
+            interventions=[{"type": "pause"}],
+            intervention_count=1,
+            supervisor_rating=4,
+            created_at=datetime.now()
+        )
+
+        importance = segmentation_service._calculate_supervision_importance(supervision)
 
         assert importance >= 0.0
         assert importance <= 1.0
@@ -1550,9 +1564,8 @@ class TestSupervisionEpisodeCreation:
             id=str(uuid.uuid4()),
             agent_id="agent1",
             status="completed",
-            intervention_type="correct",
-            decision="CORRECT",
-            human_edits=["Fixed calculation error"],
+            interventions=[{"type": "correct", "decision": "CORRECT"}],
+            intervention_count=1,
             created_at=datetime.now()
         )
 
@@ -1570,8 +1583,8 @@ class TestSupervisionEpisodeCreation:
             id=str(uuid.uuid4()),
             agent_id="agent1",
             status="completed",
-            intervention_type="human_guidance",
-            learning_outcome="Agent learned to verify calculations",
+            interventions=[{"type": "human_guidance", "outcome": "Agent learned to verify calculations"}],
+            intervention_count=1,
             created_at=datetime.now()
         )
 
