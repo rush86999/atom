@@ -1,0 +1,75 @@
+# DigitalOcean App Platform Specification
+# Atom: Self-Hosted AI Agent Platform
+
+name: atom
+region: nyc
+services:
+  - name: atom-backend
+    github:
+      repo: rush86999/atom
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: backend/Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${db.DATABASE_URL}
+      - key: ENVIRONMENT
+        scope: RUN_TIME
+        value: production
+      - key: NODE_ENGINE_URL
+        scope: RUN_TIME
+        value: ${atom-piece-engine.PUBLIC_URL}
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: BYOK_ENCRYPTION_KEY
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: atom-frontend
+    github:
+      repo: rush86999/atom
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: frontend-nextjs/Dockerfile.production
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NEXT_PUBLIC_API_URL
+        scope: RUN_TIME
+        value: ${atom-backend.PUBLIC_URL}
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+
+  - name: atom-piece-engine
+    github:
+      repo: rush86999/atom
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: backend/piece-engine/Dockerfile
+    http_port: 3003
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: PORT
+        scope: RUN_TIME
+        value: "3003"
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+
+databases:
+  - name: db
+    engine: PG
+    version: "15"
+    size_slug: db-s-dev-database
+    num_nodes: 1
