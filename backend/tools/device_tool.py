@@ -63,6 +63,8 @@ DEVICE_COMMAND_WHITELIST = os.getenv(
     "DEVICE_COMMAND_WHITELIST",
     "ls,pwd,cat,grep,head,tail,echo,find,ps,top"
 ).split(",")
+DEVICE_SHELL_READ_COMMANDS = ["ls", "pwd", "cat", "grep", "head", "tail", "echo", "date", "whoami"]
+DEVICE_SHELL_MONITOR_COMMANDS = ["find", "ps", "top", "df", "du", "netstat", "lsof"]
 DEVICE_SCREEN_RECORD_MAX_DURATION = int(os.getenv("DEVICE_SCREEN_RECORD_MAX_DURATION", "3600"))  # 1 hour default
 
 
@@ -984,8 +986,17 @@ async def device_execute_command(
 
     # Governance check
     if agent_id:
+        # Determine command category for graduated access
+        command_base = command.split()[0] if command.strip() else ""
+        
+        governance_action = "device_execute_command"  # Default (Complexity 4)
+        if command_base in DEVICE_SHELL_READ_COMMANDS:
+            governance_action = "device_shell_read"    # Complexity 2
+        elif command_base in DEVICE_SHELL_MONITOR_COMMANDS:
+            governance_action = "device_shell_monitor" # Complexity 3
+
         governance_check = await _check_device_governance(
-            db, agent_id, "device_execute_command", user_id
+            db, agent_id, governance_action, user_id
         )
         if not governance_check["allowed"]:
             return {

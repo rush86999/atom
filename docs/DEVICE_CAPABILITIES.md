@@ -95,9 +95,14 @@ Send system notifications to users.
 - Rate-limited per device
 - User-dismissable only
 
-### 5. Command Execution (AUTONOMOUS only)
+### 5. Command Execution (Graduated Access)
 
-Execute shell commands on the device.
+Execute shell commands on the device based on agent maturity.
+
+**Whitelist Categories:**
+- **Read-only (INTERN+):** `ls`, `pwd`, `cat`, `grep`, `head`, `tail`, `echo`, `date`, `whoami`
+- **Monitoring (SUPERVISED+):** `find`, `ps`, `top`, `df`, `du`, `netstat`, `lsof`
+- **Full (AUTONOMOUS only):** All other commands in the global whitelist.
 
 **Use Cases:**
 - System administration tasks
@@ -105,10 +110,12 @@ Execute shell commands on the device.
 - Process management
 - Development workflow automation
 
-**Complexity:** 4 (AUTONOMOUS only)
+**Complexity:**
+- **Read-only:** 2 (INTERN+)
+- **Monitoring:** 3 (SUPERVISED+)
+- **Full:** 4 (AUTONOMOUS only)
 
 **Limitations:**
-- AUTONOMOUS agents only
 - Command whitelist enforced
 - Timeout enforced (default: 30s, max: 300s)
 - Working directory restrictions
@@ -184,9 +191,9 @@ Execute shell commands on the device.
 | Level | Confidence | Capabilities |
 |-------|-----------|--------------|
 | STUDENT | <0.5 | Read-only (no device access) |
-| INTERN | 0.5-0.7 | Camera, Location, Notifications |
-| SUPERVISED | 0.7-0.9 | Screen Recording |
-| AUTONOMOUS | >0.9 | Command Execution |
+| INTERN | 0.5-0.7 | Camera, Location, Notifications, Read-only Shell (`ls`, `cat`, etc.) |
+| SUPERVISED | 0.7-0.9 | Screen Recording, Monitoring Shell (`ps`, `top`, etc.) |
+| AUTONOMOUS | >0.9 | Full Command Execution (Whitelist constrained) |
 
 ### Action Complexity
 
