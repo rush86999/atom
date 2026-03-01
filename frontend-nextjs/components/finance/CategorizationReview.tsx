@@ -3,14 +3,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Badge } from "../ui/badge";
-import { Check, X, BrainCircuit, Info } from "lucide-react";
+import { Check, X, BrainCircuit, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "../ui/use-toast";
 
+interface TransactionProposal {
+    id: string;
+    date: string;
+    amount: number;
+    description: string;
+    merchant?: string;
+    suggested_category: string;
+    confidence: number;
+    reasoning: string;
+}
+
 const CategorizationReview = () => {
-    const [proposals, setProposals] = useState<any[]>([]);
+    const [proposals, setProposals] = useState<TransactionProposal[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
-    const workspaceId = "default-workspace";
 
     useEffect(() => {
         fetchProposals();
@@ -18,32 +28,54 @@ const CategorizationReview = () => {
 
     const fetchProposals = async () => {
         try {
-            const response = await fetch(`/api/v1/accounting/proposals?workspace_id=${workspaceId}`);
-            const data = await response.json();
-            setProposals(data);
-            setLoading(false);
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/accounting/transactions', {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                }
+            });
+            if (response.ok) {
+                const json = await response.json();
+                setProposals(json.data.transactions || []);
+            }
         } catch (error) {
             console.error("Failed to fetch proposals:", error);
+        } finally {
             setLoading(false);
         }
     };
 
     const approveProposal = async (proposalId: string) => {
         try {
-            const response = await fetch(`/api/v1/accounting/proposals/${proposalId}/approve`, {
-                method: 'POST'
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/accounting/action?action=post&id=${proposalId}`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                }
             });
             if (response.ok) {
                 setProposals(proposals.filter(p => p.id !== proposalId));
                 toast({
                     title: "Categorization Applied",
-                    description: "Transaction has been posted to the ledger and a new rule has been learned.",
+                    description: "Transaction has been posted to the ledger and the AI has been updated.",
                 });
+            } else {
+                const error = await response.json();
+                toast({ title: "Approval Failed", description: error.error, variant: "error" });
             }
         } catch (error) {
             toast({ title: "Update Failed", variant: "error" });
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     if (proposals.length === 0 && !loading) {
         return (
@@ -80,23 +112,23 @@ const CategorizationReview = () => {
                         {proposals.map(prop => (
                             <TableRow key={prop.id}>
                                 <TableCell>
-                                    <div className="font-medium">{prop.transaction.description}</div>
+                                    <div className="font-medium">{prop.description}</div>
                                     <div className="text-xs text-muted-foreground">
-                                        {new Date(prop.transaction.transaction_date).toLocaleDateString()}
+                                        {new Date(prop.date).toLocaleDateString()}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="secondary">{prop.suggested_account_id}</Badge>
+                                    <Badge variant="secondary">{prop.suggested_category}</Badge>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
                                         <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full ${prop.confidence > 0.7 ? 'bg-green-500' : 'bg-amber-500'}`}
-                                                style={{ width: `${prop.confidence * 100}%` }}
+                                                className={`h-full ${prop.confidence >= 90 ? 'bg-green-500' : 'bg-amber-500'}`}
+                                                style={{ width: `${prop.confidence}%` }}
                                             />
                                         </div>
-                                        <span className="text-xs font-mono">{(prop.confidence * 100).toFixed(0)}%</span>
+                                        <span className="text-xs font-mono">{prop.confidence.toFixed(0)}%</span>
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -106,7 +138,10 @@ const CategorizationReview = () => {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
-                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => {
+                                            setProposals(proposals.filter(p => p.id !== prop.id));
+                                            toast({ title: "Proposal Rejected", description: "The categorization proposal has been discarded." });
+                                        }}>
                                             <X className="h-4 w-4 text-red-500" />
                                         </Button>
                                         <Button size="sm" onClick={() => approveProposal(prop.id)} className="h-8 gap-1">
@@ -124,3 +159,4 @@ const CategorizationReview = () => {
 };
 
 export default CategorizationReview;
+

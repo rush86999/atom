@@ -17,7 +17,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 
-router = BaseAPIRouter(prefix="/api/reconciliation", tags=["Reconciliation"])
+router = BaseAPIRouter(prefix="/reconciliation", tags=["Reconciliation"])
 
 # ============================================================================
 # Request/Response Models
