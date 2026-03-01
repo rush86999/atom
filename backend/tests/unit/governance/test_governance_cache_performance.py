@@ -601,6 +601,18 @@ class TestBackgroundCleanup:
         result = cache.get(agent_id, "action1")
         assert result is not None
 
+    def test_cleanup_task_handles_event_loop_exception(self):
+        """Background cleanup should handle event loop exceptions gracefully."""
+        # Mock get_event_loop to raise exception
+        with patch('core.governance_cache.asyncio.get_event_loop') as mock_get_loop:
+            mock_get_loop.side_effect = Exception("No event loop available")
+
+            # Should not raise, should log warning
+            cache = GovernanceCache()
+
+            # Cleanup task should be None after exception
+            assert cache._cleanup_task is None
+
 
 class TestGlobalCacheInstance:
     """Test global cache instance management."""
