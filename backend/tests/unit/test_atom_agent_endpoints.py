@@ -2420,5 +2420,244 @@ class TestIntentClassificationWithLLM:
         mock_byok.track_usage.assert_called_once()
 
 
+# ==================== Test Workflow Handlers ====================
+
+class TestWorkflowHandlers:
+    """Tests for workflow orchestration handlers (lines 852-1057)"""
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.get_orchestrator')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    @patch('core.atom_agent_endpoints.save_workflows')
+    async def test_handle_create_workflow_success(
+        self, mock_save, mock_load, mock_orchestrator
+    ):
+        """Test successful workflow creation"""
+        # Setup orchestrator to generate workflow
+        orchestrator = MagicMock()
+        orchestrator.generate_dynamic_workflow = AsyncMock(
+            return_value={
+                "id": "workflow-test",
+                "workflow_id": "workflow-test",
+                "name": "Test Workflow",
+                "nodes": [{"id": "node1", "type": "action"}],
+                "connections": []
+            }
+        )
+        mock_orchestrator.return_value = orchestrator
+
+        # Setup empty existing workflows
+        mock_load.return_value = []
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_create_workflow
+        request = ChatRequest(
+            message="create a workflow for sending daily reports",
+            user_id="test-user"
+        )
+        result = await handle_create_workflow(request, {"description": "daily reports"})
+
+        # Assertions
+        assert result["success"] is True
+        assert "workflow_id" in result["response"]
+        assert result["response"]["workflow_name"] == "Test Workflow"
+        mock_save.assert_called_once()  # Workflow saved
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.get_orchestrator')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    @patch('core.atom_agent_endpoints.save_workflows')
+    async def test_handle_create_workflow_template_id(
+        self, mock_save, mock_load, mock_orchestrator
+    ):
+        """Test workflow creation with template_id field"""
+        # Setup orchestrator to generate workflow with template_id
+        orchestrator = MagicMock()
+        orchestrator.generate_dynamic_workflow = AsyncMock(
+            return_value={
+                "id": "workflow-template",
+                "workflow_id": "workflow-template",
+                "name": "Template Workflow",
+                "template_id": "tpl-123",
+                "nodes": [{"id": "node1", "type": "action"}],
+                "connections": []
+            }
+        )
+        mock_orchestrator.return_value = orchestrator
+        mock_load.return_value = []
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_create_workflow
+        request = ChatRequest(message="create template workflow", user_id="test-user")
+        result = await handle_create_workflow(request, {})
+
+        # Assertions - verify template message in response
+        assert result["success"] is True
+        assert "template" in result["response"]["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.get_orchestrator')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    @patch('core.atom_agent_endpoints.save_workflows')
+    async def test_handle_create_workflow_orchestrator_failure(
+        self, mock_save, mock_load, mock_orchestrator
+    ):
+        """Test workflow creation when orchestrator fails"""
+        # Setup orchestrator to return None (failure)
+        orchestrator = MagicMock()
+        orchestrator.generate_dynamic_workflow = AsyncMock(return_value=None)
+        mock_orchestrator.return_value = orchestrator
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_create_workflow
+        request = ChatRequest(message="create invalid workflow", user_id="test-user")
+        result = await handle_create_workflow(request, {})
+
+        # Assertions
+        assert result["success"] is False
+        assert "couldn't understand" in result["response"]["message"].lower()
+        mock_save.assert_not_called()  # Should not save on failure
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.AutomationEngine')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    @patch('core.atom_agent_endpoints.uuid')
+    async def test_handle_run_workflow_success(self, mock_uuid, mock_load, mock_engine):
+        """Test successful workflow execution"""
+        # Setup existing workflow
+        mock_load.return_value = [{
+            "id": "test-workflow",
+            "workflow_id": "test-workflow",
+            "name": "Test Workflow",
+            "nodes": [],
+            "connections": []
+        }]
+
+        # Setup automation engine
+        engine = MagicMock()
+        engine.execute_workflow_definition = AsyncMock(
+            return_value={"execution_id": "exec-123", "status": "completed"}
+        )
+        mock_engine.return_value = engine
+
+        # Mock UUID generation
+        mock_uuid.uuid4.return_value = MagicMock(hex="exec123")
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_run_workflow
+        request = ChatRequest(message="run test workflow", user_id="test-user")
+        result = await handle_run_workflow(request, {"workflow_ref": "test-workflow"})
+
+        # Assertions
+        assert result["success"] is True
+        assert "started" in result["response"]["message"].lower()
+        assert "execution_id" in result["response"]["message"]
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.load_workflows')
+    async def test_handle_run_workflow_not_found(self, mock_load):
+        """Test running workflow that doesn't exist"""
+        # Setup empty workflow list
+        mock_load.return_value = []
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_run_workflow
+        request = ChatRequest(message="run missing workflow", user_id="test-user")
+        result = await handle_run_workflow(request, {"workflow_ref": "missing-workflow"})
+
+        # Assertions
+        assert result["success"] is False
+        assert "not found" in result["response"]["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.parse_time_expression')
+    @patch('core.atom_agent_endpoints.workflow_scheduler')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    async def test_handle_schedule_workflow_cron(self, mock_load, mock_scheduler, mock_parse_time):
+        """Test scheduling workflow with cron expression"""
+        # Setup existing workflow
+        mock_load.return_value = [{
+            "id": "test-workflow",
+            "workflow_id": "test-workflow",
+            "name": "Daily Report",
+            "nodes": [],
+            "connections": []
+        }]
+
+        # Setup time expression parsing
+        mock_parse_time.return_value = {
+            "schedule_type": "cron",
+            "cron_expression": "0 9 * * 1-5",
+            "human_readable": "weekdays at 9am"
+        }
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_schedule_workflow
+        request = ChatRequest(message="schedule daily report", user_id="test-user")
+        result = await handle_schedule_workflow(
+            request,
+            {"workflow_ref": "daily report", "time_expression": "every weekday at 9am"}
+        )
+
+        # Assertions
+        assert result["success"] is True
+        assert "scheduled" in result["response"]["message"].lower()
+        mock_scheduler.schedule_workflow_cron.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.parse_time_expression')
+    @patch('core.atom_agent_endpoints.workflow_scheduler')
+    @patch('core.atom_agent_endpoints.load_workflows')
+    async def test_handle_schedule_workflow_interval(self, mock_load, mock_scheduler, mock_parse_time):
+        """Test scheduling workflow with interval"""
+        # Setup existing workflow
+        mock_load.return_value = [{
+            "id": "test-workflow",
+            "workflow_id": "test-workflow",
+            "name": "Hourly Task",
+            "nodes": [],
+            "connections": []
+        }]
+
+        # Setup time expression parsing
+        mock_parse_time.return_value = {
+            "schedule_type": "interval",
+            "interval_minutes": 60,
+            "human_readable": "every hour"
+        }
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_schedule_workflow
+        request = ChatRequest(message="schedule hourly task", user_id="test-user")
+        result = await handle_schedule_workflow(
+            request,
+            {"workflow_ref": "hourly task", "time_expression": "every hour"}
+        )
+
+        # Assertions
+        assert result["success"] is True
+        mock_scheduler.schedule_workflow_interval.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.atom_agent_endpoints.workflow_scheduler')
+    async def test_handle_cancel_schedule(self, mock_scheduler):
+        """Test canceling a scheduled workflow"""
+        # Setup scheduler to succeed
+        mock_scheduler.remove_job.return_value = True
+
+        # Import and call handler
+        from core.atom_agent_endpoints import handle_cancel_schedule
+        request = ChatRequest(message="cancel schedule", user_id="test-user")
+        result = await handle_cancel_schedule(
+            request,
+            {"schedule_id": "schedule-123"}
+        )
+
+        # Assertions
+        assert result["success"] is True
+        assert "cancelled" in result["response"]["message"].lower()
+        mock_scheduler.remove_job.assert_called_once_with("schedule-123")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
