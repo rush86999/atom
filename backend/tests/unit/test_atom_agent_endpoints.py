@@ -430,11 +430,11 @@ class TestChatEndpoint:
 class TestStreamEndpoint:
     """Tests for streaming chat endpoint"""
 
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    @patch('core.atom_agent_endpoints.get_db_session')
-    @patch('core.atom_agent_endpoints.BYOKHandler')
-    @patch('core.atom_agent_endpoints.ws_manager')
+    @patch('core.agent_context_resolver.AgentContextResolver')
+    @patch('core.agent_governance_service.AgentGovernanceService')
+    @patch('core.database.get_db_session')
+    @patch('core.llm.byok_handler.BYOKHandler')
+    @patch('core.websockets.manager')
     @patch('core.atom_agent_endpoints.get_chat_history_manager')
     @patch('core.atom_agent_endpoints.get_chat_session_manager')
     def test_stream_endpoint_basic(
@@ -456,11 +456,9 @@ class TestStreamEndpoint:
 
         mock_resolver_instance = AsyncMock()
         mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(None, None))
-        mock_resolver.return_value.__init__ = MagicMock(return_value=None)
         mock_resolver.return_value = mock_resolver_instance
 
         mock_gov_instance = MagicMock()
-        mock_gov.return_value.__init__ = MagicMock(return_value=None)
         mock_gov.return_value = mock_gov_instance
 
         mock_ws.broadcast = AsyncMock()
@@ -513,7 +511,7 @@ class TestIntentClassification:
     async def test_classify_intent_with_llm_openai(self):
         """Test intent classification using OpenAI"""
         with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
+            with patch('core.byok_endpoints.get_byok_manager') as mock_byok:
                 mock_byok_mgr = MagicMock()
                 mock_byok_mgr.get_optimal_provider = MagicMock(return_value="openai")
                 mock_byok_mgr.get_api_key = MagicMock(return_value="test-key")
