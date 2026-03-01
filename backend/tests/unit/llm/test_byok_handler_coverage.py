@@ -1067,12 +1067,13 @@ class TestGapFillingBYOK:
         with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
             handler = BYOKHandler()
 
-            # Mock to return empty list
-            with patch.object(handler, 'clients, {}'):
-                result = handler.get_ranked_providers(
-                    QueryComplexity.SIMPLE,
-                    requires_tools=False
-                )
+            # Set clients to empty dict
+            handler.clients = {}
 
-                # Should return empty list or handle gracefully
-                assert isinstance(result, list)
+            result = handler.get_ranked_providers(
+                QueryComplexity.SIMPLE,
+                requires_tools=False
+            )
+
+            # Should return empty list or handle gracefully
+            assert isinstance(result, list)
