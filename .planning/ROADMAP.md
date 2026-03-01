@@ -209,7 +209,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for student_training_service.py
   3. Coverage report shows 60%+ coverage for supervision_service.py
   4. STUDENT agent blocking, training proposal generation, and supervision tracking tested
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 116-01-PLAN.md — Fix 6 failing tests in test_student_training_service.py
+- [ ] 116-02-PLAN.md — Measure coverage baseline and identify gaps
+- [ ] 116-03-PLAN.md — Add targeted tests to reach 60% coverage
 
 ### Phase 117: Graduation Framework Coverage
 **Goal**: Achieve 60%+ coverage for agent graduation service
