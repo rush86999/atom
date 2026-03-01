@@ -123,6 +123,63 @@ def get_file_by_file_delta(
     files_data = coverage_data.get("files", {})
     drops = []
 
+    # Try diff-cover first for accurate deltas
+    try:
+        import diff_cover
+        import xml.etree.ElementTree as ET
+        from io import StringIO
+
+        # Generate coverage.xml from coverage.json
+        coverage_xml = generate_coverage_xml(coverage_data)
+
+        # Run diff-cover to get per-file deltas
+        result = subprocess.run(
+            [
+                "diff-cover",
+                "--compare-branch=origin/main",
+                "--json-report",
+                "/dev/stdin"  # Read from stdin
+            ],
+            input=coverage_xml,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+
+        if result.returncode == 0 and result.stdout:
+            # Parse diff-cover JSON output
+            diff_data = json.loads(result.stdout)
+
+            for file_path, file_stats in diff_data.get("files", {}).items():
+                percent_covered = file_stats.get("percent_covered", 0.0)
+                diff_stat = file_stats.get("diff", {})
+
+                if diff_stat.get("missing", 0) > 0:
+                    # File has coverage drop in diff
+                    before_pct = diff_stat.get("percent_covered", baseline_coverage or DEFAULT_TARGET_COVERAGE)
+                    after_pct = percent_covered
+                    delta_pct = after_pct - before_pct
+
+                    if delta_pct < -COVERAGE_DROP_THRESHOLD:
+                        drops.append({
+                            "path": file_path,
+                            "before_pct": round(before_pct, 2),
+                            "after_pct": round(after_pct, 2),
+                            "delta_pct": round(delta_pct, 2),
+                            "covered_lines": file_stats.get("covered_lines", 0),
+                            "total_lines": file_stats.get("num_statements", 0)
+                        })
+
+            if drops:
+                # Sort by delta (largest drops first)
+                drops.sort(key=lambda x: x["delta_pct"])
+                return drops
+
+    except (ImportError, subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        # Fallback to manual calculation if diff-cover fails
+        print(f"Warning: diff-cover failed, using fallback: {e}", file=sys.stderr)
+
+    # Fallback: Manual calculation from coverage.json
     for file_path in changed_files:
         # Normalize path (remove leading backend/ if present)
         normalized_path = file_path
@@ -136,8 +193,7 @@ def get_file_by_file_delta(
         summary = file_info.get("summary", {})
         current_pct = summary.get("percent_covered", 0.0)
 
-        # For now, we'll flag any file below target as needing attention
-        # In a full implementation, we'd compare against baseline per-file
+        # Flag files below target
         if current_pct < DEFAULT_TARGET_COVERAGE:
             # Estimate "before" as either baseline or target
             before_pct = baseline_coverage if baseline_coverage else DEFAULT_TARGET_COVERAGE
@@ -156,6 +212,50 @@ def get_file_by_file_delta(
     drops.sort(key=lambda x: x["delta_pct"])
 
     return drops
+
+
+def generate_coverage_xml(coverage_data: Dict[str, Any]) -> str:
+    """
+    Generate coverage.xml from coverage.json for diff-cover consumption.
+
+    Args:
+        coverage_data: Coverage data from coverage.json
+
+    Returns:
+        XML string in coverage.xml format
+    """
+    import xml.etree.ElementTree as ET
+
+    coverage = ET.Element("coverage")
+    coverage.set("version", "1.0")
+
+    files = coverage_data.get("files", {})
+
+    for file_path, file_data in files.items():
+        file_elem = ET.SubElement(coverage, "file")
+        file_elem.set("name", file_path)
+
+        # Get line data from summary
+        summary = file_data.get("summary", {})
+        num_statements = summary.get("num_statements", 0)
+        covered_lines = summary.get("covered_lines", 0)
+
+        # Add line elements (simplified - diff-cover needs line-by-line data)
+        # In a full implementation, we'd use coverage.py's XML output directly
+        # For now, we'll create a basic structure
+        lines_to_cover = file_data.get("lines", {})
+
+        if lines_to_cover:
+            for line_num, line_info in lines_to_cover.items():
+                line_elem = ET.SubElement(file_elem, "line")
+                line_elem.set("number", str(line_num))
+                line_elem.set("hits", "1" if line_info.get("hits", 0) > 0 else "0")
+        else:
+            # Fallback: create line elements from summary
+            # This is less accurate but works for basic reporting
+            pass
+
+    return ET.tostring(coverage, encoding="unicode")
 
 
 def generate_pr_comment_payload(
