@@ -1,45 +1,54 @@
-# Requirements: Atom v5.0 Coverage Expansion
+# Requirements: Atom Backend Coverage v5.1
 
-**Defined:** 2026-02-27
+**Defined:** 2026-03-01
 **Core Value:** Critical system paths are thoroughly tested and validated before production deployment
+**Milestone:** v5.1 Backend Coverage Expansion
 
-## v5.0 Requirements
+## v5.1 Requirements
 
-Requirements for achieving 80% overall test coverage through systematic expansion targeting highest-impact files first. Each maps to roadmap phases.
+Requirements for backend coverage expansion milestone. Each maps to roadmap phases.
 
-### Coverage Analysis
+### Phase 101 Fixes
 
-- [ ] **COVR-01**: Coverage gap analysis identifies all files below 80% with business impact score
-- [ ] **COVR-02**: High-impact file prioritization report ranks files by (lines * impact / current_coverage)
-- [ ] **COVR-03**: Coverage trend tracking establishes baseline and tracks per-commit changes
+- [ ] **FIX-01**: Canvas test mock configuration resolved — 66 tests unblocked, coverage measurement functional
+- [ ] **FIX-02**: Module import failures fixed — Coverage.py can measure all 6 target backend services
 
-### Backend Coverage Expansion
+### Core Backend Services
 
-- [ ] **BACK-01**: Unit tests achieve 60%+ coverage for low-coverage core services (governance, episodes, canvas)
-- [ ] **BACK-02**: Integration tests cover all API routes with request/response validation
-- [ ] **BACK-03**: Property-based tests validate business logic invariants (Hypothesis)
-- [ ] **BACK-04**: Error path and edge case tests for critical services (security, auth, finance)
+- [ ] **CORE-01**: Agent governance service achieves 60%+ coverage — GovernanceCache, AgentGovernanceService, AgentContextResolver tested
+- [ ] **CORE-02**: Episodic memory services achieve 60%+ coverage — EpisodeSegmentationService, EpisodeRetrievalService, EpisodeLifecycleService tested
+- [ ] **CORE-03**: LLM services achieve 60%+ coverage — BYOK handler, cognitive tier system, canvas summaries tested
+- [ ] **CORE-04**: Agent execution services achieve 60%+ coverage — AtomAgentEndpoints, agent workflows tested
+- [ ] **CORE-05**: Student training services achieve 60%+ coverage — TriggerInterceptor, StudentTrainingService, SupervisionService tested
+- [ ] **CORE-06**: Graduation framework achieves 60%+ coverage — AgentGraduationService with constitutional compliance validated
+
+### API Routes & Tools
+
+- [ ] **API-01**: Canvas API routes achieve 60%+ coverage — Canvas presentations, form submissions, state management tested
+- [ ] **API-02**: Browser automation achieves 60%+ coverage — Playwright CDP integration, web scraping, form filling tested
+- [ ] **API-03**: Device capabilities achieve 60%+ coverage — Camera, screen recording, location, notifications tested
+- [ ] **API-04**: Health & monitoring routes achieve 60%+ coverage — Health checks, Prometheus metrics, structured logging tested
+- [ ] **API-05**: Admin routes achieve 60%+ coverage — Business facts, citations, world model tested
+
+### Property-Based Testing
+
+- [ ] **PROP-01**: Governance invariants tested — Maturity routing, permission checks, cache consistency validated with Hypothesis
+- [ ] **PROP-02**: Episode invariants tested — Segmentation logic, retrieval ranking, lifecycle transitions validated
+- [ ] **PROP-03**: Financial invariants tested — Decimal precision, double-entry validation, audit immutability validated
+- [ ] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated
+
+## v5.2+ Requirements
+
+Deferred to future milestones. Tracked but not in current roadmap.
 
 ### Frontend Coverage Expansion
+- **FRNT-01**: React component testing — Complete frontend 80% coverage target
+- **FRNT-02**: State management testing — Hooks, context providers, reducers
+- **FRNT-03**: API client testing — MSW integration, error handling
 
-- [ ] **FRNT-01**: Component tests using React Testing Library achieve 50%+ coverage
-- [ ] **FRNT-02**: State management tests validate Redux/Zustand store logic and transitions
-- [ ] **FRNT-03**: API integration tests mock backend and verify error handling
-- [ ] **FRNT-04**: FastCheck property tests validate state machine invariants
-- [ ] **FRNT-05**: Form validation tests cover all form components with edge cases
-
-### Quality Gates & Reporting
-
-- [ ] **GATE-01**: PR comments show coverage changes with file breakdown on drops
-- [ ] **GATE-02**: 80% overall coverage gate enforced on merge to main
-- [ ] **GATE-03**: Coverage trend dashboard shows progress toward 80% goal
-- [ ] **GATE-04**: Automated coverage reports generated per commit
-
-## v6+ Requirements
-
-Deferred to future releases. Tracked but not in current roadmap.
-
-*None identified yet*
+### Mobile & Desktop Testing
+- **MOBL-01**: React Native testing — Device features, offline sync, cross-platform
+- **DSKT-01**: Tauri testing — Rust backend, integration tests
 
 ## Out of Scope
 
@@ -47,10 +56,11 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| E2E test expansion | Detox/tauri-driver infrastructure deferred to post-v5.0 |
-| Mobile/Desktop coverage prioritization | Focus on Backend + Frontend for 80% overall target |
-| New feature development | This milestone focuses on testing existing features, not building new ones |
-| Production deployment | Infrastructure setup and deployment automation (separate initiative) |
+| Frontend coverage expansion | Backend-first milestone (21.67% → 80%) |
+| Mobile/desktop coverage | Backend-first milestone |
+| New feature development | This milestone focuses on testing existing features |
+| E2E/load/chaos testing | Infrastructure deferred to v6.0+ |
+| Phase 102-110 re-execution | v5.0 phases complete, v5.1 focuses on new expansion |
 
 ## Traceability
 
@@ -58,29 +68,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COVR-01 | Phase 100 | Pending |
-| COVR-02 | Phase 100 | Pending |
-| COVR-03 | Phase 100 | Pending |
-| BACK-01 | Phase 101 | Pending |
-| BACK-02 | Phase 102 | Pending |
-| BACK-03 | Phase 103 | Pending |
-| BACK-04 | Phase 104 | Pending |
-| FRNT-01 | Phase 105 | Pending |
-| FRNT-02 | Phase 106 | Pending |
-| FRNT-03 | Phase 107 | Pending |
-| FRNT-04 | Phase 108 | Pending |
-| FRNT-05 | Phase 109 | Pending |
-| GATE-01 | Phase 110 | Pending |
-| GATE-02 | Phase 110 | Pending |
-| GATE-03 | Phase 110 | Pending |
-| GATE-04 | Phase 110 | Pending |
+| FIX-01 | Phase 111 | Pending |
+| FIX-02 | Phase 111 | Pending |
+| CORE-01 | Phase 112 | Pending |
+| CORE-02 | Phase 113 | Pending |
+| CORE-03 | Phase 114 | Pending |
+| CORE-04 | Phase 115 | Pending |
+| CORE-05 | Phase 116 | Pending |
+| CORE-06 | Phase 117 | Pending |
+| API-01 | Phase 118 | Pending |
+| API-02 | Phase 119 | Pending |
+| API-03 | Phase 120 | Pending |
+| API-04 | Phase 121 | Pending |
+| API-05 | Phase 122 | Pending |
+| PROP-01 | Phase 123 | Pending |
+| PROP-02 | Phase 124 | Pending |
+| PROP-03 | Phase 125 | Pending |
+| PROP-04 | Phase 126 | Pending |
 
 **Coverage:**
-- v5.0 requirements: 17 total
-- Mapped to phases: 17
-- Unmapped: 0 ✓
-- No orphaned requirements
+- v5.1 requirements: 16 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 16 ⚠️
 
 ---
-*Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 after initial requirements definition*
+*Requirements defined: 2026-03-01*
+*Last updated: 2026-03-01 after initial definition*
