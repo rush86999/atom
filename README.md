@@ -139,6 +139,13 @@ cp .env.personal .env
 docker-compose -f docker-compose-personal.yml up -d
 ```
 
+### 🚀 DigitalOcean (1-Click Deploy)
+Launch Atom on DigitalOcean App Platform with one click:
+
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
+
+[See Cloud Deployment Guide →](docs/DEPLOYMENT/CLOUD_DEPLOYMENT.md)
+
 ### 💻 Native (10 minutes)
 ```bash
 git clone https://github.com/rush86999/atom.git
