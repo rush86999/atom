@@ -42,7 +42,7 @@ const ForecastingSandbox = () => {
             setScenarioResult(data);
             toast({ title: "Scenario Modeled", description: "Impact analysis complete." });
         } catch (error) {
-            toast({ title: "Scenario Failed", variant: "error" });
+            toast({ title: "Scenario Failed", variant: "error", description: "Scenario analysis is currently under development." });
         } finally {
             setLoading(false);
         }

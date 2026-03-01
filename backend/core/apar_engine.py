@@ -6,8 +6,19 @@ Accounts Payable and Accounts Receivable automation.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+import io
 import logging
 from typing import Any, Dict, List, Optional
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +142,7 @@ class APAREngine:
             id=invoice_id,
             customer=data.get("customer", "Unknown Customer"),
             amount=data.get("amount", 0.0),
-            due_date=datetime.fromisoformat(data["due_date"]) if "due_date" in data else datetime.now() + timedelta(days=30),
+            due_date=datetime.fromisoformat(data["due_date"]) if data.get("due_date") else datetime.now() + timedelta(days=30),
             line_items=data.get("line_items", []),
             source=source,
             status=InvoiceStatus.DRAFT
@@ -172,6 +183,121 @@ class APAREngine:
         
         return overdue
     
+    def get_all_invoices(self) -> List[Any]:
+        """Get all AR and AP invoices combined and sorted by creation date"""
+        all_invs = list(self._ar_invoices.values()) + list(self._ap_invoices.values())
+        return sorted(all_invs, key=lambda inv: inv.created_at, reverse=True)
+    
+    def generate_invoice_content(self, invoice_id: str) -> str:
+        """Generate text-based content for an invoice (simulates PDF generation)"""
+        invoice = self._ar_invoices.get(invoice_id) or self._ap_invoices.get(invoice_id)
+        if not invoice:
+            raise ValueError(f"Invoice {invoice_id} not found")
+        
+        content = f"--- INVOICE {invoice.id} ---\n"
+        content += f"Type: {'AR' if invoice_id.startswith('ar') else 'AP'}\n"
+        content += f"Entity: {invoice.customer if hasattr(invoice, 'customer') else invoice.vendor}\n"
+        content += f"Amount: ${invoice.amount:.2f}\n"
+        content += f"Due Date: {invoice.due_date.strftime('%Y-%m-%d')}\n"
+        content += f"Status: {invoice.status.value}\n"
+        content += "Line Items:\n"
+        for item in invoice.line_items:
+            content += f"- {item.get('description', 'Item')}: ${item.get('amount', 0.0):.2f}\n"
+        content += "--- END ---\n"
+        return content
+
+    def generate_invoice_pdf(self, invoice_id: str) -> bytes:
+        """Generates a professional PDF invoice using ReportLab."""
+        invoice = self._ar_invoices.get(invoice_id) or self._ap_invoices.get(invoice_id)
+        if not invoice:
+            raise ValueError(f"Invoice {invoice_id} not found")
+
+        if not HAS_REPORTLAB:
+            raise ImportError("ReportLab is not installed. Please install it to generate PDFs.")
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Add custom styles for a cleaner look
+        title_style = ParagraphStyle('InvoiceTitle', parent=styles['Heading1'], fontSize=24, spaceAfter=20)
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, textColor=colors.gray)
+        bold_style = ParagraphStyle('BoldText', parent=styles['Normal'], fontName='Helvetica-Bold')
+
+        # Company Header
+        elements.append(Paragraph("<b>Atom Accounting</b>", title_style))
+        elements.append(Paragraph("123 Financial District", subtitle_style))
+        elements.append(Paragraph("New York, NY 10004", subtitle_style))
+        elements.append(Paragraph("billing@atom.app", subtitle_style))
+        elements.append(Spacer(1, 30))
+
+        # Invoice Metadata
+        invoice_type = 'Accts Receivable' if invoice_id.startswith('ar') else 'Accts Payable'
+        entity_name = invoice.customer if hasattr(invoice, 'customer') else invoice.vendor
+        
+        meta_data = [
+            ["INVOICE #:", invoice.id.upper()],
+            ["TYPE:", invoice_type],
+            ["DATE:", invoice.created_at.strftime('%Y-%m-%d')],
+            ["DUE DATE:", invoice.due_date.strftime('%Y-%m-%d')],
+            ["STATUS:", invoice.status.value.upper()]
+        ]
+        
+        meta_table = Table(meta_data, colWidths=[100, 200])
+        meta_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.dimgrey),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        
+        elements.append(Paragraph(f"<b>BILL TO:</b> {entity_name}", bold_style))
+        elements.append(Spacer(1, 10))
+        elements.append(meta_table)
+        elements.append(Spacer(1, 30))
+
+        # Line Items Table
+        table_data = [['Description', 'Amount']]
+        
+        for item in invoice.line_items:
+            desc = item.get('description', 'Item')
+            amt = f"${item.get('amount', 0.0):,.2f}"
+            table_data.append([desc, amt])
+            
+        # Add Total Row
+        table_data.append(['TOTAL', f"${invoice.amount:,.2f}"])
+
+        # Create the Table
+        item_table = Table(table_data, colWidths=[350, 100])
+        item_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f172a')), # Slate 900
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')), # Slate 50
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'), # Align amounts to the right
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Make Total bold
+            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black), # Line above total
+            ('GRID', (0, 0), (-1, -2), 1, colors.HexColor('#e2e8f0')), # Grid lines for items
+        ]))
+        
+        elements.append(item_table)
+        elements.append(Spacer(1, 50))
+        
+        # Footer
+        elements.append(Paragraph("Thank you for your business!", styles['Italic']))
+
+        # Build PDF and return bytes
+        doc.build(elements)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_bytes
+
     def generate_reminder(self, invoice_id: str) -> Dict[str, Any]:
         """
         Generate collection reminder with appropriate tone.
@@ -207,7 +333,7 @@ class APAREngine:
             "message": message,
             "reminders_sent": invoice.reminders_sent
         }
-    
+
     def get_collection_summary(self) -> Dict[str, Any]:
         """Get AR collection summary"""
         total_outstanding = sum(

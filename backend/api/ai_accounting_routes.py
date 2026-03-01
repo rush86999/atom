@@ -14,7 +14,7 @@ from core.database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/ai-accounting", tags=["AI Accounting"])
+router = BaseAPIRouter(prefix="/ai-accounting", tags=["AI Accounting"])
 
 # ==================== REQUEST MODELS ====================
 
@@ -135,6 +135,62 @@ async def get_review_queue():
         message=f"Found {len(pending)} transactions pending review"
     )
 
+@router.get("/all-transactions")
+async def get_all_transactions():
+    """Get all categorized and pending transactions"""
+    from core.ai_accounting_engine import ai_accounting
+
+    all_txs = ai_accounting.get_all_transactions()
+
+    return router.success_response(
+        data={
+            "count": len(all_txs),
+            "transactions": [
+                {
+                    "id": tx.id,
+                    "date": tx.date.isoformat(),
+                    "amount": tx.amount,
+                    "description": tx.description,
+                    "merchant": tx.merchant,
+                    "suggested_category": tx.category_name,
+                    "confidence": round(tx.confidence * 100, 1),
+                    "reasoning": tx.reasoning,
+                    "status": tx.status.value
+                }
+                for tx in all_txs
+            ]
+        },
+        message=f"Found {len(all_txs)} transactions"
+    )
+
+@router.put("/transactions/{transaction_id}")
+async def update_transaction(transaction_id: str, request: Dict[str, Any], user_id: str = "user"):
+    """Update a transaction"""
+    from core.ai_accounting_engine import ai_accounting
+
+    success = ai_accounting.update_transaction(transaction_id, request, user_id)
+    if not success:
+        raise router.not_found_error(f"Transaction {transaction_id} not found")
+
+    return router.success_response(
+        data={"transaction_id": transaction_id},
+        message="Transaction updated successfully"
+    )
+
+@router.delete("/transactions/{transaction_id}")
+async def delete_transaction(transaction_id: str, user_id: str = "user"):
+    """Delete a transaction"""
+    from core.ai_accounting_engine import ai_accounting
+
+    success = ai_accounting.delete_transaction(transaction_id, user_id)
+    if not success:
+        raise router.not_found_error(f"Transaction {transaction_id} not found")
+
+    return router.success_response(
+        data={"transaction_id": transaction_id},
+        message="Transaction deleted successfully"
+    )
+
 # ==================== POSTING ====================
 
 @router.post("/post/{transaction_id}")
@@ -212,7 +268,7 @@ async def get_accounting_dashboard_summary(
     Aggregates data from Stripe, Xero, etc.
     """
     try:
-        from saas.models import IntegrationMetric
+        from core.models import IntegrationMetric
 
         # Query cached metrics
         metrics = db.query(IntegrationMetric).filter(
