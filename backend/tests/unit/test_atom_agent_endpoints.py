@@ -2009,5 +2009,194 @@ class TestStreamingExecutionTracking:
         assert isinstance(mock_execution.duration_seconds, (int, float))
 
 
+# ==================== Test Intent Classification with LLM ====================
+
+class TestIntentClassificationWithLLM:
+    """Tests for LLM-based intent classification (lines 620-748)"""
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_openai_provider(self, mock_ai, mock_get_byok):
+        """Test intent classification using OpenAI provider"""
+        # Setup BYOK manager to return OpenAI
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test-key"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup OpenAI API response with valid intent JSON
+        mock_ai.call_openai_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "CREATE_WORKFLOW", "entities": {"description": "test"}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("create a test workflow", [])
+
+        # Assertions
+        assert result["intent"] == "CREATE_WORKFLOW"
+        assert "entities" in result
+        mock_byok.track_usage.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_anthropic_provider(self, mock_ai, mock_get_byok):
+        """Test intent classification using Anthropic provider"""
+        # Setup BYOK manager to return Anthropic
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "anthropic"
+        mock_byok.get_api_key.return_value = "sk-ant-test"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup Anthropic API response
+        mock_ai.call_anthropic_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "LIST_WORKFLOWS", "entities": {}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("list workflows", [])
+
+        # Assertions
+        assert result["intent"] == "LIST_WORKFLOWS"
+        assert "entities" in result
+        mock_byok.track_usage.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_google_provider(self, mock_ai, mock_get_byok):
+        """Test intent classification using Google provider"""
+        # Setup BYOK manager to return Google
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "google"
+        mock_byok.get_api_key.return_value = "google-test-key"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup Google API response
+        mock_ai.call_google_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "RUN_WORKFLOW", "entities": {"workflow_ref": "backup"}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("run backup workflow", [])
+
+        # Assertions
+        assert result["intent"] == "RUN_WORKFLOW"
+        assert "workflow_ref" in result["entities"]
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_deepseek_fallback(self, mock_ai, mock_get_byok):
+        """Test intent classification falls back to DeepSeek for unknown providers"""
+        # Setup BYOK manager to return unknown provider
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "unknown_provider"
+        mock_byok.get_api_key.return_value = "deepseek-key"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup DeepSeek API response
+        mock_ai.call_deepseek_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "HELP", "entities": {}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("help me", [])
+
+        # Assertions - should call DeepSeek as fallback
+        assert result["intent"] == "HELP"
+        mock_ai.call_deepseek_api.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_no_api_key(self, mock_ai, mock_get_byok):
+        """Test fallback classification when no API key available"""
+        # Setup BYOK manager with no API key
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = None
+        mock_get_byok.return_value = mock_byok
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("test message", [])
+
+        # Verify fallback classification called
+        assert "intent" in result
+        # Should not call AI service
+        mock_ai.call_openai_api.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_llm_failure(self, mock_ai, mock_get_byok):
+        """Test fallback classification when LLM call fails"""
+        # Setup BYOK manager
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test"
+        mock_get_byok.return_value = mock_byok
+
+        # Setup LLM to raise exception
+        mock_ai.call_openai_api = AsyncMock(side_effect=Exception("API error"))
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("test message", [])
+
+        # Verify fallback classification called
+        assert "intent" in result  # Fallback returns dict
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_intent_classify_invalid_json(self, mock_ai, mock_get_byok):
+        """Test fallback classification when LLM returns invalid JSON"""
+        # Setup BYOK manager
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup LLM to return invalid JSON
+        mock_ai.call_openai_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": 'this is not valid json'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("test message", [])
+
+        # Verify fallback classification called
+        assert "intent" in result
+        mock_byok.track_usage.assert_called_once()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
