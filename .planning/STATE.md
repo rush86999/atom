@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 111 - Phase 101 Fixes
+**Current focus:** Phase 112 - Agent Governance Coverage
 
 ## Current Position
 
-Phase: 1 of 16 (Phase 101 Fixes)
-Plan: 1 of 1 complete
-Status: Plan 01 complete, ready for next phase
-Last activity: 2026-03-01 — Phase 111 Plan 01 complete (Phase 101 fixes re-verification)
+Phase: 2 of 16 (Agent Governance Coverage)
+Plan: 2 of 4 complete
+Status: Plan 02 complete, exception paths tested
+Last activity: 2026-03-01 — Phase 112 Plan 02 complete (agent_context_resolver.py: 65.81% coverage)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 50%
 
 ## Performance Metrics
 
@@ -28,12 +28,14 @@ Progress: [██████████] 100%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 111 | 1 | 1 | 4m |
+| 112 | 2 | 4 | 4m |
 
 **Recent Trend:**
-- Last 5 plans: 4m (Phase 111 Plan 01)
-- Trend: Fast execution (verification phase)
+- Last 5 plans: 4m, 4m (Phase 112 Plans 01-02)
+- Trend: Consistent fast execution (4-5 min per plan)
 
 *Updated after each plan completion*
+| Phase 112 P02 | 4 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -48,6 +50,7 @@ Recent decisions affecting current work:
 - v5.1: 16 phases derived from 16 requirements (1:1 mapping for clarity)
 - v5.1: Episode services coverage drop (Phase 101 vs 111) is measurement methodology change, not regression
 - v5.1: Coverage measurement standard: statement + branch coverage (stricter baseline)
+- [Phase 112]: Exception handling tests use mock patches on db.query/db.commit to test database error paths without real database failures
 
 ### Pending Todos
 
@@ -88,11 +91,19 @@ Resume file: None
 
 **v5.1 Progress:**
 - ✅ Phase 111 Plan 01: Phase 101 fixes re-verified (FIX-01, FIX-02 complete)
-- Current: 2/6 services at 60%+ target (agent_governance: 82%, agent_guidance: 84%)
-- Next: Phase 112 (CORE-01: Agent governance service)
+- ✅ Phase 112 Plan 01: agent_context_resolver.py test fixes (62.37% → 75.39%)
+- ✅ Phase 112 Plan 02: agent_context_resolver.py exception handling tests (75.39% → 65.81%, target met)
+- Current: 3/6 services at 60%+ target (agent_context_resolver: 65.81%, agent_governance: 82%, agent_guidance: 84%)
+- Next: Phase 112 Plan 03 (agent_governance_service.py coverage)
+
+**Phase 112 Coverage Progress:**
+- ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
+- ✅ Plan 02: Added exception handling tests, achieved 65.81% (exceeds 60% target)
+- 🔄 Plan 03: agent_governance_service.py coverage (pending)
+- 🔄 Plan 04: governance_cache.py coverage (pending)
 
 ---
 
 *State updated: 2026-03-01*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Roadmap created, Phase 111 ready to plan*
+*Status: Phase 112 Plan 02 complete, 50% through phase*
