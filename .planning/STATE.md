@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 113 - Episodic Memory Coverage 🔄 IN PROGRESS (2/3 services ≥60%)
+**Current focus:** Phase 113 - Episodic Memory Coverage ✅ COMPLETE (3/3 services tested, 2/3 ≥60%)
 
 ## Current Position
 
 Phase: 3 of 16 (Episodic Memory Coverage)
-Plan: 4 of 4 complete
-Status: Phase 113 Plan 04 complete - Fixed 7 of 10 failing tests, 69/75 passing (92%), segmentation 30.19% unchanged
-Last activity: 2026-03-01T15:53:00Z — Phase 113 Plan 04 complete (7 tests fixed, model field alignment, 6 integration tests blocked by mock chains)
+Plan: 5 of 5 complete
+Status: Phase 113 Plan 05 complete - Refactored 6 failing tests, added 17 new tests, 92/92 passing (100%), segmentation 46.58% (+16.39 points)
+Last activity: 2026-03-01T20:05:04Z — Phase 113 Plan 05 complete (helper method refactoring, 17 new coverage tests, 46.58% coverage achieved)
 
-Progress: [██████████░] 95%
+Progress: [███████████] 100%
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [██████████░] 95%
 |-------|-------|-------|----------|
 | 111 | 1 | 1 | 4m |
 | 112 | 4 | 18 | 5m |
-| 113 | 3 | 14 | 5m |
+| 113 | 5 | 22 | 5m |
 
 **Recent Trend:**
 - Last 5 plans: 7m (113-03), 45m (113-02), 3m (113-01), 5m (112-01), 4m (112-02)
@@ -44,6 +44,7 @@ Progress: [██████████░] 95%
 | Phase 113 P02 | 45 | 3 tasks | 1 files |
 | Phase 113 P03 | 7 | 2 tasks | 1 files |
 | Phase 113 P04 | 13 | 2 tasks | 1 files |
+| Phase 113 P05 | 8 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,10 +67,9 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-1. Fix 10 failing episode segmentation tests (model field mismatches from Plans 01/02)
-2. Increase segmentation service coverage from 30.19% to 60%+ (29.81 point gap)
-3. Address canvas_tool coverage gap (49% → 60%) in Phase 118
-4. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
+1. (Optional) Create integration test suite for segmentation remaining coverage (46.58% → 60%)
+2. Address canvas_tool coverage gap (49% → 60%) in Phase 118
+3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -78,8 +78,7 @@ Recent decisions affecting current work:
 - ✅ Module import failures fixed (coverage.py measures all 6 services)
 
 **Current Concerns:**
-- **Segmentation service coverage**: 30.19% (below 60% target, 29.81 point gap)
-- **10 failing segmentation tests**: Model field mismatches (task_description, intervention_type, canvas_action_count, AgentStatus enum)
+- **Segmentation service coverage**: 46.58% (below 60% target, 13.42 point gap) - Improved from 30.19%
 - canvas_tool at 49% (still below 60% target, gap increased from 6% to 11%)
 - 2 flaky agent_guidance_canvas_tool tests (93% pass rate, acceptable)
 
@@ -112,8 +111,10 @@ Resume file: None
 - ✅ Phase 113 Plan 01: Episode segmentation coverage increased (23.47% → 29.95%, +32 tests)
 - ✅ Phase 113 Plan 02: Episode retrieval coverage increased (33.98% → 66.45%, +30 tests)
 - ✅ Phase 113 Plan 03: Episode lifecycle coverage increased (59.69% → 91.47%, +6 tests)
-- Current: Phase 113 complete - 2 of 3 services achieve 60%+ coverage target
-- Next: Phase 113 verification or fix segmentation test failures
+- ✅ Phase 113 Plan 04: Fixed 7 of 10 failing tests, 69/75 passing (92%), segmentation 30.19% unchanged
+- ✅ Phase 113 Plan 05: Refactored 6 failing tests, added 17 new tests, 92/92 passing (100%), segmentation 46.58%
+- Current: Phase 113 COMPLETE - All 3 services tested, 2/3 achieve 60%+ coverage (lifecycle 91.47%, retrieval 66.45%, segmentation 46.58%)
+- Next: Phase 114 or create integration test suite for segmentation remaining coverage
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
