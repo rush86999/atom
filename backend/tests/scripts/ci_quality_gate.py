@@ -60,13 +60,15 @@ def has_coverage_exception_label() -> bool:
     return os.getenv("COVERAGE_EXCEPTION", "false").lower() == "true"
 
 
-def load_backend_coverage(coverage_file: Path) -> float:
+def load_backend_coverage(coverage_file) -> float:
     """Load backend coverage from pytest coverage.json format."""
-    if not coverage_file.exists():
+    coverage_path = Path(coverage_file) if not isinstance(coverage_file, Path) else coverage_file
+
+    if not coverage_path.exists():
         return 0.0
 
     try:
-        with open(coverage_file) as f:
+        with open(coverage_path) as f:
             data = json.load(f)
         totals = data.get("totals", {})
         return totals.get("percent_covered", 0.0)
@@ -74,13 +76,15 @@ def load_backend_coverage(coverage_file: Path) -> float:
         return 0.0
 
 
-def load_frontend_coverage(coverage_file: Path) -> float:
+def load_frontend_coverage(coverage_file) -> float:
     """Load frontend coverage from Jest coverage-final.json format."""
-    if not coverage_file.exists():
+    coverage_path = Path(coverage_file) if not isinstance(coverage_file, Path) else coverage_file
+
+    if not coverage_path.exists():
         return 0.0  # Missing frontend treated as 0%
 
     try:
-        with open(coverage_file) as f:
+        with open(coverage_path) as f:
             data = json.load(f)
 
         total_statements = 0
@@ -101,8 +105,8 @@ def load_frontend_coverage(coverage_file: Path) -> float:
 
 
 def check_aggregated_coverage(
-    backend_cov_file: Path,
-    frontend_cov_file: Path,
+    backend_cov_file,
+    frontend_cov_file,
     weights: Tuple[float, float] = (DEFAULT_BACKEND_WEIGHT, DEFAULT_FRONTEND_WEIGHT)
 ) -> Tuple[float, float, float, bool, str]:
     """
