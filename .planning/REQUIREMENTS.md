@@ -10,8 +10,8 @@ Requirements for backend coverage expansion milestone. Each maps to roadmap phas
 
 ### Phase 101 Fixes
 
-- [ ] **FIX-01**: Canvas test mock configuration resolved — 66 tests unblocked, coverage measurement functional
-- [ ] **FIX-02**: Module import failures fixed — Coverage.py can measure all 6 target backend services
+- [x] **FIX-01**: Canvas test mock configuration resolved — 66 tests unblocked, coverage measurement functional (Phase 101, re-verified Phase 111)
+- [x] **FIX-02**: Module import failures fixed — Coverage.py can measure all 6 target backend services (Phase 101, re-verified Phase 111)
 
 ### Core Backend Services
 
