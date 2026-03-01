@@ -147,7 +147,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for agent_context_resolver.py
   3. Coverage report shows 60%+ coverage for governance_cache.py
   4. All critical governance paths (maturity checks, permission validation, cache operations) tested
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 112-01-PLAN.md — Fix ChatSession model mismatch (remove workspace_id from 7 failing tests)
+- [ ] 112-02-PLAN.md — Add targeted coverage for context resolver missing lines
+- [ ] 112-03-PLAN.md — Add decorator and async wrapper tests for governance cache
+- [ ] 112-04-PLAN.md — Combined verification run (all three services ≥60%)
 
 ### Phase 113: Episodic Memory Coverage
 **Goal**: Achieve 60%+ coverage for episodic memory services
@@ -310,8 +314,8 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 111. Phase 101 Fixes | v5.1 | 0/0 | Not started | - |
-| 112. Agent Governance Coverage | v5.1 | 0/0 | Not started | - |
+| 111. Phase 101 Fixes | v5.1 | 1/1 | Complete | 2026-03-01 |
+| 112. Agent Governance Coverage | v5.1 | 0/4 | Ready to start | - |
 | 113. Episodic Memory Coverage | v5.1 | 0/0 | Not started | - |
 | 114. LLM Services Coverage | v5.1 | 0/0 | Not started | - |
 | 115. Agent Execution Coverage | v5.1 | 0/0 | Not started | - |
