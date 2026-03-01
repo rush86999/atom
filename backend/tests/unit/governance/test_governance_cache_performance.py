@@ -625,3 +625,65 @@ class TestGlobalCacheInstance:
 
         assert result is not None
         assert result["allowed"] is True
+
+
+class TestCachedGovernanceCheckDecorator:
+    """Test the @cached_governance_check decorator."""
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_returns_cached_result(self):
+        """Cache HIT path - decorator returns cached value without calling function."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        cache = get_governance_cache()
+        cache.set("agent-1", "stream_chat", {"allowed": True})
+
+        call_count = {"count": 0}
+
+        @cached_governance_check
+        async def mock_governance_check(agent_id, action_type):
+            """This should NOT be called on cache hit."""
+            call_count["count"] += 1
+            return {"allowed": False}
+
+        result = await mock_governance_check("agent-1", "stream_chat")
+
+        assert result["allowed"] is True  # Cached value returned
+        assert call_count["count"] == 0    # Original function not called
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_calls_function_and_caches_result(self):
+        """Cache MISS path - decorator calls function and caches result."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        @cached_governance_check
+        async def mock_governance_check(agent_id, action_type):
+            """This should be called on cache miss."""
+            return {"allowed": True, "reason": "Test passed"}
+
+        result = await mock_governance_check("agent-2", "stream_chat")
+
+        assert result["allowed"] is True
+
+        # Verify result was cached
+        cache = get_governance_cache()
+        cached = cache.get("agent-2", "stream_chat")
+        assert cached is not None
+        assert cached["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_decorator_cache_key_uses_lowercase_action_type(self):
+        """Decorator should lowercase action_type for cache key."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        @cached_governance_check
+        async def mock_check(agent_id, action_type):
+            return {"allowed": True}
+
+        # Call with mixed case
+        await mock_check("agent-3", "Stream_Chat")
+
+        # Should be retrievable with lowercase
+        cache = get_governance_cache()
+        cached = cache.get("agent-3", "stream_chat")  # lowercase
+        assert cached is not None
