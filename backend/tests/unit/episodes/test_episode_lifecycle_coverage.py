@@ -9,9 +9,12 @@ Test Categories:
 - Archival (3 tests)
 - Importance Scoring (2 tests)
 - Error Paths (2 tests)
+- Batch Update Access Counts (4 tests)
+- Edge Cases (2 tests)
 """
 
 import pytest
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from sqlalchemy.orm import Session
@@ -485,3 +488,233 @@ class TestErrorPaths:
         # Should return without crashing
         assert "consolidated" in result
         assert result["consolidated"] == 0
+
+
+# ========================================================================
+# F. Batch Update Access Counts (4 tests)
+# ========================================================================
+
+class TestBatchUpdateAccessCounts:
+    """Test batch update access counts method"""
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_multiple_episodes(self, lifecycle_service):
+        """Should increment access counts for multiple episodes"""
+        # Create 3 episodes with unique IDs
+        ep1 = Episode(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Episode 1",
+            status="completed",
+            started_at=datetime.now(),
+            access_count=5
+        )
+        ep2 = Episode(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Episode 2",
+            status="completed",
+            started_at=datetime.now(),
+            access_count=3
+        )
+        ep3 = Episode(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Episode 3",
+            status="completed",
+            started_at=datetime.now(),
+            access_count=10
+        )
+
+        episode_ids = [ep1.id, ep2.id, ep3.id]
+
+        # Mock query to return episodes by ID - use a simpler approach
+        # Create a mapping of episode IDs to episodes
+        episode_map = {ep1.id: ep1, ep2.id: ep2, ep3.id: ep3}
+        query_call_count = [0]
+
+        def mock_query_side_effect(*args, **kwargs):
+            mock_query = MagicMock()
+            mock_filter = MagicMock()
+
+            def first_side_effect():
+                # Extract episode ID from filter call
+                query_call_count[0] += 1
+                # Return the appropriate episode based on call order
+                if query_call_count[0] == 1:
+                    return ep1
+                elif query_call_count[0] == 2:
+                    return ep2
+                elif query_call_count[0] == 3:
+                    return ep3
+                return None
+
+            mock_filter.first.side_effect = first_side_effect
+            mock_query.filter.return_value = mock_filter
+            return mock_query
+
+        lifecycle_service.db.query.side_effect = mock_query_side_effect
+
+        # Act
+        result = await lifecycle_service.batch_update_access_counts(episode_ids)
+
+        # Assert
+        assert result["updated"] == 3
+        # Each episode should be incremented exactly once
+        assert ep1.access_count == 6  # 5 + 1
+        assert ep2.access_count == 4  # 3 + 1
+        assert ep3.access_count == 11  # 10 + 1
+        lifecycle_service.db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_empty_list(self, lifecycle_service):
+        """Should return updated: 0 for empty episode_ids list"""
+        # Act
+        result = await lifecycle_service.batch_update_access_counts([])
+
+        # Assert
+        assert result["updated"] == 0
+        # Verify commit was still called (method commits even if no updates)
+        lifecycle_service.db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_nonexistent_episodes(self, lifecycle_service):
+        """Should handle missing episodes gracefully"""
+        # Mock query to return None for all IDs
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = None
+        lifecycle_service.db.query.return_value = mock_query
+
+        # Act with IDs that don't exist
+        result = await lifecycle_service.batch_update_access_counts([
+            str(uuid.uuid4()),
+            str(uuid.uuid4()),
+            str(uuid.uuid4())
+        ])
+
+        # Assert - should not crash, just report 0 updated
+        assert result["updated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_duplicate_ids(self, lifecycle_service):
+        """Should handle duplicate episode IDs correctly"""
+        # Create episode
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Episode",
+            status="completed",
+            started_at=datetime.now(),
+            access_count=5
+        )
+
+        # Include duplicate ID in list
+        episode_ids = [episode.id, episode.id, episode.id]
+
+        # Mock query to return same episode each time
+        def mock_query_side_effect(*args, **kwargs):
+            mock_query = MagicMock()
+            mock_filter = MagicMock()
+            mock_filter.first.return_value = episode
+            mock_query.filter.return_value = mock_filter
+            return mock_query
+
+        lifecycle_service.db.query.side_effect = mock_query_side_effect
+
+        # Act
+        result = await lifecycle_service.batch_update_access_counts(episode_ids)
+
+        # Assert - should update same episode 3 times (access_count += 1 three times)
+        assert result["updated"] == 3
+        assert episode.access_count == 8  # 5 + 1 + 1 + 1
+
+
+# ========================================================================
+# G. Edge Cases (2 tests)
+# ========================================================================
+
+class TestEdgeCases:
+    """Test edge cases in consolidation and archival"""
+
+    @pytest.mark.asyncio
+    async def test_consolidate_similar_episodes_json_metadata_parsing(self, lifecycle_service):
+        """Should handle JSON metadata parsing correctly"""
+        # Create a parent episode to trigger the search
+        parent_episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Parent Episode",
+            description="Parent description",
+            status="completed",
+            started_at=datetime.now(),
+            consolidated_into=None
+        )
+
+        # Mock query to return the parent episode
+        mock_query = MagicMock()
+        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent_episode]
+        lifecycle_service.db.query.return_value = mock_query
+
+        # Mock LanceDB search with string metadata (not dict)
+        lifecycle_service.lancedb.search.return_value = [
+            {
+                "id": "search1",
+                "metadata": '{"episode_id": "ep2", "agent_id": "agent1"}',  # String, not dict
+                "_distance": 0.1  # High similarity (0.9)
+            }
+        ]
+
+        # Mock second query for child episode to return None (not found)
+        child_query = MagicMock()
+        child_query.filter.return_value.filter.return_value.first.return_value = None
+
+        # Set up query to return parent query first, then child query
+        query_call_count = [0]
+        def query_side_effect(*args, **kwargs):
+            query_call_count[0] += 1
+            if query_call_count[0] == 1:
+                return mock_query
+            else:
+                return child_query
+
+        lifecycle_service.db.query.side_effect = query_side_effect
+
+        # Act - should not raise JSON parsing error
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Assert - should handle JSON parsing
+        assert "consolidated" in result
+        assert "parent_episodes" in result
+        # Verify search was called
+        lifecycle_service.lancedb.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_nonexistent_episode(self, lifecycle_service):
+        """Should return False for nonexistent episode_id"""
+        # Mock query to return None (episode not found)
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = None
+        lifecycle_service.db.query.return_value = mock_query
+
+        # Act
+        result = await lifecycle_service.archive_to_cold_storage(
+            episode_id=str(uuid.uuid4())
+        )
+
+        # Assert - should return False, not raise exception
+        assert result is False
+        # Verify commit was NOT called (no changes to commit)
+        lifecycle_service.db.commit.assert_not_called()
