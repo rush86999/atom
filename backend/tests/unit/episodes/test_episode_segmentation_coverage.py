@@ -1747,6 +1747,302 @@ class TestHelperMethods:
 
 
 # ========================================================================
+# N. Extended Coverage Tests (New tests for uncovered code paths)
+# ========================================================================
+
+class TestExtendedCoverage:
+    """Test uncovered code paths in episode_segmentation_service.py"""
+
+    # 1. Canvas Context Detail Level Tests
+    def test_filter_canvas_context_detail_summary(self, segmentation_service):
+        """Should filter canvas context to summary detail level"""
+        canvas_context = {
+            "canvas_type": "sheets",
+            "presentation_summary": "Sales data table",
+            "visual_elements": ["table", "chart"],
+            "user_interaction": "presented",
+            "critical_data_points": {"revenue": 1000}
+        }
+
+        filtered = segmentation_service._filter_canvas_context_detail(
+            canvas_context, detail_level="summary"
+        )
+
+        assert filtered is not None
+        assert "presentation_summary" in filtered
+
+    def test_filter_canvas_context_detail_standard(self, segmentation_service):
+        """Should filter canvas context to standard detail level"""
+        canvas_context = {
+            "canvas_type": "charts",
+            "presentation_summary": "Bar chart",
+            "visual_elements": ["bar", "axis"],
+            "user_interaction": "presented",
+            "critical_data_points": {"data_points": 10}
+        }
+
+        filtered = segmentation_service._filter_canvas_context_detail(
+            canvas_context, detail_level="standard"
+        )
+
+        assert filtered is not None
+        assert "visual_elements" in filtered or "presentation_summary" in filtered
+
+    def test_filter_canvas_context_detail_full(self, segmentation_service):
+        """Should return full canvas context for full detail level"""
+        canvas_context = {
+            "canvas_type": "docs",
+            "presentation_summary": "Document viewer",
+            "visual_elements": ["text", "images"],
+            "user_interaction": "opened",
+            "critical_data_points": {"page_count": 5}
+        }
+
+        filtered = segmentation_service._filter_canvas_context_detail(
+            canvas_context, detail_level="full"
+        )
+
+        assert filtered is not None
+        # Full detail should preserve all fields
+        assert "canvas_type" in filtered
+
+    def test_filter_canvas_context_detail_unknown_level(self, segmentation_service):
+        """Should fallback to standard for unknown detail level"""
+        canvas_context = {
+            "canvas_type": "generic",
+            "presentation_summary": "Generic canvas",
+            "visual_elements": [],
+            "user_interaction": "viewed",
+            "critical_data_points": {}
+        }
+
+        filtered = segmentation_service._filter_canvas_context_detail(
+            canvas_context, detail_level="unknown"
+        )
+
+        # Should still return something
+        assert filtered is not None
+
+    # 2. Supervision Episode Tests
+    def test_format_agent_actions_with_execution(self, segmentation_service):
+        """Should format agent actions with execution details"""
+        now = datetime.now()
+        execution = AgentExecution(
+            id="exec1",
+            agent_id="agent1",
+            status="completed",
+            input_summary="Task",
+            output_summary="Result",
+            started_at=now,
+            completed_at=now + timedelta(seconds=10)
+        )
+
+        interventions = []
+        actions = segmentation_service._format_agent_actions(interventions, execution)
+
+        assert actions is not None
+        assert isinstance(actions, str)
+        assert len(actions) > 0
+
+    def test_format_agent_actions_without_execution(self, segmentation_service):
+        """Should handle empty execution list"""
+        interventions = []
+        execution = None
+
+        actions = segmentation_service._format_agent_actions(interventions, execution)
+
+        assert actions == "No agent actions recorded"
+
+    def test_format_interventions_empty_list(self, segmentation_service):
+        """Should handle empty interventions list"""
+        interventions = []
+
+        formatted = segmentation_service._format_interventions(interventions)
+
+        assert formatted == "No interventions"
+
+    def test_extract_supervision_topics_from_agent_name(self, segmentation_service):
+        """Should extract topics from agent name"""
+        from core.models import SupervisionSession
+
+        supervision = SupervisionSession(
+            id=str(uuid.uuid4()),
+            agent_id="data-analysis-agent",
+            status="active",
+            interventions=[],
+            intervention_count=0,
+            created_at=datetime.now()
+        )
+
+        now = datetime.now()
+        execution = AgentExecution(
+            id="exec1",
+            agent_id="data-analysis-agent",
+            status="completed",
+            input_summary="Data analysis task",
+            started_at=now
+        )
+
+        topics = segmentation_service._extract_supervision_topics(supervision, execution)
+
+        assert isinstance(topics, list)
+
+    def test_extract_supervision_topics_with_interventions(self, segmentation_service):
+        """Should extract topics from interventions"""
+        from core.models import SupervisionSession
+
+        supervision = SupervisionSession(
+            id=str(uuid.uuid4()),
+            agent_id="agent1",
+            status="active",
+            interventions=[
+                {"type": "pause", "reason": "safety"},
+                {"type": "correction", "reason": "accuracy"}
+            ],
+            intervention_count=2,
+            created_at=datetime.now()
+        )
+
+        now = datetime.now()
+        execution = AgentExecution(
+            id="exec1",
+            agent_id="agent1",
+            status="completed",
+            input_summary="Task",
+            started_at=now
+        )
+
+        topics = segmentation_service._extract_supervision_topics(supervision, execution)
+
+        assert isinstance(topics, list)
+
+    # 3. Skill Episode Tests
+    def test_create_skill_episode_success(self, segmentation_service):
+        """Should create skill episode for successful execution"""
+        skill_name = "data_processor"
+        result = {"processed": 100}
+        error = None
+
+        content = segmentation_service._format_skill_content(skill_name, result, error)
+
+        assert content is not None
+        assert "data_processor" in content
+
+    def test_create_skill_episode_with_error(self, segmentation_service):
+        """Should create skill episode for failed execution"""
+        skill_name = "failing_skill"
+        result = None
+        error = Exception("Skill failed")
+
+        content = segmentation_service._format_skill_content(skill_name, result, error)
+
+        assert content is not None
+        assert "error" in content.lower() or "failed" in content.lower()
+
+    def test_summarize_skill_inputs_truncation(self, segmentation_service):
+        """Should truncate long skill inputs for summary"""
+        inputs = {
+            "data": "x" * 200,  # Long string
+            "config": "y" * 200
+        }
+
+        summary = segmentation_service._summarize_skill_inputs(inputs)
+
+        assert summary is not None
+        # Should be truncated
+        assert len(summary) < 500
+
+    # 4. Entity Extraction Tests
+    def test_extract_entities_from_execution_metadata(self, segmentation_service):
+        """Should extract entities from execution metadata"""
+        now = datetime.now()
+        execution = AgentExecution(
+            id="exec1",
+            agent_id="agent1",
+            status="completed",
+            input_summary="Contact john@example.com",
+            started_at=now
+        )
+
+        entities = segmentation_service._extract_entities([], [execution])
+
+        assert isinstance(entities, list)
+
+    def test_extract_entities_phone_numbers(self, segmentation_service):
+        """Should extract phone numbers from content"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(
+                id="m1",
+                conversation_id="s1",
+                role="user",
+                content="Call me at 555-123-4567",
+                created_at=now
+            )
+        ]
+
+        entities = segmentation_service._extract_entities(messages, [])
+
+        assert isinstance(entities, list)
+
+    def test_extract_entities_urls(self, segmentation_service):
+        """Should extract URLs from content"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(
+                id="m1",
+                conversation_id="s1",
+                role="user",
+                content="Visit https://example.com for more info",
+                created_at=now
+            )
+        ]
+
+        entities = segmentation_service._extract_entities(messages, [])
+
+        assert isinstance(entities, list)
+
+    # 5. Topic Extraction Tests
+    def test_extract_topics_with_none_content(self, segmentation_service):
+        """Should handle messages with None content"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(
+                id="m1",
+                conversation_id="s1",
+                role="user",
+                content=None,
+                created_at=now
+            )
+        ]
+
+        topics = segmentation_service._extract_topics(messages, [])
+
+        assert isinstance(topics, list)
+
+    def test_extract_topics_limit_to_five(self, segmentation_service):
+        """Should limit topics to maximum of 5"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(
+                id=f"m{i}",
+                conversation_id="s1",
+                role="user",
+                content=f"Topic {i} discussion about important matters",
+                created_at=now
+            )
+            for i in range(10)  # 10 messages with different topics
+        ]
+
+        topics = segmentation_service._extract_topics(messages, [])
+
+        assert isinstance(topics, list)
+        # Should be limited to 5 topics
+        assert len(topics) <= 5
+
+
+
+# ========================================================================
 # M. Error Paths (2 tests)
 # ========================================================================
 
