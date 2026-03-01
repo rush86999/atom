@@ -336,6 +336,56 @@ class AIAccountingEngine:
             return [e for e in self._audit_log if e["transaction_id"] == tx_id]
         return self._audit_log
     
+    # ==================== EXPORTS ====================
+    
+    def export_general_ledger_csv(self) -> str:
+        """Export all transactions in a flat CSV format"""
+        import io
+        import csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        writer.writerow([
+            "Date", "Transaction ID", "Account Name", "Amount", 
+            "Description", "Merchant", "Status", "Confidence"
+        ])
+        
+        for tx in self.get_all_transactions():
+            writer.writerow([
+                tx.date.strftime("%Y-%m-%d"),
+                tx.id,
+                tx.category_name or "Uncategorized",
+                tx.amount,
+                tx.description,
+                tx.merchant or "",
+                tx.status.value,
+                f"{tx.confidence:.0%}"
+            ])
+            
+        return output.getvalue()
+
+    def export_trial_balance_json(self) -> Dict[str, Any]:
+        """Export summarized balances for all accounts"""
+        report = {
+            "export_date": datetime.utcnow().isoformat(),
+            "standard": "Multi-Standard (GAAP/IFRS Ready)",
+            "accounts": []
+        }
+        
+        balances = {}
+        for tx in self.get_all_transactions():
+            if tx.status in (TransactionStatus.POSTED, TransactionStatus.CATEGORIZED):
+                cat = tx.category_name or "Uncategorized"
+                balances[cat] = balances.get(cat, Decimal('0.0')) + tx.amount
+                
+        for acc_name, balance in balances.items():
+            report["accounts"].append({
+                "name": acc_name,
+                "net_balance": float(balance)
+            })
+            
+        return report
+
     # ==================== LEDGER INTEGRATION ====================
     
     def post_to_ledger(self, tx_id: str, db_session = None) -> Dict[str, Any]:

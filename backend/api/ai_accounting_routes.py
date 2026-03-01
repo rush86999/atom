@@ -257,6 +257,32 @@ async def get_audit_log(transaction_id: Optional[str] = None):
     )
 
 
+# ==================== EXPORTS ====================
+
+@router.get("/export/gl")
+async def export_gl():
+    """Export General Ledger as CSV"""
+    from core.ai_accounting_engine import ai_accounting
+    from fastapi import Response
+    
+    csv_content = ai_accounting.export_general_ledger_csv()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=general_ledger.csv"}
+    )
+
+@router.get("/export/trial-balance")
+async def export_trial_balance():
+    """Export Trial Balance as JSON"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    data = ai_accounting.export_trial_balance_json()
+    return router.success_response(
+        data=data,
+        message="Trial balance exported successfully"
+    )
+
 # ==================== DASHBOARD SYNC ====================
 
 @router.get("/dashboard/summary")

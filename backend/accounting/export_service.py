@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import logging
+from datetime import datetime
 from typing import Any, Dict, List
 from accounting.models import Account, EntryType, JournalEntry, Transaction
 from sqlalchemy import func
@@ -62,7 +63,7 @@ class AccountExporter:
         
         report = {
             "workspace_id": workspace_id,
-            "export_date": func.now(),
+            "export_date": datetime.utcnow().isoformat(),
             "standard": "Multi-Standard (GAAP/IFRS Ready)",
             "accounts": []
         }

@@ -41,11 +41,45 @@ const AccountantPortal = () => {
 
     const handleExport = async (type: 'gl' | 'tb') => {
         const token = localStorage.getItem('auth_token');
-        // This would ideally hit a proxy or the backend directly if allowed
+        
         toast({
             title: "Export Started",
             description: `Downloading your ${type.toUpperCase()} report...`,
         });
+
+        try {
+            const response = await fetch(`/api/accounting/export?type=${type}`, {
+                method: 'GET',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("Download failed");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = type === 'gl' ? 'general_ledger.csv' : 'trial_balance.json';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            toast({
+                title: "Export Complete",
+                description: `Successfully downloaded ${type.toUpperCase()} report.`,
+            });
+        } catch (error) {
+            toast({
+                title: "Export Failed",
+                description: "There was a problem downloading the report. Please try again.",
+                variant: "error",
+            });
+        }
     };
 
     const updateMapping = async (accountId: string, std: string, value: string) => {
