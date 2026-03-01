@@ -2668,19 +2668,19 @@ class TestTaskAndFinanceHandlers:
         mock_create_task.return_value = {
             "id": "task-123",
             "title": "Test Task",
-            "platform": "asana"
+            "platform": "local"
         }
 
         # Import and call handler
         from core.atom_agent_endpoints import handle_task_intent
-        request = ChatRequest(message="create task in asana", user_id="test-user")
+        request = ChatRequest(message="create task", user_id="test-user")
         result = await handle_task_intent("CREATE_TASK", {"title": "Test Task"}, request)
 
         # Assertions
         assert result["success"] is True
         assert "created task" in result["response"]["message"].lower()
-        assert "asana" in result["response"]["message"].lower()
-        assert result["response"]["data"]["platform"] == "asana"
+        assert "local" in result["response"]["message"].lower()
+        assert result["response"]["data"]["platform"] == "local"
 
     @pytest.mark.asyncio
     @patch('core.atom_agent_endpoints.create_task')
@@ -2788,14 +2788,9 @@ class TestTaskAndFinanceHandlers:
         assert "failed" in result["response"]["message"].lower()
 
     @pytest.mark.asyncio
-    @patch('core.atom_agent_endpoints.SalesAssistant')
-    @patch('core.atom_agent_endpoints.get_db_session')
-    async def test_handle_crm_query(self, mock_get_db, mock_sales_assistant):
+    @patch('sales.assistant.SalesAssistant')
+    async def test_handle_crm_query(self, mock_sales_assistant):
         """Test CRM query handling"""
-        # Setup database session
-        mock_db = MagicMock()
-        mock_get_db.return_value.__enter__.return_value = mock_db
-
         # Setup SalesAssistant
         mock_assistant = MagicMock()
         mock_assistant.answer_sales_query = AsyncMock(return_value="You have 5 leads in pipeline")
