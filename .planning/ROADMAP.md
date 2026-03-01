@@ -178,7 +178,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for llm/cognitive_tier_system.py
   3. Coverage report shows 60%+ coverage for llm/canvas_summary_service.py
   4. Multi-provider routing, token counting, and tier escalation tested with mocked LLM responses
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 114-01-PLAN.md — BYOK Handler coverage (40+ tests: provider initialization, complexity analysis, provider ranking, utility methods)
+- [ ] 114-02-PLAN.md — Cognitive Tier System coverage (30+ tests: tier boundaries, complexity scoring, token estimation, edge cases)
+- [ ] 114-03-PLAN.md — Canvas Summary Service coverage (30+ tests: all 7 canvas types, caching, timeout/error handling, utilities)
+- [ ] 114-04-PLAN.md — Coverage gap closure (targeted tests for remaining uncovered lines to reach 60%+)
+- [ ] 114-05-PLAN.md — Combined verification run (all 3 services ≥60%, phase completion summary)
 
 ### Phase 115: Agent Execution Coverage
 **Goal**: Achieve 60%+ coverage for agent execution workflows
