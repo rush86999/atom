@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 5 of 16 (Agent Execution Coverage)
-Plan: 03
-Status: Phase 115 Plan 03 COMPLETE - Workflow handlers covered (57.63%, +7.82 pp)
-Last activity: 2026-03-01T22:29:55Z — Plan 03 complete, 16 tests added, workflow and task/finance handlers covered
+Plan: 04
+Status: Phase 115 COMPLETE - Agent execution coverage at 58.64% (+49.58 pp from baseline)
+Last activity: 2026-03-01T22:36:26Z — Phase 115 complete, 51 tests added, coverage nearly met (60% target missed by 1.36%)
 
 Progress: [█████░░░░░░] 38%
 
@@ -30,7 +30,8 @@ Progress: [█████░░░░░░] 38%
 | 111 | 1 | 1 | 4m |
 | 112 | 4 | 18 | 5m |
 | 113 | 5 | 22 | 5m |
-| 114 | 1 | 5 | 5m |
+| 114 | 5 | 65 | 13m |
+| 115 | 4 | 13 | 5m |
 
 **Recent Trend:**
 - Last 5 plans: 7m (113-03), 45m (113-02), 3m (113-01), 5m (112-01), 4m (112-02)
@@ -54,7 +55,8 @@ Progress: [█████░░░░░░] 38%
 | Phase 114 P05 | 300 | 4 tasks | 2 files |
 | Phase 115 P01 | 8 | 3 tasks | 2 files |
 | Phase 115 P02 | 7 | 3 tasks | 2 files |
-| Phase 115-agent-execution-coverage P03 | 259 | 3 tasks | 2 files |
+| Phase 115 P03 | 259 | 3 tasks | 2 files |
+| Phase 115 P04 | 5 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -77,11 +79,12 @@ Recent decisions affecting current work:
 - [Phase 114]: Accept 35.10% coverage for byok_handler.py as remaining 64.9% uncovered code requires integration tests (async streaming, BPC algorithm, vision coordination). 2 of 3 services exceed 60% target by 34-35%.
 - [Phase 115]: ChatRequest model missing workspace_id field - Added Optional[str] field to enable proper multi-tenancy support in streaming endpoint (Rule 1 bug fix during testing).
 - [Phase 115-02]: Patch BYOK manager at import location (core.byok_endpoints) not usage location (core.atom_agent_endpoints) for get_byok_manager mocking. LLM responses require dict structure with 'success' and 'response' keys.
+- [Phase 115-04]: Patch modules at import location for locally imported functions (ws_manager, get_byok_manager, BYOKHandler, get_db_session, AgentGovernanceService, AgentContextResolver). Avoid setting __init__ on mocks.
 
 ### Pending Todos
 
-1. Continue Phase 115: Agent Execution Coverage (Plan 03 - Workflow Handlers)
-2. Address canvas_tool coverage gap (49% → 60%) in Phase 118
+1. Begin Phase 116: Continue backend coverage expansion (target: canvas_tool.py)
+2. Address canvas_tool coverage gap (49% → 60%) in Phase 116
 3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 4. (Optional) Return to segmentation coverage: 46.58% → 60% (13.42 point gap)
 5. (Optional) Improve byok_handler.py coverage from 35.10% → 60% (requires integration tests)
@@ -96,6 +99,7 @@ Recent decisions affecting current work:
 - **Segmentation service coverage**: 46.58% (below 60% target, 13.42 point gap) - Improved from 30.19%
 - canvas_tool at 49% (still below 60% target, gap increased from 6% to 11%)
 - 2 flaky agent_guidance_canvas_tool tests (93% pass rate, acceptable)
+- **atom_agent_endpoints.py at 58.64%** (below 60% target by 1.36%, but significant progress: +49.58 pp)
 
 **v5.1 Risks:**
 - **Segmentation service below 60%** - 10 failing tests block coverage measurement — Mitigation: Create Plan 113-04 to fix test infrastructure issues
@@ -136,8 +140,9 @@ Resume file: None
 - ✅ Phase 115 Plan 01: Streaming governance flow coverage (15 tests, 38.79% coverage, +29.73 pp)
 - ✅ Phase 115 Plan 02: Intent classification coverage (20 tests, 49.81% coverage, +11.02 pp)
 - ✅ Phase 115 Plan 03: Workflow handlers coverage (16 tests, 57.63% coverage, +7.82 pp)
-- Current: Phase 115 Plan 03 COMPLETE - Workflow and task/finance handlers covered (852-1282)
-- Next: Phase 115 Plan 04: Final verification and phase documentation (CORE-04 requirement completion)
+- ✅ Phase 115 Plan 04: Final verification and phase documentation (51 tests total, 58.64% coverage, +49.58 pp)
+- Current: Phase 115 COMPLETE - Agent execution coverage at 58.64% (nearly met 60% target, missed by 1.36%)
+- Next: Phase 116: Continue backend coverage expansion (target: canvas_tool.py)
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -152,6 +157,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-01*
-*Stopped at: Phase 115 Plan 03 complete - Workflow handlers coverage (16 tests, 57.63% coverage)*
+*Stopped at: Phase 115 COMPLETE - Agent execution coverage at 58.64% (51 tests added, +49.58 pp increase)*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 115 Plan 03 complete, 3 of 5 plans done*
+*Status: Phase 115 complete, 4 of 4 plans done*
