@@ -1426,6 +1426,228 @@ class TestStreamingGovernanceFlow:
         assert mock_ws.broadcast.called
 
 
+# ==================== Test Knowledge Context and Fallback ====================
+
+class TestKnowledgeContextAndFallback:
+    """Tests for knowledge context injection and fallback intent patterns"""
+
+    @pytest.mark.asyncio
+    @patch('core.knowledge_query_endpoints.get_knowledge_query_manager')
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_knowledge_context_injected(self, mock_ai, mock_get_byok, mock_get_km):
+        """Test knowledge context is injected into system prompt"""
+        # Setup knowledge query manager
+        mock_km = AsyncMock()
+        mock_km.answer_query = AsyncMock(
+            return_value={
+                "relevant_facts": [
+                    "Fact 1: Project X deadline is March 15",
+                    "Fact 2: Team Y is on vacation next week"
+                ]
+            }
+        )
+        mock_get_km.return_value = mock_km
+
+        # Setup BYOK manager
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup AI response
+        mock_ai.call_openai_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "CREATE_WORKFLOW", "entities": {}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("Create a workflow for Project X", [])
+
+        # Assertions
+        assert result["intent"] == "CREATE_WORKFLOW"
+        # Verify knowledge query was called
+        mock_km.answer_query.assert_called_once()
+        # Verify AI was called with knowledge context in prompt
+        mock_ai.call_openai_api.assert_called_once()
+        # Check that knowledge context was included in the system prompt
+        call_args = mock_ai.call_openai_api.call_args
+        system_prompt = call_args[0][1]  # Second argument is system_prompt
+        assert "Knowledge Context:" in system_prompt
+        assert "Project X deadline" in system_prompt
+
+    @pytest.mark.asyncio
+    @patch('core.knowledge_query_endpoints.get_knowledge_query_manager')
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_knowledge_query_failure_logged(self, mock_ai, mock_get_byok, mock_get_km):
+        """Test knowledge query failure is logged but execution continues"""
+        # Setup knowledge query manager to raise exception
+        mock_km = AsyncMock()
+        mock_km.answer_query = AsyncMock(side_effect=Exception("Knowledge query failed"))
+        mock_get_km.return_value = mock_km
+
+        # Setup BYOK manager
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup AI response
+        mock_ai.call_openai_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "UNKNOWN", "entities": {}}'
+            }
+        )
+
+        # Import and call function
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm("test message", [])
+
+        # Assertions - should continue despite knowledge query failure
+        assert result["intent"] == "UNKNOWN"
+        # Verify AI was still called
+        mock_ai.call_openai_api.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.atom_agent_endpoints.ai_service')
+    async def test_system_context_included(self, mock_ai, mock_get_byok):
+        """Test system context is included in prompt"""
+        # Setup BYOK manager
+        mock_byok = MagicMock()
+        mock_byok.get_optimal_provider.return_value = "openai"
+        mock_byok.get_api_key.return_value = "sk-test"
+        mock_byok.track_usage = MagicMock()
+        mock_get_byok.return_value = mock_byok
+
+        # Setup AI response
+        mock_ai.call_openai_api = AsyncMock(
+            return_value={
+                "success": True,
+                "response": '{"intent": "CREATE_WORKFLOW", "entities": {}}'
+            }
+        )
+
+        # Import and call function with system context
+        from core.atom_agent_endpoints import classify_intent_with_llm
+        result = await classify_intent_with_llm(
+            "Create workflow",
+            [],
+            system_context="Current project: ACME Integration, Team: Backend"
+        )
+
+        # Assertions
+        assert result["intent"] == "CREATE_WORKFLOW"
+        # Verify system context was included in the prompt
+        call_args = mock_ai.call_openai_api.call_args
+        system_prompt = call_args[0][1]
+        assert "Current project: ACME Integration" in system_prompt
+        assert "Team: Backend" in system_prompt
+
+    def test_fallback_schedule_workflow(self):
+        """Test fallback classification for scheduling workflows"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        # Note: "schedule" keyword triggers CREATE_EVENT unless "workflow" is also present
+        # The SCHEDULE_WORKFLOW pattern requires both "schedule" AND "workflow"/"run"
+        result = fallback_intent_classification("schedule the daily report workflow to run every weekday at 9am")
+
+        assert result["intent"] == "SCHEDULE_WORKFLOW"
+        assert "workflow_ref" in result["entities"]
+        assert "time_expression" in result["entities"]
+        # Verify workflow ref was extracted
+        assert len(result["entities"]["workflow_ref"]) > 0
+
+    def test_fallback_create_workflow(self):
+        """Test fallback classification for creating workflows"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("create a workflow for emails")
+
+        assert result["intent"] == "CREATE_WORKFLOW"
+        assert "description" in result["entities"]
+
+    def test_fallback_run_workflow(self):
+        """Test fallback classification for running workflows"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("run backup workflow")
+
+        assert result["intent"] == "RUN_WORKFLOW"
+        assert "workflow_ref" in result["entities"]
+        assert "backup" in result["entities"]["workflow_ref"]
+
+    def test_fallback_calendar_events(self):
+        """Test fallback classification for calendar events"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("list my calendar events")
+
+        assert result["intent"] == "LIST_EVENTS"
+        assert "entities" in result
+
+    def test_fallback_email_operations(self):
+        """Test fallback classification for email operations"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("send email to boss")
+
+        assert result["intent"] == "SEND_EMAIL"
+        assert "subject" in result["entities"]
+
+    def test_fallback_task_operations(self):
+        """Test fallback classification for task operations"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("create task for review")
+
+        assert result["intent"] == "CREATE_TASK"
+        assert "title" in result["entities"]
+        assert "review" in result["entities"]["title"]
+
+    def test_fallback_finance_queries(self):
+        """Test fallback classification for finance queries"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("show recent transactions")
+
+        assert result["intent"] == "GET_TRANSACTIONS"
+
+    def test_fallback_unknown(self):
+        """Test fallback classification for unknown intents"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("xyzabc123")
+
+        assert result["intent"] == "UNKNOWN"
+        assert result["entities"] == {}
+
+    def test_fallback_meeting_scheduling(self):
+        """Test fallback classification for meeting scheduling"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("schedule meeting tomorrow at 2pm")
+
+        assert result["intent"] == "CREATE_EVENT"
+        assert "summary" in result["entities"]
+
+    def test_fallback_email_search(self):
+        """Test fallback classification for email search"""
+        from core.atom_agent_endpoints import fallback_intent_classification
+
+        result = fallback_intent_classification("search emails for project update")
+
+        assert result["intent"] == "SEARCH_EMAILS"
+        assert "query" in result["entities"]
+
+
 # ==================== Test Streaming Execution Tracking ====================
 
 class TestStreamingExecutionTracking:
