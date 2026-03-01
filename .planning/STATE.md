@@ -186,6 +186,8 @@ Progress: [████░░░░░] 33.6% (v5.0 milestone - Phase 109-02 com
 - Testing philosophy (tests are code, single responsibility, independence, mocking)
 - Quality metrics (assertion density 15+, pass rate 98%, execution time <5min)
 - [Phase 107]: MSW 1.x selected over 2.x due to Jest ESM compatibility issues — MSW 2.x uses ESM modules that Jest cannot transform; MSW 1.x uses CommonJS compatible with existing Jest/Babel setup
+- [Phase 109]: Error clearing requires resubmit, not automatic on input change — InteractiveForm only clears errors on next submit. Tests document this pattern (Pitfall 2 from research). All error clearing tests verify resubmit behavior.
+- [Phase 109]: Whitespace-only input treated as valid (not trimmed) — VALIDATED_BEHAVIOR: InteractiveForm accepts whitespace-only strings for required fields. Should add .trim() check in validateField for proper UX.
 
 ### Pending Todos
 
