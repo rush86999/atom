@@ -77,6 +77,34 @@ jobs:
           cd backend
           python tests/scripts/generate_coverage_trend.py --html-output tests/coverage_reports/metrics/coverage_trend_report.html
 
+      - name: Generate coverage trend dashboard
+        if: always()  # Run even if tests fail
+        run: |
+          cd backend
+          python3 tests/scripts/generate_coverage_dashboard.py \
+            --trend-file tests/coverage_reports/metrics/coverage_trend_v5.0.json \
+            --output tests/coverage_reports/dashboards/COVERAGE_TREND_v5.0.md \
+            --mode trend \
+            --width 70
+
+      - name: Commit dashboard to repository
+        if: github.ref == 'refs/heads/main' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/tests/coverage_reports/dashboards/
+          git diff --staged --quiet || git commit -m "chore: update coverage trend dashboard"
+          git push
+        continue-on-error: true  # Don't fail if push conflict
+
+      - name: Upload dashboard artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-dashboard
+          path: backend/tests/coverage_reports/dashboards/COVERAGE_TREND_v5.0.md
+          retention-days: 90
+
       - name: Check for regression
         run: |
           cd backend
