@@ -272,6 +272,7 @@ class AgentGovernanceService:
         "device_camera_snap": 2,   # INTERN+ (camera capture)
         "device_get_location": 2,  # INTERN+ (location services)
         "device_send_notification": 2,  # INTERN+ (system notifications)
+        "device_shell_read": 2,     # INTERN+ (read-only shell commands)
         "update_canvas": 2,        # INTERN+ (bidirectional canvas update)
 
         # Medium - Supervised level
@@ -284,6 +285,7 @@ class AgentGovernanceService:
         "device_screen_record": 3, # SUPERVISED+ (screen recording - privacy concern)
         "device_screen_record_start": 3,  # SUPERVISED+ (screen recording start)
         "device_screen_record_stop": 3,   # SUPERVISED+ (screen recording stop)
+        "device_shell_monitor": 3,    # SUPERVISED+ (monitoring shell commands)
 
         # High - Autonomous level only
         "delete": 4,

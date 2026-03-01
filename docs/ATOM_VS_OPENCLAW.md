@@ -172,7 +172,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **OAuth Validation** | ✅ User ID/email format validation, injection prevention | ⚠️ Standard OAuth |
 | **Background Jobs** | ✅ RQ (Redis Queue) with monitoring | ❌ No built-in task queue |
 
-**Key Difference**: Atom's security model is enterprise-grade with graded permissions, webhook signature verification, and comprehensive audit trails. OpenClaw trusts the user and provides raw capabilities.
+**Key Difference**: Atom's security model is enterprise-grade with graduated permissions (including tiered shell access), webhook signature verification, and comprehensive audit trails. OpenClaw trusts the user and provides raw capabilities.
 
 ---
 
