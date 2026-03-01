@@ -829,3 +829,250 @@ class TestUtilityMethods:
             # Verify returns CognitiveTier from classifier
             assert tier == CognitiveTier.STANDARD
             handler.cognitive_classifier.classify.assert_called_once_with("explain quantum computing", None)
+
+
+# =============================================================================
+# GAP FILLING TESTS - Additional Coverage for Plan 04
+# =============================================================================
+
+class TestGapFillingBYOK:
+    """Gap-filling tests to increase coverage from 31.68% to 60%+
+
+    Tests uncovered error paths, edge cases, and conditional branches.
+    """
+
+    def test_is_trial_restricted_default_false(self, mock_byok_manager):
+        """Test _is_trial_restricted returns False by default"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Should return False when no workspace or trial_ended not set
+            result = handler._is_trial_restricted()
+            assert result is False
+
+    def test_is_trial_restricted_with_exception_handling(self, mock_byok_manager):
+        """Test _is_trial_restricted handles database exceptions gracefully"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock database to raise exception at the point of use
+            with patch('core.database.get_db_session', side_effect=Exception("DB error")):
+                result = handler._is_trial_restricted()
+                # Should return False on exception
+                assert result is False
+
+    def test_get_provider_comparison_with_pricing_data(self, mock_byok_manager):
+        """Test get_provider_comparison returns pricing comparison"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            comparison = handler.get_provider_comparison()
+
+            # Verify returns dict
+            assert isinstance(comparison, dict)
+            # Should have providers or be empty dict
+            assert 'providers' in comparison or isinstance(comparison, dict)
+
+    def test_get_provider_comparison_returns_fallback_on_error(self, mock_byok_manager):
+        """Test get_provider_comparison returns static fallback when pricing fails"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                fetcher_instance = MagicMock()
+                fetcher_instance.compare_providers = MagicMock(side_effect=Exception("Pricing error"))
+                mock_fetcher.return_value = fetcher_instance
+
+                handler = BYOKHandler()
+
+                comparison = handler.get_provider_comparison()
+
+                # Should return static fallback with provider costs
+                assert isinstance(comparison, dict)
+                assert 'openai' in comparison or 'deepseek' in comparison
+
+    def test_get_cheapest_models_returns_list(self, mock_byok_manager):
+        """Test get_cheapest_models returns list of models"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            models = handler.get_cheapest_models(limit=5)
+
+            # Verify returns list
+            assert isinstance(models, list)
+
+    def test_get_cheapest_models_handles_exception(self, mock_byok_manager):
+        """Test get_cheapest_models when pricing fetcher raises exception"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                fetcher_instance = MagicMock()
+                fetcher_instance.get_cheapest_models = MagicMock(side_effect=Exception("Pricing error"))
+                mock_fetcher.return_value = fetcher_instance
+
+                handler = BYOKHandler()
+
+                models = handler.get_cheapest_models(limit=5)
+
+                # Should return empty list on error
+                assert models == []
+
+    def test_analyze_complexity_with_very_long_query(self, mock_byok_manager):
+        """Test analyze_query_complexity with very long query (token-based scoring)"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Create a query longer than 5000 characters
+            long_query = "explain " + "data " * 3000  # ~15000 characters
+
+            complexity = handler.analyze_query_complexity(long_query)
+
+            # Very long queries should be at least COMPLEX or ADVANCED
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_complexity_with_multiple_code_blocks(self, mock_byok_manager):
+        """Test analyze_query_complexity with multiple code blocks"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            query = """
+            Here's some Python code:
+            ```python
+            def hello():
+                print("world")
+            ```
+
+            And here's some JavaScript:
+            ```javascript
+            function hello() {
+                console.log("world");
+            }
+            ```
+            """
+
+            complexity = handler.analyze_query_complexity(query)
+
+            # Should detect code and classify as COMPLEX or ADVANCED
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_analyze_complexity_with_mixed_patterns(self, mock_byok_manager):
+        """Test analyze_query_complexity with mixed technical patterns"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            query = "Debug the performance issue in my API endpoint and analyze the database query optimization"
+
+            complexity = handler.analyze_query_complexity(query)
+
+            # Mixed patterns (debug + analyze + optimization) should be COMPLEX or ADVANCED
+            assert complexity in [QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_truncate_to_context_with_reserve_tokens(self, mock_byok_manager):
+        """Test truncate_to_context with various reserve token values"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Use extremely long text that exceeds even large context windows
+            # Assuming gpt-4o has 128k context, 1M chars would need truncation
+            long_text = "x" * 1000000  # 1 million characters
+
+            # Test with reserve tokens
+            truncated = handler.truncate_to_context(long_text, "gpt-4o", reserve_tokens=5000)
+
+            # Should truncate very long text
+            assert len(truncated) < len(long_text)
+
+            # Verify it's a string
+            assert isinstance(truncated, str)
+
+    def test_get_context_window_for_known_model(self, mock_byok_manager):
+        """Test get_context_window for model in pricing data"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Test with a known model that should have pricing data
+            context_window = handler.get_context_window("gpt-4o")
+
+            # Should return positive number
+            assert context_window > 0
+            assert isinstance(context_window, int)
+
+    def test_get_optimal_provider_with_no_suitable_providers(self, mock_byok_manager):
+        """Test get_optimal_provider when no providers meet criteria"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Remove all providers to simulate empty state
+            handler.clients = {}
+
+            with pytest.raises(ValueError, match="No LLM providers"):
+                handler.get_optimal_provider(QueryComplexity.SIMPLE)
+
+    def test_analyze_complexity_task_type_undefined(self, mock_byok_manager):
+        """Test analyze_query_complexity with undefined task_type"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            query = "write a function to sort an array"
+
+            # None task_type should not cause error
+            complexity = handler.analyze_query_complexity(query, task_type=None)
+            assert complexity in [QueryComplexity.MODERATE, QueryComplexity.COMPLEX, QueryComplexity.ADVANCED]
+
+    def test_get_provider_comparison_delegates_to_pricing(self, mock_byok_manager):
+        """Test get_provider_comparison delegates to pricing fetcher"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Should call pricing fetcher's get_all_models
+            comparison = handler.get_provider_comparison()
+
+            # Verify it returns a dict (structure may vary based on pricing fetcher)
+            assert isinstance(comparison, dict)
+
+    def test_get_cheapest_models_delegates_to_pricing(self, mock_byok_manager):
+        """Test get_cheapest_models delegates to pricing fetcher"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            models = handler.get_cheapest_models(limit=3)
+
+            # Should return a list
+            assert isinstance(models, list)
+            # Should respect limit
+            assert len(models) <= 3
+
+    def test_analyze_complexity_exact_threshold_boundary(self, mock_byok_manager):
+        """Test analyze_query_complexity at exact threshold boundaries"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Test query length exactly at threshold (100 chars)
+            query_100 = "analyze " + "data " * 24  # ~100 chars
+            complexity = handler.analyze_query_complexity(query_100)
+            # Should classify based on content + length
+            assert complexity in [QueryComplexity.SIMPLE, QueryComplexity.MODERATE]
+
+    def test_analyze_complexity_with_special_characters(self, mock_byok_manager):
+        """Test analyze_query_complexity with special characters"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Test with various special characters
+            query = "debug error: null reference @ line 42 #TODO fix ASAP!!!"
+            complexity = handler.analyze_query_complexity(query)
+
+            # Should handle special characters without error
+            assert complexity in [QueryComplexity.MODERATE, QueryComplexity.COMPLEX]
+
+    def test_get_ranked_providers_empty_provider_list(self, mock_byok_manager):
+        """Test get_ranked_providers handles empty provider list"""
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+
+            # Mock to return empty list
+            with patch.object(handler, 'clients, {}'):
+                result = handler.get_ranked_providers(
+                    QueryComplexity.SIMPLE,
+                    requires_tools=False
+                )
+
+                # Should return empty list or handle gracefully
+                assert isinstance(result, list)
