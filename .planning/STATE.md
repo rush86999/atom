@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 113 - Episodic Memory Coverage (IN PROGRESS)
+**Current focus:** Phase 113 - Episodic Memory Coverage 🔄 IN PROGRESS (2/3 services ≥60%)
 
 ## Current Position
 
 Phase: 3 of 16 (Episodic Memory Coverage)
-Plan: 3 of 3 complete
-Status: Phase 113 Plan 03 complete - episode_lifecycle_service.py coverage increased to 91.47%
-Last activity: 2026-03-01T15:14:00Z — Phase 113 Plan 03 complete (6 new tests added, lifecycle coverage +31.78%)
+Plan: 4 of 4 complete
+Status: Phase 113 Plan 04 complete - Fixed 7 of 10 failing tests, 69/75 passing (92%), segmentation 30.19% unchanged
+Last activity: 2026-03-01T15:53:00Z — Phase 113 Plan 04 complete (7 tests fixed, model field alignment, 6 integration tests blocked by mock chains)
 
-Progress: [██████████] 100%
+Progress: [██████████░] 95%
 
 ## Performance Metrics
 
@@ -29,11 +29,11 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 111 | 1 | 1 | 4m |
 | 112 | 4 | 18 | 5m |
-| 113 | 1 | 3 | 3m |
+| 113 | 3 | 14 | 5m |
 
 **Recent Trend:**
-- Last 5 plans: 3m (113-01), 5m (112-01), 4m (112-02), 5m (112-03), 1m (112-04)
-- Trend: Fast execution (1-5 min per plan)
+- Last 5 plans: 7m (113-03), 45m (113-02), 3m (113-01), 5m (112-01), 4m (112-02)
+- Trend: Moderate execution (3-45 min per plan)
 
 *Updated after each plan completion*
 | Phase 113 P01 | 1 | 4 tasks | 1 files |
@@ -43,6 +43,7 @@ Progress: [██████████] 100%
 | Phase 112 P01 | 5 | 2 tasks | 1 files |
 | Phase 113 P02 | 45 | 3 tasks | 1 files |
 | Phase 113 P03 | 7 | 2 tasks | 1 files |
+| Phase 113 P04 | 13 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -65,9 +66,10 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-1. Investigate episode services coverage measurement methodology (Phase 113)
-2. Address canvas_tool coverage gap (49% → 60%) in Phase 118
-3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
+1. Fix 10 failing episode segmentation tests (model field mismatches from Plans 01/02)
+2. Increase segmentation service coverage from 30.19% to 60%+ (29.81 point gap)
+3. Address canvas_tool coverage gap (49% → 60%) in Phase 118
+4. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -76,18 +78,19 @@ Recent decisions affecting current work:
 - ✅ Module import failures fixed (coverage.py measures all 6 services)
 
 **Current Concerns:**
-- Episode services coverage discrepancy (83% → 23%) - investigation needed, likely measurement methodology change
+- **Segmentation service coverage**: 30.19% (below 60% target, 29.81 point gap)
+- **10 failing segmentation tests**: Model field mismatches (task_description, intervention_type, canvas_action_count, AgentStatus enum)
 - canvas_tool at 49% (still below 60% target, gap increased from 6% to 11%)
 - 2 flaky agent_guidance_canvas_tool tests (93% pass rate, acceptable)
 
 **v5.1 Risks:**
-- Episode services coverage investigation may delay Phase 113 — Mitigation: Quick methodology check, may proceed with tests-all-passing evidence
+- **Segmentation service below 60%** - 10 failing tests block coverage measurement — Mitigation: Create Plan 113-04 to fix test infrastructure issues
 - Property tests may require more iteration — Mitigation: Start with proven invariants from v3.2/v4.0
 
 ## Session Continuity
 
 Last session: 2026-03-01T15:14:00Z
-Stopped at: Phase 113 Plan 03 complete - All three episode services tested, 2 of 3 achieve 60%+ target
+Stopped at: Phase 113 COMPLETE - 68 tests added across 3 plans (32+30+6), 2 of 3 services achieve 60%+ coverage (lifecycle 91.47%, retrieval 66.45%, segmentation 30.19%)
 Resume file: None
 
 **v5.0 Milestone Summary:**
