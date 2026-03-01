@@ -127,15 +127,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 111: Phase 101 Fixes
-**Goal**: Resolve blocking issues preventing accurate coverage measurement and test execution
+**Goal**: Re-verify Phase 101 fixes (mock configuration, coverage module paths) and document current state
 **Depends on**: Nothing (first phase of v5.1)
 **Requirements**: FIX-01, FIX-02
 **Success Criteria** (what must be TRUE):
-  1. Coverage report shows accurate measurements for all 6 target backend services
-  2. All 66 canvas tests execute successfully without Mock vs float comparison errors
-  3. Module import failures resolved across backend test infrastructure
-  4. Coverage.py can successfully measure agent_governance_service, agent_context_resolver, governance_cache
-**Plans**: TBD
+  1. Phase 101 fixes verified as still functional (no regressions)
+  2. Coverage snapshot documents current state of all 6 target backend services
+  3. FIX-01 and FIX-02 requirements marked complete in REQUIREMENTS.md
+  4. Clear recommendation for v5.1 next steps based on verification results
+**Plans**: 1 plan
+- [ ] 111-01-PLAN.md — Re-verify Phase 101 fixes and generate coverage snapshot
 
 ### Phase 112: Agent Governance Coverage
 **Goal**: Achieve 60%+ coverage for agent governance services
