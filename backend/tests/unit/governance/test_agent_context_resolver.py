@@ -5,6 +5,7 @@ Tests fallback chain resolution, cache integration, error handling,
 performance, and context enrichment.
 """
 
+import uuid
 import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -71,8 +72,9 @@ class TestFallbackChainResolution:
         agent = AgentFactory(_session=db_session)
 
         # Create session with agent_id in metadata
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
             metadata_json={"agent_id": agent.id}
         )
@@ -82,7 +84,7 @@ class TestFallbackChainResolution:
         # Resolve without explicit agent_id (should use session)
         resolved_agent, context = await context_resolver.resolve_agent_for_request(
             user_id="test_user",
-            session_id="test_session_id"
+            session_id=session_id
         )
 
         assert resolved_agent is not None
@@ -108,8 +110,9 @@ class TestFallbackChainResolution:
         """Test that missing explicit agent ID falls back to session agent."""
         # Create session with agent
         agent = AgentFactory(_session=db_session)
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
             metadata_json={"agent_id": agent.id}
         )
@@ -119,7 +122,7 @@ class TestFallbackChainResolution:
         # Request non-existent agent, should fallback to session
         resolved_agent, context = await context_resolver.resolve_agent_for_request(
             user_id="test_user",
-            session_id="test_session_id",
+            session_id=session_id,
             requested_agent_id="nonexistent_agent_id"
         )
 
@@ -147,10 +150,10 @@ class TestFallbackChainResolution:
     async def test_session_without_agent_falls_back_to_default(self, context_resolver, db_session):
         """Test session without agent_id falls back to system default."""
         # Create session without agent_id in metadata
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
-            workspace_id="default",
             metadata_json={}
         )
         db_session.add(session)
@@ -158,7 +161,7 @@ class TestFallbackChainResolution:
 
         resolved_agent, context = await context_resolver.resolve_agent_for_request(
             user_id="test_user",
-            session_id="test_session_id"
+            session_id=session_id
         )
 
         assert resolved_agent is not None
@@ -228,16 +231,16 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_get_session_agent_handles_session_without_agent_id(self, context_resolver, db_session):
         """Test _get_session_agent handles session without agent_id."""
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
-            workspace_id="default",
             metadata_json={}
         )
         db_session.add(session)
         db_session.commit()
 
-        agent = context_resolver._get_session_agent("test_session_id")
+        agent = context_resolver._get_session_agent(session_id)
         assert agent is None
 
     @pytest.mark.asyncio
@@ -390,10 +393,10 @@ class TestSessionManagement:
         agent = AgentFactory(_session=db_session)
 
         # Create session
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
-            workspace_id="default",
             metadata_json={}
         )
         db_session.add(session)
@@ -401,7 +404,7 @@ class TestSessionManagement:
 
         # Set agent on session
         success = context_resolver.set_session_agent(
-            session_id="test_session_id",
+            session_id=session_id,
             agent_id=agent.id
         )
 
@@ -424,17 +427,17 @@ class TestSessionManagement:
     @pytest.mark.asyncio
     async def test_set_nonexistent_agent_on_session(self, context_resolver, db_session):
         """Test setting non-existent agent on session returns False."""
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
-            workspace_id="default",
             metadata_json={}
         )
         db_session.add(session)
         db_session.commit()
 
         success = context_resolver.set_session_agent(
-            session_id="test_session_id",
+            session_id=session_id,
             agent_id="nonexistent_agent_id"
         )
 
@@ -445,30 +448,32 @@ class TestSessionManagement:
         """Test setting agent preserves other session metadata."""
         agent = AgentFactory(_session=db_session)
 
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
-            workspace_id="default",
             metadata_json={"existing_key": "existing_value"}
         )
         db_session.add(session)
         db_session.commit()
 
         context_resolver.set_session_agent(
-            session_id="test_session_id",
+            session_id=session_id,
             agent_id=agent.id
         )
 
-        db_session.refresh(session)
-        assert session.metadata_json["existing_key"] == "existing_value"
-        assert session.metadata_json["agent_id"] == agent.id
+        # Query the session directly to verify it was updated
+        updated_session = db_session.query(ChatSession).filter(ChatSession.id == session_id).first()
+        assert updated_session.metadata_json["existing_key"] == "existing_value"
+        assert updated_session.metadata_json["agent_id"] == agent.id
 
     @pytest.mark.asyncio
     async def test_set_session_agent_handles_exception_gracefully(self, context_resolver, db_session):
         """Test set_session_agent handles exceptions gracefully."""
         agent = AgentFactory(_session=db_session)
+        session_id = str(uuid.uuid4())
         session = ChatSession(
-            id="test_session_id",
+            id=session_id,
             user_id="test_user",
             metadata_json={}
         )
@@ -481,7 +486,7 @@ class TestSessionManagement:
 
             # Should return False, not crash
             success = context_resolver.set_session_agent(
-                session_id="test_session_id",
+                session_id=session_id,
                 agent_id=agent.id
             )
             assert success is False
