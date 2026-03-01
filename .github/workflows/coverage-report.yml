@@ -36,6 +36,37 @@ jobs:
           DATABASE_URL: sqlite:///./test_ci.db
           ATOM_HOST_MOUNT_ENABLED: false
 
+      - name: Generate per-commit coverage report
+        if: always()  # Run even if tests fail (coverage still useful)
+        run: |
+          cd backend
+          COMMIT_HASH="${{ github.sha }}"
+          python3 tests/scripts/per_commit_report_generator.py \
+            --coverage-file tests/coverage_reports/metrics/coverage.json \
+            --commits-dir tests/coverage_reports/commits \
+            --commit "$COMMIT_HASH" \
+            --retention-days 90
+
+      - name: Upload commit reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-commit-reports
+          path: backend/tests/coverage_reports/commits/*.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Commit new reports to repository
+        if: github.ref == 'refs/heads/main' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/tests/coverage_reports/commits/*.json
+          git add backend/tests/coverage_reports/commits/README.md
+          git diff --staged --quiet || git commit -m "chore: add coverage report for ${{ github.sha }}"
+          git push
+        continue-on-error: true  # Don't fail if push conflict
+
       - name: Update trending data
         run: |
           cd backend
