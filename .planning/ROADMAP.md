@@ -194,7 +194,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Agent streaming, execution tracking, and error handling tested
   3. Workflow orchestration tested with realistic agent scenarios
   4. Execution lifecycle (start, monitor, stop, timeout) validated
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 115-01-PLAN.md — Streaming governance flow coverage (12-15 tests, ~30% increment)
+- [ ] 115-02-PLAN.md — Intent classification coverage (10-12 tests, ~15% increment)
+- [ ] 115-03-PLAN.md — Workflow handlers coverage (8-10 tests, ~15% increment)
+- [ ] 115-04-PLAN.md — Combined verification run (final coverage >= 60%)
 
 ### Phase 116: Student Training Coverage
 **Goal**: Achieve 60%+ coverage for student training system
@@ -327,8 +331,8 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 111. Phase 101 Fixes | v5.1 | 1/1 | Complete | 2026-03-01 |
 | 112. Agent Governance Coverage | v5.1 | 4/4 | Complete | 2026-03-01 |
 | 113. Episodic Memory Coverage | v5.1 | 5/5 | Complete ⚠️ | 2026-03-01 |
-| 114. LLM Services Coverage | v5.1 | 0/0 | Not started | - |
-| 115. Agent Execution Coverage | v5.1 | 0/0 | Not started | - |
+| 114. LLM Services Coverage | v5.1 | 5/5 | Complete | 2026-03-01 |
+| 115. Agent Execution Coverage | v5.1 | 0/4 | Planning | - |
 | 116. Student Training Coverage | v5.1 | 0/0 | Not started | - |
 | 117. Graduation Framework Coverage | v5.1 | 0/0 | Not started | - |
 | 118. Canvas API Coverage | v5.1 | 0/0 | Not started | - |
