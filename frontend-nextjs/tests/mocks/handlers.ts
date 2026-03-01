@@ -489,6 +489,166 @@ export const deviceHandlers = [
 ];
 
 // ============================================================================
+// Form Submission Handlers (NEW - Phase 109)
+// ============================================================================
+
+/**
+ * Form submission handlers for MSW backend integration tests.
+ * These handlers mock form submission endpoints with various scenarios:
+ * - Success responses with submission IDs
+ * - Server validation errors (400 with field_errors)
+ * - Server errors (500, 503)
+ * - Timeout scenarios (10s delay)
+ * - Network failures (connection refused)
+ */
+export const formSubmissionHandlers = [
+  // Submit form data successfully (default)
+  rest.post('/api/forms/submit', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        submission_id: `sub-${Date.now()}`,
+        message: 'Form submitted successfully',
+        submitted_at: new Date().toISOString()
+      })
+    );
+  }),
+
+  // Form submission endpoint for validation error scenarios
+  rest.post('/api/forms/error', (req, res, ctx) => {
+    const body = req.body as any;
+
+    // Simulate server validation error for specific field value
+    if (body.email === 'invalid@example.com') {
+      return res(
+        ctx.status(400),
+        ctx.json({
+          success: false,
+          error: 'Validation failed',
+          field_errors: {
+            email: 'This email is already registered'
+          }
+        })
+      );
+    }
+
+    // Simulate multiple field errors
+    if (body.email === 'multiple@example.com') {
+      return res(
+        ctx.status(400),
+        ctx.json({
+          success: false,
+          error: 'Validation failed',
+          field_errors: {
+            email: 'Email format invalid',
+            name: 'Name is required',
+            age: 'Must be at least 18'
+          }
+        })
+      );
+    }
+
+    // Default success for other cases
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        submission_id: 'sub-error-default',
+        message: 'Form submitted successfully'
+      })
+    );
+  }),
+
+  // Form submission with server error (500)
+  rest.post('/api/forms/server-error', (req, res, ctx) => {
+    return res(
+      ctx.status(500),
+      ctx.json({
+        success: false,
+        error: 'Internal server error',
+        timestamp: new Date().toISOString()
+      })
+    );
+  }),
+
+  // Form submission with service unavailable (503)
+  rest.post('/api/forms/service-unavailable', (req, res, ctx) => {
+    return res(
+      ctx.status(503),
+      ctx.json({
+        success: false,
+        error: 'Service temporarily unavailable',
+        retry_after: 60
+      })
+    );
+  }),
+
+  // Form submission with unauthorized error (401)
+  rest.post('/api/forms/unauthorized', (req, res, ctx) => {
+    return res(
+      ctx.status(401),
+      ctx.json({
+        success: false,
+        error: 'Authentication required',
+        code: 'UNAUTHORIZED'
+      })
+    );
+  }),
+
+  // Form submission with not found error (404)
+  rest.post('/api/forms/not-found', (req, res, ctx) => {
+    return res(
+      ctx.status(404),
+      ctx.json({
+        success: false,
+        error: 'Form endpoint not found',
+        code: 'NOT_FOUND'
+      })
+    );
+  }),
+
+  // Form submission timeout simulation (10 second delay)
+  rest.post('/api/forms/timeout', (req, res, ctx) => {
+    return res(
+      ctx.delay(10000),  // 10 second delay to trigger timeout
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        submission_id: 'sub-timeout',
+        message: 'Form submitted successfully (after delay)'
+      })
+    );
+  }),
+
+  // Form submission with slow network (2 second delay)
+  rest.post('/api/forms/slow', (req, res, ctx) => {
+    return res(
+      ctx.delay(2000),  // 2 second delay to test loading state
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        submission_id: 'sub-slow',
+        message: 'Form submitted successfully'
+      })
+    );
+  }),
+
+  // Form submission with network error simulation
+  rest.post('/api/forms/network-error', (req, res) => {
+    // Simulate network failure by not responding properly
+    // This will trigger a network error in the client
+    return res.networkError('Network connection failed');
+  }),
+
+  // Form submission with connection refused simulation
+  rest.post('/api/forms/connection-refused', (req, res) => {
+    // Simulate connection refused (server not reachable)
+    return res.networkError('Connection refused');
+  }),
+];
+
+// ============================================================================
 // All Handlers Combined
 // ============================================================================
 
@@ -497,4 +657,5 @@ export const allHandlers = [
   ...agentHandlers,
   ...canvasHandlers,
   ...deviceHandlers,
+  ...formSubmissionHandlers,  // NEW - Phase 109
 ];
