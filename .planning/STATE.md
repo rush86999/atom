@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 109 of 110 (Frontend Form Validation Tests)
-Plan: 04 of 6 (Property-Based Validation Invariants)
-Status: Phase 109-04 COMPLETE - Property-based validation tests with 57 tests, 100% pass rate, 3 validation behaviors documented
-Last activity: 2026-03-01 — Phase 109-04 complete: 57 property-based validation tests created (100% pass rate), 3 validation behaviors documented, 1,165 lines test code, all 2 tasks executed (100%)
+Plan: 05 of 6 (MSW Backend Integration Tests)
+Status: Phase 109-05 COMPLETE - MSW form submission integration tests with 25 tests, 100% pass rate, 1 validation behavior documented
+Last activity: 2026-03-01 — Phase 109-05 complete: 25 MSW-backed form submission tests created (100% pass rate), 1 VALIDATED_BEHAVIOR documented (unchecked checkbox sends empty string), 1,031 lines test code, all 2 tasks executed (100%)
 
-Progress: [████░░░░░] 35.2% (v5.0 milestone - Phase 109-04 complete, Phase 109-05 ready to start)
+Progress: [████░░░░░] 35.2% (v5.0 milestone - Phase 109-05 complete, Phase 109-06 ready to start)
 
 **Milestone v5.0:** Coverage Expansion (1-2 weeks aggressive timeline)
 - Phase 100: Coverage Analysis (foundation)
@@ -121,15 +121,17 @@ Progress: [████░░░░░] 35.2% (v5.0 milestone - Phase 109-04 com
 - Phase 109: ⚠️ IN PROGRESS (Frontend Form Validation Tests)
   - Plan 01: Edge Case Tests ✅ (127 tests, 78% pass rate, 11 VALIDATED_BUG documented)
   - Plan 02: Format Validation Tests ✅ (97 tests, 95% pass rate, 5 VALIDATED_BUG documented)
-  - **Total:** 224 tests created (85% pass rate), 16 validation behaviors documented, 3,111 lines test code
+  - Plan 05: MSW Backend Integration Tests ✅ (25 tests, 100% pass rate, 1 VALIDATED_BEHAVIOR documented)
+  - **Total:** 249 tests created (86% pass rate), 17 validation behaviors documented, 4,142 lines test code
 - Duration: 8-12 minutes per plan (average)
-- Plans completed: 41/55+ (75% of v5.0 plans estimated)
+- Plans completed: 42/55+ (76% of v5.0 plans estimated)
 - Phase 101 Status: ⚠️ PARTIAL - Mock configuration issues blocking test execution, 0% coverage improvement
 - Phase 104 Status: ✅ COMPLETE - All BACK-04 requirements satisfied (4/4 criteria met)
 - Phase 105 Status: ✅ COMPLETE - All FRNT-01 requirements satisfied (3.5/4 criteria met, 87.5%)
 - Phase 108 Status: ✅ COMPLETE - All FRNT-04 requirements satisfied (4/4 criteria met, 100%)
 - Phase 109-01 Status: ✅ COMPLETE - 127 edge case tests created (78% pass rate), 11 behaviors documented
 - Phase 109-02 Status: ✅ COMPLETE - 97 format validation tests created (95% pass rate), 5 behaviors documented
+- Phase 109-05 Status: ✅ COMPLETE - 25 MSW form submission tests created (100% pass rate), 1 VALIDATED_BEHAVIOR documented (unchecked checkbox sends empty string)
 
 ## Accumulated Context
 
@@ -188,6 +190,7 @@ Progress: [████░░░░░] 35.2% (v5.0 milestone - Phase 109-04 com
 - [Phase 107]: MSW 1.x selected over 2.x due to Jest ESM compatibility issues — MSW 2.x uses ESM modules that Jest cannot transform; MSW 1.x uses CommonJS compatible with existing Jest/Babel setup
 - [Phase 109]: Error clearing requires resubmit, not automatic on input change — InteractiveForm only clears errors on next submit. Tests document this pattern (Pitfall 2 from research). All error clearing tests verify resubmit behavior.
 - [Phase 109]: Whitespace-only input treated as valid (not trimmed) — VALIDATED_BEHAVIOR: InteractiveForm accepts whitespace-only strings for required fields. Should add .trim() check in validateField for proper UX.
+- [Phase 109]: Unchecked checkbox sends empty string (not boolean false) — VALIDATED_BEHAVIOR: InteractiveForm sends '' for unchecked checkboxes instead of false. Differs from HTML forms but consistent with React-controlled components using empty string as default value.
 
 ### Pending Todos
 
@@ -298,33 +301,34 @@ Resume file: None
    - Phase assignments for 101-110 created
 
 **Next Steps:**
-1. ✅ Phase 108-01 complete - 36 chat state machine property tests created, 100% pass rate
-2. Continue Phase 108 (Frontend Property Tests) - Canvas, Auth, Form state machines
+1. ✅ Phase 109-05 complete - 25 MSW form submission tests created, 100% pass rate
+2. Continue Phase 109 - Final verification and phase summary (Plan 06)
 3. Fix Agent API mock configuration issues (2-3 hours) - Technical debt from Phase 107
 4. Stabilize error handling tests (2-3 hours) - Timing issues from Phase 107
 5. Increase overall coverage to 80% target (backend + frontend)
 6. Apply property tests to state machines, data transformations, business rules
 
-**v5.0 Milestone Status:** ✅ PHASE 109-01 COMPLETE - Form Validation Edge Case Tests (127 tests, 78% pass rate, 1,490 lines), ready for Phase 109-02
+**v5.0 Milestone Status:** ✅ PHASE 109-05 COMPLETE - MSW Backend Integration Tests (25 tests, 100% pass rate, 1,031 lines), ready for Phase 109-06
 
 ---
 
-*State updated: 2026-02-28*
+*State updated: 2026-03-01*
 *Milestone: v5.0 Coverage Expansion*
-*Status: Phase 109-01 complete (1/6 plans, form validation edge cases)*
-*Timeline: 1-2 weeks aggressive (11 phases, 41 complete)*
+*Status: Phase 109-05 complete (5/6 plans, MSW backend integration)*
+*Timeline: 1-2 weeks aggressive (11 phases, 42 complete)*
 
-**Phase 109-01 Metrics:**
-- Duration: ~15 minutes
-- Tasks completed: 2 (create InteractiveForm tests, create validation utility tests)
-- Files created: 2 (form-validation-edge-cases.test.tsx, validation-edge-cases.test.ts)
-- Lines of code: 1,490 (1,040 + 450)
-- Tests created: 127 (46 InteractiveForm + 81 validation utilities)
-- Pass rate: 78% (99/127 tests passing, 28 documenting edge case behaviors)
-- Test groups: 13 (5 InteractiveForm + 8 validation utilities)
-- VALIDATED_BUG entries: 11 (email leniency, URL protocols, floating point precision, etc.)
-- Test configuration: numRuns=50, fixed seeds 24001-24036
-- Mock infrastructure: WebSocket class, useSession, fetch
+**Phase 109-05 Metrics:**
+- Duration: ~8 minutes
+- Tasks completed: 2 (extend MSW handlers, create integration tests)
+- Files created: 1 (form-submission-msw.test.tsx)
+- Files modified: 1 (handlers.ts +160 lines)
+- Lines of code: 1,031 (161 handlers + 871 tests + 99 helper)
+- Tests created: 25 (6 success + 5 validation errors + 5 server errors + 5 network + 4 data transmission)
+- Pass rate: 100% (25/25 tests passing)
+- Test groups: 5 (Success, Validation Errors, Server Errors, Network, Data Transmission)
+- VALIDATED_BEHAVIOR entries: 1 (unchecked checkbox sends empty string)
+- MSW endpoints: 10 (success, errors, timeouts, network failures)
+- Mock infrastructure: MSW server, formSubmissionHandlers, window.atom.canvas
 
 **Phase 107 Metrics (previous):**
 - Duration: ~60 minutes (5 plans, ~12 minutes per plan)
