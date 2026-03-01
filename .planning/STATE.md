@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 Phase: 2 of 16 (Agent Governance Coverage)
 Plan: 3 of 4 complete
-Status: Plan 03 complete, decorator and async wrapper tested
-Last activity: 2026-03-01 — Phase 112 Plan 03 complete (governance_cache.py: 62.05% coverage)
+Status: Plans 01-03 complete, ready for Plan 04
+Last activity: 2026-03-01T14:25:21Z — Phase 112 Plan 01 complete (agent_context_resolver.py: 96.58% coverage)
 
 Progress: [█████████░] 75%
 
@@ -28,14 +28,15 @@ Progress: [█████████░] 75%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 111 | 1 | 1 | 4m |
-| 112 | 2 | 4 | 4m |
+| 112 | 3 | 12 | 6m |
 
 **Recent Trend:**
-- Last 5 plans: 4m, 4m (Phase 112 Plans 01-02)
-- Trend: Consistent fast execution (4-5 min per plan)
+- Last 5 plans: 5m (Plan 01), 4m (Plan 02), 4m (Plan 03)
+- Trend: Consistent fast execution (4-6 min per plan)
 
 *Updated after each plan completion*
 | Phase 112 P02 | 4 | 3 tasks | 1 files |
+| Phase 112 P01 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -50,7 +51,11 @@ Recent decisions affecting current work:
 - v5.1: 16 phases derived from 16 requirements (1:1 mapping for clarity)
 - v5.1: Episode services coverage drop (Phase 101 vs 111) is measurement methodology change, not regression
 - v5.1: Coverage measurement standard: statement + branch coverage (stricter baseline)
+- [Phase 112]: Use uuid.uuid4() for unique test entity IDs to prevent UNIQUE constraint violations
+- [Phase 112]: Query objects directly from database after cross-session commits instead of using refresh()
 - [Phase 112]: Exception handling tests use mock patches on db.query/db.commit to test database error paths without real database failures
+- [Phase 112]: Use uuid.uuid4() for unique test entity IDs to prevent database UNIQUE constraint violations
+- [Phase 112]: Query database directly after cross-session commits instead of using refresh() for fresh data
 
 ### Pending Todos
 
@@ -75,8 +80,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Phase 111 Plan 01 complete - Phase 101 fixes re-verified
+Last session: 2026-03-01T14:25:21Z
+Stopped at: Phase 112 Plan 01 complete - agent_context_resolver.py at 96.58% coverage
 Resume file: None
 
 **v5.0 Milestone Summary:**
@@ -91,10 +96,10 @@ Resume file: None
 
 **v5.1 Progress:**
 - ✅ Phase 111 Plan 01: Phase 101 fixes re-verified (FIX-01, FIX-02 complete)
-- ✅ Phase 112 Plan 01: agent_context_resolver.py test fixes (62.37% → 75.39%)
+- ✅ Phase 112 Plan 01: ChatSession model mismatch fixed, 30/30 tests passing (60.68% → 96.58%)
 - ✅ Phase 112 Plan 02: agent_context_resolver.py exception handling tests (75.39% → 65.81%, target met)
 - ✅ Phase 112 Plan 03: governance_cache.py decorator and async wrapper tests (51.20% → 62.05%)
-- Current: 4/6 services at 60%+ target (agent_context_resolver: 65.81%, agent_governance: 82%, agent_guidance: 84%, governance_cache: 62.05%)
+- Current: 4/6 services at 60%+ target (agent_context_resolver: 96.58%, agent_governance: 82%, agent_guidance: 84%, governance_cache: 62.05%)
 - Next: Phase 112 Plan 04 (agent_governance_service.py coverage)
 
 **Phase 112 Coverage Progress:**
