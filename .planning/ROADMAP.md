@@ -276,19 +276,22 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 121-03-PLAN.md — Add targeted tests to reach 60% coverage
 - [ ] 121-04-PLAN.md — Gap closure: Integration tests with real database
 
-### Phase 122: Admin Routes Coverage ⚠️ PARTIAL
+### Phase 122: Admin Routes Coverage 🚧 IN PROGRESS
 **Goal**: Achieve 60%+ coverage for business facts and world model
 **Depends on**: Phase 111
-**Requirements**: API-05 ⚠️ PARTIAL (1/2 targets met)
+**Requirements**: API-05 ⚠️ PARTIAL (1/2 targets met - gap closure in progress)
 **Success Criteria** (what must be TRUE):
   1. Coverage report shows 60%+ coverage for api/admin/business_facts_routes.py ✅ 74.07%
-  2. Coverage report shows 60%+ coverage for core/agent_world_model.py ❌ 28.92%
+  2. Coverage report shows 60%+ coverage for core/agent_world_model.py ❌ 28.92% → gap closure planned
   3. Business facts CRUD, citation verification, and JIT fact retrieval tested ✅ COMPLETE
   4. World model service multi-source memory aggregation validated ❌ 0% coverage on recall_experiences()
-**Plans**: 3/3 complete
+**Plans**: 3/6 complete
 - [x] 122-01-PLAN.md — Baseline coverage measurement (test_business_facts_routes.py, test_world_model.py)
 - [x] 122-02-PLAN.md — Coverage gap analysis with prioritized test list
 - [x] 122-03-PLAN.md — Add targeted tests to reach 60% coverage
+- [ ] 122-04-PLAN.md — Gap closure: Integration tests for recall_experiences() multi-source memory
+- [ ] 122-05-PLAN.md — Gap closure: Experience lifecycle methods (feedback, confidence, statistics)
+- [ ] 122-06-PLAN.md — Gap closure: Memory archival and final coverage verification
 
 ### Phase 123: Governance Property Tests
 **Goal**: Validate governance system invariants with Hypothesis
