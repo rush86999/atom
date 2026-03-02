@@ -223,7 +223,36 @@ async def complete_operation(user_id, operation_id, status):
 
 ---
 
-## 3. Attribution & Audit Trail
+## 3. GEA: Group-Evolving Skills (Self-Writing)
+
+Atom doesn't just learn from single-agent feedback; it uses **Group-Evolving Agents (GEA)** to collectively "write" its own skills via **Evolution Directives**.
+
+```python
+# core/agent_evolution_loop.py
+
+async def run_evolution_cycle(tenant_id):
+    # 1. Experience Sharing (Domain-Aware)
+    pool = reflection_svc.gather_group_experience_pool(parent_ids)
+    
+    # 2. Reflection Module -> Generate "Evolution Directives"
+    dirs = await reflection_svc.reflect_and_generate_directives(pool)
+    
+    # 3. Apply Directives (Cloned Sandbox Update)
+    evolved_config = await UpdatingModule.apply(dirs)
+    
+    # 4. Benchmark & Promote Winner
+    if benchmark.passed(evolved_config):
+        return promote_winner(evolved_config)
+```
+
+**Key Features**:
+- **Collective Intelligence**: Agents share "experience pools" to avoid repeating mistakes.
+- **Autonomous Directives**: The Reflection Module generates high-level directives that modify agent behavior and "write" new capability patterns.
+- **Sandboxed Evolution**: All self-modified configurations are benchmarked before production deployment.
+
+---
+
+## 4. Attribution & Audit Trail
 
 ### Complete Attribution Chain
 
