@@ -556,11 +556,13 @@ class SupervisionService:
         supervisor_id = user_id
         supervisor_type = "user"
 
+        # Get agent (needed for session creation later)
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+
         # If user unavailable, try to find autonomous supervisor
         if user_state not in ["online", "away"]:
-            agent = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_id
-            ).first()
 
             if agent:
                 autonomous_service = AutonomousSupervisorService(self.db)
