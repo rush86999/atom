@@ -756,3 +756,156 @@ class TestDatabaseConnectivityIntegration:
             except Exception as e:
                 # Database may not be available in test environment
                 pytest.skip(f"Database not available: {e}")
+
+
+class TestReadinessProbeErrorPaths:
+    """Integration tests for readiness probe error paths.
+
+    These tests simulate failure conditions using monkeypatch to validate
+    error handling without mocking entire health check functions.
+    """
+
+    @pytest.mark.asyncio
+    async def test_readiness_probe_database_timeout(self):
+        """
+        GIVEN database check returns unhealthy (timeout scenario)
+        WHEN readiness probe is executed
+        THEN raise HTTPException 503 with database unhealthy status
+        """
+        from api.health_routes import readiness_probe
+        from fastapi import HTTPException
+
+        # Mock _check_database to return timeout status
+        async def timeout_check():
+            return {
+                "healthy": False,
+                "message": "Database timeout after 5.0s",
+                "latency_ms": 5000.0,
+            }
+
+        with patch('api.health_routes._check_database', side_effect=timeout_check):
+            with pytest.raises(HTTPException) as exc_info:
+                await readiness_probe()
+
+            # Should raise HTTPException 503
+            assert exc_info.value.status_code == 503
+            detail = exc_info.value.detail
+            assert detail["status"] == "not_ready"
+            assert detail["checks"]["database"]["healthy"] is False
+            assert "timeout" in detail["checks"]["database"]["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_readiness_probe_disk_space_critical(self):
+        """
+        GIVEN disk space is critical (<1GB free)
+        WHEN readiness probe is executed
+        THEN raise HTTPException 503 with disk unhealthy status
+        """
+        from api.health_routes import readiness_probe
+        from fastapi import HTTPException
+
+        # Mock _check_disk_space to return critical disk space
+        async def critical_disk_space():
+            return {
+                "healthy": False,
+                "message": "Low disk space: 0.50GB free (minimum: 1.0GB)",
+                "free_gb": 0.5,
+            }
+
+        with patch('api.health_routes._check_database') as mock_db:
+            # Mock healthy database
+            async def healthy_db():
+                return {
+                    "healthy": True,
+                    "message": "Database accessible",
+                    "latency_ms": 5.0,
+                }
+            mock_db.side_effect = healthy_db
+
+            with patch('api.health_routes._check_disk_space', side_effect=critical_disk_space):
+                with pytest.raises(HTTPException) as exc_info:
+                    await readiness_probe()
+
+                # Should raise HTTPException 503
+                assert exc_info.value.status_code == 503
+                detail = exc_info.value.detail
+                assert detail["status"] == "not_ready"
+                assert detail["checks"]["disk"]["healthy"] is False
+                assert detail["checks"]["disk"]["free_gb"] < 1.0
+                assert "Low disk space" in detail["checks"]["disk"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_readiness_probe_both_failures(self):
+        """
+        GIVEN both database and disk checks fail
+        WHEN readiness probe is executed
+        THEN raise HTTPException 503 with both checks marked unhealthy
+        """
+        from api.health_routes import readiness_probe
+        from fastapi import HTTPException
+
+        # Mock both checks to fail
+        async def failed_db():
+            return {
+                "healthy": False,
+                "message": "Database timeout after 5.0s",
+                "latency_ms": 5000.0,
+            }
+
+        async def failed_disk():
+            return {
+                "healthy": False,
+                "message": "Low disk space: 0.50GB free",
+                "free_gb": 0.5,
+            }
+
+        with patch('api.health_routes._check_database', side_effect=failed_db):
+            with patch('api.health_routes._check_disk_space', side_effect=failed_disk):
+                with pytest.raises(HTTPException) as exc_info:
+                    await readiness_probe()
+
+                # Should raise HTTPException 503 with both failed
+                assert exc_info.value.status_code == 503
+                detail = exc_info.value.detail
+                assert detail["status"] == "not_ready"
+                assert detail["checks"]["database"]["healthy"] is False
+                assert detail["checks"]["disk"]["healthy"] is False
+                assert "timeout" in detail["checks"]["database"]["message"].lower()
+                assert "Low disk space" in detail["checks"]["disk"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_readiness_probe_partial_failure(self):
+        """
+        GIVEN one check passes (database) and one fails (disk)
+        WHEN readiness probe is executed
+        THEN raise HTTPException 503 with partial failure status
+        """
+        from api.health_routes import readiness_probe
+        from fastapi import HTTPException
+
+        # Mock database success, disk failure
+        async def healthy_db():
+            return {
+                "healthy": True,
+                "message": "Database accessible",
+                "latency_ms": 5.0,
+            }
+
+        async def failed_disk():
+            return {
+                "healthy": False,
+                "message": "Low disk space: 0.80GB free",
+                "free_gb": 0.8,
+            }
+
+        with patch('api.health_routes._check_database', side_effect=healthy_db):
+            with patch('api.health_routes._check_disk_space', side_effect=failed_disk):
+                with pytest.raises(HTTPException) as exc_info:
+                    await readiness_probe()
+
+                # Should raise HTTPException 503 (any failure = not ready)
+                assert exc_info.value.status_code == 503
+                detail = exc_info.value.detail
+                assert detail["status"] == "not_ready"
+                assert detail["checks"]["database"]["healthy"] is True
+                assert detail["checks"]["disk"]["healthy"] is False
