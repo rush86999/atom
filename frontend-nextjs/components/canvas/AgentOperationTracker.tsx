@@ -127,7 +127,7 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
       case 'failed':
         return 'text-red-600 bg-red-50';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800';
     }
   };
 
@@ -160,14 +160,14 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
   };
 
   return (
-    <div className={`agent-operation-tracker bg-white rounded-lg shadow-md p-6 ${className}`}>
+    <div className={`agent-operation-tracker bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <span className="text-2xl">🤖</span>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{operation.agent_name}</h3>
-            <p className="text-sm text-gray-500">Agent Operation</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{operation.agent_name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Agent Operation</p>
           </div>
         </div>
         <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(operation.status)}`}>
@@ -178,27 +178,27 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
 
       {/* Progress Bar */}
       <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-2">
+        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span>Progress</span>
           <span>{operation.progress}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
           <div
             className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
             style={{ width: `${operation.progress}%` }}
           ></div>
         </div>
         {operation.total_steps && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Step {operation.current_step_index} of {operation.total_steps}
           </p>
         )}
       </div>
 
       {/* Current Step */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm font-medium text-gray-700 mb-1">Current Step:</p>
-        <p className="text-gray-900">{operation.current_step}</p>
+      <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Step:</p>
+        <p className="text-gray-900 dark:text-gray-100">{operation.current_step}</p>
       </div>
 
       {/* Context */}
@@ -234,14 +234,14 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
         <div className="border-t pt-4">
           <button
             onClick={() => setLogsExpanded(!logsExpanded)}
-            className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900"
+            className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-100"
           >
             <span>📜 Operation Logs ({operation.logs.length})</span>
             <span>{logsExpanded ? '▼' : '▶'}</span>
           </button>
 
           {logsExpanded && (
-            <div className="mt-3 max-h-60 overflow-y-auto bg-gray-50 rounded p-3 space-y-2">
+            <div className="mt-3 max-h-60 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded p-3 space-y-2">
               {operation.logs.map((log, index) => (
                 <div key={index} className="flex items-start space-x-2 text-sm">
                   <span className="flex-shrink-0">{getLogIcon(log.level)}</span>
@@ -249,11 +249,11 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
                     <p className={`font-medium ${
                       log.level === 'error' ? 'text-red-700' :
                       log.level === 'warning' ? 'text-yellow-700' :
-                      'text-gray-700'
+                      'text-gray-700 dark:text-gray-300'
                     }`}>
                       {log.message}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </p>
                   </div>
@@ -265,7 +265,7 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
       )}
 
       {/* Footer */}
-      <div className="mt-4 pt-4 border-t text-xs text-gray-500">
+      <div className="mt-4 pt-4 border-t text-xs text-gray-500 dark:text-gray-400">
         Started: {new Date(operation.started_at).toLocaleString()}
         {operation.completed_at && (
           <span className="ml-4">

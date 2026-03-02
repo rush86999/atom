@@ -84,15 +84,15 @@ export default function VerifyEmailPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8">
                 <Card className="w-full max-w-md">
                     <CardContent className="pt-6">
                         <div className="text-center">
                             <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                                 Email Verified!
                             </h2>
-                            <p className="text-gray-600 mb-4">
+                            <p className="text-gray-600 dark:text-gray-400 mb-4">
                                 Your email has been successfully verified. Redirecting to sign in...
                             </p>
                             <Loader2 className="mx-auto h-6 w-6 animate-spin text-blue-500" />
@@ -104,7 +104,7 @@ export default function VerifyEmailPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8">
             <Card className="w-full max-w-md">
                 <CardHeader>
                     <div className="flex justify-center mb-4">
@@ -137,7 +137,7 @@ export default function VerifyEmailPage() {
                                 required
                                 autoFocus
                             />
-                            <p className="text-sm text-gray-500 text-center">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
                                 Please enter the 6-digit code from your email
                             </p>
                         </div>
@@ -158,7 +158,7 @@ export default function VerifyEmailPage() {
                         </Button>
 
                         <div className="text-center space-y-2">
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
                                 Didn't receive the code?
                             </p>
                             <Button

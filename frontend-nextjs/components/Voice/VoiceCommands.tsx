@@ -543,7 +543,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <p className="font-medium">"{result.transcript}"</p>
-                                                    <p className="text-sm text-gray-500">{result.timestamp.toLocaleTimeString()}</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">{result.timestamp.toLocaleTimeString()}</p>
                                                 </div>
                                                 <Badge variant={result.processed ? "default" : "secondary"}>
                                                     {Math.round(result.confidence * 100)}%
@@ -552,7 +552,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                                         </Card>
                                     ))}
                                     {recognitionResults.length === 0 && (
-                                        <p className="text-center text-gray-500">No results yet.</p>
+                                        <p className="text-center text-gray-500 dark:text-gray-400">No results yet.</p>
                                     )}
                                 </div>
                             </DialogContent>
@@ -634,12 +634,12 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                             >
                                 {isListening ? "Listening" : "Inactive"}
                             </Badge>
-                            <span className="text-sm text-gray-500">Status</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
                         </div>
 
                         <div className="flex flex-col items-center space-y-2 w-full">
                             <Progress value={confidence * 100} className="w-full" />
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
                                 Confidence: {Math.round(confidence * 100)}%
                             </span>
                         </div>
@@ -648,7 +648,7 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                             <span className={cn("font-bold", compactView ? "text-xl" : "text-2xl")}>
                                 {commands.filter((c) => c.enabled).length}
                             </span>
-                            <span className="text-sm text-gray-500">Active Commands</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Active Commands</span>
                         </div>
                     </div>
 
@@ -678,12 +678,12 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-1">
                                             <p className="font-medium">"{command.phrase}"</p>
-                                            <p className="text-sm text-gray-500">{command.description}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">{command.description}</p>
                                             <div className="flex items-center space-x-2">
                                                 <Badge variant={command.enabled ? "default" : "secondary"} className={command.enabled ? "bg-green-500 hover:bg-green-600" : ""}>
                                                     {command.enabled ? "Enabled" : "Disabled"}
                                                 </Badge>
-                                                <span className="text-xs text-gray-500">
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
                                                     {command.usageCount} uses
                                                 </span>
                                             </div>

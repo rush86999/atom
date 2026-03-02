@@ -201,7 +201,7 @@ const BusinessHealthDashboard: React.FC = () => {
                 <Card className="border-none shadow-sm bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
                     <CardContent className="pt-6">
                         <div className="flex items-start gap-4">
-                            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                            <div className="p-3 bg-black/5 dark:bg-black/20 dark:bg-white/20 rounded-xl backdrop-blur-sm">
                                 <Zap className="w-6 h-6 text-yellow-300 fill-yellow-300" />
                             </div>
                             <div className="space-y-1">
@@ -281,7 +281,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                         )}
                                                         Approve & Execute
                                                     </Button>
-                                                    <Button size="sm" variant="ghost" className="text-gray-400 hover:text-gray-600">
+                                                    <Button size="sm" variant="ghost" className="text-gray-400 hover:text-gray-600 dark:text-gray-400">
                                                         Dismiss
                                                     </Button>
                                                 </div>
@@ -302,7 +302,7 @@ const BusinessHealthDashboard: React.FC = () => {
                             <CardContent className="p-0">
                                 <div className="divide-y">
                                     {data?.priorities?.map((p: Priority) => (
-                                        <div key={p.id} className="p-4 flex items-start justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
+                                        <div key={p.id} className="p-4 flex items-start justify-between hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800/50 transition-colors group">
                                             <div className="flex gap-4">
                                                 <div className={`mt-1 p-2 rounded-lg ${p.type === 'RISK' ? 'bg-red-100 text-red-600' :
                                                     p.type === 'GROWTH' ? 'bg-green-100 text-green-600' :
@@ -330,7 +330,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                         </div>
                                     ))}
                                     {!data?.priorities?.length && !loading && (
-                                        <div className="p-12 text-center text-gray-500">
+                                        <div className="p-12 text-center text-gray-500 dark:text-gray-400">
                                             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
                                             <p className="font-medium">Everything is running smoothly.</p>
                                             <p className="text-sm">Enjoy the quiet or focus on long-term strategy.</p>
@@ -369,7 +369,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                         <p className="font-semibold">{d.vendor_name}</p>
                                                         {forensics.drift.is_mock && <Badge variant="outline" className="text-[8px] h-3 px-1">MOCK</Badge>}
                                                     </div>
-                                                    <p className="text-xs text-gray-500">{d.description}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{d.description}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <Badge variant="destructive">+{d.drift_percent}%</Badge>
@@ -377,7 +377,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                 </div>
                                             </div>
                                         ))}
-                                        {forensics.drift.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500">No price drift detected.</p>}
+                                        {forensics.drift.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No price drift detected.</p>}
                                     </TabsContent>
                                     <TabsContent value="pricing" className="space-y-4 pt-4">
                                         {forensics.pricing.data.map((p, i) => (
@@ -396,7 +396,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                 </div>
                                             </div>
                                         ))}
-                                        {forensics.pricing.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500">Pricing is optimized.</p>}
+                                        {forensics.pricing.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">Pricing is optimized.</p>}
                                     </TabsContent>
                                     <TabsContent value="waste" className="space-y-4 pt-4">
                                         {forensics.waste.data.map((w, i) => (
@@ -414,7 +414,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                 </div>
                                             </div>
                                         ))}
-                                        {forensics.waste.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500">No SaaS waste detected.</p>}
+                                        {forensics.waste.data.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No SaaS waste detected.</p>}
                                     </TabsContent>
                                 </Tabs>
                             </CardContent>
@@ -444,22 +444,22 @@ const BusinessHealthDashboard: React.FC = () => {
                                     <TabsContent value="churn" className="space-y-4 pt-4">
                                         <div className="space-y-4">
                                             <div>
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">At Risk (Churn Predictor)</h4>
+                                                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">At Risk (Churn Predictor)</h4>
                                                 {riskData.churn.churn_risk.map((c, i) => (
                                                     <div key={i} className="flex justify-between items-center p-3 mb-2 bg-red-50 dark:bg-red-900/10 rounded-lg">
                                                         <div>
                                                             <p className="font-semibold">{c.client_name}</p>
-                                                            <p className="text-xs text-gray-500">{c.days_silent} days silent • ${c.value.toLocaleString()}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{c.days_silent} days silent • ${c.value.toLocaleString()}</p>
                                                         </div>
                                                         <Badge variant="secondary" className="bg-red-200 text-red-800">
                                                             {c.risk_level} RISK
                                                         </Badge>
                                                     </div>
                                                 ))}
-                                                {riskData.churn.churn_risk.length === 0 && <p className="text-sm text-gray-500 italic">No high-risk clients detected.</p>}
+                                                {riskData.churn.churn_risk.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">No high-risk clients detected.</p>}
                                             </div>
                                             <div>
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">VIP Opportunities</h4>
+                                                <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">VIP Opportunities</h4>
                                                 {riskData.churn.vip_opportunities.map((v, i) => (
                                                     <div key={i} className="flex justify-between items-center p-3 mb-2 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100">
                                                         <div>
@@ -477,7 +477,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                             <div key={i} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border-l-4 border-amber-500">
                                                 <div>
                                                     <p className="font-semibold">{a.description}</p>
-                                                    <p className="text-xs text-gray-500">Overdue by {a.days_overdue} days</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">Overdue by {a.days_overdue} days</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-bold text-amber-700">${a.amount.toLocaleString()}</p>
@@ -485,7 +485,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                                 </div>
                                             </div>
                                         ))}
-                                        {riskData.alerts.ar_alerts.length === 0 && <p className="text-sm text-center py-4 text-gray-500">No early warnings.</p>}
+                                        {riskData.alerts.ar_alerts.length === 0 && <p className="text-sm text-center py-4 text-gray-500 dark:text-gray-400">No early warnings.</p>}
                                     </TabsContent>
                                     <TabsContent value="fraud" className="space-y-4 pt-4">
                                         {riskData.fraud.anomalies.map((f, i) => (
@@ -549,11 +549,11 @@ const BusinessHealthDashboard: React.FC = () => {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                                                <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Predicted ROI</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">Predicted ROI</p>
                                                 <p className="text-lg font-bold text-green-600">{simResult.roi || "142%"}</p>
                                             </div>
                                             <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                                                <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Breakeven</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">Breakeven</p>
                                                 <p className="text-lg font-bold text-blue-600">{simResult.breakeven || "4.5 Months"}</p>
                                             </div>
                                         </div>
@@ -578,14 +578,14 @@ const BusinessHealthDashboard: React.FC = () => {
                             <CardContent className="space-y-6">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Cash Runway</span>
+                                        <span className="text-gray-500 dark:text-gray-400">Cash Runway</span>
                                         <span className="font-bold">14.2 Months</span>
                                     </div>
                                     <Progress value={85} className="h-2" />
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Margin Health</span>
+                                        <span className="text-gray-500 dark:text-gray-400">Margin Health</span>
                                         <span className="font-bold text-green-600">Healthy (32%)</span>
                                     </div>
                                     <Progress value={75} className="h-2" />
@@ -598,7 +598,7 @@ const BusinessHealthDashboard: React.FC = () => {
                                         </h5>
                                         <Badge variant="secondary">82%</Badge>
                                     </div>
-                                    <div className="grid grid-cols-4 gap-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="grid grid-cols-4 gap-1 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                                         <div className="bg-blue-500 h-full"></div>
                                         <div className="bg-blue-500 h-full"></div>
                                         <div className="bg-blue-500 h-full"></div>
@@ -608,7 +608,7 @@ const BusinessHealthDashboard: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-gray-900 text-white">
+                        <Card className="bg-gray-900 text-gray-900 dark:text-white">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <DollarSign className="w-4 h-4 text-green-400" />
@@ -617,11 +617,11 @@ const BusinessHealthDashboard: React.FC = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                                    <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-3 rounded-lg">
                                         <span className="text-xs opacity-70">Price Drift (AWS)</span>
                                         <span className="text-sm font-bold text-red-400">+$12.40</span>
                                     </div>
-                                    <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                                    <div className="flex justify-between items-center bg-black/5 dark:bg-white/5 p-3 rounded-lg">
                                         <span className="text-xs opacity-70">Unused SaaS (Trello)</span>
                                         <span className="text-sm font-bold text-red-400">-$24.00</span>
                                     </div>

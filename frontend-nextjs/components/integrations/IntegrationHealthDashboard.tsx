@@ -300,7 +300,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
     return (
       <div className="flex flex-col items-center justify-center py-8">
         <Spinner size="lg" />
-        <p className="mt-4 text-gray-500">Loading integration health status...</p>
+        <p className="mt-4 text-gray-500 dark:text-gray-400">Loading integration health status...</p>
       </div>
     );
   }
@@ -356,7 +356,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-gray-900 dark:text-gray-100">Overall Health</h3>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 {healthyCount}/{totalCount} healthy
               </span>
             </div>
@@ -368,7 +368,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
               }
               className="h-3"
             />
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
               <span>0%</span>
               <span>50%</span>
               <span>100%</span>
@@ -393,7 +393,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         </div>
 
         {lastUpdated && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Last updated: {lastUpdated.toLocaleString()}
           </p>
         )}

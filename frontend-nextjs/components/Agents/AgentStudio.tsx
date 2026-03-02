@@ -366,7 +366,7 @@ const AgentStudio: React.FC = () => {
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1 space-y-4">
-                            <p className="text-sm text-gray-500 line-clamp-2">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
                                 {agent.description || "No description provided."}
                             </p>
 
@@ -529,21 +529,21 @@ const AgentStudio: React.FC = () => {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="p-3 border rounded bg-white text-sm space-y-2">
+                                                    <div className="p-3 border rounded bg-white dark:bg-gray-900 text-sm space-y-2">
                                                         <div className="flex justify-between items-start">
-                                                            <span className="font-bold text-xs bg-gray-200 px-2 py-0.5 rounded">Step {step.step}</span>
+                                                            <span className="font-bold text-xs bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded">Step {step.step}</span>
                                                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleOpenFeedback(step)}>
                                                                 <ThumbsDown className="w-3 h-3 text-gray-400 hover:text-red-500" />
                                                             </Button>
                                                         </div>
-                                                        <div className="text-gray-700"><strong>Thought:</strong> {step.thought}</div>
+                                                        <div className="text-gray-700 dark:text-gray-300"><strong>Thought:</strong> {step.thought}</div>
                                                         {step.action && (
-                                                            <div className="font-mono text-xs bg-gray-50 p-2 rounded">
+                                                            <div className="font-mono text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded">
                                                                 <span className="text-blue-600">Action:</span> {JSON.stringify(step.action)}
                                                             </div>
                                                         )}
                                                         {step.output && (
-                                                            <div className="font-mono text-xs text-gray-500">
+                                                            <div className="font-mono text-xs text-gray-500 dark:text-gray-400">
                                                                 <span className="text-green-600">Observation:</span> {step.output}
                                                             </div>
                                                         )}

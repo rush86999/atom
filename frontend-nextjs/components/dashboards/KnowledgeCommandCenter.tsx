@@ -82,7 +82,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
             asana: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
         };
         return (
-            <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", colors[platform] || 'bg-white/5')}>
+            <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", colors[platform] || 'bg-black/5 dark:bg-white/5')}>
                 {platform.replace('_', ' ')}
             </Badge>
         );
@@ -106,25 +106,25 @@ export const KnowledgeCommandCenter: React.FC = () => {
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-white/60">
                         Global Intelligence Hub
                     </h1>
                     <p className="text-muted-foreground mt-1">
                         Cross-platform knowledge search and business intelligence.
                     </p>
                 </div>
-                <div className="flex gap-3 text-white items-center">
+                <div className="flex gap-3 text-gray-900 dark:text-white items-center">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
-                        className="bg-white/5 border-white/10"
+                        className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10"
                     >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
                     </Button>
                     <button
-                        className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-primary text-xs font-bold hover:bg-primary/10 transition-colors uppercase"
+                        className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-primary text-xs font-bold hover:bg-primary/10 transition-colors uppercase"
                         onClick={() => toast.success('Redirecting to Atom Agent for knowledge query...')}
                     >
                         <MessageSquare className="w-3 h-3" />
@@ -135,7 +135,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Deep search across all systems..."
-                            className="pl-10 pr-10 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-96 text-white"
+                            className="pl-10 pr-10 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-96 text-gray-900 dark:text-white"
                             value={search}
                             onChange={handleSearch}
                         />
@@ -144,7 +144,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                 onClick={() => { setSearch(''); setShowSearchResults(false); clearSearch(); }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2"
                             >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-white" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-gray-900 dark:text-white" />
                             </button>
                         )}
                     </div>
@@ -156,7 +156,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Knowledge Search Results for &quot;{search}&quot;</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Knowledge Search Results for &quot;{search}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearch(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -164,12 +164,12 @@ export const KnowledgeCommandCenter: React.FC = () => {
                     ) : searchResults.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {searchResults.map((result) => (
-                                <Card key={result.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors pointer-cursor">
+                                <Card key={result.id} className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors pointer-cursor">
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="capitalize text-[10px]">{result.app_type}</Badge>
-                                                <span className="font-semibold text-white">{result.subject || result.sender}</span>
+                                                <span className="font-semibold text-gray-900 dark:text-white">{result.subject || result.sender}</span>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{new Date(result.timestamp).toLocaleString()}</span>
                                         </div>
@@ -179,15 +179,15 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical intelligence found for &quot;{search}&quot;.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">No historical intelligence found for &quot;{search}&quot;.</div>
                     )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="lg:col-span-3 space-y-6">
                         {/* Filter Bar */}
-                        <div className="flex flex-wrap gap-2 items-center bg-white/5 p-2 rounded-xl border border-white/5">
-                            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 mr-2">
+                        <div className="flex flex-wrap gap-2 items-center bg-black/5 dark:bg-white/5 p-2 rounded-xl border border-black/5 dark:border-white/5">
+                            <div className="flex bg-black/5 dark:bg-black/40 p-1 rounded-lg border border-black/5 dark:border-white/5 mr-2">
                                 {['all', 'file', 'task', 'deal', 'ticket'].map(type => (
                                     <button
                                         key={type}
@@ -204,7 +204,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             <select
                                 value={activePlatform}
                                 onChange={(e) => setActivePlatform(e.target.value)}
-                                className="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-xs text-white focus:outline-none"
+                                className="bg-black/5 dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1 text-xs text-gray-900 dark:text-white focus:outline-none"
                             >
                                 <option value="all">All Platforms</option>
                                 <option value="gdrive">Google Drive</option>
@@ -216,40 +216,40 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             <div className="flex-1" />
                             <button
                                 onClick={() => { setActiveType('all'); setActivePlatform('all'); setSearch('') }}
-                                className="text-[10px] text-muted-foreground hover:text-white uppercase font-bold"
+                                className="text-[10px] text-muted-foreground hover:text-gray-900 dark:text-white uppercase font-bold"
                             >
                                 Reset
                             </button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Objects</CardTitle>
                                     <HardDrive className="w-4 h-4 text-blue-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.total}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Across 6 platforms</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Tasks</CardTitle>
                                     <CheckCircle2 className="w-4 h-4 text-green-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.tasks}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.tasks}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Found in global scan</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Critical Alerts</CardTitle>
                                     <AlertCircle className="w-4 h-4 text-red-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.critical + insights.filter(i => i.severity === 'critical').length}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.critical + insights.filter(i => i.severity === 'critical').length}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Requiring action</p>
                                 </CardContent>
                             </Card>
@@ -259,7 +259,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                         {insights.length > 0 && (
                             <div className="animate-in slide-in-from-top duration-500">
                                 <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20 backdrop-blur-xl overflow-hidden">
-                                    <CardHeader className="pb-2 border-b border-white/5 bg-white/5">
+                                    <CardHeader className="pb-2 border-b border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
                                         <div className="flex justify-between items-center">
                                             <CardTitle className="text-xs font-bold text-primary uppercase tracking-tighter flex items-center gap-2">
                                                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -271,13 +271,13 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                     <CardContent className="p-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {insights.slice(0, 2).map((insight: SmartInsight, idx: number) => (
-                                                <div key={idx} className="bg-black/40 border border-white/5 p-4 rounded-xl space-y-3 relative group overflow-hidden transition-all hover:border-primary/30">
+                                                <div key={idx} className="bg-black/5 dark:bg-black/40 border border-black/5 dark:border-white/5 p-4 rounded-xl space-y-3 relative group overflow-hidden transition-all hover:border-primary/30">
                                                     <div className={cn(
                                                         "absolute top-0 right-0 w-1 h-full",
                                                         insight.severity === 'critical' ? 'bg-red-500' : 'bg-orange-500'
                                                     )} />
                                                     <div className="flex justify-between items-start gap-2">
-                                                        <h3 className="font-bold text-sm text-white group-hover:text-primary transition-colors">{insight.title}</h3>
+                                                        <h3 className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-primary transition-colors">{insight.title}</h3>
                                                         <Badge variant="outline" className={cn(
                                                             "text-[9px] uppercase",
                                                             insight.severity === 'critical' ? 'text-red-400 border-red-500/20' : 'text-orange-400 border-orange-500/20'
@@ -286,13 +286,13 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                                         </Badge>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground leading-relaxed">{insight.description}</p>
-                                                    <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                                                        <p className="text-[10px] text-white/70 italic font-medium">💡 Recommendation: {insight.recommendation}</p>
+                                                    <div className="p-2 bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5">
+                                                        <p className="text-[10px] text-gray-900 dark:text-white/70 italic font-medium">💡 Recommendation: {insight.recommendation}</p>
                                                     </div>
                                                     <div className="flex justify-between items-center pt-2">
                                                         <div className="flex gap-1">
                                                             {insight.platforms.map((p: string, i: number) => (
-                                                                <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/5 rounded border border-white/10 text-muted-foreground uppercase font-bold">{p}</span>
+                                                                <span key={i} className="text-[9px] px-1.5 py-0.5 bg-black/5 dark:bg-white/5 rounded border border-black/10 dark:border-white/10 text-muted-foreground uppercase font-bold">{p}</span>
                                                             ))}
                                                         </div>
                                                         <button className="text-[10px] text-primary hover:underline font-bold uppercase tracking-tighter">Take Action</button>
@@ -305,10 +305,10 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             </div>
                         )}
 
-                        <Card className="bg-black/40 border-white/5 backdrop-blur-xl overflow-hidden">
+                        <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-white/5 text-muted-foreground">
+                                    <thead className="bg-black/5 dark:bg-white/5 text-muted-foreground">
                                         <tr>
                                             <th className="px-6 py-4 font-semibold uppercase text-[10px]">Title / Name</th>
                                             <th className="px-6 py-4 font-semibold uppercase text-[10px]">Type</th>
@@ -325,7 +325,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                                 </td>
                                             </tr>
                                         ) : filteredItems.map((item: KnowledgeItem) => (
-                                            <tr key={item.id} className="hover:bg-white/5 transition-colors group text-white">
+                                            <tr key={item.id} className="hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 transition-colors group text-gray-900 dark:text-white">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         {getTypeIcon(item.type)}
@@ -342,7 +342,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                                     {item.type === 'deal' ? (
                                                         <span className="text-green-400 font-mono font-semibold">${item.value?.toLocaleString()}</span>
                                                     ) : item.status ? (
-                                                        <Badge variant="outline" className="text-[10px] bg-white/5">{item.status}</Badge>
+                                                        <Badge variant="outline" className="text-[10px] bg-black/5 dark:bg-white/5">{item.status}</Badge>
                                                     ) : (
                                                         <span className="text-muted-foreground text-xs">{item.modified_at}</span>
                                                     )}
@@ -357,7 +357,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                                                             <MessageSquare className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                                                             <span className="text-[10px] hidden group-hover:inline uppercase font-bold text-primary">Ask</span>
                                                         </button>
-                                                        <button className="text-muted-foreground hover:text-white transition-colors">
+                                                        <button className="text-muted-foreground hover:text-gray-900 dark:text-white transition-colors">
                                                             <ExternalLink className="w-4 h-4" />
                                                         </button>
                                                     </div>

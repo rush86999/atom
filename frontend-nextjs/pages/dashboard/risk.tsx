@@ -130,7 +130,7 @@ export default function RiskDashboard() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {financial?.fraud_alerts?.map((f: any) => (
-                                    <div key={f.transaction_id} className="p-3 bg-white rounded-lg border border-red-100 shadow-sm">
+                                    <div key={f.transaction_id} className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-red-100 shadow-sm">
                                         <div className="flex justify-between font-medium text-sm">
                                             <span>#{f.transaction_id}</span>
                                             <span className="text-red-600">${f.amount}</span>
@@ -177,7 +177,7 @@ export default function RiskDashboard() {
                                 </div>
                                 <div className="space-y-2 mt-4">
                                     {growth?.bottlenecks?.map((b: any, i: number) => (
-                                        <div key={i} className="flex justify-between text-sm p-2 bg-slate-50 rounded">
+                                        <div key={i} className="flex justify-between text-sm p-2 bg-slate-50 dark:bg-slate-900 rounded">
                                             <span className="font-medium">{b.area}</span>
                                             <span className={b.status === "strained" ? "text-red-500" : "text-green-500"}>
                                                 {b.status === "strained" ? "Strained ⚠️" : "Healthy ✅"}

@@ -99,7 +99,7 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
                     <div className="bg-zinc-950 rounded-lg p-4 font-mono text-xs overflow-auto border border-zinc-800 shadow-inner">
                         <div className="flex justify-between items-center mb-2 border-b border-zinc-800 pb-2">
                             <span className="text-zinc-500">javascript</span>
-                            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-zinc-400 hover:text-white">
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-zinc-400 hover:text-gray-900 dark:text-white">
                                 <Play className="h-3 w-3 mr-1" /> Run
                             </Button>
                         </div>
@@ -154,8 +154,8 @@ function CanvasContent({ component, data, canvasId }: { component: string; data:
                                 alt="Browser Snapshot"
                                 className="w-full h-auto cursor-zoom-in"
                             />
-                            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p className="text-[10px] text-white text-center">Interactive remote control disabled in preview</p>
+                            <div className="absolute inset-x-0 bottom-0 bg-black/10 dark:bg-black/60 backdrop-blur-sm p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <p className="text-[10px] text-gray-900 dark:text-white text-center">Interactive remote control disabled in preview</p>
                             </div>
                         </div>
                     ) : (

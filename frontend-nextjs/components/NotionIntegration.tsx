@@ -462,11 +462,11 @@ const NotionIntegration: React.FC = () => {
             case "in progress":
                 return "bg-yellow-100 text-yellow-800";
             case "not started":
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
             case "blocked":
                 return "bg-red-100 text-red-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 
@@ -479,7 +479,7 @@ const NotionIntegration: React.FC = () => {
             case "low":
                 return "bg-blue-100 text-blue-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 
@@ -497,7 +497,7 @@ const NotionIntegration: React.FC = () => {
                 {/* Header */}
                 <div className="flex flex-col space-y-4">
                     <div className="flex items-center space-x-4">
-                        <Settings className="w-8 h-8 text-black" />
+                        <Settings className="w-8 h-8 text-black dark:text-white" />
                         <div className="flex flex-col space-y-1">
                             <h1 className="text-3xl font-bold">Notion Integration</h1>
                             <p className="text-lg text-muted-foreground">

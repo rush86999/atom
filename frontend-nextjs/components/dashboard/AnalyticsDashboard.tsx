@@ -265,7 +265,7 @@ const WorkflowAnalyticsDashboard: React.FC = () => {
       case 'down':
         return <TrendingDown className="h-4 w-4 text-red-500" />;
       default:
-        return <Minus className="h-4 w-4 text-gray-500" />;
+        return <Minus className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 

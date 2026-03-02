@@ -391,7 +391,7 @@ const DevStudio = () => {
                                                                 {item.is_directory ? (
                                                                     <Folder className="h-4 w-4 text-blue-500" />
                                                                 ) : (
-                                                                    <File className="h-4 w-4 text-gray-500" />
+                                                                    <File className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                                                 )}
                                                                 <span>{item.name}</span>
                                                             </div>

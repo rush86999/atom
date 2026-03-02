@@ -62,7 +62,7 @@ export function CognitiveTierWizard() {
             }`}>
               {i < currentStepIndex ? <Check className="h-4 w-4" /> : i + 1}
             </div>
-            {i < steps.length - 1 && <div className="w-16 h-0.5 bg-gray-200 mx-2" />}
+            {i < steps.length - 1 && <div className="w-16 h-0.5 bg-gray-200 dark:bg-gray-800 mx-2" />}
           </div>
         ))}
       </div>

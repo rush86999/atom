@@ -25,7 +25,7 @@ export function DailyBriefingCard({ advice, priorities }: DailyBriefingProps) {
             case "GROWTH": return "bg-green-100 text-green-800 hover:bg-green-200 border-green-200";
             case "RISK": return "bg-red-100 text-red-800 hover:bg-red-200 border-red-200";
             case "STRATEGY": return "bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200";
-            default: return "bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200";
+            default: return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 border-gray-200 dark:border-gray-700";
         }
     };
 

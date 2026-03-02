@@ -19,7 +19,7 @@ const GmailSearch: React.FC<GmailSearchProps> = ({ data, dataType, onSearch, loa
                     disabled={loading}
                 />
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
                 {loading ? 'Loading...' : `Showing ${data.length} of ${totalCount} items`}
             </div>
         </div>

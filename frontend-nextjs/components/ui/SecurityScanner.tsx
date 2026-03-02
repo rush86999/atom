@@ -27,7 +27,7 @@ export const SecurityScanner: React.FC<SecurityScannerProps> = ({ isScanning, re
         switch (severity) {
             case 'CRITICAL': return 'bg-red-600 text-white';
             case 'HIGH': return 'bg-red-500 text-white';
-            case 'MEDIUM': return 'bg-yellow-500 text-black';
+            case 'MEDIUM': return 'bg-yellow-500 text-black dark:text-white';
             case 'LOW': return 'bg-blue-500 text-white';
             default: return 'bg-gray-500 text-white';
         }
@@ -39,7 +39,7 @@ export const SecurityScanner: React.FC<SecurityScannerProps> = ({ isScanning, re
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <Shield className="h-5 w-5 text-emerald-500" />
-                        <CardTitle className="text-lg text-white font-black uppercase tracking-tighter">Security Check</CardTitle>
+                        <CardTitle className="text-lg text-gray-900 dark:text-white font-black uppercase tracking-tighter">Security Check</CardTitle>
                     </div>
                     <Button
                         size="sm"

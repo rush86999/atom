@@ -283,6 +283,31 @@ async def export_trial_balance():
         message="Trial balance exported successfully"
     )
 
+# ==================== FORECASTING & SCENARIO ====================
+
+@router.get("/forecast")
+async def get_forecast(workspace_id: str = "default"):
+    """Get 13-week cash flow forecast"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    data = ai_accounting.get_13_week_forecast()
+    return router.success_response(
+        data=data,
+        message="Forecast generated successfully"
+    )
+
+@router.post("/scenario")
+async def run_scenario(workspace_id: str = "default", scenario_description: str = ""):
+    """Analyze a what-if scenario"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    base_forecast = ai_accounting.get_13_week_forecast().get("projection", [])
+    data = ai_accounting.run_scenario(scenario_description, base_forecast)
+    return router.success_response(
+        data=data,
+        message="Scenario analyzed successfully"
+    )
+
 # ==================== DASHBOARD SYNC ====================
 
 @router.get("/dashboard/summary")

@@ -43,15 +43,15 @@
 
   .dark {
     /* Modern AI Dark Theme - Deep Space, Neon Accents, Glassmorphism */
-    --background: 230 35% 7%;
-    /* Deep Space Blue/Black */
+    --background: 230 40% 4%;
+    /* Extra Deep Space Blue/Black for higher contrast */
     --foreground: 210 40% 98%;
 
-    --card: 230 35% 11%;
+    --card: 230 35% 9%;
     /* Slightly lighter than bg */
     --card-foreground: 210 40% 98%;
 
-    --popover: 230 35% 11%;
+    --popover: 230 35% 9%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 217 91% 60%;
@@ -63,7 +63,7 @@
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 215 20.2% 80%;
 
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;

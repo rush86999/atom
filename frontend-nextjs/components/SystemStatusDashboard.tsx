@@ -142,7 +142,7 @@ const SystemStatusDashboard: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mb-4" />
-        <p className="text-gray-600">Loading system status...</p>
+        <p className="text-gray-600 dark:text-gray-400">Loading system status...</p>
       </div>
     );
   }
@@ -153,7 +153,7 @@ const SystemStatusDashboard: React.FC = () => {
       <div className="flex justify-between items-start gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">System Status Dashboard</h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleString() : 'Unknown'}
           </p>
         </div>
@@ -182,13 +182,13 @@ const SystemStatusDashboard: React.FC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">System Uptime</span>
+                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">System Uptime</span>
               </div>
               <p className="text-3xl font-bold">
                 {systemStatus ? formatUptime(systemStatus.uptime.system_seconds) : 'N/A'}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Process: {systemStatus ? formatUptime(systemStatus.uptime.process_seconds) : 'N/A'}
               </p>
             </div>
@@ -199,8 +199,8 @@ const SystemStatusDashboard: React.FC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">CPU Usage</span>
+                <Cpu className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">CPU Usage</span>
               </div>
               <p className="text-3xl font-bold">
                 {systemStatus?.resources?.cpu?.percent?.toFixed(1) || '0'}%
@@ -217,13 +217,13 @@ const SystemStatusDashboard: React.FC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <MemoryStick className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Memory Usage</span>
+                <MemoryStick className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Memory Usage</span>
               </div>
               <p className="text-3xl font-bold">
                 {systemStatus?.resources?.memory?.system_used_percent?.toFixed(1) || '0'}%
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {systemStatus?.resources?.memory?.rss_mb || '0'} MB used
               </p>
             </div>
@@ -234,13 +234,13 @@ const SystemStatusDashboard: React.FC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Disk Usage</span>
+                <HardDrive className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Disk Usage</span>
               </div>
               <p className="text-3xl font-bold">
                 {systemStatus?.resources?.disk?.percent?.toFixed(1) || '0'}%
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {systemStatus?.resources?.disk?.free_gb || '0'} GB free
               </p>
             </div>
@@ -265,12 +265,12 @@ const SystemStatusDashboard: React.FC = () => {
                         {service.status}
                       </Badge>
                       {service.response_time_ms && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {service.response_time_ms}ms
                         </p>
                       )}
                     </div>
-                    <div className="text-gray-500">
+                    <div className="text-gray-500 dark:text-gray-400">
                       {getStatusIcon(service.status)}
                     </div>
                   </div>
@@ -327,19 +327,19 @@ const SystemStatusDashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-sm text-gray-600">Platform</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Platform</p>
               <p className="text-sm font-medium">{systemStatus?.system?.platform?.system || 'Unknown'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Node</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Node</p>
               <p className="text-sm font-medium">{systemStatus?.system?.platform?.node || 'Unknown'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Python Version</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Python Version</p>
               <p className="text-sm font-medium">{systemStatus?.system?.python?.version?.split(' ')[0] || 'Unknown'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Process ID</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Process ID</p>
               <p className="text-sm font-medium">{systemStatus?.system?.process?.pid || 'Unknown'}</p>
             </div>
           </CardContent>
@@ -361,17 +361,17 @@ const SystemStatusDashboard: React.FC = () => {
                   </Badge>
                   <p className="font-medium">{feature.description}</p>
                   {feature.providers && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {feature.providers} providers
                     </p>
                   )}
                   {feature.services_registered && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {feature.services_registered} services
                     </p>
                   )}
                   {feature.templates_available && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {feature.templates_available} templates
                     </p>
                   )}

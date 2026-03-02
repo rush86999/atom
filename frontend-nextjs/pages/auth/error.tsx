@@ -32,7 +32,7 @@ export default function AuthError() {
           <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
             <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+          <h1 className="text-4xl font-bold tracking-tight text-white mb-2">
             Authentication Error
           </h1>
           <p className="text-gray-600 dark:text-gray-400">

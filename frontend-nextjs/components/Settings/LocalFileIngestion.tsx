@@ -278,7 +278,7 @@ export default function LocalFileIngestion() {
                                         </span>
                                         <div className="min-w-0">
                                             <p className="font-medium truncate">{file.file_name}</p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {file.extension.toUpperCase()} • {formatFileSize(file.file_size)}
                                             </p>
                                         </div>
@@ -312,7 +312,7 @@ export default function LocalFileIngestion() {
             )}
 
             {files.length === 0 && !loading && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <span className="text-3xl block mb-2">📂</span>
                     <p>No files ingested yet</p>
                     <p className="text-sm">Select a file or folder to get started</p>

@@ -357,18 +357,18 @@ const GitHubIntegration: React.FC = () => {
             Ruby: "bg-red-100 text-red-800",
             PHP: "bg-purple-100 text-purple-800",
             "C++": "bg-blue-100 text-blue-800",
-            C: "bg-gray-100 text-gray-800",
-            Shell: "bg-gray-100 text-gray-800",
+            C: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+            Shell: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
             HTML: "bg-orange-100 text-orange-800",
             CSS: "bg-blue-100 text-blue-800",
         };
-        return colors[language] || "bg-gray-100 text-gray-800";
+        return colors[language] || "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
     };
 
     const getStateColor = (state: string): string => {
         return state === "open"
             ? "bg-green-100 text-green-800"
-            : "bg-gray-100 text-gray-800";
+            : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
     };
 
     return (
@@ -377,7 +377,7 @@ const GitHubIntegration: React.FC = () => {
                 {/* Header */}
                 <div className="flex flex-col space-y-4">
                     <div className="flex items-center space-x-4">
-                        <Eye className="w-8 h-8 text-black" />
+                        <Eye className="w-8 h-8 text-black dark:text-white" />
                         <div className="flex flex-col space-y-1">
                             <h1 className="text-3xl font-bold">GitHub Integration</h1>
                             <p className="text-lg text-muted-foreground">
@@ -696,7 +696,7 @@ const GitHubIntegration: React.FC = () => {
                                                                     <Badge
                                                                         key={label.id}
                                                                         style={{ backgroundColor: `#${label.color}` }}
-                                                                        className="text-white"
+                                                                        className="text-gray-900 dark:text-white"
                                                                     >
                                                                         {label.name}
                                                                     </Badge>

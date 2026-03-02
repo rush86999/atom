@@ -249,7 +249,7 @@ const OneDriveIntegration: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        <p className="mt-4 text-gray-500">Loading OneDrive integration...</p>
+        <p className="mt-4 text-gray-500 dark:text-gray-400">Loading OneDrive integration...</p>
       </div>
     );
   }
@@ -260,7 +260,7 @@ const OneDriveIntegration: React.FC = () => {
         <h2 className="text-2xl font-bold tracking-tight">
           OneDrive Integration
         </h2>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           Connect your OneDrive to search and manage files directly within ATOM
         </p>
       </div>
@@ -280,12 +280,12 @@ const OneDriveIntegration: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 as {connectionStatus.email || connectionStatus.display_name}
               </span>
             </div>
             {connectionStatus.drive_type && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Drive Type: {connectionStatus.drive_type}
               </p>
             )}
@@ -302,7 +302,7 @@ const OneDriveIntegration: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Badge variant="destructive">Not Connected</Badge>
               {connectionStatus?.reason && (
-                <span className="text-sm text-gray-600">{connectionStatus.reason}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{connectionStatus.reason}</span>
               )}
             </div>
             <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleConnect}>
@@ -316,7 +316,7 @@ const OneDriveIntegration: React.FC = () => {
         <div className="p-6 border rounded-lg bg-white dark:bg-gray-900 space-y-4">
           <h3 className="text-lg font-semibold">Files & Folders</h3>
 
-          <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
             {pathHistory.map((item, index) => (
               <React.Fragment key={item.id || "root"}>
                 {index > 0 && <ChevronRight className="h-4 w-4" />}
@@ -337,11 +337,11 @@ const OneDriveIntegration: React.FC = () => {
           {isLoadingFiles && files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              <p className="mt-2 text-gray-500">Loading files...</p>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">Loading files...</p>
             </div>
           ) : files.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">No files found in this folder</p>
+              <p className="text-gray-500 dark:text-gray-400">No files found in this folder</p>
             </div>
           ) : (
             <>
@@ -362,7 +362,7 @@ const OneDriveIntegration: React.FC = () => {
                         key={file.id}
                         className={
                           file.is_folder
-                            ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                            ? "cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800"
                             : ""
                         }
                         onClick={() => file.is_folder && handleFileClick(file)}

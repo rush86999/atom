@@ -243,7 +243,7 @@ const CATEGORY_CONFIG: Record<string, { icon: React.ComponentType<any>; label: s
     marketing: { icon: Mail, label: 'Marketing', color: 'bg-pink-100 text-pink-700' },
     support: { icon: Headphones, label: 'Support', color: 'bg-green-100 text-green-700' },
     hr: { icon: Users, label: 'HR', color: 'bg-purple-100 text-purple-700' },
-    engineering: { icon: FileText, label: 'Engineering', color: 'bg-gray-100 text-gray-700' },
+    engineering: { icon: FileText, label: 'Engineering', color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' },
     finance: { icon: Database, label: 'Finance', color: 'bg-yellow-100 text-yellow-700' },
     productivity: { icon: Calendar, label: 'Productivity', color: 'bg-indigo-100 text-indigo-700' },
     ai: { icon: Sparkles, label: 'AI', color: 'bg-violet-100 text-violet-700' },
@@ -298,7 +298,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onUseTemplate, classN
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-gray-50", className)}>
+        <div className={cn("flex flex-col h-full bg-gray-50 dark:bg-gray-800", className)}>
             {/* Header */}
             <div className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-8">
                 <h1 className="text-3xl font-bold mb-2">Workflow Templates</h1>
@@ -312,14 +312,14 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onUseTemplate, classN
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search templates..."
-                            className="pl-11 bg-white text-gray-900 border-0 h-12"
+                            className="pl-11 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-0 h-12"
                         />
                     </div>
                 </div>
             </div>
 
             {/* Category Filter */}
-            <div className="bg-white border-b px-8 py-4 flex gap-2 flex-wrap">
+            <div className="bg-white dark:bg-gray-900 border-b px-8 py-4 flex gap-2 flex-wrap">
                 <Button
                     size="sm"
                     variant={selectedCategory === null ? 'default' : 'outline'}
@@ -373,7 +373,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onUseTemplate, classN
                                 ? `${CATEGORY_CONFIG[selectedCategory]?.label} Templates`
                                 : 'All Templates'}
                         </h2>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                             {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
                         </span>
                     </div>
@@ -389,7 +389,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ onUseTemplate, classN
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                             <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
                             <p className="font-medium">No templates found</p>
                             <p className="text-sm">Try a different search term or category</p>
@@ -434,7 +434,7 @@ const TemplateCard: React.FC<{
             </CardHeader>
 
             <CardContent className="pb-2">
-                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
                     {template.description}
                 </p>
 
@@ -457,7 +457,7 @@ const TemplateCard: React.FC<{
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {template.estimatedTime}

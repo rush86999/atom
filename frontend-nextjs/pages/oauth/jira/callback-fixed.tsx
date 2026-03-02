@@ -35,10 +35,10 @@ const CallbackStatus: React.FC<{
   return (
     <div className="text-center py-8">
       <div className="text-6xl mb-4">{getStatusIcon()}</div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
         {getStatusTitle()}
       </h2>
-      <p className="text-gray-600 mb-6">{getStatusMessage()}</p>
+      <p className="text-gray-600 dark:text-gray-400 mb-6">{getStatusMessage()}</p>
 
       <div className="space-x-4">
         {success ? (
@@ -51,7 +51,7 @@ const CallbackStatus: React.FC<{
         ) : (
           <button
             onClick={() => window.close()}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+            className="bg-gray-600 hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-2 px-6 rounded-lg transition-colors"
           >
             Close Window
           </button>
@@ -65,10 +65,10 @@ const LoadingState = () => {
   return (
     <div className="text-center py-8">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Processing OAuth...
       </h2>
-      <p className="text-gray-600">
+      <p className="text-gray-600 dark:text-gray-400">
         Please wait while we connect to your Jira workspace.
       </p>
     </div>
@@ -118,15 +118,15 @@ export default function JiraOAuthPage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
         <LoadingState />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="max-w-md w-full mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+      <div className="max-w-md w-full mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-lg">
         <CallbackStatus
           success={status === 'success'}
           workspace={callbackData.workspace}

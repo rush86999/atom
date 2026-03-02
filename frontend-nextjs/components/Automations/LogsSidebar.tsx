@@ -50,9 +50,9 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
     }, [workflowId]);
 
     return (
-        <div className="w-96 border-l bg-white flex flex-col h-full shadow-xl z-20 absolute right-0 top-0 bottom-0">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+        <div className="w-96 border-l bg-white dark:bg-gray-900 flex flex-col h-full shadow-xl z-20 absolute right-0 top-0 bottom-0">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <Clock className="w-4 h-4" /> Execution History
                 </h3>
                 <div className="flex gap-2">
@@ -67,13 +67,13 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
 
             <ScrollArea className="flex-1 p-4">
                 {logs.length === 0 && !loading ? (
-                    <div className="text-center text-gray-500 mt-10">No logs found yet.</div>
+                    <div className="text-center text-gray-500 dark:text-gray-400 mt-10">No logs found yet.</div>
                 ) : (
                     <div className="space-y-3">
                         {logs.map(log => (
                             <div
                                 key={log.id}
-                                className={`border rounded-lg p-3 text-sm cursor-pointer hover:bg-gray-50 transition-colors ${selectedLog?.id === log.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                                className={`border rounded-lg p-3 text-sm cursor-pointer hover:bg-gray-50 dark:bg-gray-800 transition-colors ${selectedLog?.id === log.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
                                 onClick={() => setSelectedLog(selectedLog?.id === log.id ? null : log)}
                             >
                                 <div className="flex justify-between items-start mb-2">
@@ -85,11 +85,11 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
                                         )}
                                         <span className="font-medium">{log.step_id}</span>
                                     </div>
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
                                         {format(new Date(log.created_at), 'HH:mm:ss')}
                                     </span>
                                 </div>
-                                <div className="flex justify-between text-xs text-gray-500">
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                                     <span>Duration: {log.duration_ms.toFixed(0)}ms</span>
                                     <span className="capitalize">{log.status.toLowerCase()}</span>
                                 </div>
@@ -98,16 +98,16 @@ export function LogsSidebar({ workflowId, onClose }: LogsSidebarProps) {
                                     <div className="mt-3 pt-3 border-t space-y-2 animate-in slide-in-from-top-1 duration-200">
                                         {log.trigger_data && (
                                             <div>
-                                                <div className="text-xs font-semibold text-gray-700 mb-1">Inputs:</div>
-                                                <pre className="bg-gray-100 p-2 rounded text-[10px] overflow-x-auto">
+                                                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Inputs:</div>
+                                                <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-[10px] overflow-x-auto">
                                                     {JSON.stringify(log.trigger_data, null, 2)}
                                                 </pre>
                                             </div>
                                         )}
                                         {log.results && (
                                             <div>
-                                                <div className="text-xs font-semibold text-gray-700 mb-1">Outputs:</div>
-                                                <pre className="bg-gray-100 p-2 rounded text-[10px] overflow-x-auto">
+                                                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Outputs:</div>
+                                                <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-[10px] overflow-x-auto">
                                                     {JSON.stringify(log.results, null, 2)}
                                                 </pre>
                                             </div>

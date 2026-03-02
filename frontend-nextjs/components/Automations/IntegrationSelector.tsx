@@ -77,7 +77,7 @@ const IntegrationSelector: React.FC<IntegrationSelectorProps> = ({ onSelect, sel
                         key={integration.id}
                         className={`
                             cursor-${integration.connected ? 'pointer' : 'not-allowed'}
-                            ${selectedIntegrationId === integration.id ? 'border-2 border-blue-500' : 'border-2 border-gray-200'}
+                            ${selectedIntegrationId === integration.id ? 'border-2 border-blue-500' : 'border-2 border-gray-200 dark:border-gray-700'}
                             ${integration.connected ? 'opacity-100 hover:border-blue-500 hover:-translate-y-0.5' : 'opacity-60'}
                             transition-all duration-200
                         `}

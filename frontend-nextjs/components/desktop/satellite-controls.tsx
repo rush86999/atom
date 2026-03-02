@@ -71,7 +71,7 @@ export function SatelliteControls() {
         <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-white flex items-center gap-2">
+                    <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                         <Cpu className="w-5 h-5 text-primary" />
                         Local Node (Satellite)
                     </CardTitle>
@@ -104,7 +104,7 @@ export function SatelliteControls() {
                     </div>
                 </div>
 
-                <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                <div className="p-3 bg-black/5 dark:bg-black/40 rounded-lg border border-black/5 dark:border-white/5">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-zinc-400">Terminal Access</span>
                         <Badge variant="outline" className="text-[10px] h-5 border-zinc-700 text-zinc-500">

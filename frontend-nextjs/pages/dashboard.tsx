@@ -165,7 +165,7 @@ const DashboardPage: React.FC = () => {
       case "error":
         return <AlertTriangle className="w-5 h-5 text-red-500" />;
       default:
-        return <Clock className="w-5 h-5 text-gray-500" />;
+        return <Clock className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -228,7 +228,7 @@ const DashboardPage: React.FC = () => {
           <Card className="border-l-4 border-l-blue-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Cash on Hand</span>
                   <DollarSign className="w-4 h-4 text-blue-600" />
                 </div>
@@ -240,7 +240,7 @@ const DashboardPage: React.FC = () => {
                     Stable
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Runway: <span className="font-bold text-blue-600">{financials?.runway_months || "0"} months</span>
                 </div>
               </div>
@@ -250,7 +250,7 @@ const DashboardPage: React.FC = () => {
           <Card className="border-l-4 border-l-orange-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Sales Pipeline</span>
                   <TrendingUp className="w-4 h-4 text-orange-600" />
                 </div>
@@ -259,7 +259,7 @@ const DashboardPage: React.FC = () => {
                     ${sales?.pipeline_value?.toLocaleString() || "0"}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Forecast (weighted): <span className="font-bold text-orange-600">${sales?.weighted_forecast?.toLocaleString() || "0"}</span>
                 </div>
               </div>
@@ -269,7 +269,7 @@ const DashboardPage: React.FC = () => {
           <Card className="border-l-4 border-l-purple-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Active Deals</span>
                   <PieChart className="w-4 h-4 text-purple-600" />
                 </div>
@@ -283,7 +283,7 @@ const DashboardPage: React.FC = () => {
                     </Badge>
                   )}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Avg. Conversion: <span className="font-bold text-purple-600">{sales?.conversion_rate || "0"}%</span>
                 </div>
               </div>
@@ -293,7 +293,7 @@ const DashboardPage: React.FC = () => {
           <Card className="border-l-4 border-l-red-600">
             <CardContent className="pt-6">
               <div className="flex flex-col space-y-2">
-                <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+                <div className="flex justify-between items-center text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span>Accounts Payable</span>
                   <TrendingDown className="w-4 h-4 text-red-600" />
                 </div>
@@ -302,7 +302,7 @@ const DashboardPage: React.FC = () => {
                     ${financials?.accounts_payable?.toLocaleString() || "0"}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Receivables (AR): <span className="font-bold text-green-600">${financials?.accounts_receivable?.toLocaleString() || "0"}</span>
                 </div>
               </div>
@@ -404,11 +404,11 @@ const DashboardPage: React.FC = () => {
 
                         <div className="space-y-2 pt-2">
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">Status:</span>
+                            <span className="text-gray-500 dark:text-gray-400">Status:</span>
                             {getStatusBadge(integration.health)}
                           </div>
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">Connection:</span>
+                            <span className="text-gray-500 dark:text-gray-400">Connection:</span>
                             <div className="flex items-center space-x-1">
                               <span>
                                 {integration.connected
@@ -435,7 +435,7 @@ const DashboardPage: React.FC = () => {
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full">
                   <LayoutDashboard className="w-12 h-12 text-gray-400" />
                 </div>
-                <p className="text-gray-600 text-lg">
+                <p className="text-gray-600 dark:text-gray-400 text-lg">
                   No integrations connected yet
                 </p>
                 <Button onClick={() => router.push("/integrations")}>
@@ -459,26 +459,26 @@ const DashboardPage: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500" />
+                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                   <span>Next.js integration connected</span>
                 </div>
-                <span className="text-sm text-gray-500">2 minutes ago</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">2 minutes ago</span>
               </div>
 
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500" />
+                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                   <span>GitHub repositories synced</span>
                 </div>
-                <span className="text-sm text-gray-500">15 minutes ago</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">15 minutes ago</span>
               </div>
 
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500" />
+                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                   <span>Slack channels updated</span>
                 </div>
-                <span className="text-sm text-gray-500">1 hour ago</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">1 hour ago</span>
               </div>
             </div>
           </CardContent>

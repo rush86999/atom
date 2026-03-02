@@ -143,18 +143,18 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border-white/20 shadow-2xl overflow-hidden rounded-3xl p-0">
+            <DialogContent className="max-w-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-black/20 dark:border-white/20 shadow-2xl overflow-hidden rounded-3xl p-0">
                 <div className="bg-gradient-to-br from-purple-600/10 via-blue-600/5 to-transparent p-8 pb-4">
                     <DialogHeader>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-white rounded-xl shadow-sm border border-purple-100">
+                            <div className="p-2 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-purple-100">
                                 <Settings2 className="w-5 h-5 text-purple-600" />
                             </div>
                             <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-900 to-blue-900">
                                 Manage {integrationName} Connections
                             </DialogTitle>
                         </div>
-                        <DialogDescription className="text-gray-500 font-medium">
+                        <DialogDescription className="text-gray-500 dark:text-gray-400 font-medium">
                             View, rename, or remove your authenticated accounts for this service.
                         </DialogDescription>
                     </DialogHeader>
@@ -167,7 +167,7 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
                             <p className="text-sm font-medium text-gray-400">Loading connections...</p>
                         </div>
                     ) : connections.length === 0 ? (
-                        <div className="text-center py-20 border-2 border-dashed border-gray-100 rounded-3xl">
+                        <div className="text-center py-20 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl">
                             <p className="text-gray-400 font-medium">No connections found for this integration.</p>
                         </div>
                     ) : (
@@ -179,7 +179,7 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        className="group relative p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-purple-100 transition-all duration-300"
+                                        className="group relative p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm hover:shadow-md hover:border-purple-100 transition-all duration-300"
                                     >
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="flex-1 space-y-2">
@@ -212,7 +212,7 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
                                                 ) : (
                                                     <>
                                                         <div className="flex items-center gap-3">
-                                                            <h4 className="font-bold text-gray-900 tracking-tight">{conn.name}</h4>
+                                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 tracking-tight">{conn.name}</h4>
                                                             <Badge
                                                                 variant="outline"
                                                                 className={`
@@ -269,7 +269,7 @@ const ManageConnectionsModal: React.FC<ManageConnectionsModalProps> = ({
                     )}
                 </ScrollArea>
 
-                <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center rounded-b-3xl">
+                <div className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center rounded-b-3xl">
                     <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
                         <Shield className="w-3 h-3 text-purple-400" />
                         Credentials are encrypted at rest

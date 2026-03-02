@@ -355,8 +355,8 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🎯</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Connect to Jira</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Connect to Jira</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Authorize ATOM to access your Jira workspace and discover projects
               </p>
             </div>
@@ -377,8 +377,8 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-spin">
                 <span className="text-2xl">⚙️</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Processing OAuth Flow</h3>
-              <p className="text-gray-600">{oauthState.step}</p>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Processing OAuth Flow</h3>
+              <p className="text-gray-600 dark:text-gray-400">{oauthState.step}</p>
             </div>
             
             {/* Progress indicators */}
@@ -386,23 +386,23 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700">Start OAuth flow</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Start OAuth flow</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-gray-700">User authorization</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">User authorization</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-sm text-gray-700">Exchange code for tokens</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Exchange code for tokens</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-sm text-gray-700">Discover resources</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Discover resources</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-                  <span className="text-sm text-gray-700">Load projects and issues</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Load projects and issues</span>
                 </div>
               </div>
             </div>
@@ -416,8 +416,8 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">✅</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Jira Integration Successful</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Jira Integration Successful</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {oauthState.step}
               </p>
             </div>
@@ -425,7 +425,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
             {/* Show discovered data */}
             {oauthState.resources.length > 0 && (
               <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-3">Discovered Resources</h4>
+                <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Discovered Resources</h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {oauthState.resources.map((resource, index) => (
                     <div
@@ -433,7 +433,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
                       className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                         oauthState.selectedResource?.cloud_id === resource.cloud_id
                           ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                       }`}
                       onClick={() => handleResourceSelect(resource)}
                     >
@@ -443,11 +443,11 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
                             <span className="text-sm">🏢</span>
                           </div>
                           <div>
-                            <div className="font-medium text-gray-800">{resource.name}</div>
-                            <div className="text-sm text-gray-500">{resource.cloud_id}</div>
+                            <div className="font-medium text-gray-800 dark:text-gray-200">{resource.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{resource.cloud_id}</div>
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {resource.scopes?.length || 0} scopes
                         </div>
                       </div>
@@ -460,19 +460,19 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
             {/* Show projects and issues */}
             {oauthState.projects.length > 0 && (
               <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-3">
+                <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">
                   Projects ({oauthState.projects.length})
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {oauthState.projects.slice(0, 6).map((project, index) => (
-                    <div key={index} className="p-3 border border-gray-200 rounded-lg">
-                      <div className="font-medium text-gray-800">{project.name}</div>
-                      <div className="text-sm text-gray-500">{project.key}</div>
+                    <div key={index} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="font-medium text-gray-800 dark:text-gray-200">{project.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{project.key}</div>
                     </div>
                   ))}
                   {oauthState.projects.length > 6 && (
-                    <div className="p-3 border border-gray-200 rounded-lg text-center">
-                      <div className="font-medium text-gray-600">
+                    <div className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg text-center">
+                      <div className="font-medium text-gray-600 dark:text-gray-400">
                         +{oauthState.projects.length - 6} more
                       </div>
                     </div>
@@ -483,25 +483,25 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
 
             {oauthState.issues.length > 0 && (
               <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-3">
+                <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">
                   Recent Issues ({oauthState.issues.length})
                 </h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {oauthState.issues.slice(0, 5).map((issue, index) => (
-                    <div key={index} className="p-3 border border-gray-200 rounded-lg">
+                    <div key={index} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium text-gray-800">{issue.key}</div>
-                          <div className="text-sm text-gray-600">{issue.summary}</div>
+                          <div className="font-medium text-gray-800 dark:text-gray-200">{issue.key}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">{issue.summary}</div>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {issue.status}
                         </div>
                       </div>
                     </div>
                   ))}
                   {oauthState.issues.length > 5 && (
-                    <div className="text-center text-sm text-gray-500 py-2">
+                    <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-2">
                       +{oauthState.issues.length - 5} more issues
                     </div>
                   )}
@@ -529,7 +529,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
                     issues: []
                   });
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 🔄 Reconnect
               </button>
@@ -544,8 +544,8 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">❌</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">OAuth Integration Failed</h3>
-              <p className="text-gray-600 mb-4">{oauthState.step}</p>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">OAuth Integration Failed</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">{oauthState.step}</p>
               
               {/* Error details */}
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
@@ -585,7 +585,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
                     issues: []
                   });
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 🔄 Reset
               </button>
@@ -600,13 +600,13 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
 
   return (
     <div className={`w-full max-w-4xl mx-auto p-6 ${className}`}>
-      <div className="bg-white rounded-lg shadow-lg">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg">
         {/* Header */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Jira OAuth Integration</h2>
-              <p className="text-gray-600">Complete OAuth flow for Jira workspace access</p>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Jira OAuth Integration</h2>
+              <p className="text-gray-600 dark:text-gray-400">Complete OAuth flow for Jira workspace access</p>
             </div>
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${
@@ -615,7 +615,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
                 oauthState.status === 'error' ? 'bg-red-500' :
                 'bg-gray-300'
               }`}></div>
-              <span className="text-sm text-gray-600 capitalize">
+              <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">
                 {oauthState.status}
               </span>
             </div>

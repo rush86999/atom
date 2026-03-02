@@ -114,7 +114,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                                         "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors duration-200",
                                         isActive ? "border-purple-600 bg-purple-600 text-white" :
                                             isCompleted ? "border-green-500 bg-green-500 text-white" :
-                                                "border-gray-200 text-gray-400"
+                                                "border-gray-200 dark:border-gray-700 text-gray-400"
                                     )}
                                 >
                                     {isCompleted ? <FaCheckCircle /> : index + 1}
@@ -130,7 +130,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         );
                     })}
                     {/* Progress Bar Background (Simplified) */}
-                    <div className="absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 -z-0 hidden sm:block" />
+                    <div className="absolute left-10 right-10 top-[88px] h-[2px] bg-gray-100 dark:bg-gray-800 -z-0 hidden sm:block" />
                 </div>
 
                 <div className="min-h-[200px] py-4">
@@ -138,7 +138,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <div className="flex flex-col items-center text-center space-y-4">
                             <FaRobot className="w-16 h-16 text-purple-600 animate-bounce" />
                             <h2 className="text-2xl font-bold">Hello, {user?.first_name || "there"}!</h2>
-                            <p className="text-gray-600 max-w-sm">
+                            <p className="text-gray-600 dark:text-gray-400 max-w-sm">
                                 Atom is here to help you automate your work with the power of AI Agents.
                             </p>
                         </div>
@@ -148,7 +148,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <div className="space-y-4 px-4">
                             <div className="space-y-2">
                                 <h3 className="text-lg font-semibold">Tell us about yourself</h3>
-                                <p className="text-sm text-gray-500">This helps Atom personalize your experience.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">This helps Atom personalize your experience.</p>
                             </div>
 
                             <div className="space-y-4">
@@ -179,7 +179,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <div className="space-y-4 px-4 text-center">
                             <FaRobot className="w-12 h-12 text-purple-600 mx-auto" />
                             <h3 className="text-xl font-bold">Connect Your Intelligence</h3>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Atom uses a "Tiered BYOK" approach. You can provide your own API keys for maximum control and lowest costs.
                             </p>
                             <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-left">
@@ -199,7 +199,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <div className="flex flex-col items-center text-center space-y-4">
                             <FaRocket className="w-16 h-16 text-green-500" />
                             <h2 className="text-2xl font-bold">You're Ready!</h2>
-                            <p className="text-gray-600 max-w-sm">
+                            <p className="text-gray-600 dark:text-gray-400 max-w-sm">
                                 Your workspace is ready. You can start by exploring templates or chatting with Atom to build a workflow.
                             </p>
                         </div>
