@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 122 - Admin Routes Coverage
+**Current focus:** Phase 123 - Governance Property-Based Tests
 
 ## Current Position
 
-Phase: 12 of 16 (Admin Routes Coverage)
-Plan: 06 of 6 (Gap Closure Complete)
-Status: Phase 122 Plan 06 COMPLETE - memory archival tests, 72.50% coverage (+44 pp)
-Last activity: 2026-03-02T23:26:18Z — Plan 06 complete, 5 tests added, all 3 gaps closed, target exceeded by 12.5 pp
+Phase: 13 of 16 (Governance Property-Based Tests)
+Plan: 01 of 4 (Async Governance Invariants)
+Status: Phase 123 Plan 01 COMPLETE - async property tests for AgentContextResolver, 10 tests passing
+Last activity: 2026-03-02T23:56:18Z — Plan 01 complete, 10 async property tests added, 2000+ Hypothesis examples generated
 
-Progress: [████████████████] 100% (Phase 122 Plan 06/6)
+Progress: [███░░░░░░░░░░░░░░] 25% (Phase 123 Plan 01/4)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [████████████████] 100% (Phase 122 Pla
 | 120 | 2 | 13 | 7m |
 | 121 | 3 | 27 | 5m |
 | 122 | 4 | 30 | 8m |
+| 123 | 1 | 5 | 5m |
 
 **Recent Trend:**
 - Last 5 plans: 14m (121-03), 6m (121-02), 8m (121-01), 8m (120-01), 5m (120-02)
@@ -89,6 +90,8 @@ Progress: [████████████████] 100% (Phase 122 Pla
 | Phase 122 P05 | 3 | 4 tasks | 2 files |
 | Phase 122 P05 | 3 | 10 tasks | 2 files |
 | Phase 122 P06 | 7 | 3 tasks | 3 files |
+| Phase 123 P01 | 5 | 2 tasks | 1 files |
+| Phase 123 P01 | 321 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -164,6 +167,9 @@ Recent decisions affecting current work:
 - [Phase 122-05]: Confidence blend formula: 60% old + 40% normalized feedback (0.5*0.6 + 0.9*0.4 = 0.66)
 - [Phase 122-05]: Confidence cap at 1.0 prevents overconfidence from repeated boosts
 - [Phase 122-05]: Case-insensitive agent_role filtering for statistics aggregation
+- [Phase 123]: Async property test pattern: @pytest.mark.asyncio MUST come BEFORE @given decorator
+- [Phase 123]: HYPOTHESIS_SETTINGS_CRITICAL with max_examples=200 for async correctness validation
+- [Phase 123]: ChatSession model does not have workspace_id field (discovered during test execution)
 
 ### Pending Todos
 
@@ -254,7 +260,8 @@ Resume file: None
 - ✅ Phase 122 Plan 05: Experience lifecycle tests - world_model 68.98% (+25.91 pp)
 - ✅ Phase 122 Plan 06: Memory archival tests - world_model 72.50% (+3.52 pp)
 - Current: Phase 122 COMPLETE - All 6 plans executed, all 3 gaps closed, 72.50% agent_world_model.py coverage
-- Next: Phase 123 or next phase in roadmap
+- ✅ Phase 123 Plan 01: Async governance property tests - AgentContextResolver async invariants validated
+- Next: Phase 123 Plan 02 - Trigger interceptor property tests
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -269,6 +276,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-02*
-*Stopped at: Phase 122 COMPLETE - All 6 plans executed, all 3 gaps closed, 72.50% agent_world_model.py coverage*
+*Stopped at: Phase 123 Plan 01 COMPLETE - Async property tests for AgentContextResolver with 2000+ Hypothesis examples*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 122 Plan 06 complete - 5 memory archival tests added, 72.50% coverage (exceeds 60% target by 12.5 pp)*
+*Status: Phase 123 Plan 01 complete - 10 async property tests added, 100% pass rate, 5 minutes execution time*
