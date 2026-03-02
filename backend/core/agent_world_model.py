@@ -580,7 +580,7 @@ class WorldModelService:
                     "msg_count": len(messages),
                     "type": "archived_session",
                     "archived_at": datetime.now().isoformat()
-            }
+                }
             
             # Save to LanceDB (Cold Storage)
             success = self.db.add_document(

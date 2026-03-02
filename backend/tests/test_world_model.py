@@ -1286,5 +1286,83 @@ class TestGetExperienceStatistics:
         assert "Database connection failed" in stats["error"]
 
 
+# ============================================================================
+# TEST CLASS: Archive Session to Cold Storage
+# ============================================================================
+
+class TestArchiveSessionToColdStorage:
+    """
+    Tests for archive_session_to_cold_storage() method.
+
+    Coverage target: Lines 560-604 of agent_world_model.py
+    - test_archive_session_to_cold_storage_returns_false_when_no_messages: Empty conversation
+    - test_archive_session_to_cold_storage_handles_database_error: Database error
+
+    Note: Full integration test with real database required for success path.
+    This test focuses on error paths and empty conversation handling.
+    """
+
+    @pytest.mark.asyncio
+    async def test_archive_session_to_cold_storage_returns_false_when_no_messages(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with empty ChatMessage query
+        WHEN archive_session_to_cold_storage() is called with conversation_id
+        THEN return False (no messages to archive)
+        """
+        # Mock get_db_session to return database session with empty messages
+        mock_db_session = Mock()
+        mock_query = Mock()
+        mock_filter = Mock()
+        mock_order = Mock()
+
+        # Build query chain returning empty list
+        mock_db_session.query.return_value = mock_query
+        mock_query.filter.return_value = mock_filter
+        mock_filter.order_by.return_value = mock_order
+        mock_order.all.return_value = []
+
+        # Patch get_db_session
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__.return_value = mock_db_session
+            mock_get_db.return_value.__exit__ = Mock()
+
+            # Call archive_session_to_cold_storage
+            result = await world_model_service.archive_session_to_cold_storage(
+                conversation_id="empty-conv"
+            )
+
+            # Verify returns False
+            assert result is False
+
+            # Verify add_document was NOT called
+            mock_lancedb_handler.add_document.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_archive_session_to_cold_storage_handles_database_error(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService when ChatMessage.query raises Exception
+        WHEN archive_session_to_cold_storage() is called
+        THEN return False and log error
+        """
+        # Mock get_db_session to raise Exception
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.side_effect = Exception("Database connection failed")
+
+            # Call archive_session_to_cold_storage
+            result = await world_model_service.archive_session_to_cold_storage(
+                conversation_id="error-conv"
+            )
+
+            # Verify returns False
+            assert result is False
+
+            # Verify add_document was NOT called
+            mock_lancedb_handler.add_document.assert_not_called()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
