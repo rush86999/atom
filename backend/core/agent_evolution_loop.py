@@ -39,8 +39,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from core.models import AgentEvolutionTrace, AgentRegistry
+from core.models import AgentEvolutionTrace, AgentRegistry, Skill
 from core.group_reflection_service import GroupReflectionService
+from core.agents.skill_creation_agent import SkillCreationAgent
+from core.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +387,42 @@ class AgentEvolutionLoop:
 
         # Apply directives to system prompt (append as guidance)
         existing_prompt = evolved_config.get("system_prompt", "")
+        
+        # Skill Creation Logic: Check for direct skill creation directives
+        # Format example: "CREATE_SKILL: Fetch Shopify products from API URL https://..."
+        for directive in directives:
+            if directive.strip().upper().startswith("CREATE_SKILL:"):
+                try:
+                    logger.info("GEA: Detected skill creation directive: %s", directive)
+                    # Extract prompt from directive
+                    skill_prompt = directive.split(":", 1)[1].strip()
+                    
+                    # Initialize SkillCreationAgent (assuming llm_router dependency exists)
+                    router = LLMRouter()
+                    skill_agent = SkillCreationAgent(self.db, router)
+                    
+                    # Execute skill creation
+                    # We use generic parameters; in a real scenario, we might extract more from the directive
+                    skill = await skill_agent.create_skill_from_api_documentation(
+                        tenant_id=tenant_id,
+                        agent_id=agent.id,
+                        user_id=None, # System-initiated
+                        api_docs_url=None, # Let the agent infer or search if not provided
+                        api_description=skill_prompt,
+                        skill_name=f"evolved_skill_{uuid.uuid4().hex[:8]}"
+                    )
+                    
+                    if skill:
+                        logger.info("GEA: Successfully evolved new skill: %s", skill.name)
+                        if "active_skills" not in evolved_config:
+                            evolved_config["active_skills"] = []
+                        evolved_config["active_skills"].append(skill.id)
+                        
+                        # Add success note to evolution history
+                        evolved_config["evolution_history"][-1]["skill_created"] = skill.name
+                except Exception as e:
+                    logger.error("GEA: Failed to create skill from directive: %s", e)
+
         directive_block = "\n\n## Evolution Directives\n" + "\n".join(
             f"- {d}" for d in directives
         )

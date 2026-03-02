@@ -1,9 +1,13 @@
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
+    yaml = None
 import logging
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,13 @@ class SkillBuilderService:
                 "capabilities": metadata.capabilities
             }
             
-            skill_md_content = "---\n" + yaml.dump(frontmatter) + "---\n\n"
+            if YAML_AVAILABLE:
+                skill_md_content = "---\n" + yaml.dump(frontmatter) + "---\n\n"
+            else:
+                skill_md_content = "# Skill Metadata (YAML fallback)\n"
+                for k, v in frontmatter.items():
+                    skill_md_content += f"- {k}: {v}\n"
+                skill_md_content += "\n"
             skill_md_content += f"# {metadata.name}\n\n"
             skill_md_content += f"{metadata.description}\n\n"
             skill_md_content += "## Instructions\n"

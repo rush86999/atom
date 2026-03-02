@@ -6024,3 +6024,193 @@ class HomeAssistantConnection(Base):
 
     # Relationships
     user = relationship("User", backref="ha_connections")
+
+# ============================================================================
+# GEA & Skills Models (Ported from SaaS)
+# ============================================================================
+
+class Skill(Base):
+    """
+    Skill definition for agent capabilities.
+    Types:
+    - api: HTTP REST API calls
+    - function: Native Python function calls
+    - script: Local script execution (sandboxed)
+    """
+    __tablename__ = "skills"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for public marketplace skills
+    author_tenant_id = Column(String, ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)  # Original creator
+
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    long_description = Column(Text, nullable=True)  # Detailed markdown description
+    version = Column(String, default="1.0.0")
+    type = Column(String, nullable=False)  # api, function, script, docker, container
+
+    # API / Function Schema
+    input_schema = Column(JSON, nullable=False, default=dict)
+    output_schema = Column(JSON, nullable=True)
+
+    # config: { url, method, headers } or { script } or { image, command }
+    config = Column(JSON, nullable=False, default=dict)
+
+    # Marketplace metadata
+    is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)  # For public marketplace skills
+
+    # Categories & tags
+    category = Column(String(50), nullable=True)  # productivity, finance, communication, etc.
+    tags = Column(JSON, nullable=True)  # List of tags for better discoverability
+
+    # Code/storage
+    code = Column(Text, nullable=True)  # Inline code for function/script types
+    
+    # OpenClaw-specific fields
+    openclaw_source_url = Column(String(500), nullable=True)  # GitHub URL to SKILL.md
+    openclaw_skill_md = Column(Text, nullable=True)  # Original SKILL.md content
+    openclaw_author = Column(String(255), nullable=True)  # Original author from SKILL.md
+    openclaw_metadata = Column(JSON, nullable=True)  # Full parsed YAML frontmatter
+    openclaw_dependencies = Column(JSON, nullable=True)  # Parsed dependencies from parser
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="skills", foreign_keys=[tenant_id])
+    author_tenant = relationship("Tenant", backref="published_skills", foreign_keys=[author_tenant_id])
+
+
+class SkillVersion(Base):
+    """
+    Version history for skills.
+    Enables rollback and version comparison.
+    """
+    __tablename__ = "skill_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    version = Column(String, nullable=False)  # Semver version
+    changelog = Column(Text, nullable=True)  # Version notes
+
+    # Snapshot of skill at this version
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    type = Column(String, nullable=False)
+    input_schema = Column(JSON, nullable=False, default=dict)
+    output_schema = Column(JSON, nullable=True)
+    config = Column(JSON, nullable=False, default=dict)
+    code = Column(Text, nullable=True)
+
+    # Release info
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    skill = relationship("Skill", backref="versions")
+    tenant = relationship("Tenant", backref="skill_versions")
+
+
+class SkillInstallation(Base):
+    """
+    Track skill installations for tenants.
+    Mandatory for tenant-skill association.
+    """
+    __tablename__ = "skill_installations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Installation details
+    installed_version = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)  # Can be disabled without uninstalling
+
+    installed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="installed_skills")
+    skill = relationship("Skill", backref="installations")
+
+
+class AgentSkill(Base):
+    """Many-to-Many relationship between agents and skills"""
+    __tablename__ = "agent_skills"
+
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), primary_key=True)
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    agent = relationship("AgentRegistry", backref="assigned_skills")
+    skill = relationship("Skill", backref="assigned_agents")
+
+
+class AgentEvolutionTrace(Base):
+    """Track agent evolution and learning across generations"""
+    __tablename__ = "agent_evolution_traces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
+    agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='CASCADE'), nullable=False)
+    parent_agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='SET NULL'), nullable=True)
+    generation = Column(Integer, nullable=False, default=0)
+    evolution_type = Column(SQLEnum('performance_based', 'novelty_based', 'combined', 'manual', name='evolutiontype'), nullable=False)
+    performance_score = Column(Float, nullable=True)
+    novelty_score = Column(Float, nullable=True)
+    combined_score = Column(Float, nullable=True)
+    config_diff = Column(JSON, nullable=True)  # Changes from parent config
+    evolution_metadata = Column(JSON, nullable=True)  # Additional evolution metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="agent_evolution_traces")
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id], backref="evolution_traces")
+    parent_agent = relationship("AgentRegistry", foreign_keys=[parent_agent_id], backref="child_evolution_traces")
+
+    def __repr__(self):
+        return f"<AgentEvolutionTrace(id={self.id}, agent_id={self.agent_id}, generation={self.generation})>"
+
+
+class CanvasComponent(Base):
+    """
+    Minimal CanvasComponent for skill UI support.
+    """
+    __tablename__ = "canvas_components"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False)
+
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), nullable=False)
+    tags = Column(JSON, nullable=True)
+
+    component_type = Column(String(50), nullable=False)  # 'html', 'react', etc.
+    code = Column(Text, nullable=False)
+    config_schema = Column(JSON, nullable=True)
+    
+    version = Column(String(20), default="1.0.0")
+    is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)
+
+    dependencies = Column(JSON, nullable=True)
+    config = Column(JSON, nullable=True)
+
+    # Skill Integration Columns
+    required_skill_id = Column(String, ForeignKey("skills.id"), nullable=True)
+    skill_version = Column(String(50), nullable=True)
+    auto_install_skill = Column(Boolean, default=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="canvas_components")
+    author = relationship("User", backref="authored_components")
+    required_skill = relationship("Skill", foreign_keys=[required_skill_id])
+
+
