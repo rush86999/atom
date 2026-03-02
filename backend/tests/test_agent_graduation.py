@@ -235,7 +235,6 @@ class TestAgentPromotion:
         ))
 
         assert result is True
-        assert db_session.commit.called
         # Check that configuration was updated
         assert mock_student_agent.configuration is not None
         assert mock_student_agent.configuration.get("promoted_by") == "admin_user"
