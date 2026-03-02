@@ -1099,5 +1099,192 @@ class TestBoostExperienceConfidence:
         mock_lancedb_handler.add_document.assert_not_called()
 
 
+# ============================================================================
+# TEST CLASS: Get Experience Statistics
+# ============================================================================
+
+class TestGetExperienceStatistics:
+    """Tests for get_experience_statistics method."""
+
+    @pytest.mark.asyncio
+    async def test_get_experience_statistics_aggregates_all_experiences(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called without filters
+        THEN return aggregated statistics across all experiences
+        """
+        # Mock search to return 5 experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success",
+                    "agent_role": "Finance",
+                    "confidence_score": 0.8,
+                    "feedback_score": 0.9
+                }
+            },
+            {
+                "id": "exp-2",
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "outcome": "Success",
+                    "agent_role": "Sales",
+                    "confidence_score": 0.7,
+                    "feedback_score": None
+                }
+            },
+            {
+                "id": "exp-3",
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success",
+                    "agent_role": "Finance",
+                    "confidence_score": 0.9,
+                    "feedback_score": 0.5
+                }
+            },
+            {
+                "id": "exp-4",
+                "metadata": {
+                    "agent_id": "agent_3",
+                    "outcome": "Failure",
+                    "agent_role": "Engineering",
+                    "confidence_score": 0.5,
+                    "feedback_score": None
+                }
+            },
+            {
+                "id": "exp-5",
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "outcome": "Failure",
+                    "agent_role": "Sales",
+                    "confidence_score": 0.6,
+                    "feedback_score": None
+                }
+            }
+        ])
+
+        # Call get_experience_statistics without filters
+        stats = await world_model_service.get_experience_statistics()
+
+        # Verify aggregated statistics
+        assert stats["total_experiences"] == 5
+        assert stats["successes"] == 3
+        assert stats["failures"] == 2
+        assert stats["success_rate"] == 0.6  # 3/5
+        assert abs(stats["avg_confidence"] - 0.7) < 0.01  # (0.8+0.7+0.9+0.5+0.6)/5 = 0.7
+        assert stats["feedback_coverage"] == 0.4  # 2/5 have feedback
+        assert stats["agent_id"] is None
+        assert stats["agent_role"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_experience_statistics_filters_by_agent_id(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called with agent_id filter
+        THEN return statistics only for experiences matching the agent_id
+        """
+        # Mock search to return 10 experiences from different agents
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": f"exp-{i}",
+                "metadata": {
+                    "agent_id": "agent_123" if i % 2 == 0 else "agent_456",
+                    "outcome": "Success" if i % 3 == 0 else "Failure",
+                    "agent_role": "Finance",
+                    "confidence_score": 0.5 + (i * 0.05),
+                    "feedback_score": None
+                }
+            }
+            for i in range(10)
+        ])
+
+        # Call get_experience_statistics with agent_id filter
+        stats = await world_model_service.get_experience_statistics(agent_id="agent_123")
+
+        # Verify only agent_123 experiences counted (5 of them)
+        assert stats["total_experiences"] == 5
+        assert stats["agent_id"] == "agent_123"
+        assert stats["agent_role"] is None
+
+    @pytest.mark.asyncio
+    async def test_get_experience_statistics_filters_by_agent_role(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called with agent_role filter
+        THEN return statistics only for experiences matching the role (case-insensitive)
+        """
+        # Mock search to return experiences with different roles
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success",
+                    "agent_role": "Finance",  # Should match
+                    "confidence_score": 0.8,
+                    "feedback_score": None
+                }
+            },
+            {
+                "id": "exp-2",
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "outcome": "Success",
+                    "agent_role": "finance",  # Should match (case-insensitive)
+                    "confidence_score": 0.7,
+                    "feedback_score": None
+                }
+            },
+            {
+                "id": "exp-3",
+                "metadata": {
+                    "agent_id": "agent_3",
+                    "outcome": "Failure",
+                    "agent_role": "Engineering",  # Should NOT match
+                    "confidence_score": 0.5,
+                    "feedback_score": None
+                }
+            }
+        ])
+
+        # Call with lowercase role filter
+        stats = await world_model_service.get_experience_statistics(agent_role="finance")
+
+        # Verify case-insensitive matching (both "Finance" and "finance" included)
+        assert stats["total_experiences"] == 2
+        assert stats["successes"] == 2
+        assert stats["failures"] == 0
+        assert stats["agent_role"] == "finance"
+
+    @pytest.mark.asyncio
+    async def test_get_experience_statistics_handles_search_error(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called and search raises exception
+        THEN return dict with 'error' key and log error
+        """
+        # Mock search to raise exception
+        mock_lancedb_handler.search = Mock(side_effect=Exception("Database connection failed"))
+
+        # Call get_experience_statistics
+        stats = await world_model_service.get_experience_statistics()
+
+        # Verify error handled gracefully
+        assert "error" in stats
+        assert "Database connection failed" in stats["error"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
