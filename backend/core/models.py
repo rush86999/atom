@@ -1738,7 +1738,20 @@ class BrowserSession(Base):
     workspace_id = Column(String, nullable=True, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-    # ... rest of BrowserSession if exists in file ...
+    user_id = Column(String, nullable=False, index=True)
+    browser_type = Column(String, server_default="chromium", nullable=True)
+    headless = Column(Boolean, server_default="1", nullable=True)
+    status = Column(String, server_default="active", nullable=True)
+    current_url = Column(Text, nullable=True)
+    page_title = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
 
 class Artifact(Base):
     """
@@ -1788,24 +1801,6 @@ class ArtifactVersion(Base):
     # Relationships
     artifact = relationship("Artifact", backref="versions")
     author = relationship("User")
-    
-    # Session Details
-    url = Column(String, nullable=True)
-    title = Column(String, nullable=True)
-    status = Column(String, default="active") # active, closed, error
-    
-    # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    closed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Traceability
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
-    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
-
-    # Relationships
-    agent = relationship("AgentRegistry")
-    execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
 
 class DeviceNode(Base):
     """
