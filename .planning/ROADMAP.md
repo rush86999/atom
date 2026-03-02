@@ -276,16 +276,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 121-03-PLAN.md — Add targeted tests to reach 60% coverage
 - [ ] 121-04-PLAN.md — Gap closure: Integration tests with real database
 
-### Phase 122: Admin Routes Coverage
+### Phase 122: Admin Routes Coverage ⚠️ PARTIAL
 **Goal**: Achieve 60%+ coverage for business facts and world model
 **Depends on**: Phase 111
-**Requirements**: API-05
+**Requirements**: API-05 ⚠️ PARTIAL (1/2 targets met)
 **Success Criteria** (what must be TRUE):
-  1. Coverage report shows 60%+ coverage for api/admin/business_facts_routes.py
-  2. Coverage report shows 60%+ coverage for core/agent_world_model.py
-  3. Business facts CRUD, citation verification, and JIT fact retrieval tested
-  4. World model service multi-source memory aggregation validated
-**Plans**: TBD
+  1. Coverage report shows 60%+ coverage for api/admin/business_facts_routes.py ✅ 74.07%
+  2. Coverage report shows 60%+ coverage for core/agent_world_model.py ❌ 28.92%
+  3. Business facts CRUD, citation verification, and JIT fact retrieval tested ✅ COMPLETE
+  4. World model service multi-source memory aggregation validated ❌ 0% coverage on recall_experiences()
+**Plans**: 3/3 complete
+- [x] 122-01-PLAN.md — Baseline coverage measurement (test_business_facts_routes.py, test_world_model.py)
+- [x] 122-02-PLAN.md — Coverage gap analysis with prioritized test list
+- [x] 122-03-PLAN.md — Add targeted tests to reach 60% coverage
 
 ### Phase 123: Governance Property Tests
 **Goal**: Validate governance system invariants with Hypothesis
@@ -349,7 +352,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 119. Browser Automation Coverage | v5.1 | 0/0 | Not started | - |
 | 120. Device Capabilities Coverage | v5.1 | 0/0 | Not started | - |
 | 121. Health & Monitoring Coverage | v5.1 | 3/4 | Gap Closure | - |
-| 122. Admin Routes Coverage | v5.1 | 0/0 | Not started | - |
+| 122. Admin Routes Coverage | v5.1 | 3/3 | Complete ⚠️ | 2026-03-02 |
 | 123. Governance Property Tests | v5.1 | 0/0 | Not started | - |
 | 124. Episode Property Tests | v5.1 | 0/0 | Not started | - |
 | 125. Financial Property Tests | v5.1 | 0/0 | Not started | - |
