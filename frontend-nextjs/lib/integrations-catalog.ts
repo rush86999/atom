@@ -139,6 +139,7 @@ export const CRM_PIECES: Integration[] = [
 // PRODUCTIVITY PIECES
 export const PRODUCTIVITY_PIECES: Integration[] = [
     { id: 'notion', name: 'Notion', description: 'All-in-one workspace', category: 'productivity', color: '#000000', authType: 'oauth2', triggers: ['page_created', 'database_updated'], actions: ['create_page', 'update_database', 'add_block'], popular: true },
+    { id: 'obsidian', name: 'Obsidian', description: 'Local-first knowledge base', category: 'productivity', color: '#483699', authType: 'api_key', triggers: ['note_created', 'note_updated'], actions: ['create_note', 'append_note', 'list_notes'], popular: true, new: true },
     { id: 'airtable', name: 'Airtable', description: 'Spreadsheet database', category: 'productivity', color: '#18BFFF', authType: 'oauth2', triggers: ['record_created', 'record_updated'], actions: ['create_record', 'update_record', 'find_records'], popular: true },
     { id: 'google-sheets', name: 'Google Sheets', description: 'Spreadsheets', category: 'productivity', color: '#34A853', authType: 'oauth2', triggers: ['row_added', 'cell_updated'], actions: ['append_row', 'update_row', 'create_spreadsheet'], popular: true },
     { id: 'google-docs', name: 'Google Docs', description: 'Documents', category: 'productivity', color: '#4285F4', authType: 'oauth2', triggers: ['document_created'], actions: ['create_document', 'append_text'] },
