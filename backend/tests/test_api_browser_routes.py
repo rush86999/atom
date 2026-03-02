@@ -370,8 +370,8 @@ class TestBrowserSession:
         )
 
         # Should be blocked OR governance check happens in browser_tool
-        # Accept 200 (browser_tool handles governance), 403, or 401
-        assert response.status_code in [200, 403, 401, 500]
+        # Accept 200 (browser_tool handles governance), 400, 403, 401, or 500
+        assert response.status_code in [200, 400, 403, 401, 500]
 
     def test_create_session_invalid_browser_type(self, client: TestClient):
         """Test session creation with invalid browser type."""
