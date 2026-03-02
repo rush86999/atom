@@ -1,0 +1,20 @@
+{
+  "phase": 122,
+  "timestamp": "2026-03-02",
+  "targets": {
+    "business_facts_routes": 74.07407407407408,
+    "agent_world_model": 28.91566265060241
+  },
+  "summaries": {
+    "business_facts_routes": {
+      "covered": 120,
+      "missing": 42,
+      "percent": 74.07407407407408
+    },
+    "agent_world_model": {
+      "covered": 96,
+      "missing": 236,
+      "percent": 28.91566265060241
+    }
+  }
+}
