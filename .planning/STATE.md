@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 116 - Student Training Coverage
+**Current focus:** Phase 117 - Graduation Framework Coverage
 
 ## Current Position
 
-Phase: 6 of 16 (Student Training Coverage)
-Plan: 03
-Status: Phase 116 Plan 03 COMPLETE - All three services achieve 60%+ coverage (88% combined)
-Last activity: 2026-03-02T00:29:04Z — Plan 03 complete, supervision_service.py 54% → 84% (+30pp), Phase 116 success criteria met
+Phase: 7 of 16 (Graduation Framework Coverage)
+Plan: 01
+Status: Phase 117 Plan 01 COMPLETE - Fixed flaky test and established 46% baseline coverage
+Last activity: 2026-03-02T02:39:39Z — Plan 01 complete, test_promote_agent_success fixed, baseline coverage measured
 
-Progress: [██████████░] 75%
+Progress: [██████████░] 78%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [██████████░] 75%
 | Phase 116 P02 | 2 | 3 tasks | 2 files |
 | Phase 116 P02 | 2 | 3 tasks | 2 files |
 | Phase 116 P03 | 10 | 2 tasks | 2 files |
+| Phase 117 P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -94,12 +95,14 @@ Recent decisions affecting current work:
 - [Phase 116]: Plan 03 complete - all three services at 60%+ coverage (88% combined)
 - [Phase 116]: supervision_service.py 54% → 84% (+30 percentage points)
 - [Phase 116]: Fixed UnboundLocalError in start_supervision_with_fallback
+- [Phase 117]: agent.configuration is the correct field for promotion metadata, not agent.metadata_json
+- [Phase 117]: Coverage baseline 46% with 130 missing lines across 16 code blocks
 
 ### Pending Todos
 
-1. Complete Phase 116 verification and summary
-2. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
-3. Plan Phase 117 coverage work (if needed)
+1. Complete Phase 117 Plan 02 gap analysis
+2. Add 8-12 tests to agent_graduation_service.py to reach 60%+ coverage
+3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -156,8 +159,9 @@ Resume file: None
 - ✅ Phase 116 Plan 01: Fix 6 failing tests in test_student_training_service.py (11/11 tests passing, 88% coverage baseline)
 - ✅ Phase 116 Plan 02: Combined coverage measurement (76% overall, supervision_service.py at 54% needs work)
 - ✅ Phase 116 Plan 03: Add 12 tests to supervision_service.py (84% coverage, +30 percentage points)
-- Current: Phase 116 Plan 03 COMPLETE - All three services at 60%+ coverage (88% combined)
-- Next: Phase 116 completion verification or Phase 117 planning
+- ✅ Phase 117 Plan 01: Fix flaky test_promote_agent_success and establish baseline coverage (46%, 130/240 lines missing)
+- Current: Phase 117 Plan 01 COMPLETE - All 10 tests passing, baseline coverage measured
+- Next: Phase 117 Plan 02 gap analysis
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -172,6 +176,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-02*
-*Stopped at: Phase 116 Plan 03 COMPLETE - All three services at 60%+ coverage (88% combined), supervision_service.py 54% → 84% (+30pp)*
+*Stopped at: Phase 117 Plan 01 COMPLETE - Fixed flaky test, established 46% baseline coverage*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 116 complete, all 3 plans executed, success criteria met*
+*Status: Phase 117 Plan 01 complete, 10/10 tests passing, ready for gap analysis*
