@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 7 of 16 (Graduation Framework Coverage)
-Plan: 01
-Status: Phase 117 Plan 01 COMPLETE - Fixed flaky test and established 46% baseline coverage
-Last activity: 2026-03-02T02:39:39Z — Plan 01 complete, test_promote_agent_success fixed, baseline coverage measured
+Plan: 02
+Status: Phase 117 Plan 02 COMPLETE - Coverage gap analysis with 9 test specifications
+Last activity: 2026-03-02T02:44:07Z — Plan 02 complete, gap analysis documented, test specifications ready
 
-Progress: [██████████░] 78%
+Progress: [██████████░] 81%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████░] 78%
 | Phase 116 P02 | 2 | 3 tasks | 2 files |
 | Phase 116 P03 | 10 | 2 tasks | 2 files |
 | Phase 117 P01 | 2 | 2 tasks | 1 files |
+| Phase 117 P02 | 144 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -97,12 +98,14 @@ Recent decisions affecting current work:
 - [Phase 116]: Fixed UnboundLocalError in start_supervision_with_fallback
 - [Phase 117]: agent.configuration is the correct field for promotion metadata, not agent.metadata_json
 - [Phase 117]: Coverage baseline 46% with 130 missing lines across 16 code blocks
+- [Phase 117]: 9 untested functions identified at 0% coverage (SandboxExecutor, supervision metrics, performance trend)
+- [Phase 117]: 9 test specifications created for Plan 03 implementation to reach 60%+ coverage
+- [Phase 117]: Priority by impact: supervision metrics and exam execution are highest value for graduation framework validation. Real DB sessions for test data (proven pattern from Phase 116).
 
 ### Pending Todos
 
-1. Complete Phase 117 Plan 02 gap analysis
-2. Add 8-12 tests to agent_graduation_service.py to reach 60%+ coverage
-3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
+1. Complete Phase 117 Plan 03 test implementation (9 tests to reach 60%+ coverage)
+2. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -160,8 +163,9 @@ Resume file: None
 - ✅ Phase 116 Plan 02: Combined coverage measurement (76% overall, supervision_service.py at 54% needs work)
 - ✅ Phase 116 Plan 03: Add 12 tests to supervision_service.py (84% coverage, +30 percentage points)
 - ✅ Phase 117 Plan 01: Fix flaky test_promote_agent_success and establish baseline coverage (46%, 130/240 lines missing)
-- Current: Phase 117 Plan 01 COMPLETE - All 10 tests passing, baseline coverage measured
-- Next: Phase 117 Plan 02 gap analysis
+- ✅ Phase 117 Plan 02: Coverage gap analysis with 9 test specifications
+- Current: Phase 117 Plan 02 COMPLETE - Gap analysis documented, 9 tests specified
+- Next: Phase 117 Plan 03 test implementation
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -176,6 +180,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-02*
-*Stopped at: Phase 117 Plan 01 COMPLETE - Fixed flaky test, established 46% baseline coverage*
+*Stopped at: Phase 117 Plan 02 COMPLETE - Coverage gap analysis with 9 test specifications*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 117 Plan 01 complete, 10/10 tests passing, ready for gap analysis*
+*Status: Phase 117 Plan 02 complete, gap analysis documented, ready for test implementation*
