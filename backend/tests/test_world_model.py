@@ -196,5 +196,83 @@ class TestGetRelevantBusinessFacts:
         )
 
 
+# ============================================================================
+# TEST CLASS: List All Facts
+# ============================================================================
+
+class TestListAllFacts:
+    """Tests for list_all_facts method."""
+
+    @pytest.mark.asyncio
+    async def test_list_all_facts_returns_list(self, world_model_service, mock_lancedb_handler):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN list_all_facts() is called
+        THEN return list of all BusinessFact objects
+        """
+        # Mock search to return results
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "fact_1",
+                "metadata": {
+                    "id": "fact_1",
+                    "fact": "Invoice rule",
+                    "citations": ["policy.pdf"],
+                    "reason": "Finance",
+                    "source_agent_id": "agent:1",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "verified",
+                    "domain": "finance"
+                }
+            }
+        ])
+
+        facts = await world_model_service.list_all_facts()
+
+        assert len(facts) == 1
+        assert isinstance(facts[0], BusinessFact)
+        assert facts[0].fact == "Invoice rule"
+
+
+# ============================================================================
+# TEST CLASS: Get Fact By ID
+# ============================================================================
+
+class TestGetFactById:
+    """Tests for get_fact_by_id method."""
+
+    @pytest.mark.asyncio
+    async def test_get_fact_by_id_success(self, world_model_service, mock_lancedb_handler):
+        """
+        GIVEN fact exists
+        WHEN get_fact_by_id() is called
+        THEN return the BusinessFact object
+        """
+        fact_id = "fact-123"
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": fact_id,
+                "metadata": {
+                    "id": fact_id,
+                    "fact": "Test fact",
+                    "citations": ["test.pdf"],
+                    "reason": "Test",
+                    "source_agent_id": "agent:1",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "verified",
+                    "domain": "test"
+                }
+            }
+        ])
+
+        fact = await world_model_service.get_fact_by_id(fact_id)
+
+        assert fact is not None
+        assert fact.id == fact_id
+        assert fact.fact == "Test fact"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
