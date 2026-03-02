@@ -274,5 +274,304 @@ class TestGetFactById:
         assert fact.fact == "Test fact"
 
 
+# ============================================================================
+# TEST CLASS: Update Fact Verification
+# ============================================================================
+
+class TestUpdateFactVerification:
+    """Tests for fact verification status updates."""
+
+    @pytest.mark.asyncio
+    async def test_update_fact_verification_success(self, mock_lancedb_handler):
+        """
+        GIVEN business fact exists
+        WHEN update_fact_verification() is called with new status
+        THEN update verification_status and last_verified
+        """
+        from core.agent_world_model import WorldModelService
+
+        # Mock LanceDB
+        mock_lancedb = AsyncMock()
+        mock_lancedb.search.return_value = [
+            {
+                "id": "fact-1",
+                "text": "Fact: Test\nStatus: unverified",
+                "metadata": {"id": "fact-1", "verification_status": "unverified"},
+                "source": "fact_agent_1"
+            }
+        ]
+        mock_lancedb.add_document.return_value = True
+        mock_lancedb_handler.return_value = mock_lancedb
+
+        service = WorldModelService()
+        result = await service.update_fact_verification("fact-1", "verified")
+
+        assert result is True
+
+
+# ============================================================================
+# TEST CLASS: Recall Experiences (Integration Tests)
+# ============================================================================
+
+class TestRecallExperiences:
+    """Integration tests for recall_experiences() multi-source memory aggregation."""
+
+    @pytest.mark.asyncio
+    async def test_recall_experiences_returns_empty_dict_when_no_data(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN recall_experiences() is called with agent and all sources return empty
+        THEN return dict with 7 keys, all empty lists/strings
+        """
+        # Mock agent with category "Finance"
+        agent = Mock()
+        agent.id = "agent_finance_1"
+        agent.name = "Finance Agent"
+        agent.category = "Finance"
+        agent.status = "autonomous"
+
+        # Mock all 5 search sources to return empty results
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock other dependencies to return empty
+        with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
+             patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
+             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
+
+            # GraphRAG returns empty string
+            mock_graphrag.get_context_for_ai.return_value = ""
+
+            # Formula manager returns empty list
+            mock_formula_mgr.return_value.search_formulas.return_value = []
+
+            # Database query returns empty conversation list
+            mock_db = AsyncMock()
+            mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            mock_get_db.return_value.__enter__.return_value = mock_db
+
+            # Episode service returns empty list
+            mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
+
+            # Call the method
+            result = await world_model_service.recall_experiences(
+                agent=agent,
+                current_task_description="Reconcile invoice discrepancies",
+                limit=5
+            )
+
+            # Verify return structure
+            assert isinstance(result, dict)
+            assert "experiences" in result
+            assert "knowledge" in result
+            assert "knowledge_graph" in result
+            assert "formulas" in result
+            assert "conversations" in result
+            assert "business_facts" in result
+            assert "episodes" in result
+
+            # Verify all lists are empty
+            assert result["experiences"] == []
+            assert result["knowledge"] == []
+            assert result["knowledge_graph"] == ""
+            assert result["formulas"] == []
+            assert result["conversations"] == []
+            assert result["business_facts"] == []
+            assert result["episodes"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_experiences_aggregates_experiences_with_role_scoping(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN recall_experiences() is called with Finance agent
+        THEN only role-matched and creator-matched experiences returned, sorted by confidence
+        """
+        # Mock agent with category "Finance"
+        agent = Mock()
+        agent.id = "agent_finance_123"
+        agent.name = "Finance Agent"
+        agent.category = "Finance"
+        agent.status = "autonomous"
+
+        # Track call count to return different data
+        call_count = [0]
+
+        def search_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # First call: agent_experience table
+                return [
+                    {
+                        "id": "exp_1",
+                        "text": "Task: reconciliation\nInput: Reconcile SKU-123\nOutcome: Success\nLearnings: Process worked",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "agent_finance_123",  # Creator match
+                            "task_type": "reconciliation",
+                            "outcome": "Success",
+                            "agent_role": "Sales",  # Different role
+                            "confidence_score": 0.7
+                        }
+                    },
+                    {
+                        "id": "exp_2",
+                        "text": "Task: approval\nInput: Approve invoice\nOutcome: Success\nLearnings: Policy followed",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "other_agent",
+                            "task_type": "approval",
+                            "outcome": "Success",
+                            "agent_role": "Finance",  # Role match
+                            "confidence_score": 0.9
+                        }
+                    },
+                    {
+                        "id": "exp_3",
+                        "text": "Task: coding\nInput: Write code\nOutcome: Success\nLearnings: Code written",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "engineering_agent",
+                            "task_type": "coding",
+                            "outcome": "Success",
+                            "agent_role": "Engineering",  # No match
+                            "confidence_score": 0.8
+                        }
+                    }
+                ]
+            return []  # All other calls return empty
+
+        mock_lancedb_handler.search = Mock(side_effect=search_side_effect)
+
+        # Mock other dependencies
+        with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
+             patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
+             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
+
+            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_formula_mgr.return_value.search_formulas.return_value = []
+            mock_db = AsyncMock()
+            mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
+
+            # Call the method
+            result = await world_model_service.recall_experiences(
+                agent=agent,
+                current_task_description="Reconcile accounts",
+                limit=5
+            )
+
+            # Verify only role-matched and creator-matched experiences returned
+            experiences = result["experiences"]
+            assert len(experiences) == 2
+
+            # Verify sorted by confidence score descending
+            assert experiences[0].confidence_score == 0.9  # Finance role
+            assert experiences[1].confidence_score == 0.7  # Creator match
+
+            # Verify Engineering experience excluded
+            assert all(exp.agent_role in ["Finance", "Sales"] or exp.agent_id == agent.id for exp in experiences)
+
+    @pytest.mark.asyncio
+    async def test_recall_experiences_filters_low_confidence_failures(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN recall_experiences() is called with mixed outcomes and confidence scores
+        THEN low-confidence failures filtered out, high-confidence failures included
+        """
+        # Mock agent with category "Sales"
+        agent = Mock()
+        agent.id = "agent_sales_1"
+        agent.name = "Sales Agent"
+        agent.category = "Sales"
+        agent.status = "autonomous"
+
+        # Track call count to return different data
+        call_count = [0]
+
+        def search_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # First call: agent_experience table
+                return [
+                    {
+                        "id": "exp_1",
+                        "text": "Task: outreach\nInput: Cold call\nOutcome: Success\nLearnings: Good approach",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "agent_sales_1",
+                            "task_type": "outreach",
+                            "outcome": "Success",
+                            "agent_role": "Sales",
+                            "confidence_score": 0.7
+                        }
+                    },
+                    {
+                        "id": "exp_2",
+                        "text": "Task: outreach\nInput: Failed call\nOutcome: failed\nLearnings: Bad timing",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "agent_sales_1",
+                            "task_type": "outreach",
+                            "outcome": "failed",
+                            "agent_role": "Sales",
+                            "confidence_score": 0.9  # High confidence failure - should be included
+                        }
+                    },
+                    {
+                        "id": "exp_3",
+                        "text": "Task: outreach\nInput: Another fail\nOutcome: failed\nLearnings: Wrong approach",
+                        "created_at": datetime.now().isoformat(),
+                        "metadata": {
+                            "agent_id": "agent_sales_1",
+                            "task_type": "outreach",
+                            "outcome": "failed",
+                            "agent_role": "Sales",
+                            "confidence_score": 0.5  # Low confidence failure - should be excluded
+                        }
+                    }
+                ]
+            return []  # All other calls return empty
+
+        mock_lancedb_handler.search = Mock(side_effect=search_side_effect)
+
+        # Mock other dependencies
+        with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
+             patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
+             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
+
+            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_formula_mgr.return_value.search_formulas.return_value = []
+            mock_db = AsyncMock()
+            mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
+
+            # Call the method
+            result = await world_model_service.recall_experiences(
+                agent=agent,
+                current_task_description="Customer outreach",
+                limit=5
+            )
+
+            # Verify experiences filtered correctly
+            experiences = result["experiences"]
+            assert len(experiences) == 2  # Success + high-confidence failure
+
+            # Verify outcomes
+            outcomes = [exp.outcome for exp in experiences]
+            assert "Success" in outcomes
+            assert "failed" in outcomes
+
+            # Verify low-confidence failure excluded
+            assert all(exp.confidence_score >= 0.8 or exp.outcome != "failed" for exp in experiences)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
