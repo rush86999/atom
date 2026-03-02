@@ -117,6 +117,10 @@
 - **ai_service.py** - LLM integration and management
 - **self_evolution_service.py** - Agent learning and self-improvement coordinator
 - **agent_evolution_loop.py** - GEA (Group-Evolving Agents) full evolution cycle
+- **skill_builder_service.py** - Structured skill package generation
+- **skill_dynamic_loader.py** - Runtime module loading and hot-reload
+- **skill_registry_service.py** - Community and dynamic skill management
+- **skill_composition_engine.py** - DAG-based multi-skill workflow execution
 
 ## Database Schema
 
