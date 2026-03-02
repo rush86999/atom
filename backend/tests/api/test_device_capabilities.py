@@ -151,6 +151,7 @@ def mock_device_node(db: Session, mock_user: User):
     device_id = str(uuid.uuid4())
     device = DeviceNode(
         device_id=device_id,
+        workspace_id="default",
         user_id=mock_user.id,
         name="Test Device",
         node_type="mobile",
