@@ -1364,5 +1364,147 @@ class TestArchiveSessionToColdStorage:
             mock_lancedb_handler.add_document.assert_not_called()
 
 
+# ============================================================================
+# TEST CLASS: World Model Edge Cases
+# ============================================================================
+
+class TestWorldModelEdgeCases:
+    """
+    Tests for edge cases and remaining uncovered methods.
+
+    Coverage target:
+    - record_formula_usage: Formula application tracking
+    - bulk_record_facts: Batch fact recording with partial failures
+    """
+
+    @pytest.mark.asyncio
+    async def test_record_formula_usage_success(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_formula_usage() is called with formula parameters
+        THEN return True and add document with formula metadata
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call record_formula_usage
+        result = await world_model_service.record_formula_usage(
+            agent_id="agent-1",
+            agent_role="Finance",
+            formula_id="formula-123",
+            formula_name="NPV_Calculation",
+            task_description="Calculate net present value",
+            inputs={"rate": 0.05, "years": 10},
+            result=50000,
+            success=True,
+            learnings="Successfully calculated NPV with 5% discount rate"
+        )
+
+        # Verify returns True
+        assert result is True
+
+        # Verify add_document called with correct parameters
+        mock_lancedb_handler.add_document.assert_called_once()
+        call_args = mock_lancedb_handler.add_document.call_args
+
+        # Verify text contains formula application details
+        text = call_args[1]["text"]
+        assert "Task: formula_application" in text
+        assert "NPV_Calculation" in text
+        assert "Calculate net present value" in text
+        assert "Success" in text
+
+        # Verify metadata contains formula-specific fields
+        metadata = call_args[1]["metadata"]
+        assert metadata["formula_id"] == "formula-123"
+        assert metadata["formula_name"] == "NPV_Calculation"
+        assert metadata["formula_inputs"] == '{"rate": 0.05, "years": 10}'
+        assert metadata["formula_result"] == "50000"
+        assert metadata["task_type"] == "formula_application"
+        assert metadata["agent_role"] == "Finance"
+
+    @pytest.mark.asyncio
+    async def test_bulk_record_facts_success(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN bulk_record_facts() is called with 3 facts
+        THEN return 3 (all facts recorded successfully)
+        """
+        # Mock record_business_fact to return True for all facts
+        with patch.object(
+            world_model_service,
+            'record_business_fact',
+            new_callable=AsyncMock,
+            return_value=True
+        ):
+            # Create 3 BusinessFact objects with required datetime fields
+            now = datetime.now()
+            facts = [
+                BusinessFact(
+                    id=f"fact-{i}",
+                    fact=f"Business fact {i}",
+                    citations=[f"source-{i}.pdf"],
+                    reason=f"Reason {i}",
+                    source_agent_id="agent-1",
+                    created_at=now,
+                    last_verified=now,
+                    verification_status="verified",
+                    metadata={"category": "test"}
+                )
+                for i in range(1, 4)
+            ]
+
+            # Call bulk_record_facts
+            result = await world_model_service.bulk_record_facts(facts)
+
+            # Verify returns 3 (all succeeded)
+            assert result == 3
+
+    @pytest.mark.asyncio
+    async def test_bulk_record_facts_partial_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked record_business_fact
+        WHEN bulk_record_facts() is called with 3 facts (middle one fails)
+        THEN return 2 (2 out of 3 succeeded)
+        """
+        # Mock record_business_fact to return True, False, True
+        async def mock_record_fact(fact):
+            return fact.id != "fact-2"  # Fail for fact-2
+
+        with patch.object(
+            world_model_service,
+            'record_business_fact',
+            new=mock_record_fact
+        ):
+            # Create 3 BusinessFact objects with required datetime fields
+            now = datetime.now()
+            facts = [
+                BusinessFact(
+                    id=f"fact-{i}",
+                    fact=f"Business fact {i}",
+                    citations=[f"source-{i}.pdf"],
+                    reason=f"Reason {i}",
+                    source_agent_id="agent-1",
+                    created_at=now,
+                    last_verified=now,
+                    verification_status="verified",
+                    metadata={"category": "test"}
+                )
+                for i in range(1, 4)
+            ]
+
+            # Call bulk_record_facts
+            result = await world_model_service.bulk_record_facts(facts)
+
+            # Verify returns 2 (2 out of 3 succeeded)
+            assert result == 2
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
