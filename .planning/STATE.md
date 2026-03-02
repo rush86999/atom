@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 115 - Agent Execution Coverage
+**Current focus:** Phase 116 - Student Training Coverage
 
 ## Current Position
 
-Phase: 5 of 16 (Agent Execution Coverage)
-Plan: 04
-Status: Phase 115 COMPLETE - Agent execution coverage at 58.64% (+49.58 pp from baseline)
-Last activity: 2026-03-01T22:36:26Z — Phase 115 complete, 51 tests added, coverage nearly met (60% target missed by 1.36%)
+Phase: 6 of 16 (Student Training Coverage)
+Plan: 01
+Status: Phase 116 Plan 01 COMPLETE - Fixed 6 failing tests in test_student_training_service.py, all 11 tests passing, 88% baseline coverage
+Last activity: 2026-03-01T19:21:00Z — Plan 01 complete, test failures fixed, coverage baseline established
 
-Progress: [█████░░░░░░] 38%
+Progress: [██████░░░░░] 41%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [█████░░░░░░] 38%
 - Trend: Moderate execution (3-45 min per plan)
 
 *Updated after each plan completion*
+| Phase 116 P01 | 15 | 3 tasks | 1 files |
 | Phase 113 P01 | 1 | 4 tasks | 1 files |
 | Phase 112 P04 | 1 | 3 tasks | 3 files |
 | Phase 112 P03 | 5 | 5 tasks | 1 files |
@@ -57,7 +58,7 @@ Progress: [█████░░░░░░] 38%
 | Phase 115 P02 | 7 | 3 tasks | 2 files |
 | Phase 115 P03 | 259 | 3 tasks | 2 files |
 | Phase 115 P04 | 5 | 3 tasks | 3 files |
-| Phase 115 P04 | 5 | 3 tasks | 3 files |
+| Phase 116 P01 | 15 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -84,11 +85,11 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-1. Begin Phase 116: Continue backend coverage expansion (target: canvas_tool.py)
-2. Address canvas_tool coverage gap (49% → 60%) in Phase 116
-3. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
-4. (Optional) Return to segmentation coverage: 46.58% → 60% (13.42 point gap)
-5. (Optional) Improve byok_handler.py coverage from 35.10% → 60% (requires integration tests)
+1. Complete Phase 116 Plan 02: Combined coverage measurement for student training services
+2. Measure baseline coverage for supervision_service.py (status unknown)
+3. If supervision_service.py < 60%, add targeted tests to reach threshold
+4. Create combined coverage report for trigger_interceptor, student_training_service, supervision_service
+5. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -142,8 +143,9 @@ Resume file: None
 - ✅ Phase 115 Plan 02: Intent classification coverage (20 tests, 49.81% coverage, +11.02 pp)
 - ✅ Phase 115 Plan 03: Workflow handlers coverage (16 tests, 57.63% coverage, +7.82 pp)
 - ✅ Phase 115 Plan 04: Final verification and phase documentation (51 tests total, 58.64% coverage, +49.58 pp)
-- Current: Phase 115 COMPLETE - Agent execution coverage at 58.64% (nearly met 60% target, missed by 1.36%)
-- Next: Phase 116: Continue backend coverage expansion (target: canvas_tool.py)
+- ✅ Phase 116 Plan 01: Fix 6 failing tests in test_student_training_service.py (11/11 tests passing, 88% coverage baseline)
+- Current: Phase 116 Plan 01 COMPLETE - Student training service tests fixed, 88% coverage exceeds 60% target
+- Next: Phase 116 Plan 02: Combined coverage measurement for all three student training services
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -158,6 +160,6 @@ Resume file: None
 ---
 
 *State updated: 2026-03-01*
-*Stopped at: Phase 115 COMPLETE - Agent execution coverage at 58.64% (51 tests added, +49.58 pp increase)*
+*Stopped at: Phase 116 Plan 01 COMPLETE - Student training service tests fixed (11/11 passing, 88% coverage)*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 115 complete, 4 of 4 plans done*
+*Status: Phase 116 in progress, 1 of 4 plans complete*
