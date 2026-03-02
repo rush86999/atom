@@ -646,3 +646,192 @@ class TestSupervisionMetricsCoverage:
 
         # Should be improving (better recent performance)
         assert result in ["improving", "stable"]  # Allow for calculation variation
+
+
+class TestSkillUsageMetricsCoverage:
+    """Coverage tests for skill usage metrics"""
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_skill_usage_metrics_queries_executions(
+        self, mock_lancedb, db_session
+    ):
+        """Test skill usage metrics query and aggregate skill executions"""
+        from core.agent_graduation_service import AgentGraduationService
+        from core.models import SkillExecution
+        from datetime import datetime, timedelta
+        import asyncio
+
+        # Create skill executions
+        base_time = datetime.now()
+        skills_data = [
+            ("skill_1", "success"),
+            ("skill_1", "success"),
+            ("skill_2", "success"),
+            ("skill_2", "failure"),
+            ("skill_3", "success"),
+        ]
+        for i, (skill_id, status) in enumerate(skills_data):
+            execution = SkillExecution(
+                id=f"skill_exec_{i}",
+                agent_id="skill_agent",
+                workspace_id="default",
+                skill_id=skill_id,
+                skill_source="community",
+                status=status,
+                created_at=base_time - timedelta(days=i),
+                input_params={},
+                output_result={} if status == "success" else None,
+                error_message=None if status == "success" else "Test error",
+                execution_time_ms=100 + (i * 50)
+            )
+            db_session.add(execution)
+        db_session.commit()
+
+        service = AgentGraduationService(db_session)
+        result = asyncio.run(service.calculate_skill_usage_metrics(
+            agent_id="skill_agent",
+            days_back=30
+        ))
+
+        assert result["total_skill_executions"] == 5
+        assert result["successful_executions"] == 4
+        assert result["success_rate"] == 0.8
+        assert result["unique_skills_used"] == 3
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_readiness_score_includes_skill_diversity_bonus(
+        self, mock_lancedb, db_session
+    ):
+        """Test readiness score calculation includes skill diversity bonus"""
+        from core.agent_graduation_service import AgentGraduationService
+        from core.models import AgentRegistry, AgentStatus, Episode
+        from datetime import datetime
+        from unittest.mock import AsyncMock, patch
+        import asyncio
+
+        # Create agent with episodes
+        agent = AgentRegistry(
+            id="skill_ready_agent",
+            name="Skill Ready Agent",
+            category="Test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN
+        )
+        agent.configuration = {}
+        db_session.add(agent)
+
+        for i in range(12):
+            episode = Episode(
+                id=f"skill_ep_{i}",
+                title=f"Episode {i}",
+                agent_id="skill_ready_agent",
+                user_id="test_user",
+                workspace_id="default",
+                status="completed",
+                maturity_at_time="INTERN",
+                human_intervention_count=0,
+                constitutional_score=0.9,
+                started_at=datetime.now(),
+                ended_at=datetime.now(),
+                topics=["test"],
+                entities=[],
+                execution_ids=[],
+                importance_score=0.7
+            )
+            db_session.add(episode)
+        db_session.commit()
+
+        service = AgentGraduationService(db_session)
+
+        # Mock calculate_skill_usage_metrics to return known values
+        with patch.object(
+            service,
+            'calculate_skill_usage_metrics',
+            new=AsyncMock(return_value={
+                "total_skill_executions": 10,
+                "successful_executions": 8,
+                "success_rate": 0.8,
+                "unique_skills_used": 5,  # Should give +0.05 bonus (5 * 0.01, capped at 0.05)
+                "skill_episodes_count": 10,
+                "skill_learning_velocity": 0.33
+            })
+        ):
+            result = asyncio.run(service.calculate_readiness_score_with_skills(
+                agent_id="skill_ready_agent",
+                target_maturity="SUPERVISED"
+            ))
+
+        assert result["skill_diversity_bonus"] == 0.05  # Max bonus for 5 skills
+        assert result["readiness_score"] >= result["episode_metrics"]["score"] / 100.0
+        assert result["skill_metrics"]["unique_skills_used"] == 5
+
+
+class TestSupervisionValidationCoverage:
+    """Coverage tests for combined supervision validation"""
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_supervision_score_breakdown(
+        self, mock_lancedb, db_session
+    ):
+        """Test supervision score calculation breakdown"""
+        from core.agent_graduation_service import AgentGraduationService
+
+        service = AgentGraduationService(db_session)
+
+        metrics = {
+            "total_supervision_hours": 10.0,
+            "intervention_rate": 0.5,  # per hour
+            "average_supervisor_rating": 4.0,
+            "successful_intervention_recovery_rate": 0.8,
+            "recent_performance_trend": "improving",
+            "total_sessions": 10,
+            "high_rating_sessions": 7,  # 70%
+            "low_intervention_sessions": 8
+        }
+
+        criteria = {
+            "min_episodes": 10,
+            "max_intervention_rate": 0.5,
+            "min_constitutional_score": 0.85
+        }
+
+        score = service._supervision_score(metrics, criteria)
+
+        # Rating score: 4.0/4.0 = 1.0 * 40 = 40
+        # Intervention score: (1 - 0.5/5.0) * 30 = 27
+        # High quality: 0.7/0.6 = 1.0 * 20 = 20
+        # Trend: improving = 10
+        # Total: 40 + 27 + 20 + 10 = 97
+        assert score > 90
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_supervision_score_with_poor_metrics(
+        self, mock_lancedb, db_session
+    ):
+        """Test supervision score with poor performance metrics"""
+        from core.agent_graduation_service import AgentGraduationService
+
+        service = AgentGraduationService(db_session)
+
+        metrics = {
+            "total_supervision_hours": 5.0,
+            "intervention_rate": 5.0,  # Very high
+            "average_supervisor_rating": 2.0,  # Low
+            "successful_intervention_recovery_rate": 0.5,
+            "recent_performance_trend": "declining",
+            "total_sessions": 10,
+            "high_rating_sessions": 2,  # 20%
+            "low_intervention_sessions": 1
+        }
+
+        criteria = {
+            "min_episodes": 10,
+            "max_intervention_rate": 0.5,
+            "min_constitutional_score": 0.85
+        }
+
+        score = service._supervision_score(metrics, criteria)
+
+        # Should be low due to poor metrics
+        assert score < 50
