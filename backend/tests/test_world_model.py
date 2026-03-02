@@ -839,5 +839,140 @@ class TestRecallExperiences:
             assert result["episodes"] == []  # Empty on error
 
 
+# ============================================================================
+# TEST CLASS: Update Experience Feedback
+# ============================================================================
+
+class TestUpdateExperienceFeedback:
+    """Tests for update_experience_feedback method."""
+
+    @pytest.mark.asyncio
+    async def test_update_experience_feedback_blends_confidence_scores(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with feedback score
+        THEN confidence score is blended: 60% old + 40% normalized feedback
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "text": "Task: reconciliation\nInput: Reconcile SKU-123\nOutcome: Success\nLearnings: Process worked",
+                "metadata": {
+                    "agent_id": "agent_123",
+                    "task_type": "reconciliation",
+                    "outcome": "Success",
+                    "agent_role": "Finance",
+                    "confidence_score": 0.5
+                },
+                "source": "agent_123"
+            }
+        ])
+
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call update_experience_feedback with positive feedback
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp-1",
+            feedback_score=0.8,  # Good feedback
+            feedback_notes="Great work on the reconciliation"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify add_document called with blended confidence
+        # Formula: old_confidence * 0.6 + (feedback_score + 1.0) / 2.0 * 0.4
+        # 0.5 * 0.6 + (0.8 + 1.0) / 2.0 * 0.4 = 0.30 + 0.36 = 0.66
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_metadata = call_args[1]["metadata"]
+
+        assert new_metadata["confidence_score"] == 0.66
+        assert new_metadata["feedback_score"] == 0.8
+        assert new_metadata["feedback_notes"] == "Great work on the reconciliation"
+        assert "feedback_at" in new_metadata
+
+        # Verify text includes feedback notes
+        assert "Feedback: Great work on the reconciliation" in call_args[1]["text"]
+
+    @pytest.mark.asyncio
+    async def test_update_experience_feedback_returns_false_when_not_found(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with non-existent experience ID
+        THEN return False and log warning
+        """
+        # Mock search to return results without matching experience_id
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "other-exp",
+                "text": "Some other experience",
+                "metadata": {"confidence_score": 0.5},
+                "source": "agent_456"
+            }
+        ])
+
+        # Call with non-existent experience
+        result = await world_model_service.update_experience_feedback(
+            experience_id="nonexistent",
+            feedback_score=0.5
+        )
+
+        # Verify failure
+        assert result is False
+        mock_lancedb_handler.add_document.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_experience_feedback_handles_negative_feedback(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with negative feedback score
+        THEN confidence score decreases appropriately
+        """
+        # Mock search to return experience with high confidence
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-2",
+                "text": "Task: approval\nInput: Approve invoice\nOutcome: Success\nLearnings: Policy followed",
+                "metadata": {
+                    "agent_id": "agent_789",
+                    "task_type": "approval",
+                    "outcome": "Success",
+                    "agent_role": "Finance",
+                    "confidence_score": 0.7
+                },
+                "source": "agent_789"
+            }
+        ])
+
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with worst possible feedback (-1.0)
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp-2",
+            feedback_score=-1.0,
+            feedback_notes="Incorrect approval - should have been rejected"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence decreased
+        # Formula: 0.7 * 0.6 + (-1.0 + 1.0) / 2.0 * 0.4 = 0.42 + 0.0 = 0.42
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_metadata = call_args[1]["metadata"]
+
+        assert new_metadata["confidence_score"] == 0.42
+        assert new_metadata["feedback_score"] == -1.0
+        assert "Incorrect approval" in new_metadata["feedback_notes"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
