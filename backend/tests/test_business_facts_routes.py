@@ -252,6 +252,39 @@ class TestUpdateFact:
 
         assert response.status_code == 404
 
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    async def test_update_fact_verification_status_only(self, mock_wm_class, client_with_admin_auth):
+        """
+        GIVEN fact exists
+        WHEN PUT with only verification_status field
+        THEN update only verification status
+        """
+        from core.agent_world_model import BusinessFact
+
+        mock_wm = AsyncMock()
+        existing_fact = BusinessFact(
+            id="fact-123",
+            fact="Original fact",
+            citations=["citation1"],
+            reason="Original reason",
+            source_agent_id="agent:1",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="unverified",
+            metadata={"domain": "general"}
+        )
+        mock_wm.get_fact_by_id.return_value = existing_fact
+        mock_wm.update_fact_verification.return_value = True
+        mock_wm_class.return_value = mock_wm
+
+        response = client_with_admin_auth.put(
+            "/api/admin/governance/facts/fact-123",
+            json={"verification_status": "verified"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["verification_status"] == "verified"
+
 
 class TestDeleteFact:
     """Tests for DELETE /api/admin/governance/facts/{fact_id} endpoint."""
@@ -272,6 +305,25 @@ class TestDeleteFact:
         )
 
         assert response.status_code == 404
+
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    def test_delete_fact_success(self, mock_wm_class, client_with_admin_auth):
+        """
+        GIVEN fact exists
+        WHEN DELETE /api/admin/governance/facts/{fact_id}
+        THEN return 200 with deleted status
+        """
+        mock_wm = AsyncMock()
+        mock_wm.delete_fact.return_value = True
+        mock_wm_class.return_value = mock_wm
+
+        response = client_with_admin_auth.delete(
+            "/api/admin/governance/facts/fact-123"
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "deleted"
+        assert response.json()["id"] == "fact-123"
 
 
 class TestUploadAndExtract:
