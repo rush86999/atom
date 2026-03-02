@@ -113,3 +113,120 @@
 - Focus on code paths, not line-by-line coverage
 - Use AsyncMock for async methods
 - Test classes should follow naming: Test[FunctionName]Coverage
+
+## Test Specifications for Plan 03
+
+### Test 1: SandboxExecutor with No Episodes
+**File:** tests/test_agent_graduation.py
+**Class:** TestSandboxExecutorCoverage
+**Function:** `test_exam_with_no_episodes_returns_failure`
+**Covers:** Lines 62-92 in SandboxExecutor.execute_exam
+**Setup:**
+  - Create agent with no episodes
+  - Mock lancedb handler
+**Assert:**
+  - success: False
+  - score: 0.0
+  - passed: False
+  - violations contains "insufficient_episode_count"
+
+### Test 2: SandboxExecutor Score Calculation
+**Function:** `test_exam_calculates_score_from_episodes`
+**Covers:** Lines 94-143
+**Setup:**
+  - Create agent with 15 episodes
+  - Mix of intervention counts (0, 1, 2)
+  - Constitutional scores varying (0.7-0.95)
+**Assert:**
+  - episode_score calculated (40% weight)
+  - intervention_score calculated (30% weight)
+  - compliance_score calculated (30% weight)
+  - total_score in expected range
+
+### Test 3: Supervision Metrics with No Sessions
+**Class:** TestSupervisionMetricsCoverage
+**Function:** `test_supervision_metrics_with_no_sessions`
+**Covers:** Lines 559-569 in calculate_supervision_metrics
+**Setup:**
+  - Agent with no supervision sessions
+  - Mock empty query result
+**Assert:**
+  - total_supervision_hours: 0
+  - intervention_rate: 1.0 (penalty)
+  - average_supervisor_rating: 0.0
+  - recent_performance_trend: "unknown"
+
+### Test 4: Supervision Metrics with Sessions
+**Function:** `test_supervision_metrics_calculates_aggregates`
+**Covers:** Lines 571-617
+**Setup:**
+  - 5 supervision sessions with:
+    - Various durations (30min, 45min, 60min, etc.)
+    - Various intervention counts (0, 1, 2)
+    - Various ratings (3, 4, 5)
+**Assert:**
+  - total_supervision_hours: sum of durations / 3600
+  - intervention_rate: interventions / hours
+  - average_supervisor_rating: average of ratings
+  - high_rating_sessions: count of ratings >= 4
+
+### Test 5: Performance Trend Calculation
+**Function:** `test_performance_trend_improving`
+**Covers:** Lines 628-671 in _calculate_performance_trend
+**Setup:**
+  - 10 supervision sessions sorted by time
+  - Recent 5: avg rating 4.5, avg interventions 0.5
+  - Previous 5: avg rating 3.5, avg interventions 1.5
+**Assert:**
+  - trend: "improving"
+  - Score calculation combines rating_diff * 0.6 + intervention_diff * 0.4
+
+### Test 6: Skill Usage Metrics
+**Class:** TestSkillUsageMetricsCoverage
+**Function:** `test_skill_usage_metrics_queries_executions`
+**Covers:** Lines 837-871 in calculate_skill_usage_metrics
+**Setup:**
+  - Create skill executions for agent
+  - Mix of success/failure statuses
+  - Various skill IDs
+**Assert:**
+  - total_skill_executions: count
+  - successful_executions: count of status="success"
+  - success_rate: successful / total
+  - unique_skills_used: len(set(skill_ids))
+
+### Test 7: Validate Graduation with Supervision
+**Class:** TestSupervisionValidationCoverage
+**Function:** `test_validate_graduation_with_supervision`
+**Covers:** Lines 702-760
+**Setup:**
+  - Agent with episodes meeting criteria
+  - Supervision sessions with high ratings
+**Assert:**
+  - ready: True if all criteria met
+  - score: combined 70% episode + 30% supervision
+  - supervision_metrics included in response
+  - gaps empty if qualified
+
+### Test 8: Supervision Score Calculation
+**Function:** `test_supervision_score_breakdown`
+**Covers:** Lines 775-809 in _supervision_score
+**Setup:**
+  - Metrics dict with known values
+**Assert:**
+  - rating_score: min(avg_rating / 4.0, 1.0) * 40
+  - intervention_score: (1 - interventions/max) * 30
+  - high_quality_score: min(pct / 0.6, 1.0) * 20
+  - trend_score: 10/5/0 based on trend
+
+### Test 9: Readiness Score with Skills
+**Class:** TestSkillReadinessCoverage
+**Function:** `test_readiness_score_includes_skill_diversity_bonus`
+**Covers:** Lines 904-922 in calculate_readiness_score_with_skills
+**Setup:**
+  - Agent with existing readiness score
+  - Skill usage metrics with diverse skills
+**Assert:**
+  - skill_diversity_bonus: min(unique_skills * 0.01, 0.05)
+  - readiness_score: min(base + bonus, 1.0)
+  - skill_metrics included in response
