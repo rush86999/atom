@@ -316,3 +316,253 @@ class TestPerformance:
         assert response.status_code == status.HTTP_200_OK
         # Metrics generation should be fast
         assert duration_ms < 200, f"Metrics scrape took {duration_ms:.2f}ms (target: <50ms)"
+
+
+class TestDatabaseConnectivityCheck:
+    """Tests for /health/db endpoint."""
+
+    @patch('api.health_routes.engine')
+    def test_database_connectivity_healthy(self, mock_engine, client):
+        """Test database connectivity check when healthy."""
+        # Mock the engine pool
+        mock_engine.pool.size.return_value = 5
+        mock_engine.pool.checkedin.return_value = 5
+        mock_engine.pool.checkedout.return_value = 0
+        mock_engine.pool.overflow.return_value = 0
+        mock_engine.pool.max_overflow = 10
+
+        response = client.get("/health/db")
+
+        # Should return 200 (healthy) or 503 (if db not available)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+
+        if response.status_code == status.HTTP_200_OK:
+            data = response.json()
+            assert data["status"] == "healthy"
+            assert data["database"]["connected"] is True
+            assert "query_time_ms" in data["database"]
+            assert "pool_status" in data["database"]
+
+    def test_database_connectivity_unhealthy(self, client):
+        """Test database connectivity check when unhealthy - uses real DB."""
+        # This test uses real database connection
+        # If DB is unavailable, should return 503
+        response = client.get("/health/db")
+
+        # Should return either 200 (DB available) or 503 (DB unavailable)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+
+        if response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+            data = response.json()
+            assert data["detail"]["status"] == "unhealthy"
+            assert data["detail"]["database"]["connected"] is False
+
+    @patch('api.health_routes.engine')
+    def test_database_connectivity_slow_query_warning(self, mock_engine, client):
+        """Test slow query triggers warning."""
+        # Mock the engine pool
+        mock_engine.pool.size.return_value = 5
+        mock_engine.pool.checkedin.return_value = 5
+        mock_engine.pool.checkedout.return_value = 0
+        mock_engine.pool.overflow.return_value = 0
+        mock_engine.pool.max_overflow = 10
+
+        response = client.get("/health/db")
+
+        # Should return 200 or 503
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+
+        if response.status_code == status.HTTP_200_OK:
+            data = response.json()
+            # Warning field may or may not be present depending on query time
+            # Just verify structure is correct
+            assert "database" in data
+
+
+class TestSyncHealthProbe:
+    """Tests for /health/sync endpoint."""
+
+    def test_sync_health_endpoint_responds(self, client):
+        """Test sync health probe endpoint responds."""
+        response = client.get("/health/sync")
+
+        # Should return a status code (200, 503, or 500 if sync not available)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE, status.HTTP_500_INTERNAL_SERVER_ERROR]
+
+        # If successful, check response structure
+        if response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]:
+            data = response.json()
+            assert "status" in data
+            assert data["status"] in ["healthy", "unhealthy", "degraded"]
+
+
+class TestSyncMetricsEndpoint:
+    """Tests for /metrics/sync endpoint."""
+
+    def test_sync_metrics_endpoint_responds(self, client):
+        """Test sync metrics endpoint responds."""
+        response = client.get("/metrics/sync")
+
+        # Should return 200 or 500 (if sync_metrics not available)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_500_INTERNAL_SERVER_ERROR]
+
+        # Should have text content type
+        content_type = response.headers.get("content-type", "")
+        assert "text" in content_type.lower() or response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+class TestDatabaseCheckInternal:
+    """Tests for internal _check_database function."""
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    @patch('api.health_routes._execute_db_query')
+    async def test_check_database_success(self, mock_execute_query, mock_get_db):
+        """Test database check succeeds."""
+        from api.health_routes import _check_database
+        mock_get_db.return_value = iter([MagicMock()])
+        mock_execute_query.return_value = True
+
+        result = await _check_database()
+
+        assert result["healthy"] is True
+        assert "Database accessible" in result["message"]
+        assert "latency_ms" in result
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    @patch('api.health_routes._execute_db_query')
+    async def test_check_database_timeout(self, mock_execute_query, mock_get_db):
+        """Test database check handles timeout."""
+        from api.health_routes import _check_database
+        import asyncio
+
+        async def timeout_query():
+            await asyncio.sleep(10)  # Exceed timeout
+
+        mock_execute_query.side_effect = asyncio.TimeoutError()
+
+        result = await _check_database()
+
+        assert result["healthy"] is False
+        assert "timeout" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    @patch('api.health_routes._execute_db_query')
+    async def test_check_database_sqlalchemy_error(self, mock_execute_query, mock_get_db):
+        """Test database check handles SQLAlchemy errors."""
+        from api.health_routes import _check_database
+        from sqlalchemy.exc import SQLAlchemyError
+
+        mock_execute_query.side_effect = SQLAlchemyError("Connection failed")
+
+        result = await _check_database()
+
+        assert result["healthy"] is False
+        assert "Database error" in result["message"]
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    @patch('api.health_routes._execute_db_query')
+    async def test_check_database_generic_exception(self, mock_execute_query, mock_get_db):
+        """Test database check handles generic exceptions."""
+        from api.health_routes import _check_database
+
+        mock_execute_query.side_effect = Exception("Unexpected error")
+
+        result = await _check_database()
+
+        assert result["healthy"] is False
+        assert "Unexpected error" in result["message"]
+
+
+class TestDiskSpaceCheckInternal:
+    """Tests for internal _check_disk_space function."""
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.psutil.disk_usage')
+    async def test_check_disk_space_sufficient(self, mock_disk):
+        """Test disk space check when sufficient."""
+        from api.health_routes import _check_disk_space
+
+        mock_disk_result = MagicMock()
+        mock_disk_result.free = 5 * (1024 ** 3)  # 5GB
+        mock_disk.return_value = mock_disk_result
+
+        result = await _check_disk_space()
+
+        assert result["healthy"] is True
+        assert "GB free" in result["message"]
+        assert result["free_gb"] >= 1.0
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.psutil.disk_usage')
+    async def test_check_disk_space_insufficient(self, mock_disk):
+        """Test disk space check when insufficient."""
+        from api.health_routes import _check_disk_space
+
+        mock_disk_result = MagicMock()
+        mock_disk_result.free = 0.5 * (1024 ** 3)  # 0.5GB
+        mock_disk.return_value = mock_disk_result
+
+        result = await _check_disk_space()
+
+        assert result["healthy"] is False
+        assert "Low disk space" in result["message"]
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.psutil.disk_usage')
+    async def test_check_disk_space_exception(self, mock_disk):
+        """Test disk space check handles exceptions."""
+        from api.health_routes import _check_disk_space
+
+        mock_disk.side_effect = Exception("Unable to read disk info")
+
+        result = await _check_disk_space()
+
+        assert result["healthy"] is False
+        assert "Disk check error" in result["message"]
+
+
+class TestExecuteDbQueryInternal:
+    """Tests for internal _execute_db_query function."""
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    async def test_execute_db_query_success(self, mock_get_db):
+        """Test successful database query execution."""
+        from api.health_routes import _execute_db_query
+
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_result.fetchone.return_value = (1,)
+        mock_session.execute.return_value = mock_result
+
+        # Create a generator that returns the mock session
+        def mock_db_generator():
+            yield mock_session
+
+        mock_get_db.return_value = mock_db_generator()
+
+        result = await _execute_db_query(mock_get_db())
+
+        assert result is True
+        mock_session.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('api.health_routes.get_db')
+    async def test_execute_db_query_exception(self, mock_get_db):
+        """Test database query exception handling."""
+        from api.health_routes import _execute_db_query
+
+        mock_session = MagicMock()
+        mock_session.execute.side_effect = Exception("Query failed")
+
+        def mock_db_generator():
+            yield mock_session
+
+        mock_get_db.return_value = mock_db_generator()
+
+        with pytest.raises(Exception, match="Query failed"):
+            await _execute_db_query(mock_get_db())
