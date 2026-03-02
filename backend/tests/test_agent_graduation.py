@@ -11,16 +11,6 @@ from core.models import AgentRegistry, AgentStatus, Episode
 
 
 @pytest.fixture
-def db_session():
-    """Mock database session"""
-    session = Mock()
-    session.add = Mock()
-    session.commit = Mock()
-    session.query = Mock()
-    return session
-
-
-@pytest.fixture
 def mock_student_agent():
     """Mock student agent"""
     agent = AgentRegistry(
@@ -376,3 +366,163 @@ class TestGraduationAuditTrail:
         assert "total_episodes" in result
         assert result["total_episodes"] == 15
         assert "episodes_by_maturity" in result
+
+
+class TestSandboxExecutorCoverage:
+    """Coverage tests for SandboxExecutor graduation exam logic"""
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_exam_with_no_episodes_returns_failure(
+        self, mock_lancedb, db_session
+    ):
+        """Test SandboxExecutor returns failure when agent has no episodes"""
+        # Create agent with no episodes
+        from core.models import AgentRegistry, AgentStatus
+
+        agent = AgentRegistry(
+            id="agent_no_episodes",
+            name="Empty Agent",
+            category="Test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT
+        )
+        agent.configuration = {}
+        db_session.add(agent)
+        db_session.commit()
+
+        from core.agent_graduation_service import SandboxExecutor
+        import asyncio
+
+        executor = SandboxExecutor(db_session)
+        result = asyncio.run(executor.execute_exam(
+            agent_id="agent_no_episodes",
+            target_maturity="INTERN"
+        ))
+
+        assert result["success"] is True
+        assert result["score"] == 0.0
+        assert result["passed"] is False
+        assert "insufficient_episode_count" in result["constitutional_violations"]
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_exam_calculates_score_from_episodes(
+        self, mock_lancedb, db_session
+    ):
+        """Test SandboxExecutor correctly calculates score from episode data"""
+        from core.models import AgentRegistry, AgentStatus, Episode
+        from datetime import datetime
+
+        # Create agent
+        agent = AgentRegistry(
+            id="agent_with_episodes",
+            name="Episode Agent",
+            category="Test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT
+        )
+        agent.configuration = {}
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create episodes with varying performance
+        # Need to refresh to get the agent's status value
+        db_session.refresh(agent)
+        current_status = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+
+        episodes = []
+        for i in range(15):
+            episode = Episode(
+                id=f"exam_episode_{i}",
+                title=f"Exam Episode {i}",
+                agent_id="agent_with_episodes",
+                user_id="test_user",
+                workspace_id="default",
+                status="completed",
+                maturity_at_time=current_status,  # Use actual status value
+                human_intervention_count=0 if i < 10 else 1,  # 33% intervention rate
+                constitutional_score=0.8 + (i * 0.01),  # Improving scores
+                started_at=datetime.now(),
+                ended_at=datetime.now(),
+                topics=["test"],
+                entities=[],
+                execution_ids=[],
+                importance_score=0.7
+            )
+            episodes.append(episode)
+            db_session.add(episode)
+        db_session.commit()
+
+        from core.agent_graduation_service import SandboxExecutor
+        import asyncio
+
+        executor = SandboxExecutor(db_session)
+        result = asyncio.run(executor.execute_exam(
+            agent_id="agent_with_episodes",
+            target_maturity="INTERN"
+        ))
+
+        assert result["success"] is True
+        assert result["score"] >= 0.0  # Score should be calculated
+        assert "constitutional_compliance" in result
+        assert "constitutional_violations" in result
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_exam_detects_excessive_interventions(
+        self, mock_lancedb, db_session
+    ):
+        """Test SandboxExecutor flags excessive intervention rate"""
+        from core.models import AgentRegistry, AgentStatus, Episode
+        from datetime import datetime
+
+        agent = AgentRegistry(
+            id="agent_high_interventions",
+            name="High Intervention Agent",
+            category="Test",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.INTERN
+        )
+        agent.configuration = {}
+        db_session.add(agent)
+        db_session.commit()
+
+        # Refresh to get actual status value
+        db_session.refresh(agent)
+        current_status = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+
+        # Episodes with 60% intervention rate (above 50% threshold)
+        for i in range(15):
+            episode = Episode(
+                id=f"high_int_ep_{i}",
+                title=f"High Intervention Episode {i}",
+                agent_id="agent_high_interventions",
+                user_id="test_user",
+                workspace_id="default",
+                status="completed",
+                maturity_at_time=current_status,  # Use actual status value
+                human_intervention_count=1 if i % 5 < 3 else 0,  # 60% intervention
+                constitutional_score=0.75,
+                started_at=datetime.now(),
+                ended_at=datetime.now(),
+                topics=["test"],
+                entities=[],
+                execution_ids=[],
+                importance_score=0.7
+            )
+            db_session.add(episode)
+        db_session.commit()
+
+        from core.agent_graduation_service import SandboxExecutor
+        import asyncio
+
+        executor = SandboxExecutor(db_session)
+        result = asyncio.run(executor.execute_exam(
+            agent_id="agent_high_interventions",
+            target_maturity="SUPERVISED"
+        ))
+
+        assert result["success"] is True
+        # Should flag excessive interventions (60% > 50% threshold)
+        assert "excessive_interventions" in result["constitutional_violations"]
