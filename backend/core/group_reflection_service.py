@@ -36,8 +36,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from core.models import AgentEvolutionTrace, AgentRegistry
-from core.llm_service import LLMService
+from core.models import AgentEvolutionTrace, AgentRegistry, Skill
+from core.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
@@ -387,7 +387,7 @@ class GroupReflectionService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
-        self.llm = LLMService()
+        self.llm = LLMRouter()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Step 1: Gather the shared experience pool
@@ -625,8 +625,13 @@ across {pool['trace_count']} evolution traces.
 
 ---
 Based on the above, generate exactly {max_directives} concrete evolution directives
-specific to {profile.name} agents. Each directive should describe a specific,
-actionable improvement the next generation should implement.
+specific to {profile.name} agents.
+
+### SPECIAL CAPABILITY: Skill Creation
+If you identify a recurring failure that could be solved by a NEW tool or API integration (e.g., "needs to fetch Shopify data", "needs to calculate tax", "needs to search Slack"), you MUST generate a directive starting with "CREATE_SKILL:".
+
+Example: "CREATE_SKILL: Fetch Shopify product inventory from API"
+
 Format: numbered list (1. ..., 2. ..., etc.)"""
 
     def _summarize_tool_patterns(
