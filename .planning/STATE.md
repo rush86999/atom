@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 11 of 16 (Health Monitoring Coverage)
-Plan: 04 of 4
-Status: Phase 121 Plan 04 COMPLETE - Gap closure with integration tests, 58.77% coverage achieved
-Last activity: 2026-03-02T16:38:00Z — Plan 04 complete, 12 integration tests added, 58.77% health_routes coverage (1.23% gap to 60%)
+Phase: 12 of 16 (Admin Routes Coverage)
+Plan: 01 of 3
+Status: Phase 122 Plan 01 COMPLETE - Baseline tests created, 45% and 24% coverage measured
+Last activity: 2026-03-02T16:44:00Z — Plan 01 complete, 6 tests added, baseline coverage established
 
-Progress: [██████████░░] 100% (Phase 121 Complete)
+Progress: [██░░░░░░░░░░░░] 33% (Phase 122 Plan 01/3)
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: [██████████░░] 100% (Phase 121 Complete)
 | Phase 121 P01 | 8 | 4 tasks | 3 files |
 | Phase 121 P02 | 6 | 3 tasks | 2 files |
 | Phase 121 P03 | 14 | 3 tasks | 2 files |
+| Phase 122 P01 | 15min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,9 @@ Recent decisions affecting current work:
 - [Phase 121-04]: Integration tests with real database achieved 58.77% coverage (1.23% gap to 60% target)
 - [Phase 121-04]: Use real db_session fixture instead of mocking get_db() for actual code path coverage
 - [Phase 121-04]: Accept near-miss on 60% target (58.77% achieved, 1.23% gap) - significant progress with 16.66 pp improvement
+- [Phase 122]: Created missing policy_fact_extractor.py module for business facts routes
+- [Phase 122]: Added missing WorldModelService CRUD methods (list_all_facts, get_fact_by_id, delete_fact, bulk_record_facts)
+- [Phase 122]: Fixed business_facts_routes registration in main_api_app.py (was causing 404 errors)
 
 ### Pending Todos
 
