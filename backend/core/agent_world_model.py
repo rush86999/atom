@@ -421,7 +421,7 @@ class WorldModelService:
                 query=query,
                 limit=limit
             )
-            
+
             facts = []
             for res in results:
                 meta = res.get("metadata", {})
@@ -440,6 +440,121 @@ class WorldModelService:
         except Exception as e:
             logger.warning(f"Failed to retrieve business facts: {e}")
             return []
+
+    async def list_all_facts(
+        self,
+        status: Optional[str] = None,
+        domain: Optional[str] = None,
+        limit: int = 100
+    ) -> List[BusinessFact]:
+        """
+        List all business facts with optional filters.
+
+        Args:
+            status: Filter by verification status
+            domain: Filter by domain
+            limit: Maximum number of facts to return
+
+        Returns:
+            List of BusinessFact objects
+        """
+        try:
+            # Search with empty query to get all facts
+            results = self.db.search(
+                table_name=self.facts_table_name,
+                query="",
+                limit=limit
+            )
+
+            facts = []
+            for res in results:
+                meta = res.get("metadata", {})
+
+                # Apply filters
+                if status and meta.get("verification_status") != status:
+                    continue
+                if domain and meta.get("domain") != domain:
+                    continue
+
+                facts.append(BusinessFact(
+                    id=meta.get("id"),
+                    fact=meta.get("fact"),
+                    citations=meta.get("citations", []),
+                    reason=meta.get("reason"),
+                    source_agent_id=meta.get("source_agent_id"),
+                    created_at=datetime.fromisoformat(meta.get("created_at")),
+                    last_verified=datetime.fromisoformat(meta.get("last_verified")),
+                    verification_status=meta.get("verification_status", "unverified"),
+                    metadata=meta
+                ))
+            return facts
+        except Exception as e:
+            logger.warning(f"Failed to list business facts: {e}")
+            return []
+
+    async def get_fact_by_id(self, fact_id: str) -> Optional[BusinessFact]:
+        """
+        Get a specific business fact by ID.
+
+        Args:
+            fact_id: The fact ID to retrieve
+
+        Returns:
+            BusinessFact if found, None otherwise
+        """
+        try:
+            results = self.db.search(
+                table_name=self.facts_table_name,
+                query="",
+                limit=1000  # Higher limit to find the fact
+            )
+
+            for res in results:
+                meta = res.get("metadata", {})
+                if meta.get("id") == fact_id:
+                    return BusinessFact(
+                        id=meta.get("id"),
+                        fact=meta.get("fact"),
+                        citations=meta.get("citations", []),
+                        reason=meta.get("reason"),
+                        source_agent_id=meta.get("source_agent_id"),
+                        created_at=datetime.fromisoformat(meta.get("created_at")),
+                        last_verified=datetime.fromisoformat(meta.get("last_verified")),
+                        verification_status=meta.get("verification_status", "unverified"),
+                        metadata=meta
+                    )
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to get fact by ID: {e}")
+            return None
+
+    async def delete_fact(self, fact_id: str) -> bool:
+        """
+        Soft delete a business fact by marking as deleted.
+
+        Args:
+            fact_id: The fact ID to delete
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return await self.update_fact_verification(fact_id, "deleted")
+
+    async def bulk_record_facts(self, facts: List[BusinessFact]) -> int:
+        """
+        Record multiple business facts in bulk.
+
+        Args:
+            facts: List of BusinessFact objects to record
+
+        Returns:
+            Number of facts successfully recorded
+        """
+        success_count = 0
+        for fact in facts:
+            if await self.record_business_fact(fact):
+                success_count += 1
+        return success_count
 
 
     async def archive_session_to_cold_storage(self, conversation_id: str) -> bool:

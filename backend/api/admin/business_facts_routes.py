@@ -121,7 +121,7 @@ async def get_fact(
     )
 
 
-@router.post("", response_model=FactResponse)
+@router.post("", response_model=FactResponse, status_code=201)
 async def create_fact(
     request: FactCreateRequest,
     current_user = Depends(get_current_user),

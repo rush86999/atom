@@ -122,11 +122,11 @@ class TestListFacts:
         WHEN GET /api/admin/governance/facts is called
         THEN return 200 with empty list
         """
-        # Patch WorldModelService
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
-            # Mock list_all_facts to return empty list
-            mock_world_model_service.list_all_facts.return_value = []
+        # Mock list_all_facts to return empty list
+        mock_world_model_service.list_all_facts.return_value = []
 
+        # Patch at the import location in business_facts_routes
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = client_with_admin_auth.get("/api/admin/governance/facts")
 
             assert response.status_code == status.HTTP_200_OK
@@ -149,11 +149,11 @@ class TestCreateFact:
         WHEN POST /api/admin/governance/facts with valid fact data
         THEN return 201 with created fact details
         """
-        # Patch WorldModelService
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
-            # Mock record_business_fact to return True
-            mock_world_model_service.record_business_fact.return_value = True
+        # Mock record_business_fact to return True
+        mock_world_model_service.record_business_fact.return_value = True
 
+        # Patch at the import location in business_facts_routes
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             fact_data = {
                 "fact": "Invoices > $500 need VP approval",
                 "citations": ["policy.pdf:p4"],
@@ -196,24 +196,24 @@ class TestGetFact:
         """
         from core.agent_world_model import BusinessFact
 
-        # Patch WorldModelService
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
-            # Mock BusinessFact
-            fact_id = str(uuid.uuid4())
-            mock_fact = BusinessFact(
-                id=fact_id,
-                fact="Invoices > $500 need VP approval",
-                citations=["policy.pdf:p4"],
-                reason="Financial control policy",
-                source_agent_id="user:test-user",
-                created_at=datetime.now(),
-                last_verified=datetime.now(),
-                verification_status="verified",
-                metadata={"domain": "finance"}
-            )
+        # Mock BusinessFact
+        fact_id = str(uuid.uuid4())
+        mock_fact = BusinessFact(
+            id=fact_id,
+            fact="Invoices > $500 need VP approval",
+            citations=["policy.pdf:p4"],
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={"domain": "finance"}
+        )
 
-            mock_world_model_service.get_fact_by_id.return_value = mock_fact
+        mock_world_model_service.get_fact_by_id.return_value = mock_fact
 
+        # Patch at the import location in business_facts_routes
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = client_with_admin_auth.get(f"/api/admin/governance/facts/{fact_id}")
 
             assert response.status_code == status.HTTP_200_OK
