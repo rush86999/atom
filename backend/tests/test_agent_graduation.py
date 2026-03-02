@@ -29,7 +29,7 @@ def mock_student_agent():
         category="Finance",
         status=AgentStatus.STUDENT
     )
-    agent.metadata_json = {}
+    agent.configuration = {}
     return agent
 
 
@@ -246,9 +246,9 @@ class TestAgentPromotion:
 
         assert result is True
         assert db_session.commit.called
-        # Check that metadata_json was updated
-        assert mock_student_agent.metadata_json is not None
-        assert mock_student_agent.metadata_json.get("promoted_by") == "admin_user"
+        # Check that configuration was updated
+        assert mock_student_agent.configuration is not None
+        assert mock_student_agent.configuration.get("promoted_by") == "admin_user"
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_promote_agent_not_found(self, mock_lancedb, db_session):
