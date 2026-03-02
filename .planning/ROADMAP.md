@@ -270,7 +270,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for core/monitoring.py
   3. Health check endpoints (live, ready, metrics) tested
   4. Prometheus metrics collection and structured logging validated
-**Plans**: TBD
+**Plans**: 4 plans
+- [x] 121-01-PLAN.md — Coverage baseline measurement and test inventory
+- [x] 121-02-PLAN.md — Coverage gap analysis with prioritized test list
+- [x] 121-03-PLAN.md — Add targeted tests to reach 60% coverage
+- [ ] 121-04-PLAN.md — Gap closure: Integration tests with real database
 
 ### Phase 122: Admin Routes Coverage
 **Goal**: Achieve 60%+ coverage for business facts and world model
@@ -344,7 +348,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 118. Canvas API Coverage | v5.1 | 0/0 | Not started | - |
 | 119. Browser Automation Coverage | v5.1 | 0/0 | Not started | - |
 | 120. Device Capabilities Coverage | v5.1 | 0/0 | Not started | - |
-| 121. Health & Monitoring Coverage | v5.1 | 0/0 | Not started | - |
+| 121. Health & Monitoring Coverage | v5.1 | 3/4 | Gap Closure | - |
 | 122. Admin Routes Coverage | v5.1 | 0/0 | Not started | - |
 | 123. Governance Property Tests | v5.1 | 0/0 | Not started | - |
 | 124. Episode Property Tests | v5.1 | 0/0 | Not started | - |
