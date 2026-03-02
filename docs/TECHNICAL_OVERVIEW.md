@@ -115,6 +115,8 @@
 - **workflow_service.py** - Automation execution
 - **voice_service.py** - Speech processing
 - **ai_service.py** - LLM integration and management
+- **self_evolution_service.py** - Agent learning and self-improvement coordinator
+- **agent_evolution_loop.py** - GEA (Group-Evolving Agents) full evolution cycle
 
 ## Database Schema
 

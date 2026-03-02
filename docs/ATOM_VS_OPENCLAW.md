@@ -52,8 +52,8 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Memory Type** | Episodic Memory (PostgreSQL + LanceDB) | Persistent Markdown files |
 | **Storage** | Hybrid: Hot (PostgreSQL) + Cold (LanceDB) | Local filesystem (Markdown) |
 | **Retrieval Modes** | Temporal, Semantic, Sequential, Contextual | File-based search |
-| **Learning Framework** | ✅ Graduation system with constitutional compliance | ✅ Self-improving (writes own skills) |
-| **Agent Maturation** | ✅ 4-tier: Student → Intern → Supervised → Autonomous | ❌ No maturity levels |
+| **Learning Framework** | ✅ GEA (Group-Evolving Agents) with Experience Reflection | ✅ Self-improving (writes own skills) |
+| **Agent learning** | ✅ Evolution Loop: Reflect → Directives → Benchmark | ✅ Self-writes new scripts |
 | **Intervention Tracking** | ✅ Logged, scored, affects promotions | ❌ Not tracked |
 
 **Key Difference**: Atom's episodic memory is structured for business workflows with governance, while OpenClaw uses simple Markdown files for personal context.
