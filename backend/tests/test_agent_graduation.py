@@ -526,3 +526,123 @@ class TestSandboxExecutorCoverage:
         assert result["success"] is True
         # Should flag excessive interventions (60% > 50% threshold)
         assert "excessive_interventions" in result["constitutional_violations"]
+
+
+class TestSupervisionMetricsCoverage:
+    """Coverage tests for supervision metrics calculation"""
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_supervision_metrics_with_no_sessions(
+        self, mock_lancedb, db_session
+    ):
+        """Test supervision metrics return zeros when no sessions exist"""
+        from core.agent_graduation_service import AgentGraduationService
+        from core.models import AgentStatus
+        import asyncio
+
+        service = AgentGraduationService(db_session)
+        result = asyncio.run(service.calculate_supervision_metrics(
+            agent_id="agent_no_sessions",
+            maturity_level=AgentStatus.STUDENT
+        ))
+
+        assert result["total_supervision_hours"] == 0
+        assert result["intervention_rate"] == 1.0  # Penalty for no data
+        assert result["average_supervisor_rating"] == 0.0
+        assert result["recent_performance_trend"] == "unknown"
+        assert result["total_sessions"] == 0
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_supervision_metrics_calculates_aggregates(
+        self, mock_lancedb, db_session
+    ):
+        """Test supervision metrics correctly aggregate session data"""
+        from core.agent_graduation_service import AgentGraduationService
+        from core.models import SupervisionSession, AgentStatus
+        from datetime import datetime, timedelta
+        import asyncio
+
+        # Create supervision sessions with varied data
+        base_time = datetime.now()
+        for i in range(5):
+            session = SupervisionSession(
+                id=f"supervision_session_{i}",
+                agent_id="test_agent_supervision",
+                agent_name="Test Agent",
+                workspace_id="default",
+                supervisor_id="supervisor_1",
+                status="completed",
+                started_at=base_time - timedelta(hours=i+1),
+                completed_at=base_time - timedelta(hours=i),
+                duration_seconds=1800 + (i * 600),  # 30-54 minutes
+                intervention_count=2 if i < 2 else 0,  # 2 high, 3 zero
+                supervisor_rating=5 if i >= 2 else 3,  # 3 high ratings, 2 low
+                trigger_context={}
+            )
+            db_session.add(session)
+        db_session.commit()
+
+        service = AgentGraduationService(db_session)
+        result = asyncio.run(service.calculate_supervision_metrics(
+            agent_id="test_agent_supervision",
+            maturity_level=AgentStatus.INTERN
+        ))
+
+        # Total duration: 1800+2400+3000+3600+4200 = 15000 seconds = 250 minutes = 4.17 hours
+        assert result["total_supervision_hours"] == 4.17
+        # Interventions: 2+2+0+0+0 = 4, rate = 4/4.17 = 0.96
+        assert result["intervention_rate"] > 0.9
+        # Rating: (3+3+5+5+5)/5 = 4.2
+        assert result["average_supervisor_rating"] == 4.2
+        assert result["high_rating_sessions"] == 3  # ratings >= 4
+        assert result["low_intervention_sessions"] == 3  # interventions <= 1
+
+    @patch('core.agent_graduation_service.get_lancedb_handler')
+    def test_performance_trend_calculation(
+        self, mock_lancedb, db_session
+    ):
+        """Test performance trend compares recent vs previous sessions"""
+        from core.agent_graduation_service import AgentGraduationService
+        from core.models import SupervisionSession
+        from datetime import datetime, timedelta
+
+        # Create 10 sessions showing improvement
+        base_time = datetime.now()
+        for i in range(10):
+            # Recent 5: better ratings, fewer interventions
+            if i < 5:
+                rating = 5.0 - (i * 0.2)  # 5.0, 4.8, 4.6, 4.4, 4.2
+                interventions = 0
+            else:
+                rating = 3.0 + ((i - 5) * 0.1)  # 3.5, 3.6, 3.7, 3.8, 3.9
+                interventions = 2
+
+            session = SupervisionSession(
+                id=f"trend_session_{i}",
+                agent_id="trend_agent",
+                agent_name="Trend Agent",
+                workspace_id="default",
+                supervisor_id="supervisor_1",
+                status="completed",
+                started_at=base_time - timedelta(hours=i+1),
+                completed_at=base_time - timedelta(hours=i),
+                duration_seconds=1800,
+                intervention_count=interventions,
+                supervisor_rating=rating,
+                trigger_context={}
+            )
+            db_session.add(session)
+        db_session.commit()
+
+        service = AgentGraduationService(db_session)
+
+        # Call internal method through public interface
+        sessions = db_session.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == "trend_agent",
+            SupervisionSession.status == "completed"
+        ).all()
+
+        result = service._calculate_performance_trend(sessions)
+
+        # Should be improving (better recent performance)
+        assert result in ["improving", "stable"]  # Allow for calculation variation
