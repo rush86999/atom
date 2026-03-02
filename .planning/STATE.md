@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 12 of 16 (Admin Routes Coverage)
-Plan: 04 of 3 (Gap Closure)
-Status: Phase 122 Plan 04 COMPLETE - recall_experiences integration tests, 43% coverage (+14 pp)
-Last activity: 2026-03-02T18:10:00Z — Plan 04 complete, 6 tests added, near-miss accepted (3.93% gap to 47% target)
+Plan: 05 of 6 (Gap Closure)
+Status: Phase 122 Plan 05 COMPLETE - experience lifecycle tests, 68.98% coverage (+22 pp)
+Last activity: 2026-03-02T23:16:18Z — Plan 05 complete, 10 tests added, target exceeded by 10.98 pp
 
-Progress: [████████████░░░░░░] 100% (Phase 122 Plan 04/3)
+Progress: [██████████████░░░░] 83% (Phase 122 Plan 05/6)
 
 ## Performance Metrics
 
@@ -86,7 +86,8 @@ Progress: [████████████░░░░░░] 100% (Phase 1
 | Phase 122 P02 | 1 | 3 tasks | 2 files |
 | Phase 122 P03 | 15 | 3 tasks | 3 files |
 | Phase 122 P04 | 15 | 3 tasks | 2 files |
-| Phase 122 P04 | 15 | 3 tasks | 2 files |
+| Phase 122 P05 | 3 | 4 tasks | 2 files |
+| Phase 122 P05 | 3 | 10 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,10 @@ Recent decisions affecting current work:
 - [Phase 122]: Accept 29% coverage for agent_world_model.py - multi-source memory requires integration tests
 - [Phase 122-04]: Accept near-miss on 47% coverage target (43.07% achieved, 3.93% gap to target) - 6 integration tests for recall_experiences() method, 14.15 pp increase (78.6% of 18% target)
 - [Phase 122]: Accept near-miss on 47% coverage target (43.07% achieved, 3.93% gap)
+- [Phase 122-05]: Experience lifecycle tests achieve 68.98% coverage (exceeds 58% target by 10.98 pp)
+- [Phase 122-05]: Confidence blend formula: 60% old + 40% normalized feedback (0.5*0.6 + 0.9*0.4 = 0.66)
+- [Phase 122-05]: Confidence cap at 1.0 prevents overconfidence from repeated boosts
+- [Phase 122-05]: Case-insensitive agent_role filtering for statistics aggregation
 
 ### Pending Todos
 
@@ -258,4 +263,4 @@ Resume file: None
 *State updated: 2026-03-02*
 *Stopped at: Phase 122 COMPLETE - All 3 plans executed, business_facts_routes 74% coverage, agent_world_model 29%*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 122 complete, 11 tests added, 74% business_facts_routes coverage (exceeds 60% target), Rule 1 bug fix (APIRouter→BaseAPIRouter)*
+*Status: Phase 122 Plan 05 complete - 10 experience lifecycle tests added, 68.98% agent_world_model.py coverage (exceeds 58% target by 10.98 pp)*
