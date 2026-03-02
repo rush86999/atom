@@ -271,3 +271,403 @@ The existing 14 test classes focus on basic session lifecycle, interventions, an
 ---
 
 *Analysis generated from: backend/tests/coverage_reports/metrics/phase_116_coverage_baseline.json*
+
+
+---
+
+## Gap-Filling Strategy for Plan 03
+
+Based on the coverage baseline analysis, Plan 03 should focus on **supervision_service.py** to raise coverage from 54% to 60%+ (minimum 6.33 percentage point increase).
+
+### Priority 1: supervision_service.py (CRITICAL - REQUIRED)
+
+**Estimated coverage:** 54% → 60-65%
+**Target:** 60%
+**Gap:** 6.33 percentage points
+**Tests needed:** 8-12 tests
+
+#### Test 1: monitor_agent_execution with timeout (HIGH IMPACT)
+**Lines to cover:** 137-235 (32 lines, 0% coverage)
+**Function:** `monitor_agent_execution(agent_id, execution_context, timeout_seconds)`
+**Purpose:** Real-time agent execution monitoring with timeout handling
+
+```python
+@pytest.mark.asyncio
+async def test_monitor_agent_execution_with_timeout(self, db_session: Session):
+    """
+    Test monitoring agent execution with timeout.
+    Covers lines 137-235 in supervision_service.py.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_monitor_timeout",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+    session = await service.start_supervision_session(
+        agent_id=agent.id,
+        trigger_context={"action_type": "test_action"},
+        workspace_id="test_workspace",
+        supervisor_id="test_supervisor"
+    )
+
+    # Act - Monitor with short timeout
+    result = await service.monitor_agent_execution(
+        agent_id=agent.id,
+        execution_context={"action": "test"},
+        timeout_seconds=0.1  # Short timeout to trigger timeout path
+    )
+
+    # Assert
+    assert result["status"] == "timeout"
+    assert result["session_id"] == session.id
+    assert session.status == SupervisionStatus.COMPLETED.value
+```
+
+#### Test 2: monitor_agent_execution with progress tracking (HIGH IMPACT)
+**Lines to cover:** 137-235 (progress tracking logic)
+**Purpose:** Test progress updates and event emission during monitoring
+
+```python
+@pytest.mark.asyncio
+async def test_monitor_agent_execution_with_progress_tracking(self, db_session: Session):
+    """
+    Test monitoring agent execution with progress tracking.
+    Covers progress tracking and event emission logic.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_monitor_progress",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+    session = await service.start_supervision_session(
+        agent_id=agent.id,
+        trigger_context={"action_type": "test_action"},
+        workspace_id="test_workspace",
+        supervisor_id="test_supervisor"
+    )
+
+    # Act - Monitor with progress updates
+    result = await service.monitor_agent_execution(
+        agent_id=agent.id,
+        execution_context={"action": "test"},
+        timeout_seconds=30
+    )
+
+    # Assert
+    assert result["status"] == "completed"
+    assert "progress_events" in result
+    assert len(result["progress_events"]) > 0
+```
+
+#### Test 3: start_supervision_with_fallback to autonomous (HIGH IMPACT)
+**Lines to cover:** 549-612 (26 lines, 0% coverage)
+**Function:** `start_supervision_with_fallback(agent_id, trigger_context, workspace_id, supervisor_id, fallback_to_autonomous)`
+**Purpose:** Alternative supervision startup with autonomous fallback on failure
+
+```python
+@pytest.mark.asyncio
+async def test_start_supervision_with_fallback_to_autonomous(self, db_session: Session):
+    """
+    Test supervision startup with fallback to autonomous mode.
+    Covers lines 549-612 in supervision_service.py.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_fallback_autonomous",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+
+    # Mock supervision startup to fail (simulate unavailability)
+    with patch.object(service, 'start_supervision_session', side_effect=Exception("Supervisor unavailable")):
+        # Act - Start supervision with fallback enabled
+        result = await service.start_supervision_with_fallback(
+            agent_id=agent.id,
+            trigger_context={"action_type": "test_action"},
+            workspace_id="test_workspace",
+            supervisor_id="test_supervisor",
+            fallback_to_autonomous=True
+        )
+
+    # Assert - Should fall back to autonomous mode
+    assert result["status"] == "autonomous_fallback"
+    assert result["reason"] == "Supervisor unavailable"
+    assert result["agent_id"] == agent.id
+```
+
+#### Test 4: monitor_with_autonomous_fallback on performance degradation (MEDIUM IMPACT)
+**Lines to cover:** 624-669 (17 lines, 0% coverage)
+**Function:** `monitor_with_autonomous_fallback(agent_id, execution_context, performance_threshold)`
+**Purpose:** Monitoring with automatic fallback to autonomous mode on performance degradation
+
+```python
+@pytest.mark.asyncio
+async def test_monitor_with_autonomous_fallback_performance_degradation(self, db_session: Session):
+    """
+    Test monitoring with autonomous fallback on performance degradation.
+    Covers lines 624-669 in supervision_service.py.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_fallback_performance",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+
+    # Act - Monitor with low performance threshold
+    result = await service.monitor_with_autonomous_fallback(
+        agent_id=agent.id,
+        execution_context={"action": "test"},
+        performance_threshold=0.5  # Low threshold to trigger fallback
+    )
+
+    # Assert - Should fall back to autonomous due to poor performance
+    assert result["status"] == "autonomous_fallback"
+    assert "performance_degraded" in result["reason"]
+```
+
+#### Test 5: _process_supervision_feedback with episode creation (MEDIUM IMPACT)
+**Lines to cover:** 682-735 (13 lines, 0% coverage)
+**Function:** `_process_supervision_feedback(session_id, feedback_data)`
+**Purpose:** Process supervision feedback and create episodes for learning
+
+```python
+@pytest.mark.asyncio
+async def test_process_supervision_feedback_creates_episode(self, db_session: Session):
+    """
+    Test processing supervision feedback creates episode for learning.
+    Covers lines 682-735 in supervision_service.py.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_feedback_episode",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+    session = await service.start_supervision_session(
+        agent_id=agent.id,
+        trigger_context={"action_type": "test_action"},
+        workspace_id="test_workspace",
+        supervisor_id="test_supervisor"
+    )
+
+    feedback_data = {
+        "supervisor_rating": 0.9,
+        "intervention_count": 2,
+        "feedback_text": "Good performance with minor corrections"
+    }
+
+    # Act - Process supervision feedback
+    result = await service._process_supervision_feedback(
+        session_id=session.id,
+        feedback_data=feedback_data
+    )
+
+    # Assert - Should create episode from supervision session
+    assert result["episode_created"] is True
+    assert result["episode_id"] is not None
+    assert result["sentiment_score"] > 0.5
+```
+
+#### Test 6: complete_supervision creates episode (MEDIUM IMPACT)
+**Lines to cover:** 395-409 (episode creation path in complete_supervision)
+**Purpose:** Test episode creation when supervision session completes
+
+```python
+@pytest.mark.asyncio
+async def test_complete_supervision_creates_episode(self, db_session: Session):
+    """
+    Test completing supervision creates episode for learning.
+    Covers episode creation path (lines 395-409) in supervision_service.py.
+    """
+    # Arrange
+    agent = AgentRegistry(
+        id="supervised_episode_creation",
+        name="Supervised Agent",
+        category="testing",
+        module_path="test.module",
+        class_name="TestClass",
+        status=AgentStatus.SUPERVISED.value,
+        confidence_score=0.8,
+        user_id="test_user",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    service = SupervisionService(db_session)
+    session = await service.start_supervision_session(
+        agent_id=agent.id,
+        trigger_context={"action_type": "test_action"},
+        workspace_id="test_workspace",
+        supervisor_id="test_supervisor"
+    )
+
+    outcome = SupervisionOutcome(
+        supervisor_rating=0.9,
+        intervention_count=0,
+        feedback_text="Excellent performance"
+    )
+
+    # Act - Complete supervision with high rating
+    result = await service.complete_supervision(
+        session_id=session.id,
+        outcome=outcome
+    )
+
+    # Assert - Should create episode from supervision session
+    assert result["episode_created"] is True
+    assert result["confidence_boost"] > 0
+    assert session.status == SupervisionStatus.COMPLETED.value
+```
+
+### Summary of Plan 03 Tests
+
+| Test | Function | Lines | Impact | Priority |
+|------|----------|-------|--------|----------|
+| monitor_agent_execution with timeout | monitor_agent_execution | 137-235 | HIGH | 1 |
+| monitor_agent_execution with progress | monitor_agent_execution | 137-235 | HIGH | 1 |
+| start_supervision_with_fallback | start_supervision_with_fallback | 549-612 | HIGH | 1 |
+| monitor_with_autonomous_fallback | monitor_with_autonomous_fallback | 624-669 | MEDIUM | 2 |
+| _process_supervision_feedback | _process_supervision_feedback | 682-735 | MEDIUM | 2 |
+| complete_supervision creates episode | complete_supervision | 395-409 | MEDIUM | 2 |
+
+**Total tests:** 6-8 tests (including variations)
+**Expected coverage increase:** 6-11 percentage points (54% → 60-65%)
+**Estimated effort:** 30-45 minutes
+
+---
+
+### Priority 2: trigger_interceptor.py (OPTIONAL - NOT REQUIRED)
+
+**Current Coverage:** 96%
+**Status:** ✅ ALREADY_EXCEEDS_TARGET
+**Action:** No tests needed
+
+The 5 missing lines are edge cases:
+- Lines 314-317: Manual trigger with unavailable supervisor
+- Line 439: Supervised agent routing when agent deleted
+
+**Optional polish tests** (NOT REQUIRED for 60% target):
+```python
+@pytest.mark.asyncio
+async def test_manual_trigger_with_unavailable_supervisor(self, db_session: Session):
+    """Test manual trigger when supervisor is unavailable. Covers lines 314-317."""
+    # Implementation would test unavailable supervisor path
+
+@pytest.mark.asyncio
+async def test_supervised_agent_routing_when_agent_deleted(self, db_session: Session):
+    """Test supervision routing when agent is deleted. Covers line 439."""
+    # Implementation would test agent deleted edge case
+```
+
+**Coverage impact:** +2-3% (98-99% coverage) - NOT REQUIRED
+
+---
+
+### Priority 3: student_training_service.py (OPTIONAL - NOT REQUIRED)
+
+**Current Coverage:** 88%
+**Status:** ✅ ALREADY_EXCEEDS_TARGET
+**Action:** No tests needed
+
+The 24 missing lines are error handling paths and advanced features (LLM fallback, learning rate calculation).
+
+**Optional enhancements** (NOT REQUIRED for 60% target):
+- Test error handling paths (7 lines)
+- Test LLM timeout fallback (2 lines)
+- Test similar agent learning rate (9 lines)
+
+**Coverage impact:** +10-12% (98-100% coverage) - NOT REQUIRED
+
+---
+
+## Plan 03 Execution Roadmap
+
+### Step 1: Add high-impact tests for supervision_service.py (30 min)
+1. Test `monitor_agent_execution` with timeout and progress tracking (2-3 tests)
+2. Test `start_supervision_with_fallback` with autonomous fallback (1-2 tests)
+3. Test `monitor_with_autonomous_fallback` with performance degradation (1-2 tests)
+
+### Step 2: Add medium-impact tests for supervision_service.py (15 min)
+1. Test `_process_supervision_feedback` with episode creation (1-2 tests)
+2. Test `complete_supervision` episode creation path (1-2 tests)
+
+### Step 3: Verify coverage (5 min)
+```bash
+cd backend
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest \
+  tests/unit/governance/test_supervision_service.py \
+  --cov=core.supervision_service \
+  --cov-report=term-missing
+```
+
+### Step 4: Confirm 60%+ coverage achieved
+- Expected: 60-65% coverage for supervision_service.py
+- All 43 tests passing (19 + 11 + 13 = 43 tests)
+- Combined coverage: 76%+ (already exceeds target)
+
+---
+
+## Success Criteria for Plan 03
+
+1. ✅ All 43 tests passing (existing + new tests)
+2. ✅ supervision_service.py coverage ≥ 60% (minimum target)
+3. ✅ No test failures or errors
+4. ✅ Coverage JSON report generated for verification
+
+**Expected outcome:**
+- trigger_interceptor.py: 96% (unchanged, already exceeds target)
+- student_training_service.py: 88% (unchanged, already exceeds target)
+- supervision_service.py: 60-65% (up from 54%, meeting target)
+- **COMBINED: 76-78% coverage** (already exceeds 60% target)
+
+---
+
+*Gap-filling strategy documented for Plan 03 execution*
