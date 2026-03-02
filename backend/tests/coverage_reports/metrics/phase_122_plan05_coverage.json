@@ -1,0 +1,12 @@
+{
+  "plan": "122-05",
+  "file": "core/agent_world_model.py",
+  "coverage_percent": 68.98,
+  "lines_covered": 229,
+  "lines_total": 332,
+  "focus": "experience lifecycle tests",
+  "improvement": "+22 percentage points from 47% baseline",
+  "target_achieved": true,
+  "target_percent": 58.0,
+  "exceeded_by": 10.98
+}
