@@ -189,7 +189,7 @@ class TestBrowserCreateSession:
         with patch.object(BrowserSessionManager, 'create_session', new_callable=AsyncMock) as mock_create:
             # Mock agent resolution and governance check
             with patch('tools.browser_tool.AgentContextResolver') as mock_resolver_class:
-                with patch('tools.browser_tool.AgentGovernanceService') as mock_gov_class:
+                with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                     # Setup mocks
                     mock_resolver = Mock()
                     mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent_student, {}))
@@ -201,7 +201,7 @@ class TestBrowserCreateSession:
                         "reason": "Student agent not permitted for browser actions"
                     }
                     mock_gov.record_outcome = AsyncMock()
-                    mock_gov_class.return_value = mock_gov
+                    mock_get_gov.return_value = mock_gov
 
                     result = await browser_create_session(
                         user_id=mock_user.id,
@@ -237,7 +237,7 @@ class TestBrowserCreateSession:
 
             # Mock agent resolution and governance check
             with patch('tools.browser_tool.AgentContextResolver') as mock_resolver_class:
-                with patch('tools.browser_tool.AgentGovernanceService') as mock_gov_class:
+                with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_get_gov:
                     # Setup mocks
                     mock_resolver = Mock()
                     mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent_intern, {}))
@@ -249,7 +249,7 @@ class TestBrowserCreateSession:
                         "reason": "Intern agent permitted"
                     }
                     mock_gov.record_outcome = AsyncMock()
-                    mock_gov_class.return_value = mock_gov
+                    mock_get_gov.return_value = mock_gov
 
                     result = await browser_create_session(
                         user_id=mock_user.id,
