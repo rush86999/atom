@@ -256,7 +256,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Coverage report shows 60%+ coverage for tools/device_tool.py
   3. Camera, screen recording, location, and notifications tested with mocked device APIs
   4. Governance gates (INTERN for camera, SUPERVISED for screen recording) validated
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 120-01-PLAN.md — Baseline coverage measurement and test inventory
+- [ ] 120-02-PLAN.md — Coverage gap analysis and prioritized test list
+- [ ] 120-03-PLAN.md — Add targeted tests to reach 60% coverage
 
 ### Phase 121: Health & Monitoring Coverage
 **Goal**: Achieve 60%+ coverage for health checks and metrics
