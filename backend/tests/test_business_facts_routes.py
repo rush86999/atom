@@ -9,6 +9,10 @@ Routes Covered:
 - GET /api/admin/governance/facts - List all facts
 - POST /api/admin/governance/facts - Create new fact
 - GET /api/admin/governance/facts/{id} - Get specific fact
+- PUT /api/admin/governance/facts/{id} - Update fact
+- DELETE /api/admin/governance/facts/{id} - Delete fact
+- POST /api/admin/governance/facts/upload - Upload and extract
+- POST /api/admin/governance/facts/{id}/verify-citation - Verify citations
 
 Note: Due to core.security.rbac syntax errors, auth is mocked at import level.
 This will be fixed in a future plan.
@@ -225,3 +229,133 @@ class TestGetFact:
             assert data["verification_status"] == "verified"
 
             mock_world_model_service.get_fact_by_id.assert_called_once_with(fact_id)
+
+
+class TestUpdateFact:
+    """Tests for PUT /api/admin/governance/facts/{fact_id} endpoint."""
+
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    def test_update_fact_not_found(self, mock_wm_class, client_with_admin_auth):
+        """
+        GIVEN fact does not exist
+        WHEN PUT /api/admin/governance/facts/{fact_id} with update data
+        THEN return 404 with not found error
+        """
+        mock_wm = AsyncMock()
+        mock_wm.get_fact_by_id.return_value = None
+        mock_wm_class.return_value = mock_wm
+
+        response = client_with_admin_auth.put(
+            "/api/admin/governance/facts/nonexistent-id",
+            json={"fact": "Updated fact text"}
+        )
+
+        assert response.status_code == 404
+
+
+class TestDeleteFact:
+    """Tests for DELETE /api/admin/governance/facts/{fact_id} endpoint."""
+
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    def test_delete_fact_not_found(self, mock_wm_class, client_with_admin_auth):
+        """
+        GIVEN fact does not exist
+        WHEN DELETE /api/admin/governance/facts/{fact_id}
+        THEN return 404 with not found error
+        """
+        mock_wm = AsyncMock()
+        mock_wm.delete_fact.return_value = False
+        mock_wm_class.return_value = mock_wm
+
+        response = client_with_admin_auth.delete(
+            "/api/admin/governance/facts/nonexistent-id"
+        )
+
+        assert response.status_code == 404
+
+
+class TestUploadAndExtract:
+    """Tests for POST /api/admin/governance/facts/upload endpoint."""
+
+    def test_upload_unsupported_file_type(self, client_with_admin_auth):
+        """
+        GIVEN file with unsupported extension
+        WHEN POST /api/admin/governance/facts/upload with .exe file
+        THEN return 400 with validation error
+        """
+        files = {"file": ("test.exe", b"fake exe content", "application/x-msdownload")}
+        data = {"domain": "general"}
+
+        response = client_with_admin_auth.post(
+            "/api/admin/governance/facts/upload",
+            files=files,
+            data=data
+        )
+
+        assert response.status_code == 400
+        # Error response contains the error message
+        assert "Unsupported file type" in str(response.json())
+
+    @patch('core.policy_fact_extractor.get_policy_fact_extractor')
+    @patch('core.storage.get_storage_service')
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    def test_upload_extraction_failure(
+        self, mock_wm_class, mock_storage_class, mock_extractor_class, client_with_admin_auth
+    ):
+        """
+        GIVEN fact extraction raises exception
+        WHEN POST /api/admin/governance/facts/upload with valid file
+        THEN return 500 with internal error
+        """
+        import io
+
+        # Mock storage
+        mock_storage = Mock()
+        mock_storage.upload_file.return_value = "s3://bucket/key/file.pdf"
+        mock_storage_class.return_value = mock_storage
+
+        # Mock extractor to raise exception
+        mock_extractor = AsyncMock()
+        # The actual method that gets called
+        mock_extractor.extract_facts_from_document.side_effect = Exception("Extraction failed")
+        mock_extractor_class.return_value = mock_extractor
+
+        # Mock world model
+        mock_wm = AsyncMock()
+        mock_wm.bulk_record_facts.return_value = 1
+        mock_wm_class.return_value = mock_wm
+
+        files = {"file": ("test.pdf", b"fake pdf content", "application/pdf")}
+        data = {"domain": "general"}
+
+        response = client_with_admin_auth.post(
+            "/api/admin/governance/facts/upload",
+            files=files,
+            data=data
+        )
+
+        assert response.status_code == 500
+        data = response.json()
+        assert data["success"] is False
+        assert "Failed to extract facts" in data["error"]["message"]
+
+
+class TestVerifyCitation:
+    """Tests for POST /api/admin/governance/facts/{fact_id}/verify-citation endpoint."""
+
+    @patch('api.admin.business_facts_routes.WorldModelService')
+    def test_verify_citation_fact_not_found(self, mock_wm_class, client_with_admin_auth):
+        """
+        GIVEN fact does not exist
+        WHEN POST /api/admin/governance/facts/{fact_id}/verify-citation
+        THEN return 404 with not found error
+        """
+        mock_wm = AsyncMock()
+        mock_wm.get_fact_by_id.return_value = None
+        mock_wm_class.return_value = mock_wm
+
+        response = client_with_admin_auth.post(
+            "/api/admin/governance/facts/nonexistent-id/verify-citation"
+        )
+
+        assert response.status_code == 404
