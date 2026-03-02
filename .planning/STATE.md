@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 6 of 16 (Student Training Coverage)
-Plan: 01
-Status: Phase 116 Plan 01 COMPLETE - Fixed 6 failing tests in test_student_training_service.py, all 11 tests passing, 88% baseline coverage
-Last activity: 2026-03-01T19:21:00Z — Plan 01 complete, test failures fixed, coverage baseline established
+Plan: 02
+Status: Phase 116 Plan 02 COMPLETE - Combined coverage baseline measured (76%), supervision_service.py needs 8-12 tests to reach 60%
+Last activity: 2026-03-02T00:16:00Z — Plan 02 complete, coverage baseline established, gap-filling strategy documented
 
-Progress: [██████░░░░░] 41%
+Progress: [██████░░░░░] 44%
 
 ## Performance Metrics
 
@@ -59,6 +59,8 @@ Progress: [██████░░░░░] 41%
 | Phase 115 P03 | 259 | 3 tasks | 2 files |
 | Phase 115 P04 | 5 | 3 tasks | 3 files |
 | Phase 116 P01 | 15 | 3 tasks | 1 files |
+| Phase 116 P02 | 2 | 3 tasks | 2 files |
+| Phase 116 P02 | 2 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,14 +84,20 @@ Recent decisions affecting current work:
 - [Phase 115]: ChatRequest model missing workspace_id field - Added Optional[str] field to enable proper multi-tenancy support in streaming endpoint (Rule 1 bug fix during testing).
 - [Phase 115-02]: Patch BYOK manager at import location (core.byok_endpoints) not usage location (core.atom_agent_endpoints) for get_byok_manager mocking. LLM responses require dict structure with 'success' and 'response' keys.
 - [Phase 115-04]: Patch modules at import location for locally imported functions (ws_manager, get_byok_manager, BYOKHandler, get_db_session, AgentGovernanceService, AgentContextResolver). Avoid setting __init__ on mocks.
+- [Phase 116]: Combined coverage 76% exceeds 60% target
+- [Phase 116]: supervision_service.py needs 8-12 tests to reach 60%
+- [Phase 116]: Focus Plan 03 on supervision_service.py only (other services already exceed target)
+- [Phase 116]: Prioritize tests by impact (HIGH/MEDIUM/OPTIONAL)
 
 ### Pending Todos
 
-1. Complete Phase 116 Plan 02: Combined coverage measurement for student training services
-2. Measure baseline coverage for supervision_service.py (status unknown)
-3. If supervision_service.py < 60%, add targeted tests to reach threshold
-4. Create combined coverage report for trigger_interceptor, student_training_service, supervision_service
-5. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
+1. Complete Phase 116 Plan 03: Add 8-12 tests to supervision_service.py to reach 60% coverage
+2. Implement tests for `monitor_agent_execution` (32 lines, 0% coverage)
+3. Implement tests for `start_supervision_with_fallback` (26 lines, 0% coverage)
+4. Implement tests for `monitor_with_autonomous_fallback` (17 lines, 0% coverage)
+5. Implement tests for `_process_supervision_feedback` (13 lines, 0% coverage)
+6. Verify all three services maintain 60%+ coverage in combined test run
+7. Fix 2 flaky agent_guidance_canvas_tool tests (low priority)
 
 ### Blockers/Concerns
 
@@ -144,8 +152,9 @@ Resume file: None
 - ✅ Phase 115 Plan 03: Workflow handlers coverage (16 tests, 57.63% coverage, +7.82 pp)
 - ✅ Phase 115 Plan 04: Final verification and phase documentation (51 tests total, 58.64% coverage, +49.58 pp)
 - ✅ Phase 116 Plan 01: Fix 6 failing tests in test_student_training_service.py (11/11 tests passing, 88% coverage baseline)
-- Current: Phase 116 Plan 01 COMPLETE - Student training service tests fixed, 88% coverage exceeds 60% target
-- Next: Phase 116 Plan 02: Combined coverage measurement for all three student training services
+- ✅ Phase 116 Plan 02: Combined coverage measurement (76% overall, supervision_service.py at 54% needs work)
+- Current: Phase 116 Plan 02 COMPLETE - Coverage baseline measured, gap-filling strategy documented
+- Next: Phase 116 Plan 03: Add 8-12 tests to supervision_service.py to reach 60% coverage
 
 **Phase 112 Coverage Progress:**
 - ✅ Plan 01: Fixed test infrastructure, achieved 75.39% coverage
@@ -159,7 +168,7 @@ Resume file: None
 
 ---
 
-*State updated: 2026-03-01*
-*Stopped at: Phase 116 Plan 01 COMPLETE - Student training service tests fixed (11/11 passing, 88% coverage)*
+*State updated: 2026-03-02*
+*Stopped at: Phase 116 Plan 02 COMPLETE - Coverage baseline measured (76% combined), gap-filling strategy documented*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 116 in progress, 1 of 4 plans complete*
+*Status: Phase 116 in progress, 2 of 4 plans complete*
