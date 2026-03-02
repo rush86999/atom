@@ -15,7 +15,7 @@ const OneDrivePage: React.FC = () => {
           <h1 className="text-4xl font-bold mb-4 text-blue-600">
             OneDrive Integration
           </h1>
-          <p className="text-lg text-gray-600 max-w-3xl">
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
             Seamlessly connect your OneDrive account to search, manage, and ingest files directly within ATOM.
             Access your documents, spreadsheets, presentations, and more with powerful search capabilities.
           </p>

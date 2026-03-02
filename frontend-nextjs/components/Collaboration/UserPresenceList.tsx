@@ -110,8 +110,8 @@ export const UserPresenceList: React.FC<UserPresenceListProps> = ({
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-4">
-            <div className="h-2 w-2 bg-gray-200 rounded-full animate-pulse mr-2" />
-            <div className="h-2 w-24 bg-gray-200 rounded-full animate-pulse" />
+            <div className="h-2 w-2 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse mr-2" />
+            <div className="h-2 w-24 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse" />
           </div>
         </CardContent>
       </Card>

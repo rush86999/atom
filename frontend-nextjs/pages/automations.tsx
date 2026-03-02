@@ -39,9 +39,9 @@ const AutomationsPage: React.FC = () => {
         <title>Automations | Atom</title>
         <meta name="description" content="Build powerful workflow automations with AI. Connect your apps and automate tasks." />
       </Head>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex flex-col">
         {/* Header with Tabs */}
-        <div className="bg-white border-b">
+        <div className="bg-white dark:bg-gray-900 border-b">
           <div className="max-w-screen-2xl mx-auto px-4">
             <div className="flex items-center justify-between py-4">
               <div className="flex items-center gap-3">
@@ -50,7 +50,7 @@ const AutomationsPage: React.FC = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold">Automations</h1>
-                  <p className="text-sm text-gray-500">Build workflows with AI • 30+ integrations</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Build workflows with AI • 30+ integrations</p>
                 </div>
               </div>
               <Button onClick={() => setActiveTab('flows')}>
@@ -71,7 +71,7 @@ const AutomationsPage: React.FC = () => {
                       "flex items-center gap-2 px-4 py-3 border-b-2 transition-colors font-medium text-sm",
                       activeTab === tab.id
                         ? "border-violet-600 text-violet-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:border-gray-600"
                     )}
                   >
                     <Icon className="w-4 h-4" />

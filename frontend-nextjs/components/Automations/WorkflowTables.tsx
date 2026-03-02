@@ -265,7 +265,7 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
             case 'number':
                 return (
                     <span
-                        className="cursor-pointer hover:bg-gray-100 px-1 rounded font-mono text-sm"
+                        className="cursor-pointer hover:bg-gray-100 dark:bg-gray-800 px-1 rounded font-mono text-sm"
                         onClick={() => {
                             setEditingCell({ rowId, colId: col.id });
                             setEditValue(value?.toString() || '');
@@ -286,7 +286,7 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
             default:
                 return (
                     <span
-                        className="cursor-pointer hover:bg-gray-100 px-1 rounded text-sm"
+                        className="cursor-pointer hover:bg-gray-100 dark:bg-gray-800 px-1 rounded text-sm"
                         onClick={() => {
                             setEditingCell({ rowId, colId: col.id });
                             setEditValue(value || '');
@@ -301,8 +301,8 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
     return (
         <div className={cn("flex h-full", className)}>
             {/* Tables List Sidebar */}
-            <div className="w-64 border-r bg-gray-50 flex flex-col">
-                <div className="p-4 border-b bg-white">
+            <div className="w-64 border-r bg-gray-50 dark:bg-gray-800 flex flex-col">
+                <div className="p-4 border-b bg-white dark:bg-gray-900">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <Database className="w-5 h-5 text-teal-600" />
@@ -349,11 +349,11 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                                 "w-full text-left p-3 rounded-lg mb-1 transition-colors",
                                 selectedTable?.id === table.id
                                     ? "bg-teal-100 text-teal-900"
-                                    : "hover:bg-gray-100"
+                                    : "hover:bg-gray-100 dark:bg-gray-800"
                             )}
                         >
                             <div className="font-medium text-sm">{table.name}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
                                 <span>{table.rows.length} rows</span>
                                 {table.connectedFlows && table.connectedFlows.length > 0 && (
                                     <Badge variant="secondary" className="text-[9px] h-4">
@@ -372,11 +372,11 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                 {selectedTable ? (
                     <>
                         {/* Table Header */}
-                        <div className="p-4 border-b bg-white flex justify-between items-center">
+                        <div className="p-4 border-b bg-white dark:bg-gray-900 flex justify-between items-center">
                             <div>
                                 <h2 className="text-lg font-bold">{selectedTable.name}</h2>
                                 {selectedTable.description && (
-                                    <p className="text-sm text-gray-500">{selectedTable.description}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedTable.description}</p>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -410,12 +410,12 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                         {/* Table Content */}
                         <div className="flex-1 overflow-auto">
                             <table className="w-full">
-                                <thead className="bg-gray-50 sticky top-0">
+                                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                                     <tr>
                                         {selectedTable.columns.map(col => (
                                             <th
                                                 key={col.id}
-                                                className="px-4 py-2 text-left text-xs font-semibold text-gray-600 border-b"
+                                                className="px-4 py-2 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 border-b"
                                             >
                                                 <div className="flex items-center gap-1">
                                                     {col.name}
@@ -431,8 +431,8 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                                         <tr
                                             key={row.id}
                                             className={cn(
-                                                "border-b hover:bg-gray-50",
-                                                idx % 2 === 0 && "bg-white",
+                                                "border-b hover:bg-gray-50 dark:bg-gray-800",
+                                                idx % 2 === 0 && "bg-white dark:bg-gray-900",
                                                 idx % 2 === 1 && "bg-gray-25"
                                             )}
                                         >
@@ -457,7 +457,7 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                             </table>
 
                             {selectedTable.rows.length === 0 && (
-                                <div className="text-center py-12 text-gray-500">
+                                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                                     <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                                     <p className="font-medium">No data yet</p>
                                     <p className="text-sm">Add rows manually or connect a flow to populate this table</p>
@@ -470,8 +470,8 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
 
                         {/* Connected Flows */}
                         {selectedTable.connectedFlows && selectedTable.connectedFlows.length > 0 && (
-                            <div className="p-3 border-t bg-gray-50">
-                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <div className="p-3 border-t bg-gray-50 dark:bg-gray-800">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                                     <Zap className="w-3 h-3" />
                                     <span>Connected flows:</span>
                                     {selectedTable.connectedFlows.map(flow => (
@@ -484,7 +484,7 @@ const WorkflowTables: React.FC<WorkflowTablesProps> = ({ onSelectTable, classNam
                         )}
                     </>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                         <div className="text-center">
                             <Database className="w-16 h-16 mx-auto mb-4 opacity-30" />
                             <h3 className="font-semibold text-lg mb-1">Select a table</h3>

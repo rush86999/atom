@@ -254,7 +254,7 @@ const GoogleDriveIntegration: React.FC = () => {
     if (mimeType.includes('video')) return <Video className="h-5 w-5 text-red-400" />;
     if (mimeType.includes('audio')) return <Music className="h-5 w-5 text-pink-500" />;
 
-    return <File className="h-5 w-5 text-gray-500" />;
+    return <File className="h-5 w-5 text-gray-500 dark:text-gray-400" />;
   };
 
   // Initial load
@@ -273,7 +273,7 @@ const GoogleDriveIntegration: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        <p className="mt-4 text-gray-500">Loading Google Drive integration...</p>
+        <p className="mt-4 text-gray-500 dark:text-gray-400">Loading Google Drive integration...</p>
       </div>
     );
   }
@@ -283,7 +283,7 @@ const GoogleDriveIntegration: React.FC = () => {
       {/* Header */}
       <div className="space-y-1">
         <h2 className="text-2xl font-bold tracking-tight">Google Drive Integration</h2>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           Connect your Google Drive to search and manage files directly within ATOM
         </p>
       </div>
@@ -304,7 +304,7 @@ const GoogleDriveIntegration: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
-              <span className="text-sm text-gray-600">as {connectionStatus.email}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">as {connectionStatus.email}</span>
             </div>
             <Button
               variant="destructive"
@@ -319,7 +319,7 @@ const GoogleDriveIntegration: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Badge variant="destructive">Not Connected</Badge>
               {connectionStatus?.reason && (
-                <span className="text-sm text-gray-600">{connectionStatus.reason}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{connectionStatus.reason}</span>
               )}
             </div>
             <Button
@@ -338,7 +338,7 @@ const GoogleDriveIntegration: React.FC = () => {
           <h3 className="text-lg font-semibold">Files & Folders</h3>
 
           {/* Breadcrumb Navigation */}
-          <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
             {pathHistory.map((item, index) => (
               <React.Fragment key={item.id || 'root'}>
                 {index > 0 && <ChevronRight className="h-4 w-4" />}
@@ -360,11 +360,11 @@ const GoogleDriveIntegration: React.FC = () => {
           {isLoadingFiles && files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              <p className="mt-2 text-gray-500">Loading files...</p>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">Loading files...</p>
             </div>
           ) : files.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">No files found in this folder</p>
+              <p className="text-gray-500 dark:text-gray-400">No files found in this folder</p>
             </div>
           ) : (
             <>
@@ -383,7 +383,7 @@ const GoogleDriveIntegration: React.FC = () => {
                     {files.map((file) => (
                       <TableRow
                         key={file.id}
-                        className={file.isFolder ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : ''}
+                        className={file.isFolder ? 'cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800' : ''}
                         onClick={() => file.isFolder && handleFileClick(file)}
                       >
                         <TableCell>

@@ -147,7 +147,7 @@ export default function LocalOCRSettings() {
                     <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
                         <div>
                             <span className="font-medium">Tesseract</span>
-                            <span className="text-sm text-gray-500 ml-2">Fast, lightweight (~50MB)</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">Fast, lightweight (~50MB)</span>
                         </div>
                         <span className={`px-2 py-1 rounded text-xs font-medium ${ocrStatus?.tesseract_available
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -160,7 +160,7 @@ export default function LocalOCRSettings() {
                     <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
                         <div>
                             <span className="font-medium">Surya</span>
-                            <span className="text-sm text-gray-500 ml-2">High accuracy, 90+ languages</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">High accuracy, 90+ languages</span>
                         </div>
                         <span className={`px-2 py-1 rounded text-xs font-medium ${ocrStatus?.surya_available
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -211,7 +211,7 @@ export default function LocalOCRSettings() {
                             Select File
                         </button>
                         {testFile && (
-                            <span className="text-sm text-gray-500 self-center truncate max-w-[200px]">
+                            <span className="text-sm text-gray-500 dark:text-gray-400 self-center truncate max-w-[200px]">
                                 {testFile.split('/').pop()}
                             </span>
                         )}

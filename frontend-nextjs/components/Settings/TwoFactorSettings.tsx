@@ -119,10 +119,10 @@ export default function TwoFactorSettings() {
                     <ShieldCheck className="w-5 h-5" />
                     <span>2FA Enabled Successfully</span>
                 </div>
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
                     Please save these recovery codes in a safe place.
                 </p>
-                <div className="bg-white p-4 rounded-lg font-mono text-sm text-green-800 border border-green-100">
+                <div className="bg-white dark:bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-800 border border-green-100">
                     {backupCodes.map((code, i) => (
                         <div key={i}>{code}</div>
                     ))}
@@ -130,14 +130,14 @@ export default function TwoFactorSettings() {
                 <div className="flex gap-2">
                     <button
                         onClick={copyBackupCodes}
-                        className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 flex items-center gap-2"
+                        className="text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 px-3 py-1.5 rounded-md hover:bg-gray-50 flex items-center gap-2"
                     >
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                         Copy Codes
                     </button>
                     <button
                         onClick={() => setBackupCodes(null)}
-                        className="text-xs text-gray-600 hover:text-gray-800 px-3 py-1.5"
+                        className="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-200 px-3 py-1.5"
                     >
                         Done
                     </button>
@@ -148,25 +148,25 @@ export default function TwoFactorSettings() {
 
     if (isSettingUp && setupData) {
         return (
-            <div className="space-y-6 p-6 bg-gray-50 border border-gray-200 rounded-xl">
+            <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl">
                 <div className="flex items-center gap-2 text-blue-600 font-semibold">
                     <Shield className="w-5 h-5" />
                     <span>Setup Two-Factor Authentication</span>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-                    <div className="bg-white p-4 rounded-xl border border-gray-200">
+                    <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                         <QRCodeSVG value={setupData.otpauth_url} size={160} />
                     </div>
 
                     <div className="flex-1 space-y-4">
-                        <div className="text-sm text-gray-600 space-y-2">
+                        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
                             <p>1. Scan this QR code with your authenticator app.</p>
-                            <p>2. Or enter this secret manually: <code className="bg-white border px-1 rounded text-orange-600">{setupData.secret}</code></p>
+                            <p>2. Or enter this secret manually: <code className="bg-white dark:bg-gray-900 border px-1 rounded text-orange-600">{setupData.secret}</code></p>
                         </div>
 
                         <div className="space-y-2">
-                            <label htmlFor="vcode" className="block text-sm font-medium text-gray-700">Verification Code</label>
+                            <label htmlFor="vcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Verification Code</label>
                             <input
                                 id="vcode"
                                 value={verificationCode}
@@ -187,7 +187,7 @@ export default function TwoFactorSettings() {
                             </button>
                             <button
                                 onClick={() => setIsSettingUp(false)}
-                                className="text-gray-600 hover:text-gray-800 px-4 py-2"
+                                className="text-gray-600 hover:text-gray-800 dark:text-gray-200 px-4 py-2"
                             >
                                 Cancel
                             </button>
@@ -202,12 +202,12 @@ export default function TwoFactorSettings() {
         <div className="py-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isEnabled ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                    <div className={`p-2 rounded-lg ${isEnabled ? 'bg-green-100 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                         {isEnabled ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold text-gray-900">Two-Factor Authentication (2FA)</h3>
-                        <p className="text-xs text-gray-500">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Two-Factor Authentication (2FA)</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                             {isEnabled
                                 ? 'Your account is secured with two-factor authentication.'
                                 : 'Add an extra layer of security to your account.'}

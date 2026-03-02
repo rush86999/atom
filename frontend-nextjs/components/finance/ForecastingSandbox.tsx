@@ -20,9 +20,9 @@ const ForecastingSandbox = () => {
 
     const fetchForecast = async () => {
         try {
-            const response = await fetch(`/api/v1/accounting/forecast?workspace_id=${workspaceId}`);
+            const response = await fetch(`/api/accounting/forecast?workspace_id=${workspaceId}`);
+            if (!response.ok) throw new Error("Failed to fetch forecast");
             const data = await response.json();
-            // Data looks like: { projection: [ { week_start, projected_balance, projected_income, projected_expense } ] }
             setForecastData(data.projection || []);
             setLoading(false);
         } catch (error) {
@@ -35,14 +35,16 @@ const ForecastingSandbox = () => {
         if (!scenarioText) return;
         setLoading(true);
         try {
-            const response = await fetch(`/api/v1/accounting/scenario?workspace_id=${workspaceId}&scenario_description=${encodeURIComponent(scenarioText)}`, {
+            const response = await fetch(`/api/accounting/scenario?workspace_id=${workspaceId}&scenario_description=${encodeURIComponent(scenarioText)}`, {
                 method: 'POST'
             });
+            if (!response.ok) throw new Error("Scenario analysis failed");
             const data = await response.json();
             setScenarioResult(data);
             toast({ title: "Scenario Modeled", description: "Impact analysis complete." });
         } catch (error) {
-            toast({ title: "Scenario Failed", variant: "error", description: "Scenario analysis is currently under development." });
+            console.error("Scenario error:", error);
+            toast({ title: "Scenario Failed", variant: "destructive", description: "Scenario analysis encountered an error." });
         } finally {
             setLoading(false);
         }

@@ -12,7 +12,7 @@ const NextjsIntegrationPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex flex-col items-center text-center space-y-8">
           <div className="p-4 bg-black dark:bg-white rounded-2xl">
-            <Code className="w-12 h-12 text-white dark:text-black" />
+            <Code className="w-12 h-12 text-gray-900 dark:text-white dark:text-black" />
           </div>
 
           <h1 className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">

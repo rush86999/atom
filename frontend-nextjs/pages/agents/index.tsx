@@ -253,7 +253,7 @@ const AgentsDashboard = () => {
                         <LayoutDashboard className="w-8 h-8 text-blue-600" />
                         Agent Control Center
                     </h1>
-                    <p className="text-gray-500">Monitor and orchestrate your autonomous workforce.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Monitor and orchestrate your autonomous workforce.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -263,7 +263,7 @@ const AgentsDashboard = () => {
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Available Agents</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {isLoading && agents.length === 0 && (
-                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500">
+                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400">
                                     <p>Loading agents...</p>
                                 </div>
                             )}
@@ -275,7 +275,7 @@ const AgentsDashboard = () => {
                             )}
 
                             {!isLoading && !error && agents.length === 0 && (
-                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300">
+                                <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300 dark:border-gray-600">
                                     <p>No agents found. Create your first agent or spawn from a template.</p>
                                 </div>
                             )}

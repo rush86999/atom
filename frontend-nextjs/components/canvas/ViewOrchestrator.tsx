@@ -191,8 +191,8 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
 
   if (!orchestration || orchestration.active_views.length === 0) {
     return (
-      <div className={`view-orchestrator bg-gray-50 rounded-lg p-8 ${className}`}>
-        <div className="text-center text-gray-500">
+      <div className={`view-orchestrator bg-gray-50 dark:bg-gray-800 rounded-lg p-8 ${className}`}>
+        <div className="text-center text-gray-500 dark:text-gray-400">
           <p className="text-lg mb-2">No active views</p>
           <p className="text-sm">Views will appear here when the agent activates them.</p>
         </div>
@@ -212,23 +212,23 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
   }
 
   return (
-    <div className={`view-orchestrator bg-gray-100 rounded-lg overflow-hidden ${className}`}>
+    <div className={`view-orchestrator bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden ${className}`}>
       {/* Canvas Guidance Panel */}
       {orchestration.canvas_guidance && canvasExpanded && (
-        <div className="bg-white border-b p-4">
+        <div className="bg-white dark:bg-gray-900 border-b p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-2">
               <span className="text-xl">🤖</span>
               <div>
-                <h4 className="text-sm font-semibold text-gray-900">Agent Guidance</h4>
-                <p className="text-xs text-gray-500">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Agent Guidance</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Agent ID: {orchestration.canvas_guidance.agent_id}
                 </p>
               </div>
             </div>
             <button
               onClick={() => setCanvasExpanded(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:text-gray-400"
             >
               ▼
             </button>
@@ -238,9 +238,9 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
             <p className="text-sm text-blue-900">{orchestration.canvas_guidance.message}</p>
           </div>
 
-          <div className="bg-gray-50 rounded p-3">
-            <p className="text-xs font-medium text-gray-700 mb-1">What you're seeing:</p>
-            <p className="text-sm text-gray-900">{orchestration.canvas_guidance.what_youre_seeing}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">What you're seeing:</p>
+            <p className="text-sm text-gray-900 dark:text-gray-100">{orchestration.canvas_guidance.what_youre_seeing}</p>
           </div>
 
           {/* Control Buttons */}
@@ -264,7 +264,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
       {orchestration.canvas_guidance && !canvasExpanded && (
         <button
           onClick={() => setCanvasExpanded(true)}
-          className="w-full bg-white border-b p-2 text-center text-sm text-gray-600 hover:bg-gray-50"
+          className="w-full bg-white dark:bg-gray-900 border-b p-2 text-center text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50"
         >
           ▶ Show Agent Guidance
         </button>
@@ -272,7 +272,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
 
       {/* Layout Header (Tabs mode) */}
       {orchestration.layout === 'tabs' && (
-        <div className="bg-white border-b flex">
+        <div className="bg-white dark:bg-gray-900 border-b flex">
           {orchestration.active_views.map((view) => (
             <button
               key={view.view_id}
@@ -280,7 +280,7 @@ export const ViewOrchestrator: React.FC<ViewOrchestratorProps> = ({
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
                 activeTab === view.view_id
                   ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-gray-800'
               }`}
             >
               <span className="mr-2">{getViewIcon(view.view_type)}</span>
@@ -367,19 +367,19 @@ const ViewPanel: React.FC<ViewPanelProps> = ({ view, isActive, onTakeControl }) 
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow overflow-hidden ${isActive ? 'ring-2 ring-blue-500' : ''}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden ${isActive ? 'ring-2 ring-blue-500' : ''}`}>
       {/* View Header */}
-      <div className="bg-gray-50 border-b px-4 py-2 flex items-center justify-between">
+      <div className="bg-gray-50 dark:bg-gray-800 border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <span className="text-lg">{getViewIcon(view.view_type)}</span>
-          <span className="text-sm font-medium text-gray-900">{view.title}</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{view.title}</span>
         </div>
 
         <div className="flex items-center space-x-2">
           <span className={`px-2 py-1 rounded text-xs font-medium ${
             view.status === 'active' ? 'bg-green-100 text-green-800' :
             view.status === 'background' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-gray-100 text-gray-800'
+            'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
           }`}>
             {view.status}
           </span>
@@ -400,7 +400,7 @@ const ViewPanel: React.FC<ViewPanelProps> = ({ view, isActive, onTakeControl }) 
       </div>
 
       {/* View Content */}
-      <div className="bg-white" style={{ height: '400px' }}>
+      <div className="bg-white dark:bg-gray-900" style={{ height: '400px' }}>
         {view.view_type === 'browser' && view.url && (
           <iframe
             src={view.url}
@@ -419,13 +419,13 @@ const ViewPanel: React.FC<ViewPanelProps> = ({ view, isActive, onTakeControl }) 
 
         {view.view_type === 'canvas' && (
           <div className="p-4">
-            <p className="text-sm text-gray-600">Canvas view content would appear here.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Canvas view content would appear here.</p>
           </div>
         )}
 
         {view.view_type === 'app' && (
           <div className="p-4">
-            <p className="text-sm text-gray-600">App view content would appear here.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">App view content would appear here.</p>
           </div>
         )}
       </div>

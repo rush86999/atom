@@ -99,7 +99,7 @@ const SystemMonitor = () => {
             <div className="flex justify-between items-center">
                 <div className="space-y-1">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">System Monitor</h2>
-                    <p className="text-sm text-gray-500">Last updated: {new Date(status.timestamp).toLocaleTimeString()}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Last updated: {new Date(status.timestamp).toLocaleTimeString()}</p>
                 </div>
                 <Badge
                     variant={getStatusColor(status.overall_status) as any}
@@ -178,7 +178,7 @@ const SystemMonitor = () => {
                                     <Badge variant={getStatusColor(service.status) as any}>
                                         {service.status}
                                     </Badge>
-                                    <span className="text-xs text-gray-500">{service.response_time_ms}ms</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{service.response_time_ms}ms</span>
                                 </div>
                             </CardContent>
                         </Card>

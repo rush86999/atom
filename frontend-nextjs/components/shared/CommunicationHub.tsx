@@ -637,7 +637,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold">{message.from}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {formatDate(message.timestamp)} at{" "}
                   {formatTime(message.timestamp)}
                 </p>
@@ -654,7 +654,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                 {message.attachments.map((attachment, index) => (
                   <div key={index} className="flex items-center justify-between p-2 border rounded text-sm">
                     <div className="flex items-center">
-                      <Paperclip className="w-4 h-4 mr-2 text-gray-500" />
+                      <Paperclip className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                       <span>{attachment}</span>
                     </div>
                     <Button size="sm" variant="ghost">
@@ -705,7 +705,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-4" />
-        <p className="text-gray-600">Loading messages...</p>
+        <p className="text-gray-600 dark:text-gray-400">Loading messages...</p>
       </div>
     );
   }
@@ -736,7 +736,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
                 <Input
                   placeholder="Search messages..."
                   value={searchQuery}
@@ -746,7 +746,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-2.5 text-gray-500 hover:text-gray-700"
+                    className="absolute right-2 top-2.5 text-gray-500 hover:text-gray-700 dark:text-gray-300"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -859,7 +859,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                         >
                           {message.priority}
                         </Badge>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {formatTime(message.timestamp)}
                         </span>
                       </div>
@@ -876,7 +876,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
             ))}
             {filteredMessages.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No messages found</p>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">No messages found</p>
                 <Button
                   variant="outline"
                   onClick={() => setIsComposeOpen(true)}
@@ -907,7 +907,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                 .map((conversation) => (
                   <div
                     key={conversation.id}
-                    className="p-2 border rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                    className="p-2 border rounded-md cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-900 transition-colors"
                     onClick={() => setSelectedConversation(conversation)}
                   >
                     <div className="flex items-center space-x-3">
@@ -930,7 +930,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                         <p className={`text-gray-600 dark:text-gray-400 truncate ${compactView ? "text-xs" : "text-sm"}`}>
                           {conversation.participants.join(", ")}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           Last: {formatDate(conversation.lastMessage)}
                         </p>
                       </div>

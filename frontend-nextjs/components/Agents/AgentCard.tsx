@@ -48,7 +48,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onE
                 <CardDescription className="line-clamp-2 h-10">{agent.description}</CardDescription>
             </CardHeader>
             <CardContent className="pb-2">
-                <div className="flex items-center text-xs text-gray-500 mt-2">
+                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-2">
                     <Clock className="w-3 h-3 mr-1" />
                     {agent.last_run ? `Last run: ${new Date(agent.last_run).toLocaleString()}` : 'Never run'}
                 </div>

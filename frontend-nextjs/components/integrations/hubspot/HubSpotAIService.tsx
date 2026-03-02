@@ -240,7 +240,7 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                   type="checkbox"
                   checked={config.enabled}
                   onChange={(e) => setConfig(prev => ({ ...prev, enabled: e.target.checked }))}
-                  className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
+                  className="w-10 h-6 bg-gray-200 dark:bg-gray-800 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                 />
               </div>
             </div>
@@ -327,7 +327,7 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                     type="checkbox"
                     checked={enabled}
                     onChange={() => toggleAutomation(automation as any)}
-                    className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
+                    className="w-10 h-6 bg-gray-200 dark:bg-gray-800 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                   />
                 </div>
               ))}
@@ -500,7 +500,7 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                       type="checkbox"
                       checked={config.automation.autoAssign}
                       onChange={() => toggleAutomation('autoAssign')}
-                      className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-green-600"
+                      className="w-10 h-6 bg-gray-200 dark:bg-gray-800 rounded-full relative cursor-pointer appearance-none checked:bg-green-600"
                     />
                   </div>
                 </CardContent>
@@ -520,7 +520,7 @@ const HubSpotAIService: React.FC<HubSpotAIServiceProps> = ({
                       type="checkbox"
                       checked={config.automation.autoFollowup}
                       onChange={() => toggleAutomation('autoFollowup')}
-                      className="w-10 h-6 bg-gray-200 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
+                      className="w-10 h-6 bg-gray-200 dark:bg-gray-800 rounded-full relative cursor-pointer appearance-none checked:bg-blue-600"
                     />
                   </div>
                 </CardContent>

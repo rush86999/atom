@@ -299,7 +299,7 @@ function CanvasContent({
                                     {row.map((cell, cellIndex) => (
                                         <td
                                             key={cellIndex}
-                                            className="border border-zinc-100 dark:border-white/10 p-1 min-w-[80px] hover:bg-zinc-50 dark:hover:bg-white/5 focus-within:bg-indigo-500/10 focus-within:border-indigo-500/50 transition-colors"
+                                            className="border border-zinc-100 dark:border-white/10 p-1 min-w-[80px] hover:bg-zinc-50 dark:hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 focus-within:bg-indigo-500/10 focus-within:border-indigo-500/50 transition-colors"
                                         >
                                             <input
                                                 type="text"
@@ -380,7 +380,7 @@ function CanvasContent({
                             </span>
                         )}
                     </div>
-                    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-black/40">
+                    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white/40 dark:bg-gray-900/40">
                         <div className="p-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-between items-center">
                             <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">State Tree</span>
                         </div>

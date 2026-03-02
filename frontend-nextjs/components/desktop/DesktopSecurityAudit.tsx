@@ -74,7 +74,7 @@ export function DesktopSecurityAudit() {
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Shield className="h-5 w-5 text-emerald-500" />
-                    <CardTitle className="text-white font-black uppercase tracking-tighter">Local Security Audit</CardTitle>
+                    <CardTitle className="text-gray-900 dark:text-white font-black uppercase tracking-tighter">Local Security Audit</CardTitle>
                 </div>
                 <CardDescription className="text-zinc-500 text-xs">
                     Audit your local codebase via Atom Security CLI.
@@ -82,7 +82,7 @@ export function DesktopSecurityAudit() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                    <div className="flex-1 p-2 bg-black/40 border border-zinc-800 rounded-md text-[10px] font-mono truncate text-zinc-400">
+                    <div className="flex-1 p-2 bg-black/5 dark:bg-black/40 border border-zinc-800 rounded-md text-[10px] font-mono truncate text-zinc-400">
                         {selectedPath || "No folder selected"}
                     </div>
                     <Button variant="outline" size="sm" onClick={handleSelectFolder} className="h-8 border-zinc-700 hover:bg-zinc-800 text-xs">
@@ -92,7 +92,7 @@ export function DesktopSecurityAudit() {
                 </div>
 
                 <Button
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-gray-900 dark:text-white font-bold h-9 text-xs"
                     disabled={!selectedPath || isScanning}
                     onClick={handleRunScan}
                 >

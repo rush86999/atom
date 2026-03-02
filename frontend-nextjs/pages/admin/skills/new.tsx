@@ -83,10 +83,10 @@ export default function NewSkillPage() {
             <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
                 <div className="flex items-center gap-4 mb-6">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                        <ArrowLeft className="w-4 h-4 text-white" />
+                        <ArrowLeft className="w-4 h-4 text-gray-900 dark:text-white" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                        <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                             <Cpu className="text-primary h-8 w-8" />
                             Skill Builder
                         </h1>
@@ -114,7 +114,7 @@ export default function NewSkillPage() {
                     <div className="lg:col-span-1 space-y-6">
                         <Card className="bg-zinc-900 border-zinc-800">
                             <CardHeader>
-                                <CardTitle className="text-white flex items-center gap-2">
+                                <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                                     <FileText className="w-4 h-4 text-primary" />
                                     Metadata
                                 </CardTitle>
@@ -126,7 +126,7 @@ export default function NewSkillPage() {
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
                                         placeholder="e.g., data-scraper"
-                                        className="bg-black/50 border-zinc-800 text-white"
+                                        className="bg-black/50 border-zinc-800 text-gray-900 dark:text-white"
                                         required
                                     />
                                 </div>
@@ -137,7 +137,7 @@ export default function NewSkillPage() {
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                         placeholder="What does this skill do?"
-                                        className="bg-black/50 border-zinc-800 min-h-[100px] text-white"
+                                        className="bg-black/50 border-zinc-800 min-h-[100px] text-gray-900 dark:text-white"
                                         required
                                     />
                                 </div>
@@ -148,7 +148,7 @@ export default function NewSkillPage() {
                                         value={capabilitiesInput}
                                         onChange={(e) => setCapabilitiesInput(e.target.value)}
                                         placeholder="scrape, interactions"
-                                        className="bg-black/50 border-zinc-800 text-white"
+                                        className="bg-black/50 border-zinc-800 text-gray-900 dark:text-white"
                                     />
                                     <div className="flex flex-wrap gap-2 mt-2">
                                         {capabilitiesInput.split(',').filter(c => c.trim()).map((cap, i) => (
@@ -163,7 +163,7 @@ export default function NewSkillPage() {
 
                         <Card className="bg-zinc-900 border-zinc-800">
                             <CardHeader>
-                                <CardTitle className="text-white flex items-center gap-2">
+                                <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                                     <Terminal className="w-4 h-4 text-primary" />
                                     Instructions
                                 </CardTitle>
@@ -175,7 +175,7 @@ export default function NewSkillPage() {
                                         value={instructions}
                                         onChange={(e) => setInstructions(e.target.value)}
                                         placeholder="Tell the agent how to use this skill..."
-                                        className="bg-black/50 border-zinc-800 min-h-[150px] text-white"
+                                        className="bg-black/50 border-zinc-800 min-h-[150px] text-gray-900 dark:text-white"
                                         required
                                     />
                                 </div>
@@ -199,7 +199,7 @@ export default function NewSkillPage() {
                         <Card className="bg-zinc-900 border-zinc-800 h-full flex flex-col">
                             <CardHeader className="border-b border-zinc-800 pb-4">
                                 <div className="flex items-center justify-between">
-                                    <CardTitle className="text-white flex items-center gap-2">
+                                    <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
                                         <Code className="w-4 h-4 text-primary" />
                                         Script Editor
                                     </CardTitle>
@@ -207,7 +207,7 @@ export default function NewSkillPage() {
                                         <Input
                                             value={scriptName}
                                             onChange={(e) => setScriptName(e.target.value)}
-                                            className="h-8 w-40 bg-black/50 border-zinc-700 text-xs font-mono text-white"
+                                            className="h-8 w-40 bg-black/50 border-zinc-700 text-xs font-mono text-gray-900 dark:text-white"
                                         />
                                     </div>
                                 </div>

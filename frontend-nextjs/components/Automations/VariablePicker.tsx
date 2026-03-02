@@ -36,13 +36,13 @@ const VariablePicker: React.FC<VariablePickerProps> = ({ onSelect, trigger, avai
             <PopoverTrigger asChild>
                 {trigger}
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 bg-white shadow-xl border rounded-xl overflow-hidden" align="end">
-                <div className="p-2 border-b bg-gray-50/50">
+            <PopoverContent className="w-72 p-0 bg-white dark:bg-gray-900 shadow-xl border rounded-xl overflow-hidden" align="end">
+                <div className="p-2 border-b bg-gray-50 dark:bg-gray-800/50">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
                         <Input
                             placeholder="Search variables..."
-                            className="h-9 pl-8 text-xs bg-white border-gray-200"
+                            className="h-9 pl-8 text-xs bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -63,10 +63,10 @@ const VariablePicker: React.FC<VariablePickerProps> = ({ onSelect, trigger, avai
                                 <div key={node.id} className="mb-2 last:mb-0">
                                     <div className="flex items-center gap-1.5 px-2 py-1.5 mb-1">
                                         <Layers className="h-3 w-3 text-purple-600" />
-                                        <span className="text-[10px] font-bold text-gray-900 uppercase tracking-tight truncate max-w-[150px]">
+                                        <span className="text-[10px] font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight truncate max-w-[150px]">
                                             {node.data?.label || node.data?.service || 'Previous Step'}
                                         </span>
-                                        <Badge variant="outline" className="ml-auto text-[8px] h-4 border-gray-200 text-gray-500 font-mono">
+                                        <Badge variant="outline" className="ml-auto text-[8px] h-4 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-mono">
                                             {node.id}
                                         </Badge>
                                     </div>
@@ -79,7 +79,7 @@ const VariablePicker: React.FC<VariablePickerProps> = ({ onSelect, trigger, avai
                                             }}
                                             className="w-full text-left px-7 py-1.5 rounded-md hover:bg-purple-50 group flex items-center justify-between"
                                         >
-                                            <span className="text-xs text-gray-600 group-hover:text-purple-700">All Output</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-400 group-hover:text-purple-700">All Output</span>
                                             <ChevronRight className="h-3 w-3 text-gray-300 group-hover:text-purple-400" />
                                         </button>
 
@@ -93,7 +93,7 @@ const VariablePicker: React.FC<VariablePickerProps> = ({ onSelect, trigger, avai
                                                 }}
                                                 className="w-full text-left px-7 py-1.5 rounded-md hover:bg-purple-50 group flex items-center justify-between"
                                             >
-                                                <span className="text-xs text-gray-600 group-hover:text-purple-700">{field}</span>
+                                                <span className="text-xs text-gray-600 dark:text-gray-400 group-hover:text-purple-700">{field}</span>
                                                 <ChevronRight className="h-3 w-3 text-gray-300 group-hover:text-purple-400" />
                                             </button>
                                         ))}

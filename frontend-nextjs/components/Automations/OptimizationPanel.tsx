@@ -49,7 +49,7 @@ const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
 
                 <div className="mt-6 space-y-6">
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
                             <Loader2 className="h-8 w-8 animate-spin mb-3 text-indigo-500" />
                             <p>Analyzing workflow dependencies...</p>
                         </div>
@@ -62,7 +62,7 @@ const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                     ) : (
                         <div className="space-y-4">
                             {suggestions.map((suggestion, idx) => (
-                                <div key={idx} className="p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div key={idx} className="p-4 border rounded-lg bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-start mb-2">
                                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                                             {suggestion.type === 'parallelization' ? 'Parallelization' : suggestion.type}
@@ -71,9 +71,9 @@ const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                                             -{suggestion.savings_estimate_ms}ms
                                         </span>
                                     </div>
-                                    <p className="text-sm text-gray-700 mb-4">{suggestion.description}</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{suggestion.description}</p>
 
-                                    <div className="bg-gray-50 p-3 rounded text-xs text-gray-500 mb-4 font-mono">
+                                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs text-gray-500 dark:text-gray-400 mb-4 font-mono">
                                         Affected Steps: {suggestion.affected_nodes.join(', ')}
                                     </div>
 

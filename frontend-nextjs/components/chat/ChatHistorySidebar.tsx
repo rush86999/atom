@@ -104,7 +104,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                     <Plus className="h-4 w-4" /> New Chat
                 </Button>
                 <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500 dark:text-slate-400" />
                     <Input
                         placeholder="Search chats..."
                         className="pl-8 bg-slate-900 border-slate-700 text-slate-200"
@@ -117,11 +117,11 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
             <ScrollArea className="flex-1">
                 <div className="p-2 space-y-2">
                     {loading ? (
-                        <div className="p-4 text-center text-slate-500 text-sm">
+                        <div className="p-4 text-center text-slate-500 dark:text-slate-400 text-sm">
                             Loading history...
                         </div>
                     ) : filteredHistory.length === 0 ? (
-                        <div className="p-4 text-center text-slate-500 text-sm">
+                        <div className="p-4 text-center text-slate-500 dark:text-slate-400 text-sm">
                             {searchQuery ? "No matches found." : "No chat history."}
                         </div>
                     ) : (
@@ -136,7 +136,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                             >
                                 <div className="flex items-center justify-between">
                                     <span className={`font-medium text-sm truncate ${selectedSessionId === session.id ? 'text-indigo-300' : 'text-slate-200'}`}>{session.title}</span>
-                                    <span className="text-[10px] text-slate-500">{session.date}</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400">{session.date}</span>
                                 </div>
                                 <p className="text-xs text-slate-400 truncate opacity-60">{session.preview}</p>
                             </div>

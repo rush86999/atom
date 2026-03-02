@@ -262,7 +262,7 @@ const SearchPage: React.FC = () => {
                         {popularSearches.map((search, index) => (
                           <p
                             key={search} // Changed from index to search string
-                            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
+                            className="p-2 rounded-md hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                             onClick={() => handleSuggestionClick(search)}
                           >
                             {search}
@@ -273,7 +273,7 @@ const SearchPage: React.FC = () => {
                     {suggestions.map((suggestion, index) => (
                       <p
                         key={suggestion} // Changed from index to suggestion string
-                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
+                        className="p-2 rounded-md hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
                         {suggestion}
@@ -426,7 +426,7 @@ const SearchPage: React.FC = () => {
             </div>
           ) : query && !loading ? (
             <div className="flex justify-center items-center h-52">
-              <p className="text-gray-500 text-lg">
+              <p className="text-gray-500 dark:text-gray-400 text-lg">
                 No results found for &quot;{query}&quot;
               </p>
             </div>

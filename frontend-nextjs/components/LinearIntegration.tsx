@@ -299,7 +299,7 @@ const LinearIntegration: React.FC = () => {
     const getPriorityColor = (priority: number) => {
         switch (priority) {
             case 0:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
             case 1:
                 return "bg-blue-100 text-blue-800";
             case 2:
@@ -309,7 +309,7 @@ const LinearIntegration: React.FC = () => {
             case 4:
                 return "bg-purple-100 text-purple-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 
@@ -333,7 +333,7 @@ const LinearIntegration: React.FC = () => {
     const getStateColor = (state: string) => {
         switch (state) {
             case "backlog":
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
             case "todo":
                 return "bg-blue-100 text-blue-800";
             case "inProgress":
@@ -343,7 +343,7 @@ const LinearIntegration: React.FC = () => {
             case "canceled":
                 return "bg-red-100 text-red-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 
@@ -652,7 +652,7 @@ const LinearIntegration: React.FC = () => {
                                                                 className={
                                                                     project.state === "active"
                                                                         ? "bg-green-100 text-green-800"
-                                                                        : "bg-gray-100 text-gray-800"
+                                                                        : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                                                                 }
                                                             >
                                                                 {project.state}

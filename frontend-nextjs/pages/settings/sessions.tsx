@@ -123,11 +123,11 @@ export default function SessionSettings() {
     const getDeviceIcon = (type: string) => {
         switch (type?.toLowerCase()) {
             case 'mobile':
-                return <Smartphone className="h-6 w-6 text-gray-500" />;
+                return <Smartphone className="h-6 w-6 text-gray-500 dark:text-gray-400" />;
             case 'tablet':
-                return <Smartphone className="h-6 w-6 text-gray-500" />;
+                return <Smartphone className="h-6 w-6 text-gray-500 dark:text-gray-400" />;
             default:
-                return <Laptop className="h-6 w-6 text-gray-500" />;
+                return <Laptop className="h-6 w-6 text-gray-500 dark:text-gray-400" />;
         }
     };
 
@@ -140,11 +140,11 @@ export default function SessionSettings() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Active Sessions</h1>
-                    <p className="mt-2 text-gray-600">Manage devices where you are currently signed in</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Active Sessions</h1>
+                    <p className="mt-2 text-gray-600 dark:text-gray-400">Manage devices where you are currently signed in</p>
                 </div>
 
                 {error && (
@@ -178,14 +178,14 @@ export default function SessionSettings() {
                     <CardContent>
                         <div className="space-y-4">
                             {sessions.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8">
+                                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                                     No active sessions found.
                                 </p>
                             ) : (
                                 sessions.map((session) => (
                                     <div
                                         key={session.id}
-                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                                     >
                                         <div className="flex items-center gap-4">
                                             {getDeviceIcon(session.device_type)}
@@ -200,7 +200,7 @@ export default function SessionSettings() {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
                                                     <span className="flex items-center gap-1">
                                                         <Globe className="h-3 w-3" />
                                                         {session.ip_address}

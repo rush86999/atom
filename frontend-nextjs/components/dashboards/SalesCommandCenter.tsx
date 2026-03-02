@@ -107,7 +107,7 @@ export const SalesCommandCenter: React.FC = () => {
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-white/60">
                         Sales Command Center
                     </h1>
                     <p className="text-muted-foreground mt-1">
@@ -119,7 +119,7 @@ export const SalesCommandCenter: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
-                        className="bg-white/5 border-white/10"
+                        className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10"
                     >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
@@ -129,7 +129,7 @@ export const SalesCommandCenter: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Search deals..."
-                            className="pl-10 pr-10 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-white"
+                            className="pl-10 pr-10 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-gray-900 dark:text-white"
                             value={searchQuery}
                             onChange={handleSearch}
                         />
@@ -138,7 +138,7 @@ export const SalesCommandCenter: React.FC = () => {
                                 onClick={() => { setSearchQuery(''); setShowSearchResults(false); clearSearch(); }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2"
                             >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-white" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-gray-900 dark:text-white" />
                             </button>
                         )}
                     </div>
@@ -150,7 +150,7 @@ export const SalesCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearchQuery(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -158,12 +158,12 @@ export const SalesCommandCenter: React.FC = () => {
                     ) : searchResults.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {searchResults.map((result) => (
-                                <Card key={result.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors pointer-cursor">
+                                <Card key={result.id} className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors pointer-cursor">
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="capitalize text-[10px]">{result.app_type}</Badge>
-                                                <span className="font-semibold text-white">{result.subject || result.sender}</span>
+                                                <span className="font-semibold text-gray-900 dark:text-white">{result.subject || result.sender}</span>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{new Date(result.timestamp).toLocaleString()}</span>
                                         </div>
@@ -173,7 +173,7 @@ export const SalesCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical records found for &quot;{searchQuery}&quot;.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">No historical records found for &quot;{searchQuery}&quot;.</div>
                     )}
                 </div>
             ) : (
@@ -186,20 +186,20 @@ export const SalesCommandCenter: React.FC = () => {
                                 { label: 'Win Rate', value: `${stats.win_rate.toFixed(1)}%`, icon: ArrowUpRight, color: 'text-amber-400' },
                                 { label: 'Avg Deal Size', value: `$${(stats.avg_deal_size / 1000).toFixed(1)}k`, icon: Users, color: 'text-purple-400' }
                             ].map((stat, i) => (
-                                <Card key={i} className="bg-black/40 border-white/5 backdrop-blur-xl">
+                                <Card key={i} className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                                         <CardTitle className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</CardTitle>
                                         <stat.icon className={`w-4 h-4 ${stat.color}`} />
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-2xl font-bold text-white">{stat.value}</div>
+                                        <div className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
                                     </CardContent>
                                 </Card>
                             ))}
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <Card className="lg:col-span-2 bg-black/40 border-white/5 backdrop-blur-xl overflow-hidden">
+                            <Card className="lg:col-span-2 bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl overflow-hidden">
                                 <CardHeader>
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <Building2 className="w-5 h-5 text-primary" />
@@ -208,7 +208,7 @@ export const SalesCommandCenter: React.FC = () => {
                                 </CardHeader>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-white/5 text-muted-foreground">
+                                        <thead className="bg-black/5 dark:bg-white/5 text-muted-foreground">
                                             <tr>
                                                 <th className="px-6 py-3 font-semibold uppercase text-[10px]">Deal Name</th>
                                                 <th className="px-6 py-3 font-semibold uppercase text-[10px]">Value</th>
@@ -218,10 +218,10 @@ export const SalesCommandCenter: React.FC = () => {
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
                                             {deals.map((deal, i) => (
-                                                <tr key={i} className="hover:bg-white/5 transition-colors group">
+                                                <tr key={i} className="hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 transition-colors group">
                                                     <td className="px-6 py-4">
                                                         <div>
-                                                            <div className="font-medium text-white">{deal.deal_name}</div>
+                                                            <div className="font-medium text-gray-900 dark:text-white">{deal.deal_name}</div>
                                                             <div className="text-xs text-muted-foreground">{deal.company || 'Unknown Company'}</div>
                                                         </div>
                                                     </td>
@@ -229,7 +229,7 @@ export const SalesCommandCenter: React.FC = () => {
                                                         ${deal.value.toLocaleString()}
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <Badge variant="outline" className="bg-white/5 border-white/10">
+                                                        <Badge variant="outline" className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10">
                                                             {deal.status}
                                                         </Badge>
                                                     </td>
@@ -237,7 +237,7 @@ export const SalesCommandCenter: React.FC = () => {
                                                         <Badge className={
                                                             deal.platform === 'salesforce' ? 'bg-blue-600/20 text-blue-400' :
                                                                 deal.platform === 'hubspot' ? 'bg-orange-600/20 text-orange-400' :
-                                                                    'bg-white/5 text-muted-foreground'
+                                                                    'bg-black/5 dark:bg-white/5 text-muted-foreground'
                                                         }>
                                                             {deal.platform}
                                                         </Badge>
@@ -249,7 +249,7 @@ export const SalesCommandCenter: React.FC = () => {
                                 </div>
                             </Card>
 
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader>
                                     <CardTitle className="text-lg">Lead Intelligence</CardTitle>
                                 </CardHeader>
@@ -281,10 +281,10 @@ export const SalesCommandCenter: React.FC = () => {
                                                     <button
                                                         onClick={() => handleExecuteAction(insight)}
                                                         disabled={executing === insight.anomaly_id}
-                                                        className="w-full py-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-50 rounded-md text-[11px] font-semibold transition-all border border-white/10 flex items-center justify-center gap-2 group"
+                                                        className="w-full py-1.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 disabled:opacity-50 rounded-md text-[11px] font-semibold transition-all border border-black/10 dark:border-white/10 flex items-center justify-center gap-2 group"
                                                     >
                                                         {executing === insight.anomaly_id ? (
-                                                            <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                            <div className="w-3 h-3 border-2 border-black/20 dark:border-white/20 border-t-white rounded-full animate-spin" />
                                                         ) : (
                                                             <Zap className="w-3 h-3 text-amber-400 group-hover:scale-110 transition-transform" />
                                                         )}

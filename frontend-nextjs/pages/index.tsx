@@ -118,7 +118,7 @@ const Home = () => {
       description: "Account settings, preferences, and session management",
       icon: Server,
       path: "/settings/account",
-      color: "text-gray-500",
+      color: "text-gray-500 dark:text-gray-400",
     },
     {
       title: "Dev Studio",
@@ -159,10 +159,10 @@ const Home = () => {
       <div className="flex flex-col space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold mb-4">Welcome to ATOM</h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-gray-600 dark:text-gray-400">
             Your AI-powered personal automation platform
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             (Development Mode - Auth Disabled)
           </p>
         </div>
@@ -181,7 +181,7 @@ const Home = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">{feature.description}</p>
+                  <p className="text-gray-600 dark:text-gray-400">{feature.description}</p>
                 </CardContent>
               </Card>
             </div>
@@ -189,7 +189,7 @@ const Home = () => {
         </div>
 
         <div className="text-center mt-8">
-          <p className="text-lg text-gray-600 mb-4">
+          <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
             Ready to automate your workflow?
           </p>
           <Button

@@ -4,7 +4,7 @@ Transaction ingestion, AI categorization, and Chart of Accounts learning.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 import logging
@@ -385,6 +385,90 @@ class AIAccountingEngine:
             })
             
         return report
+
+    # ==================== FORECASTING & SCENARIOS ====================
+
+    def get_13_week_forecast(self, current_balance: float = 100000.0) -> Dict[str, Any]:
+        """Generate a simple 13-week cash flow projection based on recent transaction averages"""
+        from collections import defaultdict
+        
+        # Calculate weekly burn/income over all known transactions
+        transactions = [tx for tx in self.get_all_transactions() 
+                        if tx.status in (TransactionStatus.POSTED, TransactionStatus.CATEGORIZED)]
+        
+        weekly_net = 0.0
+        if transactions:
+            oldest = min(tx.date for tx in transactions)
+            newest = max(tx.date for tx in transactions)
+            weeks_diff = (newest - oldest).days / 7.0
+            
+            total_net = sum(float(tx.amount) for tx in transactions if tx.category_id != "1000") # Exclude cash transfers 
+            weekly_net = total_net / max(weeks_diff, 1.0) # Avoid div by zero
+            
+        # Default fallback if no meaningful history
+        if weekly_net == 0:
+            weekly_net = -2500.0 
+
+        projection = []
+        running_balance = current_balance
+        start_date = datetime.now()
+        
+        for i in range(13):
+            week_start = start_date + timedelta(weeks=i)
+            # Add some slight variation for realism
+            variance = (i % 3) * 500
+            projected_change = weekly_net + (variance if weekly_net < 0 else -variance)
+            running_balance += projected_change
+            
+            projection.append({
+                "week": i + 1,
+                "week_start": week_start.isoformat(),
+                "projected_change": projected_change,
+                "projected_balance": running_balance
+            })
+            
+        return {
+            "historical_weekly_avg": weekly_net,
+            "projection": projection
+        }
+
+    def run_scenario(self, description: str, current_forecast: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Mock AI scenario parsing and impact analysis"""
+        description = description.lower()
+        
+        # Simple heuristics
+        impact_value = 0
+        risk_level = "low"
+        analysis = "Scenario analyzed based on requested parameters."
+        
+        # Try to extract a number ($10k, 5000)
+        num_match = re.search(r'\$?(\d+)[k,]*', description)
+        val = 0
+        if num_match:
+            val = int(num_match.group(1).replace(',', ''))
+            if 'k' in num_match.group(0):
+                val *= 1000
+                
+        if "hire" in description or "buy" in description or "expense" in description or "cost" in description or "lose" in description:
+            impact_value = -val if val > 0 else -5000
+            risk_level = "medium" if abs(impact_value) > 10000 else "low"
+            if "lose" in description and "client" in description:
+                risk_level = "high"
+                impact_value = -val if val > 0 else -15000
+            analysis = f"Increases cash burn by roughly ${abs(impact_value):,} per week."
+        elif "sell" in description or "raise" in description or "win" in description or "revenue" in description:
+            impact_value = val if val > 0 else 10000
+            analysis = f"Improves cash position by approximately ${abs(impact_value):,}."
+            
+        if impact_value == 0:
+            impact_value = -1000 # default
+            
+        return {
+            "scenario": description,
+            "impact_value": impact_value,
+            "risk_level": risk_level,
+            "analysis": analysis
+        }
 
     # ==================== LEDGER INTEGRATION ====================
     

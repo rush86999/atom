@@ -127,14 +127,14 @@ const MarketingDashboard: React.FC = () => {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {summary?.high_intent_leads?.map((lead: any) => (
-                                    <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                    <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800/50 transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
                                                 <Target className="w-5 h-5 text-green-600" />
                                             </div>
                                             <div>
                                                 <h4 className="font-semibold">{lead.name}</h4>
-                                                <p className="text-sm text-gray-500">{lead.summary}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{lead.summary}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -144,7 +144,7 @@ const MarketingDashboard: React.FC = () => {
                                     </div>
                                 ))}
                                 {!summary?.high_intent_leads?.length && !loading && (
-                                    <p className="text-center py-8 text-gray-500">No high-intent leads detected yet.</p>
+                                    <p className="text-center py-8 text-gray-500 dark:text-gray-400">No high-intent leads detected yet.</p>
                                 )}
                             </CardContent>
                         </Card>
@@ -195,7 +195,7 @@ const MarketingDashboard: React.FC = () => {
                                     <div key={channel} className="space-y-2">
                                         <div className="flex justify-between items-center">
                                             <span className="capitalize font-medium">{channel.replace('_', ' ')}</span>
-                                            <span className="text-sm text-gray-500">{data.calls} calls</span>
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">{data.calls} calls</span>
                                         </div>
                                         <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
                                             <div
@@ -219,7 +219,7 @@ const MarketingDashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-2xl font-bold">4.8</h3>
-                                    <p className="text-sm text-gray-500">Global Review Average</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Global Review Average</p>
                                 </div>
                                 <div className="flex justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
                                     <span>Sentiment Score</span>

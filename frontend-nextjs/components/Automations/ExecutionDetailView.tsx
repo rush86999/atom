@@ -174,7 +174,7 @@ const ExecutionDetailView: React.FC<ExecutionDetailViewProps> = ({ executionId, 
                                             ) : result.status === 'failed' ? (
                                                 <AlertTriangle className="w-4 h-4 text-red-500" />
                                             ) : (
-                                                <Clock className="w-4 h-4 text-gray-500" />
+                                                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                                             )}
                                             <span className="font-medium">{result.node_title || nodeId}</span>
                                             <Badge variant="secondary" className={getStatusColor(result.status)}>

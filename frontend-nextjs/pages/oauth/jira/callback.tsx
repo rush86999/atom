@@ -62,8 +62,8 @@ export default function JiraOAuthPage() {
   }, [router.isReady]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 max-w-md w-full">
         <div className="text-center">
           {/* Success State */}
           {callbackData.code && (
@@ -72,7 +72,7 @@ export default function JiraOAuthPage() {
                 <span className="text-2xl">✅</span>
               </div>
               <h1 className="text-2xl font-bold text-green-800 mb-2">Authorization Successful</h1>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Your Jira workspace has been successfully connected to ATOM.
               </p>
 
@@ -84,7 +84,7 @@ export default function JiraOAuthPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 This window will close automatically in 2 seconds.
               </div>
             </>
@@ -97,7 +97,7 @@ export default function JiraOAuthPage() {
                 <span className="text-2xl">❌</span>
               </div>
               <h1 className="text-2xl font-bold text-red-800 mb-2">Authorization Failed</h1>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 There was an error connecting your Jira workspace to ATOM.
               </p>
 
@@ -123,7 +123,7 @@ export default function JiraOAuthPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 This window will close automatically in 2 seconds.
               </div>
             </>
@@ -136,7 +136,7 @@ export default function JiraOAuthPage() {
                 <span className="text-2xl">⚙️</span>
               </div>
               <h1 className="text-2xl font-bold text-blue-800 mb-2">Processing Authorization</h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-400">
                 Please wait while we process your Jira authorization...
               </p>
             </>

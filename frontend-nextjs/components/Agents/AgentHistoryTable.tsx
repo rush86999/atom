@@ -35,7 +35,7 @@ export const AgentHistoryTable: React.FC = () => {
     };
 
     return (
-        <Card className="h-full border-gray-200">
+        <Card className="h-full border-gray-200 dark:border-gray-700">
             <CardHeader>
                 <CardTitle>Execution History</CardTitle>
             </CardHeader>
