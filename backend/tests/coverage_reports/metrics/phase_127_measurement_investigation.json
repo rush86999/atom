@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-03-03T14:03:42.566539+00:00",
+  "measurements": [
+    {
+      "source": "coverage.json",
+      "filepath": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json",
+      "percentage": 74.55,
+      "file_count": 1,
+      "scope": "single file (agent_governance_service.py only)",
+      "date": "2026-02-25T07:49:35.352364",
+      "files": [
+        "core/agent_governance_service.py"
+      ],
+      "total_files_in_measurement": 1
+    },
+    {
+      "source": "phase_127_baseline.json",
+      "filepath": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/phase_127_baseline.json",
+      "percentage": 26.15,
+      "file_count": 528,
+      "scope": "core/, api/, tools/ (full production code)",
+      "date": "2026-03-03T08:00:44.803413",
+      "files": [
+        "api/__init__.py",
+        "api/ab_testing.py",
+        "api/admin/__init__.py",
+        "api/admin/business_facts_routes.py",
+        "api/admin/skill_routes.py"
+      ],
+      "total_files_in_measurement": 528
+    },
+    {
+      "source": "phase_127_final_coverage.json",
+      "filepath": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/phase_127_final_coverage.json",
+      "percentage": 26.15,
+      "file_count": 528,
+      "scope": "core/, api/, tools/ (full production code)",
+      "date": "2026-03-03T08:25:46.960821",
+      "files": [
+        "api/__init__.py",
+        "api/ab_testing.py",
+        "api/admin/__init__.py",
+        "api/admin/business_facts_routes.py",
+        "api/admin/skill_routes.py"
+      ],
+      "total_files_in_measurement": 528
+    }
+  ],
+  "discrepancy": {
+    "percentage_points": 48.4,
+    "root_cause": "coverage.json only measures agent_governance_service.py (1 file, 74.55%), not the entire backend. Phase 127 measures all 528 production files (core/, api/, tools/ directories) at 26.15% actual coverage.",
+    "explanation": "The 74.55% in coverage.json is ONLY for agent_governance_service.py (single file).\nThis is NOT the overall backend coverage.\n\nPhase 127-01 measured the ACTUAL overall backend coverage:\n- 528 production files (core/, api/, tools/)\n- 26.15% overall coverage\n- This is the CORRECT baseline for gap closure planning\n\nROADMAP incorrectly cited the 74.55% single-file coverage as the overall backend baseline.\nThe accurate baseline is 26.15%, meaning 53.85 percentage points remain to reach 80% target.",
+    "file_count_difference": -527
+  },
+  "recommendation": {
+    "correct_baseline": 26.15,
+    "reason": "Phase 127-01 measured all 528 production files (core/, api/, tools/), which is the correct scope for overall backend coverage. The 74.55% from coverage.json is only for agent_governance_service.py (single file), not representative of the entire backend.",
+    "roadmap_update_needed": true,
+    "action_required": "Update ROADMAP.md Phase 127 goal from '74.6% \u2192 80%' to '26.15% \u2192 80%'",
+    "gap_to_target": 53.85
+  },
+  "summary": {
+    "finding": "The 74.55% coverage measurement is for a SINGLE file only, not the entire backend codebase.",
+    "correct_baseline": 26.15,
+    "correct_gap": 53.85,
+    "measurement_scope": "core/, api/, tools/ directories (production code only)",
+    "next_steps": [
+      "Update ROADMAP.md with accurate baseline (26.15%)",
+      "Document consistent measurement methodology",
+      "Use pytest --cov=core --cov=api --cov=tools for all future measurements"
+    ]
+  }
+}
