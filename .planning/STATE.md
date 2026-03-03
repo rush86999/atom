@@ -104,6 +104,7 @@ Progress: [█████████░░░░░░░░░░] 67% (Phase
 | Phase 125 P03 | 20 | 3 tasks | 8 files |
 | Phase 126 P01 | 10 | 3 tasks | 3 files |
 | Phase 126 P02 | 5min | 3 tasks | 1 files |
+| Phase 126 P01 | 10 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,7 @@ Recent decisions affecting current work:
 - [Phase 126]: EscalationManager implementation already correct - all 8 property tests passing on first run (no bugs found)
 - [Phase 126]: 216 Hypothesis examples generated across 8 tier escalation invariants with 100% pass rate
 - [Phase 126]: EscalationManager implementation already correct - all 8 property tests passing on first run, no bugs found
+- [Phase 126]: Cost calculation invariants require max_examples=100 for price/token combination coverage (5 tests upgraded: 4 cost + 1 token counting)
 
 ### Pending Todos
 
