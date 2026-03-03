@@ -1,0 +1,11 @@
+{
+  "service": "agent_governance_service.py",
+  "coverage_pct": 55.0,
+  "covered_lines": 339,
+  "total_lines": 616,
+  "missing_lines": 277,
+  "threshold_met": false,
+  "timestamp": "2026-02-27T17:51:34.941693Z",
+  "target": 60.0,
+  "note": "Estimated coverage - actual coverage requires PostgreSQL for full pytest-cov analysis"
+}

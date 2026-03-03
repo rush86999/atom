@@ -1,0 +1,667 @@
+{
+  "generated_at": "2026-02-27T16:13:11+00:00Z",
+  "baseline_version": "v5.0",
+  "summary": {
+    "total_files_below_80": 50,
+    "total_uncovered_lines": 15385,
+    "tier_counts": {
+      "Medium": 38,
+      "Critical": 8,
+      "High": 4
+    },
+    "tier_uncovered_lines": {
+      "Medium": 11630,
+      "Critical": 2731,
+      "High": 1024
+    },
+    "quick_wins_count": 0
+  },
+  "ranked_files": [
+    {
+      "file": "core/enterprise_user_management.py",
+      "coverage_pct": 0.0,
+      "total_lines": 213,
+      "covered_lines": 0,
+      "uncovered_lines": 213,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 1065.0,
+      "estimated_tests": 10
+    },
+    {
+      "file": "api/smarthome_routes.py",
+      "coverage_pct": 0.0,
+      "total_lines": 205,
+      "covered_lines": 0,
+      "uncovered_lines": 205,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 1025.0,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "coverage_pct": 4.78,
+      "total_lines": 1163,
+      "covered_lines": 74,
+      "uncovered_lines": 1089,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 942.04,
+      "estimated_tests": 27
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "coverage_pct": 3.8,
+      "total_lines": 406,
+      "covered_lines": 21,
+      "uncovered_lines": 385,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 802.08,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "coverage_pct": 8.72,
+      "total_lines": 654,
+      "covered_lines": 72,
+      "uncovered_lines": 582,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 598.77,
+      "estimated_tests": 14
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "coverage_pct": 8.25,
+      "total_lines": 580,
+      "covered_lines": 70,
+      "uncovered_lines": 510,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 551.35,
+      "estimated_tests": 12
+    },
+    {
+      "file": "core/proposal_service.py",
+      "coverage_pct": 7.64,
+      "total_lines": 342,
+      "covered_lines": 33,
+      "uncovered_lines": 309,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 357.64,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "coverage_pct": 9.06,
+      "total_lines": 774,
+      "covered_lines": 94,
+      "uncovered_lines": 680,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 337.97,
+      "estimated_tests": 17
+    },
+    {
+      "file": "core/skill_registry_service.py",
+      "coverage_pct": 7.19,
+      "total_lines": 365,
+      "covered_lines": 34,
+      "uncovered_lines": 331,
+      "impact_score": 7,
+      "tier": "High",
+      "priority_score": 282.91,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "coverage_pct": 9.03,
+      "total_lines": 313,
+      "covered_lines": 42,
+      "uncovered_lines": 271,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 270.19,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/agent_integration_gateway.py",
+      "coverage_pct": 4.52,
+      "total_lines": 290,
+      "covered_lines": 17,
+      "uncovered_lines": 273,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 247.28,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/lancedb_handler.py",
+      "coverage_pct": 11.51,
+      "total_lines": 709,
+      "covered_lines": 100,
+      "uncovered_lines": 609,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 243.41,
+      "estimated_tests": 15
+    },
+    {
+      "file": "tools/browser_tool.py",
+      "coverage_pct": 9.92,
+      "total_lines": 299,
+      "covered_lines": 38,
+      "uncovered_lines": 261,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 239.01,
+      "estimated_tests": 10
+    },
+    {
+      "file": "api/media_routes.py",
+      "coverage_pct": 4.0,
+      "total_lines": 230,
+      "covered_lines": 10,
+      "uncovered_lines": 220,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 220.0,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_debugger.py",
+      "coverage_pct": 9.67,
+      "total_lines": 527,
+      "covered_lines": 62,
+      "uncovered_lines": 465,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 217.9,
+      "estimated_tests": 11
+    },
+    {
+      "file": "core/agent_social_layer.py",
+      "coverage_pct": 7.34,
+      "total_lines": 376,
+      "covered_lines": 38,
+      "uncovered_lines": 338,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 202.64,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/agent_graduation_service.py",
+      "coverage_pct": 9.44,
+      "total_lines": 230,
+      "covered_lines": 27,
+      "uncovered_lines": 203,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 194.44,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/formula_extractor.py",
+      "coverage_pct": 7.03,
+      "total_lines": 313,
+      "covered_lines": 32,
+      "uncovered_lines": 281,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 174.97,
+      "estimated_tests": 10
+    },
+    {
+      "file": "tools/device_tool.py",
+      "coverage_pct": 9.73,
+      "total_lines": 280,
+      "covered_lines": 36,
+      "uncovered_lines": 244,
+      "impact_score": 7,
+      "tier": "High",
+      "priority_score": 159.18,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/auto_invoicer.py",
+      "coverage_pct": 6.29,
+      "total_lines": 224,
+      "covered_lines": 20,
+      "uncovered_lines": 204,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 139.92,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/auto_document_ingestion.py",
+      "coverage_pct": 14.06,
+      "total_lines": 480,
+      "covered_lines": 88,
+      "uncovered_lines": 392,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 130.15,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/collaboration_service.py",
+      "coverage_pct": 9.22,
+      "total_lines": 291,
+      "covered_lines": 32,
+      "uncovered_lines": 259,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 126.71,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/feedback_service.py",
+      "coverage_pct": 7.07,
+      "total_lines": 219,
+      "covered_lines": 21,
+      "uncovered_lines": 198,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 122.68,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/atom_meta_agent.py",
+      "coverage_pct": 10.69,
+      "total_lines": 331,
+      "covered_lines": 45,
+      "uncovered_lines": 286,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 122.33,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/embedding_service.py",
+      "coverage_pct": 10.74,
+      "total_lines": 321,
+      "covered_lines": 42,
+      "uncovered_lines": 279,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 118.82,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/agent_world_model.py",
+      "coverage_pct": 14.02,
+      "total_lines": 298,
+      "covered_lines": 53,
+      "uncovered_lines": 245,
+      "impact_score": 7,
+      "tier": "High",
+      "priority_score": 114.18,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/productivity/notion_service.py",
+      "coverage_pct": 9.9,
+      "total_lines": 276,
+      "covered_lines": 38,
+      "uncovered_lines": 238,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 109.17,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/generic_agent.py",
+      "coverage_pct": 8.81,
+      "total_lines": 242,
+      "covered_lines": 28,
+      "uncovered_lines": 214,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 109.07,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/atom_saas_websocket.py",
+      "coverage_pct": 11.82,
+      "total_lines": 327,
+      "covered_lines": 50,
+      "uncovered_lines": 277,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 108.03,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/hybrid_data_ingestion.py",
+      "coverage_pct": 11.31,
+      "total_lines": 314,
+      "covered_lines": 50,
+      "uncovered_lines": 264,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 107.23,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_versioning_system.py",
+      "coverage_pct": 16.56,
+      "total_lines": 476,
+      "covered_lines": 100,
+      "uncovered_lines": 376,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 107.06,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_parameter_validator.py",
+      "coverage_pct": 10.37,
+      "total_lines": 282,
+      "covered_lines": 45,
+      "uncovered_lines": 237,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 104.22,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/advanced_workflow_system.py",
+      "coverage_pct": 18.21,
+      "total_lines": 512,
+      "covered_lines": 134,
+      "uncovered_lines": 378,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 98.39,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/health_monitoring_service.py",
+      "coverage_pct": 9.38,
+      "total_lines": 228,
+      "covered_lines": 27,
+      "uncovered_lines": 201,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 96.82,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/governance_cache.py",
+      "coverage_pct": 20.78,
+      "total_lines": 278,
+      "covered_lines": 68,
+      "uncovered_lines": 210,
+      "impact_score": 10,
+      "tier": "Critical",
+      "priority_score": 96.42,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/graphrag_engine.py",
+      "coverage_pct": 12.23,
+      "total_lines": 282,
+      "covered_lines": 46,
+      "uncovered_lines": 236,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 89.19,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/bulk_operations_processor.py",
+      "coverage_pct": 14.25,
+      "total_lines": 292,
+      "covered_lines": 55,
+      "uncovered_lines": 237,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 77.7,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/integration_data_mapper.py",
+      "coverage_pct": 16.8,
+      "total_lines": 338,
+      "covered_lines": 84,
+      "uncovered_lines": 254,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 71.35,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_analytics_engine.py",
+      "coverage_pct": 27.77,
+      "total_lines": 593,
+      "covered_lines": 185,
+      "uncovered_lines": 408,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 70.91,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/cross_platform_correlation.py",
+      "coverage_pct": 13.88,
+      "total_lines": 265,
+      "covered_lines": 54,
+      "uncovered_lines": 211,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 70.9,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/enterprise_auth_service.py",
+      "coverage_pct": 19.54,
+      "total_lines": 268,
+      "covered_lines": 64,
+      "uncovered_lines": 204,
+      "impact_score": 7,
+      "tier": "High",
+      "priority_score": 69.52,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_ui_endpoints.py",
+      "coverage_pct": 19.82,
+      "total_lines": 331,
+      "covered_lines": 89,
+      "uncovered_lines": 242,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 58.12,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/enhanced_execution_state_manager.py",
+      "coverage_pct": 18.28,
+      "total_lines": 286,
+      "covered_lines": 68,
+      "uncovered_lines": 218,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 56.54,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_analytics_endpoints.py",
+      "coverage_pct": 23.24,
+      "total_lines": 333,
+      "covered_lines": 89,
+      "uncovered_lines": 244,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 50.33,
+      "estimated_tests": 10
+    },
+    {
+      "file": "api/agent_routes.py",
+      "coverage_pct": 23.61,
+      "total_lines": 297,
+      "covered_lines": 89,
+      "uncovered_lines": 208,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 42.26,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/advanced_workflow_endpoints.py",
+      "coverage_pct": 23.2,
+      "total_lines": 275,
+      "covered_lines": 74,
+      "uncovered_lines": 201,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 41.53,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/byok_endpoints.py",
+      "coverage_pct": 38.01,
+      "total_lines": 498,
+      "covered_lines": 205,
+      "uncovered_lines": 293,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 37.55,
+      "estimated_tests": 10
+    },
+    {
+      "file": "core/workflow_marketplace.py",
+      "coverage_pct": 30.61,
+      "total_lines": 354,
+      "covered_lines": 122,
+      "uncovered_lines": 232,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 36.7,
+      "estimated_tests": 10
+    },
+    {
+      "file": "api/package_routes.py",
+      "coverage_pct": 33.18,
+      "total_lines": 373,
+      "covered_lines": 143,
+      "uncovered_lines": 230,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 33.65,
+      "estimated_tests": 10
+    },
+    {
+      "file": "api/admin_routes.py",
+      "coverage_pct": 37.77,
+      "total_lines": 433,
+      "covered_lines": 193,
+      "uncovered_lines": 240,
+      "impact_score": 5,
+      "tier": "Medium",
+      "priority_score": 30.95,
+      "estimated_tests": 10
+    }
+  ],
+  "quick_wins": [],
+  "phase_assignments": {
+    "101-backend-core": {
+      "count": 12,
+      "files": [
+        "tools/canvas_tool.py",
+        "core/llm/byok_handler.py",
+        "core/episode_segmentation_service.py",
+        "core/proposal_service.py",
+        "core/skill_registry_service.py",
+        "core/episode_retrieval_service.py",
+        "tools/browser_tool.py",
+        "core/agent_graduation_service.py",
+        "tools/device_tool.py",
+        "core/agent_world_model.py",
+        "core/governance_cache.py",
+        "core/enterprise_auth_service.py"
+      ]
+    },
+    "102-backend-api": {
+      "count": 4,
+      "files": [
+        "api/media_routes.py",
+        "api/agent_routes.py",
+        "api/package_routes.py",
+        "api/admin_routes.py"
+      ]
+    },
+    "103-backend-property": {
+      "count": 12,
+      "files": [
+        "core/workflow_engine.py",
+        "core/lancedb_handler.py",
+        "core/workflow_debugger.py",
+        "core/workflow_versioning_system.py",
+        "core/workflow_parameter_validator.py",
+        "core/advanced_workflow_system.py",
+        "core/graphrag_engine.py",
+        "core/workflow_analytics_engine.py",
+        "core/workflow_ui_endpoints.py",
+        "core/workflow_analytics_endpoints.py",
+        "core/advanced_workflow_endpoints.py",
+        "core/workflow_marketplace.py"
+      ]
+    },
+    "104-backend-error": {
+      "count": 1,
+      "files": [
+        "core/health_monitoring_service.py"
+      ]
+    },
+    "105-frontend-core": {
+      "count": 10,
+      "files": [
+        "core/enterprise_user_management.py",
+        "api/smarthome_routes.py",
+        "core/atom_agent_endpoints.py",
+        "core/agent_integration_gateway.py",
+        "core/agent_social_layer.py",
+        "core/formula_extractor.py",
+        "core/auto_invoicer.py",
+        "core/auto_document_ingestion.py",
+        "core/collaboration_service.py",
+        "core/feedback_service.py"
+      ]
+    },
+    "106-frontend-api": {
+      "count": 10,
+      "files": [
+        "core/atom_meta_agent.py",
+        "core/embedding_service.py",
+        "core/productivity/notion_service.py",
+        "core/generic_agent.py",
+        "core/atom_saas_websocket.py",
+        "core/hybrid_data_ingestion.py",
+        "core/bulk_operations_processor.py",
+        "core/integration_data_mapper.py",
+        "core/cross_platform_correlation.py",
+        "core/enhanced_execution_state_manager.py"
+      ]
+    },
+    "107-frontend-components": {
+      "count": 1,
+      "files": [
+        "core/byok_endpoints.py"
+      ]
+    },
+    "108-frontend-hooks": {
+      "count": 0,
+      "files": []
+    },
+    "109-frontend-integration": {
+      "count": 0,
+      "files": []
+    }
+  }
+}

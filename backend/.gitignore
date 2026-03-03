@@ -45,6 +45,9 @@ Thumbs.db
 test_reports/
 coverage/
 
+# Coverage trend dashboards (committed for visibility)
+!tests/coverage_reports/dashboards/
+
 # Test result JSON files
 *_oauth_test_*.json
 *_OAUTH_TEST_*.json

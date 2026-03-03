@@ -84,6 +84,33 @@ class TestCacheBasicOperations:
         assert cache.get("agent2", "action2") is None
         assert cache.get("agent3", "action3") is None
 
+    def test_cache_set_handles_exception_gracefully(self):
+        """Cache set should handle exceptions and return False."""
+        from unittest.mock import MagicMock
+
+        cache = GovernanceCache()
+
+        # Create a mock cache that raises exception on move_to_end
+        mock_cache = MagicMock()
+        mock_cache.__contains__ = lambda _, key: False  # Key doesn't exist (skip eviction)
+        mock_cache.__setitem__ = lambda _, key, value: None  # Successful set
+        mock_cache.__iter__ = lambda _: iter([])  # Empty iterator
+        mock_cache.__len__ = lambda _: 0  # Empty cache
+
+        # Mock move_to_end to raise exception (called inside try block)
+        mock_cache.move_to_end = MagicMock(side_effect=Exception("Cache error"))
+
+        # Replace the cache temporarily
+        original_cache = cache._cache
+        cache._cache = mock_cache
+
+        # This should catch the exception and return False
+        result = cache.set("agent-1", "action-1", {"allowed": True})
+        assert result is False
+
+        # Restore original cache for cleanup
+        cache._cache = original_cache
+
 
 class TestCacheHitRate:
     """Test cache hit rate performance (>90% after warmup)."""
@@ -601,6 +628,18 @@ class TestBackgroundCleanup:
         result = cache.get(agent_id, "action1")
         assert result is not None
 
+    def test_cleanup_task_handles_event_loop_exception(self):
+        """Background cleanup should handle event loop exceptions gracefully."""
+        # Mock get_event_loop to raise exception
+        with patch('core.governance_cache.asyncio.get_event_loop') as mock_get_loop:
+            mock_get_loop.side_effect = Exception("No event loop available")
+
+            # Should not raise, should log warning
+            cache = GovernanceCache()
+
+            # Cleanup task should be None after exception
+            assert cache._cleanup_task is None
+
 
 class TestGlobalCacheInstance:
     """Test global cache instance management."""
@@ -625,3 +664,161 @@ class TestGlobalCacheInstance:
 
         assert result is not None
         assert result["allowed"] is True
+
+
+class TestCachedGovernanceCheckDecorator:
+    """Test the @cached_governance_check decorator."""
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_returns_cached_result(self):
+        """Cache HIT path - decorator returns cached value without calling function."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        cache = get_governance_cache()
+        cache.set("agent-1", "stream_chat", {"allowed": True})
+
+        call_count = {"count": 0}
+
+        @cached_governance_check
+        async def mock_governance_check(agent_id, action_type):
+            """This should NOT be called on cache hit."""
+            call_count["count"] += 1
+            return {"allowed": False}
+
+        result = await mock_governance_check("agent-1", "stream_chat")
+
+        assert result["allowed"] is True  # Cached value returned
+        assert call_count["count"] == 0    # Original function not called
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_calls_function_and_caches_result(self):
+        """Cache MISS path - decorator calls function and caches result."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        @cached_governance_check
+        async def mock_governance_check(agent_id, action_type):
+            """This should be called on cache miss."""
+            return {"allowed": True, "reason": "Test passed"}
+
+        result = await mock_governance_check("agent-2", "stream_chat")
+
+        assert result["allowed"] is True
+
+        # Verify result was cached
+        cache = get_governance_cache()
+        cached = cache.get("agent-2", "stream_chat")
+        assert cached is not None
+        assert cached["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_decorator_cache_key_uses_lowercase_action_type(self):
+        """Decorator should lowercase action_type for cache key."""
+        from core.governance_cache import cached_governance_check, get_governance_cache
+
+        @cached_governance_check
+        async def mock_check(agent_id, action_type):
+            return {"allowed": True}
+
+        # Call with mixed case
+        await mock_check("agent-3", "Stream_Chat")
+
+        # Should be retrievable with lowercase
+        cache = get_governance_cache()
+        cached = cache.get("agent-3", "stream_chat")  # lowercase
+        assert cached is not None
+
+
+class TestAsyncGovernanceCache:
+    """Test AsyncGovernanceCache wrapper."""
+
+    @pytest.mark.asyncio
+    async def test_async_get_delegates_to_sync_cache(self):
+        """Async get should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        result = await async_cache.get("agent-1", "action-1")
+
+        assert result is not None
+        assert result["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_set_delegates_to_sync_cache(self):
+        """Async set should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        async_cache = AsyncGovernanceCache(sync_cache)
+
+        result = await async_cache.set("agent-1", "action-1", {"allowed": True})
+        assert result is True
+
+        # Verify it was cached
+        retrieved = await async_cache.get("agent-1", "action-1")
+        assert retrieved["allowed"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_invalidate_delegates_to_sync_cache(self):
+        """Async invalidate should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        await async_cache.invalidate("agent-1", "action-1")
+
+        # Should be invalidated
+        result = await async_cache.get("agent-1", "action-1")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_async_invalidate_agent_delegates_to_sync_cache(self):
+        """Async invalidate_agent should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+        sync_cache.set("agent-1", "action-2", {"allowed": False})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        await async_cache.invalidate_agent("agent-1")
+
+        # Both should be invalidated
+        result1 = await async_cache.get("agent-1", "action-1")
+        result2 = await async_cache.get("agent-1", "action-2")
+        assert result1 is None
+        assert result2 is None
+
+    @pytest.mark.asyncio
+    async def test_async_get_stats_delegates_to_sync_cache(self):
+        """Async get_stats should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+
+        async_cache = AsyncGovernanceCache(sync_cache)
+        stats = await async_cache.get_stats()
+
+        assert stats["size"] == 1
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+
+    @pytest.mark.asyncio
+    async def test_async_get_hit_rate_delegates_to_sync_cache(self):
+        """Async get_hit_rate should delegate to sync cache correctly."""
+        from core.governance_cache import AsyncGovernanceCache, GovernanceCache
+
+        sync_cache = GovernanceCache()
+        async_cache = AsyncGovernanceCache(sync_cache)
+
+        sync_cache.set("agent-1", "action-1", {"allowed": True})
+        await async_cache.get("agent-1", "action-1")  # hit
+        await async_cache.get("agent-1", "action-2")  # miss
+
+        hit_rate = await async_cache.get_hit_rate()
+        assert hit_rate == 50.0  # 1 hit, 1 miss = 50%

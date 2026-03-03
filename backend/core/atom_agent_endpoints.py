@@ -83,6 +83,7 @@ class ChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
     conversation_history: List[ChatMessage] = []
     agent_id: Optional[str] = None  # Explicit agent selection for governance
+    workspace_id: Optional[str] = None  # Workspace for multi-tenancy
 
 class ExecuteGeneratedRequest(BaseModel):
     workflow_id: str

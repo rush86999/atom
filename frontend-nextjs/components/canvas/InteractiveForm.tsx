@@ -177,13 +177,15 @@ export function InteractiveForm({
 
             {fields.map((field) => (
                 <div key={field.name} className="space-y-1">
-                    <label className="text-xs font-medium">
+                    <label htmlFor={field.name} className="text-xs font-medium">
                         {field.label}
                         {field.required && <span className="text-red-500 ml-1">*</span>}
                     </label>
 
                     {field.type === 'select' ? (
                         <select
+                            id={field.name}
+                            name={field.name}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                             value={formData[field.name] || ''}
                             onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
@@ -195,6 +197,8 @@ export function InteractiveForm({
                         </select>
                     ) : field.type === 'checkbox' ? (
                         <input
+                            id={field.name}
+                            name={field.name}
                             type="checkbox"
                             checked={formData[field.name] || false}
                             onChange={(e) => setFormData({ ...formData, [field.name]: e.target.checked })}
@@ -202,6 +206,8 @@ export function InteractiveForm({
                         />
                     ) : (
                         <input
+                            id={field.name}
+                            name={field.name}
                             type={field.type}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                             placeholder={field.placeholder}

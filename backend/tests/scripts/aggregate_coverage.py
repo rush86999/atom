@@ -325,11 +325,73 @@ def load_tarpaulin_coverage(path: Path) -> Dict[str, Any]:
     return result
 
 
+def load_e2e_results(path: Path) -> Dict[str, Any]:
+    """
+    Load E2E test results from unified aggregator.
+
+    Args:
+        path: Path to e2e_unified.json (from e2e_aggregator.py)
+
+    Returns:
+        Dict with platform='e2e', total_tests, passed, failed metrics
+        Returns error status if file not found
+    """
+    result = {
+        "platform": "e2e",
+        "total_tests": 0,
+        "passed": 0,
+        "failed": 0,
+        "pass_rate": 0.0,
+        "duration_seconds": 0,
+        "platforms": {},
+        "file": str(path),
+    }
+
+    if not path.exists():
+        result["error"] = "file not found"
+        result["status"] = "not_run"
+        result["message"] = "E2E results not found"
+        return result
+
+    try:
+        with open(path, 'r') as f:
+            e2e_data = json.load(f)
+
+        # Extract aggregate E2E metrics
+        aggregate = e2e_data.get("aggregate", {})
+        platforms = e2e_data.get("platforms", [])
+
+        result["total_tests"] = aggregate.get("total_tests", 0)
+        result["passed"] = aggregate.get("total_passed", 0)
+        result["failed"] = aggregate.get("total_failed", 0)
+        result["pass_rate"] = aggregate.get("pass_rate", 0.0)
+        result["duration_seconds"] = aggregate.get("total_duration_seconds", 0)
+        result["status"] = "success"
+
+        # Extract per-platform E2E metrics
+        for platform in platforms:
+            platform_name = platform.get("platform", "unknown")
+            result["platforms"][platform_name] = {
+                "total": platform.get("total", 0),
+                "passed": platform.get("passed", 0),
+                "failed": platform.get("failed", 0),
+                "duration": platform.get("duration", 0),
+            }
+
+    except (json.JSONDecodeError, IOError) as e:
+        result["error"] = str(e)
+        result["status"] = "error"
+        result["message"] = f"Failed to load E2E results: {e}"
+
+    return result
+
+
 def aggregate_coverage(
     pytest_path: Path,
     jest_path: Path,
     jest_expo_path: Optional[Path] = None,
-    tarpaulin_path: Optional[Path] = None
+    tarpaulin_path: Optional[Path] = None,
+    e2e_results_path: Optional[Path] = None
 ) -> Dict[str, Any]:
     """
     Aggregate coverage from all platforms.
@@ -397,6 +459,45 @@ def aggregate_coverage(
             total_branches_covered / total_branches * 100
         )
 
+    result = {
+        "platforms": platforms,
+        "overall": {
+            "coverage_pct": round(overall_coverage_pct, 2),
+            "covered": total_covered,
+            "total": total_lines,
+            "branch_coverage_pct": round(overall_branch_coverage_pct, 2),
+            "branches_covered": total_branches_covered,
+            "branches_total": total_branches,
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+    # Add E2E test metrics if available
+    if e2e_results_path:
+        e2e_results = load_e2e_results(e2e_results_path)
+        result["e2e_tests"] = {
+            "status": e2e_results.get("status", "not_run"),
+            "total_tests": e2e_results.get("total_tests", 0),
+            "passed": e2e_results.get("passed", 0),
+            "failed": e2e_results.get("failed", 0),
+            "pass_rate": e2e_results.get("pass_rate", 0.0),
+            "duration_seconds": e2e_results.get("duration_seconds", 0),
+            "platforms": e2e_results.get("platforms", {}),
+        }
+        if "error" in e2e_results:
+            result["e2e_tests"]["error"] = e2e_results["error"]
+            result["e2e_tests"]["message"] = e2e_results.get("message", "Unknown error")
+
+    return result
+    if total_lines > 0:
+        overall_coverage_pct = (total_covered / total_lines * 100)
+
+    overall_branch_coverage_pct = 0.0
+    if total_branches > 0:
+        overall_branch_coverage_pct = (
+            total_branches_covered / total_branches * 100
+        )
+
     return {
         "platforms": platforms,
         "overall": {
@@ -452,6 +553,28 @@ def generate_text_report(aggregate_data: Dict[str, Any]) -> str:
     lines.append(f"  Branch Coverage: {overall['branch_coverage_pct']:6.2f}%  ({overall['branches_covered']:7d} / {overall['branches_total']:7d} branches)")
     lines.append("")
 
+    # E2E test metrics (if available)
+    if "e2e_tests" in aggregate_data:
+        e2e = aggregate_data["e2e_tests"]
+        lines.append("E2E TEST RESULTS")
+        lines.append("-" * 80)
+        if e2e.get("status") == "not_run":
+            lines.append(f"  Status: {e2e.get('message', 'Not run')}")
+        elif e2e.get("status") == "error":
+            lines.append(f"  Status: ERROR - {e2e.get('message', 'Unknown error')}")
+        else:
+            lines.append(f"  Total Tests:     {e2e['total_tests']:5d}")
+            lines.append(f"  Passed:          {e2e['passed']:5d}")
+            lines.append(f"  Failed:          {e2e['failed']:5d}")
+            lines.append(f"  Pass Rate:       {e2e['pass_rate']:6.2f}%")
+            lines.append(f"  Duration:        {e2e['duration_seconds']:5d}s")
+            if e2e.get("platforms"):
+                lines.append("")
+                lines.append("  Platform Breakdown:")
+                for platform_name, platform_data in e2e["platforms"].items():
+                    lines.append(f"    {platform_name.upper()}: {platform_data['passed']}/{platform_data['total']} passed ({platform_data.get('duration', 0)}s)")
+        lines.append("")
+
     # Platform breakdown
     lines.append("PLATFORM BREAKDOWN")
     lines.append("-" * 80)
@@ -490,6 +613,37 @@ def generate_markdown_report(aggregate_data: Dict[str, Any]) -> str:
     lines.append(f"| **Line Coverage** | **{overall['coverage_pct']:.2f}%** | {overall['covered']:,} / {overall['total']:,} lines |")
     lines.append(f"| **Branch Coverage** | **{overall['branch_coverage_pct']:.2f}%** | {overall['branches_covered']:,} / {overall['branches_total']:,} branches |")
     lines.append("")
+
+    # E2E test metrics (if available)
+    if "e2e_tests" in aggregate_data:
+        e2e = aggregate_data["e2e_tests"]
+        lines.append("### E2E Test Results")
+        lines.append("")
+
+        if e2e.get("status") == "not_run":
+            lines.append(f"**Status:** {e2e.get('message', 'Not run')}")
+            lines.append("")
+        elif e2e.get("status") == "error":
+            lines.append(f"**Status:** ❌ ERROR - {e2e.get('message', 'Unknown error')}")
+            lines.append("")
+        else:
+            lines.append("| Metric | Value |")
+            lines.append("|--------|-------|")
+            lines.append(f"| **Total Tests** | **{e2e['total_tests']}** |")
+            lines.append(f"| **Passed** | **{e2e['passed']}** |")
+            lines.append(f"| **Failed** | **{e2e['failed']}** |")
+            lines.append(f"| **Pass Rate** | **{e2e['pass_rate']:.2f}%** |")
+            lines.append(f"| **Duration** | **{e2e['duration_seconds']}s** |")
+            lines.append("")
+
+            if e2e.get("platforms"):
+                lines.append("#### Platform Breakdown")
+                lines.append("")
+                lines.append("| Platform | Tests | Passed | Failed | Duration |")
+                lines.append("|----------|-------|--------|--------|----------|")
+                for platform_name, platform_data in e2e["platforms"].items():
+                    lines.append(f"| **{platform_name}** | {platform_data['total']} | {platform_data['passed']} | {platform_data['failed']} | {platform_data.get('duration', 0)}s |")
+                lines.append("")
 
     # Platform breakdown
     lines.append("### Platform Breakdown")
@@ -544,6 +698,12 @@ def main():
         help="Path to tarpaulin coverage.json (default: frontend-nextjs/src-tauri/coverage/coverage.json)"
     )
     parser.add_argument(
+        "--e2e-results",
+        type=Path,
+        default=None,
+        help="Path to unified E2E test results JSON (from e2e_aggregator.py)"
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path(__file__).parent / "coverage_reports" / "unified" / "coverage.json",
@@ -564,7 +724,8 @@ def main():
         args.pytest_coverage,
         args.jest_coverage,
         args.mobile_coverage,
-        args.desktop_coverage
+        args.desktop_coverage,
+        args.e2e_results
     )
 
     # Create output directory if needed

@@ -1,0 +1,47 @@
+{
+  "phase": "113",
+  "plan": "05",
+  "service": "episode_segmentation_service",
+  "timestamp": "2026-03-01T15:04:00Z",
+  "coverage": {
+    "statements": {
+      "total": 580,
+      "covered": 292,
+      "missed": 288,
+      "percentage": 46.58
+    },
+    "branches": {
+      "total": 268,
+      "covered": 221,
+      "missed": 47,
+      "percentage": 82.46
+    },
+    "target_percentage": 60.0,
+    "gap": 13.42,
+    "improvement_from_plan_04": 16.39
+  },
+  "tests": {
+    "total": 92,
+    "passing": 92,
+    "failing": 0,
+    "pass_rate": 100.0
+  },
+  "test_categories": {
+    "original": 75,
+    "refactored": 6,
+    "new_coverage_tests": 17,
+    "extended_coverage": 17
+  },
+  "changes": {
+    "refactored_integration_tests": 6,
+    "added_new_tests": 17,
+    "fixed_mock_chain_issues": true
+  },
+  "next_steps": [
+    "Test async methods (create_episode_from_session, _create_segments, _archive_to_lancedb)",
+    "Test error paths in database operations",
+    "Test LLM canvas summary integration",
+    "Test supervision episode archival",
+    "Consider integration tests with real database for complex async flows"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "performance": 0.0,
+    "first-contentful-paint": 0,
+    "interactive": 0,
+    "cumulative-layout-shift": 0.0,
+    "total-blocking-time": 0
+  },
+  "notes": "Baseline established on 2026-02-27 from development environment. Budgets set at 10% above baseline. ACTUAL METRICS TO BE CAPTURED IN CI PIPELINE.",
+  "urls_tested": [
+    "http://localhost:3001/dashboard",
+    "http://localhost:3001/agent/test-agent",
+    "http://localhost:3001/canvas/test-canvas"
+  ],
+  "next_steps": [
+    "Run `npm run lighthouse:ci` in CI to capture actual baseline metrics",
+    "Update this file with median values from 5 Lighthouse runs",
+    "Adjust budgets in lighthouserc.json if baseline exceeds targets",
+    "Set up Lighthouse CI GitHub Actions workflow (Task 5)"
+  ],
+  "budget_adjustments": {
+    "if_baseline_fcp_gt_2500ms": "Set budget to 2750ms (10% buffer)",
+    "if_baseline_performance_lt_0.85": "Keep budget at 0.85 (work to improve over time)",
+    "document_adjustments_in_readme": "Update LIGHTHOUSE.md with rationale"
+  }
+}

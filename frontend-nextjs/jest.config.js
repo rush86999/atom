@@ -1,13 +1,15 @@
 module.exports = {
   testEnvironment: "jsdom",
+  setupFiles: ["<rootDir>/tests/polyfills.ts"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   transform: {
     "^.+\\.(js|jsx|ts|tsx)$": "babel-jest",
   },
   testMatch: [
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
-    "<rootDir>/components/**/__tests__/*.test.(ts|tsx|js)",
-    "<rootDir>/lib/**/__tests__/*.test.(ts|tsx|js)"
+    "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",
+    "<rootDir>/lib/**/__tests__/**/*.test.(ts|tsx|js)",
+    "<rootDir>/hooks/**/__tests__/**/*.test.(ts|tsx|js)"
   ],
   collectCoverageFrom: [
     "components/**/*.{ts,tsx}",
@@ -30,7 +32,7 @@ module.exports = {
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transformIgnorePatterns: [
-    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got))"
+    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got|msw|@mswjs|@mswjs/interceptors))"
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",

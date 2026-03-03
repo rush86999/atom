@@ -7,6 +7,7 @@ Covers real-time monitoring, control operations (pause/correct/terminate), and a
 Coverage target: 80%+ for supervision_service.py
 """
 
+import uuid
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
@@ -558,3 +559,595 @@ class TestActiveSessions:
         assert history[0]["status"] == SupervisionStatus.COMPLETED.value
         assert "duration_seconds" in history[0]
         assert "supervisor_rating" in history[0]
+
+
+class TestSupervisionCoverageGaps:
+    """
+    Additional tests to reach 60% coverage.
+
+    Covers previously untested functions:
+    - start_supervision_with_fallback (lines 549-612)
+    - monitor_with_autonomous_fallback (lines 624-669)
+    - _process_supervision_feedback (lines 682-735)
+
+    Note: monitor_agent_execution (lines 137-235) requires complex async testing
+    with event streaming and is deferred to integration tests.
+    """
+
+    @pytest.mark.asyncio
+    async def test_supervision_event_structure(self, db_session: Session):
+        """
+        Test SupervisionEvent dataclass structure.
+        Covers SupervisionEvent.__init__ (lines 26-36).
+        """
+        # Act - Create supervision event
+        event = SupervisionEvent(
+            event_type="test_action",
+            timestamp=datetime.now(),
+            data={"test_key": "test_value"}
+        )
+
+        # Assert - Event structure is correct
+        assert event.event_type == "test_action"
+        assert event.data == {"test_key": "test_value"}
+        assert isinstance(event.timestamp, datetime)
+
+    @pytest.mark.asyncio
+    async def test_monitor_agent_execution_timeout(self, db_session: Session):
+        """
+        Test monitoring agent execution when session becomes inactive.
+        Covers session status check in monitor_agent_execution.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_monitor_timeout",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+        session = await service.start_supervision_session(
+            agent_id=agent.id,
+            trigger_context={"action_type": "test_action", "user_id": "test_user"},
+            workspace_id="test_workspace",
+            supervisor_id="test_supervisor"
+        )
+
+        # Complete the session to simulate timeout/cancellation
+        session.status = SupervisionStatus.COMPLETED.value
+        db_session.commit()
+
+        # Act - Monitor completed session (should exit immediately)
+        events = []
+        async for event in service.monitor_agent_execution(
+            db=db_session,
+            session=session
+        ):
+            events.append(event)
+
+        # Assert - Should exit immediately (session not running)
+        assert len(events) == 0
+
+    @pytest.mark.asyncio
+    async def test_monitor_agent_execution_session_not_running(self, db_session: Session):
+        """
+        Test monitoring when session is not in RUNNING state.
+        Covers session status check in monitor_agent_execution.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_monitor_not_running",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+        session = await service.start_supervision_session(
+            agent_id=agent.id,
+            trigger_context={"action_type": "test_action", "user_id": "test_user"},
+            workspace_id="test_workspace",
+            supervisor_id="test_supervisor"
+        )
+
+        # Complete the session
+        session.status = SupervisionStatus.COMPLETED.value
+        db_session.commit()
+
+        # Act - Try to monitor completed session
+        events = []
+        async for event in service.monitor_agent_execution(
+            db=db_session,
+            session=session
+        ):
+            events.append(event)
+
+        # Assert - Should exit immediately (session not running)
+        assert len(events) == 0
+
+    @pytest.mark.asyncio
+    async def test_start_supervision_with_fallback_user_online(self, db_session: Session):
+        """
+        Test supervision fallback when user is online.
+        Covers lines 549-612 in supervision_service.py.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_fallback_online",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock user activity service to return user as online
+        with patch('core.user_activity_service.UserActivityService') as mock_user_service:
+            mock_user_instance = AsyncMock()
+            mock_user_instance.get_user_state = AsyncMock(return_value="online")
+            mock_user_service.return_value = mock_user_instance
+
+            # Act - Start supervision with fallback (user online)
+            result = await service.start_supervision_with_fallback(
+                agent_id=agent.id,
+                trigger_context={"action_type": "test_action", "trigger_type": "automated"},
+                workspace_id="test_workspace",
+                user_id="test_user"
+            )
+
+        # Assert - Should create session with user as supervisor
+        assert result is not None
+        assert result.agent_id == agent.id
+        assert result.supervisor_id == "test_user"  # User is supervisor
+        assert result.status == SupervisionStatus.RUNNING.value
+
+    @pytest.mark.asyncio
+    async def test_start_supervision_with_fallback_user_offline_no_autonomous(self, db_session: Session):
+        """
+        Test supervision fallback when user offline and no autonomous supervisor available.
+        Covers error path in start_supervision_with_fallback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_fallback_offline",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock user activity service to return user as offline
+        with patch('core.user_activity_service.UserActivityService') as mock_user_service:
+            mock_user_instance = AsyncMock()
+            mock_user_instance.get_user_state = AsyncMock(return_value="offline")
+            mock_user_service.return_value = mock_user_instance
+
+            # Mock autonomous supervisor service to return None (no autonomous supervisor)
+            with patch('core.autonomous_supervisor_service.AutonomousSupervisorService') as mock_autonomous_service:
+                mock_autonomous_instance = AsyncMock()
+                mock_autonomous_instance.find_autonomous_supervisor = AsyncMock(return_value=None)
+                mock_autonomous_service.return_value = mock_autonomous_instance
+
+                # Mock queue service
+                with patch('core.supervised_queue_service.SupervisedQueueService') as mock_queue_service:
+                    mock_queue_instance = AsyncMock()
+                    mock_queue_instance.enqueue_execution = AsyncMock()
+                    mock_queue_service.return_value = mock_queue_instance
+
+                    # Act & Assert - Should raise ValueError and queue execution
+                    with pytest.raises(ValueError, match="User unavailable and no autonomous supervisor"):
+                        await service.start_supervision_with_fallback(
+                            agent_id=agent.id,
+                            trigger_context={"action_type": "test_action", "trigger_type": "automated"},
+                            workspace_id="test_workspace",
+                            user_id="test_user"
+                        )
+
+                    # Verify queue was called
+                    mock_queue_instance.enqueue_execution.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_start_supervision_with_fallback_away_short_timeout(self, db_session: Session):
+        """
+        Test supervision fallback when user is away (treated as available for short tasks).
+        Covers away state handling in start_supervision_with_fallback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_fallback_away",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock user activity service to return user as away
+        with patch('core.user_activity_service.UserActivityService') as mock_user_service:
+            mock_user_instance = AsyncMock()
+            mock_user_instance.get_user_state = AsyncMock(return_value="away")
+            mock_user_service.return_value = mock_user_instance
+
+            # Act - Start supervision with fallback (user away = available)
+            result = await service.start_supervision_with_fallback(
+                agent_id=agent.id,
+                trigger_context={"action_type": "test_action", "trigger_type": "automated"},
+                workspace_id="test_workspace",
+                user_id="test_user"
+            )
+
+        # Assert - Should create session with user as supervisor (away = available)
+        assert result is not None
+        assert result.agent_id == agent.id
+        assert result.supervisor_id == "test_user"
+
+    @pytest.mark.asyncio
+    async def test_monitor_with_autonomous_fallback(self, db_session: Session):
+        """
+        Test monitoring with autonomous supervisor fallback.
+        Covers lines 624-669 in supervision_service.py.
+        """
+        # Arrange
+        supervisor_agent = AgentRegistry(
+            id="autonomous_supervisor",
+            name="Autonomous Supervisor",
+            category="supervision",
+            module_path="test.module",
+            class_name="SupervisorClass",
+            status=AgentStatus.AUTONOMOUS.value,
+            confidence_score=0.95,
+            user_id="test_user",
+        )
+        db_session.add(supervisor_agent)
+
+        agent = AgentRegistry(
+            id="supervised_agent_monitored",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create supervision session with autonomous supervisor
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action", "user_id": "test_user"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id=supervisor_agent.id,  # Autonomous supervisor
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        # Create execution
+        execution = AgentExecution(
+            id=str(uuid.uuid4()),
+            agent_id=agent.id,
+            status="completed",
+            input_summary="Test input",
+            output_summary="Test output",
+            started_at=datetime.now(),
+        )
+        db_session.add(execution)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock autonomous supervisor service
+        with patch('core.autonomous_supervisor_service.AutonomousSupervisorService') as mock_autonomous_service:
+            mock_autonomous_instance = MagicMock()
+
+            # Mock async generator for monitoring
+            async def mock_monitor_events(execution_id, supervisor):
+                from core.supervision_service import SupervisionEvent
+                yield SupervisionEvent(
+                    event_type="action",
+                    timestamp=datetime.now(),
+                    data={"action_type": "monitoring_check"}
+                )
+
+            mock_autonomous_instance.monitor_execution = mock_monitor_events
+            mock_autonomous_service.return_value = mock_autonomous_instance
+
+            # Act - Monitor with autonomous fallback (should complete without error)
+            await service.monitor_with_autonomous_fallback(session=session)
+
+        # Assert - Test passes means monitoring completed successfully
+
+    @pytest.mark.asyncio
+    async def test_monitor_with_autonomous_fallback_supervisor_not_found(self, db_session: Session):
+        """
+        Test monitoring with autonomous fallback when supervisor agent not found.
+        Covers error handling in monitor_with_autonomous_fallback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_agent_no_supervisor",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create supervision session with non-existent supervisor
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action", "user_id": "test_user"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="nonexistent_supervisor",
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Act - Monitor with autonomous fallback (supervisor not found)
+        # Should handle error gracefully and return early
+        result = await service.monitor_with_autonomous_fallback(session=session)
+
+        # Assert - Should return None (graceful error handling)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_monitor_with_autonomous_fallback_human_supervisor(self, db_session: Session):
+        """
+        Test monitoring when supervisor is human (not autonomous agent).
+        Covers human supervisor path in monitor_with_autonomous_fallback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_agent_human_supervisor",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Create supervision session with human supervisor (same as user_id)
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action", "user_id": "test_user"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="test_user",  # Human supervisor (same as user_id)
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Act - Monitor with human supervisor (should not use autonomous monitoring)
+        result = await service.monitor_with_autonomous_fallback(session=session)
+
+        # Assert - Should return None (human supervisor, no autonomous monitoring)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_process_supervision_feedback_success(self, db_session: Session):
+        """
+        Test processing supervision feedback for two-way learning.
+        Covers lines 682-735 in supervision_service.py.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_feedback_success",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="test_supervisor",
+            supervisor_rating=5,
+            supervisor_feedback="Excellent performance",
+            intervention_count=0,
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock feedback and learning services
+        mock_feedback_service = AsyncMock()
+        mock_learning_service = AsyncMock()
+
+        # Act - Process supervision feedback
+        await service._process_supervision_feedback(
+            session=session,
+            feedback_service=mock_feedback_service,
+            learning_service=mock_learning_service
+        )
+
+        # Assert - Should call feedback service to rate supervisor
+        mock_feedback_service.rate_supervisor.assert_called_once_with(
+            supervision_session_id=session.id,
+            rater_id=f"system_{session.supervisor_id}",
+            rating=5,
+            rating_category="session_outcome",
+            reason="Excellent performance",
+            agent_id=agent.id,
+        )
+
+        # Assert - Should call learning service to process feedback
+        mock_learning_service.process_feedback_for_learning.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_supervision_feedback_with_interventions(self, db_session: Session):
+        """
+        Test processing supervision feedback with intervention tracking.
+        Covers intervention outcome tracking in _process_supervision_feedback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_feedback_interventions",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="test_supervisor",
+            supervisor_rating=4,
+            supervisor_feedback="Good with minor corrections",
+            intervention_count=2,
+            interventions=[
+                {"type": "correct", "timestamp": datetime.now().isoformat()},
+                {"type": "pause", "timestamp": datetime.now().isoformat()},
+            ],
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock feedback, learning, and performance services
+        mock_feedback_service = AsyncMock()
+        mock_learning_service = AsyncMock()
+        mock_perf_service = AsyncMock()
+
+        # Act - Process supervision feedback with interventions
+        with patch('core.supervisor_performance_service.SupervisorPerformanceService') as mock_perf_service_class:
+            mock_perf_service_class.return_value = mock_perf_service
+
+            await service._process_supervision_feedback(
+                session=session,
+                feedback_service=mock_feedback_service,
+                learning_service=mock_learning_service
+            )
+
+        # Assert - Should track intervention outcomes
+        assert mock_perf_service.track_intervention_outcome.call_count == 2
+
+        # Assert - Should process intervention feedback for learning
+        assert mock_learning_service.process_feedback_for_learning.call_count == 3  # 1 rating + 2 interventions
+
+    @pytest.mark.asyncio
+    async def test_process_supervision_feedback_error_handling(self, db_session: Session):
+        """
+        Test error handling in supervision feedback processing.
+        Covers error handling path in _process_supervision_feedback.
+        """
+        # Arrange
+        agent = AgentRegistry(
+            id="supervised_feedback_error",
+            name="Supervised Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.SUPERVISED.value,
+            confidence_score=0.8,
+            user_id="test_user",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        session = SupervisionSession(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            workspace_id="test_workspace",
+            trigger_context={"action_type": "test_action"},
+            status=SupervisionStatus.RUNNING.value,
+            supervisor_id="test_supervisor",
+            supervisor_rating=3,
+            supervisor_feedback="Average performance",
+            intervention_count=0,
+            started_at=datetime.now(),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        service = SupervisionService(db_session)
+
+        # Mock feedback service to raise exception
+        mock_feedback_service = AsyncMock()
+        mock_feedback_service.rate_supervisor = AsyncMock(side_effect=Exception("Feedback service error"))
+
+        mock_learning_service = AsyncMock()
+
+        # Act - Process supervision feedback (should handle error gracefully)
+        await service._process_supervision_feedback(
+            session=session,
+            feedback_service=mock_feedback_service,
+            learning_service=mock_learning_service
+        )
+
+        # Assert - Should not raise exception (error logged only)
+        # Function should complete without crashing

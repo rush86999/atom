@@ -49,3 +49,23 @@
 
 ---
 
+
+## v4.0 Platform Integration & Property Testing (Shipped: 2026-02-27)
+
+**Phases completed:** 81 phases, 396 plans, 287 tasks
+
+**Key accomplishments:**
+- JWT token lifecycle validation across browser refreshes, multiple tabs, and expiration scenarios with localStorage testing
+
+---
+
+
+## v5.0 Coverage Expansion (Shipped: 2026-03-01)
+
+**Phases completed:** 92 phases, 454 plans, 301 tasks
+
+**Key accomplishments:**
+- JWT token lifecycle validation across browser refreshes, multiple tabs, and expiration scenarios with localStorage testing
+
+---
+
