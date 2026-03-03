@@ -245,3 +245,16 @@ All verification steps passed:
 *Phase: 125-financial-property-tests*
 *Plan: 01*
 *Completed: 2026-03-03*
+
+## Self-Check: PASSED
+
+✅ **SUMMARY.md exists** - File created at .planning/phases/125-financial-property-tests/125-01-SUMMARY.md
+✅ **Task 1 commit exists** - 015d7f039 (decimal precision tests upgraded)
+✅ **Task 2 commit exists** - 5ac93ed72 (double-entry tests upgraded + bug fix)
+✅ **Final commit exists** - 2ab1d55d8 (SUMMARY.md + STATE.md)
+✅ **Test files modified correctly** - Both test_decimal_precision_invariants.py and test_double_entry_invariants.py modified
+✅ **All 40 tests use max_examples=200** - Verified by grep count (27 + 13 = 40)
+✅ **All tests passing** - 41/41 tests passing (100% pass rate)
+✅ **No test timeouts** - All tests complete in 15.08 seconds
+✅ **STATE.md updated** - Phase 125 position, decisions, and metrics recorded
+✅ **PROP-03 requirement satisfied** - All critical financial invariants validated with 200 examples
