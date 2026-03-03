@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 128 of 26 (Backend API Contract Testing)
-Plan: 07 (Fix Breaking Change Detection - Gap Closure)
+Plan: 08 (Enforce Schema Validation - Gap Closure)
 Status: Complete
-Last activity: 2026-03-03 — Plan 128-07 completed (Fixed breaking change detection to distinguish validation errors from Pydantic false positives, closing Gap 2)
+Last activity: 2026-03-03 — Plan 128-08 completed (Updated CI workflow and documentation to enforce strict schema validation via Schemathesis, closing Gap 3)
 
-Progress: [██████████] 87.5% (7/8 plans complete)
+Progress: [██████████] 100% (8/8 plans complete)
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 87.5% (7/8 plans complete)
 | Phase 128 P128-07 | 166 | 2 tasks | 1 files |
 | Phase 128 P05 | 86 | 3 tasks | 3 files |
 | Phase 128 P07 | 166 | 2 tasks | 1 files |
+| Phase 128 P08 | 74 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,9 @@ Recent decisions affecting current work:
 - [Phase 128]: Validation errors should fail build (exit 1) unless they are known Pydantic 2.0+ false positives detected by anyOf or null patterns in stderr
 - [Phase 128]: Breaking change detection uses three-tier classification: breaking changes (fail), validation errors (fail), Pydantic false positives (warning)
 - [Phase 128]: Error messaging uses emoji: ⚠️ for warnings, ❌ for real errors to clearly distinguish validation types
+- [Phase 128]: Breaking changes must fail CI build (no --allow-breaking flag)
+- [Phase 128]: Schemathesis @schema.parametrize() is the standard pattern (not manual TestClient)
+- [Phase 128]: Pre-commit hooks are recommended but not mandatory for local enforcement
 
 ### Pending Todos
 
@@ -145,7 +149,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (128-07 execution)
-Stopped at: Completed Phase 128 Plan 07 - Fix Breaking Change Detection - Gap Closure (Fixed breaking change detection to distinguish validation errors from Pydantic false positives, closing Gap 2)
+Last session: 2026-03-03 (128-08 execution)
+Stopped at: Completed Phase 128 Plan 08 - Enforce Schema Validation - Gap Closure (Updated CI workflow and documentation to enforce strict schema validation via Schemathesis, closing Gap 3)
 Resume file: None
-Next phase: Phase 128 Plan 08 - (Next plan in phase)
+Next phase: Phase 129 - (Next phase in roadmap)
