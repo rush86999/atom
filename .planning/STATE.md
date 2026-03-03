@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 128 - Backend API Contract Testing
+**Current focus:** Phase 129 - Backend Critical Error Paths
 
 ## Current Position
 
-Phase: 128 of 26 (Backend API Contract Testing)
-Plan: 08 (Enforce Schema Validation - Gap Closure)
+Phase: 129 of 26 (Backend Critical Error Paths)
+Plan: 02 (Circuit Breaker State Transitions)
 Status: Complete
-Last activity: 2026-03-03 — Plan 128-08 completed (Updated CI workflow and documentation to enforce strict schema validation via Schemathesis, closing Gap 3)
+Last activity: 2026-03-03 — Plan 129-02 completed (Comprehensive circuit breaker state transition test suite with 26 tests covering all failure threshold behaviors, timeout recovery mechanisms, and AutoHealingEngine integration)
 
-Progress: [██████████] 100% (8/8 plans complete)
+Progress: [█░░░░░░░░] 20% (1/5 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (Phase 127: 12 plans + Phase 128: 8 plans)
-- Average duration: 9.1 minutes
-- Total execution time: 3 hours
+- Total plans completed: 21 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 1 plan)
+- Average duration: 8.7 minutes
+- Total execution time: 3 hours 1 minutes
 
 **By Phase:**
 
@@ -61,6 +61,8 @@ Progress: [██████████] 100% (8/8 plans complete)
 | Phase 128 P05 | 86 | 3 tasks | 3 files |
 | Phase 128 P07 | 166 | 2 tasks | 1 files |
 | Phase 128 P08 | 74 | 3 tasks | 2 files |
+| Phase 129 P02 | 80 | 1 task | 1 files |
+| Phase 129 P01 | 900 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -138,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase 128]: Breaking changes must fail CI build (no --allow-breaking flag)
 - [Phase 128]: Schemathesis @schema.parametrize() is the standard pattern (not manual TestClient)
 - [Phase 128]: Pre-commit hooks are recommended but not mandatory for local enforcement
+- [Phase 129]: Use small timeouts (100-1500ms) instead of mocking datetime.now() for reliable circuit breaker timeout tests
+- [Phase 129]: Circuit breaker threshold=0 opens on first failure (documented as actual behavior, not a bug)
+- [Phase 129]: Circuit breaker timeout=0 allows immediate HALF_OPEN transition on next call (with minimal sleep for datetime.now() change)
 
 ### Pending Todos
 
@@ -149,7 +154,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (128-08 execution + verification)
-Stopped at: Phase 128 complete with all gaps closed - Backend API Contract Testing fully operational (25 contract tests with Schemathesis validation, breaking change detection with three-tier classification, CI enforcement without bypass flags)
+Last session: 2026-03-03 (129-02 execution + verification)
+Stopped at: Plan 129-02 complete - Circuit breaker state transition tests verified (26 tests passing, 13.95s execution time, 100% pass rate)
 Resume file: None
-Next phase: Phase 129 - Backend Critical Error Paths
+Next phase: Plan 129-03 - Rate Limiting with Backoff Strategy Tests
