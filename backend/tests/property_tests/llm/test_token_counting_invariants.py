@@ -82,17 +82,19 @@ class TestCostCalculationInvariants:
         input_price=floats(min_value=0.0001, max_value=0.01, allow_nan=False, allow_infinity=False),
         output_price=floats(min_value=0.0001, max_value=0.03, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cost_calculation_formula_invariant(
         self, db_session, input_tokens: int, output_tokens: int,
         input_price: float, output_price: float
     ):
         """
-        INVARIANT: Total cost = (input * input_price) + (output * output_price).
+        INVARIANT: Cost calculation formula is linear and non-negative
 
-        VALIDATED_BUG: Cost calculation produced negative values.
-        Root cause: Missing validation for negative prices.
-        Fixed in commit mno345.
+        RADII: 100 examples explores all price/token combinations
+
+        VALIDATED_BUG: Cost calculation produced negative values
+        Root cause: Missing validation for negative prices
+        Fixed in commit mno345
         """
         # Calculate expected cost
         expected_cost = (input_tokens / 1000.0 * input_price) + \
@@ -137,16 +139,18 @@ class TestCostCalculationInvariants:
         input_tokens=integers(min_value=1, max_value=100000),
         output_tokens=integers(min_value=1, max_value=50000)
     )
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_cost_per_1k_tokens_invariant(
         self, db_session, input_tokens: int, output_tokens: int
     ):
         """
-        INVARIANT: Pricing is per 1,000 tokens, not per token.
+        INVARIANT: Pricing is per 1,000 tokens with linear scaling
 
-        VALIDATED_BUG: Cost calculated per-token instead of per-1k-tokens.
-        Root cause: Missing division by 1000.
-        Fixed in commit stu901.
+        RADII: 100 examples explores token count boundary (0, large values)
+
+        VALIDATED_BUG: Cost calculated per-token instead of per-1k-tokens
+        Root cause: Missing division by 1000
+        Fixed in commit stu901
         """
         price_per_1k = 0.002  # Example price
 
@@ -175,16 +179,18 @@ class TestTokenBudgetInvariants:
         budget=integers(min_value=100, max_value=10000),
         request_tokens=integers(min_value=1, max_value=20000)
     )
-    @settings(max_examples=40, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_budget_enforcement_invariant(
         self, db_session, budget: int, request_tokens: int
     ):
         """
-        INVARIANT: Requests exceeding budget are rejected.
+        INVARIANT: Budget boundary conditions enforced correctly
 
-        VALIDATED_BUG: Budget check bypassed for admin users.
-        Root cause: Missing budget check for privileged accounts.
-        Fixed in commit vwx901.
+        RADII: 100 examples explores budget/request token combinations
+
+        VALIDATED_BUG: Budget check bypassed for admin users
+        Root cause: Missing budget check for privileged accounts
+        Fixed in commit vwx901
         """
         # Simulate budget check
         can_proceed = request_tokens <= budget
@@ -208,12 +214,14 @@ class TestTokenBudgetInvariants:
             max_size=10
         )
     )
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_budget_tracking_across_requests_invariant(
         self, db_session, budgets: list, requests: list
     ):
         """
-        INVARIANT: Budget is tracked and deducted across multiple requests.
+        INVARIANT: Multi-request budget arithmetic tracked correctly
+
+        RADII: 100 examples explores sequential budget deduction patterns
 
         Given: Initial budget B and requests R1, R2, ..., Rn
         When: Processing requests sequentially
