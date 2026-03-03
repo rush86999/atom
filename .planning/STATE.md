@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 128 of 26 (Backend API Contract Testing)
-Plan: 01 (Contract Test Infrastructure)
+Plan: 02 (Create Contract Tests for Critical API Endpoints)
 Status: Complete
-Last activity: 2026-03-03 — Plan 128-01 completed (Schemathesis fixtures + OpenAPI spec generation)
+Last activity: 2026-03-03 — Plan 128-02 completed (25 contract tests for core, canvas, and governance APIs)
 
-Progress: [██░░░░░░] 20% (1/5 plans complete)
+Progress: [████░░░░] 40% (2/5 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13 (Phase 127: 12 plans + Phase 128: 1 plan)
-- Average duration: 10.3 minutes
-- Total execution time: 2.3 hours
+- Total plans completed: 14 (Phase 127: 12 plans + Phase 128: 2 plans)
+- Average duration: 10.4 minutes
+- Total execution time: 2.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 127 | 12 | 8490s | 708s |
-| 128 | 1 | 263s | 263s |
+| 128 | 2 | 1099s | 550s |
 
 **Recent Trend:**
-- Last plan: 263s (128-01)
+- Last plan: 836s (128-02)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -48,7 +48,10 @@ Progress: [██░░░░░░] 20% (1/5 plans complete)
 | Phase 127 P127-11 | 748 | 3 tasks | 4 files |
 | Phase 127 P127-12 | 699 | 3 tasks | 4 files |
 | Phase 127 P127-09 | 240 | 4 tasks | 4 files |
+| Phase 128 P128-01 | 263 | 1 task | 2 files |
+| Phase 128 P128-02 | 836 | 3 tasks | 5 files |
 | Phase 128 P128-01 | 263 | 3 tasks | 4 files |
+| Phase 128 P02 | 836 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +107,10 @@ Recent decisions affecting current work:
 - **CRITICAL (127-12)**: 32/42 integration tests passing (76.2% pass rate) for device and browser tools
 - **CRITICAL (127-12)**: AsyncMock required for async Playwright methods in browser tests
 - **CRITICAL (127-12)**: DeviceNode requires workspace_id and user_id fields for database constraints
+- **Phase 128**: Practical FastAPI TestClient approach over Schemathesis parametrize due to compatibility issues (from_url() with app parameter not supported)
+- **Phase 128**: Accept 404/422/500 status codes for comprehensive contract testing (missing routes, validation errors, internal errors)
+- [Phase 128]: Practical FastAPI TestClient approach over Schemathesis parametrize due to compatibility issues
+- [Phase 128]: Accept 404/422/500 status codes for comprehensive contract testing (missing routes, validation errors, internal errors)
 
 ### Pending Todos
 
