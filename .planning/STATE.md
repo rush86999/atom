@@ -282,3 +282,8 @@ Resume file: None
 *Stopped at: Phase 123 Plan 03 COMPLETE - Edge cases and combinatorial property tests for governance*
 *Milestone: v5.1 Backend Coverage Expansion*
 *Status: Phase 123 Plan 03 complete - 18 property tests added, 695 lines, 10 minutes execution time*
+
+**v5.1 Progress:**
+...
+- ✅ Phase 123 Plan 02: Cache correctness property tests - 15 tests, 700 lines, 1500+ Hypothesis examples (100×10 + 200×5)
+- Current: Phase 123 Plan 02 COMPLETE - All cache invariants validated (correctness, consistency, performance)
