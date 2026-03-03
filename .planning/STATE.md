@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 123 - Governance Property-Based Tests
+**Current focus:** Phase 124 - Episode Property-Based Tests
 
 ## Current Position
 
-Phase: 13 of 16 (Governance Property-Based Tests)
-Plan: 04 of 4 (Verification & Summary)
-Status: Phase 123 COMPLETE - all governance invariants validated with property tests, 59 tests passing
-Last activity: 2026-03-03T00:20:45Z — Phase 123 complete, 59 property tests, 8,900+ examples, PROP-01 done
+Phase: 14 of 16 (Episode Property-Based Tests)
+Plan: 01 of 3 (Verify Existing Tests)
+Status: Plan 01 COMPLETE - all 74 episode property tests verified, max_examples settings audited
+Last activity: 2026-03-03T01:27:58Z — Plan 124-01 complete, 74 tests passing, 9,000+ examples, max_examples audit done
 
-Progress: [████████████████] 100% (Phase 123 COMPLETE)
+Progress: [███░░░░░░░░░░░░░░░] 33% (Plan 01 of 3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 10 min
-- Total execution time: 1.0 hours
+- Total execution time: 1.3 hours
 
 **By Phase:**
 
@@ -37,6 +37,7 @@ Progress: [████████████████] 100% (Phase 123 COM
 | 121 | 3 | 27 | 5m |
 | 122 | 4 | 30 | 8m |
 | 123 | 1 | 5 | 5m |
+| 124 | 1 | 3 | 3m |
 
 **Recent Trend:**
 - Last 5 plans: 14m (121-03), 6m (121-02), 8m (121-01), 8m (120-01), 5m (120-02)
@@ -94,6 +95,7 @@ Progress: [████████████████] 100% (Phase 123 COM
 | Phase 123 P01 | 5 | 2 tasks | 1 files |
 | Phase 123 P01 | 321 | 2 tasks | 1 files |
 | Phase 123 P03 | 10min | 3 tasks | 1 files |
+| Phase 124 P01 | 3 | 5 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -176,6 +178,9 @@ Recent decisions affecting current work:
 - [Phase 123-04]: 8,900+ Hypothesis examples generated across all governance invariants
 - [Phase 123-04]: All three coverage gaps from research addressed and closed (async, cache correctness, edge cases)
 - [Phase 123-04]: PROP-01 requirement complete with comprehensive test documentation
+- [Phase 124]: Retrieval property tests at perfect max_examples alignment (49/49 at 100)
+- [Phase 124]: All 16 required episode invariants covered (6 segmentation + 5 retrieval + 5 lifecycle)
+- [Phase 124]: Segmentation tests need max_examples=200 for 28 critical invariants (currently at 50-100)
 
 ### Pending Todos
 
@@ -286,13 +291,15 @@ Resume file: None
 ---
 
 *State updated: 2026-03-03*
-*Stopped at: Phase 123 COMPLETE - Governance property-based tests with Hypothesis*
+*Stopped at: Phase 124 Plan 01 COMPLETE - Episode property tests verified*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 123 complete - 59 property tests, 8,900+ examples, PROP-01 requirement complete*
+*Status: Phase 124-01 complete - 74 tests verified, max_examples audit complete*
 
 **v5.1 Progress:**
 - ✅ Phase 123 Plan 01: Async governance property tests - 10 tests, 433 lines, 1,650 examples
 - ✅ Phase 123 Plan 02: Cache correctness property tests - 15 tests, 700 lines, 1,500 examples
 - ✅ Phase 123 Plan 03: Edge cases & combinatorial property tests - 18 tests, 695 lines, 2,400 examples
 - ✅ Phase 123 Plan 04: Verification & summary - 59 tests total, 8,900+ examples, PROP-01 complete
-- Current: Phase 123 COMPLETE - All governance invariants validated with property-based tests
+- ✅ Phase 123 COMPLETE - All governance invariants validated with property-based tests
+- ✅ Phase 124 Plan 01: Verify existing episode property tests - 74 tests, 9,000+ examples, max_examples audit
+- Current: Phase 124 Plan 01 COMPLETE - All episode invariants verified, max_examples alignment gaps identified
