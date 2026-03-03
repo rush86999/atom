@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 128 of 26 (Backend API Contract Testing)
-Plan: 05 (Documentation and Finalization)
+Plan: 06 (Rewrite Contract Tests with Schemathesis Validation)
 Status: Complete
-Last activity: 2026-03-03 — Plan 128-05 completed (API contract testing documentation, pytest.ini and .gitignore updates, phase summary with verification checklist)
+Last activity: 2026-03-03 — Plan 128-06 completed (Rewrite all 25 contract tests with Schemathesis operation.validate_response() for automatic schema validation against OpenAPI spec)
 
-Progress: [█████████] 100% (5/5 plans complete)
+Progress: [█████████░] 75% (6/8 plans complete)
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████████] 100% (5/5 plans complete)
 | Phase 128 P03 | 591 | 3 tasks | 5 files |
 | Phase 128 P128-04 | 133 | 1 task | 2 files |
 | Phase 128 P128-05 | 86 | 3 tasks | 3 files |
+| Phase 128 P128-06 | 1170 | 3 tasks | 3 files |
 | Phase 128 P05 | 86 | 3 tasks | 3 files |
 
 ## Accumulated Context
@@ -65,6 +66,9 @@ Progress: [█████████] 100% (5/5 plans complete)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 128 (Plan 06)**: Contract tests use Schemathesis operation.validate_response() for automatic schema validation (API limitation: parametrize() doesn't accept endpoint parameter in version 4.11.0)
+- **Phase 128 (Plan 06)**: Agent endpoint paths corrected to actual API spec (/api/agents/ instead of /api/v1/agents, POST endpoint is /api/agents/spawn)
+- **Phase 128 (Plan 06)**: Status code assertions reduced from 6-7 to 3-4 codes per test (removed overly permissive assertions while keeping realistic error codes)
 - **Phase 128 (Plan 04)**: CI workflow for contract testing uses separate workflow file (not merged with ci.yml) for focused contract validation
 - **Phase 128 (Plan 05)**: pytest.ini contract marker updated to "API contract tests using Schemathesis" for clarity
 - **Phase 128 (Plan 05)**: .gitignore excludes temporary OpenAPI specs (openapi_*.json) but preserves baseline (openapi.json) for version control
@@ -133,7 +137,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (128-05 execution)
-Stopped at: Completed Phase 128 Plan 05 - Documentation and Finalization (API contract testing guide, pytest.ini updates, phase summary)
+Last session: 2026-03-03 (128-06 execution)
+Stopped at: Completed Phase 128 Plan 06 - Rewrite Contract Tests with Schemathesis Validation (25 contract tests with operation.validate_response() for automatic schema validation)
 Resume file: None
-Next phase: Phase 129 - Backend Critical Error Paths
+Next phase: Phase 128 Plan 07 - (Next plan in phase)
