@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 127 of 26 (Backend Final Gap Closure)
-Plan: 6 of 6 in current phase
+Plan: 7 of 7 in current phase
 Status: Complete
-Last activity: 2026-03-03 — Plan 127-06 completed (final coverage measurement)
+Last activity: 2026-03-03 — Plan 127-07 completed (measurement methodology investigation)
 
-Progress: [████████░░] 100% (6/6 plans)
+Progress: [████████░░] 100% (7/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 9.0 minutes
-- Total execution time: 0.9 hours
+- Total plans completed: 7
+- Average duration: 8.9 minutes
+- Total execution time: 1.0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 127 | 6 | 3317s | 553s |
+| 127 | 7 | 3937s | 562s |
 
 **Recent Trend:**
-- Last 6 plans: 370s (127-06)
-- Trend: Accelerating
+- Last 7 plans: 480s (127-07)
+- Trend: Steady
 
 *Updated after each plan completion*
 | Phase 127 P127-01 | 174 | 1 task | 2 files |
@@ -40,6 +40,7 @@ Progress: [████████░░] 100% (6/6 plans)
 | Phase 127 P127-04 | 189 | 2 tasks | 4 files |
 | Phase 127 P127-05 | 900 | 2 tasks | 6 files |
 | Phase 127 P127-06 | 370 | 2 tasks | 5 files |
+| Phase 127 P127-07 | 480 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,11 @@ Recent decisions affecting current work:
 - Property tests improve correctness but don't increase coverage (test algorithms independently)
 - 80% target requires 53.85 percentage points additional work
 - Integration tests needed for actual coverage increase (not unit/property tests)
+- **CRITICAL (127-07)**: Accurate backend baseline is 26.15% (528 production files), not 74.6% (single file)
+- **CRITICAL (127-07)**: 74.55% from coverage.json was for agent_governance_service.py only, not overall backend
+- **CRITICAL (127-07)**: Standard measurement command: pytest --cov=core --cov=api --cov=tools
+- **CRITICAL (127-07)**: Gap to 80% target: 53.85 percentage points, not 5.4 pp as previously stated
+- **CRITICAL (127-07)**: Always create baseline (phase_{NN}_baseline.json) before adding new tests
 
 ### Pending Todos
 
@@ -74,7 +80,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (127-06 execution)
-Stopped at: Completed Phase 127 - Backend Final Gap Closure (all 6 plans complete)
+Last session: 2026-03-03 (127-07 execution)
+Stopped at: Completed Phase 127 - Backend Final Gap Closure (all 7 plans complete)
 Resume file: None
-Next phase: Continue gap closure work or proceed to Phase 128 (Backend API Contract Testing)
+Next phase: Proceed to Phase 128 (Backend API Contract Testing) or continue gap closure with realistic 53.85 pp target
