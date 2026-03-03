@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 129 of 26 (Backend Critical Error Paths)
-Plan: 02 (Circuit Breaker State Transitions)
+Plan: 01 (Database Connection Failures)
 Status: Complete
-Last activity: 2026-03-03 — Plan 129-02 completed (Comprehensive circuit breaker state transition test suite with 26 tests covering all failure threshold behaviors, timeout recovery mechanisms, and AutoHealingEngine integration)
+Last activity: 2026-03-03 — Plan 129-01 completed (Database connection failure test suite with 26 tests covering connection refused, pool exhaustion, deadlock, timeout, and error propagation scenarios)
 
-Progress: [█░░░░░░░░] 20% (1/5 plans complete)
+Progress: [██░░░░░░░] 40% (2/5 plans complete)
 
 ## Performance Metrics
 
@@ -140,9 +140,16 @@ Recent decisions affecting current work:
 - [Phase 128]: Breaking changes must fail CI build (no --allow-breaking flag)
 - [Phase 128]: Schemathesis @schema.parametrize() is the standard pattern (not manual TestClient)
 - [Phase 128]: Pre-commit hooks are recommended but not mandatory for local enforcement
+- **Phase 129 (Plan 01)**: SQLAlchemy 2.0 requires text() wrapper for raw SQL strings in all test queries
+- **Phase 129 (Plan 01)**: No automatic retry logic exists in database layer - tests reveal this critical gap (9/26 tests fail due to missing @retry_with_backoff decorator)
+- **Phase 129 (Plan 01)**: Database connection failure tests use mocked OperationalError for all scenarios (no real DB connections)
+- **Phase 129 (Plan 01)**: Connection pool exhaustion mocked via patch("core.database.engine.connect") not QueuePool.connect
+- **Phase 129 (Plan 01)**: 65% test pass rate (17/26) - failing tests correctly identify missing production features
 - [Phase 129]: Use small timeouts (100-1500ms) instead of mocking datetime.now() for reliable circuit breaker timeout tests
 - [Phase 129]: Circuit breaker threshold=0 opens on first failure (documented as actual behavior, not a bug)
 - [Phase 129]: Circuit breaker timeout=0 allows immediate HALF_OPEN transition on next call (with minimal sleep for datetime.now() change)
+- [Phase 129]: SQLAlchemy 2.0 requires text() wrapper for raw SQL strings in tests
+- [Phase 129]: No automatic retry logic exists in database layer - tests reveal this critical gap
 
 ### Pending Todos
 
@@ -154,7 +161,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (129-02 execution + verification)
-Stopped at: Plan 129-02 complete - Circuit breaker state transition tests verified (26 tests passing, 13.95s execution time, 100% pass rate)
+Last session: 2026-03-03 (129-01 execution)
+Stopped at: Plan 129-01 complete - Database connection failure test suite created (26 tests, 17 passing, 9 reveal missing retry logic in database layer)
 Resume file: None
-Next phase: Plan 129-03 - Rate Limiting with Backoff Strategy Tests
+Next phase: Plan 129-02 - Circuit Breaker State Transitions (already complete)
