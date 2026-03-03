@@ -7002,3 +7002,453 @@ class SupervisedExecutionQueue(Base):
         Index('ix_supervised_queue_priority_created', 'priority', 'created_at'),
         Index('ix_supervised_queue_expires', 'expires_at'),
     )
+
+
+class ShellSession(Base):
+    """
+    Host shell command execution session with governance controls.
+
+    Purpose:
+    - Audit trail for all shell commands executed by agents
+    - Security tracking for host filesystem access
+    - Timeout enforcement and command validation
+
+    Governance:
+    - AUTONOMOUS agents only (maturity_level check)
+    - Command whitelist validation (ls, pwd, cat, grep, git, etc.)
+    - 5-minute maximum execution timeout
+    - Working directory restrictions
+    """
+    __tablename__ = "shell_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    maturity_level = Column(String, nullable=False)  # AUTONOMOUS required
+
+    # What
+    command = Column(Text, nullable=False)  # Shell command executed
+    command_whitelist_valid = Column(Boolean, nullable=False)  # True if in whitelist
+    working_directory = Column(String, nullable=True)  # Host directory
+
+    # Result
+    exit_code = Column(Integer, nullable=True)  # 0 = success
+    stdout = Column(Text, nullable=True)
+    stderr = Column(Text, nullable=True)
+    timed_out = Column(Boolean, default=False)  # True if killed by timeout
+
+    # When
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True)  # Execution duration
+
+    # Governance
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)  # NULL = auto-approved for AUTONOMOUS
+    approval_required = Column(Boolean, default=False)  # True for lower maturity
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="shell_sessions")
+    user = relationship("User", foreign_keys=[user_id], backref="shell_sessions_initiated")
+    approver = relationship("User", foreign_keys=[approved_by])
+
+
+class PackageRegistry(Base):
+    """
+    Package registry for Python and npm packages with maturity-based governance.
+
+    Purpose:
+    - Track Python and npm packages available for agent skill execution
+    - Enforce maturity-based access controls (STUDENT blocked, INTERN+ approved)
+    - Maintain security ban list for malicious packages
+    - Audit trail for package approvals and usage
+
+    Governance:
+    - STUDENT agents: Blocked from all packages (Python and npm)
+    - INTERN agents: Require explicit approval for each package version
+    - SUPERVISED agents: Allowed if min_maturity <= SUPERVISED
+    - AUTONOMOUS agents: Allowed if min_maturity <= AUTONOMOUS
+    - Banned packages: Blocked for all agents regardless of maturity
+
+    Package ID format: "{package_name}:{version}" (e.g., "numpy:1.21.0", "lodash:4.17.21")
+    """
+    __tablename__ = "package_registry"
+
+    # Package type constants
+    PACKAGE_TYPE_PYTHON = "python"
+    PACKAGE_TYPE_NPM = "npm"
+
+    # Composite primary key: package_name:version
+    id = Column(String, primary_key=True)  # Format: "numpy:1.21.0"
+
+    # Package identification
+    name = Column(String, nullable=False, index=True)  # Package name (e.g., "numpy", "lodash")
+    version = Column(String, nullable=False, index=True)  # Version (e.g., "1.21.0")
+    package_type = Column(String, default=PACKAGE_TYPE_PYTHON, nullable=False, index=True)  # 'python' or 'npm'
+
+    # Governance
+    min_maturity = Column(String, default="INTERN", nullable=False)  # Required maturity level
+    status = Column(String, default="untrusted", nullable=False, index=True)  # untrusted, active, banned, pending
+    ban_reason = Column(Text, nullable=True)  # Reason if banned
+
+    # Approval tracking
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)  # User who approved
+    approved_at = Column(DateTime(timezone=True), nullable=True)  # Approval timestamp
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    approver = relationship("User", foreign_keys=[approved_by])
+    executions = relationship("SkillExecution", back_populates="package")
+
+class CognitiveTierPreference(Base):
+    """Per-workspace cognitive tier routing preferences"""
+    __tablename__ = "cognitive_tier_preferences"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, unique=True, index=True)
+
+    # Tier selection
+    default_tier = Column(String, nullable=False, default="standard")  # micro, standard, versatile, heavy, complex
+    min_tier = Column(String, nullable=True)  # Never route below this tier
+    max_tier = Column(String, nullable=True)  # Never route above this tier (cost control)
+
+    # Cost controls
+    monthly_budget_cents = Column(Integer, nullable=True)  # Budget in cents
+    max_cost_per_request_cents = Column(Integer, nullable=True)  # Per-request limit
+
+    # Feature flags
+    enable_cache_aware_routing = Column(Boolean, default=True)
+    enable_auto_escalation = Column(Boolean, default=True)
+    enable_minimax_fallback = Column(Boolean, default=True)
+
+    # Provider preferences (ordered list)
+    preferred_providers = Column(JSON, default=list)  # ["deepseek", "openai"]
+
+    # Metadata
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="cognitive_tier_preference")
+
+
+class EscalationLog(Base):
+    """
+    Database log of all tier escalations for analytics and auditing.
+
+    Tracks every escalation event across the system to enable:
+    - Cost analysis (which tiers are being used most)
+    - Quality monitoring (how often quality triggers escalation)
+    - Provider reliability (rate limiting, error rates)
+    - Optimization opportunities (repeated escalations indicate model mismatch)
+    """
+    __tablename__ = "escalation_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    request_id = Column(String, nullable=False, index=True)  # Track escalations per request
+
+    # Escalation details
+    from_tier = Column(String, nullable=False)  # micro, standard, versatile, heavy, complex
+    to_tier = Column(String, nullable=False)
+    reason = Column(String, nullable=False)  # EscalationReason enum value
+    trigger_value = Column(Float, nullable=True)  # quality_score or confidence that triggered
+
+    # Response context
+    provider_id = Column(String, nullable=True)  # openai, deepseek, etc.
+    model = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Metadata
+    prompt_length = Column(Integer, nullable=True)
+    estimated_tokens = Column(Integer, nullable=True)
+    metadata_json = Column(JSON, nullable=True)  # Flexible context storage
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace", backref="escalation_logs")
+
+
+class FFmpegJob(Base):
+    """
+    FFmpeg video/audio processing job tracking.
+
+    Tracks async FFmpeg operations for video trimming, format conversion,
+    audio extraction, thumbnail generation, and audio normalization.
+
+    Enables:
+    - Async job processing (long-running FFmpeg operations)
+    - Progress tracking (estimated based on file size)
+    - Job status monitoring (pending, running, completed, failed)
+    - Audit trail for all creative tool operations
+    """
+    __tablename__ = "ffmpeg_job"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    # Operation details
+    operation = Column(String, nullable=False)  # trim_video, convert_format, extract_audio, etc.
+    status = Column(String, nullable=False, default="pending")  # pending, running, completed, failed
+    progress = Column(Integer, default=0)  # 0-100
+
+    # File paths (within allowed directories for security)
+    input_path = Column(String, nullable=True)
+    output_path = Column(String, nullable=True)
+
+    # Metadata (operation-specific parameters)
+    operation_metadata = Column(JSON, nullable=True)  # {"start_time": "00:00:10", "duration": "00:01:00"}
+
+    # Results
+    result = Column(JSON, nullable=True)  # {"success": true, "output_path": "..."}
+    error = Column(Text, nullable=True)  # Error message if failed
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="ffmpeg_jobs")
+
+
+# ============================================================================
+# Smart Home Integration Models (Phase 66)
+# ============================================================================
+
+class HueBridge(Base):
+    """
+    Philips Hue bridge connection credentials.
+
+    Stores encrypted API keys for Hue bridge authentication.
+    Uses API v2 (python-hue-v2 library) for newer bridges.
+
+    Enables:
+    - Local-only Hue control (no cloud relay)
+    - Multiple bridge support per user
+    - Encrypted credential storage
+    - Audit trail for Hue device operations
+    """
+    __tablename__ = "hue_bridges"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Bridge identification
+    bridge_ip = Column(String, nullable=False)  # Local network IP (plaintext for easy reference)
+    bridge_id = Column(String, nullable=True)  # Hue bridge ID from API
+    name = Column(String, nullable=True)  # User-defined name (e.g., "Living Room Bridge")
+
+    # Encrypted credentials
+    api_key = Column(String, nullable=False)  # Encrypted Hue API v2 key
+
+    # Metadata
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="hue_bridges")
+
+
+class HomeAssistantConnection(Base):
+    """
+    Home Assistant connection credentials.
+
+    Stores encrypted long-lived access tokens for Home Assistant REST API.
+    Local-only execution (no cloud relay).
+
+    Enables:
+    - Local Home Assistant control
+    - Multiple instance support per user
+    - Encrypted token storage
+    - Audit trail for HA device operations
+    """
+    __tablename__ = "home_assistant_connections"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Connection details
+    url = Column(String, nullable=False)  # Home Assistant URL (plaintext for easy reference)
+    name = Column(String, nullable=True)  # User-defined name (e.g., "Home Server")
+
+    # Encrypted credentials
+    token = Column(String, nullable=False)  # Encrypted long-lived access token
+
+    # Metadata
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="ha_connections")
+
+# ============================================================================
+# GEA & Skills Models (Ported from SaaS)
+# ============================================================================
+
+class Skill(Base):
+    """
+    Skill definition for agent capabilities.
+    Types:
+    - api: HTTP REST API calls
+    - function: Native Python function calls
+    - script: Local script execution (sandboxed)
+    """
+    __tablename__ = "skills"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for public marketplace skills
+    author_tenant_id = Column(String, ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)  # Original creator
+
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    long_description = Column(Text, nullable=True)  # Detailed markdown description
+    version = Column(String, default="1.0.0")
+    type = Column(String, nullable=False)  # api, function, script, docker, container
+
+    # API / Function Schema
+    input_schema = Column(JSON, nullable=False, default=dict)
+    output_schema = Column(JSON, nullable=True)
+
+    # config: { url, method, headers } or { script } or { image, command }
+    config = Column(JSON, nullable=False, default=dict)
+
+    # Marketplace metadata
+    is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)  # For public marketplace skills
+
+    # Categories & tags
+    category = Column(String(50), nullable=True)  # productivity, finance, communication, etc.
+    tags = Column(JSON, nullable=True)  # List of tags for better discoverability
+
+    # Code/storage
+    code = Column(Text, nullable=True)
+    
+    # OpenClaw-specific fields
+    openclaw_source_url = Column(String(500), nullable=True)  # GitHub URL to SKILL.md
+    openclaw_skill_md = Column(Text, nullable=True)  # Original SKILL.md content
+    openclaw_author = Column(String(255), nullable=True)  # Original author from SKILL.md
+    openclaw_metadata = Column(JSON, nullable=True)  # Full parsed YAML frontmatter
+    openclaw_dependencies = Column(JSON, nullable=True)  # Parsed dependencies from parser
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="skills", foreign_keys=[tenant_id])
+    author_tenant = relationship("Tenant", backref="published_skills", foreign_keys=[author_tenant_id])
+
+
+class SkillVersion(Base):
+    """
+    Version history for skills.
+    Enables rollback and version comparison.
+    """
+    __tablename__ = "skill_versions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    version = Column(String, nullable=False)  # Semver version
+    changelog = Column(Text, nullable=True)  # Version notes
+
+    # Snapshot of skill at this version
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    type = Column(String, nullable=False)
+    input_schema = Column(JSON, nullable=False, default=dict)
+    output_schema = Column(JSON, nullable=True)
+    config = Column(JSON, nullable=False, default=dict)
+    code = Column(Text, nullable=True)
+
+    # Release info
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    skill = relationship("Skill", backref="versions")
+    tenant = relationship("Tenant", backref="skill_versions")
+
+
+class SkillInstallation(Base):
+    """
+    Track skill installations for tenants.
+    Mandatory for tenant-skill association.
+    """
+    __tablename__ = "skill_installations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Installation details
+    installed_version = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)  # Can be disabled without uninstalling
+
+    installed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="installed_skills")
+    skill = relationship("Skill", backref="installations")
+
+
+class AgentSkill(Base):
+    """Many-to-Many relationship between agents and skills"""
+    __tablename__ = "agent_skills"
+
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), primary_key=True)
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    agent = relationship("AgentRegistry", backref="assigned_skills")
+    skill = relationship("Skill", backref="assigned_agents")
+
+
+class CanvasComponent(Base):
+    """
+    Minimal CanvasComponent for skill UI support.
+    """
+    __tablename__ = "canvas_components"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False)
+
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), nullable=False)
+    tags = Column(JSON, nullable=True)
+
+    component_type = Column(String(50), nullable=False)  # 'html', 'react', etc.
+    code = Column(Text, nullable=False)
+    config_schema = Column(JSON, nullable=True)
+    
+    version = Column(String(20), default="1.0.0")
+    is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)
+
+    dependencies = Column(JSON, nullable=True)
+    config = Column(JSON, nullable=True)
+
+    # Skill Integration Columns
+    required_skill_id = Column(String, ForeignKey("skills.id"), nullable=True)
+    skill_version = Column(String(50), nullable=True)
+    auto_install_skill = Column(Boolean, default=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="canvas_components")
+    author = relationship("User", backref="authored_components")
+    required_skill = relationship("Skill", foreign_keys=[required_skill_id])
