@@ -101,6 +101,8 @@ jobs:
 
       - name: Detect breaking changes
         id: diff
+        # This step will FAIL the build if breaking changes are detected
+        # To update baseline after intentional changes, use: --update-baseline
         working-directory: ./backend
         env:
           BASE_REF: $'\''${{ github.base_ref || '\'''\''main'\'' '\''}}'\''
@@ -111,13 +113,15 @@ jobs:
 
           if [ -f backend/openapi.json ]; then
             echo "Comparing against baseline from $BASE_REF"
+            # NOTE: Breaking changes will FAIL the build
+            # For approved breaking changes, update baseline manually
             python tests/scripts/detect_breaking_changes.py \
               --base backend/openapi.json \
-              --current backend/openapi_current.json \
-              --allow-breaking || echo "Breaking changes detected"
-            
-            # Set output for PR comment
-            if [ $? -ne 0 ]; then
+              --current backend/openapi_current.json
+
+            # Capture exit code for reporting
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -ne 0 ]; then
               echo "has_breaking_changes=true" >> $GITHUB_OUTPUT
             else
               echo "has_breaking_changes=false" >> $GITHUB_OUTPUT
