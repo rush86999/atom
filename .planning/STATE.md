@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 127 of 26 (Backend Final Gap Closure)
-Plan: 7 of 7 in current phase
+Plan: 8A (Part 1 of 2)
 Status: Complete
-Last activity: 2026-03-03 — Plan 127-07 completed (measurement methodology investigation)
+Last activity: 2026-03-03 — Plan 127-08A completed (integration tests for workflow_engine.py and agent_world_model.py)
 
-Progress: [████████░░] 100% (7/7 plans)
+Progress: [████████░░] 100% (7/7 core plans + 08A complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 8.9 minutes
-- Total execution time: 1.0 hours
+- Total plans completed: 8 (7 core + 08A)
+- Average duration: 9.2 minutes
+- Total execution time: 1.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 127 | 7 | 3937s | 562s |
+| 127 | 8 | 4937s | 617s |
 
 **Recent Trend:**
-- Last 7 plans: 480s (127-07)
+- Last plan: 600s (127-08A)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -41,6 +41,7 @@ Progress: [████████░░] 100% (7/7 plans)
 | Phase 127 P127-05 | 900 | 2 tasks | 6 files |
 | Phase 127 P127-06 | 370 | 2 tasks | 5 files |
 | Phase 127 P127-07 | 480 | 3 tasks | 4 files |
+| Phase 127 P127-08A | 600 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,10 @@ Recent decisions affecting current work:
 - **CRITICAL (127-07)**: Standard measurement command: pytest --cov=core --cov=api --cov=tools
 - **CRITICAL (127-07)**: Gap to 80% target: 53.85 percentage points, not 5.4 pp as previously stated
 - **CRITICAL (127-07)**: Always create baseline (phase_{NN}_baseline.json) before adding new tests
+- **CRITICAL (127-08A)**: Integration tests calling actual class methods increase file-specific coverage (+8.64 pp for workflow_engine.py)
+- **CRITICAL (127-08A)**: Property tests validate algorithms independently (0% coverage increase, high correctness value)
+- **CRITICAL (127-08A)**: File-specific coverage measured in isolated runs shows true improvement
+- **CRITICAL (127-08A)**: Overall backend coverage unchanged at 26.15% (large codebase dilutes impact)
 
 ### Pending Todos
 
@@ -80,7 +85,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (127-07 execution)
-Stopped at: Completed Phase 127 - Backend Final Gap Closure (all 7 plans complete)
+Last session: 2026-03-03 (127-08A execution)
+Stopped at: Completed Phase 127 Plan 08A - Integration tests for workflow_engine.py (+8.64 pp) and agent_world_model.py
 Resume file: None
-Next phase: Proceed to Phase 128 (Backend API Contract Testing) or continue gap closure with realistic 53.85 pp target
+Next phase: Execute Plan 127-08B for episode services (episode_segmentation_service.py, episode_retrieval_service.py, episode_lifecycle_service.py)
