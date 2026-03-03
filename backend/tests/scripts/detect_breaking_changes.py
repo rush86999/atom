@@ -150,11 +150,16 @@ def main():
     if result.get("raw_output"):
         print(f"\n{result['raw_output']}")
 
-    if result.get("validation_errors"):
-        print("\n⚠️  OpenAPI spec validation errors detected (not breaking changes)")
-        print("   This is likely due to FastAPI Pydantic 2.0+ schema format")
-        print("   The diff tool is working but strict about schema validation")
+    if result.get("pydantic_false_positive"):
+        print("\n⚠️  OpenAPI spec validation warning (Pydantic 2.0+ false positive)")
+        print("   The diff tool detected 'anyOf + null' patterns from Pydantic 2.0+")
+        print("   These are known false positives and don't affect functionality")
         print("\n✅ No breaking changes detected between specs")
+    elif result.get("validation_errors"):
+        print("\n❌ OpenAPI spec validation error")
+        print("   The OpenAPI spec is malformed and cannot be validated")
+        print("   Check the stderr output above for specific validation issues")
+        print("\n❌ Build failed due to validation errors")
     elif result.get("has_breaking_changes"):
         if result.get("breaking_changes"):
             print(f"\n❌ Found {len(result['breaking_changes'])} breaking changes")
