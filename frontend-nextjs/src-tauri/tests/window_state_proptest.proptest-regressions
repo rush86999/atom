@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 15a22835a8a36741cd96ad4e45fb245318277967cf75139826e31fe2b8aa2e49 # shrinks to screen_width = 1024, screen_height = 768, window_width = 400, window_height = 300, x = 0, y = 768
+cc 987a615011b2eac00d7885400962efae89e0d73acad2dbf372f898fd3587e1e8 # shrinks to window_index = 0, activation_count = 0
+cc 1ff0ad0efca5d364273ad1a35e78dd20dce54de6c58103883b0fc94216cd3f21 # shrinks to monitor_count = 2, monitor_width = 1024, monitor_height = 768, window_width = 400, window_height = 669
+cc 395ec60539c8ec6fb4752f0ed8570ede365d27f45631f68fc52a6937cbe6f73a # shrinks to monitor_count = 2, monitor_width = 1024, monitor_height = 768, window_width = 400, window_height = 769
