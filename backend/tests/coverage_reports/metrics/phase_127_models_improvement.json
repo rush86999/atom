@@ -1,0 +1,11 @@
+{
+  "file": "core/models.py",
+  "baseline_coverage": 96.99,
+  "new_coverage": 97.2,
+  "improvement": 0.21,
+  "lines_covered_before": 2774,
+  "lines_covered_after": 2780,
+  "lines_added": 6,
+  "total_statements": 2860,
+  "missing_lines": 80
+}
