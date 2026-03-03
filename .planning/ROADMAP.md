@@ -83,18 +83,23 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 **Plans**: 3/3 complete
 
 **Total Impact (v5.1):**
-- Backend coverage: 21.67% → 74.6% (+52.93 percentage points)
+- Backend coverage: 21.67% → 26.15% (+4.48 percentage points for overall backend)
+- Individual module coverage improvements (agent_governance_service.py: 74.55%, etc.)
 - 250+ property-based tests (Hypothesis)
 - 40,000+ examples generated
 - All 16 phases complete, 100% requirements satisfied
+
+**Note:** The 74.6% cited in ROADMAP v5.1 was for individual files (e.g., agent_governance_service.py), not overall backend coverage. Phase 127-07 investigation confirmed actual overall baseline is 26.15% (528 production files measured).
 
 </details>
 
 ### 🚧 v5.2 Complete Codebase Coverage (In Progress)
 
-**Milestone Goal:** Achieve 80% test coverage across all platforms (backend 74.6%→80%, frontend 89.84%→80%+, mobile 16.16%→80%, desktop TBD→80%) with unified test infrastructure, API contract testing, and cross-platform property testing.
+**Milestone Goal:** Achieve 80% test coverage across all platforms (backend 26.15%→80%, frontend 89.84%→80%+, mobile 16.16%→80%, desktop TBD→80%) with unified test infrastructure, API contract testing, and cross-platform property testing.
 
-- [ ] **Phase 127: Backend Final Gap Closure** - Backend coverage reaches 80% target (74.6% → 80%)
+**Note:** ROADMAP previously claimed 74.6% backend baseline from Phase 126. Phase 127-07 investigation revealed this measurement included only agent_governance_service.py (single file). Accurate production code baseline (core/, api/, tools/ only) is 26.15%. This plan closes the 53.85 pp gap to 80% target.
+
+- [ ] **Phase 127: Backend Final Gap Closure** - Backend coverage reaches 80% target (26.15% → 80%, 53.85 percentage point gap)
 - [ ] **Phase 128: Backend API Contract Testing** - OpenAPI spec validation with Schemathesis
 - [ ] **Phase 129: Backend Critical Error Paths** - Database failures, timeouts, rate limiting
 - [ ] **Phase 130: Frontend Module Coverage** - Consistent 80%+ across all modules
