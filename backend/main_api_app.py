@@ -884,6 +884,24 @@ try:
     try:
         from api.agent_routes import router as agent_router
         app.include_router(agent_router, tags=["Agents"])
+    except ImportError as e:
+        logger.warning(f"Failed to load agent routes: {e}")
+
+    # GEA Evolution Routes
+    try:
+        from api.evolution_routes import router as evolution_router
+        app.include_router(evolution_router, prefix="/api/v1", tags=["Governance"])
+        logger.info("✓ GEA Evolution Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load evolution routes: {e}")
+
+    # Canvas-Skill Integration Routes
+    try:
+        from api.canvas_skill_routes import router as canvas_skill_router
+        app.include_router(canvas_skill_router, prefix="/api/v1", tags=["Canvas-Skill Integration"])
+        logger.info("✓ Canvas-Skill Integration Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load canvas-skill routes: {e}")
         logger.info("✓ Core Agent Routes Loaded")
     except ImportError as e:
         logger.warning(f"Core Agent routes not found: {e}")
