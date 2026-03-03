@@ -50,7 +50,17 @@ Requirements for backend coverage expansion milestone. Each maps to roadmap phas
   - 70 total tests validating critical financial invariants
   - 14,000+ Hypothesis-generated examples (70 * 200)
   - Invariants: decimal precision (ROUND_HALF_EVEN), double-entry accounting (debits=credits), audit immutability (hash chain integrity)
-- [ ] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated
+- [x] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated (Phase 126, 2026-03-03)
+  - test_token_counting_invariants.py: 11 tests with max_examples=100
+  - test_llm_operations_invariants.py: 38 tests (mixed max_examples)
+  - test_llm_streaming_invariants.py: 15 tests with max_examples=50
+  - test_byok_handler_invariants.py: 23 tests with max_examples=50
+  - test_byok_handler_provider_invariants.py: 30 tests with max_examples=50
+  - test_tier_escalation_invariants.py: 8 tests with max_examples=50
+  - test_llm_cost_integration_invariants.py: 6 tests with max_examples=100 (NEW)
+  - 118 total tests validating critical LLM invariants
+  - 4,890 Hypothesis-generated examples
+  - Invariants: token counting (total = prompt + completion), cost calculation (non-negative, linear scaling), tier escalation (quality <80 triggers escalation, 5-min cooldown), streaming (chunk ordering), provider routing (fallback chains)
 
 ## v5.2+ Requirements
 
@@ -97,9 +107,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-04 | Phase 121 | Pending |
 | API-05 | Phase 122 | Pending |
 | PROP-01 | Phase 123 | Complete |
-| PROP-02 | Phase 124 | Pending |
+| PROP-02 | Phase 124 | Complete |
 | PROP-03 | Phase 125 | Complete |
-| PROP-04 | Phase 126 | Pending |
+| PROP-04 | Phase 126 | Complete |
 
 **Coverage:**
 - v5.1 requirements: 16 total
@@ -108,4 +118,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-03 after Phase 125 completion*
+*Last updated: 2026-03-03 after Phase 126 completion*
