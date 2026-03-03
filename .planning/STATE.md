@@ -10,31 +10,35 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 127 of 26 (Backend Final Gap Closure)
-Plan: 3 of 6 in current phase
+Plan: 5 of 6 in current phase
 Status: In progress
-Last activity: 2026-03-03 — Plan 127-03 completed (model coverage tests)
+Last activity: 2026-03-03 — Plan 127-05 completed (atom_agent_endpoints coverage)
 
-Progress: [███░░░░░░░] 50% (3/6 plans)
+Progress: [█████░░░░░] 83% (5/6 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 4.0 minutes
-- Total execution time: 0.2 hours
+- Total plans completed: 5
+- Average duration: 9.8 minutes
+- Total execution time: 0.8 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 127 | 3 | 723s | 241s |
+| 127 | 5 | 2947s | 589s |
 
 **Recent Trend:**
-- Last 5 plans: 480s (127-03)
+- Last 5 plans: 900s (127-05)
 - Trend: Accelerating
 
 *Updated after each plan completion*
+| Phase 127 P127-01 | 174 | 1 task | 2 files |
+| Phase 127 P127-02 | 124 | 1 task | 2 files |
 | Phase 127 P127-03 | 480 | 2 tasks | 4 files |
+| Phase 127 P127-04 | 189 | 2 tasks | 4 files |
+| Phase 127 P127-05 | 900 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -51,6 +55,8 @@ Recent decisions affecting current work:
 - User model does not have username field (discovered during 127-03 test execution)
 - WorkflowExecution uses execution_id as primary key (not id)
 - Models.py baseline coverage was 96.99% - excellent existing test suite, 97.20% after tests
+- Unit tests preferred over integration tests when router is unavailable (atom_agent_endpoints.py: 5.17 pp improvement with 13 tests)
+- Intent handler functions not exported from atom_agent_endpoints.py (14 failing tests document this limitation)
 
 ### Pending Todos
 
@@ -62,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (127-03 execution)
-Stopped at: Completed 127-03-PLAN.md (model coverage tests), 47 tests added, 97.20% coverage (+0.21 pp)
+Last session: 2026-03-03 (127-05 execution)
+Stopped at: Completed 127-05-PLAN.md (atom_agent_endpoints coverage), 13 tests passing, 17.15% coverage (+5.17 pp from 11.98%)
 Resume file: None
