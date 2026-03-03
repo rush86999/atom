@@ -133,7 +133,13 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Tests added for critical uncovered paths (error handling, edge cases)
   4. Quality gate enforces 80% minimum on all new code
   5. Coverage trend shows steady upward trajectory to target
-**Plans**: TBD
+**Plans**: 6 plans created
+- [ ] 127-01-PLAN.md — Baseline coverage measurement and gap analysis
+- [ ] 127-02-PLAN.md — Test plan generation from gap analysis
+- [ ] 127-03-PLAN.md — Tests for core/models.py (20+ unit tests)
+- [ ] 127-04-PLAN.md — Property tests for core/workflow_engine.py
+- [ ] 127-05-PLAN.md — Integration tests for core/atom_agent_endpoints.py
+- [ ] 127-06-PLAN.md — Final verification and 80% target validation
 
 ### Phase 128: Backend API Contract Testing
 **Goal**: API contract testing operational with OpenAPI spec validation
