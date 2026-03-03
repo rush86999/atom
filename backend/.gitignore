@@ -79,3 +79,9 @@ logs/
 # *_test.py
 temp_*.py
 debug_*.py
+
+# OpenAPI specs (baseline committed, temp files ignored)
+openapi_*.json
+!openapi.json
+/openapi*.json
+!/openapi.json
