@@ -57,6 +57,7 @@ INTEGRATION_REGISTRY = {
     "monday": "integrations.monday_routes:router",
     "trello": "integrations.trello_routes:router",
     "airtable": "integrations.airtable_routes:router",
+    "obsidian": "integrations.obsidian_routes:router",
     "clickup": "integrations.clickup_routes:router",
     "google_calendar": "integrations.google_calendar_routes:router",
     "calendly": "integrations.calendly_routes:router",
