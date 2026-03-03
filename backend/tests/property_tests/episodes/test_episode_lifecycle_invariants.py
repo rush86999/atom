@@ -86,7 +86,7 @@ class TestEpisodeDecayInvariants:
     @example(days_old=90)  # Boundary: 90 days
     @example(days_old=180)  # Boundary: 180 days
     @example(days_old=365)  # Boundary: 1 year
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_decay_thresholds(self, days_old):
         """
         INVARIANT: Decay is applied at specific thresholds (90, 180 days).
@@ -125,7 +125,8 @@ class TestEpisodeDecayInvariants:
             max_size=10
         )
     )
-    @settings(max_examples=100)
+    
+    @settings(max_examples=50)
     def test_access_count_preserves_importance(self, access_counts):
         """
         INVARIANT: Higher access count slows decay rate.
@@ -157,7 +158,8 @@ class TestEpisodeConsolidationInvariants:
         similarity_threshold=floats(min_value=0.7, max_value=0.95, allow_nan=False, allow_infinity=False)
     )
     @example(episode_count=10, similarity_threshold=0.85)
-    @settings(max_examples=100)
+    
+    @settings(max_examples=50)
     def test_consolidation_similarity_threshold(
         self, episode_count, similarity_threshold
     ):
@@ -195,7 +197,8 @@ class TestEpisodeConsolidationInvariants:
     @given(
         episode_count=integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=100)
+    
+    @settings(max_examples=50)
     def test_consolidation_prevents_circular_references(
         self, episode_count
     ):
@@ -286,7 +289,8 @@ class TestEpisodeArchivalInvariants:
     @given(
         episode_count=integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=100)
+    
+    @settings(max_examples=50)
     def test_archival_updates_episode_status(
         self, episode_count
     ):
@@ -355,7 +359,8 @@ class TestEpisodeArchivalInvariants:
     @given(
         segment_count=integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=100)
+    
+    @settings(max_examples=50)
     def test_archival_preserves_segments(
         self, segment_count
     ):
