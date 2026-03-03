@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 124 - Episode Property-Based Tests
+**Current focus:** Phase 125 - Financial Property-Based Tests
 
 ## Current Position
 
-Phase: 14 of 16 (Episode Property-Based Tests)
-Plan: 03 of 3 (Final Verification)
-Status: Plan 03 COMPLETE - all success criteria validated, Phase 124 complete
-Last activity: 2026-03-03T01:39:06Z — Plan 124-03 complete, 90 tests passing, 12,700+ examples, all invariants validated
+Phase: 15 of 16 (Financial Property-Based Tests)
+Plan: 01 of 3 (Max Examples Upgrade)
+Status: Plan 01 COMPLETE - all 40 financial tests upgraded to max_examples=200
+Last activity: 2026-03-03T02:39:00Z — Plan 125-01 complete, 41 tests passing, 15s execution, PROP-03 satisfied
 
-Progress: [████████████████████] 100% (Plan 03 of 3) - PHASE 124 COMPLETE
+Progress: [███░░░░░░░░░░░░░░░░] 33% (Plan 01 of 3)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 9 min
-- Total execution time: 1.5 hours
+- Total execution time: 1.6 hours
 
 **By Phase:**
 
@@ -38,10 +38,11 @@ Progress: [████████████████████] 100% (P
 | 122 | 4 | 30 | 8m |
 | 123 | 1 | 5 | 5m |
 | 124 | 3 | 17 | 6m |
+| 125 | 1 | 11 | 11m |
 
 **Recent Trend:**
-- Last 5 plans: 14m (121-03), 6m (121-02), 8m (121-01), 8m (120-01), 5m (120-02)
-- Trend: Quick execution (5-14 min per plan)
+- Last 5 plans: 11m (125-01), 6m (124-03), 3m (124-02), 3m (124-01), 5m (123-04)
+- Trend: Quick execution (3-14 min per plan)
 
 *Updated after each plan completion*
 | Phase 116 P03 | 10 | 2 tasks | 2 files |
@@ -97,6 +98,7 @@ Progress: [████████████████████] 100% (P
 | Phase 123 P03 | 10min | 3 tasks | 1 files |
 | Phase 124 P01 | 3 | 5 tasks | 3 files |
 | Phase 124 P03 | 5 | 6 tasks | 2 files |
+| Phase 125 P01 | 11min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -185,6 +187,8 @@ Recent decisions affecting current work:
 - [Phase 124]: 90 episode property tests passing (100% pass rate) with 12,700+ Hypothesis examples
 - [Phase 124]: max_examples settings aligned with roadmap (retrieval=100, lifecycle=50, segmentation=200 for critical)
 - [Phase 124]: All 16 required episode invariants covered (6 segmentation + 5 retrieval + 5 lifecycle)
+- [Phase 125]: All 40 critical financial invariants upgraded to max_examples=200 per PROP-03 requirement
+- [Phase 125]: Fixed test_period_closing_preserves_equation test logic - net income affects both assets AND equity
 
 ### Pending Todos
 
@@ -313,11 +317,12 @@ Resume file: None
 - ✅ Phase 124 Plan 02: Expand episode property tests - 16 tests added (5 edge cases, 5 feedback+recency, 6 state transitions), max_examples aligned (100/50/200)
 - ✅ Phase 124 Plan 03: Final verification - All success criteria validated, 90 tests passing, 12,700+ examples
 - ✅ Phase 124 COMPLETE - All episode invariants validated with comprehensive property-based tests
-- Next: Phase 125 - Admin Routes Property Tests
+- ✅ Phase 125 Plan 01: Upgrade financial property tests to max_examples=200 - 40 tests upgraded, 41 passing, 15s execution
+- Current: Phase 125 Plan 01 COMPLETE - All critical financial invariants at PROP-03 level (max_examples=200)
 
 ---
 
 *State updated: 2026-03-03*
-*Stopped at: Phase 124 Plan 03 COMPLETE - Episode property tests verified and documented*
+*Stopped at: Phase 125 Plan 01 COMPLETE - Financial property tests upgraded to max_examples=200*
 *Milestone: v5.1 Backend Coverage Expansion*
-*Status: Phase 124 complete - 90 tests, 12,700+ examples, all invariants validated*
+*Status: Phase 125-01 complete - 40 tests, PROP-03 requirement satisfied*
