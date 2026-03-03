@@ -64,12 +64,26 @@ def detect_breaking_changes(base_spec, current_spec, output_format="json"):
     # Check if this is a validation error (spec issue, not diff issue)
     is_validation_error = "Validation errors" in result.stderr
 
+    # Distinguish false positives (Pydantic 2.0+) from real validation errors
+    is_pydantic_false_positive = (
+        is_validation_error and
+        ("anyOf" in result.stderr or "null" in result.stderr)
+    )
+
     # Parse output for breaking changes
     if result.returncode != 0 and not is_validation_error:
+        # Genuine breaking changes detected
         diff_data["breaking_changes"] = ["Breaking changes detected (see output)"]
-    elif is_validation_error:
-        # Validation errors are warnings, not breaking changes
+        diff_data["has_breaking_changes"] = True
+    elif is_validation_error and not is_pydantic_false_positive:
+        # Real validation error - spec is malformed
         diff_data["validation_errors"] = True
+        diff_data["has_breaking_changes"] = True  # FAIL on real validation errors
+        diff_data["breaking_changes"] = ["OpenAPI spec validation error - see stderr"]
+    elif is_pydantic_false_positive:
+        # Pydantic 2.0+ false positive - anyOf + null pattern
+        diff_data["validation_errors"] = True
+        diff_data["pydantic_false_positive"] = True
         diff_data["has_breaking_changes"] = False
         diff_data["breaking_changes"] = []
 
