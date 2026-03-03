@@ -161,7 +161,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Breaking changes detected during contract validation
   4. CI workflow runs contract tests on every PR
   5. Contract violations block merge with specific failure details
-**Plans**: TBD
+**Plans**: 5 plans created
+- [ ] 128-01-PLAN.md — Contract testing infrastructure (Schemathesis fixtures, OpenAPI generation)
+- [ ] 128-02-PLAN.md — Critical endpoint contract tests (core, canvas, governance)
+- [ ] 128-03-PLAN.md — Breaking change detection (openapi-diff, baseline spec)
+- [ ] 128-04-PLAN.md — CI workflow integration (contract-tests.yml)
+- [ ] 128-05-PLAN.md — Documentation and finalization
 
 ### Phase 129: Backend Critical Error Paths
 **Goal**: Critical error paths tested (database failures, timeouts, rate limiting)
