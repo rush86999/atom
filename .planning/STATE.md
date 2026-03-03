@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 128 of 26 (Backend API Contract Testing)
-Plan: 06 (Rewrite Contract Tests with Schemathesis Validation)
+Plan: 07 (Fix Breaking Change Detection - Gap Closure)
 Status: Complete
-Last activity: 2026-03-03 — Plan 128-06 completed (Rewrite all 25 contract tests with Schemathesis operation.validate_response() for automatic schema validation against OpenAPI spec)
+Last activity: 2026-03-03 — Plan 128-07 completed (Fixed breaking change detection to distinguish validation errors from Pydantic false positives, closing Gap 2)
 
-Progress: [█████████░] 75% (6/8 plans complete)
+Progress: [██████████] 87.5% (7/8 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (Phase 127: 12 plans + Phase 128: 5 plans)
-- Average duration: 9.0 minutes
+- Total plans completed: 18 (Phase 127: 12 plans + Phase 128: 6 plans)
+- Average duration: 8.8 minutes
 - Total execution time: 2.6 hours
 
 **By Phase:**
@@ -28,7 +28,7 @@ Progress: [█████████░] 75% (6/8 plans complete)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 127 | 12 | 8490s | 708s |
-| 128 | 5 | 1318s | 264s |
+| 128 | 6 | 1484s | 247s |
 
 **Recent Trend:**
 - Last plan: 133s (128-04)
@@ -57,7 +57,9 @@ Progress: [█████████░] 75% (6/8 plans complete)
 | Phase 128 P128-04 | 133 | 1 task | 2 files |
 | Phase 128 P128-05 | 86 | 3 tasks | 3 files |
 | Phase 128 P128-06 | 1170 | 3 tasks | 3 files |
+| Phase 128 P128-07 | 166 | 2 tasks | 1 files |
 | Phase 128 P05 | 86 | 3 tasks | 3 files |
+| Phase 128 P07 | 166 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +68,9 @@ Progress: [█████████░] 75% (6/8 plans complete)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **Phase 128 (Plan 07)**: Validation errors should fail build (exit 1) unless they are known Pydantic 2.0+ false positives (detected by "anyOf" or "null" patterns in stderr)
+- **Phase 128 (Plan 07)**: Error messaging uses emoji: ⚠️ for warnings, ❌ for real errors to clearly distinguish validation types
+- **Phase 128 (Plan 07)**: Gap 2 fixed: validation errors no longer suppressed as non-breaking changes (three-tier classification: breaking changes, validation errors, Pydantic false positives)
 - **Phase 128 (Plan 06)**: Contract tests use Schemathesis operation.validate_response() for automatic schema validation (API limitation: parametrize() doesn't accept endpoint parameter in version 4.11.0)
 - **Phase 128 (Plan 06)**: Agent endpoint paths corrected to actual API spec (/api/agents/ instead of /api/v1/agents, POST endpoint is /api/agents/spawn)
 - **Phase 128 (Plan 06)**: Status code assertions reduced from 6-7 to 3-4 codes per test (removed overly permissive assertions while keeping realistic error codes)
@@ -126,6 +131,9 @@ Recent decisions affecting current work:
 - **Phase 128**: Accept 404/422/500 status codes for comprehensive contract testing (missing routes, validation errors, internal errors)
 - [Phase 128]: Practical FastAPI TestClient approach over Schemathesis parametrize due to compatibility issues
 - [Phase 128]: Accept 404/422/500 status codes for comprehensive contract testing (missing routes, validation errors, internal errors)
+- [Phase 128]: Validation errors should fail build (exit 1) unless they are known Pydantic 2.0+ false positives detected by anyOf or null patterns in stderr
+- [Phase 128]: Breaking change detection uses three-tier classification: breaking changes (fail), validation errors (fail), Pydantic false positives (warning)
+- [Phase 128]: Error messaging uses emoji: ⚠️ for warnings, ❌ for real errors to clearly distinguish validation types
 
 ### Pending Todos
 
@@ -137,7 +145,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (128-06 execution)
-Stopped at: Completed Phase 128 Plan 06 - Rewrite Contract Tests with Schemathesis Validation (25 contract tests with operation.validate_response() for automatic schema validation)
+Last session: 2026-03-03 (128-07 execution)
+Stopped at: Completed Phase 128 Plan 07 - Fix Breaking Change Detection - Gap Closure (Fixed breaking change detection to distinguish validation errors from Pydantic false positives, closing Gap 2)
 Resume file: None
-Next phase: Phase 128 Plan 07 - (Next plan in phase)
+Next phase: Phase 128 Plan 08 - (Next plan in phase)
