@@ -345,7 +345,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Property tests validate cost calculation invariants (cost = tokens × price per token)
   3. Property tests validate tier escalation invariants (quality threshold breach triggers escalation)
   4. All LLM property tests use appropriate max_examples (100 for cost, 50 for escalation)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 126-01-PLAN.md — Audit existing tests and upgrade max_examples settings
+- [ ] 126-02-PLAN.md — Add tier escalation property tests (TDD)
+- [ ] 126-03-PLAN.md — Add cost integration tests and final verification
 
 ## Progress
 
@@ -369,7 +372,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 123. Governance Property Tests | v5.1 | 4/4 | Complete | 2026-03-02 |
 | 124. Episode Property Tests | v5.1 | 0/3 | Planning | - |
 | 125. Financial Property Tests | v5.1 | 0/3 | Planning | - |
-| 126. LLM Property Tests | v5.1 | 0/0 | Not started | - |
+| 126. LLM Property Tests | v5.1 | 0/3 | Planning | - |
 
 ---
 
