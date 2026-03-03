@@ -444,7 +444,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
           filters.lifecycleStages.length > 0 ||
           filters.dealStages.length > 0) && (
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Active filters:
               </span>
               {filters.industries.map((industry) => (
@@ -707,7 +707,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       handleFilterChange("minRevenue", Number(e.target.value))
                     }
                   />
-                  <span className="text-sm text-gray-500">to</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">to</span>
                   <Input
                     className="h-8 text-sm"
                     placeholder="Max"
@@ -738,7 +738,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
                       )
                     }
                   />
-                  <span className="text-sm text-gray-500">to</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">to</span>
                   <Input
                     className="h-8 text-sm"
                     placeholder="Max"
@@ -805,12 +805,12 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
           <div className="max-h-[200px] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2">
             <div className="space-y-1">
               {filteredData.slice(0, 10).map((item, index) => (
-                <div key={index} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md">
+                <div key={index} className="p-2 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 rounded-md">
                   {/* Render item details based on type - simplified for preview */}
                   <div className="font-medium text-sm">
                     {"name" in item ? item.name : "firstName" in item ? `${item.firstName} ${item.lastName}` : item.subject}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     {"company" in item ? (item.company as React.ReactNode) : "engagementType" in item ? (item.engagementType as React.ReactNode) : ""}
                   </div>
                 </div>
@@ -820,7 +820,7 @@ const HubSpotSearch: React.FC<HubSpotSearchProps> = ({
         )}
 
         {!loading && filteredData.length === 0 && filters.searchQuery && (
-          <div className="text-sm text-gray-500 text-center p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400 text-center p-4">
             No results found for &quot;{filters.searchQuery}&quot;
           </div>
         )}

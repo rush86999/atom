@@ -340,12 +340,12 @@ const StripeIntegration: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800 p-6">
       <div className="max-w-[1400px] mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-4xl font-bold">Stripe Integration</h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
             Complete payment processing and financial management
           </p>
         </div>

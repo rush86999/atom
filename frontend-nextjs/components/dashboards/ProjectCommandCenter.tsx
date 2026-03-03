@@ -67,7 +67,7 @@ export const ProjectCommandCenter: React.FC = () => {
             case 'asana': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
             case 'trello': return 'bg-sky-500/10 text-sky-500 border-sky-500/20';
             case 'monday': return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
-            default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+            default: return 'bg-gray-500/10 text-gray-500 dark:text-gray-400 border-gray-500/20';
         }
     };
 

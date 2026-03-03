@@ -114,7 +114,7 @@ const CATEGORY_CONFIG: Record<string, { icon: any; color: string; capabilities: 
     },
     'default': {
         icon: Bot,
-        color: 'bg-gray-100 text-gray-600',
+        color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
         capabilities: ['Task Automation', 'Workflow Generation'],
         prompts: ['Automate manual task', 'Create a workflow']
     }
@@ -403,9 +403,9 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
     };
 
     return (
-        <div className={cn("flex h-full bg-gray-50", className)}>
+        <div className={cn("flex h-full bg-gray-50 dark:bg-gray-800", className)}>
             {/* Agent Selection Sidebar */}
-            <div className="w-72 border-r bg-white flex flex-col">
+            <div className="w-72 border-r bg-white dark:bg-gray-900 flex flex-col">
                 <div className="p-4 border-b bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
                     <div className="flex items-center gap-2 mb-2">
                         <Bot className="w-5 h-5" />
@@ -423,7 +423,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                             <span className="text-xs">Loading agents...</span>
                         </div>
                     ) : agents.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500 text-sm">
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                             No agents found.
                         </div>
                     ) : (
@@ -442,7 +442,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                         "w-full text-left p-3 rounded-lg mb-2 transition-all",
                                         selectedAgent?.id === agent.id
                                             ? "bg-violet-100 ring-2 ring-violet-400"
-                                            : "hover:bg-gray-100"
+                                            : "hover:bg-gray-100 dark:bg-gray-800"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
@@ -451,7 +451,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="font-semibold text-sm">{agent.name}</div>
-                                            <div className="text-xs text-gray-500 truncate">{agent.specialty}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{agent.specialty}</div>
                                         </div>
                                     </div>
                                     {/* Maturity Badge */}
@@ -470,7 +470,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                 {selectedAgent ? (
                     <>
                         {/* Agent Header */}
-                        <div className="p-4 border-b bg-white">
+                        <div className="p-4 border-b bg-white dark:bg-gray-900">
                             <div className="flex items-center gap-3">
                                 <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-2xl", selectedAgent.color)}>
                                     {selectedAgent.icon}
@@ -489,7 +489,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                             );
                                         })()}
                                     </div>
-                                    <p className="text-sm text-gray-500">{selectedAgent.description}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedAgent.description}</p>
                                 </div>
                                 {/* Confidence Score */}
                                 <div className="text-right">
@@ -535,10 +535,10 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                             {chatHistory.length === 0 ? (
                                 <div className="text-center py-8">
                                     <Sparkles className="w-12 h-12 mx-auto mb-4 text-violet-300" />
-                                    <h3 className="font-semibold text-gray-700 mb-2">
+                                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         Tell me what you want to automate
                                     </h3>
-                                    <p className="text-sm text-gray-500 mb-6">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                                         I'll create a workflow tailored to your needs
                                     </p>
 
@@ -575,13 +575,13 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                                 "max-w-md p-3 rounded-lg",
                                                 msg.role === 'user'
                                                     ? "bg-violet-600 text-white"
-                                                    : "bg-white border shadow-sm"
+                                                    : "bg-white dark:bg-gray-900 border shadow-sm"
                                             )}>
                                                 {msg.content}
                                             </div>
                                             {msg.role === 'user' && (
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                                    <User className="w-4 h-4 text-gray-600" />
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+                                                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                                                 </div>
                                             )}
                                         </div>
@@ -590,7 +590,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                     {/* Reasoning Display */}
                                     {showReasoning && reasoningSteps.length > 0 && (
                                         <div className="max-w-2xl mx-auto my-4">
-                                            <div className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                            <div className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                                 <Bot className="w-3 h-3" /> Agent Reasoning Process
                                             </div>
                                             <ReasoningChain
@@ -608,7 +608,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <CardTitle className="text-base">{generatedWorkflow.name}</CardTitle>
-                                                        <p className="text-xs text-gray-500 mt-1">{generatedWorkflow.description}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{generatedWorkflow.description}</p>
                                                     </div>
                                                     <Badge className="bg-green-100 text-green-700">
                                                         {Math.round(generatedWorkflow.confidence * 100)}% match
@@ -657,7 +657,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                         </ScrollArea>
 
                         {/* Input Area */}
-                        <div className="p-4 border-t bg-white">
+                        <div className="p-4 border-t bg-white dark:bg-gray-900">
                             <div className="flex gap-2 max-w-2xl mx-auto">
                                 <Input
                                     value={prompt}
@@ -684,7 +684,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                         <div className="text-center">
                             <Bot className="w-16 h-16 mx-auto mb-4 opacity-30" />
                             <h3 className="font-semibold text-lg mb-1">Select an Agent</h3>

@@ -29,12 +29,12 @@ export const TriggerNode = memo(({ data, isConnectable }: any) => {
                     <CardTitle className="text-sm font-bold">Trigger</CardTitle>
                 </div>
             </CardHeader>
-            <CardContent className="p-3 text-xs text-gray-500">
+            <CardContent className="p-3 text-xs text-gray-500 dark:text-gray-400">
                 <div className="space-y-1">
-                    <p className="font-semibold text-black">{data.label || 'Webhook'}</p>
+                    <p className="font-semibold text-black dark:text-white">{data.label || 'Webhook'}</p>
                     {data.integration && <Badge variant="secondary">{data.integration}</Badge>}
                     {data.schema && (
-                        <div className="mt-2 text-[10px] bg-gray-50 p-1 rounded border">
+                        <div className="mt-2 text-[10px] bg-gray-50 dark:bg-gray-800 p-1 rounded border">
                             <strong>Input Schema:</strong>
                             <pre>{JSON.stringify(data.schema, null, 2)}</pre>
                         </div>
@@ -111,8 +111,8 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
         'Slack': { color: 'border-l-[#4A154B]', bgColor: 'bg-purple-50' },
         'Gmail': { color: 'border-l-red-500', bgColor: 'bg-red-50' },
         'Google Drive': { color: 'border-l-yellow-500', bgColor: 'bg-yellow-50' },
-        'GitHub': { color: 'border-l-gray-800', bgColor: 'bg-gray-50' },
-        'Notion': { color: 'border-l-black', bgColor: 'bg-gray-50' },
+        'GitHub': { color: 'border-l-gray-800', bgColor: 'bg-gray-50 dark:bg-gray-800' },
+        'Notion': { color: 'border-l-black', bgColor: 'bg-gray-50 dark:bg-gray-800' },
         'Asana': { color: 'border-l-pink-500', bgColor: 'bg-pink-50' },
         'Trello': { color: 'border-l-blue-500', bgColor: 'bg-blue-50' },
         'HubSpot': { color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
@@ -162,9 +162,9 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <p className="font-medium text-gray-700">{data.action || data.label || 'Execute'}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300">{data.action || data.label || 'Execute'}</p>
                 {data.description && (
-                    <p className="text-[10px] text-gray-500 mt-1 truncate">{data.description}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate">{data.description}</p>
                 )}
 
                 {/* Show Required Inputs if Paused */}
@@ -185,7 +185,7 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                                 ? 'bg-green-100 text-green-700'
                                 : testStatus === 'error'
                                     ? 'bg-red-100 text-red-700'
-                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}
+                                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300'}
                         `}
                     >
                         {testStatus === 'testing' ? (
@@ -228,14 +228,14 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
                 {/* Retry Config Toggle */}
                 <button
                     onClick={() => setShowRetryConfig(!showRetryConfig)}
-                    className="mt-1 text-[9px] text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                    className="mt-1 text-[9px] text-gray-400 hover:text-gray-600 dark:text-gray-400 flex items-center gap-1"
                 >
                     <Settings className="w-2 h-2" />
                     {showRetryConfig ? 'Hide retry config' : 'Configure retries'}
                 </button>
 
                 {showRetryConfig && (
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-[10px] space-y-1">
+                    <div className="mt-1 p-2 bg-gray-50 dark:bg-gray-800 rounded text-[10px] space-y-1">
                         <div className="flex items-center justify-between">
                             <span>Max retries:</span>
                             <span className="font-medium">{retryConfig.maxRetries}</span>
@@ -304,15 +304,15 @@ export const ConditionNode = memo(({ data, isConnectable }: any) => {
                         <span className="font-bold">Prompt:</span> {data.prompt || 'Is sentiment positive?'}
                     </div>
                 ) : type === 'visual' ? (
-                    <div className="bg-gray-50 p-2 rounded border space-y-1">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border space-y-1">
                         <div className="flex items-center space-x-1">
                             <span className="font-semibold text-blue-600 bg-blue-50 px-1 rounded">{data.field || 'Field'}</span>
-                            <span className="font-bold text-gray-500">{data.operator || '=='}</span>
+                            <span className="font-bold text-gray-500 dark:text-gray-400">{data.operator || '=='}</span>
                             <span className="font-semibold text-green-600 bg-green-50 px-1 rounded">{data.value || 'Value'}</span>
                         </div>
                     </div>
                 ) : (
-                    <p className="italic mb-2 bg-gray-50 p-1 rounded border">{data.condition || 'If x > y'}</p>
+                    <p className="italic mb-2 bg-gray-50 dark:bg-gray-800 p-1 rounded border">{data.condition || 'If x > y'}</p>
                 )}
 
                 <div className="flex justify-between w-full mt-2 relative h-4">
@@ -362,7 +362,7 @@ export const AINode = memo(({ data, isConnectable }: any) => {
                 <div className="mb-2">
                     <span className="font-semibold text-purple-800">Model:</span> {data.model || 'GPT-4'}
                 </div>
-                <div className="bg-white p-2 rounded border border-purple-200 text-gray-600 italic truncate">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-purple-200 text-gray-600 dark:text-gray-400 italic truncate">
                     {data.prompt || 'Summarize input...'}
                 </div>
             </CardContent>
@@ -390,12 +390,12 @@ export const DesktopNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-cyan-100 p-1 rounded-full">
                         <Settings className="w-4 h-4 text-cyan-600" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Desktop Action</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Desktop Action</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
                 <div className="font-semibold">{data.app || 'Application'}</div>
-                <div className="text-gray-500">{data.action || 'Open'}</div>
+                <div className="text-gray-500 dark:text-gray-400">{data.action || 'Open'}</div>
             </CardContent>
             <Handle
                 type="source"
@@ -422,12 +422,12 @@ export const EmailNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-red-100 p-1 rounded-full">
                         <Mail className="w-4 h-4 text-red-600" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Send Email</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Send Email</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <div className="font-semibold text-gray-700">To: {data.recipient || 'recipient@email.com'}</div>
-                <div className="text-gray-500 truncate">Subject: {data.subject || 'Email Subject'}</div>
+                <div className="font-semibold text-gray-700 dark:text-gray-300">To: {data.recipient || 'recipient@email.com'}</div>
+                <div className="text-gray-500 dark:text-gray-400 truncate">Subject: {data.subject || 'Email Subject'}</div>
             </CardContent>
             <Handle
                 type="source"
@@ -449,7 +449,7 @@ export const HttpNode = memo(({ data, isConnectable }: any) => {
         'PATCH': 'bg-purple-100 text-purple-700',
     };
     const method = data.method || 'GET';
-    const methodClass = methodColors[method] || 'bg-gray-100 text-gray-700';
+    const methodClass = methodColors[method] || 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
 
     return (
         <Card className="min-w-[220px] border-l-4 border-l-orange-500 shadow-md">
@@ -464,14 +464,14 @@ export const HttpNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-orange-100 p-1 rounded-full">
                         <Globe className="w-4 h-4 text-orange-600" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">HTTP Request</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">HTTP Request</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
                 <div className="flex items-center space-x-2 mb-1">
                     <Badge className={`text-[10px] ${methodClass}`}>{method}</Badge>
                 </div>
-                <div className="text-gray-600 truncate font-mono text-[10px]">
+                <div className="text-gray-600 dark:text-gray-400 truncate font-mono text-[10px]">
                     {data.url || 'https://api.example.com/endpoint'}
                 </div>
             </CardContent>
@@ -500,13 +500,13 @@ export const TimerNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-indigo-100 p-1 rounded-full">
                         <Clock className="w-4 h-4 text-indigo-600" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Delay</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Delay</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
                 <div className="flex items-center space-x-1">
                     <span className="text-2xl font-bold text-indigo-700">{data.duration || '5'}</span>
-                    <span className="text-gray-500">{data.unit || 'minutes'}</span>
+                    <span className="text-gray-500 dark:text-gray-400">{data.unit || 'minutes'}</span>
                 </div>
             </CardContent>
             <Handle
@@ -536,20 +536,20 @@ export const LoopNode = memo(({ data, isConnectable }: any) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Loop</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Loop</CardTitle>
                     <Badge variant="secondary" className="text-[9px]">For Each</Badge>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <div className="bg-white p-2 rounded border border-teal-200">
-                    <p className="text-gray-600">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-teal-200">
+                    <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-semibold text-teal-700">Iterate over:</span>{' '}
-                        <span className="font-mono text-[10px] bg-gray-100 px-1 rounded">
+                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-800 px-1 rounded">
                             {data.iterateOver || '{{previousStep.items}}'}
                         </span>
                     </p>
                     {data.maxIterations && (
-                        <p className="text-[10px] text-gray-500 mt-1">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                             Max: {data.maxIterations} iterations
                         </p>
                     )}
@@ -558,7 +558,7 @@ export const LoopNode = memo(({ data, isConnectable }: any) => {
             {/* Two outputs: Loop Body and After Loop */}
             <div className="flex justify-between px-3 pb-1">
                 <div className="text-[9px] text-teal-600 font-semibold">Body</div>
-                <div className="text-[9px] text-gray-500 font-semibold">Done</div>
+                <div className="text-[9px] text-gray-500 dark:text-gray-400 font-semibold">Done</div>
             </div>
             <Handle
                 type="source"
@@ -597,21 +597,21 @@ export const ApprovalNode = memo(({ data, isConnectable }: any) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Wait for Approval</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Wait for Approval</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <div className="bg-white p-2 rounded border border-amber-200 space-y-1">
-                    <p className="text-gray-700 font-medium">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-amber-200 space-y-1">
+                    <p className="text-gray-700 dark:text-gray-300 font-medium">
                         {data.message || 'Waiting for human approval'}
                     </p>
                     {data.timeout && (
-                        <p className="text-[10px] text-gray-500">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400">
                             Timeout: {data.timeout}
                         </p>
                     )}
                     {data.approvers && (
-                        <p className="text-[10px] text-gray-500">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400">
                             Approvers: {data.approvers}
                         </p>
                     )}
@@ -649,7 +649,7 @@ export const ApprovalNode = memo(({ data, isConnectable }: any) => {
 // Code Node - Custom JavaScript/TypeScript (Activepieces-style)
 export const CodeNode = memo(({ data, isConnectable }: any) => {
     return (
-        <Card className="min-w-[240px] border-l-4 border-l-slate-700 shadow-md bg-slate-50">
+        <Card className="min-w-[240px] border-l-4 border-l-slate-700 shadow-md bg-slate-50 dark:bg-slate-900">
             <Handle
                 type="target"
                 position={Position.Top}
@@ -660,9 +660,9 @@ export const CodeNode = memo(({ data, isConnectable }: any) => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <div className="bg-slate-700 p-1 rounded">
-                            <Code className="w-4 h-4 text-white" />
+                            <Code className="w-4 h-4 text-gray-900 dark:text-white" />
                         </div>
-                        <CardTitle className="text-sm font-bold text-gray-800">Code</CardTitle>
+                        <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Code</CardTitle>
                     </div>
                     <Badge variant="secondary" className="text-[9px] bg-blue-100 text-blue-700">
                         {data.language || 'TypeScript'}
@@ -679,7 +679,7 @@ export const code = async (inputs) => {
                     </pre>
                 </div>
                 {data.npmPackages && data.npmPackages.length > 0 && (
-                    <div className="mt-2 text-[9px] text-gray-500">
+                    <div className="mt-2 text-[9px] text-gray-500 dark:text-gray-400">
                         <span className="font-semibold">npm:</span> {data.npmPackages.join(', ')}
                     </div>
                 )}
@@ -712,18 +712,18 @@ export const TableNode = memo(({ data, isConnectable }: any) => {
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center space-x-2">
                     <div className="bg-teal-600 p-1 rounded">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                         </svg>
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Tables</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Tables</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <div className="bg-white p-2 rounded border border-teal-200">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-teal-200">
                     <p className="font-semibold text-teal-700">{data.action || 'Insert Row'}</p>
-                    <p className="text-gray-600 text-[10px] mt-1">
-                        Table: <span className="font-mono bg-gray-100 px-1 rounded">{data.tableName || 'Select table'}</span>
+                    <p className="text-gray-600 dark:text-gray-400 text-[10px] mt-1">
+                        Table: <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">{data.tableName || 'Select table'}</span>
                     </p>
                 </div>
             </CardContent>
@@ -752,15 +752,15 @@ export const SubFlowNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-violet-600 p-1 rounded">
                         <Zap className="w-4 h-4 text-white" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Sub Flow</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Sub Flow</CardTitle>
                     <Badge variant="secondary" className="text-[9px]">{data.async ? 'Async' : 'Sync'}</Badge>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <div className="bg-white p-2 rounded border border-violet-200">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-violet-200">
                     <p className="font-semibold text-violet-700">{data.flowName || 'Select flow'}</p>
                     {data.description && (
-                        <p className="text-gray-600 text-[10px] mt-1">{data.description}</p>
+                        <p className="text-gray-600 dark:text-gray-400 text-[10px] mt-1">{data.description}</p>
                     )}
                 </div>
                 {data.async && (
@@ -800,22 +800,22 @@ export const FormInputNode = memo(({ data, isConnectable }: any) => {
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center space-x-2">
                     <div className="bg-pink-500 p-1 rounded">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Form Input</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Form Input</CardTitle>
                     <Badge variant="secondary" className="text-[9px] bg-pink-100">HITL</Badge>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <p className="text-gray-600 mb-2">{data.description || 'Collect user input via form'}</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-2">{data.description || 'Collect user input via form'}</p>
 
                 {/* Form Fields Preview */}
-                <div className="space-y-1 bg-white p-2 rounded border border-pink-200">
+                <div className="space-y-1 bg-white dark:bg-gray-900 p-2 rounded border border-pink-200">
                     {fields.slice(0, 3).map((field: any, idx: number) => (
                         <div key={idx} className="flex items-center gap-2 text-[10px]">
-                            <span className="text-gray-500">{field.type}:</span>
+                            <span className="text-gray-500 dark:text-gray-400">{field.type}:</span>
                             <span className="font-medium">{field.label || field.name}</span>
                             {field.required && <span className="text-red-500">*</span>}
                         </div>
@@ -837,7 +837,7 @@ export const FormInputNode = memo(({ data, isConnectable }: any) => {
 
                 {/* Timeout */}
                 {data.timeoutHours && (
-                    <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-1">
+                    <div className="mt-1 text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         Timeout: {data.timeoutHours}h
                     </div>
@@ -871,7 +871,7 @@ export const TableTriggerNode = memo(({ data, isConnectable }: any) => {
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center space-x-2">
                     <div className="bg-teal-500 p-1 rounded">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                     </div>
@@ -892,7 +892,7 @@ export const TableTriggerNode = memo(({ data, isConnectable }: any) => {
 
                 {/* Filters */}
                 {data.filters && data.filters.length > 0 && (
-                    <div className="mt-2 text-[10px] text-gray-600">
+                    <div className="mt-2 text-[10px] text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Filters:</span> {data.filters.length} condition(s)
                     </div>
                 )}
@@ -916,12 +916,12 @@ export const ChatTriggerNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-indigo-500 p-1 rounded">
                         <MessageSquare className="w-4 h-4 text-white" />
                     </div>
-                    <CardTitle className="text-sm font-bold text-gray-800">Chat Trigger</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">Chat Trigger</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
                 {/* Trigger Keywords */}
-                <div className="bg-white p-2 rounded border border-indigo-200 mb-2">
+                <div className="bg-white dark:bg-gray-900 p-2 rounded border border-indigo-200 mb-2">
                     <p className="font-semibold text-indigo-700 mb-1">Trigger on:</p>
                     {data.keywords && data.keywords.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -946,7 +946,7 @@ export const ChatTriggerNode = memo(({ data, isConnectable }: any) => {
 
                 {/* User Filter */}
                 {data.userFilter && (
-                    <div className="text-[10px] text-gray-600 flex items-center gap-1">
+                    <div className="text-[10px] text-gray-600 dark:text-gray-400 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>

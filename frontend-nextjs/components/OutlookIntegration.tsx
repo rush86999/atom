@@ -640,7 +640,7 @@ const OutlookIntegration: React.FC = () => {
                                 ) : filteredEmails.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <Mail className="w-12 h-12 text-gray-300 mb-4" />
-                                        <p className="text-lg font-medium text-gray-900">No emails found</p>
+                                        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">No emails found</p>
                                         <p className="text-muted-foreground mb-4">Try adjusting your filters or search query</p>
                                         <Button variant="outline" onClick={() => setIsComposeOpen(true)}>
                                             Compose New Email

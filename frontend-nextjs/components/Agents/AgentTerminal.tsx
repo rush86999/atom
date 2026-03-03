@@ -39,7 +39,7 @@ const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentName, logs, status }
             <ScrollArea className="flex-1 p-4">
                 <div className="flex flex-col gap-2">
                     {logs.length === 0 && (
-                        <div className="text-gray-600 italic">Waiting for connection...</div>
+                        <div className="text-gray-600 dark:text-gray-400 italic">Waiting for connection...</div>
                     )}
                     {logs.map((log, index) => {
                         // Attempt to parse structured logs if they look like JSON or have specific markers
@@ -56,7 +56,7 @@ const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentName, logs, status }
 
                         return (
                             <div key={index} className={`${contentColor} break-words text-xs`}>
-                                <span className="text-gray-600 mr-2">[{new Date().toLocaleTimeString()}]</span>
+                                <span className="text-gray-600 dark:text-gray-400 mr-2">[{new Date().toLocaleTimeString()}]</span>
                                 <span className="mr-2 opacity-50">$</span>
                                 {log}
                             </div>

@@ -179,10 +179,10 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-6 right-6 rounded-full h-12 w-12 hover:bg-white/10"
+                        className="absolute top-6 right-6 rounded-full h-12 w-12 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10"
                         onClick={handleClose}
                     >
-                        <X className="w-6 h-6 text-white" />
+                        <X className="w-6 h-6 text-gray-900 dark:text-white" />
                     </Button>
 
                     <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl space-y-12">
@@ -194,7 +194,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                                         mode === 'speaking' ? "Atom Speaking..." :
                                             "Tap to speak"}
                             </h2>
-                            <p className="text-4xl md:text-5xl font-bold text-white leading-tight min-h-[120px]">
+                            <p className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white leading-tight min-h-[120px]">
                                 &quot;{transcript || (mode === 'speaking' ? lastAgentMessage?.slice(0, 100) + "..." : "...")}&quot;
                             </p>
                         </div>
@@ -206,7 +206,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
                                 size="lg"
                                 className={`h-20 w-20 rounded-full transition-all duration-300 ${mode === 'listening'
                                     ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 scale-110'
-                                    : 'bg-white text-black hover:bg-zinc-200 shadow-lg shadow-white/20'
+                                    : 'bg-white dark:bg-gray-900 text-black dark:text-white hover:bg-zinc-200 shadow-lg shadow-white/20'
                                     }`}
                                 onClick={mode === 'listening' ? stopListening : startListening}
                             >

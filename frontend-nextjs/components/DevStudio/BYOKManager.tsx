@@ -199,11 +199,11 @@ const BYOKManager = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
                         {providers.map((item) => (
-                            <tr key={item.provider.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <tr key={item.provider.id} className="hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800/50 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex flex-col">
                                         <span className="font-medium text-gray-900 dark:text-gray-100">{item.provider.name}</span>
-                                        <span className="text-xs text-gray-500">{item.provider.id}</span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.provider.id}</span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">

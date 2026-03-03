@@ -455,7 +455,7 @@ const JiraIntegration: React.FC = () => {
         switch (statusCategory?.toLowerCase()) {
             case "blue-gray":
             case "new":
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
             case "yellow":
             case "in-progress":
                 return "bg-yellow-100 text-yellow-800";
@@ -466,7 +466,7 @@ const JiraIntegration: React.FC = () => {
             case "undefined":
                 return "bg-red-100 text-red-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 
@@ -484,7 +484,7 @@ const JiraIntegration: React.FC = () => {
             case "minor":
                 return "bg-blue-100 text-blue-800";
             default:
-                return "bg-gray-100 text-gray-800";
+                return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200";
         }
     };
 

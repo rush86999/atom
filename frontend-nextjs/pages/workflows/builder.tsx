@@ -249,12 +249,12 @@ export default function WorkflowBuilder() {
                 {/* Sidebar */}
                 <div className="w-64 bg-gray-900 border-r border-gray-800 p-4 space-y-4 overflow-y-auto">
                     <div>
-                        <h2 className="text-lg font-bold text-white mb-2">Workflow Builder</h2>
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Workflow Builder</h2>
                         <input
                             type="text"
                             value={workflowName}
                             onChange={(e) => setWorkflowName(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-900 dark:text-white text-sm"
                             placeholder="Workflow Name"
                         />
                     </div>
@@ -265,7 +265,7 @@ export default function WorkflowBuilder() {
                             <FolderOpen className="w-4 h-4" /> Load Template
                         </h3>
                         <select
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-900 dark:text-white text-sm"
                             onChange={(e) => e.target.value && loadTemplate(e.target.value)}
                             value={currentTemplateId || ""}
                         >
@@ -288,9 +288,9 @@ export default function WorkflowBuilder() {
                                     <CardContent className="p-3">
                                         <div className="flex items-center gap-2">
                                             <Plus className="w-4 h-4 text-purple-400" />
-                                            <span className="text-sm text-white">{agent.name}</span>
+                                            <span className="text-sm text-gray-900 dark:text-white">{agent.name}</span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">{agent.description}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{agent.description}</p>
                                     </CardContent>
                                 </Card>
                             ))}

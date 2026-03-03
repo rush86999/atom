@@ -8,11 +8,11 @@ const IntegrationHealthPage: React.FC = () => {
     <div className="max-w-[1200px] mx-auto p-6">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
-        <Link href="/" className="hover:text-gray-900 dark:hover:text-gray-100">
+        <Link href="/" className="hover:text-gray-900 dark:text-gray-100 dark:hover:text-gray-100">
           Home
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <Link href="/integrations" className="hover:text-gray-900 dark:hover:text-gray-100">
+        <Link href="/integrations" className="hover:text-gray-900 dark:text-gray-100 dark:hover:text-gray-100">
           Integrations
         </Link>
         <ChevronRight className="w-4 h-4" />

@@ -219,7 +219,7 @@ const InvoiceManager = () => {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                     <CardTitle className="gradient-text text-xl">Invoice Manager</CardTitle>
-                    <CardDescription className="text-white/60">Manage your client invoices and payments.</CardDescription>
+                    <CardDescription className="text-gray-900 dark:text-white/60">Manage your client invoices and payments.</CardDescription>
                 </div>
                 <Button className="glass-button" onClick={() => setIsCreateOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -227,9 +227,9 @@ const InvoiceManager = () => {
                 </Button>
             </CardHeader>
             <CardContent>
-                <div className="rounded-md border border-white/10 overflow-hidden">
+                <div className="rounded-md border border-black/10 dark:border-white/10 overflow-hidden">
                     <Table>
-                        <TableHeader className="bg-white/5">
+                        <TableHeader className="bg-black/5 dark:bg-white/5">
                             <TableRow>
                                 <TableHead>Invoice #</TableHead>
                                 <TableHead>Entity</TableHead>
@@ -241,13 +241,13 @@ const InvoiceManager = () => {
                         <TableBody>
                             {invoices.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-white/40">
+                                    <TableCell colSpan={5} className="text-center py-8 text-gray-900 dark:text-white/40">
                                         No invoices found.
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 invoices.map((invoice) => (
-                                    <TableRow key={invoice.id} className="hover:bg-white/5 transition-colors">
+                                    <TableRow key={invoice.id} className="hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 transition-colors">
                                         <TableCell className="font-mono text-xs">{invoice.id}</TableCell>
                                         <TableCell>{invoice.customer || invoice.vendor}</TableCell>
                                         <TableCell>
@@ -257,7 +257,7 @@ const InvoiceManager = () => {
                                             }).format(invoice.amount)}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="border-white/20 capitalize">
+                                            <Badge variant="outline" className="border-black/20 dark:border-white/20 capitalize">
                                                 {invoice.status}
                                             </Badge>
                                         </TableCell>

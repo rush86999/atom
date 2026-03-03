@@ -587,7 +587,7 @@ const SlackIntegration: React.FC = () => {
                                         filteredChannels.map((channel) => (
                                             <div
                                                 key={channel.id}
-                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 dark:bg-gray-800 cursor-pointer transition-colors"
                                                 onClick={() => {
                                                     setSelectedChannel(channel.id);
                                                     loadMessages(channel.id);
@@ -605,7 +605,7 @@ const SlackIntegration: React.FC = () => {
                                                     <p className="text-sm text-muted-foreground">
                                                         {channel.purpose || "No purpose"}
                                                     </p>
-                                                    <p className="text-xs text-gray-500">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                                         {channel.num_members} members
                                                     </p>
                                                 </div>
@@ -729,7 +729,7 @@ const SlackIntegration: React.FC = () => {
                                         filteredUsers.map((user) => (
                                             <div
                                                 key={user.id}
-                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 transition-colors"
+                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                                             >
                                                 <Avatar className="w-12 h-12 mr-4">
                                                     <AvatarImage src={user.profile.image_48} />
@@ -750,10 +750,10 @@ const SlackIntegration: React.FC = () => {
                                                     </div>
                                                     <p className="text-sm text-muted-foreground">@{user.name}</p>
                                                     {user.title && (
-                                                        <p className="text-xs text-gray-500">{user.title}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.title}</p>
                                                     )}
                                                     {user.profile.email && (
-                                                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                             <Mail className="w-3 h-3 mr-1" />
                                                             {user.profile.email}
                                                         </div>
@@ -783,7 +783,7 @@ const SlackIntegration: React.FC = () => {
                                                     <h2 className="text-2xl font-bold">{workspace.name}</h2>
                                                     <p className="text-muted-foreground">{workspace.domain}.slack.com</p>
                                                     {workspace.email_domain && (
-                                                        <p className="text-sm text-gray-500">
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                                             Email domain: {workspace.email_domain}
                                                         </p>
                                                     )}

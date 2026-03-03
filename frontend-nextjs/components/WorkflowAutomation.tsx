@@ -552,7 +552,7 @@ const WorkflowAutomation: React.FC = () => {
       case "dropbox":
         return <ChevronDown className={`${iconClass} text-blue-500`} />;
       default:
-        return <Settings className={`${iconClass} text-gray-500`} />;
+        return <Settings className={`${iconClass} text-gray-500 dark:text-gray-400`} />;
     }
   };
 
@@ -615,7 +615,7 @@ const WorkflowAutomation: React.FC = () => {
                 required={isRequired}
               />
               {fieldSchema.description && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {fieldSchema.description}
                 </p>
               )}
@@ -651,7 +651,7 @@ const WorkflowAutomation: React.FC = () => {
                 required={isRequired}
               />
               {fieldSchema.description && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {fieldSchema.description}
                 </p>
               )}
@@ -678,7 +678,7 @@ const WorkflowAutomation: React.FC = () => {
               }
               placeholder={`Enter ${fieldSchema.title} separated by commas`}
             />
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Separate multiple values with commas
             </p>
           </div>
@@ -707,7 +707,7 @@ const WorkflowAutomation: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
-        <p className="text-gray-600">Loading workflow automation...</p>
+        <p className="text-gray-600 dark:text-gray-400">Loading workflow automation...</p>
       </div>
     );
   }
@@ -720,7 +720,7 @@ const WorkflowAutomation: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight">
             Workflow Automation
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Automate your tasks and processes across all connected services
           </p>
         </div>
@@ -817,7 +817,7 @@ const WorkflowAutomation: React.FC = () => {
                         </div>
                       ))}
                       {(template.steps || []).length > 3 && (
-                        <p className="text-xs text-gray-500 pl-7">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 pl-7">
                           +{(template.steps || []).length - 3} more steps
                         </p>
                       )}
@@ -878,7 +878,7 @@ const WorkflowAutomation: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Created:{" "}
                       {new Date(workflow.created_at).toLocaleDateString()}
                     </p>
@@ -924,7 +924,7 @@ const WorkflowAutomation: React.FC = () => {
                             }
                           </span >
                         </div >
-                        <div className="text-sm text-gray-500 space-y-1">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
                           <p>
                             Started:{" "}
                             {new Date(execution.start_time).toLocaleString()}
@@ -1024,7 +1024,7 @@ const WorkflowAutomation: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 min-h-[40px]">
                       {serviceInfo.description}
                     </p>
                     <div className="space-y-2">
@@ -1036,7 +1036,7 @@ const WorkflowAutomation: React.FC = () => {
                           </Badge>
                         ))}
                         {serviceInfo.actions.length > 5 && (
-                          <span className="text-xs text-gray-500 flex items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                             +{serviceInfo.actions.length - 5} more
                           </span>
                         )}
@@ -1063,11 +1063,11 @@ const WorkflowAutomation: React.FC = () => {
           </DialogHeader>
           {selectedTemplate && (
             <div className="space-y-6">
-              <p className="text-gray-600">{selectedTemplate.description}</p>
+              <p className="text-gray-600 dark:text-gray-400">{selectedTemplate.description}</p>
 
               <div className="space-y-2">
                 <h3 className="font-semibold">Workflow Steps:</h3>
-                <div className="space-y-2 pl-2 border-l-2 border-gray-200">
+                <div className="space-y-2 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
                   {selectedTemplate.steps.map((step, index) => (
                     <div key={step.id} className="flex items-start space-x-3">
                       <Badge variant="outline" className="mt-0.5">
@@ -1075,7 +1075,7 @@ const WorkflowAutomation: React.FC = () => {
                       </Badge>
                       <div>
                         <p className="font-medium text-sm">{step.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {step.service}.{step.action}
                         </p>
                       </div>
@@ -1129,11 +1129,11 @@ const WorkflowAutomation: React.FC = () => {
           </DialogHeader>
           {selectedWorkflow && (
             <div className="space-y-6">
-              <p className="text-gray-600">{selectedWorkflow.description}</p>
+              <p className="text-gray-600 dark:text-gray-400">{selectedWorkflow.description}</p>
 
               <div className="space-y-2">
                 <h3 className="font-semibold">Workflow Steps:</h3>
-                <div className="space-y-2 pl-2 border-l-2 border-gray-200">
+                <div className="space-y-2 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
                   {selectedWorkflow.steps?.map((step, index) => (
                     <div key={step.id} className="flex items-start space-x-3">
                       <Badge variant="outline" className="mt-0.5">
@@ -1141,7 +1141,7 @@ const WorkflowAutomation: React.FC = () => {
                       </Badge>
                       <div>
                         <p className="font-medium text-sm">{step.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {step.service}.{step.action}
                         </p>
                       </div>
@@ -1244,7 +1244,7 @@ const WorkflowAutomation: React.FC = () => {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Add keys for any missing parameters required by the workflow step.
               </p>
             </div>
@@ -1284,7 +1284,7 @@ const WorkflowAutomation: React.FC = () => {
                   <p className="font-bold">
                     Execution ID: {activeExecution.execution_id}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Workflow: {activeExecution.workflow_id}
                   </p>
                 </div>
@@ -1295,12 +1295,12 @@ const WorkflowAutomation: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Started:</span>{" "}
+                  <span className="text-gray-500 dark:text-gray-400">Started:</span>{" "}
                   {new Date(activeExecution.start_time).toLocaleString()}
                 </div>
                 {activeExecution.end_time && (
                   <div>
-                    <span className="text-gray-500">Ended:</span>{" "}
+                    <span className="text-gray-500 dark:text-gray-400">Ended:</span>{" "}
                     {new Date(activeExecution.end_time).toLocaleString()}
                   </div>
                 )}
@@ -1335,7 +1335,7 @@ const WorkflowAutomation: React.FC = () => {
                             <AccordionTrigger>Step: {stepId}</AccordionTrigger>
                             <AccordionContent>
                               <div className="flex justify-between items-center mb-2">
-                                <span className="font-semibold text-xs text-gray-500">
+                                <span className="font-semibold text-xs text-gray-500 dark:text-gray-400">
                                   Captured State
                                 </span>
                                 <Button
@@ -1418,21 +1418,21 @@ const WorkflowAutomation: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label>Hyperparameters & Variables</Label>
-                <Badge variant="outline" className="text-xs font-normal text-gray-500">
+                <Badge variant="outline" className="text-xs font-normal text-gray-500 dark:text-gray-400">
                   {Object.keys(forkVariables).length} params
                 </Badge>
               </div>
 
               {Object.keys(forkVariables).length === 0 ? (
-                <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-md">
-                  <p className="text-sm text-gray-500">No tunable parameters found for this step.</p>
+                <div className="text-center py-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-md">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No tunable parameters found for this step.</p>
                   <p className="text-xs text-gray-400 mt-1">Forking will proceed with original state.</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                   {Object.entries(forkVariables).map(([key, value]) => (
                     <div key={key} className="space-y-1">
-                      <Label htmlFor={`param-${key}`} className="text-xs font-medium text-gray-600">
+                      <Label htmlFor={`param-${key}`} className="text-xs font-medium text-gray-600 dark:text-gray-400">
                         {key}
                       </Label>
                       <Input

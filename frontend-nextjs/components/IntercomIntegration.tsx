@@ -654,7 +654,7 @@ const IntercomIntegration: React.FC = () => {
                                                     <p className="text-muted-foreground">
                                                         {team.admin_ids.length} admins
                                                     </p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         Created: {formatDate(team.created_at)}
                                                     </p>
                                                 </div>

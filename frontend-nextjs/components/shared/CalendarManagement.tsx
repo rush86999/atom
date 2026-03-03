@@ -489,7 +489,7 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                         {dayEvents.map((event) => (
                           <div
                             key={event.id}
-                            className="p-1 rounded text-white cursor-pointer text-xs"
+                            className="p-1 rounded text-gray-900 dark:text-white cursor-pointer text-xs"
                             style={{ backgroundColor: event.color || "#3182CE" }}
                             onClick={() => {
                               setSelectedEvent(event);

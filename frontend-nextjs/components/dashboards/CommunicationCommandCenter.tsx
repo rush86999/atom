@@ -101,7 +101,7 @@ export const CommunicationCommandCenter: React.FC = () => {
                     if (data.apps) {
                         const mappedApps = data.apps.map((app: any) => {
                             let icon = MessageSquare;
-                            let color = 'text-gray-500';
+                            let color = 'text-gray-500 dark:text-gray-400';
                             let bg = 'bg-gray-500/10';
 
                             if (app.id.includes('slack')) { icon = MessageSquare; color = 'text-purple-500'; bg = 'bg-purple-500/10'; }
@@ -136,7 +136,7 @@ export const CommunicationCommandCenter: React.FC = () => {
             {/* Header Section */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-white/60">
                         Communication Command Center
                     </h1>
                     <p className="text-muted-foreground mt-1">
@@ -148,7 +148,7 @@ export const CommunicationCommandCenter: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
-                        className="bg-white/5 border-white/10"
+                        className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10"
                     >
                         <RefreshCw className={`w-4 h-4 mr-2`} />
                         Sync Settings
@@ -167,14 +167,14 @@ export const CommunicationCommandCenter: React.FC = () => {
                             value={searchQuery}
                             onChange={handleSearch}
                             placeholder="Search memory..."
-                            className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-white"
+                            className="pl-10 pr-4 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-gray-900 dark:text-white"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => { setSearchQuery(''); setShowSearchResults(false); }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2"
                             >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-white" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-gray-900 dark:text-white" />
                             </button>
                         )}
                     </div>
@@ -187,7 +187,7 @@ export const CommunicationCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => setShowSearchResults(false)} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -195,12 +195,12 @@ export const CommunicationCommandCenter: React.FC = () => {
                     ) : searchResults.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {searchResults.map((result: any) => (
-                                <Card key={result.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors pointer-cursor">
+                                <Card key={result.id} className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors pointer-cursor">
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="capitalize text-[10px]">{result.app_type}</Badge>
-                                                <span className="font-semibold text-white">{result.sender}</span>
+                                                <span className="font-semibold text-gray-900 dark:text-white">{result.sender}</span>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{new Date(result.timestamp).toLocaleString()}</span>
                                         </div>
@@ -210,7 +210,7 @@ export const CommunicationCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No results found in memory.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">No results found in memory.</div>
                     )}
                 </div>
             ) : (
@@ -219,50 +219,50 @@ export const CommunicationCommandCenter: React.FC = () => {
                     <div className="lg:col-span-3 space-y-6">
                         {/* KPI Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Unread Messages</CardTitle>
                                     <Mail className="w-4 h-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.totalUnread}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalUnread}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Active sync</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Response Rate</CardTitle>
                                     <TrendingUp className="w-4 h-4 text-green-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.responseRate}%</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.responseRate}%</div>
                                     <p className="text-xs text-muted-foreground mt-1 text-green-400">Target: 95%</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Avg Response</CardTitle>
                                     <Clock className="w-4 h-4 text-blue-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.avgResponseTime}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.avgResponseTime}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Within target</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground uppercase">Active Channels</CardTitle>
                                     <Users className="w-4 h-4 text-purple-400" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-white">{stats.activePlatforms}</div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activePlatforms}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Systems online</p>
                                 </CardContent>
                             </Card>
                         </div>
 
                         {/* Communication Hub Embed */}
-                        <Card className="bg-black/40 border-white/5 backdrop-blur-xl min-h-[600px]">
+                        <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl min-h-[600px]">
                             <CommunicationHub
                                 showNavigation={false}
                                 isComposeOpen={isComposeOpen}
@@ -276,9 +276,9 @@ export const CommunicationCommandCenter: React.FC = () => {
                     {/* Sidebar - 1/4 width */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Recent Contacts */}
-                        <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                        <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                             <CardHeader>
-                                <CardTitle className="text-lg text-white flex items-center gap-2">
+                                <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
                                     <Users className="w-4 h-4" />
                                     Recent Contacts
                                 </CardTitle>
@@ -288,11 +288,11 @@ export const CommunicationCommandCenter: React.FC = () => {
                                     <div className="flex justify-center p-4"><Clock className="w-4 h-4 animate-spin text-primary" /></div>
                                 ) : recentContacts.length > 0 ? (
                                     recentContacts.map((contact) => (
-                                        <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                                        <div key={contact.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 transition-colors cursor-pointer group">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={contact.avatar} alt={contact.name} className="w-8 h-8 rounded-full border border-white/10" />
+                                                    <img src={contact.avatar} alt={contact.name} className="w-8 h-8 rounded-full border border-black/10 dark:border-white/10" />
                                                     <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black ${contact.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                 </div>
                                                 <div>
@@ -309,19 +309,19 @@ export const CommunicationCommandCenter: React.FC = () => {
                         </Card>
 
                         {/* Platform Status */}
-                        <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                        <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                             <CardHeader>
-                                <CardTitle className="text-lg text-white">Platform Status</CardTitle>
+                                <CardTitle className="text-lg text-gray-900 dark:text-white">Platform Status</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {platformStatus.map((platform) => (
-                                    <div key={platform.name} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                                    <div key={platform.name} className="flex items-center justify-between p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <div className={`p-2 rounded-md ${platform.bg}`}>
                                                 <platform.icon className={`w-4 h-4 ${platform.color}`} />
                                             </div>
                                             <div>
-                                                <div className="font-medium text-white text-sm">{platform.name}</div>
+                                                <div className="font-medium text-gray-900 dark:text-white text-sm">{platform.name}</div>
                                                 <div className="text-xs text-muted-foreground capitalize">{platform.status}</div>
                                             </div>
                                         </div>

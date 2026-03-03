@@ -64,7 +64,7 @@ export function ArtifactSidebar({ sessionId, onSelectArtifact }: ArtifactSidebar
                     <button
                         key={artifact.id}
                         onClick={() => onSelectArtifact(artifact.id)}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 group transition-all text-left border border-transparent hover:border-zinc-200 dark:hover:border-white/10 bg-white dark:bg-slate-800/40 shadow-sm dark:shadow-none"
+                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-black/5 dark:bg-white/5 group transition-all text-left border border-transparent hover:border-zinc-200 dark:hover:border-black/10 dark:border-white/10 bg-white dark:bg-slate-800/40 shadow-sm dark:shadow-none"
                     >
                         <div className="h-8 w-8 rounded bg-zinc-100 dark:bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/10 transition-colors">
                             <ArtifactIcon type={artifact.type} className="h-4 w-4 text-zinc-500 group-hover:text-indigo-500" />
@@ -89,7 +89,7 @@ export function ArtifactSidebar({ sessionId, onSelectArtifact }: ArtifactSidebar
             </div>
 
             <div className="p-3 border-t border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-black/20">
-                <button className="w-full h-8 text-[10px] border border-zinc-200 dark:border-white/10 hover:bg-white/5 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 rounded transition-all">
+                <button className="w-full h-8 text-[10px] border border-zinc-200 dark:border-white/10 hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 rounded transition-all">
                     View Full History
                 </button>
             </div>

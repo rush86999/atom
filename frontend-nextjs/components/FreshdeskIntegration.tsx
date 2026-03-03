@@ -718,7 +718,7 @@ const FreshdeskIntegration: React.FC = () => {
                                             <CardContent className="pt-6">
                                                 <div className="space-y-3">
                                                     <div className="flex items-center space-x-2">
-                                                        <Building className="w-5 h-5 text-gray-500" />
+                                                        <Building className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                                         <h3 className="font-semibold">{company.name}</h3>
                                                     </div>
                                                     <p className="text-sm text-muted-foreground">
@@ -764,7 +764,7 @@ const FreshdeskIntegration: React.FC = () => {
                                         {agents.map((agent) => (
                                             <TableRow key={agent.id}>
                                                 <TableCell className="font-medium flex items-center">
-                                                    <User className="w-4 h-4 mr-2 text-gray-500" />
+                                                    <User className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                                                     {agent.name}
                                                 </TableCell>
                                                 <TableCell>{agent.email}</TableCell>
@@ -800,7 +800,7 @@ const FreshdeskIntegration: React.FC = () => {
                                             <CardContent className="pt-6">
                                                 <div className="space-y-3">
                                                     <div className="flex items-center space-x-2">
-                                                        <Users className="w-5 h-5 text-gray-500" />
+                                                        <Users className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                                         <h3 className="font-semibold">{group.name}</h3>
                                                     </div>
                                                     <p className="text-sm text-muted-foreground">
@@ -919,7 +919,7 @@ const FreshdeskIntegration: React.FC = () => {
                             {selectedContact && (
                                 <div className="space-y-4">
                                     <div className="flex items-center space-x-4">
-                                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-xl font-bold text-gray-600">
+                                        <div className="h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-xl font-bold text-gray-600 dark:text-gray-400">
                                             {selectedContact.name.charAt(0)}
                                         </div>
                                         <div>

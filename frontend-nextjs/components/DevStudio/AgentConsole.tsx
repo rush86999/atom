@@ -194,7 +194,7 @@ const AgentConsole: React.FC = () => {
                 <CardContent className="flex-1 min-h-0 p-0">
                     <ScrollArea className="h-full max-h-[500px] w-full p-4 font-mono text-sm bg-black text-green-400 rounded-b-lg">
                         {logs.length === 0 ? (
-                            <div className="text-gray-500 italic">No logs available. Ready to start.</div>
+                            <div className="text-gray-500 dark:text-gray-400 italic">No logs available. Ready to start.</div>
                         ) : (
                             logs.map((log, i) => (
                                 <div key={i} className="mb-1 break-words">

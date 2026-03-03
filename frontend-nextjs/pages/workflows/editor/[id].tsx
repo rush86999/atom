@@ -142,7 +142,7 @@ export default function WorkflowEditorPage() {
     );
 
     return (
-        <div className="h-[calc(100vh-64px)] w-full bg-gray-50">
+        <div className="h-[calc(100vh-64px)] w-full bg-gray-50 dark:bg-gray-800">
             <WorkflowBuilder
                 initialData={initialData}
                 onSave={handleSave}

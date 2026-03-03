@@ -171,7 +171,7 @@ const PerformanceDashboard: React.FC = () => {
       case 'healthy': return <CheckCircle className="text-green-500 w-5 h-5" />;
       case 'degraded': return <AlertTriangle className="text-yellow-500 w-5 h-5" />;
       case 'unhealthy': return <XCircle className="text-red-500 w-5 h-5" />;
-      default: return <Clock className="text-gray-500 w-5 h-5" />;
+      default: return <Clock className="text-gray-500 dark:text-gray-400 w-5 h-5" />;
     }
   };
 
@@ -208,12 +208,12 @@ const PerformanceDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800 p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Performance Monitor</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             Real-time system health and performance metrics
           </p>
         </div>
@@ -257,7 +257,7 @@ const PerformanceDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm font-medium text-gray-500">System Status</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">System Status</p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={healthData.status === 'healthy' ? 'default' : 'destructive'}>
                   {healthData.status.toUpperCase()}
@@ -272,7 +272,7 @@ const PerformanceDashboard: React.FC = () => {
 
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm font-medium text-gray-500">Uptime</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Uptime</p>
               <div className="text-2xl font-bold mt-1">{formatUptime(healthData.uptime)}</div>
               <p className="text-xs text-gray-400 mt-2">
                 Version: {healthData.version}
@@ -282,7 +282,7 @@ const PerformanceDashboard: React.FC = () => {
 
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm font-medium text-gray-500">Response Time</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Response Time</p>
               <div className="text-2xl font-bold mt-1">{healthData.performance.responseTime}ms</div>
               <p className="text-xs text-gray-400 mt-2">
                 Error Rate: {healthData.performance.errorRate.toFixed(2)}%
@@ -292,7 +292,7 @@ const PerformanceDashboard: React.FC = () => {
 
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm font-medium text-gray-500">Healthy Integrations</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Healthy Integrations</p>
               <div className="text-2xl font-bold mt-1">
                 {healthData.checks.integrations.healthy}/{healthData.checks.integrations.total}
               </div>
@@ -327,7 +327,7 @@ const PerformanceDashboard: React.FC = () => {
                   className="w-full"
                 // Note: standard Shadcn Progress doesn't support colorScheme prop easily without custom CSS classes
                 />
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {healthData.checks.memory.percentage.toFixed(1)}% utilized
                 </p>
               </div>
@@ -351,7 +351,7 @@ const PerformanceDashboard: React.FC = () => {
                   value={healthData.checks.cpu.usage}
                   className="w-full"
                 />
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Load average
                 </p>
               </div>
@@ -373,7 +373,7 @@ const PerformanceDashboard: React.FC = () => {
                     {healthData.checks.redis.connected ? 'Connected' : 'Disconnected'}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Response Time: {healthData.checks.redis.responseTime}ms
                 </p>
               </div>
@@ -444,7 +444,7 @@ const PerformanceDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-gray-500">Active Users</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Users</p>
                   <div className="text-2xl font-bold mt-1">{analyticsData.metrics.users.active}</div>
                   <p className="text-xs text-gray-400 mt-2">
                     +{analyticsData.metrics.users.new} new users
@@ -454,7 +454,7 @@ const PerformanceDashboard: React.FC = () => {
 
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-sm font-medium text-gray-500">Feature Usage</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Feature Usage</p>
                   <div className="text-2xl font-bold mt-1">{analyticsData.metrics.features.searchQueries}</div>
                   <p className="text-xs text-gray-400 mt-2">
                     Search queries in {timeRange}

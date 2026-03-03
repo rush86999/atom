@@ -393,7 +393,7 @@ const WhatsAppBusinessIntegration: React.FC = () => {
                       <div
                         className={`max-w-xs md:max-w-md p-3 rounded-lg ${message.direction === 'outbound'
                             ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-black'
+                            : 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white'
                           }`}
                       >
                         <p className="text-sm font-medium mb-1">

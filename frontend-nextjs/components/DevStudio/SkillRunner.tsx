@@ -196,7 +196,7 @@ const SkillRunner = () => {
                         className="flex-1 overflow-auto p-4 space-y-1"
                     >
                         {output.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 italic">
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 italic">
                                 <Terminal className="h-8 w-8 mb-4 opacity-20" />
                                 <p>Waiting for skill execution...</p>
                             </div>

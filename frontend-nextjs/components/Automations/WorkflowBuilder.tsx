@@ -692,7 +692,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     const [isProcessing, setIsProcessing] = useState(false);
 
     return (
-        <div className="h-[700px] w-full border rounded-lg bg-white shadow-sm flex flex-col overflow-hidden">
+        <div className="h-[700px] w-full border rounded-lg bg-white dark:bg-gray-900 shadow-sm flex flex-col overflow-hidden">
             {/* AI Copilot Header - Promoted Position */}
             <div className="bg-gradient-to-r from-purple-50 via-blue-50 to-purple-50 border-b p-4">
                 <div className="flex items-center gap-3 mb-3">
@@ -700,8 +700,8 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         <Sparkles className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-800">AI Workflow Builder</h3>
-                        <p className="text-xs text-gray-500">Describe what you want to automate</p>
+                        <h3 className="font-bold text-gray-800 dark:text-gray-200">AI Workflow Builder</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Describe what you want to automate</p>
                     </div>
                 </div>
                 <form onSubmit={handleChatSubmit} className="flex gap-2 items-center">
@@ -710,7 +710,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         className="mr-1"
                     />
                     <input
-                        className="flex-1 text-sm border rounded-lg px-4 py-2.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:bg-gray-100 shadow-sm"
+                        className="flex-1 text-sm border rounded-lg px-4 py-2.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:bg-gray-100 dark:bg-gray-800 shadow-sm"
                         placeholder="e.g., 'When I get an email, summarize it with AI and post to Slack'"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
@@ -724,37 +724,37 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
             </div>
 
             {/* Toolbar */}
-            <div className="p-3 border-b flex justify-between items-center bg-gray-50">
+            <div className="p-3 border-b flex justify-between items-center bg-gray-50 dark:bg-gray-800">
                 <div className="flex items-center gap-2">
                     <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => setShowSidebar(!showSidebar)}
-                        className="text-gray-600"
+                        className="text-gray-600 dark:text-gray-400"
                     >
                         {showSidebar ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
                     </Button>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {nodes.length} steps • {edges.length} connections
                     </span>
                 </div>
                 <div className="flex gap-1 flex-wrap items-center">
-                    <div className="flex bg-white rounded-md border mr-2 items-center">
+                    <div className="flex bg-white dark:bg-gray-900 rounded-md border mr-2 items-center">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-black"
+                            className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-black"
                             onClick={undo}
                             disabled={!canUndo}
                             title="Undo (Ctrl+Z)"
                         >
                             <Undo className="w-4 h-4" />
                         </Button>
-                        <div className="w-[1px] h-4 bg-gray-200"></div>
+                        <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-800"></div>
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-black"
+                            className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-black"
                             onClick={redo}
                             disabled={!canRedo}
                             title="Redo (Ctrl+Shift+Z)"
@@ -813,7 +813,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         Loop
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => addNode('code')}>
-                        <svg className="w-3 h-3 mr-1 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 mr-1 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                         Code
@@ -886,10 +886,10 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                 {/* Empty State Hint */}
                 {nodes.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="text-center p-8 bg-white/80 rounded-lg shadow-sm">
+                        <div className="text-center p-8 bg-white/80 dark:bg-gray-900/80 rounded-lg shadow-sm">
                             <Sparkles className="w-12 h-12 text-purple-300 mx-auto mb-3" />
-                            <h4 className="font-semibold text-gray-700 mb-1">Start Building Your Workflow</h4>
-                            <p className="text-sm text-gray-500 max-w-xs">
+                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Start Building Your Workflow</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">
                                 Describe your automation above, or browse pieces on the left
                             </p>
                         </div>

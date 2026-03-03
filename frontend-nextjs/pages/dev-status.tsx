@@ -221,12 +221,12 @@ const DevStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Platform</p>
-                <Monitor className="h-4 w-4 text-gray-500" />
+                <Monitor className="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {systemStatus?.platform ? systemStatus.platform.toUpperCase() : "Web"}
               </div>
-              <div className="flex items-center pt-1 text-xs text-gray-500">
+              <div className="flex items-center pt-1 text-xs text-gray-500 dark:text-gray-400">
                 <Activity className="mr-1 h-3 w-3 text-green-500" />
                 {systemStatus?.architecture || "Unknown"}
               </div>
@@ -237,12 +237,12 @@ const DevStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Services</p>
-                <Server className="h-4 w-4 text-gray-500" />
+                <Server className="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {serviceList.filter((s) => s.status === "healthy").length}/{serviceList.length}
               </div>
-              <p className="text-xs text-gray-500 pt-1">Healthy Services</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">Healthy Services</p>
             </CardContent>
           </Card>
 
@@ -250,12 +250,12 @@ const DevStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Test Coverage</p>
-                <Shield className="h-4 w-4 text-gray-500" />
+                <Shield className="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {buildStatus.tests?.coverage || "0%"}
               </div>
-              <p className="text-xs text-gray-500 pt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
                 {buildStatus.tests?.passed}/{buildStatus.tests?.total} tests passed
               </p>
             </CardContent>
@@ -265,12 +265,12 @@ const DevStatus = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Update</p>
-                <RefreshCw className="h-4 w-4 text-gray-500" />
+                <RefreshCw className="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {mounted ? lastUpdate.toLocaleTimeString() : "--:--:--"}
               </div>
-              <p className="text-xs text-gray-500 pt-1">{mounted ? lastUpdate.toLocaleDateString() : "--/--/----"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">{mounted ? lastUpdate.toLocaleDateString() : "--/--/----"}</p>
             </CardContent>
           </Card>
         </div>
@@ -308,7 +308,7 @@ const DevStatus = () => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
-                          <Badge className={`${statusColor} text-white hover:${statusColor}`}>
+                          <Badge className={`${statusColor} text-gray-900 dark:text-white hover:${statusColor}`}>
                             {service.status}
                           </Badge>
                         </div>
@@ -342,7 +342,7 @@ const DevStatus = () => {
                 <div className="relative w-full overflow-auto">
                   <table className="w-full caption-bottom text-sm">
                     <thead className="[&_tr]:border-b">
-                      <tr className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                      <tr className="border-b transition-colors hover:bg-gray-100 dark:bg-gray-800/50 data-[state=selected]:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
                         <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Service</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Status</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 dark:text-gray-400">Response Time</th>
@@ -352,10 +352,10 @@ const DevStatus = () => {
                     </thead>
                     <tbody className="[&_tr:last-child]:border-0">
                       {serviceList.map((service, index) => (
-                        <tr key={index} className="border-b transition-colors hover:bg-gray-100/50 data-[state=selected]:bg-gray-100 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
+                        <tr key={index} className="border-b transition-colors hover:bg-gray-100 dark:bg-gray-800/50 data-[state=selected]:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800/50 dark:data-[state=selected]:bg-gray-800">
                           <td className="p-4 align-middle font-medium">{service.name}</td>
                           <td className="p-4 align-middle">
-                            <Badge className={`${getStatusColor(service.status)} text-white hover:${getStatusColor(service.status)}`}>
+                            <Badge className={`${getStatusColor(service.status)} text-gray-900 dark:text-white hover:${getStatusColor(service.status)}`}>
                               {service.status}
                             </Badge>
                           </td>
@@ -387,7 +387,7 @@ const DevStatus = () => {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 dark:text-gray-400">Status:</span>
-                    <Badge className={`${getStatusColor(buildStatus.status)} text-white hover:${getStatusColor(buildStatus.status)}`}>
+                    <Badge className={`${getStatusColor(buildStatus.status)} text-gray-900 dark:text-white hover:${getStatusColor(buildStatus.status)}`}>
                       {buildStatus.status}
                     </Badge>
                   </div>

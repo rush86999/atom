@@ -354,7 +354,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
         return (
             <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                <p className="mt-4 text-gray-500">Initializing audio...</p>
+                <p className="mt-4 text-gray-500 dark:text-gray-400">Initializing audio...</p>
             </div>
         );
     }
@@ -393,11 +393,11 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                                                 onValueChange={handleSensitivityChange}
                                                 className="flex-1"
                                             />
-                                            <span className="text-sm text-gray-500 w-12">
+                                            <span className="text-sm text-gray-500 dark:text-gray-400 w-12">
                                                 {Math.round(sensitivity * 100)}%
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                             Adjust detection sensitivity
                                         </p>
                                     </div>
@@ -451,12 +451,12 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                             >
                                 {getStatusText()}
                             </Badge>
-                            <span className="text-sm text-gray-500">Status</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
                         </div>
 
                         <div className="flex flex-col items-center space-y-2 w-full">
                             <Progress value={audioLevel * 100} className="w-full" />
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
                                 Audio Level: {Math.round(audioLevel * 100)}%
                             </span>
                         </div>
@@ -465,7 +465,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                             <span className={cn("font-bold", compactView ? "text-xl" : "text-2xl")}>
                                 {selectedModel?.wakeWord || "No Model"}
                             </span>
-                            <span className="text-sm text-gray-500">Wake Word</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Wake Word</span>
                         </div>
                     </div>
                 </CardContent>
@@ -502,14 +502,14 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                         {selectedModel && (
                             <div className={cn("grid gap-4", compactView ? "grid-cols-1" : "grid-cols-2")}>
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <p className="text-sm font-medium text-gray-500">Accuracy</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Accuracy</p>
                                     <p className="text-2xl font-bold">{selectedModel.performance.accuracy}%</p>
-                                    <p className="text-xs text-gray-500">Detection accuracy</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Detection accuracy</p>
                                 </div>
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <p className="text-sm font-medium text-gray-500">False Positives</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">False Positives</p>
                                     <p className="text-2xl font-bold">{selectedModel.performance.falsePositives}</p>
-                                    <p className="text-xs text-gray-500">Per 1000 hours</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Per 1000 hours</p>
                                 </div>
                             </div>
                         )}
@@ -563,7 +563,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                                         <p className="font-medium">
                                             {detection.timestamp.toLocaleTimeString()}
                                         </p>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                             Duration: {Math.round(detection.duration)}ms
                                         </p>
                                     </div>
@@ -586,7 +586,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
                             </Card>
                         ))}
                         {detections.length === 0 && (
-                            <p className="text-center text-gray-500 py-4">
+                            <p className="text-center text-gray-500 dark:text-gray-400 py-4">
                                 No detections yet. Start listening to detect wake words.
                             </p>
                         )}
