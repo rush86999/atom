@@ -42,7 +42,14 @@ Requirements for backend coverage expansion milestone. Each maps to roadmap phas
   - 3 coverage gaps closed (async, cache correctness, edge cases)
   - Invariants: maturity routing, permission consistency, cache <1ms P99
 - [ ] **PROP-02**: Episode invariants tested — Segmentation logic, retrieval ranking, lifecycle transitions validated
-- [ ] **PROP-03**: Financial invariants tested — Decimal precision, double-entry validation, audit immutability validated
+- [x] **PROP-03**: Financial invariants tested — Decimal precision, double-entry validation, audit immutability validated (Phase 125, 2026-03-03)
+  - test_decimal_precision_invariants.py: 26 tests with max_examples=200
+  - test_double_entry_invariants.py: 14 tests with max_examples=200
+  - test_financial_invariants.py: 21 tests with max_examples=200
+  - test_audit_immutability_invariants.py: 9 tests with max_examples=200
+  - 70 total tests validating critical financial invariants
+  - 14,000+ Hypothesis-generated examples (70 * 200)
+  - Invariants: decimal precision (ROUND_HALF_EVEN), double-entry accounting (debits=credits), audit immutability (hash chain integrity)
 - [ ] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated
 
 ## v5.2+ Requirements
@@ -91,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-05 | Phase 122 | Pending |
 | PROP-01 | Phase 123 | Complete |
 | PROP-02 | Phase 124 | Pending |
-| PROP-03 | Phase 125 | Pending |
+| PROP-03 | Phase 125 | Complete |
 | PROP-04 | Phase 126 | Pending |
 
 **Coverage:**
@@ -101,4 +108,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-01 after roadmap creation*
+*Last updated: 2026-03-03 after Phase 125 completion*
