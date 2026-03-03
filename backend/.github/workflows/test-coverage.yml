@@ -1,0 +1,109 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=core \
+            --cov=api \
+            --cov=tools \
+            --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+            --cov-report=xml:tests/coverage_reports/coverage.xml \
+            --cov-report=term-missing:skip-covered \
+            --cov-fail-under=80
+        continue-on-error: false
+
+      - name: Check coverage threshold
+        run: |
+          python -c "
+          import json
+          with open('tests/coverage_reports/metrics/coverage.json') as f:
+              data = json.load(f)
+              pct = data['files']['total']['summary']['percent_covered']
+              if pct < 80.0:
+                  print(f'FAIL: Coverage {pct:.2f}% is below 80% threshold')
+                  exit(1)
+              print(f'PASS: Coverage {pct:.2f}% meets 80% threshold')
+          "
+
+      - name: Generate coverage summary
+        run: |
+          python -c "
+          import json
+          with open('tests/coverage_reports/metrics/coverage.json') as f:
+              data = json.load(f)
+              pct = data['files']['total']['summary']['percent_covered']
+              covered = data['files']['total']['summary']['covered_lines']
+              total = data['files']['total']['summary']['num_statements']
+              missing = total - covered
+              print(f'## Coverage Summary')
+              print(f'- **Coverage:** {pct:.2f}%')
+              print(f'- **Covered Lines:** {covered}')
+              print(f'- **Missing Lines:** {missing}')
+              print(f'- **Total Lines:** {total}')
+              if pct < 80.0:
+                  gap = 80.0 - pct
+                  print(f'- **Gap to 80%:** {gap:.2f} percentage points')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tests/coverage_reports/
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('tests/coverage_reports/metrics/coverage.json', 'utf8'));
+            const pct = data.files.total.summary.percent_covered;
+            const covered = data.files.total.summary.covered_lines;
+            const total = data.files.total.summary.num_statements;
+            const missing = total - covered;
+
+            const body = `### Coverage Report
+            | Metric | Value |
+            |--------|-------|
+            | Coverage | ${pct.toFixed(2)}% |
+            | Covered Lines | ${covered} |
+            | Missing Lines | ${missing} |
+            | Total Lines | ${total} |
+            | Target | 80.00% |
+            ${pct < 80 ? '**Status:** ❌ Below threshold' : '**Status:** ✅ Passing'}
+            ${pct < 80 ? `\n**Gap:** ${(80 - pct).toFixed(2)} percentage points to target` : ''}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
