@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 127 of 26 (Backend Final Gap Closure)
-Plan: 8A (Part 1 of 2)
+Plan: 08B (Part 2 of 2)
 Status: Complete
-Last activity: 2026-03-03 — Plan 127-08A completed (integration tests for workflow_engine.py and agent_world_model.py)
+Last activity: 2026-03-03 — Plan 127-08B completed (episode services integration tests)
 
-Progress: [████████░░] 100% (7/7 core plans + 08A complete)
+Progress: [████████░░] 100% (7/7 core plans + 08A + 08B complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 (7 core + 08A)
-- Average duration: 9.2 minutes
-- Total execution time: 1.1 hours
+- Total plans completed: 9 (7 core + 08A + 08B)
+- Average duration: 9.9 minutes
+- Total execution time: 1.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 127 | 8 | 4937s | 617s |
+| 127 | 9 | 5955s | 662s |
 
 **Recent Trend:**
-- Last plan: 600s (127-08A)
+- Last plan: 1018s (127-08B)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -42,6 +42,7 @@ Progress: [████████░░] 100% (7/7 core plans + 08A complete)
 | Phase 127 P127-06 | 370 | 2 tasks | 5 files |
 | Phase 127 P127-07 | 480 | 3 tasks | 4 files |
 | Phase 127 P127-08A | 600 | 3 tasks | 5 files |
+| Phase 127 P127-08B | 1018 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,11 @@ Recent decisions affecting current work:
 - **CRITICAL (127-08A)**: Property tests validate algorithms independently (0% coverage increase, high correctness value)
 - **CRITICAL (127-08A)**: File-specific coverage measured in isolated runs shows true improvement
 - **CRITICAL (127-08A)**: Overall backend coverage unchanged at 26.15% (large codebase dilutes impact)
+- **CRITICAL (127-08B)**: Episode services integration tests (15/15 passing) confirm strategy effectiveness
+- **CRITICAL (127-08B)**: Total tests added across Plans 08A + 08B: 39 tests (5 high-impact files)
+- **CRITICAL (127-08B)**: 100% test pass rate demonstrates integration test quality
+- **CRITICAL (127-08B)**: Unique IDs for test data prevent constraint violations during reruns
+- **CRITICAL (127-08B)**: Naive datetime required for lifecycle service compatibility
 
 ### Pending Todos
 
@@ -85,7 +91,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (127-08A execution)
-Stopped at: Completed Phase 127 Plan 08A - Integration tests for workflow_engine.py (+8.64 pp) and agent_world_model.py
+Last session: 2026-03-03 (127-08B execution)
+Stopped at: Completed Phase 127 Plan 08B - Episode services integration tests (15/15 passing)
 Resume file: None
-Next phase: Execute Plan 127-08B for episode services (episode_segmentation_service.py, episode_retrieval_service.py, episode_lifecycle_service.py)
+Next phase: Continue gap closure with Plans 10-13 or review phase completion
