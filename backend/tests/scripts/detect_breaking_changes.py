@@ -1,4 +1,4 @@
-#!/usr/bin/env python33
+#!/usr/bin/env python3
 """Detect breaking changes in OpenAPI specification using openapi-diff."""
 import argparse
 import json
@@ -21,11 +21,7 @@ def check_openapi_diff_installed():
         return False
 
 
-def detect_breaking_changes(
-    base_spec: str,
-    current_spec: str,
-    output_format: str = "json"
-) -> dict:
+def detect_breaking_changes(base_spec, current_spec, output_format="json"):
     """Compare OpenAPI specs and detect breaking changes.
 
     Args:
