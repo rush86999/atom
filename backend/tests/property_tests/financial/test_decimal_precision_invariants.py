@@ -37,7 +37,7 @@ class TestPrecisionPreservationInvariants:
     """Tests for Decimal precision preservation"""
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount=Decimal('0.01'))
     @example(amount=Decimal('100.00'))
     @example(amount=Decimal('999999999999.99'))
@@ -51,7 +51,7 @@ class TestPrecisionPreservationInvariants:
             f"Decimal {amount} not preserved through string round-trip"
 
     @given(amount=high_precision_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_high_precision_rounded_to_cents(self, amount):
         """Test that high-precision amounts round correctly to cents"""
         rounded = amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
@@ -65,7 +65,7 @@ class TestPrecisionPreservationInvariants:
             assert rounded >= 0
 
     @given(amounts=lists_of_decimals(min_size=2, max_size=50, min_value='0.01', max_value='1000.00'))
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_sum_precision_preserved(self, amounts):
         """Test that sum of Decimals preserves precision"""
         total = sum(amounts, Decimal('0.00'))
@@ -80,7 +80,7 @@ class TestPrecisionPreservationInvariants:
         amount=high_precision_strategy(),
         places=st.integers(min_value=0, max_value=6)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_quantize_preserves_value(self, amount, places):
         """Test that quantize preserves value within specified precision"""
         quantizer = Decimal('0.' + '0' * places) if places > 0 else Decimal('1')
@@ -97,7 +97,7 @@ class TestConservationOfValueInvariants:
     @given(
         amounts=lists_of_decimals(min_size=2, max_size=20, min_value='10.00', max_value='1000.00')
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_sum_conservation(self, amounts):
         """Test that sum is conserved regardless of order"""
         sum_forward = sum(amounts, Decimal('0.00'))
@@ -110,7 +110,7 @@ class TestConservationOfValueInvariants:
         balance=money_strategy('100.00', '10000.00'),
         transactions=lists_of_decimals(min_size=1, max_size=20, min_value='0.01', max_value='100.00')
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_balance_conservation(self, balance, transactions):
         """Test that balance is conserved through transactions"""
         # Simulate account balance changes
@@ -129,14 +129,14 @@ class TestConservationOfValueInvariants:
             f"Balance not conserved: started {balance}, ended {reconstructed}"
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_multiplication_conservation(self, amount):
         """Test that multiplication by 1 conserves value"""
         result = amount * Decimal('1')
         assert result == amount
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_division_roundtrip(self, amount):
         """Test that multiplication/division round-trip approximately"""
         if amount == 0:
@@ -158,7 +158,7 @@ class TestRoundingInvariants:
         amount=high_precision_strategy(),
         places=st.integers(min_value=0, max_value=4)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount=Decimal('1.005'), places=2)
     @example(amount=Decimal('1.015'), places=2)
     def test_round_half_even_behavior(self, amount, places):
@@ -173,7 +173,7 @@ class TestRoundingInvariants:
     @given(
         amounts=lists_of_decimals(min_size=2, max_size=10, min_value='0.001', max_value='100.00', places=3),
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_sum_then_round_equals_round_then_sum(self, amounts):
         """Test that rounding after sum ≈ sum of rounded values"""
         # Round each amount to cents
@@ -196,7 +196,7 @@ class TestIdempotencyInvariants:
     """Tests for idempotency in financial operations"""
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_round_is_idempotent(self, amount):
         """Test that rounding an already-rounded value is idempotent"""
         once_rounded = amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
@@ -206,7 +206,7 @@ class TestIdempotencyInvariants:
             "Rounding should be idempotent"
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_quantize_is_idempotent(self, amount):
         """Test that quantize is idempotent for same precision"""
         precision = Decimal('0.01')
@@ -220,7 +220,7 @@ class TestExactComparisonInvariants:
     """Tests for exact Decimal comparison (no epsilon needed)"""
 
     @given(amount=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_exact_equality_works(self, amount):
         """Test that exact equality works without epsilon"""
         same_amount = Decimal(str(amount))
@@ -229,7 +229,7 @@ class TestExactComparisonInvariants:
         assert amount == same_amount
 
     @given(amount1=money_strategy(), amount2=money_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_exact_inequality_detects_differences(self, amount1, amount2):
         """Test that exact comparison detects cent differences"""
         # Make amount2 different by 1 cent
@@ -239,7 +239,7 @@ class TestExactComparisonInvariants:
             assert amount2 - amount2_adjusted == Decimal('0.01')
 
     @given(amounts=lists_of_decimals(min_size=3, max_size=20, min_value='1.00', max_value='100.00'))
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_split_and_recombine(self, amounts):
         """Test that splitting and recombining preserves total exactly"""
         total = sum(amounts, Decimal('0.00'))
@@ -265,7 +265,7 @@ class TestEdgeCases:
         assert zero.quantize(Decimal('0.01')) == zero
 
     @given(amount=money_strategy())
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_string_initialization_is_exact(self, amount):
         """Test that string initialization creates exact Decimal"""
         from core.decimal_utils import to_decimal
@@ -280,7 +280,7 @@ class TestEdgeCases:
         st.integers(min_value=-1000, max_value=1000),
         st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False)
     ))
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_to_decimal_handles_various_inputs(self, value):
         """Test that to_decimal handles various input types"""
         from core.decimal_utils import to_decimal
@@ -437,7 +437,7 @@ class TestArithmeticOperationInvariants:
         amount1=money_strategy(),
         amount2=money_strategy()
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount1=Decimal('100.00'), amount2=Decimal('50.00'))
     @example(amount1=Decimal('0.01'), amount2=Decimal('0.02'))
     def test_addition_preserves_precision(self, amount1, amount2):
@@ -467,7 +467,7 @@ class TestArithmeticOperationInvariants:
         amount=money_strategy('1.00', '1000.00'),
         multiplier=st.integers(min_value=1, max_value=1000)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount=Decimal('10.00'), multiplier=100)
     @example(amount=Decimal('99.99'), multiplier=7)
     def test_multiplication_precision_preserved(self, amount, multiplier):
@@ -502,7 +502,7 @@ class TestArithmeticOperationInvariants:
         total=money_strategy('10.00', '12000.00'),
         divisor=st.integers(min_value=3, max_value=12)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(total=Decimal('100.00'), divisor=12)
     @example(total=Decimal('99.99'), divisor=3)
     def test_division_rounds_correctly(self, total, divisor):
@@ -539,7 +539,7 @@ class TestArithmeticOperationInvariants:
         amount1=large_amount_strategy(),
         amount2=money_strategy('0.01', '1000.00')
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount1=Decimal('1000000.00'), amount2=Decimal('1.00'))
     @example(amount1=Decimal('100.00'), amount2=Decimal('50.00'))
     def test_subtraction_preserves_precision(self, amount1, amount2):
@@ -574,7 +574,7 @@ class TestArithmeticOperationInvariants:
         amount=money_strategy('10.00', '10000.00'),
         percentage=percentage_strategy()
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount=Decimal('100.00'), percentage=Decimal('25.00'))
     @example(amount=Decimal('99.99'), percentage=Decimal('33.33'))
     def test_percentage_calculations_exact(self, amount, percentage):
@@ -612,7 +612,7 @@ class TestArithmeticOperationInvariants:
     @given(
         amounts=lists_of_decimals(min_size=50, max_size=1000, min_value='0.01', max_value='100.00')
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_accumulation_no_drift(self, amounts):
         """
         PROPERTY: Accumulating many values shows no floating-point drift
@@ -649,7 +649,7 @@ class TestArithmeticOperationInvariants:
     @given(
         amounts=lists_of_decimals(min_size=2, max_size=50, min_value='0.001', max_value='1000.00', places=3)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_no_truncation_in_calculations(self, amounts):
         """
         PROPERTY: Financial calculations never truncate significant digits
