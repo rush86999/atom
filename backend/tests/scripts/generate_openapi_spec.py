@@ -22,6 +22,11 @@ def generate_openapi_spec(output_path: str = "openapi.json", version: str = None
         routes=app.routes,
     )
 
+    # Downgrade OpenAPI version from 3.1.0 to 3.0.3 for openapi-diff compatibility
+    # openapi-diff only supports 3.0.x, not 3.1.0
+    if openapi_schema.get('openapi') == '3.1.0':
+        openapi_schema['openapi'] = '3.0.3'
+
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -31,6 +36,7 @@ def generate_openapi_spec(output_path: str = "openapi.json", version: str = None
     print(f"OpenAPI spec generated: {output_path}")
     print(f"  Title: {openapi_schema['info']['title']}")
     print(f"  Version: {openapi_schema['info']['version']}")
+    print(f"  OpenAPI: {openapi_schema['openapi']}")
     print(f"  Endpoints: {len(openapi_schema.get('paths', {}))}")
 
     return openapi_schema
