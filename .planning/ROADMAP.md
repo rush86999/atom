@@ -317,7 +317,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Property tests validate retrieval ranking invariants (feedback boosts score, recency matters)
   3. Property tests validate lifecycle transitions (active → decayed → consolidated → archived)
   4. All episode property tests use appropriate max_examples (100 for retrieval, 50 for lifecycle)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 124-01-PLAN.md — Verify existing episode property tests and audit max_examples settings
+- [ ] 124-02-PLAN.md — Expand property tests to fill coverage gaps and align settings
+- [ ] 124-03-PLAN.md — Final verification and completion summary
 
 ### Phase 125: Financial Property Tests
 **Goal**: Validate financial system invariants with Hypothesis
@@ -361,7 +364,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 121. Health & Monitoring Coverage | v5.1 | 3/4 | Gap Closure | - |
 | 122. Admin Routes Coverage | v5.1 | 6/6 | Complete | 2026-03-02 |
 | 123. Governance Property Tests | v5.1 | 4/4 | Complete | 2026-03-02 |
-| 124. Episode Property Tests | v5.1 | 0/0 | Not started | - |
+| 124. Episode Property Tests | v5.1 | 0/3 | Planning | - |
 | 125. Financial Property Tests | v5.1 | 0/0 | Not started | - |
 | 126. LLM Property Tests | v5.1 | 0/0 | Not started | - |
 
