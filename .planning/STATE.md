@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 129 of 26 (Backend Critical Error Paths)
-Plan: 01 (Database Connection Failures)
+Plan: 04 (External Service Timeouts)
 Status: Complete
-Last activity: 2026-03-03 — Plan 129-01 completed (Database connection failure test suite with 26 tests covering connection refused, pool exhaustion, deadlock, timeout, and error propagation scenarios)
+Last activity: 2026-03-03 — Plan 129-04 completed (External service timeout test suite with 19 tests covering HTTP timeouts, circuit breaker integration, and provider fallback scenarios)
 
-Progress: [██░░░░░░░] 40% (2/5 plans complete)
+Progress: [███░░░░░░] 60% (3/5 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 1 plan)
-- Average duration: 8.7 minutes
-- Total execution time: 3 hours 1 minutes
+- Total plans completed: 23 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 3 plans)
+- Average duration: 8.5 minutes
+- Total execution time: 3 hours 16 minutes
 
 **By Phase:**
 
@@ -63,6 +63,7 @@ Progress: [██░░░░░░░] 40% (2/5 plans complete)
 | Phase 128 P08 | 74 | 3 tasks | 2 files |
 | Phase 129 P02 | 80 | 1 task | 1 files |
 | Phase 129 P01 | 900 | 2 tasks | 2 files |
+| Phase 129 P04 | 382 | 1 task | 1 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,7 @@ Recent decisions affecting current work:
 - [Phase 129]: Circuit breaker timeout=0 allows immediate HALF_OPEN transition on next call (with minimal sleep for datetime.now() change)
 - [Phase 129]: SQLAlchemy 2.0 requires text() wrapper for raw SQL strings in tests
 - [Phase 129]: No automatic retry logic exists in database layer - tests reveal this critical gap
+- [Phase 129-04]: HTTP timeout testing uses httpx exceptions directly instead of respx for simpler mocking (no HTTP layer overhead, still tests actual timeout handling logic)
 
 ### Pending Todos
 
@@ -161,7 +163,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (129-01 execution)
-Stopped at: Plan 129-01 complete - Database connection failure test suite created (26 tests, 17 passing, 9 reveal missing retry logic in database layer)
+Last session: 2026-03-03 (129-04 execution)
+Stopped at: Plan 129-04 complete - External service timeout test suite created (19 tests, 100% pass rate, circuit breaker integration and provider fallback validated)
 Resume file: None
-Next phase: Plan 129-02 - Circuit Breaker State Transitions (already complete)
+Next phase: Plan 129-05 - Rate Limiting Backoff Strategy Tests
