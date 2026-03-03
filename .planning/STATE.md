@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 127 of 26 (Backend Final Gap Closure)
-Plan: 08B (Part 2 of 2)
+Plan: 10
 Status: Complete
-Last activity: 2026-03-03 — Plan 127-08B completed (episode services integration tests)
+Last activity: 2026-03-03 — Plan 127-10 completed (LLM services integration tests)
 
-Progress: [████████░░] 100% (7/7 core plans + 08A + 08B complete)
+Progress: [████████░░] 100% (7/7 core plans + 08A + 08B + 10 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9 (7 core + 08A + 08B)
-- Average duration: 9.9 minutes
-- Total execution time: 1.5 hours
+- Total plans completed: 10 (7 core + 08A + 08B + 10)
+- Average duration: 10.3 minutes
+- Total execution time: 1.7 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 127 | 9 | 5955s | 662s |
+| 127 | 10 | 7043s | 704s |
 
 **Recent Trend:**
-- Last plan: 1018s (127-08B)
+- Last plan: 1088s (127-10)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -43,6 +43,7 @@ Progress: [████████░░] 100% (7/7 core plans + 08A + 08B comp
 | Phase 127 P127-07 | 480 | 3 tasks | 4 files |
 | Phase 127 P127-08A | 600 | 3 tasks | 5 files |
 | Phase 127 P127-08B | 1018 | 2 tasks | 2 files |
+| Phase 127 P127-10 | 1088 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,11 @@ Recent decisions affecting current work:
 - **CRITICAL (127-08B)**: 100% test pass rate demonstrates integration test quality
 - **CRITICAL (127-08B)**: Unique IDs for test data prevent constraint violations during reruns
 - **CRITICAL (127-08B)**: Naive datetime required for lifecycle service compatibility
+- **CRITICAL (127-10)**: 62 LLM service integration tests added (byok_handler.py: 25%, byok_endpoints.py: 41%)
+- **CRITICAL (127-10)**: Overall backend coverage unchanged at 26.15% (only 2 of 528 production files tested)
+- **CRITICAL (127-10)**: Gap to 80% target: 53.85 percentage points (realistic, not 5.4 pp)
+- **CRITICAL (127-10)**: Integration tests use graceful degradation pattern for unavailable dependencies
+- **CRITICAL (127-10)**: Endpoint tests accept 404 for unregistered routes (not all BYOK routes in main app)
 
 ### Pending Todos
 
@@ -91,7 +97,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03 (127-08B execution)
-Stopped at: Completed Phase 127 Plan 08B - Episode services integration tests (15/15 passing)
+Last session: 2026-03-03 (127-10 execution)
+Stopped at: Completed Phase 127 Plan 10 - LLM services integration tests (62 tests, byok_handler.py 25%, byok_endpoints.py 41%)
 Resume file: None
-Next phase: Continue gap closure with Plans 10-13 or review phase completion
+Next phase: Continue gap closure with integration tests for other high-impact files, or proceed to Phase 128 (Backend API Contract Testing)
