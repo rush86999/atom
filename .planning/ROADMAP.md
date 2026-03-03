@@ -331,7 +331,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Property tests validate double-entry invariants (debits = credits, balance changes sum to zero)
   3. Property tests validate audit trail immutability (entries cannot be modified after creation)
   4. All financial property tests use max_examples=200 (critical invariant)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 125-01-PLAN.md — Upgrade decimal precision and double-entry tests to max_examples=200
+- [ ] 125-02-PLAN.md — Upgrade audit immutability and financial invariants tests to max_examples=200
+- [ ] 125-03-PLAN.md — Final verification and PROP-03 requirement completion
 
 ### Phase 126: LLM Property Tests
 **Goal**: Validate LLM system invariants with Hypothesis
@@ -365,7 +368,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 122. Admin Routes Coverage | v5.1 | 6/6 | Complete | 2026-03-02 |
 | 123. Governance Property Tests | v5.1 | 4/4 | Complete | 2026-03-02 |
 | 124. Episode Property Tests | v5.1 | 0/3 | Planning | - |
-| 125. Financial Property Tests | v5.1 | 0/0 | Not started | - |
+| 125. Financial Property Tests | v5.1 | 0/3 | Planning | - |
 | 126. LLM Property Tests | v5.1 | 0/0 | Not started | - |
 
 ---
