@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 14 of 16 (Episode Property-Based Tests)
-Plan: 01 of 3 (Verify Existing Tests)
-Status: Plan 01 COMPLETE - all 74 episode property tests verified, max_examples settings audited
-Last activity: 2026-03-03T01:27:58Z — Plan 124-01 complete, 74 tests passing, 9,000+ examples, max_examples audit done
+Plan: 02 of 3 (Expand Tests & Align Settings)
+Status: Plan 02 COMPLETE - coverage gaps filled, max_examples aligned, 16 new tests added
+Last activity: 2026-03-03T01:34:06Z — Plan 124-02 complete, 90 tests passing, 8,000+ examples, all gaps filled
 
-Progress: [███░░░░░░░░░░░░░░░] 33% (Plan 01 of 3)
+Progress: [██████░░░░░░░░░░░░░] 67% (Plan 02 of 3)
 
 ## Performance Metrics
 
@@ -303,3 +303,15 @@ Resume file: None
 - ✅ Phase 123 COMPLETE - All governance invariants validated with property-based tests
 - ✅ Phase 124 Plan 01: Verify existing episode property tests - 74 tests, 9,000+ examples, max_examples audit
 - Current: Phase 124 Plan 01 COMPLETE - All episode invariants verified, max_examples alignment gaps identified
+
+**v5.1 Progress:**
+- ...
+- ✅ Phase 124 Plan 02: Expand episode property tests - 16 tests added (5 edge cases, 5 feedback+recency, 6 state transitions), max_examples aligned (100/50/200)
+- Current: Phase 124 Plan 02 COMPLETE - All coverage gaps filled, 90 tests passing, roadmap requirements met
+
+---
+
+*State updated: 2026-03-03*
+*Stopped at: Phase 124 Plan 02 COMPLETE - Episode property tests expanded and aligned*
+*Milestone: v5.1 Backend Coverage Expansion*
+*Status: Phase 124 Plan 02 complete - 16 new tests, max_examples aligned, all gaps filled*
