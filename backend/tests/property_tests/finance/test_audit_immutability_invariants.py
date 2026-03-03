@@ -45,7 +45,7 @@ class TestAuditImmutabilityInvariants:
         initial_balance=st.decimals(min_value='0', max_value='1000.00', places=2),
         new_balance=st.decimals(min_value='0', max_value='10000.00', places=2)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_audits_cannot_be_modified(self, initial_balance, new_balance):
         """
         Verify: FinancialAudit entries cannot be modified.
@@ -95,7 +95,7 @@ class TestAuditImmutabilityInvariants:
     @given(
         balance=st.decimals(min_value='0', max_value='1000.00', places=2)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_audits_cannot_be_deleted(self, balance):
         """
         Verify: FinancialAudit entries cannot be deleted.
@@ -144,7 +144,7 @@ class TestAuditImmutabilityInvariants:
     @given(
         num_entries=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_hash_chain_verifies_integrity(self, num_entries):
         """
         Verify: Hash chain correctly validates integrity.
@@ -179,7 +179,7 @@ class TestAuditImmutabilityInvariants:
     @given(
         tamper_position=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_tampered_chain_is_detected(self, tamper_position):
         """
         Verify: Tampered hash chain is detected.
@@ -221,7 +221,7 @@ class TestAuditImmutabilityInvariants:
     @given(
         num_entries=st.integers(min_value=3, max_value=30)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_prev_hash_linking_works(self, num_entries):
         """
         Verify: Each entry's prev_hash correctly links to previous entry.
@@ -264,7 +264,7 @@ class TestAuditImmutabilityInvariants:
                 f"Database: prev_hash mismatch at position {i}"
 
     @given()
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_first_entry_has_empty_prev_hash(self):
         """
         Verify: First audit entry in chain has empty prev_hash.
@@ -312,7 +312,7 @@ class TestAuditImmutabilityInvariants:
         num_accounts=st.integers(min_value=1, max_value=10),
         entries_per_account=st.integers(min_value=2, max_value=20)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_detect_tampering_across_accounts(self, num_accounts, entries_per_account):
         """
         Verify: Tampering detection works across multiple accounts.
@@ -349,7 +349,7 @@ class TestAuditImmutabilityInvariants:
     @given(
         account_id=st.uuids().map(lambda u: str(u))
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_get_chain_status(self, account_id):
         """
         Verify: Chain status provides accurate health information.
