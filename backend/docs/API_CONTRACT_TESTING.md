@@ -195,6 +195,45 @@ Check for:
 - Environment variables
 - FastAPI lifespan context issues
 
+## Pre-commit Hook (Recommended)
+
+To catch breaking changes before pushing, add a pre-commit hook:
+
+Create `.git/hooks/pre-commit`:
+
+```bash
+#!/bin/bash
+# Run contract tests before committing
+cd backend
+pytest tests/contract/ -v -m contract --maxfail=5
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "❌ Contract tests failed. Commit aborted."
+    echo "   Fix the issues or skip with: git commit --no-verify"
+    exit 1
+fi
+
+# Detect breaking changes
+python3 tests/scripts/detect_breaking_changes.py
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Breaking changes detected. Commit aborted."
+    echo "   To update baseline: python3 tests/scripts/generate_openapi_spec.py -o openapi.json"
+    echo "   To skip: git commit --no-verify"
+    exit 1
+fi
+```
+
+Make it executable:
+
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+This ensures contract violations never leave your development machine.
+
 ## References
 
 - [Schemathesis Documentation](https://schemathesis.readthedocs.io/)
