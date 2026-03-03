@@ -664,7 +664,7 @@ const TrelloIntegration: React.FC = () => {
                 <div className="flex flex-col space-y-4">
                     <div className="flex items-center space-x-4">
                         <div className="p-2 bg-[#026AA7] rounded-lg">
-                            <Layout className="w-8 h-8 text-white" />
+                            <Layout className="w-8 h-8 text-gray-900 dark:text-white" />
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-bold">Trello Integration</h1>
@@ -825,7 +825,7 @@ const TrelloIntegration: React.FC = () => {
                                                 onClick={() => setSelectedBoard(board.id)}
                                             >
                                                 <div
-                                                    className="p-4 rounded-t-lg text-white"
+                                                    className="p-4 rounded-t-lg text-gray-900 dark:text-white"
                                                     style={{ backgroundColor: getBoardBgColor(board.prefs) }}
                                                 >
                                                     <div className="flex justify-between items-start">
@@ -843,7 +843,7 @@ const TrelloIntegration: React.FC = () => {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <p className="text-sm text-white/90 mt-2 line-clamp-2">
+                                                    <p className="text-sm text-gray-900 dark:text-white/90 mt-2 line-clamp-2">
                                                         {board.desc}
                                                     </p>
                                                 </div>

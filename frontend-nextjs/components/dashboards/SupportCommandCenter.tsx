@@ -49,9 +49,9 @@ export const SupportCommandCenter: React.FC = () => {
 
     return (
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700">
-            <div className="flex justify-between items-end text-white">
+            <div className="flex justify-between items-end text-gray-900 dark:text-white">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-white/60">
                         Support Command Center
                     </h1>
                     <p className="text-muted-foreground mt-1">
@@ -63,7 +63,7 @@ export const SupportCommandCenter: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
-                        className="bg-white/5 border-white/10"
+                        className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10"
                     >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
@@ -73,7 +73,7 @@ export const SupportCommandCenter: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Search tickets..."
-                            className="pl-10 pr-10 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-white"
+                            className="pl-10 pr-10 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-64 text-gray-900 dark:text-white"
                             value={searchQuery}
                             onChange={handleSearch}
                         />
@@ -82,7 +82,7 @@ export const SupportCommandCenter: React.FC = () => {
                                 onClick={() => { setSearchQuery(''); setShowSearchResults(false); clearSearch(); }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2"
                             >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-white" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-gray-900 dark:text-white" />
                             </button>
                         )}
                     </div>
@@ -94,7 +94,7 @@ export const SupportCommandCenter: React.FC = () => {
             {showSearchResults ? (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-white">Search Results for &quot;{searchQuery}&quot;</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Search Results for &quot;{searchQuery}&quot;</h2>
                         <button onClick={() => { setShowSearchResults(false); setSearchQuery(''); clearSearch(); }} className="text-sm text-primary hover:underline">Clear Search</button>
                     </div>
                     {isSearching ? (
@@ -102,12 +102,12 @@ export const SupportCommandCenter: React.FC = () => {
                     ) : searchResults.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {searchResults.map((result: any) => (
-                                <Card key={result.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors pointer-cursor">
+                                <Card key={result.id} className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors pointer-cursor">
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="capitalize text-[10px]">{result.app_type}</Badge>
-                                                <span className="font-semibold text-white">{result.subject || result.sender}</span>
+                                                <span className="font-semibold text-gray-900 dark:text-white">{result.subject || result.sender}</span>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{new Date(result.timestamp).toLocaleString()}</span>
                                         </div>
@@ -117,7 +117,7 @@ export const SupportCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-white/10 rounded-xl">No historical tickets found for &quot;{searchQuery}&quot;.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">No historical tickets found for &quot;{searchQuery}&quot;.</div>
                     )}
                 </div>
             ) : (
@@ -125,32 +125,32 @@ export const SupportCommandCenter: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="lg:col-span-3 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardContent className="pt-6 flex flex-col items-center text-center">
                                     <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
-                                    <h4 className="font-bold text-white text-xs">SLA Warning</h4>
+                                    <h4 className="font-bold text-gray-900 dark:text-white text-xs">SLA Warning</h4>
                                     <p className="text-[10px] text-muted-foreground mt-1">2 tickets near breach</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardContent className="pt-6 flex flex-col items-center text-center">
                                     <Clock className="w-8 h-8 text-blue-400 mb-2" />
-                                    <h4 className="font-bold text-white text-xs">18m Resp</h4>
+                                    <h4 className="font-bold text-gray-900 dark:text-white text-xs">18m Resp</h4>
                                     <p className="text-[10px] text-muted-foreground mt-1">Average response time</p>
                                 </CardContent>
                             </Card>
-                            <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
+                            <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
                                 <CardContent className="pt-6 flex flex-col items-center text-center">
                                     <ShieldCheck className="w-8 h-8 text-green-400 mb-2" />
-                                    <h4 className="font-bold text-white text-xs">4.9 CSAT</h4>
+                                    <h4 className="font-bold text-gray-900 dark:text-white text-xs">4.9 CSAT</h4>
                                     <p className="text-[10px] text-muted-foreground mt-1">Customer satisfaction</p>
                                 </CardContent>
                             </Card>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Card className="lg:col-span-1 bg-black/40 border-white/5 backdrop-blur-xl h-[500px]">
-                                <CardHeader className="border-b border-white/5">
+                            <Card className="lg:col-span-1 bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl h-[500px]">
+                                <CardHeader className="border-b border-black/5 dark:border-white/5">
                                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
                                         <MessageCircle className="w-4 h-4 text-primary" />
                                         Ticket Queue
@@ -158,7 +158,7 @@ export const SupportCommandCenter: React.FC = () => {
                                 </CardHeader>
                                 <div className="overflow-y-auto h-full pb-10">
                                     {tickets.map((ticket: Ticket) => (
-                                        <div key={ticket.id} className="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group">
+                                        <div key={ticket.id} className="p-4 border-b border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 cursor-pointer transition-colors group">
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className="text-[10px] font-mono text-muted-foreground">{ticket.id}</span>
                                                 <Badge className={
@@ -169,7 +169,7 @@ export const SupportCommandCenter: React.FC = () => {
                                                     {ticket.priority}
                                                 </Badge>
                                             </div>
-                                            <h3 className="text-sm font-medium group-hover:text-primary transition-colors text-white">{ticket.subject}</h3>
+                                            <h3 className="text-sm font-medium group-hover:text-primary transition-colors text-gray-900 dark:text-white">{ticket.subject}</h3>
                                             <div className="flex items-center gap-3 mt-2">
                                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                                     <User className="w-3 h-3" /> {ticket.customer}
@@ -184,11 +184,11 @@ export const SupportCommandCenter: React.FC = () => {
                             </Card>
 
                             <div className="md:col-span-2 space-y-4">
-                                <Card className="bg-black/40 border-white/5 backdrop-blur-xl">
-                                    <CardHeader className="border-b border-white/5">
+                                <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl">
+                                    <CardHeader className="border-b border-black/5 dark:border-white/5">
                                         <div className="flex justify-between items-center">
                                             <div>
-                                                <CardTitle className="text-xl text-white">Cloud Sync Failed for Org #55</CardTitle>
+                                                <CardTitle className="text-xl text-gray-900 dark:text-white">Cloud Sync Failed for Org #55</CardTitle>
                                                 <p className="text-sm text-muted-foreground mt-1">Acme Corp • Assigned to {session?.user?.name || "Staff Member"}</p>
                                             </div>
                                             <div className="flex gap-2">
@@ -201,10 +201,10 @@ export const SupportCommandCenter: React.FC = () => {
                                             <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold shrink-0 text-white">JD</div>
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-semibold text-white">John Doe</span>
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">John Doe</span>
                                                     <span className="text-xs text-muted-foreground">10:45 AM</span>
                                                 </div>
-                                                <div className="p-3 bg-white/5 rounded-lg text-sm max-w-xl text-muted-foreground">
+                                                <div className="p-3 bg-black/5 dark:bg-white/5 rounded-lg text-sm max-w-xl text-muted-foreground">
                                                     Hey team, we&apos;re seeing persistent sync failures on the main dashboard for organization #55. Can you take a look?
                                                 </div>
                                             </div>
@@ -215,7 +215,7 @@ export const SupportCommandCenter: React.FC = () => {
                                             </div>
                                             <div className="space-y-1 text-right">
                                                 <div className="flex flex-row-reverse items-center gap-2">
-                                                    <span className="text-sm font-semibold text-white">{session?.user?.name || "You"}</span>
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">{session?.user?.name || "You"}</span>
                                                     <span className="text-xs text-muted-foreground">11:02 AM</span>
                                                 </div>
                                                 <div className="p-3 bg-primary/10 rounded-lg text-sm max-w-xl inline-block text-white">

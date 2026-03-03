@@ -79,7 +79,7 @@ export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ is
     if (!isOpen) return null;
 
     return (
-        <Card className="bg-black/40 border-white/5 backdrop-blur-xl mb-6 animate-in slide-in-from-top-2 duration-300">
+        <Card className="bg-black/5 dark:bg-black/40 border-black/5 dark:border-white/5 backdrop-blur-xl mb-6 animate-in slide-in-from-top-2 duration-300">
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -94,13 +94,13 @@ export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ is
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-24 rounded-lg bg-white/5 animate-pulse" />
+                        <div key={i} className="h-24 rounded-lg bg-black/5 dark:bg-white/5 animate-pulse" />
                     ))
                 ) : (
                     ['sales', 'projects', 'finance'].map((p) => (
-                        <div key={p} className="flex flex-col gap-2 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                        <div key={p} className="flex flex-col gap-2 p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-black/10 dark:bg-white/10 transition-colors">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-semibold capitalize text-white">{p} Pipeline</span>
+                                <span className="text-sm font-semibold capitalize text-gray-900 dark:text-white">{p} Pipeline</span>
                                 <Badge className={pipelineSettings?.[p]?.mode === 'real_time' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}>
                                     {pipelineSettings?.[p]?.mode === 'real_time' ? 'Real-Time' : 'Scheduled'}
                                 </Badge>

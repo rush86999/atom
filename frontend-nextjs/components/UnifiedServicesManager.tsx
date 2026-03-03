@@ -195,7 +195,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
       case 'healthy': return 'text-green-600';
       case 'warning': return 'text-yellow-600';
       case 'error': return 'text-red-600';
-      default: return 'text-gray-600';
+      default: return 'text-gray-600 dark:text-gray-400';
     }
   };
 
@@ -204,7 +204,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
     switch (implementation) {
       case 'mock': return 'bg-purple-100 text-purple-800';
       case 'real': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -214,16 +214,16 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
     const health = serviceConfig.health || { status: 'unknown' };
 
     return (
-      <div key={serviceName} className="border border-gray-200 rounded-lg p-4 mb-4">
+      <div key={serviceName} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
             {/* Service Icon */}
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
               {serviceName === 'Slack' ? '💬' : '👥'}
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-800">{serviceName}</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-200">{serviceName}</h3>
               <div className="flex items-center space-x-2">
                 {/* Current Implementation */}
                 <span className={`px-2 py-1 text-xs rounded-full ${getImplementationColor(serviceConfig.current)}`}>
@@ -246,7 +246,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                   onServiceHealthChange({ service: serviceName, ...h });
                 }
               })}
-              className="p-2 text-gray-500 hover:text-gray-700 rounded"
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-300 rounded"
               title="Check health"
             >
               🔄
@@ -254,7 +254,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
             <button
               onClick={() => setExpandedService(isExpanded ? null : serviceName)}
-              className="p-2 text-gray-500 hover:text-gray-700 rounded"
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-300 rounded"
               title="Toggle details"
             >
               {isExpanded ? '▲' : '▼'}
@@ -267,29 +267,29 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
           <div className="mt-4 space-y-4">
             {/* Implementation Status */}
             <div>
-              <h4 className="font-medium text-gray-700 mb-2">Implementation Status</h4>
+              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Implementation Status</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className={`p-3 rounded-lg border ${serviceConfig.mock_available ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className={`p-3 rounded-lg border ${serviceConfig.mock_available ? 'border-green-200 bg-green-50' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Mock Implementation</span>
                     <span className="text-sm">{serviceConfig.mock_available ? '✅' : '❌'}</span>
                   </div>
-                  <div className="text-xs text-gray-600">Mock data service available</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Mock data service available</div>
                 </div>
 
-                <div className={`p-3 rounded-lg border ${serviceConfig.real_available ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className={`p-3 rounded-lg border ${serviceConfig.real_available ? 'border-green-200 bg-green-50' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Real Implementation</span>
                     <span className="text-sm">{serviceConfig.real_available ? '✅' : '❌'}</span>
                   </div>
-                  <div className="text-xs text-gray-600">Real API service available</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Real API service available</div>
                 </div>
               </div>
             </div>
 
             {/* Implementation Switch */}
             <div>
-              <h4 className="font-medium text-gray-700 mb-2">Switch Implementation</h4>
+              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Switch Implementation</h4>
               <div className="flex space-x-2">
                 <button
                   onClick={() => switchImplementation(serviceName, 'mock')}
@@ -298,7 +298,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                     ? 'bg-purple-600 text-white'
                     : serviceConfig.mock_available
                       ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
                     } disabled:opacity-50`}
                 >
                   🎭 Switch to Mock
@@ -311,7 +311,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                     ? 'bg-blue-600 text-white'
                     : serviceConfig.real_available
                       ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
                     } disabled:opacity-50`}
                 >
                   🌐 Switch to Real
@@ -321,18 +321,18 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
             {/* Health Details */}
             <div>
-              <h4 className="font-medium text-gray-700 mb-2">Health Details</h4>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Health Details</h4>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">API Status:</span>
+                    <span className="text-gray-600 dark:text-gray-400">API Status:</span>
                     <span className={health.api_healthy ? 'text-green-600' : 'text-red-600'}>
                       {health.api_healthy ? '✅ Healthy' : '❌ Unhealthy'}
                     </span>
                   </div>
 
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Configuration:</span>
+                    <span className="text-gray-600 dark:text-gray-400">Configuration:</span>
                     <span className={health.config_healthy ? 'text-green-600' : 'text-red-600'}>
                       {health.config_healthy ? '✅ Valid' : '❌ Invalid'}
                     </span>
@@ -340,7 +340,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
                   {health.token_valid !== undefined && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Token Status:</span>
+                      <span className="text-gray-600 dark:text-gray-400">Token Status:</span>
                       <span className={health.token_valid ? 'text-green-600' : 'text-red-600'}>
                         {health.token_valid ? '✅ Valid' : '❌ Invalid/Expired'}
                       </span>
@@ -349,8 +349,8 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
                   {health.last_check && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Last Check:</span>
-                      <span className="text-gray-500">
+                      <span className="text-gray-600 dark:text-gray-400">Last Check:</span>
+                      <span className="text-gray-500 dark:text-gray-400">
                         {new Date(health.last_check).toLocaleString()}
                       </span>
                     </div>
@@ -358,7 +358,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
                   {health.error && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Error:</span>
+                      <span className="text-gray-600 dark:text-gray-400">Error:</span>
                       <span className="text-red-600 text-xs truncate max-w-xs">
                         {health.error}
                       </span>
@@ -370,14 +370,14 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
             {/* Quick Actions */}
             <div>
-              <h4 className="font-medium text-gray-700 mb-2">Quick Actions</h4>
+              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Actions</h4>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
                     // Navigate to service-specific dashboard
                     window.location.href = `/dashboard/communication/${serviceName.toLowerCase()}`;
                   }}
-                  className="p-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  className="p-2 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 transition-colors"
                 >
                   📊 View Dashboard
                 </button>
@@ -387,7 +387,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                     // Navigate to service-specific logs
                     window.location.href = `/logs/communication/${serviceName.toLowerCase()}`;
                   }}
-                  className="p-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  className="p-2 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 transition-colors"
                 >
                   📝 View Logs
                 </button>
@@ -401,17 +401,17 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
 
   return (
     <div className={`w-full max-w-6xl mx-auto p-6 ${className}`}>
-      <div className="bg-white rounded-lg shadow-lg">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg">
         {/* Header */}
-        <div className="border-b border-gray-200 p-6">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Unified Communication Services</h2>
-              <p className="text-gray-600">Monitor and manage Slack & Teams implementations</p>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Unified Communication Services</h2>
+              <p className="text-gray-600 dark:text-gray-400">Monitor and manage Slack & Teams implementations</p>
             </div>
             <div className="flex items-center space-x-4">
               {/* Environment Badge */}
-              <div className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
+              <div className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300">
                 Environment: {servicesStatus.environment}
               </div>
 
@@ -459,8 +459,8 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-800 mb-3">Quick Actions</h3>
+          <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">Quick Actions</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 onClick={() => {
@@ -500,7 +500,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
                 onClick={() => {
                   window.location.href = '/dashboard/communication/settings';
                 }}
-                className="p-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="p-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
               >
                 ⚙️ Settings
               </button>

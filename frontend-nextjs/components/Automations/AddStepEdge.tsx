@@ -47,7 +47,7 @@ export default function AddStepEdge({
                     <Button
                         variant="outline"
                         size="icon"
-                        className="w-6 h-6 rounded-full bg-white border-2 border-primary hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center p-0"
+                        className="w-6 h-6 rounded-full bg-white dark:bg-gray-900 border-2 border-primary hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center p-0"
                         onClick={onAddStep}
                         title="Add step here"
                     >

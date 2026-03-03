@@ -65,14 +65,14 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Sign In to ATOM</h1>
-          <p className="text-gray-600">Access your personal automation platform</p>
+          <p className="text-gray-600 dark:text-gray-400">Access your personal automation platform</p>
         </div>
 
-        <div className="bg-white p-8 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md">
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md flex items-center">
@@ -86,7 +86,7 @@ export default function SignIn() {
             {!isTwoFactorRequired ? (
               <>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Email
                   </label>
                   <input
@@ -96,13 +96,13 @@ export default function SignIn() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Password
                     </label>
                     <Link
@@ -119,13 +119,13 @@ export default function SignIn() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </>
             ) : (
               <div>
-                <label htmlFor="totpCode" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="totpCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Security Code
                 </label>
                 <input
@@ -137,9 +137,9 @@ export default function SignIn() {
                   required
                   autoFocus
                   autoComplete="one-time-code"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <p className="mt-2 text-xs text-gray-500 text-center">
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                   Enter the code from your authenticator app.
                 </p>
                 <button
@@ -162,10 +162,10 @@ export default function SignIn() {
 
             <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">Or continue with</span>
               </div>
             </div>
 
@@ -173,7 +173,7 @@ export default function SignIn() {
               <button
                 type="button"
                 onClick={() => signIn('google', { callbackUrl: '/' })}
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">🔍</span>
                 Sign in with Google
@@ -182,7 +182,7 @@ export default function SignIn() {
               <button
                 type="button"
                 onClick={() => signIn('github', { callbackUrl: '/' })}
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">⚫</span>
                 Sign in with GitHub
@@ -191,7 +191,7 @@ export default function SignIn() {
           </form>
 
           <div className="mt-4 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
               Don&apos;t have an account?{" "}
               <a href="/auth/signup" className="text-blue-500 font-medium hover:text-blue-600 underline">
                 Sign up

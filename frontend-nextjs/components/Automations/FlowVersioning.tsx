@@ -182,15 +182,15 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
     };
 
     return (
-        <div className={cn("flex h-full bg-gray-50", className)}>
+        <div className={cn("flex h-full bg-gray-50 dark:bg-gray-800", className)}>
             {/* Version List */}
-            <div className="w-80 border-r bg-white flex flex-col">
+            <div className="w-80 border-r bg-white dark:bg-gray-900 flex flex-col">
                 <div className="p-4 border-b">
                     <div className="flex items-center gap-2 mb-2">
                         <GitBranch className="w-5 h-5 text-violet-600" />
                         <h3 className="font-bold">Version History</h3>
                     </div>
-                    <p className="text-sm text-gray-500">{flowName}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{flowName}</p>
                     <p className="text-xs text-gray-400 mt-1">{versions.length} versions</p>
                 </div>
 
@@ -221,13 +221,13 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                     "w-full text-left p-3 rounded-lg mb-1 transition-colors relative",
                                     selectedVersion?.id === version.id
                                         ? "bg-violet-100 text-violet-900"
-                                        : "hover:bg-gray-100",
+                                        : "hover:bg-gray-100 dark:bg-gray-800",
                                     compareWith?.id === version.id && "ring-2 ring-blue-400"
                                 )}
                             >
                                 {/* Timeline connector */}
                                 {idx < versions.length - 1 && (
-                                    <div className="absolute left-[22px] top-[40px] bottom-[-8px] w-0.5 bg-gray-200" />
+                                    <div className="absolute left-[22px] top-[40px] bottom-[-8px] w-0.5 bg-gray-200 dark:bg-gray-800" />
                                 )}
 
                                 <div className="flex items-start gap-3">
@@ -235,7 +235,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                         "w-8 h-8 rounded-full flex items-center justify-center relative z-10",
                                         version.isCurrent
                                             ? "bg-violet-600 text-white"
-                                            : "bg-gray-200 text-gray-600"
+                                            : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                                     )}>
                                         <GitCommit className="w-4 h-4" />
                                     </div>
@@ -255,7 +255,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                                 </Badge>
                                             )}
                                         </div>
-                                        <p className="text-sm text-gray-600 truncate">
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                                             {version.message}
                                         </p>
                                         <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
@@ -284,7 +284,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
             <div className="flex-1 flex flex-col">
                 {selectedVersion ? (
                     <>
-                        <div className="p-6 border-b bg-white">
+                        <div className="p-6 border-b bg-white dark:bg-gray-900">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="flex items-center gap-3 mb-2">
@@ -298,8 +298,8 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                             </Badge>
                                         )}
                                     </div>
-                                    <p className="text-gray-600">{selectedVersion.message}</p>
-                                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                                    <p className="text-gray-600 dark:text-gray-400">{selectedVersion.message}</p>
+                                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500 dark:text-gray-400">
                                         <span className="flex items-center gap-1">
                                             <Clock className="w-4 h-4" />
                                             {formatDate(selectedVersion.createdAt)}
@@ -377,22 +377,22 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                             <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
                                                 <GitCommit className="w-5 h-5 text-violet-600" />
                                             </div>
                                             <div>
                                                 <div className="text-xl font-bold">{selectedVersion.nodeCount}</div>
-                                                <div className="text-sm text-gray-500">Total Nodes</div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">Total Nodes</div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                             <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
                                                 <ChevronRight className="w-5 h-5 text-indigo-600" />
                                             </div>
                                             <div>
                                                 <div className="text-xl font-bold">{selectedVersion.edgeCount}</div>
-                                                <div className="text-sm text-gray-500">Connections</div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">Connections</div>
                                             </div>
                                         </div>
                                     </div>
@@ -401,7 +401,7 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                         <div className="text-center">
                             <History className="w-16 h-16 mx-auto mb-4 opacity-30" />
                             <h3 className="font-semibold text-lg mb-1">Select a Version</h3>

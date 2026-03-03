@@ -655,7 +655,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                         data-testid="piece-search"
                     />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     {PIECES.length} pieces • {PIECES.reduce((a, p) => a + p.actions.length + p.triggers.length, 0)} actions
                 </p>
             </div>
@@ -668,7 +668,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                         return (
                             <div key={category} className="mb-4">
                                 {/* Category Header */}
-                                <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-gray-500 uppercase">
+                                <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                                     <CategoryIcon className="w-3 h-3" />
                                     {CATEGORY_LABELS[category] || category}
                                 </div>
@@ -686,7 +686,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                                                 onClick={() => setExpandedPiece(isExpanded ? null : piece.id)}
                                                 className={cn(
                                                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
-                                                    "hover:bg-white dark:hover:bg-gray-800",
+                                                    "hover:bg-white dark:bg-gray-900 dark:hover:bg-gray-800",
                                                     isExpanded && "bg-white dark:bg-gray-800 shadow-sm"
                                                 )}
                                             >
@@ -705,7 +705,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
 
                                             {/* Expanded Actions/Triggers */}
                                             {isExpanded && (
-                                                <div className="ml-4 mt-1 space-y-1 pl-4 border-l-2 border-gray-200">
+                                                <div className="ml-4 mt-1 space-y-1 pl-4 border-l-2 border-gray-200 dark:border-gray-700">
                                                     {/* Triggers */}
                                                     {piece.triggers.length > 0 && (
                                                         <>
@@ -721,7 +721,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                                                                     <Zap className="w-3 h-3 text-blue-500" />
                                                                     <div className="flex-1 min-w-0">
                                                                         <div className="text-sm font-medium truncate">{trigger.name}</div>
-                                                                        <div className="text-[10px] text-gray-500 truncate">{trigger.description}</div>
+                                                                        <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{trigger.description}</div>
                                                                     </div>
                                                                     <Plus className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" />
                                                                 </button>
@@ -744,7 +744,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                                                                     <Settings className="w-3 h-3 text-green-500" />
                                                                     <div className="flex-1 min-w-0">
                                                                         <div className="text-sm font-medium truncate">{action.name}</div>
-                                                                        <div className="text-[10px] text-gray-500 truncate">{action.description}</div>
+                                                                        <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{action.description}</div>
                                                                     </div>
                                                                     <Plus className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" />
                                                                 </button>
@@ -772,7 +772,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                     })}
 
                     {filteredPieces.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                             <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">No pieces found</p>
                             <p className="text-xs">Try a different search term</p>

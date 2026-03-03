@@ -55,7 +55,7 @@ const HubSpotDashboard: React.FC<HubSpotDashboardProps> = ({ analytics, loading 
   const getGrowthColor = (value: number) => {
     if (value > 0) return 'text-green-500';
     if (value < 0) return 'text-red-500';
-    return 'text-gray-500';
+    return 'text-gray-500 dark:text-gray-400';
   };
 
   const getPerformanceColorScheme = (value: number) => {

@@ -24,12 +24,12 @@ export function PasswordStrengthIndicator({ password, showRequirements = true }:
             {/* Strength bar */}
             <div>
                 <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-gray-600">Password Strength:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Password Strength:</span>
                     <span className={cn("text-sm font-semibold", strengthColor)}>
                         {strengthLabel}
                     </span>
                 </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div
                         className={cn("h-full transition-all duration-300 rounded-full", barColor)}
                         style={{ width: `${barWidth}%` }}
@@ -40,7 +40,7 @@ export function PasswordStrengthIndicator({ password, showRequirements = true }:
             {/* Requirements checklist */}
             {showRequirements && (
                 <div className="space-y-1">
-                    <p className="text-xs text-gray-600 font-medium">Requirements:</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Requirements:</p>
                     <ul className="space-y-1">
                         <RequirementItem
                             met={strength.requirements.minLength}
@@ -68,7 +68,7 @@ export function PasswordStrengthIndicator({ password, showRequirements = true }:
 
             {/* Additional feedback */}
             {!strength.isValid && strength.feedback.length > 0 && (
-                <div className="text-xs text-gray-600">
+                <div className="text-xs text-gray-600 dark:text-gray-400">
                     {strength.feedback.filter(f => !f.includes('meets all requirements')).map((item, index) => (
                         <p key={index} className="text-amber-600">• {item}</p>
                     ))}
@@ -86,7 +86,7 @@ function RequirementItem({ met, text }: { met: boolean; text: string }) {
             ) : (
                 <XCircle className="h-3 w-3 text-gray-400 flex-shrink-0" />
             )}
-            <span className={cn(met ? 'text-green-700' : 'text-gray-600')}>
+            <span className={cn(met ? 'text-green-700' : 'text-gray-600 dark:text-gray-400')}>
                 {text}
             </span>
         </li>

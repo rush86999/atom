@@ -140,19 +140,19 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
 
                     <div className="border rounded-md divide-y overflow-hidden">
                         {loading && files.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
+                            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                 <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
                                 <p>Loading files...</p>
                             </div>
                         ) : files.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
+                            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                 <Search className="w-8 h-8 mx-auto mb-2" />
                                 <p>No files found in this folder</p>
                                 <Button variant="link" onClick={() => fetchFiles('root')}>Go to Root</Button>
                             </div>
                         ) : (
                             files.map(file => (
-                                <div key={file.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                <div key={file.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors">
                                     <div className="flex items-center gap-3 min-w-0">
                                         {file.type === 'folder' ? (
                                             <Folder className="w-5 h-5 text-yellow-500 flex-shrink-0" />
@@ -161,7 +161,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                                         )}
                                         <div className="min-w-0">
                                             <p className="font-medium truncate">{file.name}</p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {file.type === 'folder' ? 'Folder' : `${file.extension?.toUpperCase() || 'FILE'} • ${formatSize(file.size)}`}
                                             </p>
                                         </div>

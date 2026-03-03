@@ -186,7 +186,7 @@ const IntegrationsPage: React.FC = () => {
       status: "complete",
       connected: false,
       icon: Edit,
-      color: "text-gray-600",
+      color: "text-gray-600 dark:text-gray-400",
       documentation: "https://developers.notion.com/",
     },
     {
@@ -269,7 +269,7 @@ const IntegrationsPage: React.FC = () => {
       status: "complete",
       connected: false,
       icon: Github,
-      color: "text-black",
+      color: "text-black dark:text-white",
       documentation: "https://docs.github.com/en/rest",
     },
     {
@@ -291,7 +291,7 @@ const IntegrationsPage: React.FC = () => {
       status: "complete",
       connected: false,
       icon: Code,
-      color: "text-black",
+      color: "text-black dark:text-white",
       documentation: "https://vercel.com/docs/api",
     },
 
@@ -541,7 +541,7 @@ const IntegrationsPage: React.FC = () => {
       case "error":
         return <AlertTriangle className="w-5 h-5 text-red-500" />;
       default:
-        return <Clock className="w-5 h-5 text-gray-500" />;
+        return <Clock className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -595,7 +595,7 @@ const IntegrationsPage: React.FC = () => {
                   <h2 className="text-xl font-bold">
                     {connectedCount} of {integrations.length} Connected
                   </h2>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     Manage your connected integrations
                   </p>
                 </div>
@@ -617,7 +617,7 @@ const IntegrationsPage: React.FC = () => {
               <div className="space-y-2">
                 <Progress value={connectionProgress} className="h-2" />
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Connection Progress</span>
+                  <span className="text-gray-600 dark:text-gray-400">Connection Progress</span>
                   <span className="font-bold">
                     {Math.round(connectionProgress)}%
                   </span>
@@ -634,7 +634,7 @@ const IntegrationsPage: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <h2 className="text-xl font-bold">Integration Health</h2>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     Monitor real-time status of all integrations
                   </p>
                 </div>
@@ -654,33 +654,33 @@ const IntegrationsPage: React.FC = () => {
                   <p className="text-2xl font-bold text-green-600">
                     {integrations.filter((i) => i.health === "healthy").length}
                   </p>
-                  <p className="text-sm text-gray-600">Healthy</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Healthy</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-2xl font-bold text-yellow-600">
                     {integrations.filter((i) => i.health === "warning").length}
                   </p>
-                  <p className="text-sm text-gray-600">Warnings</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Warnings</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-2xl font-bold text-red-600">
                     {integrations.filter((i) => i.health === "error").length}
                   </p>
-                  <p className="text-sm text-gray-600">Errors</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Errors</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold text-gray-600">
+                  <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
                     {
                       integrations.filter(
                         (i) => !i.health || i.health === "unknown",
                       ).length
                     }
                   </p>
-                  <p className="text-sm text-gray-600">Unknown</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Unknown</p>
                 </div>
               </div>
 
-              <p className="text-sm text-center text-gray-500">
+              <p className="text-sm text-center text-gray-500 dark:text-gray-400">
                 Click "View Health Dashboard" for detailed monitoring and
                 auto-refresh
               </p>
@@ -745,14 +745,14 @@ const IntegrationsPage: React.FC = () => {
 
                 <CardContent className="pt-4">
                   <div className="flex flex-col space-y-4">
-                    <p className="text-sm text-gray-600 min-h-[40px]">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 min-h-[40px]">
                       {integration.description}
                     </p>
 
                     <div className="h-px bg-gray-100 dark:bg-gray-800" />
 
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         Category: {integration.category}
                       </span>
                       {integration.connected && (

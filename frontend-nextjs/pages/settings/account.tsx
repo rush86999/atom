@@ -241,12 +241,12 @@ export default function AccountSettings() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-800 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Header */}
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
-                    <p className="mt-2 text-gray-600">Manage your account and linked authentication methods</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Account Settings</h1>
+                    <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your account and linked authentication methods</p>
                 </div>
 
                 {error && (
@@ -272,7 +272,7 @@ export default function AccountSettings() {
                             )}
                             <div>
                                 <p className="text-lg font-semibold">{accountData.user.name || 'User'}</p>
-                                <p className="text-gray-600">{accountData.user.email}</p>
+                                <p className="text-gray-600 dark:text-gray-400">{accountData.user.email}</p>
                             </div>
                         </div>
 
@@ -290,7 +290,7 @@ export default function AccountSettings() {
                             )}
                         </div>
 
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                             Member since {new Date(accountData.user.created_at).toLocaleDateString()}
                         </p>
                     </CardContent>
@@ -321,7 +321,7 @@ export default function AccountSettings() {
                                     <button
                                         type="button"
                                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300"
                                     >
                                         {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>
@@ -344,7 +344,7 @@ export default function AccountSettings() {
                                         <button
                                             type="button"
                                             onClick={() => setShowNewPassword(!showNewPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300"
                                         >
                                             {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                         </button>
@@ -420,20 +420,20 @@ export default function AccountSettings() {
                     <CardContent>
                         <div className="space-y-4">
                             {accountData.accounts.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8">
+                                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                                     No linked accounts found. Link an account to get started.
                                 </p>
                             ) : (
                                 accountData.accounts.map((account) => (
                                     <div
                                         key={account.id}
-                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                                     >
                                         <div className="flex items-center gap-4">
                                             <span className="text-3xl">{getProviderIcon(account.provider)}</span>
                                             <div>
                                                 <p className="font-medium">{getProviderLabel(account.provider)}</p>
-                                                <p className="text-sm text-gray-500">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
                                                     Connected on {new Date(account.created_at).toLocaleDateString()}
                                                 </p>
                                             </div>

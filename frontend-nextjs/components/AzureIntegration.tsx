@@ -683,7 +683,7 @@ const AzureIntegration: React.FC = () => {
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-left">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                                     <tr>
                                                         <th className="px-6 py-3">Name</th>
                                                         <th className="px-6 py-3">Size</th>
@@ -696,8 +696,8 @@ const AzureIntegration: React.FC = () => {
                                                 </thead>
                                                 <tbody>
                                                     {filteredVMs.map((vm) => (
-                                                        <tr key={vm.id} className="bg-white border-b hover:bg-gray-50">
-                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                        <tr key={vm.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                                 <div className="flex items-center space-x-2">
                                                                     <Server className="w-4 h-4 text-blue-500" />
                                                                     <span>{vm.name}</span>
@@ -770,7 +770,7 @@ const AzureIntegration: React.FC = () => {
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-left">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                                     <tr>
                                                         <th className="px-6 py-3">Name</th>
                                                         <th className="px-6 py-3">Runtime</th>
@@ -783,8 +783,8 @@ const AzureIntegration: React.FC = () => {
                                                 </thead>
                                                 <tbody>
                                                     {filteredApps.map((app) => (
-                                                        <tr key={app.id} className="bg-white border-b hover:bg-gray-50">
-                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                        <tr key={app.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                                 <div className="flex items-center space-x-2">
                                                                     <Globe className="w-4 h-4 text-blue-500" />
                                                                     <span>{app.name}</span>
@@ -871,7 +871,7 @@ const AzureIntegration: React.FC = () => {
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-left">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                                     <tr>
                                                         <th className="px-6 py-3">Name</th>
                                                         <th className="px-6 py-3">Type</th>
@@ -884,8 +884,8 @@ const AzureIntegration: React.FC = () => {
                                                 </thead>
                                                 <tbody>
                                                     {filteredStorage.map((storage) => (
-                                                        <tr key={storage.id} className="bg-white border-b hover:bg-gray-50">
-                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                        <tr key={storage.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                                 <div className="flex items-center space-x-2">
                                                                     <Database className="w-4 h-4 text-blue-500" />
                                                                     <span>{storage.name}</span>
@@ -933,7 +933,7 @@ const AzureIntegration: React.FC = () => {
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-left">
-                                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                                     <tr>
                                                         <th className="px-6 py-3">Name</th>
                                                         <th className="px-6 py-3">Location</th>
@@ -953,8 +953,8 @@ const AzureIntegration: React.FC = () => {
                                                                     .includes(searchQuery.toLowerCase()),
                                                         )
                                                         .map((rg) => (
-                                                            <tr key={rg.id} className="bg-white border-b hover:bg-gray-50">
-                                                                <td className="px-6 py-4 font-medium text-gray-900">
+                                                            <tr key={rg.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                                     <div className="flex items-center space-x-2">
                                                                         <Layers className="w-4 h-4 text-blue-500" />
                                                                         <span>{rg.name}</span>

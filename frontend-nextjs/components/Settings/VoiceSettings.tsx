@@ -67,8 +67,8 @@ const VoiceSettings = () => {
   ];
 
   return (
-    <div className="mt-6 pt-6 border-t border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Voice Settings
       </h3>
 
@@ -86,7 +86,7 @@ const VoiceSettings = () => {
 
       <div className="space-y-4">
         <div>
-          <label htmlFor="tts-provider" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="tts-provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             TTS Provider
           </label>
           <select
@@ -96,7 +96,7 @@ const VoiceSettings = () => {
               setTtsProvider(e.target.value);
               setApiKey(''); // Clear API key when provider changes
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Select a TTS provider</option>
             {providerOptions.map((option) => (
@@ -108,7 +108,7 @@ const VoiceSettings = () => {
         </div>
 
         <div>
-          <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             API Key
           </label>
           <Input

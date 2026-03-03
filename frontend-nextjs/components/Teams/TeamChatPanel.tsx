@@ -161,8 +161,8 @@ export default function TeamChatPanel({
                         </p>
                     )}
                 </div>
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                <button className="p-2 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800 rounded-lg">
+                    <MoreVertical className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 </button>
             </div>
 
@@ -204,8 +204,8 @@ export default function TeamChatPanel({
             {/* Input */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-end space-x-2">
-                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                        <Paperclip className="w-5 h-5 text-gray-500" />
+                    <button className="p-2 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-800 rounded-lg">
+                        <Paperclip className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                     </button>
                     <div className="flex-1 relative">
                         <textarea

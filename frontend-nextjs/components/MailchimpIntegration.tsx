@@ -477,7 +477,7 @@ const MailchimpIntegration: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center space-x-4">
                         <div className="p-2 bg-yellow-400 rounded-lg">
-                            <Mail className="w-8 h-8 text-black" />
+                            <Mail className="w-8 h-8 text-black dark:text-white" />
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold">Mailchimp</h1>
@@ -663,7 +663,7 @@ const MailchimpIntegration: React.FC = () => {
                             <CardContent className="p-0">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                             <tr>
                                                 <th className="px-6 py-3">Name</th>
                                                 <th className="px-6 py-3">Status</th>
@@ -676,8 +676,8 @@ const MailchimpIntegration: React.FC = () => {
                                         </thead>
                                         <tbody>
                                             {campaigns.map((campaign) => (
-                                                <tr key={campaign.id} className="bg-white border-b hover:bg-gray-50">
-                                                    <td className="px-6 py-4 font-medium text-gray-900">
+                                                <tr key={campaign.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                         {campaign.settings.subject_line}
                                                     </td>
                                                     <td className="px-6 py-4">
@@ -805,7 +805,7 @@ const MailchimpIntegration: React.FC = () => {
                             <CardContent className="p-0">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
                                             <tr>
                                                 <th className="px-6 py-3">Email</th>
                                                 <th className="px-6 py-3">Name</th>
@@ -818,8 +818,8 @@ const MailchimpIntegration: React.FC = () => {
                                         </thead>
                                         <tbody>
                                             {contacts.map((contact) => (
-                                                <tr key={contact.id} className="bg-white border-b hover:bg-gray-50">
-                                                    <td className="px-6 py-4 font-medium text-gray-900">
+                                                <tr key={contact.id} className="bg-white dark:bg-gray-900 border-b hover:bg-gray-50">
+                                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                                                         {contact.email_address}
                                                     </td>
                                                     <td className="px-6 py-4">{contact.full_name || "Unknown"}</td>

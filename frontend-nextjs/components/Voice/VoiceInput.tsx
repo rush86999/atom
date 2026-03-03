@@ -78,7 +78,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscriptChange, clas
                 }}
                 className={cn(
                     "ml-1 transition-all",
-                    wakeWordEnabled ? "text-blue-500 bg-blue-50 ring-1 ring-blue-200" : "text-gray-400 hover:text-gray-600"
+                    wakeWordEnabled ? "text-blue-500 bg-blue-50 ring-1 ring-blue-200" : "text-gray-400 hover:text-gray-600 dark:text-gray-400"
                 )}
                 title={wakeWordEnabled ? "Click to Disable Wake Word ('Hey Atom')" : "Click to Enable Wake Word ('Hey Atom')"}
             >

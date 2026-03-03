@@ -333,7 +333,7 @@ const RoleSettings: React.FC<RoleSettingsProps> = ({
             onChange={(e) => setFormData(prev => ({ ...prev, capabilities: e.target.value }))}
             placeholder="web_search, data_analysis, code_generation"
           />
-          <p className="text-sm text-gray-500">Separate capabilities with commas</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Separate capabilities with commas</p>
         </div>
 
         <Accordion type="single" collapsible className="w-full">

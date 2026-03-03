@@ -278,7 +278,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             placeholder={prop.description}
                             className="text-sm h-8"
                         />
-                        {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                        {prop.description && <p className="text-[10px] text-gray-500 dark:text-gray-400">{prop.description}</p>}
                     </div>
                 );
             case 'LONG_TEXT':
@@ -301,7 +301,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             placeholder={prop.description}
                             className="text-sm min-h-[80px]"
                         />
-                        {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                        {prop.description && <p className="text-[10px] text-gray-500 dark:text-gray-400">{prop.description}</p>}
                     </div>
                 );
             case 'NUMBER':
@@ -318,7 +318,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             placeholder={prop.description}
                             className="text-sm h-8"
                         />
-                        {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                        {prop.description && <p className="text-[10px] text-gray-500 dark:text-gray-400">{prop.description}</p>}
                     </div>
                 );
             case 'DROPDOWN':
@@ -350,7 +350,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                 })}
                             </SelectContent>
                         </Select>
-                        {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                        {prop.description && <p className="text-[10px] text-gray-500 dark:text-gray-400">{prop.description}</p>}
                     </div>
                 );
             case 'MARKDOWN':
@@ -369,7 +369,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                     <div className="flex items-center justify-between py-2">
                         <div className="space-y-0.5">
                             <Label className="text-xs font-semibold">{prop.displayName}</Label>
-                            {prop.description && <p className="text-[10px] text-gray-500">{prop.description}</p>}
+                            {prop.description && <p className="text-[10px] text-gray-500 dark:text-gray-400">{prop.description}</p>}
                         </div>
                         <Switch
                             checked={!!value}
@@ -391,7 +391,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             placeholder="Item 1, Item 2..."
                             className="text-sm min-h-[60px]"
                         />
-                        <p className="text-[10px] text-gray-500">Comma-separated values</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400">Comma-separated values</p>
                     </div>
                 );
             case 'OBJECT':
@@ -444,11 +444,11 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         metadata?.triggers?.find((t: any) => t.name === selectedNode.data.action);
 
     return (
-        <div className="w-96 border-l bg-white flex flex-col h-full shadow-2xl relative z-50 animate-in slide-in-from-right duration-300">
+        <div className="w-96 border-l bg-white dark:bg-gray-900 flex flex-col h-full shadow-2xl relative z-50 animate-in slide-in-from-right duration-300">
             {/* Header */}
-            <div className="p-4 border-b flex items-center justify-between bg-gray-50/50">
+            <div className="p-4 border-b flex items-center justify-between bg-gray-50 dark:bg-gray-800/50">
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-white rounded border shadow-sm">
+                    <div className="p-1.5 bg-white dark:bg-gray-900 rounded border shadow-sm">
                         {metadata?.icon ? (
                             <img src={metadata.icon} alt={metadata.name} className="w-5 h-5 object-contain" />
                         ) : (
@@ -456,8 +456,8 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                         )}
                     </div>
                     <div>
-                        <h3 className="font-bold text-sm text-gray-900">{metadata?.name || selectedNode.data.service}</h3>
-                        <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{selectedNode.type}</p>
+                        <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">{metadata?.name || selectedNode.data.service}</h3>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">{selectedNode.type}</p>
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
@@ -470,21 +470,21 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                 <div className="p-5 space-y-6">
                     {/* Connection Selection */}
                     {metadata?.auth && (
-                        <div className="space-y-3 p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                        <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
                             <div className="flex items-center justify-between">
                                 <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Connection</Label>
-                                <Badge variant="outline" className="text-[9px] h-4 bg-white font-mono text-purple-600 border-purple-100">
+                                <Badge variant="outline" className="text-[9px] h-4 bg-white dark:bg-gray-900 font-mono text-purple-600 border-purple-100">
                                     Required
                                 </Badge>
                             </div>
                             <div className="flex gap-2">
                                 <Select value={selectedConnection || ""} onValueChange={handleConnectionChange} disabled={isRefreshing}>
-                                    <SelectTrigger className="h-9 text-sm bg-white border-gray-200">
+                                    <SelectTrigger className="h-9 text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
                                         <SelectValue placeholder={isRefreshing ? "Refreshing..." : "Select a connection"} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {connections.length === 0 && !isRefreshing ? (
-                                            <div className="p-2 text-xs text-gray-500">No connections found. Add one below.</div>
+                                            <div className="p-2 text-xs text-gray-500 dark:text-gray-400">No connections found. Add one below.</div>
                                         ) : (
                                             connections.map(conn => {
                                                 const statusColor =
@@ -511,24 +511,24 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-9 w-9 border-gray-200 shrink-0"
+                                    className="h-9 w-9 border-gray-200 dark:border-gray-700 shrink-0"
                                     onClick={handleStartAuth}
                                     title="Add New Connection"
                                     disabled={isAuthLoading}
                                 >
-                                    {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4 text-gray-500" />}
+                                    {isAuthLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
                                 </Button>
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-9 w-9 border-gray-200 shrink-0"
+                                    className="h-9 w-9 border-gray-200 dark:border-gray-700 shrink-0"
                                     onClick={() => setIsManageModalOpen(true)}
                                     title="Manage Connections"
                                 >
-                                    <Settings className="w-4 h-4 text-gray-500" />
+                                    <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                                 </Button>
                             </div>
-                            <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 <Link2 className="h-3 w-3" />
                                 Manage your {metadata.name} authentication
                             </p>
@@ -552,7 +552,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                     <div className="space-y-5">
                         <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
                             <span>Configuration</span>
-                            <div className="h-[1px] flex-1 bg-gray-100"></div>
+                            <div className="h-[1px] flex-1 bg-gray-100 dark:bg-gray-800"></div>
                         </div>
 
                         {loading ? (
@@ -567,9 +567,9 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                                 </div>
                             ))
                         ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                            <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 dark:bg-gray-800 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
                                 <AlertCircle className="h-5 w-5 text-gray-400 mb-2" />
-                                <p className="text-xs text-gray-500 font-medium px-4">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium px-4">
                                     No configurable parameters found for this {selectedNode.type}.
                                 </p>
                             </div>
@@ -579,7 +579,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
             </ScrollArea>
 
             {/* Footer */}
-            <div className="p-4 border-t bg-gray-50/80 mt-auto">
+            <div className="p-4 border-t bg-gray-50 dark:bg-gray-800/80 mt-auto">
                 <div className="flex gap-2">
                     <Button variant="outline" className="flex-1 h-9 text-xs" onClick={onClose}>
                         Cancel

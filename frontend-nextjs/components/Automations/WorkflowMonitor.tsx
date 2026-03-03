@@ -189,7 +189,7 @@ const WorkflowMonitor: React.FC<WorkflowMonitorProps> = ({
               executions.map((exec) => (
                 <div key={exec.execution_id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                   <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full ${getStatusColor(exec.status)} bg-opacity-10 text-white`}>
+                    <div className={`p-2 rounded-full ${getStatusColor(exec.status)} bg-opacity-10 text-gray-900 dark:text-white`}>
                       {getStatusIcon(exec.status)}
                     </div>
                     <div>

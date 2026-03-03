@@ -135,7 +135,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
                         <CardContent className="flex-1 overflow-auto" ref={scrollRef}>
                             <div className="space-y-3">
                                 {steps.length === 0 ? (
-                                    <p className="text-sm text-slate-500 italic">No execution steps yet. Send a message to see the agent's reasoning.</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">No execution steps yet. Send a message to see the agent's reasoning.</p>
                                 ) : (
                                     steps.map((step, idx) => (
                                         <div key={idx} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
@@ -176,8 +176,8 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
                         </CardHeader>
                         <CardContent className="flex-1 bg-slate-950 flex items-center justify-center p-0">
                             <div className="text-center p-4">
-                                <Globe className="h-12 w-12 text-slate-700 mx-auto mb-2 opacity-20" />
-                                <p className="text-sm text-slate-500">
+                                <Globe className="h-12 w-12 text-slate-700 dark:text-slate-300 mx-auto mb-2 opacity-20" />
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
                                     Browser view will appear here when the agent is interacting with web pages.
                                 </p>
                             </div>

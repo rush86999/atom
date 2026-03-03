@@ -143,7 +143,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
       case 'high':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -159,7 +159,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
 
   if (!guideData) {
     return (
-      <div className={`integration-connection-guide bg-white rounded-lg shadow-md p-6 ${className}`}>
+      <div className={`integration-connection-guide bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 ${className}`}>
         <div className="animate-pulse flex items-center space-x-3">
           <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
           <div className="h-4 bg-gray-300 rounded w-48"></div>
@@ -209,7 +209,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
         })}
       </div>
 
-      <div className={`integration-connection-guide bg-white rounded-lg shadow-md overflow-hidden ${className}`}>
+      <div className={`integration-connection-guide bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden ${className}`}>
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
         <div className="flex items-center space-x-3">
@@ -235,14 +235,14 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg transition-colors ${
                     isCompleted ? 'bg-green-500 text-white' :
                     isActive ? 'bg-blue-600 text-white' :
-                    'bg-gray-200 text-gray-500'
+                    'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                   }`}>
                     {isCompleted ? '✓' : step.icon}
                   </div>
                   <p className={`text-xs mt-1 font-medium ${
                     isCompleted ? 'text-green-600' :
                     isActive ? 'text-blue-600' :
-                    'text-gray-500'
+                    'text-gray-500 dark:text-gray-400'
                   }`}>
                     {step.label}
                   </p>
@@ -250,7 +250,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
 
                 {index < steps.length - 1 && (
                   <div className={`flex-1 h-1 mx-2 rounded ${
-                    index < currentStepIndex ? 'bg-green-500' : 'bg-gray-200'
+                    index < currentStepIndex ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-800'
                   }`} />
                 )}
               </React.Fragment>
@@ -286,7 +286,7 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
       {/* Permissions */}
       {guideData.permissions.length > 0 && (
         <div className="px-6 py-4">
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
             🔑 Permissions Requested
           </h4>
 
@@ -295,20 +295,20 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
               <div key={index} className="border rounded-lg overflow-hidden">
                 <button
                   onClick={() => setExpandedPermission(expandedPermission === index ? null : index)}
-                  className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center space-x-3">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getRiskColor(permission.risk_level)}`}>
                       {permission.risk_level.toUpperCase()}
                     </span>
-                    <span className="font-medium text-gray-900">{permission.scope}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{permission.scope}</span>
                   </div>
                   <span>{expandedPermission === index ? '▼' : '▶'}</span>
                 </button>
 
                 {expandedPermission === index && (
-                  <div className="p-3 bg-gray-50 border-t">
-                    <p className="text-sm text-gray-700">{permission.why_needed}</p>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{permission.why_needed}</p>
                   </div>
                 )}
               </div>
@@ -321,14 +321,14 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
       {guideData.browser_session && guideData.stage === 'authorizing' && (
         <div className="px-6 py-4">
           <div className="border rounded-lg overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-900">Browser Session</span>
-              <span className="text-xs text-gray-500">
+            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Browser Session</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {guideData.browser_session.user_can_see ? '👁️ You can see' : '🔒 Agent controlled'}
               </span>
             </div>
             <div className="p-4">
-              <p className="text-sm text-gray-700 mb-2">
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                 I've opened {guideData.integration_name}'s authorization page.
               </p>
               <a
@@ -345,16 +345,16 @@ export const IntegrationConnectionGuide: React.FC<IntegrationConnectionGuideProp
       )}
 
       {/* Connection Status */}
-      <div className="px-6 py-4 bg-gray-50">
+      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">
               Connection Status
             </p>
             <p className={`text-sm font-medium ${
               guideData.connection_status.state === 'error' ? 'text-red-600' :
               guideData.stage === 'complete' ? 'text-green-600' :
-              'text-gray-900'
+              'text-gray-900 dark:text-gray-100'
             }`}>
               {guideData.connection_status.state === 'error'
                 ? guideData.connection_status.error

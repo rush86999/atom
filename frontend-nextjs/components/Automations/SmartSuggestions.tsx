@@ -154,7 +154,7 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
                         <button
                             key={suggestion.id}
                             onClick={() => onSuggestionClick(suggestion)}
-                            className="w-full flex items-center gap-3 p-2 bg-white rounded-md border border-violet-100 hover:border-violet-300 hover:shadow-sm transition-all text-left group"
+                            className="w-full flex items-center gap-3 p-2 bg-white dark:bg-gray-900 rounded-md border border-violet-100 hover:border-violet-300 hover:shadow-sm transition-all text-left group"
                         >
                             <div className={cn(
                                 "p-1.5 rounded",
@@ -167,14 +167,14 @@ export const SmartSuggestions: React.FC<SmartSuggestionsProps> = ({
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-sm text-gray-800">{suggestion.title}</span>
+                                    <span className="font-medium text-sm text-gray-800 dark:text-gray-200">{suggestion.title}</span>
                                     {suggestion.confidence >= 0.85 && (
                                         <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-green-100 text-green-700">
                                             Recommended
                                         </Badge>
                                     )}
                                 </div>
-                                <p className="text-xs text-gray-500 truncate">{suggestion.description}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{suggestion.description}</p>
                             </div>
 
                             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" />

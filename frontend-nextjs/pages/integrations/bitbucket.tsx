@@ -178,7 +178,7 @@ const BitbucketIntegrationPage: NextPage = () => {
       case "overview":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">
                 Bitbucket Integration Overview
               </h2>
@@ -218,7 +218,7 @@ const BitbucketIntegrationPage: NextPage = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <button
@@ -241,7 +241,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab("search")}
-                  className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="bg-teal-500 hover:bg-teal-600 text-gray-900 dark:text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   Search Code
                 </button>
@@ -249,7 +249,7 @@ const BitbucketIntegrationPage: NextPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">
                   Recent Repositories
                 </h3>
@@ -257,22 +257,22 @@ const BitbucketIntegrationPage: NextPage = () => {
                   {repositories.slice(0, 5).map((repo, index) => (
                     <div
                       key={index}
-                      className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                      className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
                             {repo.name}
                           </div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
                             {repo.description || "No description"}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {repo.workspace?.slug} •{" "}
                             {repo.language || "Unknown"}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {repo.size} KB
                         </div>
                       </div>
@@ -281,7 +281,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">
                   Recent Pull Requests
                 </h3>
@@ -289,17 +289,17 @@ const BitbucketIntegrationPage: NextPage = () => {
                   {pullRequests.slice(0, 5).map((pr, index) => (
                     <div
                       key={index}
-                      className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                      className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
                             {pr.title}
                           </div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
                             #{pr.id} • {pr.state}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             Created:{" "}
                             {new Date(pr.created_on).toLocaleDateString()}
                           </div>
@@ -310,7 +310,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                               ? "bg-green-100 text-green-800"
                               : pr.state === "MERGED"
                                 ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                           }`}
                         >
                           {pr.state}
@@ -326,9 +326,9 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "workspaces":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Bitbucket Workspaces</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Manage your Bitbucket workspaces and teams.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -344,16 +344,16 @@ const BitbucketIntegrationPage: NextPage = () => {
                       </span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                         {workspace.name}
                       </h3>
-                      <p className="text-sm text-gray-600">{workspace.slug}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{workspace.slug}</p>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     Type: {workspace.type || "Team"}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     Created:{" "}
                     {new Date(workspace.created_on).toLocaleDateString()}
                   </div>
@@ -365,33 +365,33 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "repositories":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">
               Bitbucket Repositories
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Browse and manage your Bitbucket repositories.
             </p>
             <div className="space-y-4">
               {repositories.map((repo, index) => (
                 <div
                   key={index}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                           {repo.name}
                         </h3>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
                           {repo.language || "Unknown"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         {repo.description || "No description available"}
                       </p>
-                      <div className="flex space-x-4 text-xs text-gray-500">
+                      <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>Workspace: {repo.workspace?.slug}</span>
                         <span>Size: {repo.size} KB</span>
                         <span>
@@ -417,23 +417,23 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "pull-requests":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">
               Bitbucket Pull Requests
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Review and manage pull requests across your repositories.
             </p>
             <div className="space-y-4">
               {pullRequests.map((pr, index) => (
                 <div
                   key={index}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                           {pr.title}
                         </h3>
                         <span
@@ -442,17 +442,17 @@ const BitbucketIntegrationPage: NextPage = () => {
                               ? "bg-green-100 text-green-800"
                               : pr.state === "MERGED"
                                 ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                           }`}
                         >
                           {pr.state}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         #{pr.id} • {pr.source?.branch?.name} →{" "}
                         {pr.destination?.branch?.name}
                       </p>
-                      <div className="flex space-x-4 text-xs text-gray-500">
+                      <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>Author: {pr.author?.display_name}</span>
                         <span>
                           Created:{" "}
@@ -481,21 +481,21 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "pipelines":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Bitbucket Pipelines</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Monitor and manage CI/CD pipelines for your repositories.
             </p>
             <div className="space-y-4">
               {pipelines.map((pipeline, index) => (
                 <div
                   key={index}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                           Pipeline #{pipeline.build_number}
                         </h3>
                         <span
@@ -506,17 +506,17 @@ const BitbucketIntegrationPage: NextPage = () => {
                                 ? "bg-red-100 text-red-800"
                                 : pipeline.state?.name === "IN_PROGRESS"
                                   ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                           }`}
                         >
                           {pipeline.state?.name || "UNKNOWN"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Repository: {pipeline.repository?.name} • Trigger:{" "}
                         {pipeline.trigger?.name}
                       </p>
-                      <div className="flex space-x-4 text-xs text-gray-500">
+                      <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>
                           Created:{" "}
                           {new Date(pipeline.created_on).toLocaleDateString()}
@@ -547,21 +547,21 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "issues":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Bitbucket Issues</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Track and manage issues across your repositories.
             </p>
             <div className="space-y-4">
               {issues.map((issue, index) => (
                 <div
                   key={index}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                           {issue.title}
                         </h3>
                         <span
@@ -570,7 +570,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                               ? "bg-green-100 text-green-800"
                               : issue.state === "closed"
                                 ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                           }`}
                         >
                           {issue.state}
@@ -581,16 +581,16 @@ const BitbucketIntegrationPage: NextPage = () => {
                               ? "bg-red-100 text-red-800"
                               : issue.kind === "enhancement"
                                 ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-800"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                           }`}
                         >
                           {issue.kind}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         {issue.content?.raw || "No description"}
                       </p>
-                      <div className="flex space-x-4 text-xs text-gray-500">
+                      <div className="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>Priority: {issue.priority}</span>
                         <span>Reporter: {issue.reporter?.display_name}</span>
                         <span>
@@ -616,11 +616,11 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "search":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">
               Bitbucket Code Search
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               Search across all your Bitbucket repositories and code.
             </p>
             <div className="space-y-4">
@@ -634,7 +634,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                   Search
                 </button>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 Search across {stats.totalRepositories} repositories and{" "}
                 {stats.totalWorkspaces} workspaces
               </div>
@@ -644,7 +644,7 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       case "settings":
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Bitbucket Settings</h2>
             <div className="space-y-4">
               <div className="border rounded-lg p-4">
@@ -663,7 +663,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                 <h3 className="text-lg font-medium mb-2">
                   OAuth Configuration
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Configure Bitbucket OAuth integration for secure access.
                 </p>
                 {!isConnected ? (
@@ -694,7 +694,7 @@ const BitbucketIntegrationPage: NextPage = () => {
 
               <div className="border rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2">API Configuration</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Manage Bitbucket API settings and access tokens.
                 </p>
                 <div className="space-y-2">
@@ -716,7 +716,7 @@ const BitbucketIntegrationPage: NextPage = () => {
 
               <div className="border rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2">Sync Settings</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Configure how often ATOM syncs with your Bitbucket instance.
                 </p>
                 <div className="space-y-2">
@@ -748,7 +748,7 @@ const BitbucketIntegrationPage: NextPage = () => {
 
               <div className="border rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2">Search Settings</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Configure search behavior and indexing preferences.
                 </p>
                 <div className="space-y-2">
@@ -782,9 +782,9 @@ const BitbucketIntegrationPage: NextPage = () => {
 
       default:
         return (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold">Bitbucket Integration</h2>
-            <p className="text-gray-600">Select a tab to get started.</p>
+            <p className="text-gray-600 dark:text-gray-400">Select a tab to get started.</p>
           </div>
         );
     }
@@ -800,15 +800,15 @@ const BitbucketIntegrationPage: NextPage = () => {
         />
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-800">
         {/* Header */}
-        <div className="bg-white shadow">
+        <div className="bg-white dark:bg-gray-900 shadow">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <div className="flex items-center">
                 <button
                   onClick={() => router.push("/integrations")}
-                  className="mr-4 text-gray-500 hover:text-gray-700"
+                  className="mr-4 text-gray-500 hover:text-gray-700 dark:text-gray-300"
                 >
                   ← Back to Integrations
                 </button>
@@ -817,10 +817,10 @@ const BitbucketIntegrationPage: NextPage = () => {
                     <span className="text-white font-bold">BB</span>
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       Bitbucket Integration
                     </h1>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 dark:text-gray-400">
                       Manage your Bitbucket repositories, pull requests, and
                       CI/CD pipelines
                     </p>
@@ -847,7 +847,7 @@ const BitbucketIntegrationPage: NextPage = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white border-b">
+        <div className="bg-white dark:bg-gray-900 border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex space-x-8 overflow-x-auto">
               {tabs.map((tab) => (
@@ -857,7 +857,7 @@ const BitbucketIntegrationPage: NextPage = () => {
                   className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:border-gray-600"
                   }`}
                 >
                   <span className="mr-2">{tab.icon}</span>

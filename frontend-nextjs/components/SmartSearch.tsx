@@ -22,8 +22,8 @@ const SmartSearch: React.FC = () => {
     return (
         <div className="space-y-4">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900">Smart Search</h2>
-                <p className="text-gray-600 mt-1">Search across all agent skills.</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Smart Search</h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Search across all agent skills.</p>
             </div>
 
             <div className="flex gap-2">
@@ -41,16 +41,16 @@ const SmartSearch: React.FC = () => {
 
             {results.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Results</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Results</h3>
                     <div className="space-y-2">
                         {results.map((result) => (
                             <Link
                                 key={result.skill}
                                 href={result.url}
-                                className="block p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                                className="block p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 transition-colors"
                             >
-                                <p className="font-semibold text-gray-900">{result.skill}</p>
-                                <p className="text-sm text-gray-600">{result.title}</p>
+                                <p className="font-semibold text-gray-900 dark:text-gray-100">{result.skill}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{result.title}</p>
                             </Link>
                         ))}
                     </div>

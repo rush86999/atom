@@ -221,7 +221,7 @@ const Dashboard: React.FC = () => {
       <div className="flex justify-between items-center">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">Atom Agent Dashboard</h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Welcome back! Manage your workflows and connected services.
           </p>
         </div>
@@ -247,7 +247,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <Clock className="w-8 h-8 text-blue-500 mb-2" />
                   <span className="text-2xl font-bold">{data.stats.upcomingEvents}</span>
-                  <span className="text-gray-500">Upcoming Events</span>
+                  <span className="text-gray-500 dark:text-gray-400">Upcoming Events</span>
                 </div>
               </CardContent>
             </Card>
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <Clock className="w-8 h-8 text-red-500 mb-2" />
                   <span className="text-2xl font-bold">{data.stats.overdueTasks}</span>
-                  <span className="text-gray-500">Overdue Tasks</span>
+                  <span className="text-gray-500 dark:text-gray-400">Overdue Tasks</span>
                 </div>
               </CardContent>
             </Card>
@@ -265,7 +265,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <MessageSquare className="w-8 h-8 text-green-500 mb-2" />
                   <span className="text-2xl font-bold">{data.stats.unreadMessages}</span>
-                  <span className="text-gray-500">Unread Messages</span>
+                  <span className="text-gray-500 dark:text-gray-400">Unread Messages</span>
                 </div>
               </CardContent>
             </Card>
@@ -274,7 +274,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <CheckCircle className="w-8 h-8 text-purple-500 mb-2" />
                   <span className="text-2xl font-bold">{data.stats.completedTasks}</span>
-                  <span className="text-gray-500">Completed Today</span>
+                  <span className="text-gray-500 dark:text-gray-400">Completed Today</span>
                 </div>
               </CardContent>
             </Card>
@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col items-center">
                   <Settings className="w-8 h-8 text-orange-500 mb-2" />
                   <span className="text-2xl font-bold">8</span>
-                  <span className="text-gray-500">Connected Services</span>
+                  <span className="text-gray-500 dark:text-gray-400">Connected Services</span>
                 </div>
               </CardContent>
             </Card>
@@ -309,7 +309,7 @@ const Dashboard: React.FC = () => {
                       >
                         <div className="space-y-1">
                           <p className="font-bold">{event.title}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {formatTime(event.start)} - {formatTime(event.end)}
                           </p>
                           {event.location && (
@@ -324,7 +324,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     ))}
                     {data.calendar.length === 0 && (
-                      <p className="text-gray-500 text-center">
+                      <p className="text-gray-500 dark:text-gray-400 text-center">
                         No events scheduled for today
                       </p>
                     )}
@@ -353,14 +353,14 @@ const Dashboard: React.FC = () => {
                     {data.tasks.slice(0, 6).map((task) => (
                       <div
                         key={task.id}
-                        className={`p-3 border rounded-md ${task.status === "completed" ? "bg-green-50" : "bg-white"
+                        className={`p-3 border rounded-md ${task.status === "completed" ? "bg-green-50" : "bg-white dark:bg-gray-900"
                           }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 space-y-1">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`font-bold ${task.status === "completed" ? "line-through text-gray-500" : ""
+                                className={`font-bold ${task.status === "completed" ? "line-through text-gray-500 dark:text-gray-400" : ""
                                   }`}
                               >
                                 {task.title}
@@ -370,7 +370,7 @@ const Dashboard: React.FC = () => {
                               </Badge>
                             </div>
                             {task.description && (
-                              <p className="text-sm text-gray-500 truncate">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                 {task.description}
                               </p>
                             )}
@@ -391,7 +391,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     ))}
                     {data.tasks.length === 0 && (
-                      <p className="text-gray-500 text-center">
+                      <p className="text-gray-500 dark:text-gray-400 text-center">
                         No tasks assigned
                       </p>
                     )}
@@ -420,7 +420,7 @@ const Dashboard: React.FC = () => {
                     {data.messages.slice(0, 5).map((message) => (
                       <div
                         key={message.id}
-                        className={`p-3 border rounded-md cursor-pointer ${message.unread ? "bg-blue-50 border-blue-200" : "bg-white"
+                        className={`p-3 border rounded-md cursor-pointer ${message.unread ? "bg-blue-50 border-blue-200" : "bg-white dark:bg-gray-900"
                           }`}
                         onClick={() => handleMarkAsRead(message.id)}
                       >
@@ -431,12 +431,12 @@ const Dashboard: React.FC = () => {
                           <div className="flex-1 space-y-1">
                             <div className="flex justify-between w-full">
                               <span className="font-bold truncate">{message.from}</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatTime(message.timestamp)}
                               </span>
                             </div>
                             <p className="font-medium truncate">{message.subject}</p>
-                            <p className="text-sm text-gray-500 line-clamp-2">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
                               {message.preview}
                             </p>
                           </div>
@@ -447,7 +447,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     ))}
                     {data.messages.length === 0 && (
-                      <p className="text-gray-500 text-center">
+                      <p className="text-gray-500 dark:text-gray-400 text-center">
                         No messages
                       </p>
                     )}

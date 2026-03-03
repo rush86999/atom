@@ -199,68 +199,7 @@ const server = setupServer(
     );
   })
 );
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        response: 'Test response',
-        session_id: 'test-session-123',
-      } as ChatStreamResponse)
-    );
-  }),
 
-  // Agent execution endpoint
-  rest.post('/api/atom-agent/execute-generated', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        execution_id: 'exec-123',
-        status: 'running',
-        message: 'Workflow execution started',
-      } as ExecuteGeneratedResponse)
-    );
-  }),
-
-  // Agent status endpoint
-  rest.get('/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
-    const { agentId } = req.params;
-    return res(
-      ctx.status(200),
-      ctx.json({
-        agent_id: agentId,
-        status: 'idle',
-        last_activity: new Date().toISOString(),
-      } as AgentStatusResponse)
-    );
-  }),
-
-  // Retrieve hybrid endpoint
-  rest.post('/api/atom-agent/agents/:agentId/retrieve-hybrid', (req, res, ctx) => {
-    const { agentId } = req.params;
-    return res(
-      ctx.status(200),
-      ctx.json({
-        results: [
-          {
-            id: 'ep-1',
-            content: 'Test episode content',
-            metadata: { agent_id: agentId },
-          },
-        ],
-        total: 1,
-      } as RetrieveHybridResponse)
-    );
-  }),
-
-  // Error handlers
-  rest.post('/api/atom-agent/chat/stream', (req, res, ctx) => {
-    // This will be overridden in specific test scenarios
-    return res(
-      ctx.status(200),
-      ctx.json({ success: true, response: 'Default response' })
-    );
-  })
-);
 
 // Server lifecycle hooks
 beforeAll(() => {

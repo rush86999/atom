@@ -84,7 +84,7 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
             case 'running':
                 return <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />;
             default:
-                return <Clock className="w-4 h-4 text-gray-500" />;
+                return <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />;
         }
     };
 
@@ -141,7 +141,7 @@ const ExecutionHistoryList: React.FC<ExecutionHistoryListProps> = ({
                     {executions.map((exec) => (
                         <TableRow
                             key={exec.execution_id}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                            className="hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 cursor-pointer"
                             onClick={() => onSelectExecution(exec.execution_id)}
                         >
                             <TableCell>

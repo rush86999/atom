@@ -169,7 +169,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
       case 'blocking':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -236,20 +236,20 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
         })}
       </div>
 
-      <div className={`agent-request-prompt bg-white rounded-lg shadow-lg p-6 border-2 ${
+      <div className={`agent-request-prompt bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 border-2 ${
       requestData.urgency === 'blocking' ? 'border-red-500' :
       requestData.urgency === 'high' ? 'border-orange-500' :
-      'border-gray-200'
+      'border-gray-200 dark:border-gray-700'
     } ${className}`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <span className="text-3xl">🤖</span>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {requestData.title}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               From: {requestData.agent_name}
             </p>
           </div>
@@ -264,7 +264,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
 
           {/* Expiration Timer */}
           {timeRemaining !== null && (
-            <span className={`text-xs font-mono ${timeRemaining < 60 ? 'text-red-600' : 'text-gray-600'}`}>
+            <span className={`text-xs font-mono ${timeRemaining < 60 ? 'text-red-600' : 'text-gray-600 dark:text-gray-400'}`}>
               {expired ? 'Expired' : formatTime(timeRemaining)}
             </span>
           )}
@@ -277,23 +277,23 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
       </div>
 
       {/* Context */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">Context</h4>
+      <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Context</h4>
 
         <div className="space-y-2 text-sm">
           <div>
-            <span className="font-medium text-gray-700">Operation: </span>
-            <span className="text-gray-900">{requestData.context.operation}</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">Operation: </span>
+            <span className="text-gray-900 dark:text-gray-100">{requestData.context.operation}</span>
           </div>
           <div>
-            <span className="font-medium text-gray-700">Impact: </span>
-            <span className="text-gray-900">{requestData.context.impact}</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">Impact: </span>
+            <span className="text-gray-900 dark:text-gray-100">{requestData.context.impact}</span>
           </div>
 
           {requestData.context.alternatives && requestData.context.alternatives.length > 0 && (
             <div>
-              <span className="font-medium text-gray-700">Alternatives: </span>
-              <ul className="list-disc list-inside text-gray-900 ml-2">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Alternatives: </span>
+              <ul className="list-disc list-inside text-gray-900 dark:text-gray-100 ml-2">
                 {requestData.context.alternatives.map((alt, index) => (
                   <li key={index}>{alt}</li>
                 ))}
@@ -305,7 +305,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
 
       {/* Options */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-900 mb-3">Choose an option:</h4>
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Choose an option:</h4>
 
         <div className="space-y-3">
           {requestData.options.map((option, index) => {
@@ -322,21 +322,21 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
                     ? 'border-blue-500 bg-blue-50'
                     : isSuggested
                     ? 'border-blue-300 bg-blue-50/50 hover:bg-blue-50'
-                    : 'border-gray-200 hover:bg-gray-50'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:bg-gray-800'
                 } ${expired || responding ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-medium text-gray-900">{option.label}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{option.label}</span>
                       {isSuggested && (
                         <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded">
                           Suggested
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{option.description}</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{option.description}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       <span className="font-medium">Consequence:</span> {option.consequences}
                     </p>
                   </div>
@@ -354,7 +354,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
       {/* Submit Button */}
       {selectedOption !== null && (
         <div className="mt-4 flex items-center justify-between">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {requestData.governance.audit_log_required && '📋 This decision will be logged for audit purposes.'}
             {requestData.governance.requires_signature && ' ✍️ Your signature will be required.'}
           </p>
@@ -362,7 +362,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
           <button
             onClick={() => selectedOption !== null && handleResponse(selectedOption)}
             disabled={expired || responding || selectedOption === null}
-            className={`px-6 py-2 rounded-lg font-medium text-white transition-colors ${
+            className={`px-6 py-2 rounded-lg font-medium text-gray-900 dark:text-white transition-colors ${
               expired || responding
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
@@ -375,7 +375,7 @@ export const AgentRequestPrompt: React.FC<AgentRequestPromptProps> = ({
 
       {/* Revocation Notice */}
       {requestData.governance.revocable && (
-        <p className="mt-4 text-xs text-gray-500 text-center">
+        <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
           You can revoke this decision at any time before the operation completes.
         </p>
       )}

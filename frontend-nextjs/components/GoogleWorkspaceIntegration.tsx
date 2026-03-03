@@ -475,7 +475,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         } else if (mimeType === "application/pdf") {
             return "text-red-500";
         } else {
-            return "text-gray-500";
+            return "text-gray-500 dark:text-gray-400";
         }
     };
 
@@ -656,7 +656,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                             return (
                                                 <div
                                                     key={doc.id}
-                                                    className="flex items-center p-4 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                                                    className="flex items-center p-4 border rounded-md hover:bg-gray-50 dark:bg-gray-800 cursor-pointer transition-colors"
                                                     onClick={() => window.open(doc.webViewLink, "_blank")}
                                                 >
                                                     <IconComponent className={`w-6 h-6 mr-4 ${getMimeTypeColor(doc.mimeType)}`} />
@@ -723,7 +723,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                         filteredSheets.map((sheet) => (
                                             <div
                                                 key={sheet.id}
-                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                                                className="flex items-center p-4 border rounded-md hover:bg-gray-50 dark:bg-gray-800 cursor-pointer transition-colors"
                                                 onClick={() => window.open(sheet.webViewLink, "_blank")}
                                             >
                                                 <Settings className="w-6 h-6 mr-4 text-green-500" />
@@ -849,7 +849,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                         </div>
                                     ) : (
                                         emails.map((email) => (
-                                            <div key={email.id} className="p-4 border rounded-md hover:bg-gray-50 transition-colors">
+                                            <div key={email.id} className="p-4 border rounded-md hover:bg-gray-50 dark:bg-gray-800 transition-colors">
                                                 <div className="flex items-start space-x-4">
                                                     <Mail className="w-6 h-6 text-red-500 mt-1" />
                                                     <div className="flex-1 space-y-1">
@@ -867,7 +867,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
                                                         <p className="text-xs text-muted-foreground">
                                                             {formatDate(email.internalDate)}
                                                         </p>
-                                                        <p className="text-sm text-gray-600 mt-2">
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                                                             {email.snippet}
                                                         </p>
                                                     </div>

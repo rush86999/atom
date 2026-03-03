@@ -93,11 +93,11 @@ export default function UnifiedCommunicationDashboard() {
     <div className="space-y-6">
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Services</p>
-              <p className="text-2xl font-bold text-gray-800">2</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Services</p>
+              <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">2</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <span className="text-xl">🚀</span>
@@ -105,10 +105,10 @@ export default function UnifiedCommunicationDashboard() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Healthy Services</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Healthy Services</p>
               <p className="text-2xl font-bold text-green-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
@@ -123,10 +123,10 @@ export default function UnifiedCommunicationDashboard() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Real Implementations</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Real Implementations</p>
               <p className="text-2xl font-bold text-blue-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
@@ -141,10 +141,10 @@ export default function UnifiedCommunicationDashboard() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Mock Implementations</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Mock Implementations</p>
               <p className="text-2xl font-bold text-purple-600">
                 {servicesStatus?.services
                   ? Object.values(servicesStatus.services).filter(
@@ -162,8 +162,8 @@ export default function UnifiedCommunicationDashboard() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
             Service Status
           </h3>
           <div className="space-y-3">
@@ -174,7 +174,7 @@ export default function UnifiedCommunicationDashboard() {
                     <span className="text-lg">
                       {name === "Slack" ? "💬" : "👥"}
                     </span>
-                    <span className="font-medium text-gray-700">{name}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{name}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span
@@ -201,32 +201,32 @@ export default function UnifiedCommunicationDashboard() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
             System Information
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Environment</span>
-              <span className="text-sm font-medium text-gray-800">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Environment</span>
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 {servicesStatus?.environment || "Unknown"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Last Updated</span>
-              <span className="text-sm font-medium text-gray-800">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Last Updated</span>
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 {servicesStatus?.timestamp
                   ? new Date(servicesStatus.timestamp).toLocaleString()
                   : "Never"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">API Status</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">API Status</span>
               <span className="text-sm font-medium text-green-600">Online</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Auto-refresh</span>
-              <span className="text-sm font-medium text-gray-800">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Auto-refresh</span>
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 30 seconds
               </span>
             </div>
@@ -242,32 +242,32 @@ export default function UnifiedCommunicationDashboard() {
       {statistics && (
         <>
           {/* Total Metrics */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
               Total Metrics
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-sm text-gray-600">Total Workspaces</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Workspaces</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                   {statistics.total_metrics.total_workspaces}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Channels</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Channels</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                   {statistics.total_metrics.total_channels}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Messages</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Messages</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                   {statistics.total_metrics.total_messages.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">API Calls Today</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-sm text-gray-600 dark:text-gray-400">API Calls Today</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                   {statistics.total_metrics.total_api_calls.toLocaleString()}
                 </p>
               </div>
@@ -279,9 +279,9 @@ export default function UnifiedCommunicationDashboard() {
             {Object.entries(statistics.services).map(([serviceName, stats]) => (
               <div
                 key={serviceName}
-                className="bg-white border border-gray-200 rounded-lg p-6"
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
               >
-                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
                   <span>{serviceName === "slack" ? "💬" : "👥"}</span>
                   <span>
                     {serviceName === "slack" ? "Slack" : "Microsoft Teams"}
@@ -298,41 +298,41 @@ export default function UnifiedCommunicationDashboard() {
 
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Workspaces</span>
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Workspaces</span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {stats.metrics.workspaces_count}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Channels</span>
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Channels</span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {stats.metrics.channels_count}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Messages</span>
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Messages</span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {stats.metrics.messages_count.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       API Calls Today
                     </span>
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {stats.metrics.api_calls_today.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       Average Response Time
                     </span>
-                    <span className="text-sm font-medium text-gray-800">
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {stats.metrics.average_response_time.toFixed(0)}ms
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Uptime</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Uptime</span>
                     <span
                       className={`text-sm font-medium ${stats.metrics.uptime_percentage >= 99
                           ? "text-green-600"
@@ -352,8 +352,8 @@ export default function UnifiedCommunicationDashboard() {
       )}
 
       {!statistics && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-          <div className="text-gray-500">No statistics data available</div>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-center">
+          <div className="text-gray-500 dark:text-gray-400">No statistics data available</div>
           <button
             onClick={fetchDashboardData}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -368,31 +368,31 @@ export default function UnifiedCommunicationDashboard() {
   // Render settings tab
   const renderSettings = () => (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
           Dashboard Settings
         </h3>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-gray-700">Auto-refresh</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-medium text-gray-700 dark:text-gray-300">Auto-refresh</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Automatically refresh dashboard data
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-gray-900 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-gray-700">Refresh Interval</p>
-              <p className="text-sm text-gray-500">How often to refresh data</p>
+              <p className="font-medium text-gray-700 dark:text-gray-300">Refresh Interval</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">How often to refresh data</p>
             </div>
-            <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <select className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm">
               <option value="30">30 seconds</option>
               <option value="60">1 minute</option>
               <option value="300">5 minutes</option>
@@ -402,57 +402,57 @@ export default function UnifiedCommunicationDashboard() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-gray-700">Notifications</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-medium text-gray-700 dark:text-gray-300">Notifications</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Show service status notifications
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-gray-900 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
           API Configuration
         </h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               API Base URL
             </label>
             <input
               type="text"
               defaultValue={apiConfig.baseUrl}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg"
               placeholder="http://localhost:8000"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Connection Timeout
               </label>
               <input
                 type="number"
                 defaultValue="30"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg"
                 placeholder="30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Retry Attempts
               </label>
               <input
                 type="number"
                 defaultValue="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg"
                 placeholder="3"
               />
             </div>
@@ -463,20 +463,20 @@ export default function UnifiedCommunicationDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Unified Communication Services
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             Monitor and manage Slack and Microsoft Teams integrations
           </p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-8 border-b border-gray-200">
+        <div className="mb-8 border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8">
             {[
               { id: "overview", label: "Overview", icon: "📊" },
@@ -489,7 +489,7 @@ export default function UnifiedCommunicationDashboard() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                     ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:border-gray-600"
                   }`}
               >
                 <span>{tab.icon}</span>

@@ -257,6 +257,57 @@ async def get_audit_log(transaction_id: Optional[str] = None):
     )
 
 
+# ==================== EXPORTS ====================
+
+@router.get("/export/gl")
+async def export_gl():
+    """Export General Ledger as CSV"""
+    from core.ai_accounting_engine import ai_accounting
+    from fastapi import Response
+    
+    csv_content = ai_accounting.export_general_ledger_csv()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=general_ledger.csv"}
+    )
+
+@router.get("/export/trial-balance")
+async def export_trial_balance():
+    """Export Trial Balance as JSON"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    data = ai_accounting.export_trial_balance_json()
+    return router.success_response(
+        data=data,
+        message="Trial balance exported successfully"
+    )
+
+# ==================== FORECASTING & SCENARIO ====================
+
+@router.get("/forecast")
+async def get_forecast(workspace_id: str = "default"):
+    """Get 13-week cash flow forecast"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    data = ai_accounting.get_13_week_forecast()
+    return router.success_response(
+        data=data,
+        message="Forecast generated successfully"
+    )
+
+@router.post("/scenario")
+async def run_scenario(workspace_id: str = "default", scenario_description: str = ""):
+    """Analyze a what-if scenario"""
+    from core.ai_accounting_engine import ai_accounting
+    
+    base_forecast = ai_accounting.get_13_week_forecast().get("projection", [])
+    data = ai_accounting.run_scenario(scenario_description, base_forecast)
+    return router.success_response(
+        data=data,
+        message="Scenario analyzed successfully"
+    )
+
 # ==================== DASHBOARD SYNC ====================
 
 @router.get("/dashboard/summary")

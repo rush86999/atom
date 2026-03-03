@@ -3,7 +3,7 @@ import CommunicationCommandCenter from '@/components/dashboards/CommunicationCom
 
 const CommunicationPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
+    <div className="min-h-screen bg-[#0A0A0A] text-gray-900 dark:text-white">
       <CommunicationCommandCenter />
     </div>
   );
