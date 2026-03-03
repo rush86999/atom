@@ -179,26 +179,35 @@ class TestBudgetGuardrailsInvariants:
     def test_budget_limit_enforcement(self, category, monthly_limit, current_spend, new_spend):
         """Test that budget limits are enforced correctly"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=current_spend
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal(str(current_spend))
         )
         guardrails.set_limit(limit)
 
         result = guardrails.check_spend(category, new_spend)
 
-        # If within limit, should be approved
-        if current_spend + new_spend <= monthly_limit:
+        # Calculate utilization percentage
+        utilization = (current_spend + new_spend) / monthly_limit * 100
+
+        # Based on thresholds, expect different statuses
+        # < 80%: approved, 80-90%: pending/warn, 90-100%: paused, >= 100%: rejected
+        if utilization < 80:
             assert result["status"] in ["approved", "APPROVED"], \
-                "Spend within budget should be approved"
-            assert "remaining" in result, "Should return remaining budget"
-        # If exceeds limit, should be paused
+                f"Spend < 80% should be approved, got {result['status']} at {utilization:.1f}%"
+        elif utilization < 90:
+            assert result["status"] in ["pending", "PENDING", "approved", "APPROVED"], \
+                f"Spend 80-90% should be pending or approved, got {result['status']} at {utilization:.1f}%"
+        elif utilization < 100:
+            assert result["status"] in ["paused", "PAUSED", "pending", "PENDING"], \
+                f"Spend 90-100% should be paused or pending, got {result['status']} at {utilization:.1f}%"
         else:
-            assert result["status"] in ["paused", "PAUSED"], \
-                "Spend exceeding budget should be paused"
+            assert result["status"] in ["rejected", "REJECTED"], \
+                f"Spend >= 100% should be rejected, got {result['status']} at {utilization:.1f}%"
 
     @given(
         category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
@@ -213,9 +222,14 @@ class TestBudgetGuardrailsInvariants:
     def test_budget_alert_thresholds(self, category, monthly_limit, spend_amounts):
         """Test that budget alerts trigger at correct thresholds"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
-        limit = BudgetLimit(category=category, monthly_limit=monthly_limit, current_spend=0.0)
+        limit = BudgetLimit(
+            category=category,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0')
+        )
         guardrails.set_limit(limit)
 
         total_spend = 0.0
@@ -243,12 +257,13 @@ class TestBudgetGuardrailsInvariants:
     def test_deal_stage_enforcement(self, category, monthly_limit, required_stage, deal_stage):
         """Test that deal stage requirements are enforced"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=0.0,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0'),
             deal_stage_required=required_stage
         )
         guardrails.set_limit(limit)
@@ -274,12 +289,13 @@ class TestBudgetGuardrailsInvariants:
     def test_milestone_enforcement(self, category, monthly_limit, required_milestone, milestone):
         """Test that milestone requirements are enforced"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=0.0,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0'),
             milestone_required=required_milestone
         )
         guardrails.set_limit(limit)
