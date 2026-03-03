@@ -127,6 +127,48 @@ Check `.github/workflows/contract-tests.yml` for `pull_request` trigger.
 
 The workflow sets `continue-on-error: false` for contract tests.
 
+## Common Mistakes to Avoid
+
+### ❌ Manual TestClient Calls
+
+```python
+# WRONG: Manual HTTP calls bypass Schemathesis validation
+def test_health_endpoint(self):
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code in [200, 400, 401, 403, 404]  # Too loose!
+```
+
+### ✅ Schemathesis Property-Based Testing
+
+```python
+# CORRECT: Schemathesis validates schema automatically
+@schema.parametrize(endpoint="/health")
+@settings(max_examples=10, deadline=None)
+def test_health_endpoint_contracts(self, case):
+    response = case.call_and_validate()  # Validates schema!
+    assert response.status_code in [200, 503]  # Business logic only
+```
+
+**Key differences:**
+1. Use `@schema.parametrize()` decorator - generates diverse test cases
+2. Use `case.call_and_validate()` - automatic schema validation
+3. Remove loose status code assertions - Schemathesis handles it
+4. Hypothesis generates edge cases you wouldn't think of
+
+## Running Contract Tests (Updated)
+
+```bash
+# Run all contract tests
+pytest tests/contract/ -v -m contract
+
+# Run specific test file
+pytest tests/contract/test_core_api.py -v
+
+# Run with more examples (slower but more thorough)
+pytest tests/contract/ -v -m contract --hypothesis-max-examples=100
+```
+
 ## Troubleshooting
 
 ### Schemathesis fails with import error
