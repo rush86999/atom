@@ -152,24 +152,25 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - [ ] 127-09-PLAN.md — CI quality gate enforcement and pre-commit hooks
 
 ### Phase 128: Backend API Contract Testing
-**Goal**: API contract testing operational with OpenAPI spec validation
+**Goal**: API contract testing operational with OpenAPI spec validation ✅
 **Depends on**: Phase 127
 **Requirements**: BACKEND-02
+**Status**: Complete (2026-03-03)
 **Success Criteria** (what must be TRUE):
-  1. OpenAPI spec auto-generated from FastAPI endpoints
-  2. Schemathesis validates all API contracts against OpenAPI spec
-  3. Breaking changes detected during contract validation
-  4. CI workflow runs contract tests on every PR
-  5. Contract violations block merge with specific failure details
-**Plans**: 8 plans (5 original + 3 gap closure)
+  1. OpenAPI spec auto-generated from FastAPI endpoints ✅
+  2. Schemathesis validates all API contracts against OpenAPI spec ✅
+  3. Breaking changes detected during contract validation ✅
+  4. CI workflow runs contract tests on every PR ✅
+  5. Contract violations block merge with specific failure details ✅
+**Plans**: 8 plans (5 original + 3 gap closure) - All complete
 - [x] 128-01-PLAN.md — Contract testing infrastructure (Schemathesis fixtures, OpenAPI generation)
 - [x] 128-02-PLAN.md — Critical endpoint contract tests (core, canvas, governance)
 - [x] 128-03-PLAN.md — Breaking change detection (openapi-diff, baseline spec)
 - [x] 128-04-PLAN.md — CI workflow integration (contract-tests.yml)
 - [x] 128-05-PLAN.md — Documentation and finalization
-- [ ] 128-06-PLAN.md — Rewrite tests with @schema.parametrize() decorator (Gap 1 - BLOCKER)
-- [ ] 128-07-PLAN.md — Fix breaking change detection error handling (Gap 2 - WARNING)
-- [ ] 128-08-PLAN.md — Update CI and documentation for strict validation (Gap 3 - WARNING)
+- [x] 128-06-PLAN.md — Rewrite tests with operation.validate_response() (Gap 1 - BLOCKER) ✅
+- [x] 128-07-PLAN.md — Fix breaking change detection error handling (Gap 2 - WARNING) ✅
+- [x] 128-08-PLAN.md — Update CI and documentation for strict validation (Gap 3 - WARNING) ✅
 
 ### Phase 129: Backend Critical Error Paths
 **Goal**: Critical error paths tested (database failures, timeouts, rate limiting)
@@ -466,8 +467,8 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 127. Backend Final Gap Closure | v5.2 | 0/TBD | Not started | - |
-| 128. Backend API Contract Testing | v5.2 | 0/TBD | Not started | - |
+| 127. Backend Final Gap Closure | v5.2 | 12/12 | Complete | 2026-03-03 |
+| 128. Backend API Contract Testing | v5.2 | 8/8 | Complete | 2026-03-03 |
 | 129. Backend Critical Error Paths | v5.2 | 0/TBD | Not started | - |
 | 130. Frontend Module Coverage | v5.2 | 0/TBD | Not started | - |
 | 131. Frontend Custom Hooks | v5.2 | 0/TBD | Not started | - |
