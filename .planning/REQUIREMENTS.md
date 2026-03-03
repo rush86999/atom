@@ -36,7 +36,11 @@ Requirements for backend coverage expansion milestone. Each maps to roadmap phas
 
 ### Property-Based Testing
 
-- [ ] **PROP-01**: Governance invariants tested — Maturity routing, permission checks, cache consistency validated with Hypothesis
+- [x] **PROP-01**: Governance invariants tested — Maturity routing, permission checks, cache consistency validated with Hypothesis (Phase 123, 2026-03-02)
+  - 59 property tests passing
+  - 8,900+ Hypothesis-generated examples
+  - 3 coverage gaps closed (async, cache correctness, edge cases)
+  - Invariants: maturity routing, permission consistency, cache <1ms P99
 - [ ] **PROP-02**: Episode invariants tested — Segmentation logic, retrieval ranking, lifecycle transitions validated
 - [ ] **PROP-03**: Financial invariants tested — Decimal precision, double-entry validation, audit immutability validated
 - [ ] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated
@@ -85,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-03 | Phase 120 | Pending |
 | API-04 | Phase 121 | Pending |
 | API-05 | Phase 122 | Pending |
-| PROP-01 | Phase 123 | Pending |
+| PROP-01 | Phase 123 | Complete |
 | PROP-02 | Phase 124 | Pending |
 | PROP-03 | Phase 125 | Pending |
 | PROP-04 | Phase 126 | Pending |
