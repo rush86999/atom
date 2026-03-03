@@ -85,7 +85,7 @@ class TestTemporalRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=50),
         limit=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_temporal_retrieval_respects_limit(self, episode_count, limit):
         """Test that temporal retrieval respects the limit parameter"""
         # Simulate episodes
@@ -118,7 +118,7 @@ class TestTemporalRetrievalInvariants:
             max_size=50
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_temporal_retrieval_chronological_ordering(self, timestamps):
         """Test that temporal retrieval returns results in chronological order"""
         # Simulate episodes with timestamps
@@ -199,7 +199,8 @@ class TestSemanticRetrievalInvariants:
         query_count=st.integers(min_value=1, max_value=20),
         result_limit=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_semantic_retrieval_limit_enforcement(self, query_count, result_limit):
         """Test that semantic retrieval respects result limits"""
         # Simulate multiple queries returning results
@@ -259,7 +260,8 @@ class TestSequentialRetrievalInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_sequential_retrieval_segment_ordering(self, episode_count):
         """Test that sequential retrieval returns segments in order"""
         # Simulate episodes with ordered segments
@@ -297,7 +299,8 @@ class TestContextualRetrievalInvariants:
         ),
         st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_contextual_retrieval_hybrid_scoring(self, score_pairs, temporal_weight):
         """Test that contextual retrieval uses hybrid scoring correctly"""
         # Unzip the pairs
@@ -320,7 +323,8 @@ class TestContextualRetrievalInvariants:
         base_limit=st.integers(min_value=5, max_value=50),
         boost_factor=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_contextual_retrieval_feedback_boosting(self, base_limit, boost_factor):
         """Test that contextual retrieval applies feedback boosting"""
         # Simulate episodes with feedback scores
@@ -356,7 +360,8 @@ class TestEpisodeFilteringInvariants:
         total_episodes=st.integers(min_value=10, max_value=100),
         active_ratio=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_status_filtering(self, total_episodes, active_ratio):
         """Test that episode status filtering works correctly"""
         # Simulate episodes with different statuses
@@ -385,7 +390,8 @@ class TestEpisodeFilteringInvariants:
         episode_count=st.integers(min_value=10, max_value=100),
         user_count=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_user_filtering(self, episode_count, user_count):
         """Test that episode filtering by user works correctly"""
         # Simulate episodes assigned to different users
@@ -428,7 +434,8 @@ class TestEpisodeAccessLoggingInvariants:
     @given(
         access_count=st.integers(min_value=1, max_value=100)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_log_completeness(self, access_count):
         """Test that all episode accesses are logged"""
         # Simulate access logs
@@ -459,7 +466,8 @@ class TestEpisodeAccessLoggingInvariants:
         agent_count=st.integers(min_value=1, max_value=20),
         access_per_agent=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_log_agent_tracking(self, agent_count, access_per_agent):
         """Test that access logs track all agent activity"""
         # Simulate agent accesses
@@ -498,7 +506,8 @@ class TestEpisodeIntegrityInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_boundary_consistency(self, episode_count):
         """Test that episode boundaries are consistent"""
         # Simulate episodes with start/end times
@@ -526,7 +535,8 @@ class TestEpisodeIntegrityInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         segment_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_segment_time_ordering(self, episode_count, segment_count):
         """Test that segments within an episode are time-ordered"""
         now = datetime.now()
@@ -553,7 +563,8 @@ class TestEpisodeIntegrityInvariants:
     @given(
         embedding_dimensions=st.integers(min_value=128, max_value=1536)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_embedding_dimension_consistency(self, embedding_dimensions):
         """Test that embedding dimensions are consistent"""
         # Simulate embeddings with specified dimensions
@@ -585,7 +596,8 @@ class TestCanvasAwareRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         canvas_action_count=st.integers(min_value=0, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_action_count_tracking(self, episode_count, canvas_action_count):
         """Test that canvas actions are counted per episode"""
         # Simulate episodes with canvas actions
@@ -609,7 +621,8 @@ class TestCanvasAwareRetrievalInvariants:
         canvas_type=st.sampled_from(['sheets', 'charts', 'forms', 'docs', 'email', 'terminal', 'coding', 'generic']),
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_type_filtering(self, canvas_type, episode_count):
         """Test that episodes can be filtered by canvas type"""
         # Simulate episodes with different canvas types
@@ -636,7 +649,8 @@ class TestCanvasAwareRetrievalInvariants:
         base_score=st.floats(min_value=0.0, max_value=0.9, allow_nan=False, allow_infinity=False),
         has_canvas_actions=st.booleans()
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_boost_application(self, base_score, has_canvas_actions):
         """Test that canvas presence boosts retrieval score"""
         # Canvas boost: +0.1 if actions present
@@ -660,7 +674,8 @@ class TestCanvasAwareRetrievalInvariants:
             min_size=1, max_size=10
         )
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_action_type_tracking(self, action_types):
         """Test that canvas action types are tracked"""
         # Valid action types
@@ -685,7 +700,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         feedback_count=st.integers(min_value=0, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_count_tracking(self, episode_count, feedback_count):
         """Test that feedback counts are tracked per episode"""
         # Simulate episodes with feedback
@@ -709,7 +725,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         positive_count=st.integers(min_value=0, max_value=10),
         negative_count=st.integers(min_value=0, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_aggregation_score(self, positive_count, negative_count):
         """Test that feedback is aggregated into a score"""
         # Calculate aggregate score
@@ -729,7 +746,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         has_positive_feedback=st.booleans(),
         has_negative_feedback=st.booleans()
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_score_adjustment(self, base_score, has_positive_feedback, has_negative_feedback):
         """Test that feedback adjusts retrieval score with clamping"""
         adjusted_score = base_score
@@ -758,7 +776,8 @@ class TestFeedbackLinkedRetrievalInvariants:
     @given(
         rating=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_rating_normalization(self, rating):
         """Test that ratings are normalized to [-1, 1]"""
         # Normalize: (rating - 3) / 2
@@ -776,7 +795,8 @@ class TestEpisodePaginationInvariants:
         total_episodes=st.integers(min_value=10, max_value=200),
         page_size=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_page_count(self, total_episodes, page_size):
         """Test that pagination calculates page count correctly"""
         # Calculate expected page count
@@ -794,7 +814,8 @@ class TestEpisodePaginationInvariants:
         page_size=st.integers(min_value=5, max_value=30),
         page_number=st.integers(min_value=0, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_offset_calculation(self, total_episodes, page_size, page_number):
         """Test that pagination offset is calculated correctly"""
         # Calculate offset
@@ -817,7 +838,8 @@ class TestEpisodePaginationInvariants:
         page_size=st.integers(min_value=1, max_value=100),
         total_items=st.integers(min_value=0, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_page_size_enforcement(self, page_size, total_items):
         """Test that page size is enforced"""
         # Simulate items
@@ -841,7 +863,8 @@ class TestEpisodePaginationInvariants:
         total_episodes=st.integers(min_value=10, max_value=100),
         page_size=st.integers(min_value=5, max_value=30)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_total_count(self, total_episodes, page_size):
         """Test that pagination preserves total count"""
         # Simulate pagination
@@ -868,7 +891,8 @@ class TestEpisodeCachingInvariants:
         cache_size=st.integers(min_value=10, max_value=100),
         access_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_cache_size_limit(self, cache_size, access_count):
         """Test that cache respects size limits"""
         # Simulate cache
@@ -897,7 +921,8 @@ class TestEpisodeCachingInvariants:
         hot_episodes=st.integers(min_value=1, max_value=20),
         cold_episodes=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_hot_cold_separation(self, hot_episodes, cold_episodes):
         """Test that hot and cold episodes are separated"""
         # Simulate hot (frequently accessed) and cold (rarely accessed) episodes
@@ -936,7 +961,8 @@ class TestEpisodeCachingInvariants:
     @given(
         cache_key_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_cache_key_uniqueness(self, cache_key_count):
         """Test that cache keys are unique"""
         # Simulate cache keys
@@ -960,7 +986,8 @@ class TestEpisodeSecurityInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         user_count=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_user_isolation(self, episode_count, user_count):
         """Test that users can only access their own episodes"""
         # Simulate episodes owned by different users
@@ -986,7 +1013,8 @@ class TestEpisodeSecurityInvariants:
         episode_count=st.integers(min_value=1, max_value=20),
         maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_maturity_based_access(self, episode_count, maturity_level):
         """Test that episode access respects agent maturity"""
         # Define access rules
@@ -1010,7 +1038,8 @@ class TestEpisodeSecurityInvariants:
     @given(
         agent_count=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_audit_trail(self, agent_count):
         """Test that all episode accesses are logged"""
         # Simulate access logs
@@ -1039,7 +1068,8 @@ class TestEpisodeSecurityInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_sensitive_data_filtering(self, episode_count):
         """Test that sensitive data is filtered from episodes"""
         # Simulate episodes with potentially sensitive data
