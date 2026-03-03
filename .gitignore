@@ -761,3 +761,9 @@ tests/archive/
 mobile/coverage/html/
 !mobile/coverage/coverage-final.json/
 !mobile/coverage/coverage-summary.json/
+
+# OpenAPI specs (baseline committed, temp files ignored)
+/openapi_new.json
+/openapi_current.json
+/openapi_*.json
+!/openapi.json
