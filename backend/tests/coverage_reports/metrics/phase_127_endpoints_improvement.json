@@ -1,0 +1,9 @@
+{
+  "file": "core/atom_agent_endpoints.py",
+  "baseline_coverage": 11.97982345523329,
+  "new_coverage": 17.150063051702396,
+  "improvement": 5.17,
+  "lines_covered_before": 95,
+  "lines_covered_after": 136,
+  "lines_added": 41
+}
