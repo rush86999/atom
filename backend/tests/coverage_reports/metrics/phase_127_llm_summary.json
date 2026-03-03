@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-03-03T14:25:00Z",
+  "plan": "127-10",
+  "plan_name": "LLM Services Integration Tests",
+  "baseline_percentage": 26.15,
+  "target_percentage": 80.0,
+  "files_tested": {
+    "core/llm/byok_handler.py": {
+      "statements": 654,
+      "covered": 163,
+      "coverage_percentage": 24.9,
+      "improvement_from_baseline": "New tests added"
+    },
+    "core/byok_endpoints.py": {
+      "statements": 498,
+      "covered": 205,
+      "coverage_percentage": 41.2,
+      "improvement_from_baseline": "New tests added"
+    }
+  },
+  "tests_added": 62,
+  "test_files": [
+    "test_byok_handler_integration.py (31 tests)",
+    "test_llm_endpoints_integration.py (31 tests)"
+  ],
+  "coverage_achievements": {
+    "byok_handler": "25% coverage (163/654 lines)",
+    "byok_endpoints": "41% coverage (205/498 lines)"
+  },
+  "overall_backend_coverage": "26.15% (no measurable overall change)",
+  "gap_to_80_percent_target": 53.85,
+  "key_improvements": [
+    "Added 31 integration tests for BYOKHandler class methods",
+    "Added 31 integration tests for BYOK API endpoints",
+    "Coverage for byok_handler.py increased from 0% to 25%",
+    "Coverage for byok_endpoints.py increased from 0% to 41%"
+  ],
+  "next_steps": [
+    "Continue gap closure with integration tests for other high-impact files",
+    "Focus on files with >50% missing coverage potential",
+    "Add integration tests that actually call production code paths"
+  ],
+  "notes": "These integration tests increase coverage for specific LLM service files. Overall backend coverage remains at 26.15% because these tests cover only 2 files out of 528 total production files."
+}
