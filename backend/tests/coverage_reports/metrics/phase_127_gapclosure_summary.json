@@ -1,0 +1,74 @@
+{
+  "phase": "127",
+  "gap_closure_plans": [
+    "127-07",
+    "127-08A",
+    "127-08B",
+    "127-10",
+    "127-11",
+    "127-12",
+    "127-13",
+    "127-09"
+  ],
+  "timestamp": "2026-03-03T15:17:17.938308+00:00",
+  "measurements": {
+    "baseline_percentage": 26.15,
+    "interim_percentage": 26.15,
+    "final_percentage": 26.15
+  },
+  "improvements": {
+    "interim_improvement_pp": 0.0,
+    "final_improvement_pp": 0.0,
+    "total_improvement_pp": 0.0
+  },
+  "target": {
+    "percentage": 80.0,
+    "gap_remaining_pp": 53.85,
+    "status": "NOT_MET"
+  },
+  "tests_added_during_gap_closure": {
+    "plan_04": 20,
+    "plan_07": 0,
+    "plan_08A": 24,
+    "plan_08B": 17,
+    "plan_09": 0,
+    "plan_10": 42,
+    "plan_11": 20,
+    "plan_12": 42,
+    "plan_13": 41,
+    "total": 206
+  },
+  "individual_file_improvements": {
+    "workflow_engine_py": "+8.64 pp (0% \u2192 8.64%)",
+    "world_model_py": "+12.5 pp (18% \u2192 30.5%)",
+    "episode_services_avg": "+7.5 pp (average across 5 files)",
+    "byok_handler_py": "+25 pp (35% \u2192 60%)",
+    "canvas_tool_py": "+40.76 pp (0% \u2192 40.76%)",
+    "browser_tool_py": "+57 pp (0% \u2192 57%)",
+    "device_tool_py": "+64 pp (0% \u2192 64%)",
+    "governance_services": "+10-20 pp (average across 4 files)"
+  },
+  "quality_gates": {
+    "ci_enforcement": "ENABLED",
+    "pre_commit_hook": "ENABLED",
+    "fail_under_threshold": 80.0
+  },
+  "next_steps": {
+    "estimated_additional_tests_needed": 538,
+    "recommended_next_phase": "127-14",
+    "focus_areas": [
+      "High-impact files with most missing lines",
+      "API endpoints (TestClient integration tests)",
+      "Service layer business logic",
+      "Router integration tests for all API modules"
+    ],
+    "lessons_learned": [
+      "Overall backend coverage (26.15%) diluted across 528 files",
+      "Individual file improvements significant but not reflected globally",
+      "Integration tests effective for file-specific coverage (+8-64 pp)",
+      "Property tests improve correctness but don't increase coverage",
+      "26.15% is realistic baseline (core/, api/, tools/ only)",
+      "Gap to 80% target: 53.85 percentage points (not 5.4 pp as originally claimed)"
+    ]
+  }
+}
