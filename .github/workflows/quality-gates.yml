@@ -1,0 +1,75 @@
+name: Coverage Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  coverage-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comparison
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements*.txt'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -q -r requirements.txt
+          pip install -q pytest pytest-cov
+
+      - name: Run backend tests with coverage
+        run: |
+          cd backend
+          pytest --cov=core --cov=api --cov=tools \
+            --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+            --cov-report=term-missing
+        env:
+          DATABASE_URL: sqlite:///./test_ci.db
+          ATOM_HOST_MOUNT_ENABLED: false
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend-nextjs
+          npm ci
+          npm run test:coverage -- --coverage --json
+        env:
+          CI: true
+
+      - name: Enforce 80% gate on main branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd backend
+          python tests/scripts/ci_quality_gate.py \
+            --coverage-min 80 \
+            --aggregated \
+            --main-branch-min 80 \
+            --allow-exception-label
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Warn on PRs below 80%
+        if: github.event_name == 'pull_request'
+        run: |
+          cd backend
+          python tests/scripts/ci_quality_gate.py \
+            --coverage-min 80 \
+            --aggregated
+          # Exit 0 even if below threshold (PR warning only)
+        continue-on-error: true

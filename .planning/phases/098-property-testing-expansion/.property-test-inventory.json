@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-02-26T23:24:27Z",
+  "total_property_tests": 283,
+  "total_test_files": 135,
+  "platforms": {
+    "backend": {
+      "test_files": 129,
+      "estimated_properties": 181,
+      "framework": "Hypothesis",
+      "domains": [
+        "event_handling",
+        "state_management",
+        "episodic_memory",
+        "api_contracts",
+        "file_operations",
+        "database_transactions",
+        "ab_testing",
+        "action_complexity",
+        "agent_coordination",
+        "agent_execution",
+        "agent_governance",
+        "agent_graduation",
+        "ai_accounting",
+        "ai_trigger_coordinator",
+        "ai_workflow_optimizer",
+        "analytics",
+        "api_gateway",
+        "api_governance",
+        "api_response",
+        "audit_completeness"
+      ],
+      "file_examples": [
+        "test_ab_testing_invariants.py",
+        "test_action_complexity.py",
+        "test_agent_coordination_invariants.py",
+        "test_agent_execution_invariants.py",
+        "test_agent_governance_invariants.py",
+        "test_agent_graduation_invariants.py",
+        "test_ai_accounting_invariants.py",
+        "test_ai_trigger_coordinator_invariants.py",
+        "test_ai_workflow_optimizer_invariants.py",
+        "test_analytics_invariants.py",
+        "test_api_contracts.py",
+        "test_api_contracts_invariants.py",
+        "test_api_gateway_invariants.py",
+        "test_api_governance_invariants.py",
+        "test_api_response_invariants.py",
+        "test_audit_completeness_invariants.py"
+      ]
+    },
+    "frontend": {
+      "test_files": 3,
+      "properties": 48,
+      "framework": "FastCheck 4.5.3",
+      "domains": [
+        "state_management",
+        "reducer_invariants",
+        "tauri_command_invariants"
+      ],
+      "files": [
+        {
+          "path": "frontend-nextjs/tests/property/state-management.test.ts",
+          "estimated_properties": 14,
+          "description": "State management invariants (immutability, idempotency, rollback)"
+        },
+        {
+          "path": "frontend-nextjs/tests/property/reducer-invariants.test.ts",
+          "description": "Reducer purity and action handling invariants",
+          "estimated_properties": 13
+        },
+        {
+          "path": "frontend-nextjs/tests/property/tauriCommandInvariants.test.ts",
+          "description": "Tauri command whitelist and path validation invariants",
+          "estimated_properties": 21
+        }
+      ]
+    },
+    "mobile": {
+      "test_files": 1,
+      "properties": 13,
+      "framework": "FastCheck 4.5.3",
+      "domains": [
+        "queue_invariants"
+      ],
+      "files": [
+        {
+          "path": "mobile/src/__tests__/property/queueInvariants.test.ts",
+          "properties": 13,
+          "description": "Queue ordering, size limits, priority mapping, retry logic"
+        }
+      ]
+    },
+    "desktop": {
+      "rust_properties": 15,
+      "js_properties": 21,
+      "total": 36,
+      "test_files": 2,
+      "frameworks": ["proptest 1.0", "FastCheck 4.5.3"],
+      "domains": [
+        "file_operations",
+        "sample_invariants",
+        "tauri_command_invariants"
+      ],
+      "files": [
+        {
+          "path": "frontend-nextjs/src-tauri/tests/file_operations_proptest.rs",
+          "properties": 15,
+          "framework": "proptest",
+          "description": "Path traversal, file write/read round-trip, directory creation, cross-platform paths"
+        },
+        {
+          "path": "frontend-nextjs/src-tauri/tests/property/mod.rs",
+          "properties": 0,
+          "framework": "proptest",
+          "description": "Sample module (3 example properties not counted)"
+        },
+        {
+          "path": "frontend-nextjs/tests/property/tauriCommandInvariants.test.ts",
+          "properties": 21,
+          "framework": "FastCheck",
+          "description": "Path validation, parameter validation, whitelist enforcement, session consistency"
+        }
+      ]
+    }
+  },
+  "coverage_by_domain": {
+    "state_management": {
+      "backend": 15,
+      "frontend": 27,
+      "mobile": 0,
+      "desktop": 0,
+      "total": 42
+    },
+    "queue_invariants": {
+      "backend": 0,
+      "frontend": 0,
+      "mobile": 13,
+      "desktop": 0,
+      "total": 13
+    },
+    "file_operations": {
+      "backend": 10,
+      "frontend": 0,
+      "mobile": 0,
+      "desktop": 15,
+      "total": 25
+    },
+    "api_contracts": {
+      "backend": 20,
+      "frontend": 0,
+      "mobile": 0,
+      "desktop": 0,
+      "total": 20
+    },
+    "episodic_memory": {
+      "backend": 18,
+      "frontend": 0,
+      "mobile": 0,
+      "desktop": 0,
+      "total": 18
+    },
+    "agent_governance": {
+      "backend": 25,
+      "frontend": 0,
+      "mobile": 0,
+      "desktop": 0,
+      "total": 25
+    }
+  },
+  "gaps": {
+    "frontend": [
+      {
+        "domain": "state_machine_transitions",
+        "severity": "high",
+        "description": "State machine transitions (canvas state, sync status, auth flow) not tested with property-based methods"
+      },
+      {
+        "domain": "api_contract_roundtrip",
+        "severity": "medium",
+        "description": "API serialization/deserialization round-trip invariants not tested"
+      }
+    ],
+    "mobile": [
+      {
+        "domain": "advanced_sync_logic",
+        "severity": "high",
+        "description": "Advanced sync invariants beyond basic queue (conflict resolution, retry backoff, batch optimization) not tested"
+      },
+      {
+        "domain": "device_state_invariants",
+        "severity": "medium",
+        "description": "Device state transitions (permissions, biometric, offline mode) not covered by property tests"
+      }
+    ],
+    "desktop": [
+      {
+        "domain": "ipc_serialization",
+        "severity": "medium",
+        "description": "Tauri IPC message integrity and serialization invariants not tested"
+      },
+      {
+        "domain": "window_state_management",
+        "severity": "low",
+        "description": "Window state management (position, size, fullscreen) not tested with properties"
+      }
+    ]
+  },
+  "priority_gaps": [
+    {
+      "platform": "frontend",
+      "domain": "state_machine_transitions",
+      "priority": "HIGH",
+      "plan": "098-02",
+      "invariants": [
+        "Canvas state machine transitions (idle → presenting → closed)",
+        "Sync status transitions (syncing → success/error)",
+        "Auth flow state machines (logging_in → authenticated → error)",
+        "Agent execution state transitions (starting → running → completed/failed)"
+      ],
+      "business_impact": "State machine bugs cause UI inconsistencies, user confusion, and data corruption"
+    },
+    {
+      "platform": "mobile",
+      "domain": "advanced_sync_logic",
+      "priority": "HIGH",
+      "plan": "098-03",
+      "invariants": [
+        "Conflict resolution invariants (last-write-wins, manual, merge)",
+        "Exponential backoff retry invariants (delay growth, max retry limit)",
+        "Batch optimization invariants (batch size limits, ordering preserved)",
+        "Sync progress reporting invariants (monotonic progress, completion detection)"
+      ],
+      "business_impact": "Sync bugs cause data loss, duplicate actions, and offline coordination failures"
+    },
+    {
+      "platform": "desktop",
+      "domain": "ipc_serialization",
+      "priority": "MEDIUM",
+      "plan": "098-04",
+      "invariants": [
+        "IPC message round-trip serialization (request → response integrity)",
+        "Parameter type validation (strings, numbers, arrays, objects)",
+        "Error message serialization (error codes, messages, stack traces)",
+        "Binary data encoding (file paths, buffers, base64)"
+      ],
+      "business_impact": "IPC serialization bugs cause desktop crashes, data corruption, and security vulnerabilities"
+    },
+    {
+      "platform": "frontend",
+      "domain": "api_contract_roundtrip",
+      "priority": "MEDIUM",
+      "plan": "098-02",
+      "invariants": [
+        "Agent API round-trip (serialize → deserialize → equality)",
+        "Workflow API round-trip (DAG serialization/deserialization)",
+        "Canvas state API round-trip (components, forms, charts)",
+        "Episode API round-trip (segments, metadata, retrieval)"
+      ],
+      "business_impact": "API contract bugs cause data corruption, type errors, and backend/frontend mismatches"
+    }
+  ]
+}

@@ -7,11 +7,13 @@ This script enforces all quality gates in the CI pipeline:
 - Pass rate gate: 98% minimum pass rate
 - Regression gate: No more than 5% coverage drop from baseline
 - Flaky test gate: Warn if >5% flaky, fail if >10% flaky
+- Main branch gate: 80% overall coverage enforced on main branch merges
 
 Usage:
     python ci_quality_gate.py
     python ci_quality_gate.py --coverage-min 85 --pass-rate-min 99
     python ci_quality_gate.py --strict
+    python ci_quality_gate.py --main-branch-min 80 --aggregated
 
 Exit Codes:
     0: All gates passed
@@ -21,6 +23,7 @@ Exit Codes:
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
@@ -33,6 +36,143 @@ DEFAULT_PASS_RATE_MIN = 98.0
 DEFAULT_REGRESSION_THRESHOLD = 5.0
 DEFAULT_FLAKY_WARN = 5.0
 DEFAULT_FLAKY_FAIL = 10.0
+DEFAULT_MAIN_BRANCH_MIN = 80.0
+DEFAULT_BACKEND_WEIGHT = 0.7
+DEFAULT_FRONTEND_WEIGHT = 0.3
+
+
+def is_main_branch_merge() -> bool:
+    """Check if current CI run is for main branch push (not PR)."""
+    ref = os.getenv("GITHUB_REF", "")
+    return ref == "refs/heads/main" or ref.startswith("refs/tags/")
+
+
+def has_coverage_exception_label() -> bool:
+    """Check for !coverage-exception PR label via GitHub API."""
+    # Only applicable for PR contexts
+    event_name = os.getenv("GITHUB_EVENT_NAME", "")
+    if event_name != "pull_request":
+        return False
+
+    # Check for exception label
+    # In CI, this would use GitHub API to check labels
+    # For now, check environment variable set by workflow
+    return os.getenv("COVERAGE_EXCEPTION", "false").lower() == "true"
+
+
+def load_backend_coverage(coverage_file) -> float:
+    """Load backend coverage from pytest coverage.json format."""
+    coverage_path = Path(coverage_file) if not isinstance(coverage_file, Path) else coverage_file
+
+    if not coverage_path.exists():
+        return 0.0
+
+    try:
+        with open(coverage_path) as f:
+            data = json.load(f)
+        totals = data.get("totals", {})
+        return totals.get("percent_covered", 0.0)
+    except (json.JSONDecodeError, IOError):
+        return 0.0
+
+
+def load_frontend_coverage(coverage_file) -> float:
+    """Load frontend coverage from Jest coverage-final.json format."""
+    coverage_path = Path(coverage_file) if not isinstance(coverage_file, Path) else coverage_file
+
+    if not coverage_path.exists():
+        return 0.0  # Missing frontend treated as 0%
+
+    try:
+        with open(coverage_path) as f:
+            data = json.load(f)
+
+        total_statements = 0
+        covered_statements = 0
+
+        for file_path, file_data in data.items():
+            if "node_modules" in file_path or "__tests__" in file_path:
+                continue
+            statements = file_data.get("s", {})
+            for stmt_id, count in statements.items():
+                total_statements += 1
+                if count > 0:
+                    covered_statements += 1
+
+        return (covered_statements / total_statements * 100) if total_statements > 0 else 0.0
+    except (json.JSONDecodeError, IOError):
+        return 0.0
+
+
+def check_aggregated_coverage(
+    backend_cov_file,
+    frontend_cov_file,
+    weights: Tuple[float, float] = (DEFAULT_BACKEND_WEIGHT, DEFAULT_FRONTEND_WEIGHT)
+) -> Tuple[float, float, float, bool, str]:
+    """
+    Check aggregated coverage (backend + frontend) with weighted average.
+
+    Args:
+        backend_cov_file: Path to backend coverage.json
+        frontend_cov_file: Path to frontend coverage-final.json
+        weights: Tuple of (backend_weight, frontend_weight)
+
+    Returns:
+        (overall_pct, backend_pct, frontend_pct, passed, message)
+    """
+    backend_cov = load_backend_coverage(backend_cov_file)
+    frontend_cov = load_frontend_coverage(frontend_cov_file)
+
+    overall = (backend_cov * weights[0]) + (frontend_cov * weights[1])
+
+    passed = overall >= 80.0
+    message = (
+        f"Aggregated: {overall:.2f}% "
+        f"(Backend: {backend_cov:.2f}%, Frontend: {frontend_cov:.2f}%, "
+        f"Weights: {weights[0]*100:.0f}%/{weights[1]*100:.0f}%)"
+    )
+
+    return overall, backend_cov, frontend_cov, passed, message
+
+
+def check_main_branch_coverage_gate(
+    backend_cov_file: Path,
+    frontend_cov_file: Path,
+    min_coverage: float = DEFAULT_MAIN_BRANCH_MIN
+) -> Tuple[bool, str]:
+    """
+    Check main branch coverage gate (enforced only on main branch merges).
+
+    Args:
+        backend_cov_file: Path to backend coverage.json
+        frontend_cov_file: Path to frontend coverage-final.json
+        min_coverage: Minimum overall coverage percentage
+
+    Returns:
+        (passed, message) tuple
+    """
+    # Check if running on main branch
+    if not is_main_branch_merge():
+        return True, "SKIP - Not on main branch (PR or other branch)"
+
+    # Check for exception label
+    if has_coverage_exception_label():
+        return True, "PASS - Coverage exception label present (!coverage-exception)"
+
+    # Check aggregated coverage
+    overall, backend_cov, frontend_cov, passed, message = check_aggregated_coverage(
+        backend_cov_file,
+        frontend_cov_file
+    )
+
+    if not passed:
+        message = (
+            f"FAIL - {message}, below {min_coverage:.0f}% threshold. "
+            f"Add !coverage-exception label to bypass."
+        )
+        return False, message
+
+    return True, message
 
 
 def check_coverage_gate(
@@ -425,6 +565,39 @@ Exit Codes:
         help="Enable strict mode (fail on warnings, higher thresholds)"
     )
 
+    parser.add_argument(
+        "--main-branch-min",
+        type=float,
+        default=DEFAULT_MAIN_BRANCH_MIN,
+        help="Minimum overall coverage for main branch (default: {:.0f}%%)".format(DEFAULT_MAIN_BRANCH_MIN)
+    )
+
+    parser.add_argument(
+        "--aggregated",
+        action="store_true",
+        help="Use aggregated coverage (backend + frontend) instead of backend only"
+    )
+
+    parser.add_argument(
+        "--frontend-coverage",
+        type=str,
+        default="../frontend-nextjs/coverage/coverage-final.json",
+        help="Path to frontend coverage-final.json (default: ../frontend-nextjs/coverage/coverage-final.json)"
+    )
+
+    parser.add_argument(
+        "--weights",
+        type=str,
+        default=f"{DEFAULT_BACKEND_WEIGHT},{DEFAULT_FRONTEND_WEIGHT}",
+        help="Backend/frontend weights for aggregated coverage (default: 0.7,0.3)"
+    )
+
+    parser.add_argument(
+        "--allow-exception-label",
+        action="store_true",
+        help="Allow !coverage-exception PR label to bypass gate"
+    )
+
     args = parser.parse_args()
 
     # Apply strict mode overrides
@@ -442,14 +615,45 @@ Exit Codes:
     health_file = backend_dir / args.health_file
     trending_file = backend_dir / args.trending_file
 
+    # Parse weights for aggregated coverage
+    try:
+        weights_str = args.weights.split(",")
+        backend_weight = float(weights_str[0])
+        frontend_weight = float(weights_str[1]) if len(weights_str) > 1 else 1.0 - backend_weight
+    except (ValueError, IndexError):
+        print(f"ERROR: Invalid weights format: {args.weights}. Use comma-separated values (e.g., 0.7,0.3)")
+        sys.exit(2)
+
+    weights = (backend_weight, frontend_weight)
+
+    # Frontend coverage path
+    frontend_coverage = backend_dir / args.frontend_coverage
+
     # Run all gates
     results = {}
 
-    results["COVERAGE GATE"] = check_coverage_gate(
-        coverage_file,
-        args.coverage_min,
-        args.branch_min
-    )
+    # Main branch gate (only on main branch merges)
+    if is_main_branch_merge():
+        results["MAIN BRANCH GATE"] = check_main_branch_coverage_gate(
+            coverage_file,
+            frontend_coverage,
+            args.main_branch_min
+        )
+
+    # Standard coverage gate
+    if args.aggregated:
+        overall, backend_cov, frontend_cov, passed, message = check_aggregated_coverage(
+            coverage_file,
+            frontend_coverage,
+            weights
+        )
+        results["COVERAGE GATE"] = (passed, message)
+    else:
+        results["COVERAGE GATE"] = check_coverage_gate(
+            coverage_file,
+            args.coverage_min,
+            args.branch_min
+        )
 
     results["PASS RATE GATE"] = check_pass_rate_gate(
         health_file,

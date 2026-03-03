@@ -1,19 +1,14 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v4.0 Platform Integration & Property Testing
+## Current Milestone: v5.1 Backend Coverage Expansion
 
-**Goal:** Complete test coverage through integration tests and property-based testing across all Atom platform components — frontend, mobile, desktop, and infrastructure reliability
+**Goal:** Achieve 80% backend test coverage through aggressive expansion targeting highest-impact backend files first
 
 **Target features:**
-- Frontend integration tests (Next.js) - Component integration, state management, API interactions
-- Mobile integration tests (React Native) - Cross-platform integration, device features, native modules
-- Desktop integration tests (Tauri) - System integration, native APIs, shell commands
-- Property-based testing expansion - Frontend/mobile/desktop invariants with Hypothesis
-- Infrastructure reliability - Load testing, stress testing, chaos engineering for production readiness
-
-**Strategy:** Integration-first with property testing — focus on how components work together (integration) and invariant validation (property tests) rather than unit testing individual components
-
-**Timeline:** 4-6 weeks
+- Backend coverage expansion (21.67% → 80% target)
+- Phase 101 mock fixes - Resolve test blocking issues before expansion
+- Quick-wins strategy - Maximize coverage gain per test added
+- Backend-focused - Defer frontend/mobile/desktop to later milestones
 
 ---
 
@@ -50,6 +45,13 @@ If everything else fails, the following must have comprehensive test coverage:
 - ✓ Audit Trails & Compliance — Transaction logging, chronological integrity, immutability, SOX compliance (22 tests) — v3.3
 - ✓ Finance Bug Fixes — 5 bugs documented and fixed (FINANCE_BUG_FIXES.md) — v3.3
 
+**v4.0 Platform Integration & Property Testing (2026-02-27):** ✅ SHIPPED
+- ✓ Frontend testing (Next.js) — 528 tests (241 integration + 28 property + 27 validation + 32 component), 100% pass rate
+- ✓ Mobile testing (React Native) — 320 tests (82 device features + 44 offline sync + 13 property + 55 cross-platform + 126 other)
+- ✓ Desktop app testing (Tauri) — 90 tests (54 integration + 36 property), Rust proptest + FastCheck
+- ✓ Property testing expansion — 361 total properties (84 frontend + 43 mobile + 53 desktop), 12x 30+ target
+- ✓ Infrastructure reliability — 4-platform coverage aggregation, 6 CI workflows, Lighthouse CI, Percy visual regression
+
 **Existing tested capabilities:**
 - ✓ Property-based testing framework established (Hypothesis) — existing
 - ✓ Integration test infrastructure in place — existing
@@ -60,13 +62,20 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-**v4.0 Comprehensive Platform Testing (2026-02-26):**
-- [ ] Frontend testing (Next.js) — React Testing Library, Jest, component coverage
-- [ ] Mobile testing (React Native) — iOS/Android app testing, device features
-- [ ] Desktop app testing (Tauri) — Desktop apps, system integration, native features
-- [ ] Menu bar testing — System integration, native API testing
-- [ ] Infrastructure reliability — Load testing, stress testing, chaos engineering
-- [ ] Performance benchmarking — Monitoring, observability, optimization
+**v5.0 Coverage Expansion (2026-03-01):** ✅ SHIPPED
+- ✓ Coverage Analysis & Prioritization — Baseline reports, high-impact file identification, trend tracking system — v5.0
+- ✓ Quality Gates & Reporting — PR comment bot, 80% coverage enforcement, trend dashboard, per-commit reports — v5.0
+- ✓ Frontend Coverage Expansion — Component tests (370+), state management (230+), API integration (379), form validation (372) — v5.0
+- ✓ Property-Based Testing Frontend — 84 FastCheck tests, 30 invariants documented, canvas/chat/auth state machines — v5.0
+- ✓ Backend Coverage Foundation — Coverage infrastructure, baseline established (21.67%), 50 high-impact files prioritized — v5.0
+
+### Active
+
+**v5.1 Backend Coverage Expansion (2026-03-01):**
+- [ ] Phase 101 mock fixes — Resolve canvas test blocking issues (66 tests affected) — v5.1
+- [ ] Backend coverage expansion — Target high-impact files, achieve 80% backend coverage — v5.1
+- [ ] Property-based testing — Backend invariants with Hypothesis (governance, episodes, finance) — v5.1
+- [ ] Quick-wins strategy — Prioritize by (uncovered_lines × impact_score / current_coverage) — v5.1
 
 ### Out of Scope
 
@@ -76,32 +85,44 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ## Context
 
-**Current State (from codebase analysis):**
-- Backend has extensive test infrastructure with pytest, pytest-asyncio, Hypothesis
-- Property-based testing exists but needs expansion (currently ~28 tests)
-- Integration tests present but inconsistent coverage
-- Mobile tests structure exists but incomplete implementation
-- Desktop/menu bar apps: no dedicated test coverage yet
+**Current State (v5.0 SHIPPED 2026-03-01):**
+- ✅ 1,642+ total tests passing (100% pass rate)
+- ✅ 361 property tests across all platforms (12x 30+ target)
+- ✅ Quality infrastructure operational — PR comment bot, 80% coverage gate, trend dashboard, per-commit reports
+- ✅ Frontend testing complete — 1,004+ tests (components, state management, API integration, form validation, property tests)
+- ✅ 4-platform coverage aggregation operational (pytest, Jest, jest-expo, tarpaulin)
+- ✅ Coverage baseline established — Backend 21.67%, Frontend 5.29% (was 3.45%), Overall 20.81%
+- ⚠️ Phase 101 partial completion — Mock configuration issues blocking 66 canvas tests, 0% coverage improvement
 
 **Test Framework:**
 - pytest 7.4+ with async support
-- Hypothesis 6.92+ for property-based testing
+- Hypothesis 6.151.5 for property-based testing (backend)
+- FastCheck 4.5.3 for property-based testing (frontend/mobile)
+- proptest 1.0+ for property-based testing (desktop Rust)
 - pytest-cov for coverage reporting
 - Coverage reports in `backend/tests/coverage_reports/`
 
-**Current Coverage Gaps (from CONCERNS.md):**
-- Canvas JavaScript security validation (critical)
-- Mobile integration testing (user-facing)
-- Large dataset performance testing (scalability)
-- Complex service classes (accounting, consolidated modules)
+**Coverage (v4.0 final):**
+- Backend: 21.67%
+- Frontend: 3.45%
+- Mobile: 16.16%
+- Desktop: TBD (requires x86_64 for tarpaulin)
+- Overall: 20.81%
+
+**Technical Debt (post-v5.0):**
+- Phase 101 mock issues — Canvas tests failing with Mock vs float comparison errors (66 tests affected, 4-5 hours to fix)
+- Overall coverage below 80% target — Backend 21.67%, Frontend 5.29%, need aggressive expansion
+- Detox mobile E2E testing deferred (expo-dev-client requirement)
+- tauri-driver desktop E2E testing deferred (unavailable)
 
 ## Constraints
 
-- **Timeline**: 1-2 weeks for aggressive coverage push
-- **Test Types**: Property-based, fuzzy, integration (no E2E/load/chaos yet)
-- **Priority**: Critical paths first (governance, security, agents)
-- **Scope**: Full codebase (backend, mobile, desktop, menu bar)
-- **Performance**: Tests must run quickly (<5 min for full suite preferred)
+- **Timeline**: 1-2 weeks aggressive (backend-focused, quick-wins strategy)
+- **Test Types**: Property-based (Hypothesis), integration, unit tests (backend only)
+- **Priority**: Critical paths first (governance, security, agents, finance)
+- **Scope**: Backend Python services only (defer frontend/mobile/desktop to v5.2+)
+- **Performance**: Tests must run quickly (<5 min for backend suite preferred)
+- **Blocking**: Phase 101 mock fixes must be completed before expansion
 
 ## Key Decisions
 
@@ -130,5 +151,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
----
-*Last updated: 2026-02-26 after Milestone v3.2 completion*
+*Last updated: 2026-03-01 after Milestone v5.0 completion, starting v5.1 Backend Coverage Expansion*

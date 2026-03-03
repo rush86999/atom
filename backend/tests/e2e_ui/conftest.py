@@ -17,7 +17,7 @@ def is_ci_environment():
     return os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("GITLAB_CI") == "true"
 
 # Import base fixtures for direct use (optional, fixtures available via plugins)
-from .fixtures.auth_fixtures import authenticated_page
+from .fixtures.auth_fixtures import authenticated_page, test_user, authenticated_user
 from .fixtures.database_fixtures import db_session
 from .fixtures.api_fixtures import setup_test_user, setup_test_project
 from .fixtures import test_data_factory  # Factory functions module

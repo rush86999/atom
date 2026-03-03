@@ -1,6 +1,6 @@
 # Atom vs OpenClaw: A Feature Comparison
 
-> **Last Updated**: February 20, 2026
+> **Last Updated**: March 1, 2026
 
 ---
 
@@ -36,7 +36,9 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Self-Hosted** | ✅ Yes | ✅ Yes |
 | **BYOK (Bring Your Own Key)** | ✅ Multi-provider (OpenAI, Anthropic, DeepSeek, Gemini) | ✅ Model-agnostic (Claude, OpenAI, Ollama, etc.) |
 | **Privacy-First** | ✅ Encrypted storage (Fernet), audit logs | ✅ Local execution, data stays on-device |
-| **Browser Automation** | ✅ Playwright CDP (INTERN+ maturity required) | ✅ Browser control, form filling, scraping |
+| **Browser Automation** | ✅ Multi-browser Playwright CDP (INTERN+) | ✅ Chromium-based CDP |
+| **Terminal Interface** | ✅ Dedicated terminal view with output history | ❌ CLI-only execution |
+| **Computer Use (Hardware)** | ✅ Graded access (Camera, Screen, Location) | ⚠️ Focus on Smarthome/API |
 | **File Access** | ✅ Governed file operations | ✅ Read/write files, shell commands |
 | **Sandbox Mode** | ✅ Governance-based permissions | ✅ Optional sandboxing |
 | **API Access** | ✅ REST API + WebSocket streaming | ✅ CLI + HTTP API |
@@ -50,9 +52,10 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Memory Type** | Episodic Memory (PostgreSQL + LanceDB) | Persistent Markdown files |
 | **Storage** | Hybrid: Hot (PostgreSQL) + Cold (LanceDB) | Local filesystem (Markdown) |
 | **Retrieval Modes** | Temporal, Semantic, Sequential, Contextual | File-based search |
-| **Learning Framework** | ✅ Graduation system with constitutional compliance | ✅ Self-improving (writes own skills) |
-| **Agent Maturation** | ✅ 4-tier: Student → Intern → Supervised → Autonomous | ❌ No maturity levels |
-| **Intervention Tracking** | ✅ Logged, scored, affects promotions | ❌ Not tracked |
+| **Learning Framework** | ✅ GEA (Group-Evolving Agents) with Experience Reflection | ✅ Self-improving (writes own skills) |
+| **Agent learning** | ✅ **Graduated Evolution**: Feedback loops + directives + dynamic scripts | ✅ Self-writes new scripts |
+| **Self-Writing Skills** | ✅ GEA Directives (Instructional) + `SkillBuilderService` (Functional) | ✅ Writes raw JavaScript/TypeScript |
+| **Intervention Tracking** | ✅ Logged, scored, affects promotions & graduation | ❌ Not tracked |
 
 **Key Difference**: Atom's episodic memory is structured for business workflows with governance, while OpenClaw uses simple Markdown files for personal context.
 
@@ -82,12 +85,14 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Web Interface** | ✅ Next.js SPA with real-time updates | ✅ Web dashboard |
 | **Messaging Integration** | ✅ 9 platforms (Slack, Discord, Teams, WhatsApp, Telegram, Google Chat, Signal, Messenger, LINE) | ✅ 10+ platforms (WhatsApp, Discord, Slack, Signal, iMessage, etc.) |
 | **Voice Interface** | ✅ Voice-to-text for natural commands | ✅ Voice input via companion apps |
-| **Canvas Presentations** | ✅ Rich charts, forms, markdown with governance | ❌ No equivalent |
-| **Real-Time Guidance** | ✅ Live operation tracking, error resolution | ❌ No operation visibility |
+| **Canvas & Guidance** | ✅ Real-time "what/why/next" with progress tracking | ❌ No operation visibility |
+| **Multi-View Orchestration** | ✅ Browser/Terminal/Canvas grid & tab layouts | ❌ Single view dashboard |
+| **User Takeover** | ✅ "Take Control" button for any agent operation | ⚠️ Manual intervention |
+| **AI Accessibility** | ✅ Hidden logical trees for screen readers/AI | ❌ Visual-only |
 | **Mobile Support** | ⚠️ Architecture complete, React Native pending | ✅ Companion apps for mobile access |
 | **Menu Bar Access** | ❌ No | ✅ Yes (macOS) |
 
-**Key Difference**: Atom emphasizes business visualization (Canvas, Guidance). OpenClaw emphasizes seamless personal messaging integration.
+**Key Difference**: Atom emphasizes business visualization (Canvas, Guidance) and multi-view coordination. OpenClaw emphasizes seamless personal messaging integration.
 
 ---
 
@@ -105,9 +110,10 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Skill Composition** | ✅ DAG workflows with parallel execution | ⚠️ Manual composition |
 | **Auto-Installation** | ✅ Python + npm with conflict detection and rollback | ⚠️ Manual installation |
 | **Deep Linking** | ✅ `atom://` protocol for external apps | ❌ No equivalent |
-| **Device Capabilities** | ✅ Camera, Screen Recording, Location, Notifications, Command Execution | ✅ Smart home control, browser automation |
+| **Browser Use** | ✅ Playwright CDP (Chromium, Firefox, WebKit) | ✅ Puppeteer/Playwright (Mostly Chromium) |
+| **Device Capabilities** | ✅ Graded: Camera, Screen Recording, Location, Shell | ✅ Smart home control, browser automation |
 
-**Key Difference (Updated Feb 2026)**: Atom now supports both Python (350K+ PyPI packages) and npm (2M+ packages) with enterprise-grade security scanning, governance, and per-skill isolation. OpenClaw has native npm support but no Python package system.
+**Key Difference (Updated Feb 2026)**: Atom now supports both Python (350K+ PyPI packages) and npm (2M+ packages) with enterprise-grade security scanning, governance, and per-skill isolation. Atom's browser and device capabilities are governed by maturity levels (INTERN+), ensuring safety for business-critical hardware access.
 
 **Key Difference**: Atom targets business workflows (CRM, support, development). OpenClaw targets personal productivity (smart home, media, notes).
 
@@ -167,7 +173,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **OAuth Validation** | ✅ User ID/email format validation, injection prevention | ⚠️ Standard OAuth |
 | **Background Jobs** | ✅ RQ (Redis Queue) with monitoring | ❌ No built-in task queue |
 
-**Key Difference**: Atom's security model is enterprise-grade with graded permissions, webhook signature verification, and comprehensive audit trails. OpenClaw trusts the user and provides raw capabilities.
+**Key Difference**: Atom's security model is enterprise-grade with graduated permissions (including tiered shell access), webhook signature verification, and comprehensive audit trails. OpenClaw trusts the user and provides raw capabilities.
 
 ---
 

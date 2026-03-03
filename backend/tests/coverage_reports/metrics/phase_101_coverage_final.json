@@ -1,0 +1,84 @@
+{
+  "phase": "101",
+  "generated_at": "2026-02-27T22:43:09.731360",
+  "baseline_version": "v5.0",
+  "target_threshold": 60.0,
+  "summary": {
+    "total_services": 6,
+    "services_meeting_threshold": 4,
+    "overall_coverage_pct": 61.78,
+    "threshold_met": false,
+    "tests_added": 182,
+    "property_tests": 50
+  },
+  "services": [
+    {
+      "file": "core/agent_governance_service.py",
+      "coverage_pct_before": 10.39,
+      "coverage_pct_after": 84.0,
+      "covered_lines_before": 64,
+      "covered_lines_after": 173,
+      "total_lines": 206,
+      "threshold_met": true,
+      "tests_added": 46,
+      "status": "EXCEEDS_TARGET"
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "coverage_pct_before": 8.25,
+      "coverage_pct_after": 83.0,
+      "covered_lines_before": 48,
+      "covered_lines_after": 483,
+      "total_lines": 580,
+      "threshold_met": true,
+      "tests_added": 30,
+      "status": "EXCEEDS_TARGET"
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "coverage_pct_before": 9.03,
+      "coverage_pct_after": 61.0,
+      "covered_lines_before": 28,
+      "covered_lines_after": 192,
+      "total_lines": 315,
+      "threshold_met": true,
+      "tests_added": 25,
+      "status": "MEETS_TARGET"
+    },
+    {
+      "file": "core/episode_lifecycle_service.py",
+      "coverage_pct_before": 10.85,
+      "coverage_pct_after": 100.0,
+      "covered_lines_before": 11,
+      "covered_lines_after": 97,
+      "total_lines": 97,
+      "threshold_met": true,
+      "tests_added": 15,
+      "status": "EXCEEDS_TARGET"
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "coverage_pct_before": 3.8,
+      "coverage_pct_after": 28.0,
+      "covered_lines_before": 16,
+      "covered_lines_after": 119,
+      "total_lines": 422,
+      "threshold_met": false,
+      "tests_added": 35,
+      "status": "BELOW_TARGET",
+      "note": "Mock configuration issues, some tests still failing"
+    },
+    {
+      "file": "tools/agent_guidance_canvas_tool.py",
+      "coverage_pct_before": 14.67,
+      "coverage_pct_after": 14.67,
+      "covered_lines_before": 31,
+      "covered_lines_after": 31,
+      "total_lines": 211,
+      "threshold_met": false,
+      "tests_added": 25,
+      "status": "NOT_EXECUTED",
+      "note": "Test execution errors preventing coverage"
+    }
+  ]
+}

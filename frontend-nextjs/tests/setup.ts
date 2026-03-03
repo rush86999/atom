@@ -1,4 +1,47 @@
+// Polyfill for MSW 2.x - must come before any other imports
+import * as WebStreamsPolyfill from 'web-streams-polyfill';
+import { TextEncoder, TextDecoder } from 'util';
+import { Blob, File } from 'buffer';
+import { Request, Response, Headers } from 'node-fetch';
+
+Object.defineProperties(globalThis, {
+  ReadableStream: { value: WebStreamsPolyfill.ReadableStream },
+  TransformStream: { value: WebStreamsPolyfill.TransformStream },
+  TextEncoder: { value: TextEncoder },
+  TextDecoder: { value: TextDecoder },
+  Blob: { value: Blob },
+  File: { value: File },
+  Request: { value: Request },
+  Response: { value: Response },
+  Headers: { value: Headers },
+});
+
 import "@testing-library/jest-dom";
+
+// Optional MSW server - only if no import errors
+let server: any;
+try {
+  server = require('./mocks/server').server;
+} catch (e) {
+  console.warn('MSW server not available:', (e as Error).message);
+}
+
+// Establish API mocking before all tests (only if server loaded)
+if (server) {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  // Reset any request handlers that we may add during the tests,
+  // so they don't affect other tests
+  afterEach(() => server.resetHandlers());
+  // Clean up after the tests are finished
+  afterAll(() => server.close());
+}
+
+// Reset any request handlers that we may add during the tests,
+// so they don't affect other tests
+afterEach(() => server.resetHandlers());
+
+// Clean up after the tests are finished
+afterAll(() => server.close());
 
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
@@ -101,6 +144,78 @@ global.fetch = jest.fn(() =>
     headers: {},
   })
 ) as any;
+
+// Mock WebSocket - define constants first
+const WEBSOCKET_CONNECTING = 0;
+const WEBSOCKET_OPEN = 1;
+const WEBSOCKET_CLOSING = 2;
+const WEBSOCKET_CLOSED = 3;
+
+class MockWebSocket {
+  static CONNECTING = WEBSOCKET_CONNECTING;
+  static OPEN = WEBSOCKET_OPEN;
+  static CLOSING = WEBSOCKET_CLOSING;
+  static CLOSED = WEBSOCKET_CLOSED;
+
+  readyState: number;
+  send: jest.Mock;
+  close: jest.Mock;
+  _onopen: ((event: Event) => void) | null = null;
+  _onmessage: ((event: MessageEvent) => void) | null = null;
+  _onclose: ((event: CloseEvent) => void) | null = null;
+  _onerror: ((event: Event) => void) | null = null;
+  _url: string;
+
+  constructor(url: string) {
+    this._url = url;
+    this.readyState = WEBSOCKET_CONNECTING;
+    this.send = jest.fn();
+    this.close = jest.fn();
+
+    // Track constructor calls for testing
+    (MockWebSocket as any).mock.calls?.push([url]);
+    (MockWebSocket as any).mock.instances?.push(this);
+  }
+
+  set onopen(value: ((event: Event) => void) | null) {
+    this._onopen = value;
+  }
+  get onopen() {
+    return this._onopen;
+  }
+
+  set onmessage(value: ((event: MessageEvent) => void) | null) {
+    this._onmessage = value;
+  }
+  get onmessage() {
+    return this._onmessage;
+  }
+
+  set onclose(value: ((event: CloseEvent) => void) | null) {
+    this._onclose = value;
+  }
+  get onclose() {
+    return this._onclose;
+  }
+
+  set onerror(value: ((event: Event) => void) | null) {
+    this._onerror = value;
+  }
+  get onerror() {
+    return this._onerror;
+  }
+}
+
+// Add mock tracking properties
+(MockWebSocket as any).mock = {
+  calls: [],
+  instances: [],
+};
+
+(MockWebSocket as any).getMockCalls = () => (MockWebSocket as any).mock.calls;
+(MockWebSocket as any).getMockInstances = () => (MockWebSocket as any).mock.instances;
+
+(global as any).WebSocket = MockWebSocket as any;
 
 // Mock console methods to reduce noise in tests
 global.console = {

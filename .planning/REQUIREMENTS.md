@@ -1,44 +1,58 @@
-# Requirements: Atom v4.0 Platform Integration & Property Testing
+# Requirements: Atom Backend Coverage v5.1
 
-**Defined:** 2026-02-26
-**Core Value:** Reliable AI automation across all platforms through comprehensive integration tests and property-based invariant validation
+**Defined:** 2026-03-01
+**Core Value:** Critical system paths are thoroughly tested and validated before production deployment
+**Milestone:** v5.1 Backend Coverage Expansion
 
-## v4.0 Requirements
+## v5.1 Requirements
 
-Requirements for comprehensive platform testing milestone. Each maps to roadmap phases.
+Requirements for backend coverage expansion milestone. Each maps to roadmap phases.
 
-### Frontend Integration Testing (Next.js)
+### Phase 101 Fixes
 
-- [ ] **FRONT-01**: Component integration tests - Verify components work together with state management, API calls, and routing using React Testing Library
-- [ ] **FRONT-02**: API contract validation - Test request/response shapes, error handling, timeout scenarios for frontend-backend communication
-- [ ] **FRONT-03**: State management consistency - Verify Redux/Zustand/Context state predictability with tests for state updates, selectors, async actions, and middleware
-- [ ] **FRONT-04**: Form validation & submission - Test validation rules, error display, success/error states for all forms
-- [ ] **FRONT-05**: Navigation & routing - Test routing, navigation params, deep links, back navigation behavior
-- [ ] **FRONT-06**: Authentication flow - Test login/register/logout with token storage, token refresh, session persistence, biometric auth
-- [ ] **FRONT-07**: Property-based state tests - Use FastCheck to generate random state transitions and verify invariants for state machines, Redux reducers, and context providers
+- [x] **FIX-01**: Canvas test mock configuration resolved — 66 tests unblocked, coverage measurement functional (Phase 101, re-verified Phase 111)
+- [x] **FIX-02**: Module import failures fixed — Coverage.py can measure all 6 target backend services (Phase 101, re-verified Phase 111)
 
-### Mobile Integration Testing (React Native)
+### Core Backend Services
 
-- [ ] **MOBL-01**: Device feature mocking - Mock Expo modules for camera, location, notifications with permission testing
-- [ ] **MOBL-02**: Offline data sync - Test offline queue, sync on reconnect, conflict resolution for mobile/desktop
-- [ ] **MOBL-03**: Platform permissions & auth - Test iOS/Android permission flows, biometric auth, credential storage
-- [ ] **MOBL-04**: Cross-platform consistency - Verify feature parity across web/mobile/desktop with shared tests
-- [ ] **MOBL-05**: Mobile property tests - Use FastCheck for mobile-specific invariants (device state, offline queue, sync logic)
+- [x] **CORE-01**: Agent governance service achieves 60%+ coverage — GovernanceCache, AgentGovernanceService, AgentContextResolver tested (Phase 112, 2026-03-01)
+  - agent_governance_service.py: 82.08%
+  - agent_context_resolver.py: 96.58%
+  - governance_cache.py: 62.05%
+  - 46+ governance tests passing
+- [ ] **CORE-02**: Episodic memory services achieve 60%+ coverage — EpisodeSegmentationService, EpisodeRetrievalService, EpisodeLifecycleService tested
+- [ ] **CORE-03**: LLM services achieve 60%+ coverage — BYOK handler, cognitive tier system, canvas summaries tested
+- [ ] **CORE-04**: Agent execution services achieve 60%+ coverage — AtomAgentEndpoints, agent workflows tested
+- [ ] **CORE-05**: Student training services achieve 60%+ coverage — TriggerInterceptor, StudentTrainingService, SupervisionService tested
+- [ ] **CORE-06**: Graduation framework achieves 60%+ coverage — AgentGraduationService with constitutional compliance validated
 
-### Desktop Integration Testing (Tauri)
+### API Routes & Tools
 
-- [ ] **DESK-01**: Tauri integration tests - Test native API mocks, cross-platform validation, shell commands
-- [ ] **DESK-02**: Desktop property tests - Rust QuickCheck + JavaScript property tests for desktop-specific logic
-- [ ] **DESK-03**: Menu bar & notifications - Test system integration, menu bar interactions, notification delivery
-- [ ] **DESK-04**: Cross-platform consistency - Verify desktop apps match web/mobile behavior for shared features
+- [ ] **API-01**: Canvas API routes achieve 60%+ coverage — Canvas presentations, form submissions, state management tested
+- [ ] **API-02**: Browser automation achieves 60%+ coverage — Playwright CDP integration, web scraping, form filling tested
+- [ ] **API-03**: Device capabilities achieve 60%+ coverage — Camera, screen recording, location, notifications tested
+- [ ] **API-04**: Health & monitoring routes achieve 60%+ coverage — Health checks, Prometheus metrics, structured logging tested
+- [ ] **API-05**: Admin routes achieve 60%+ coverage — Business facts, citations, world model tested
 
-### Infrastructure & Quality Gates
+### Property-Based Testing
 
-- [ ] **INFRA-01**: Unified coverage aggregation - Python script to parse pytest JSON, Jest JSON, Rust coverage and produce unified reports
-- [ ] **INFRA-02**: CI/CD orchestration - Parallel test execution per platform with artifact upload/download and aggregation job
-- [ ] **INFRA-03**: Cross-platform E2E flows - Test complete user workflows from UI to backend using Playwright (web), Detox (mobile), tauri-driver (desktop)
-- [ ] **INFRA-04**: Performance regression tests - Detect rendering performance degradation with Lighthouse CI, render time budgets, bundle size tracking
-- [ ] **INFRA-05**: Visual regression testing - Detect unintended UI changes across releases using Percy, Chromatic, or Playwright screenshots (optional)
+- [ ] **PROP-01**: Governance invariants tested — Maturity routing, permission checks, cache consistency validated with Hypothesis
+- [ ] **PROP-02**: Episode invariants tested — Segmentation logic, retrieval ranking, lifecycle transitions validated
+- [ ] **PROP-03**: Financial invariants tested — Decimal precision, double-entry validation, audit immutability validated
+- [ ] **PROP-04**: LLM invariants tested — Token counting, cost calculation, tier escalation validated
+
+## v5.2+ Requirements
+
+Deferred to future milestones. Tracked but not in current roadmap.
+
+### Frontend Coverage Expansion
+- **FRNT-01**: React component testing — Complete frontend 80% coverage target
+- **FRNT-02**: State management testing — Hooks, context providers, reducers
+- **FRNT-03**: API client testing — MSW integration, error handling
+
+### Mobile & Desktop Testing
+- **MOBL-01**: React Native testing — Device features, offline sync, cross-platform
+- **DSKT-01**: Tauri testing — Rust backend, integration tests
 
 ## Out of Scope
 
@@ -46,13 +60,11 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Vitest migration | Jest already configured (30.0.5/29.7.0), migration cost exceeds benefit |
-| Appium mobile testing | Detox 10x faster for React Native, grey-box architecture superior |
-| Selenium desktop testing | tauri-driver provides native WebDriver support for Tauri apps |
-| Complete frontend rewrite | Focus on testing existing implementation, not rebuilding |
-| 100% property test coverage | Use property tests for critical invariants only (50-100 examples) |
-| Mutation testing | Requires baseline test quality first, defer to v5+ |
-| Memory leak detection | Advanced performance testing, defer to v5+ |
+| Frontend coverage expansion | Backend-first milestone (21.67% → 80%) |
+| Mobile/desktop coverage | Backend-first milestone |
+| New feature development | This milestone focuses on testing existing features |
+| E2E/load/chaos testing | Infrastructure deferred to v6.0+ |
+| Phase 102-110 re-execution | v5.0 phases complete, v5.1 focuses on new expansion |
 
 ## Traceability
 
@@ -60,48 +72,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FRONT-01 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-02 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-03 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-04 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-05 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-06 | Phase 095 (Backend + Frontend Integration) | Pending |
-| FRONT-07 | Phase 098 (Property Testing Expansion) | Pending |
-| MOBL-01 | Phase 096 (Mobile Integration) | Pending |
-| MOBL-02 | Phase 096 (Mobile Integration) | Pending |
-| MOBL-03 | Phase 096 (Mobile Integration) | Pending |
-| MOBL-04 | Phase 096 (Mobile Integration, partial), Phase 099 (Cross-Platform E2E) | Pending |
-| MOBL-05 | Phase 098 (Property Testing Expansion) | Pending |
-| DESK-01 | Phase 097 (Desktop Testing) | Pending |
-| DESK-02 | Phase 098 (Property Testing Expansion) | Pending |
-| DESK-03 | Phase 097 (Desktop Testing) | Pending |
-| DESK-04 | Phase 098 (Property Testing Expansion, partial), Phase 099 (Cross-Platform E2E) | Pending |
-| INFRA-01 | Phase 095 (Backend + Frontend Integration) | Pending |
-| INFRA-02 | Phase 095 (Backend + Frontend Integration) | Pending |
-| INFRA-03 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
-| INFRA-04 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
-| INFRA-05 | Phase 099 (Cross-Platform Integration & E2E) | Pending |
+| FIX-01 | Phase 111 | Complete |
+| FIX-02 | Phase 111 | Complete |
+| CORE-01 | Phase 112 | Complete |
+| CORE-02 | Phase 113 | Pending |
+| CORE-03 | Phase 114 | Pending |
+| CORE-04 | Phase 115 | Pending |
+| CORE-05 | Phase 116 | Pending |
+| CORE-06 | Phase 117 | Pending |
+| API-01 | Phase 118 | Pending |
+| API-02 | Phase 119 | Pending |
+| API-03 | Phase 120 | Pending |
+| API-04 | Phase 121 | Pending |
+| API-05 | Phase 122 | Pending |
+| PROP-01 | Phase 123 | Pending |
+| PROP-02 | Phase 124 | Pending |
+| PROP-03 | Phase 125 | Pending |
+| PROP-04 | Phase 126 | Pending |
 
 **Coverage:**
-- v4.0 requirements: 21 total
-- Mapped to phases: 21 (100%)
+- v5.1 requirements: 16 total
+- Mapped to phases: 16 (100%)
 - Unmapped: 0 ✓
-- No orphaned requirements
-
-**Phase Distribution:**
-- Phase 095 (Backend + Frontend Integration): 9 requirements (FRONT-01 to FRONT-06, INFRA-01 to INFRA-02)
-- Phase 096 (Mobile Integration): 4 requirements (MOBL-01 to MOBL-03, MOBL-04 partially)
-- Phase 097 (Desktop Testing): 2 requirements (DESK-01, DESK-03)
-- Phase 098 (Property Testing Expansion): 4 requirements (FRONT-07, MOBL-05, DESK-02, DESK-04 partially)
-- Phase 099 (Cross-Platform Integration & E2E): 5 requirements (MOBL-04, DESK-04, INFRA-03 to INFRA-05)
-
-**Quality Targets:**
-- 80% overall coverage across all platforms (backend, frontend, mobile, desktop)
-- 98% test pass rate with flaky test detection
-- Fix 21 failing frontend tests (40% → 100% pass rate)
-- 30+ property tests across all platforms (Hypothesis, FastCheck, QuickCheck)
-- Parallel CI execution (<30 min total feedback)
 
 ---
-*Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after roadmap creation (v4.0 Platform Integration & Property Testing)*
+*Requirements defined: 2026-03-01*
+*Last updated: 2026-03-01 after roadmap creation*

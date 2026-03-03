@@ -128,6 +128,7 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
     return null;
   }
 
+
   return (
     <>
       {/* Accessibility Tree - Hidden error state for AI agents */}
@@ -264,8 +265,8 @@ export const OperationErrorGuide: React.FC<OperationErrorGuideProps> = ({
                       <button
                         onClick={() => handleResolutionClick(index, resolution)}
                         className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${isSelected
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300'
                           }`}
                       >
                         {isSelected ? '✓ Selected' : resolution.agent_can_fix ? 'Let Agent Fix' : 'Fix Manually'}

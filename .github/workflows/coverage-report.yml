@@ -36,6 +36,37 @@ jobs:
           DATABASE_URL: sqlite:///./test_ci.db
           ATOM_HOST_MOUNT_ENABLED: false
 
+      - name: Generate per-commit coverage report
+        if: always()  # Run even if tests fail (coverage still useful)
+        run: |
+          cd backend
+          COMMIT_HASH="${{ github.sha }}"
+          python3 tests/scripts/per_commit_report_generator.py \
+            --coverage-file tests/coverage_reports/metrics/coverage.json \
+            --commits-dir tests/coverage_reports/commits \
+            --commit "$COMMIT_HASH" \
+            --retention-days 90
+
+      - name: Upload commit reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-commit-reports
+          path: backend/tests/coverage_reports/commits/*.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Commit new reports to repository
+        if: github.ref == 'refs/heads/main' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/tests/coverage_reports/commits/*.json
+          git add backend/tests/coverage_reports/commits/README.md
+          git diff --staged --quiet || git commit -m "chore: add coverage report for ${{ github.sha }}"
+          git push
+        continue-on-error: true  # Don't fail if push conflict
+
       - name: Update trending data
         run: |
           cd backend
@@ -45,6 +76,34 @@ jobs:
         run: |
           cd backend
           python tests/scripts/generate_coverage_trend.py --html-output tests/coverage_reports/metrics/coverage_trend_report.html
+
+      - name: Generate coverage trend dashboard
+        if: always()  # Run even if tests fail
+        run: |
+          cd backend
+          python3 tests/scripts/generate_coverage_dashboard.py \
+            --trend-file tests/coverage_reports/metrics/coverage_trend_v5.0.json \
+            --output tests/coverage_reports/dashboards/COVERAGE_TREND_v5.0.md \
+            --mode trend \
+            --width 70
+
+      - name: Commit dashboard to repository
+        if: github.ref == 'refs/heads/main' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/tests/coverage_reports/dashboards/
+          git diff --staged --quiet || git commit -m "chore: update coverage trend dashboard"
+          git push
+        continue-on-error: true  # Don't fail if push conflict
+
+      - name: Upload dashboard artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-dashboard
+          path: backend/tests/coverage_reports/dashboards/COVERAGE_TREND_v5.0.md
+          retention-days: 90
 
       - name: Check for regression
         run: |
@@ -77,75 +136,56 @@ jobs:
             backend/tests/coverage_reports/metrics/coverage_trend_report.html
           retention-days: 30
 
-      - name: Comment PR with coverage
+      - name: Generate PR comment payload
+        if: github.event_name == 'pull_request'
+        run: |
+          cd backend
+          python tests/scripts/pr_coverage_comment_bot.py \
+            --coverage-file tests/coverage_reports/metrics/coverage.json \
+            --base-branch origin/main \
+            --output-file pr_comment_payload.json
+
+      - name: Post PR comment with coverage delta
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-
-            // Read coverage data
-            const coverageData = JSON.parse(
-              fs.readFileSync('backend/tests/coverage_reports/metrics/coverage.json', 'utf8')
+            const payload = JSON.parse(
+              fs.readFileSync('backend/pr_comment_payload.json', 'utf8')
             );
 
-            const pct = coverageData.totals.percent_covered.toFixed(2);
-            const covered = coverageData.totals.covered_lines.toLocaleString();
-            const total = coverageData.totals.num_statements.toLocaleString();
-            const missing = coverageData.totals.missing_lines.toLocaleString();
-
-            // Read trending data
-            let trendText = '';
-            try {
-              const trendingData = JSON.parse(
-                fs.readFileSync('backend/tests/coverage_reports/metrics/trending.json', 'utf8')
-              );
-
-              if (trendingData.history && trendingData.history.length >= 2) {
-                const latest = trendingData.history[trendingData.history.length - 1];
-                const previous = trendingData.history[trendingData.history.length - 2];
-                const change = (latest.coverage_pct - previous.coverage_pct).toFixed(2);
-
-                const emoji = change > 0 ? '📈' : change < 0 ? '📉' : '➡️';
-                trendText = `${emoji} Trend: ${change > 0 ? '+' : ''}${change}% from previous`;
-              }
-            } catch (e) {
-              console.log('Could not read trend data:', e);
-            }
-
-            // Build comment body
-            const body = `## Coverage Report
-
-**Current Coverage:** ${pct}%
-**Lines:** ${covered} / ${total} covered (${missing} missing)
-${trendText}
-
-### Detailed Reports
-
-Full coverage reports are available in the workflow artifacts:
-- \`coverage.json\` - Machine-readable coverage data
-- \`trending.json\` - Historical coverage trends
-- \`html/\` - Interactive HTML report
-
-### How to View Locally
-
-\`\`\`bash
-# Download artifacts from the workflow run
-# Unzip and open:
-open backend/tests/coverage_reports/html/index.html
-\`\`\`
-
----
-
-*Report generated by [Coverage Report Workflow](.github/workflows/coverage-report.yml)*`;
-
-            // Post comment
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            // Find existing comment to avoid duplicates
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: body
+              issue_number: context.issue.number,
             });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: payload.body
+              });
+              console.log('Updated existing coverage comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: payload.body
+              });
+              console.log('Created new coverage comment');
+            }
 
       - name: Coverage summary
         run: |

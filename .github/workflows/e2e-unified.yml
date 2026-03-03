@@ -1,0 +1,315 @@
+name: E2E Tests (All Platforms)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# E2E tests run on merge to main, not on PRs.
+# Reason: E2E tests are slow (5-15 minutes) compared to unit/integration tests (1-2 minutes).
+# Running E2E on every PR blocks development and increases CI costs.
+# By running E2E on merge to main, we get comprehensive validation without slowing down PR feedback.
+
+jobs:
+  # Web E2E Tests (Playwright)
+  e2e-web:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: atom_e2e
+          POSTGRES_PASSWORD: atom_e2e_password
+          POSTGRES_DB: atom_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-e2e-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('backend/tests/e2e_ui/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-playwright playwright
+          playwright install chromium
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Start backend server
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          PORT: 8001
+        run: |
+          python -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:8001/health/live
+
+      - name: Start frontend server
+        working-directory: ./frontend-nextjs
+        env:
+          PORT: 3001
+          NEXT_PUBLIC_API_URL: http://localhost:8001
+        run: |
+          npm run dev &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:3001
+
+      - name: Run E2E tests
+        working-directory: ./backend/tests/e2e_ui
+        env:
+          CI: true
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          BASE_URL: http://localhost:3001
+          PYTEST_RERUNS: 2
+        run: |
+          pytest tests/ -v -n 4 \
+            --html=reports/test-report.html \
+            --self-contained-html \
+            --json-report --json-report-file=pytest_report.json
+
+      - name: Create reports directory
+        run: mkdir -p backend/tests/e2e_ui/reports
+
+      - name: Upload pytest JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-web-report
+          path: backend/tests/e2e_ui/pytest_report.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Mobile Cross-Platform API Tests
+  # Note: Full Detox E2E BLOCKED (requires expo-dev-client), using API-level tests instead
+  e2e-mobile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+
+      - name: Run mobile cross-platform API tests
+        working-directory: ./backend/tests
+        env:
+          DATABASE_URL: sqlite:///./test_mobile_cross_platform.db
+        run: |
+          pytest test_mobile_cross_platform.py -v \
+            --json-report --json-report-file=../results/mobile-results.json
+
+      - name: Create results directory
+        run: mkdir -p results
+
+      - name: Upload mobile test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-mobile-report
+          path: results/mobile-results.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Desktop Tauri Integration Tests
+  # Note: WebDriverIO E2E BLOCKED (tauri-driver unavailable), using Tauri built-in tests
+  e2e-desktop:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Tauri integration tests
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          cargo test --all-features --no-fail-fast -- -Z unstable-options --format json > results.json 2>&1 || true
+
+      - name: Parse Tauri test results
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          python3 -c "
+          import json
+          import sys
+          from pathlib import Path
+
+          # Parse cargo test JSON output
+          results = []
+          with open('results.json') as f:
+              for line in f:
+                  try:
+                      data = json.loads(line.strip())
+                      if data.get('type') == 'test':
+                          results.append({
+                              'name': data.get('name', 'unknown'),
+                              'passed': data.get('passed', False)
+                          })
+                  except:
+                      pass
+
+          # Calculate stats
+          total = len(results)
+          passed = sum(1 for r in results if r['passed'])
+          failed = total - passed
+
+          # Create pytest-compatible format
+          output = {
+              'stats': {
+                  'total': total,
+                  'passed': passed,
+                  'failed': failed,
+                  'skipped': 0,
+                  'duration': 0
+              },
+              'testResults': results
+          }
+
+          # Write to results file
+          Path('../results/desktop-results.json').write_text(json.dumps(output, indent=2))
+          print(f'Total: {total}, Passed: {passed}, Failed: {failed}')
+          "
+
+      - name: Upload desktop test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-desktop-report
+          path: frontend-nextjs/results/desktop-results.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Aggregate results from all platforms
+  aggregate:
+    needs: [e2e-web, e2e-mobile, e2e-desktop]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download web artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-web-report
+          path: results/web/
+        continue-on-error: true
+
+      - name: Download mobile artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-mobile-report
+          path: results/mobile/
+        continue-on-error: true
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-desktop-report
+          path: results/desktop/
+        continue-on-error: true
+
+      - name: Aggregate E2E results
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/e2e_aggregator.py \
+            --web ../results/web/pytest_report.json \
+            --mobile ../results/mobile/mobile-results.json \
+            --desktop ../results/desktop/desktop-results.json \
+            --output ../results/e2e_unified.json \
+            --summary ../results/e2e_summary.md
+        continue-on-error: true
+
+      - name: Upload unified results
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-unified-results
+          path: results/
+          retention-days: 30
+
+      - name: Comment on commit
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const summary = fs.readFileSync('results/e2e_summary.md', 'utf8');
+              console.log('E2E Test Results:');
+              console.log(summary);
+            } catch (error) {
+              console.log('Unable to read E2E summary:', error.message);
+            }
