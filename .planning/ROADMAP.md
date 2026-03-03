@@ -293,16 +293,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 122-05-PLAN.md — Gap closure: Experience lifecycle methods (feedback, confidence, statistics)
 - [x] 122-06-PLAN.md — Gap closure: Memory archival and final coverage verification
 
-### Phase 123: Governance Property Tests
+### Phase 123: Governance Property Tests ✅ COMPLETE
 **Goal**: Validate governance system invariants with Hypothesis
 **Depends on**: Phase 112
-**Requirements**: PROP-01
+**Requirements**: PROP-01 ✅ SATISFIED
 **Success Criteria** (what must be TRUE):
-  1. Property tests validate maturity routing invariants (STUDENT → blocked, AUTONOMOUS → allowed)
-  2. Property tests validate permission check consistency (same agent, same context, same result)
-  3. Property tests validate governance cache invariants (cached result matches direct computation)
-  4. All governance property tests use appropriate max_examples (200 for critical, 100 for standard)
-**Plans**: TBD
+  1. Property tests validate maturity routing invariants (STUDENT → blocked, AUTONOMOUS → allowed) ✅
+  2. Property tests validate permission check consistency (same agent, same context, same result) ✅
+  3. Property tests validate governance cache invariants (cached result matches direct computation) ✅
+  4. All governance property tests use appropriate max_examples (200 for critical, 100 for standard) ✅
+**Plans**: 4/4 complete
+- [x] 123-01-PLAN.md — Async governance property tests for AgentContextResolver
+- [x] 123-02-PLAN.md — Cache correctness and consistency property tests
+- [x] 123-03-PLAN.md — Edge case and combinatorial property tests
+- [x] 123-04-PLAN.md — Combined verification and requirement completion
 
 ### Phase 124: Episode Property Tests
 **Goal**: Validate episodic memory invariants with Hypothesis
@@ -356,7 +360,7 @@ Phases execute in numeric order: 111 → 112 → 113 → ... → 126
 | 120. Device Capabilities Coverage | v5.1 | 0/0 | Not started | - |
 | 121. Health & Monitoring Coverage | v5.1 | 3/4 | Gap Closure | - |
 | 122. Admin Routes Coverage | v5.1 | 6/6 | Complete | 2026-03-02 |
-| 123. Governance Property Tests | v5.1 | 0/0 | Not started | - |
+| 123. Governance Property Tests | v5.1 | 4/4 | Complete | 2026-03-02 |
 | 124. Episode Property Tests | v5.1 | 0/0 | Not started | - |
 | 125. Financial Property Tests | v5.1 | 0/0 | Not started | - |
 | 126. LLM Property Tests | v5.1 | 0/0 | Not started | - |
