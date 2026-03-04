@@ -3,8 +3,10 @@ module.exports = {
   setupFiles: ["<rootDir>/tests/polyfills.ts"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   transform: {
-    "^.+\\.(js|jsx|ts|tsx)$": "babel-jest",
+    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(js|jsx)$": "babel-jest",
   },
+  preset: "ts-jest",
   testMatch: [
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",
