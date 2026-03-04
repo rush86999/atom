@@ -456,12 +456,33 @@ describe('API Robustness - createRecoveryScenario Integration', () => {
     expect(response.data.metadata.failuresBeforeSuccess).toBe(2);
   });
 
-  test('should handle timeout recovery scenario', async () => {
+  test('should handle 504 gateway timeout recovery with manual handler', async () => {
+    let attemptCount = 0;
+
     server.use(
-      createRecoveryScenario('/api/test/timeout-scenario', {
-        failAttempts: 1,
-        errorType: 'timeout',
-        method: 'post',
+      rest.post('/api/test/timeout-scenario', (req, res, ctx) => {
+        attemptCount++;
+
+        if (attemptCount === 1) {
+          // First attempt: 504 Gateway Timeout
+          return res(
+            ctx.status(504),
+            ctx.json({
+              success: false,
+              error: 'Gateway Timeout',
+              error_code: 'UPSTREAM_TIMEOUT',
+            })
+          );
+        }
+
+        // Second attempt: success
+        return res(
+          ctx.status(200),
+          ctx.json({
+            success: true,
+            data: { message: 'Recovered from timeout' },
+          })
+        );
       })
     );
 
@@ -469,13 +490,36 @@ describe('API Robustness - createRecoveryScenario Integration', () => {
 
     expect(response.status).toBe(200);
     expect(response.data.success).toBe(true);
-  }, 30000);
+    expect(attemptCount).toBe(2);
+  });
 
-  test('should handle network recovery scenario', async () => {
+  test('should handle 503 service unavailable recovery with manual handler', async () => {
+    let attemptCount = 0;
+
     server.use(
-      createRecoveryScenario('/api/test/network-scenario', {
-        failAttempts: 1,
-        errorType: 'network',
+      rest.get('/api/test/network-scenario', (req, res, ctx) => {
+        attemptCount++;
+
+        if (attemptCount === 1) {
+          // First attempt: 503 Service Unavailable
+          return res(
+            ctx.status(503),
+            ctx.json({
+              success: false,
+              error: 'Service Unavailable',
+              error_code: 'SERVICE_UNAVAILABLE',
+            })
+          );
+        }
+
+        // Second attempt: success
+        return res(
+          ctx.status(200),
+          ctx.json({
+            success: true,
+            data: { message: 'Service recovered' },
+          })
+        );
       })
     );
 
@@ -483,5 +527,6 @@ describe('API Robustness - createRecoveryScenario Integration', () => {
 
     expect(response.status).toBe(200);
     expect(response.data.success).toBe(true);
+    expect(attemptCount).toBe(2);
   });
 });
