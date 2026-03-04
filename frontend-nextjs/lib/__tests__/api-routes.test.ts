@@ -6,7 +6,11 @@
  */
 
 import { createMocks } from 'node-mocks-http';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import handler from '../../pages/api/agent-governance/[...path]';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 describe('Agent Governance API - Integration Tests', () => {
   beforeEach(() => {
@@ -20,8 +24,8 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['health'] },
       });
 
-      // Mock fetch
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      // Use the mocked fetch from setup.ts
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'healthy' }),
       });
@@ -45,7 +49,7 @@ describe('Agent Governance API - Integration Tests', () => {
         body,
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true }),
       });
@@ -68,7 +72,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['test'] },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         json: async () => ({ error: 'Internal Server Error' }),
@@ -86,7 +90,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['test'] },
       });
 
-      global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network error'));
+      (global.fetch as jest.Mock).mockRejectedValueOnce.mockRejectedValueOnce(new Error('Network error'));
 
       await handler(req, res);
 
@@ -103,7 +107,7 @@ describe('Agent Governance API - Integration Tests', () => {
         body: { test: 'data' },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -127,7 +131,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['endpoint'], 'otherParam': 'value', 'path': ['should-be-filtered'] },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -145,7 +149,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['test'], 'param1': 'value1', 'param2': 'value2' },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -166,7 +170,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['health'] },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -186,7 +190,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['agents', '123', 'status'] },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -206,7 +210,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: {},
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -232,7 +236,7 @@ describe('Agent Governance API - Integration Tests', () => {
           body: method === 'GET' ? undefined : { data: 'test' },
         });
 
-        global.fetch = jest.fn().mockResolvedValueOnce({
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => ({}),
         });
@@ -253,7 +257,7 @@ describe('Agent Governance API - Integration Tests', () => {
         query: { path: ['test'] },
       });
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       });
@@ -295,7 +299,7 @@ describe('Workflow API Routes - Integration Tests', () => {
           },
         });
 
-        global.fetch = jest.fn().mockResolvedValueOnce({
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             valid: true,
@@ -318,7 +322,7 @@ describe('Workflow API Routes - Integration Tests', () => {
           },
         });
 
-        global.fetch = jest.fn().mockResolvedValueOnce({
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             valid: false,

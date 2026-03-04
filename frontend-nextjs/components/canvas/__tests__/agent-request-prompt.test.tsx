@@ -9,9 +9,15 @@
  */
 
 import React from 'react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import '@testing-library/jest-dom';
 import AgentRequestPrompt, { RequestData, RequestOption } from '../AgentRequestPrompt';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 // Mock WebSocket hook - Simulates the old API used by the component
 const mockSocket = {
@@ -39,7 +45,6 @@ jest.mock('next-auth/react', () => ({
 }));
 
 // Mock fetch for API calls
-global.fetch = jest.fn();
 
 // Helper to create mock request data
 const createMockRequestData = (overrides: Partial<RequestData> = {}): RequestData => ({

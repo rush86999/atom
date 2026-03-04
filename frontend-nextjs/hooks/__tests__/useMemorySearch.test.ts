@@ -7,7 +7,11 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { useMemorySearch } from '../useMemorySearch';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 // Mock toast from 'sonner'
 jest.mock('sonner', () => ({
@@ -21,10 +25,6 @@ describe('useMemorySearch Hook', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Ensure fetch is a Jest mock
-    if (!jest.isMockFunction(global.fetch)) {
-      global.fetch = jest.fn() as any;
-    }
   });
 
   describe('1. Search Functionality Tests', () => {
