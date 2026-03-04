@@ -224,7 +224,13 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Hook error handling tested with error boundary validation
   4. Hook cleanup functions tested for memory leak prevention
   5. Hook tests pass independently of component tests
-**Plans**: TBD
+**Plans**: 6 plans (Wave 1: 01, Wave 2: 02-03 parallel, Wave 3: 04-05 parallel, Wave 4: 06)
+- [ ] 131-01-PLAN.md — Simple state hooks (use-toast, useUndoRedo, useVoiceIO) with timer cleanup
+- [ ] 131-02-PLAN.md — Async hooks (useCognitiveTier, useFileUpload, useLiveContacts, useLiveKnowledge)
+- [ ] 131-03-PLAN.md — Browser API hooks (useSpeechRecognition, useTextToSpeech, useVoiceAgent)
+- [ ] 131-04-PLAN.md — Live data hooks (useLiveSupport, useLiveFinance, useLiveProjects, useLiveSales, useLiveCommunication)
+- [ ] 131-05-PLAN.md — Search and security hooks (useCommunicationSearch, useMemorySearch, useSecurityScanner, useCliHandler)
+- [ ] 131-06-PLAN.md — Complex hooks (useUserActivity, useWhatsAppWebSocket, useWhatsAppWebSocketEnhanced) + test helpers
 
 ### Phase 132: Frontend Accessibility Compliance
 **Goal**: Accessibility compliance validated with jest-axe for WCAG compliance
