@@ -115,3 +115,23 @@ jobs:
               console.log(\`Statements: \${total.statements.pct}% (\${total.statements.covered}/\${total.statements.total})\`);
             "
           fi
+
+      - name: Generate coverage audit report
+        working-directory: ./frontend-nextjs
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "=== Generating Per-Module Coverage Audit ==="
+            node scripts/coverage-audit.js --format=json > coverage-audit-report.json
+            echo "Per-module audit generated:"
+            node scripts/coverage-audit.js
+          fi
+
+      - name: Upload coverage audit artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-audit
+          path: frontend-nextjs/coverage-audit-report.json
+          retention-days: 30
+          if-no-files-found: warn
