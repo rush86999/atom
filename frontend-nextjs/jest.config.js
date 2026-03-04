@@ -25,11 +25,11 @@ module.exports = {
   coverageDirectory: "coverage",
   coverageReporters: ["json", "json-summary", "text", "lcov"],
   coverageThreshold: {
-    // Global floor - ramp to 80% by end of Phase 130
+    // Global floor raised to 80% (Phase 130-05: graduated rollout complete)
     global: {
       branches: 75,
-      functions: 75,
-      lines: 75,
+      functions: 80,
+      lines: 80,
       statements: 75,
     },
     // Utilities - critical infrastructure, highly testable
@@ -60,13 +60,12 @@ module.exports = {
       lines: 80,
       statements: 80,
     },
-    // Integration components - complex, external dependencies
-    // Starting at 70%, ramp to 80% in Phase 131+
+    // Integration components - graduated rollout complete (70% -> 80%)
     './components/integrations/**/*.{ts,tsx}': {
-      branches: 65,
-      functions: 70,
-      lines: 70,
-      statements: 70,
+      branches: 70,
+      functions: 75,
+      lines: 80,  // Raised from 70%
+      statements: 75,
     },
     // Next.js pages
     './pages/**/*.{ts,tsx}': {
