@@ -9,8 +9,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useChatMemory } from '../useChatMemory';
 
-// Mock fetch API
-global.fetch = jest.fn();
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 describe('useChatMemory Hook', () => {
   beforeEach(() => {

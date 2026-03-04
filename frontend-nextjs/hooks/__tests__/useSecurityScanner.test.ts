@@ -7,7 +7,11 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { useSecurityScanner } from '../useSecurityScanner';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 // Mock toast from 'sonner'
 jest.mock('sonner', () => ({
@@ -26,10 +30,6 @@ describe('useSecurityScanner Hook', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Ensure fetch is a Jest mock
-    if (!jest.isMockFunction(global.fetch)) {
-      global.fetch = jest.fn() as any;
-    }
     // Reset window.__TAURI__
     delete (window as any).__TAURI__;
   });
