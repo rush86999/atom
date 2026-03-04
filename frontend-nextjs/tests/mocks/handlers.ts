@@ -73,7 +73,6 @@
  * Note: This file contains endpoint-specific handlers. For generic error handlers
  * (network errors, malformed responses, etc.), see tests/mocks/errors.ts
  */
- */
 
 import { rest, RestHandler } from 'msw';
 
