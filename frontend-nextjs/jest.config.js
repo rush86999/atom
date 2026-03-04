@@ -80,8 +80,20 @@ module.exports = {
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transformIgnorePatterns: [
-    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got|msw|@mswjs|@mswjs/interceptors))"
+    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got|msw|@mswjs|@mswjs/interceptors|axios))"
   ],
+
+  // Performance optimizations (Phase 134-11)
+  maxWorkers: '50%', // Use half of available CPU cores for parallel execution
+  cache: true, // Enable Jest cache (default: true, ensure not disabled)
+  clearMocks: true, // Clear mocks automatically between tests
+  resetMocks: true, // Reset mocks automatically between tests
+  restoreMocks: true, // Restore mocks automatically between tests
+
+  // Reduce test overhead
+  testTimeout: 10000, // Default timeout (10s)
+  bail: false, // Don't stop on first failure (default)
+
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
     "^@pages/(.*)$": "<rootDir>/pages/$1",
