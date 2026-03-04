@@ -2,7 +2,9 @@
 
 ## Overview
 
-Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mobile, desktop) through targeted coverage gap closure, property-based testing expansion, and cross-platform integration testing. Starting from milestone v5.1 completion (backend 74.6%, frontend 89.84%, mobile 16.16%, desktop TBD), v5.2 focuses on bringing all platforms to 80%+ coverage with shared test utilities, API contract testing, and unified quality infrastructure.
+Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mobile, desktop) through targeted coverage gap closure, property-based testing expansion, and cross-platform integration testing. Starting from milestone v5.1 completion (backend 26.15%, frontend 1.41%, mobile 16.16%, desktop TBD), v5.2 focuses on bringing all platforms to 80%+ coverage with shared test utilities, API contract testing, and unified quality infrastructure.
+
+**Note:** Frontend coverage baseline corrected from 89.84% (documentation error) to 1.41% actual (Phase 130-01). The 89.84% figure incorrectly referred to backend coverage.
 
 ## Milestones
 
@@ -95,9 +97,11 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 
 ### 🚧 v5.2 Complete Codebase Coverage (In Progress)
 
-**Milestone Goal:** Achieve 80% test coverage across all platforms (backend 26.15%→80%, frontend 89.84%→80%+, mobile 16.16%→80%, desktop TBD→80%) with unified test infrastructure, API contract testing, and cross-platform property testing.
+**Milestone Goal:** Achieve 80% test coverage across all platforms (backend 26.15%→80%, frontend 1.41%→80%+, mobile 16.16%→80%, desktop TBD→80%) with unified test infrastructure, API contract testing, and cross-platform property testing.
 
 **Note:** ROADMAP previously claimed 74.6% backend baseline from Phase 126. Phase 127-07 investigation revealed this measurement included only agent_governance_service.py (single file). Accurate production code baseline (core/, api/, tools/ only) is 26.15%. This plan closes the 53.85 pp gap to 80% target.
+
+**Frontend Coverage Note:** ROADMAP previously claimed 89.84% frontend baseline. Phase 130-01 investigation revealed this was a documentation error (referring to backend, not frontend). Accurate frontend baseline is 1.41% (Phase 130-05, after excluding test files from coverage collection). Phase 130 established coverage infrastructure with per-module thresholds (80% global floor, 90/85/80% module tiers).
 
 - [ ] **Phase 127: Backend Final Gap Closure** - Backend coverage reaches 80% target (26.15% → 80%, 53.85 percentage point gap)
 - [ ] **Phase 128: Backend API Contract Testing** - OpenAPI spec validation with Schemathesis
@@ -202,13 +206,13 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Tests added for uncovered components and utilities
   4. Module-level coverage enforced in quality gates
   5. Coverage trend shows consistent improvement across modules
-**Plans**: 6 plans created (Wave 1: 01, Wave 2: 02, Wave 3: 03-04 parallel, Wave 4: 05, Wave 5: 06)
-- [ ] 130-01-PLAN.md — Coverage audit and baseline verification (discrepancy: 4.87% actual vs 89.84% claimed)
-- [ ] 130-02-PLAN.md — Coverage gap analysis and test plan (prioritization by business value)
-- [ ] 130-03-PLAN.md — Integration component tests (Asana, Jira, Slack, Notion)
-- [ ] 130-04-PLAN.md — Dashboard and core feature tests (Dashboard, CommunicationHub, Calendar, Tasks, Search)
-- [ ] 130-05-PLAN.md — Per-module coverage enforcement script and thresholds
-- [ ] 130-06-PLAN.md — CI integration and quality gate workflow
+**Plans**: 6/6 complete (Wave 1: 01, Wave 2: 02, Wave 3: 03-04 parallel, Wave 4: 05, Wave 5: 06) ✅
+- [x] 130-01-PLAN.md — Coverage audit and baseline verification (discrepancy resolved: 1.41% actual, 89.84% was backend)
+- [x] 130-02-PLAN.md — Coverage gap analysis and test plan (613 files below threshold identified)
+- [x] 130-03-PLAN.md — Integration component tests (17 test suites, 30+ MSW handlers created)
+- [x] 130-04-PLAN.md — Dashboard and core feature tests (property-based tests established)
+- [x] 130-05-PLAN.md — Per-module coverage enforcement script and thresholds (CI/CD operational)
+- [x] 130-06-PLAN.md — CI integration and quality gate workflow (trend tracking, documentation complete)
 
 ### Phase 131: Frontend Custom Hook Testing
 **Goal**: Custom hooks tested in isolation with @testing-library/react-hooks
