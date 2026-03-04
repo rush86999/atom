@@ -60,10 +60,20 @@ apiClient.interceptors.response.use(
     });
 
     // Don't retry if no config or request already marked to not retry
-    if (!originalRequest || originalRequest.retry === false) {
+    if (!originalRequest || originalRequest.__isRetryRequest === true) {
       // Enhance error with user-friendly properties before rejecting
       return Promise.reject(enhanceError(error));
     }
+
+    // Check if retry is explicitly disabled
+    if (originalRequest.retry === false) {
+      // Enhance error with user-friendly properties before rejecting
+      return Promise.reject(enhanceError(error));
+    }
+
+    // Mark the request to bypass this interceptor to prevent infinite loop
+    // This allows @lifeomic/attempt to handle retries without going through the interceptor again
+    originalRequest.__isRetryRequest = true;
 
     // Use @lifeomic/attempt retry for exponential backoff and jitter
     try {
@@ -84,9 +94,9 @@ apiClient.interceptors.response.use(
             return isRetryableError(attemptError);
           },
           beforeAttempt: (context: any) => {
-            // Log retry attempts for debugging
+            // Log retry attempts for debugging (context.attemptNum is 1-indexed)
             if (context.attemptNum > 1) {
-              console.log(`Retry attempt ${context.attemptNum} of ${context.options.maxAttempts}`);
+              console.log(`Retry attempt ${context.attemptNum} of ${MAX_RETRIES}`);
             }
           },
         }
