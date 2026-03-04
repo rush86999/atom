@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 133 of 26 (Frontend API Integration Robustness)
-Plan: 04 (Error Recovery Integration Tests)
+Plan: 05 (Documentation & CI/CD)
 Status: Complete
-Last activity: 2026-03-04 — Phase 133 Plan 04 completed (Error recovery MSW handlers with factory pattern, integration tests for API robustness, component-level error recovery tests. 3 tasks, 4 files, 8 minutes. 21 tests passing (16 handler + 5 component), 12 integration tests need MSW investigation. Deviations: Fixed MSW network/timeout handling to use 503 responses instead of throwing errors.)
+Last activity: 2026-03-04 — Phase 133 Plan 05 completed (Comprehensive documentation (1,129-line API_ROBUSTNESS.md), expanded MSW error handlers (24 scenarios across 4 API categories), CI/CD workflow (6 jobs, 80% coverage enforcement). 4 tasks, 4 files, 6 minutes. All success criteria met: MSW handlers expanded, documentation complete, CI/CD workflow created, verification document finished.)
 
-Progress: [████░] 80% (Plan 04/5 complete)
+Progress: [█████] 100% (Phase 133 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 3 plans)
-- Average duration: 6.8 minutes
-- Total execution time: 7 hours 2 minutes
+- Total plans completed: 67 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 5 plans)
+- Average duration: 6.7 minutes
+- Total execution time: 7 hours 30 minutes
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████░] 80% (Plan 04/5 complete)
 | 130 | 6 | 1616s | 269s |
 | 131 | 7 | 2692s | 385s |
 | 132 | 5 | 1091s | 218s |
-| 133 | 3 | 1440s | 480s |
+| 133 | 5 | 1788s | 358s |
 
 **Recent Trend:**
-- Last plan: 480s (133-03)
-- Trend: Fast (loading state testing infrastructure)
+- Last plan: 348s (133-05)
+- Trend: Fast (documentation and CI/CD automation)
 
 *Updated after each plan completion*
 | Phase 127 P127-01 | 174 | 1 task | 2 files |
@@ -94,6 +94,8 @@ Progress: [████░] 80% (Plan 04/5 complete)
 | Phase 133 P03 | 480 | 3 tasks | 4 files |
 | Phase 133 P02 | 240 | 3 tasks | 3 files |
 | Phase 133 P04 | 514 | 3 tasks | 4 files |
+| Phase 133 P05 | 348 | 4 tasks | 4 files |
+| Phase 133 P05 | 348 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -237,6 +239,10 @@ Recent decisions affecting current work:
 - [Phase 129]: HTTP timeout testing uses httpx exceptions directly instead of respx for simpler mocking - no HTTP layer overhead while still testing actual timeout handling logic
 - [Phase 133]: MSW handlers cannot throw actual network errors in Node.js/jsdom - use 503 responses instead
 - [Phase 133]: Component-level tests work reliably with mocked onSubmit, integration tests need MSW + @lifeomic/attempt investigation
+- **Phase 133 (Plan 05)**: Export error handlers separately from default handlers (allHandlers) for explicit test intent - success handlers for happy path, error handlers imported only when testing error scenarios
+- **Phase 133 (Plan 05)**: CI/CD workflow uses 6 separate jobs for parallel execution (15-20 min total) with isolated failures - retry logic test failure doesn't block error message tests
+- **Phase 133 (Plan 05)**: Coverage thresholds set to 80% for api.ts (enforced, fails build) and 90% for error-mapping.ts (non-blocking, logged only) - balances quality with developer velocity
+- **Phase 133 (Plan 05)**: API_ROBUSTNESS.md provides 1,129-line comprehensive guide covering 9 sections (MSW usage, error mapping, retry logic, loading states, integration patterns, pitfalls, CI/CD, troubleshooting) with code examples throughout
 
 ### Pending Todos
 
@@ -248,7 +254,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04 (133-03 execution)
-Stopped at: Phase 133 Plan 03 complete - Loading state testing infrastructure (3 tasks, 4 files, 480 seconds). MSW handlers with ctx.delay() for realistic loading simulation (502 lines), comprehensive loading state tests using waitFor/findBy* patterns (866 lines), reusable test helpers for loading assertions (800 lines). No fakeTimers used (anti-pattern), all transitions validated.
+Last session: 2026-03-04 (133-05 execution)
+Stopped at: Phase 133 Plan 05 complete - Documentation & CI/CD (4 tasks, 4 files, 348 seconds). Comprehensive API robustness documentation (1,129 lines, 9 sections), expanded MSW error handlers (24 scenarios across 4 API categories), CI/CD workflow (6 jobs, 80% coverage enforcement), phase verification document (400 lines, all success criteria assessed). Phase 133 complete (5/5 plans).
 Resume file: None
-Next phase: Phase 133 Plan 04 - Error scenario simulation with MSW handlers for 4xx/5xx responses
+Next phase: Phase 134 - Frontend Performance Testing (uses loading state infrastructure from Phase 133)
