@@ -22,13 +22,17 @@ const THRESHOLDS = {
 };
 
 function getThresholdForFile(filepath) {
+  // Normalize filepath to relative path for matching
+  const relativePath = filepath.replace(/.*\/frontend-nextjs\//, '');
+
   for (const [pattern, config] of Object.entries(THRESHOLDS)) {
     // Convert glob pattern to regex
+    // e.g., './lib/**/*.{ts,tsx}' -> '^lib/'
     const regexPattern = pattern
-      .replace('./', '')
-      .replace('/**/*.{ts,tsx}', '/')
-      .replace('*', '.*');
-    if (filepath.match(regexPattern)) {
+      .replace('./', '^')
+      .replace('/\*\*/\*\.{ts,tsx}', '/')
+      .replace('{ts,tsx}', '(ts|tsx)');
+    if (relativePath.match(regexPattern)) {
       return config;
     }
   }
@@ -56,7 +60,9 @@ function analyzeGaps(coverage) {
     const uncovered = metrics.lines.total - metrics.lines.covered;
 
     // Track module-level summary
-    const moduleKey = filepath.split('/')[1] || 'root';
+    const relativePath = filepath.replace(/.*\/frontend-nextjs\//, '');
+    // Use the threshold name as the module key for proper aggregation
+    const moduleKey = threshold.name;
     if (!moduleSummary[moduleKey]) {
       moduleSummary[moduleKey] = {
         name: threshold.name,
@@ -66,14 +72,14 @@ function analyzeGaps(coverage) {
         coveredLines: 0,
       };
     }
-    moduleSummary[moduleKey].files.push(filepath);
+    moduleSummary[moduleKey].files.push(relativePath);
     moduleSummary[moduleKey].totalLines += metrics.lines.total;
     moduleSummary[moduleKey].coveredLines += metrics.lines.covered;
 
     // Identify gaps
     if (linePct < threshold.lines) {
       gaps.push({
-        file: filepath,
+        file: relativePath,
         coverage: linePct,
         threshold: threshold.lines,
         uncovered: uncovered,
