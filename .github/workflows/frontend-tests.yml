@@ -3,12 +3,17 @@ name: Frontend Tests
 on:
   push:
     branches: [main, develop]
+    paths:
+      - 'frontend-nextjs/**'
   pull_request:
     branches: [main, develop]
+    paths:
+      - 'frontend-nextjs/**'
   workflow_dispatch:
 
 jobs:
   test:
+    name: Frontend Test Suite
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -27,9 +32,91 @@ jobs:
         working-directory: ./frontend-nextjs
         run: npm ci --legacy-peer-deps
 
+      - name: Clear Jest cache
+        working-directory: ./frontend-nextjs
+        run: npx jest --clearCache
+
       - name: Run tests with coverage
+        id: test-coverage
         working-directory: ./frontend-nextjs
         run: npm run test:ci -- --maxWorkers=2
+
+      - name: Check module thresholds
+        id: module-coverage
+        working-directory: ./frontend-nextjs
+        run: |
+          node scripts/check-module-coverage.js --reporter=github-actions
+        continue-on-error: true
+
+      - name: Generate coverage report
+        if: always()
+        working-directory: ./frontend-nextjs
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node scripts/coverage-audit.js --format=markdown > coverage-report.md
+            node scripts/coverage-gaps.js --format=markdown >> coverage-report.md
+          fi
+
+      - name: Comment PR with coverage report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const reportPath = 'frontend-nextjs/coverage-report.md';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('Coverage report not found');
+              return;
+            }
+
+            const report = fs.readFileSync(reportPath, 'utf8');
+            const header = '## Frontend Module Coverage Report';
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes(header)
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report,
+              });
+            }
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-${{ github.sha }}
+          path: frontend-nextjs/coverage/
+          retention-days: 30
+
+      - name: Upload coverage trend data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-trend-${{ github.sha }}
+          path: frontend-nextjs/coverage/coverage-summary.json
+          retention-days: 90
 
       - name: Generate test results JSON
         working-directory: ./frontend-nextjs
@@ -72,24 +159,6 @@ jobs:
             # Exit code check already handled by test step
           fi
 
-      - name: Upload coverage artifact (JSON)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-coverage
-          path: frontend-nextjs/coverage/coverage-final.json
-          retention-days: 7
-          if-no-files-found: warn
-
-      - name: Upload coverage artifact (HTML)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-coverage-html
-          path: frontend-nextjs/coverage/
-          retention-days: 7
-          if-no-files-found: warn
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -116,17 +185,6 @@ jobs:
             "
           fi
 
-      - name: Generate coverage audit report
-        working-directory: ./frontend-nextjs
-        if: always()
-        run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            echo "=== Generating Per-Module Coverage Audit ==="
-            node scripts/coverage-audit.js --format=json > coverage-audit-report.json
-            echo "Per-module audit generated:"
-            node scripts/coverage-audit.js
-          fi
-
       - name: Upload coverage audit artifact
         uses: actions/upload-artifact@v4
         if: always()
@@ -135,3 +193,7 @@ jobs:
           path: frontend-nextjs/coverage-audit-report.json
           retention-days: 30
           if-no-files-found: warn
+
+      - name: Fail if module coverage check failed
+        if: steps.module-coverage.outcome == 'failure'
+        run: exit 1
