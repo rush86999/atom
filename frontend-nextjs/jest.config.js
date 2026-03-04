@@ -19,6 +19,8 @@ module.exports = {
     "!**/*.d.ts",
     "!**/node_modules/**",
     "!**/.next/**",
+    "!**/__tests__/**",
+    "!**/*.test.{ts,tsx,js}",
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["json", "json-summary", "text", "lcov"],
