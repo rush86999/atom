@@ -242,7 +242,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Keyboard navigation tested for interactive components
   4. ARIA attributes validated for screen reader compatibility
   5. Accessibility violations block merge with specific remediation guidance
-**Plans**: TBD
+**Plans**: 5 plans (Wave 1: 01, Wave 2: 02-03 parallel, Wave 3: 04, Wave 4: 05)
+- [ ] 132-01-PLAN.md — jest-axe configuration and setup (global matcher, helper module)
+- [ ] 132-02-PLAN.md — Core UI component accessibility tests (Button, Input, Select, Dialog, Checkbox, Switch)
+- [ ] 132-03-PLAN.md — Compound component accessibility tests (Tabs, Accordion, Tooltip, Popover, Dropdown)
+- [ ] 132-04-PLAN.md — Canvas component accessibility tests (AgentOperationTracker, InteractiveForm, ViewOrchestrator, Charts)
+- [ ] 132-05-PLAN.md — CI/CD integration and documentation (GitHub Actions workflow, ACCESSIBILITY.md)
 
 ### Phase 133: Frontend API Integration Robustness
 **Goal**: API integration robust with MSW error handling and retry logic
@@ -496,7 +501,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 129. Backend Critical Error Paths | v5.2 | 0/TBD | Not started | - |
 | 130. Frontend Module Coverage | v5.2 | 0/TBD | Not started | - |
 | 131. Frontend Custom Hooks | v5.2 | 0/TBD | Not started | - |
-| 132. Frontend Accessibility | v5.2 | 0/TBD | Not started | - |
+| 132. Frontend Accessibility | v5.2 | 5 | Planning | 2026-03-03 |
 | 133. Frontend API Integration | v5.2 | 0/TBD | Not started | - |
 | 134. Frontend Failing Tests Fix | v5.2 | 0/TBD | Not started | - |
 | 135. Mobile Coverage Foundation | v5.2 | 0/TBD | Not started | - |
