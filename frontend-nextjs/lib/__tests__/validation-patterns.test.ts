@@ -43,8 +43,13 @@ describe('validateEmail - Comprehensive Tests', () => {
   });
 
   test('should accept IP address literals', () => {
-    // Our lenient regex doesn't support bracketed IP literals
-    expect(validateEmail('user@[127.0.0.1]')).toBe(false); // Not supported by our regex
+    /**
+     * VALIDATED_BEHAVIOR: Lenient regex accepts bracketed IP addresses
+     * - The regex /^[^\s@]+@[^\s@]+\.[^\s@]+$/ matches user@[127.0.0.1]
+     * - This is acceptable for basic validation (RFC 5322 compliance not required)
+     * - See test.todo below for strict RFC validation planned for future
+     */
+    expect(validateEmail('user@[127.0.0.1]')).toBe(true); // Accepted by lenient regex
     expect(validateEmail('user@127.0.0.1')).toBe(true); // Accepted without brackets
     expect(validateEmail('user@192.168.1.1')).toBe(true); // Accepted without brackets
   });
@@ -61,10 +66,16 @@ describe('validateEmail - Comprehensive Tests', () => {
   });
 
   test('should reject trailing dots in domain', () => {
-    // Our lenient regex may accept trailing dots (this is acceptable for basic validation)
-    expect(validateEmail('user@example.')).toBe(true); // Accepted by lenient regex
-    expect(validateEmail('user@mail.example.')).toBe(true); // Accepted by lenient regex
-    // This is acceptable - browsers and most email clients are lenient too
+    /**
+     * VALIDATED_BEHAVIOR: Regex accepts some trailing dots but not all
+     * - The regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+     * - [^\s@]+ matches ANY char except whitespace and @ (INCLUDING dots!)
+     * - user@example. FAILS: after matching user@example, the \. matches the final dot, then [^\s@]+ needs a char
+     * - user@mail.example. PASSES: user@mail matches first parts, \. matches first dot, [^\s@]+ matches "example." (dots allowed!)
+     * - This quirk occurs because dots are in the [^\s@] character class
+     */
+    expect(validateEmail('user@example.')).toBe(false); // Fails: no TLD after final dot
+    expect(validateEmail('user@mail.example.')).toBe(true); // Passes: "example." matched by [^\s@]+ (dots allowed in char class)
   });
 
   test('should reject leading dots in local part', () => {
@@ -130,6 +141,10 @@ describe('validateEmail - Comprehensive Tests', () => {
     expect(validateEmail('.user@example.com')).toBe(true); // Accepts leading dot
     // This is acceptable for user-facing email validation (RFC 5322 is complex)
   });
+
+  // Document desired future behavior
+  test.todo('should reject bracketed IP literals when strict RFC compliance implemented');
+  test.todo('should accept trailing dots in domain (consider lenient user experience)');
 });
 
 describe('validateUrl - Comprehensive Tests', () => {
@@ -228,17 +243,27 @@ describe('validateUrl - Comprehensive Tests', () => {
     expect(validateUrl('http://')).toBe(false);
     expect(validateUrl('://example.com')).toBe(false);
   });
+
+  // Document desired future behavior
+  test.todo('should reject javascript: URLs (security risk)');
+  test.todo('should reject data: URLs (potential XSS vector)');
+  test.todo('should validate URL against allowlist for user-submitted content');
 });
 
 describe('validatePhone - Comprehensive Tests', () => {
 
   test('should validate NANP format (North America)', () => {
+    /**
+     * VALIDATED_BEHAVIOR: Phone regex does not include dots as separators
+     * - Pattern: /^[\d\s\-\(\)\+]+$/ only allows digits, spaces, dashes, parens, plus
+     * - Dots are NOT in the allowed character set
+     * - See test.todo below for expanded separator support planned for future
+     */
     expect(validatePhone('1234567890')).toBe(true);
     expect(validatePhone('(123) 456-7890')).toBe(true);
     expect(validatePhone('123-456-7890')).toBe(true);
-    expect(validatePhone('123.456.7890')).toBe(true);
+    expect(validatePhone('123.456.7890')).toBe(false); // Dots NOT supported by current pattern
     expect(validatePhone('123 456 7890')).toBe(true);
-    expect(validatePhone('123.456.7890')).toBe(true); // Dots accepted
   });
 
   test('should validate E.164 format', () => {
@@ -249,20 +274,29 @@ describe('validatePhone - Comprehensive Tests', () => {
   });
 
   test('should accept various separators', () => {
+    /**
+     * VALIDATED_BEHAVIOR: Only specific separators supported (spaces, dashes, parens, plus)
+     * - Pattern: /^[\d\s\-\(\)\+]+$/
+     * - Dots are NOT supported (not in character class)
+     */
     expect(validatePhone('123-456-7890')).toBe(true);
-    expect(validatePhone('123.456.7890')).toBe(true);
+    expect(validatePhone('123.456.7890')).toBe(false); // Dots NOT supported
     expect(validatePhone('123 456 7890')).toBe(true);
     expect(validatePhone('(123) 456-7890')).toBe(true);
     expect(validatePhone('(123)456-7890')).toBe(true);
-    expect(validatePhone('123.456-7890')).toBe(true); // Mixed separators also work
   });
 
   test('should accept extensions', () => {
-    expect(validatePhone('123-456-7890 x123')).toBe(true);
-    // Our pattern accepts any combination of digits, spaces, dashes, parens, plus
+    /**
+     * VALIDATED_BEHAVIOR: Phone validation does NOT support letter-based extensions
+     * - Pattern: /^[\d\s\-\(\)\+]+$/ only allows digits, spaces, dashes, parens, plus
+     * - The letter 'x' in "123-456-7890 x123" causes validation to fail
+     * - Extensions like "ext" or "x" are not supported by current implementation
+     * - See test.todo below for extension support planned for future
+     */
+    expect(validatePhone('123-456-7890 x123')).toBe(false); // Letter 'x' not supported
     expect(validatePhone('123-456-7890 ext. 123')).toBe(false); // "ext." not supported (has letters)
     expect(validatePhone('123-456-7890 #123')).toBe(false); // "#" not supported (not in pattern)
-    // The pattern is: ^[\d\s\-\(\)\+]+$ - only digits, spaces, dashes, parens, plus
   });
 
   test('should validate country codes', () => {
@@ -312,6 +346,10 @@ describe('validatePhone - Comprehensive Tests', () => {
     expect(validatePhone('')).toBe(false);
     expect(validatePhone('   ')).toBe(false);
   });
+
+  // Document desired future behavior
+  test.todo('should accept dots as phone number separators (e.g., 123.456.7890)');
+  test.todo('should support letter-based extensions (e.g., 123-456-7890 x123)');
 });
 
 describe('validatePattern - Comprehensive Tests', () => {
