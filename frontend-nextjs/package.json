@@ -16,6 +16,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --watchAll=false --coverage --maxWorkers=2 --passWithNoTests",
     "test:silent": "jest --ci --watchAll=false --no-coverage",
+    "test:check-coverage": "node scripts/check-module-coverage.js --reporter=console",
     "postinstall": "patch-package",
     "analyze": "ANALYZE=true npm run build",
     "lighthouse": "lhci autorun --upload.target=temporary-public-storage",
