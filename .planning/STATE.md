@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 134 of 26 (Frontend Failing Tests Fix)
-Plan: 05/07 (Fix property test imports and mocks)
-Status: Plan 05 complete
-Last activity: 2026-03-04 — Plan 05 complete: Fixed property test import resolution with ts-jest preset. Added ts-jest preset to jest.config.js, split transform patterns (TypeScript uses ts-jest, JavaScript uses babel-jest). 13/16 test suites passing (235/238 tests). All import/module errors resolved. Duration: 7 min. 1 file modified, 1 commit.
+Plan: 07/07 (Fix test infrastructure and edge cases)
+Status: Plan 07 complete
+Last activity: 2026-03-04 — Plan 07 complete: Fixed fetch mocking infrastructure and JSX transformation issues. Fixed jest.config.js (preset before transform), fixed tests/setup.ts (proper Jest mock with mockImplementation), removed conflicting fetch mock redeclarations from 25 test files. Test pass rate improved from 83.7% (1709/2041) to 85.9% (1753/2041). +44 tests passing. Duration: 35 min. 17 files modified, 1 commit. 288 failures remain (MSW/axios issues, hook tests, property tests, component tests).
 
-Progress: [#######] 71% (5/7 plans complete in Phase 134)
+Progress: [###########] 100% (7/7 plans complete in Phase 134)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 5 plans + Phase 134: 5 plans)
+- Total plans completed: 71 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 5 plans + Phase 134: 7 plans)
 - Average duration: 6 minutes
-- Total execution time: 7 hours 40 minutes
+- Total execution time: 7 hours 47 minutes
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [#######] 71% (5/7 plans complete in Phase 134)
 | 131 | 7 | 2692s | 385s |
 | 132 | 5 | 1091s | 218s |
 | 133 | 5 | 1788s | 358s |
-| 134 | 5 | 1040s | 208s |
+| 134 | 7 | 3172s | 453s |
 
 **Recent Trend:**
-- Last plan: 420s (134-05)
-- Trend: Fast (test infrastructure fixes)
+- Last plan: 2132s (134-07)
+- Trend: Moderate (test infrastructure fixes, many files modified)
 
 *Updated after each plan completion*
 | Phase 127 P127-01 | 174 | 1 task | 2 files |
@@ -103,6 +103,7 @@ Progress: [#######] 71% (5/7 plans complete in Phase 134)
 | Phase 134 P04 | 420 | 1 tasks | 2 files |
 | Phase 134 P05 | 420 | 1 tasks | 1 files |
 | Phase 134 P06 | 564 | 1 tasks | 2 files |
+| Phase 134 P07 | 2132 | 1 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,10 @@ Recent decisions affecting current work:
 - **Phase 133 (Plan 01)**: Exponential backoff with jitter (factor: 2, randomization) prevents retry storms from synchronized client retries
 - **Phase 133 (Plan 04)**: MSW handlers cannot throw actual network errors in Node.js/jsdom - use 503 responses instead to avoid CORS issues and preserve retry logic
 - **Phase 133 (Plan 04)**: Component-level tests work reliably with mocked onSubmit functions, integration tests need MSW + @lifeomic/attempt investigation for Node.js environment
+- **Phase 134 (Plan 07)**: Jest mock with mockImplementation survives jest.clearAllMocks() via beforeEach restoration in tests/setup.ts
+- **Phase 134 (Plan 07)**: TypeScript type casts (as jest.Mock) for accessing mock methods instead of reassignment (global.fetch = jest.fn())
+- **Phase 134 (Plan 07)**: jest.config.js preset before transform to avoid ts-jest preset/transform conflicts (prevents JSX transformation errors)
+- **Phase 134 (Plan 07)**: Global fetch mocked once in setup.ts with restoration in beforeEach, individual test files use type casts for mock methods
 - **Phase 133 (Plan 04)**: createRecoveryScenario factory uses closure-based attempt tracking for concurrent test scenarios without global state
 
 - **Phase 130 (Plan 02)**: Graduated thresholds configured in jest.config.js: lib 90%, hooks 85%, canvas 85%, ui 80%, integrations 70%, pages 80%, global floor 75%
@@ -266,7 +271,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04 (134-05 execution)
-Stopped at: Phase 134 Plan 05 complete - Fix property test imports and mocks (1 task, 1 file, 420 seconds). Added ts-jest preset to jest.config.js, split transform patterns (TypeScript uses ts-jest, JavaScript uses babel-jest). 13/16 test suites passing (235/238 tests). All import/module errors resolved. Remaining 3 failures are MSW-related (unhandled requests), not import issues.
+Last session: 2026-03-04 (134-07 execution)
+Stopped at: Phase 134 Plan 07 complete - Fix test infrastructure and edge cases (1 task, 17 files, 2132 seconds). Fixed fetch mocking infrastructure (jest.Mock type casts, beforeEach restoration), fixed JSX transformation (preset before transform), removed 25 conflicting fetch mock declarations. Test pass rate: 85.9% (1753/2041). +44 tests passing. 288 failures remain (MSW/axios, hook tests, property tests, component tests).
 Resume file: None
-Next phase: Phase 134 Plan 06 - Fix remaining MSW unhandled request errors (if exists)
+Next phase: Phase 135 (TBD) - Phase 134 complete

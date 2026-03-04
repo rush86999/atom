@@ -1,11 +1,12 @@
 module.exports = {
-  preset: "ts-jest",
   testEnvironment: "jsdom",
   setupFiles: ["<rootDir>/tests/polyfills.ts"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   transform: {
+    "^.+\\.(ts|tsx)$": "ts-jest",
     "^.+\\.(js|jsx)$": "babel-jest",
   },
+  preset: "ts-jest",
   testMatch: [
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",

@@ -129,11 +129,8 @@ jest.mock('got', () => ({
   extend: jest.fn(() => jest.fn(() => Promise.resolve({ body: '{}' }))),
 }));
 
-// Mock fetch API with proper Jest mock methods
-global.fetch = jest.fn() as any;
-
-// Set default implementation
-const defaultFetchImpl = () =>
+// Mock fetch API
+global.fetch = jest.fn(() =>
   Promise.resolve({
     ok: true,
     status: 200,
@@ -142,18 +139,8 @@ const defaultFetchImpl = () =>
     blob: async () => new Blob(),
     arrayBuffer: async () => new ArrayBuffer(0),
     headers: {},
-  });
-
-(global.fetch as jest.Mock).mockImplementation(defaultFetchImpl);
-
-// Restore mock implementation after each test (in case tests call jest.clearAllMocks())
-beforeEach(() => {
-  // Re-create mock if it was cleared
-  if (!jest.isMockFunction(global.fetch)) {
-    global.fetch = jest.fn() as any;
-  }
-  (global.fetch as jest.Mock).mockImplementation(defaultFetchImpl);
-});
+  })
+) as any;
 
 // Mock WebSocket - define constants first
 const WEBSOCKET_CONNECTING = 0;
