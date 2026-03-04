@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`getUserFriendlyErrorMessage Snapshot Testing matches snapshot for HTTP errors 1`] = `"Your session has expired. Please log in again."`;
+
+exports[`getUserFriendlyErrorMessage Snapshot Testing matches snapshot for HTTP errors 2`] = `"Something went wrong on our end. Our team has been notified. Please try again later."`;
+
+exports[`getUserFriendlyErrorMessage Snapshot Testing matches snapshot for network errors 1`] = `"Unable to connect to the server. Please check your internet connection."`;
