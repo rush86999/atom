@@ -270,7 +270,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Error states tested with user-friendly error messages
   4. Retry logic tested with exponential backoff validation
   5. Integration tests cover API failure recovery flows
-**Plans**: TBD
+**Plans**: 5 plans (Wave 1: 01-03 parallel, Wave 2: 04, Wave 3: 05)
+- [ ] 133-01-PLAN.md — Exponential backoff retry with @lifeomic/attempt
+- [ ] 133-02-PLAN.md — User-friendly error message mapping utilities
+- [ ] 133-03-PLAN.md — Loading state testing infrastructure
+- [ ] 133-04-PLAN.md — Integration tests for error recovery flows
+- [ ] 133-05-PLAN.md — Documentation, MSW expansion, CI/CD integration
 
 ### Phase 134: Frontend Failing Tests Fix
 **Goal**: Failing frontend tests fixed (21/35 failing, 40% pass rate → 100%)
