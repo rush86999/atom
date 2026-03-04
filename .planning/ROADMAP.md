@@ -202,7 +202,13 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Tests added for uncovered components and utilities
   4. Module-level coverage enforced in quality gates
   5. Coverage trend shows consistent improvement across modules
-**Plans**: TBD
+**Plans**: 6 plans created (Wave 1: 01, Wave 2: 02, Wave 3: 03-04 parallel, Wave 4: 05, Wave 5: 06)
+- [ ] 130-01-PLAN.md — Coverage audit and baseline verification (discrepancy: 4.87% actual vs 89.84% claimed)
+- [ ] 130-02-PLAN.md — Coverage gap analysis and test plan (prioritization by business value)
+- [ ] 130-03-PLAN.md — Integration component tests (Asana, Jira, Slack, Notion)
+- [ ] 130-04-PLAN.md — Dashboard and core feature tests (Dashboard, CommunicationHub, Calendar, Tasks, Search)
+- [ ] 130-05-PLAN.md — Per-module coverage enforcement script and thresholds
+- [ ] 130-06-PLAN.md — CI integration and quality gate workflow
 
 ### Phase 131: Frontend Custom Hook Testing
 **Goal**: Custom hooks tested in isolation with @testing-library/react-hooks

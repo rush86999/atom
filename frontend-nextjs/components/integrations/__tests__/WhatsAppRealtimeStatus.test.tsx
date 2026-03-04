@@ -7,7 +7,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { rest } from 'msw';
-import { server } from '../../tests/mocks/handlers';
+import { server } from '../../../tests/mocks/server';
 import WhatsAppRealtimeStatus from '../WhatsAppRealtimeStatus';
 
 describe('WhatsAppRealtimeStatus Component', () => {
