@@ -287,7 +287,14 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Tests fixed with proper mocking and async handling
   4. Test reliability verified with flaky test detection
   5. Frontend test suite achieves 100% pass rate
-**Plans**: TBD
+**Plans**: 7 plans (Wave 1: 01-03 parallel, Wave 2: 04-05 parallel, Wave 3: 06, Wave 4: 07)
+- [ ] 134-01-PLAN.md — Fix MSW handlers syntax error (duplicate `*/` on line 76)
+- [ ] 134-02-PLAN.md — Remove duplicate lifecycle hooks (lines 43-48 duplicate 33-40)
+- [ ] 134-03-PLAN.md — Add null-safe MSW server references for graceful degradation
+- [ ] 134-04-PLAN.md — Fix integration test async patterns and mock imports
+- [ ] 134-05-PLAN.md — Fix property-based test import paths and module resolution
+- [ ] 134-06-PLAN.md — Fix validation test expectation mismatches
+- [ ] 134-07-PLAN.md — Verify 100% test pass rate and fix remaining edge cases
 
 ### Phase 135: Mobile Coverage Foundation
 **Goal**: Mobile coverage reaches 80% target (16.16% → 80%, 63.84 percentage point gap)
